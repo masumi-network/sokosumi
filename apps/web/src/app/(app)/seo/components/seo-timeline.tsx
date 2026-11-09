@@ -19,7 +19,12 @@ import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoDate, SeoEmpty, SeoSection, SeoState } from "./seo-shared";
 import { seoCoverageIsNews } from "./seo-statistics-model";
-import { buildSeoTimeline, foldSyncRuns } from "./seo-timeline-model";
+import {
+  buildSeoTimeline,
+  foldCleanChecks,
+  foldSyncRuns,
+  type SeoTimelineNode,
+} from "./seo-timeline-model";
 
 /** Newest events shown before "Show all"; older history is rarely needed to decide what to do next. */
 export const SEO_TIMELINE_VISIBLE = 5;
@@ -97,8 +102,19 @@ export function SeoTimeline({
           new Date(event.at).getTime(),
         ),
       );
-  // Open failures fold into one row.
-  const nodes = foldSyncRuns(
+  const viewed = new Set(workspace.scope.pageIds);
+  // A run leads with what it found; "no issues" needs a complete run that measured something.
+  // Its issue count covers only the viewed pages, so a run with other pages shows no result.
+  function resultOf({ observation }: SeoTimelineNode) {
+    if (!observation || observation.coverage.checked === 0) return null;
+    if (!observation.pageIds.every((id) => viewed.has(id))) return null;
+    const incomplete =
+      observation.coverage.failed > 0 ||
+      (observation.coverage.modules?.failed ?? 0) > 0;
+    return observation.issues > 0 || !incomplete ? observation.issues : null;
+  }
+  // Open failures fold into one row, and so do back-to-back clean checks.
+  const synced = foldSyncRuns(
     buildSeoTimeline(workspace)
       .reverse()
       .filter(
@@ -108,8 +124,8 @@ export function SeoTimeline({
             new Date(event.at).getTime() > (lastRoutine.get(event.title) ?? 0)),
       ),
   );
+  const nodes = foldCleanChecks(synced, (node) => resultOf(node) === 0);
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
-  const viewed = new Set(workspace.scope.pageIds);
   // The market only tells runs apart when they used different ones.
   const manyMarkets =
     new Set(
@@ -124,144 +140,183 @@ export function SeoTimeline({
       ) : (
         <div className={cn(HOLDER_ITEM_CLASS, "p-2")}>
           <ol aria-label={t("timeline.graphLabel")} className="divide-y">
-            {visible.map(
-              ({ event, observation, at, label, syncs: runs }, index) => {
-                const status = event.status.toLowerCase();
-                // A sync's status is its coverage; "unavailable" means nothing was read.
-                const failed =
-                  status === "failed" ||
-                  (event.kind === "metrics" && status === "unavailable");
-                const flagged = FLAGGED_STATUSES.has(status);
-                const Icon = failed ? CircleAlert : icons[event.kind];
-                const hasSaveTime =
-                  observation &&
-                  new Date(observation.observedAt).getTime() !==
-                    new Date(event.at).getTime();
-                const incomplete =
-                  observation &&
-                  (observation.coverage.failed > 0 ||
-                    (observation.coverage.modules?.failed ?? 0) > 0);
-                // A run leads with what it found; "no issues" needs a complete run that measured something.
-                // Its issue count covers only the viewed pages, so a run with other pages shows no result.
-                const result =
-                  observation &&
-                  observation.coverage.checked > 0 &&
-                  observation.pageIds.every((id) => viewed.has(id)) &&
-                  (observation.issues > 0 || !incomplete)
-                    ? observation.issues
-                    : null;
-                return (
-                  <li
-                    key={event.id}
-                    ref={
-                      index === SEO_TIMELINE_VISIBLE ? firstRevealed : undefined
-                    }
-                    tabIndex={index === SEO_TIMELINE_VISIBLE ? -1 : undefined}
-                    className="focus-visible:outline-ring flex gap-3 rounded-md px-2 py-3 focus-visible:outline-2"
+            {visible.map((node, index) => {
+              const {
+                event,
+                observation,
+                at,
+                label,
+                syncs: runs,
+                earlier,
+              } = node;
+              const status = event.status.toLowerCase();
+              // A sync's status is its coverage; "unavailable" means nothing was read.
+              const failed =
+                status === "failed" ||
+                (event.kind === "metrics" && status === "unavailable");
+              const flagged = FLAGGED_STATUSES.has(status);
+              const Icon = failed ? CircleAlert : icons[event.kind];
+              const hasSaveTime =
+                observation &&
+                new Date(observation.observedAt).getTime() !==
+                  new Date(event.at).getTime();
+              const incomplete =
+                observation &&
+                (observation.coverage.failed > 0 ||
+                  (observation.coverage.modules?.failed ?? 0) > 0);
+              const result = resultOf(node);
+              // Earlier folded checks that covered another number of rules; the newest count is shown.
+              const earlierRules = [
+                ...new Set(
+                  earlier
+                    .map((check) => check.observation?.coverage.checked)
+                    .filter(
+                      (checked) =>
+                        checked !== undefined &&
+                        checked !== observation?.coverage.checked,
+                    ),
+                ),
+              ];
+              return (
+                <li
+                  key={event.id}
+                  ref={
+                    index === SEO_TIMELINE_VISIBLE ? firstRevealed : undefined
+                  }
+                  tabIndex={index === SEO_TIMELINE_VISIBLE ? -1 : undefined}
+                  className="focus-visible:outline-ring flex gap-3 rounded-md px-2 py-3 focus-visible:outline-2"
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
+                      failed
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-muted text-muted-foreground",
+                    )}
                   >
-                    <span
-                      className={cn(
-                        "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
-                        failed
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      <Icon className="size-3.5" aria-hidden />
-                    </span>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                        <h3 className="text-sm font-medium">
-                          {event.kind === "metrics" && failed
-                            ? t("timeline.metricsFailedTimes", {
+                    <Icon className="size-3.5" aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <h3 className="text-sm font-medium">
+                        {event.kind === "metrics" && failed
+                          ? t("timeline.metricsFailedTimes", {
+                              count: runs,
+                            })
+                          : runs > 1
+                            ? t("timeline.metricsSyncedTimes", {
                                 count: runs,
                               })
-                            : runs > 1
-                              ? t("timeline.metricsSyncedTimes", {
-                                  count: runs,
+                            : earlier.length
+                              ? t("timeline.cleanChecks", {
+                                  count: earlier.length + 1,
                                 })
                               : result !== null
                                 ? t("timeline.result", { count: result })
                                 : t(`timeline.${label}`)}
-                        </h3>
-                        <span className="text-muted-foreground text-xs">
-                          <SeoDate value={at} />
-                        </span>
-                      </div>
-                      {event.kind === "action" &&
-                      taskStatus.has(event.status) ? (
-                        <SeoState>{taskStatus(event.status)}</SeoState>
-                      ) : flagged && t.has(`timeline.statuses.${status}`) ? (
-                        <SeoState>{t(`timeline.statuses.${status}`)}</SeoState>
-                      ) : null}
-                      {observation ? (
-                        <p className="text-muted-foreground text-xs">
-                          {t("timeline.checkSummary", {
-                            checked: observation.coverage.checked,
-                          })}
-                          {" · "}
-                          {t("pages.count", {
-                            count: observation.pageIds.length,
-                          })}
-                          {manyMarkets && observation.countryCode
-                            ? ` · ${observation.countryCode} / ${observation.languageCode ?? t("none")}`
-                            : ""}
-                        </p>
-                      ) : event.kind === "page_change" ? (
-                        <p className="text-sm break-words">{event.title}</p>
-                      ) : null}
-                      {incomplete ? (
-                        <p className="text-muted-foreground text-xs">
-                          {t("timeline.incomplete")}
-                        </p>
-                      ) : null}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-                        <details className="text-muted-foreground">
-                          <summary className="cursor-pointer py-3 underline-offset-4 hover:underline">
-                            {t("timeline.sourceDetails")}
-                          </summary>
-                          <div className="space-y-2 pt-2">
-                            {hasSaveTime ? (
-                              <div>
-                                <span>{t("timeline.savedAt")}</span>{" "}
-                                <SeoDate value={event.at} />
-                              </div>
-                            ) : null}
-                            <p className="whitespace-pre-wrap break-words">
-                              {event.detail}
-                            </p>
-                            {observation ? (
-                              <p>
-                                {observation.devices
-                                  .map((device) => t(`analysis.${device}`))
-                                  .join(", ")}
-                                {" · "}
-                                {t("timeline.rulebook", {
-                                  version: observation.rulebookVersion,
-                                })}
-                              </p>
-                            ) : null}
-                            {event.taskId ? (
-                              <Link
-                                href={`/tasks/${encodeURIComponent(event.taskId)}`}
-                                className="inline-block py-3 text-foreground underline underline-offset-4"
-                              >
-                                {t("openTask")}
-                              </Link>
-                            ) : null}
-                          </div>
-                        </details>
-                        {failed && event.kind === "check" && onRetry ? (
-                          <Button variant="outline" size="sm" onClick={onRetry}>
-                            {t("timeline.runNewCheck")}
-                          </Button>
-                        ) : null}
-                      </div>
+                      </h3>
+                      <span className="text-muted-foreground text-xs">
+                        <SeoDate value={at} />
+                      </span>
                     </div>
-                  </li>
-                );
-              },
-            )}
+                    {event.kind === "action" && taskStatus.has(event.status) ? (
+                      <SeoState>{taskStatus(event.status)}</SeoState>
+                    ) : flagged && t.has(`timeline.statuses.${status}`) ? (
+                      <SeoState>{t(`timeline.statuses.${status}`)}</SeoState>
+                    ) : null}
+                    {observation ? (
+                      <p className="text-muted-foreground text-xs">
+                        {t("timeline.checkSummary", {
+                          checked: observation.coverage.checked,
+                        })}
+                        {" · "}
+                        {t("pages.count", {
+                          count: observation.pageIds.length,
+                        })}
+                        {manyMarkets && observation.countryCode
+                          ? ` · ${observation.countryCode} / ${observation.languageCode ?? t("none")}`
+                          : ""}
+                      </p>
+                    ) : event.kind === "page_change" ? (
+                      <p className="text-sm break-words">{event.title}</p>
+                    ) : null}
+                    {earlierRules.length ? (
+                      <p className="text-muted-foreground text-xs">
+                        {t("timeline.earlierRules", {
+                          counts: earlierRules.join(", "),
+                        })}
+                      </p>
+                    ) : null}
+                    {incomplete ? (
+                      <p className="text-muted-foreground text-xs">
+                        {t("timeline.incomplete")}
+                      </p>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                      <details className="text-muted-foreground">
+                        <summary className="cursor-pointer py-3 underline-offset-4 hover:underline">
+                          {t("timeline.sourceDetails")}
+                        </summary>
+                        <div className="space-y-2 pt-2">
+                          {hasSaveTime ? (
+                            <div>
+                              <span>{t("timeline.savedAt")}</span>{" "}
+                              <SeoDate value={event.at} />
+                            </div>
+                          ) : null}
+                          <p className="whitespace-pre-wrap break-words">
+                            {event.detail}
+                          </p>
+                          {observation ? (
+                            <p>
+                              {observation.devices
+                                .map((device) => t(`analysis.${device}`))
+                                .join(", ")}
+                              {" · "}
+                              {t("timeline.rulebook", {
+                                version: observation.rulebookVersion,
+                              })}
+                            </p>
+                          ) : null}
+                          {earlier.map((check) => (
+                            <p key={check.event.id}>
+                              <SeoDate value={check.at} />
+                              {check.observation
+                                ? ` · ${t("timeline.checkSummary", { checked: check.observation.coverage.checked })}`
+                                : ""}
+                              {check.event.taskId ? (
+                                <>
+                                  {" · "}
+                                  <Link
+                                    href={`/tasks/${encodeURIComponent(check.event.taskId)}`}
+                                    className="inline-block py-3 text-foreground underline underline-offset-4"
+                                  >
+                                    {t("openTask")}
+                                  </Link>
+                                </>
+                              ) : null}
+                            </p>
+                          ))}
+                          {event.taskId ? (
+                            <Link
+                              href={`/tasks/${encodeURIComponent(event.taskId)}`}
+                              className="inline-block py-3 text-foreground underline underline-offset-4"
+                            >
+                              {t("openTask")}
+                            </Link>
+                          ) : null}
+                        </div>
+                      </details>
+                      {failed && event.kind === "check" && onRetry ? (
+                        <Button variant="outline" size="sm" onClick={onRetry}>
+                          {t("timeline.runNewCheck")}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
           {nodes.length > visible.length ? (
             <Button

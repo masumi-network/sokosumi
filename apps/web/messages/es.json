@@ -10788,7 +10788,9 @@
         "showAll": "Mostrar los {count} eventos",
         "metricsSyncedTimes": "{count, plural, one {Estadísticas sincronizadas} other {Estadísticas sincronizadas # veces}}",
         "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}",
-        "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}"
+        "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}",
+        "cleanChecks": "Sin problemas en {count} comprobaciones",
+        "earlierRules": "Las comprobaciones anteriores cubrieron {counts} reglas."
       },
       "analysis": {
         "title": "Iniciar comprobación",

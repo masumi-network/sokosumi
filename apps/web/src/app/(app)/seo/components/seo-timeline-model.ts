@@ -130,3 +130,29 @@ export function foldSyncRuns(nodes: SeoTimelineNode[]) {
   }
   return folded;
 }
+
+/**
+ * Newest-first nodes with back-to-back clean checks of the same pages folded into
+ * the newest one. Four rows of "No issues found" say one thing; the folded row
+ * keeps the earlier checks for its details.
+ */
+export function foldCleanChecks<T extends SeoTimelineNode>(
+  nodes: T[],
+  clean: (node: T) => boolean,
+) {
+  const pages = (node: T) =>
+    [...(node.observation?.pageIds ?? [])].sort().join(",");
+  const folded: (T & { earlier: T[] })[] = [];
+  for (const node of nodes) {
+    const previous = folded.at(-1);
+    if (
+      previous &&
+      clean(previous) &&
+      clean(node) &&
+      pages(previous) === pages(node)
+    )
+      previous.earlier.push(node);
+    else folded.push({ ...node, earlier: [] });
+  }
+  return folded;
+}

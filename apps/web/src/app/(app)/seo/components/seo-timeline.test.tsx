@@ -173,6 +173,75 @@ describe("SEO timeline recovery", () => {
     expect(task.closest("details")).not.toBeNull();
   });
 
+  it("folds back-to-back clean checks of the same pages into one row", () => {
+    const workspace = seoTestWorkspace();
+    const check = (id: string, day: number, checked: number, issues = 0) => ({
+      id,
+      kind: "page_check",
+      source: "agent",
+      observedAt: new Date(`2026-11-0${day}T10:00:00Z`),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 0,
+      sourceTaskId: `${id}-task`,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "test-rules",
+      artifactHash: id,
+      issues,
+      coverage: { checked, skipped: 0, failed: 0 },
+    });
+    // Oldest first: a run with issues, then three clean runs; the rule set grew on the newest.
+    workspace.observations = [
+      check("issues", 1, 12, 3),
+      check("clean-1", 2, 12),
+      check("clean-2", 3, 12),
+      check("clean-3", 4, 24),
+    ];
+    workspace.timeline = workspace.observations.map((observation) => ({
+      id: observation.id,
+      kind: "check",
+      title: "SEO check results imported",
+      status: "completed",
+      detail: "",
+      at: observation.observedAt,
+      pageIds: observation.pageIds,
+      taskId: observation.sourceTaskId,
+      observationId: observation.id,
+    }));
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} />
+      </NextIntlClientProvider>,
+    );
+    const rows = within(
+      screen.getByRole("list", { name: "SEO activity, newest first" }),
+    ).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    const [clean, issues] = rows;
+    expect(within(clean).getByText("No issues in 3 checks")).toBeVisible();
+    expect(within(clean).getByText("24 rules checked · 1 page")).toBeVisible();
+    expect(
+      within(clean).getByText("Earlier checks covered 12 rules."),
+    ).toBeVisible();
+    // Every folded check keeps its Task.
+    expect(
+      within(clean)
+        .getAllByRole("link", { name: "Open task", hidden: true })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual([
+      "/tasks/clean-2-task",
+      "/tasks/clean-1-task",
+      "/tasks/clean-3-task",
+    ]);
+    expect(within(issues).getByText("3 issues found")).toBeVisible();
+  });
+
   it("does not claim no issues for an incomplete check", () => {
     const workspace = seoTestWorkspace();
     const observation = {
