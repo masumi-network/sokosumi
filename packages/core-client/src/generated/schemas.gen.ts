@@ -6597,6 +6597,722 @@ export const CreateFreeCreditGrantSchema = {
     ]
 } as const;
 
+export const EvalCaseDefinitionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        suite: {
+            $ref: '#/components/schemas/EvalSuite'
+        },
+        area: {
+            type: 'string'
+        },
+        title: {
+            type: 'string'
+        },
+        intent: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string'
+        },
+        requires: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'suite',
+        'area',
+        'title',
+        'intent',
+        'kind',
+        'requires'
+    ]
+} as const;
+
+export const EvalSuiteSchema = {
+    type: 'string',
+    enum: [
+        'soko-bot',
+        'cmo'
+    ]
+} as const;
+
+export const EvalRunListItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/EvalRun'
+        },
+        {
+            type: 'object',
+            properties: {
+                scores: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'object',
+                        properties: {
+                            passed: {
+                                type: 'integer'
+                            },
+                            scored: {
+                                type: 'integer'
+                            },
+                            failed: {
+                                type: 'integer'
+                            },
+                            errors: {
+                                type: 'integer'
+                            },
+                            skipped: {
+                                type: 'integer'
+                            },
+                            open: {
+                                type: 'integer'
+                            },
+                            passRate: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'passed',
+                            'scored',
+                            'failed',
+                            'errors',
+                            'skipped',
+                            'open',
+                            'passRate'
+                        ]
+                    }
+                },
+                costUsd: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'scores',
+                'costUsd'
+            ]
+        }
+    ]
+} as const;
+
+export const EvalRunSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        startedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        finishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        trigger: {
+            type: 'string',
+            enum: [
+                'DAILY',
+                'MANUAL'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'QUEUED',
+                'RUNNING',
+                'COMPLETED',
+                'CANCELLED'
+            ]
+        },
+        suites: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        caseIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        repeats: {
+            type: 'integer'
+        },
+        commitSha: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        commitMessage: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        prNumber: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        environment: {
+            type: 'string'
+        },
+        label: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        startedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        models: {
+            type: 'object',
+            additionalProperties: {
+                type: [
+                    'string',
+                    'null'
+                ]
+            }
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'startedAt',
+        'finishedAt',
+        'trigger',
+        'status',
+        'suites',
+        'caseIds',
+        'repeats',
+        'commitSha',
+        'commitMessage',
+        'prNumber',
+        'environment',
+        'label',
+        'startedByUserId',
+        'models'
+    ]
+} as const;
+
+export const CreateEvalRunBodySchema = {
+    type: 'object',
+    properties: {
+        suites: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/EvalSuite'
+            },
+            minItems: 1
+        },
+        caseIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 200
+        },
+        repeats: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 3
+        },
+        label: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        sokoBotVersionId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 41
+        },
+        cusoVersionId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 41
+        },
+        commitSha: {
+            type: 'string',
+            pattern: '^[0-9a-f]{7,40}$'
+        },
+        commitMessage: {
+            type: 'string',
+            maxLength: 300
+        }
+    },
+    additionalProperties: false
+} as const;
+
+export const EvalRunReportSchema = {
+    type: 'object',
+    properties: {
+        run: {
+            $ref: '#/components/schemas/EvalRun'
+        },
+        baseline: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string'
+                        },
+                        createdAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        prNumber: {
+                            type: [
+                                'integer',
+                                'null'
+                            ]
+                        },
+                        commitSha: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'createdAt',
+                        'prNumber',
+                        'commitSha'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        history: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    prNumber: {
+                        type: [
+                            'integer',
+                            'null'
+                        ]
+                    },
+                    commitSha: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'prNumber',
+                    'commitSha'
+                ]
+            }
+        },
+        summary: {
+            type: 'object',
+            properties: {
+                counts: {
+                    type: 'object',
+                    properties: {
+                        regressed: {
+                            type: 'integer'
+                        },
+                        fixed: {
+                            type: 'integer'
+                        },
+                        flaky: {
+                            type: 'integer'
+                        },
+                        failing: {
+                            type: 'integer'
+                        },
+                        passing: {
+                            type: 'integer'
+                        },
+                        error: {
+                            type: 'integer'
+                        },
+                        pending: {
+                            type: 'integer'
+                        },
+                        skipped: {
+                            type: 'integer'
+                        }
+                    }
+                },
+                passed: {
+                    type: 'integer'
+                },
+                scored: {
+                    type: 'integer'
+                },
+                open: {
+                    type: 'integer'
+                },
+                costUsd: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'counts',
+                'passed',
+                'scored',
+                'open',
+                'costUsd'
+            ]
+        },
+        cases: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/EvalCaseReport'
+            }
+        }
+    },
+    required: [
+        'run',
+        'baseline',
+        'history',
+        'summary',
+        'cases'
+    ]
+} as const;
+
+export const EvalCaseReportSchema = {
+    type: 'object',
+    properties: {
+        caseId: {
+            type: 'string'
+        },
+        suite: {
+            type: 'string'
+        },
+        area: {
+            type: 'string'
+        },
+        title: {
+            type: 'string'
+        },
+        intent: {
+            type: 'string'
+        },
+        outcome: {
+            $ref: '#/components/schemas/EvalOutcome'
+        },
+        states: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/EvalResultStatus'
+            }
+        },
+        passRate: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        baselinePassRate: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        history: {
+            type: 'array',
+            items: {
+                type: [
+                    'number',
+                    'null'
+                ]
+            }
+        },
+        results: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/EvalResult'
+            }
+        }
+    },
+    required: [
+        'caseId',
+        'suite',
+        'area',
+        'title',
+        'intent',
+        'outcome',
+        'states',
+        'passRate',
+        'baselinePassRate',
+        'history',
+        'results'
+    ]
+} as const;
+
+export const EvalOutcomeSchema = {
+    type: 'string',
+    enum: [
+        'regressed',
+        'fixed',
+        'flaky',
+        'failing',
+        'passing',
+        'error',
+        'pending',
+        'skipped'
+    ]
+} as const;
+
+export const EvalResultStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'RUNNING',
+        'PASSED',
+        'FAILED',
+        'ERROR',
+        'SKIPPED'
+    ]
+} as const;
+
+export const EvalResultSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        caseId: {
+            type: 'string'
+        },
+        repeat: {
+            type: 'integer'
+        },
+        status: {
+            $ref: '#/components/schemas/EvalResultStatus'
+        },
+        startedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        finishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        turnId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        checks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/EvalCheck'
+            }
+        },
+        judge: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
+        },
+        judgeModel: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        output: {
+            type: 'object',
+            additionalProperties: {}
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        costUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        durationMs: {
+            type: [
+                'integer',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'caseId',
+        'repeat',
+        'status',
+        'startedAt',
+        'finishedAt',
+        'turnId',
+        'checks',
+        'judge',
+        'judgeModel',
+        'output',
+        'error',
+        'costUsd',
+        'durationMs'
+    ]
+} as const;
+
+export const EvalCheckSchema = {
+    type: 'object',
+    properties: {
+        label: {
+            type: 'string'
+        },
+        pass: {
+            type: 'boolean'
+        },
+        actual: {
+            type: 'string'
+        }
+    },
+    required: [
+        'label',
+        'pass',
+        'actual'
+    ]
+} as const;
+
+export const EvalCaseBaselineSchema = {
+    type: 'object',
+    properties: {
+        run: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string'
+                        },
+                        createdAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        prNumber: {
+                            type: [
+                                'integer',
+                                'null'
+                            ]
+                        },
+                        commitSha: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'createdAt',
+                        'prNumber',
+                        'commitSha'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        results: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/EvalResult'
+            }
+        }
+    },
+    required: [
+        'run',
+        'results'
+    ]
+} as const;
+
+export const EvalTickSchema = {
+    type: 'object',
+    properties: {
+        runId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        completed: {
+            type: 'boolean'
+        },
+        busy: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'runId',
+        'completed',
+        'busy'
+    ]
+} as const;
+
 export const AdminTaskListItemSchema = {
     type: 'object',
     properties: {

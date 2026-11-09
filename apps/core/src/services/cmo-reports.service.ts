@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
-  CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   type CmoReportUpdateInput,
   cmoReportUpdateInputSchema,
 } from "@sokosumi/soko-bot";
@@ -89,7 +89,7 @@ export async function reportCmoUpdate(
       versionId: true,
     },
   });
-  if (bot?.versionId !== CMO_SOKO_BOT_VERSION_ID) {
+  if (!bot?.versionId || !CMO_SOKO_BOT_VERSION_IDS.includes(bot.versionId)) {
     throw new CmoNotFoundError("Cuso is not hired yet");
   }
   const { sharedRoomId: roomId, projectId } = bot;

@@ -72,6 +72,7 @@ import {
   updateSokoBotProactive as coreUpdateSokoBotProactive,
   updateSokoBotSchedule as coreUpdateSokoBotSchedule,
 } from "@sokosumi/core-client";
+import { createEvalsAdminClient } from "./core.evals-admin";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
 import { createSokoBotAdminClient } from "./core.soko-bot-admin";
 
@@ -605,6 +606,7 @@ export function createSokoBotClient(getClient: GetCoreClient) {
 
   return {
     ...createSokoBotAdminClient(getClient),
+    ...createEvalsAdminClient(getClient),
     getMySokoBot,
     getMySokoBotActivity,
     createMySokoBot,
