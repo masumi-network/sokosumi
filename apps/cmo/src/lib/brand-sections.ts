@@ -1,4 +1,5 @@
 import type { CmoOverview } from "@sokosumi/core-client";
+import { AGENT_NAME } from "./agent";
 
 export type BrandBrain = NonNullable<CmoOverview["brandBrain"]>;
 type RawProfile = NonNullable<BrandBrain["profile"]>;
@@ -110,7 +111,7 @@ export const BRAND_GROUPS: { title: string; keys: BrandSectionKey[] }[] = [
 export const EVIDENCE_LABELS: Record<BrandFinding["evidence"], string> = {
   fact: "Fact",
   claim: "Their claim",
-  inference: "Cuso's read",
+  inference: `${AGENT_NAME}'s read`,
 };
 
 /** Every open question with the section it belongs to, in profile order. */
