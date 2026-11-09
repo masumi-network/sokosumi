@@ -83,6 +83,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         key={scopeId ?? "workspace"}
         labels={buildStudioLabels(t)}
         projectId={scopeId}
+        projectLogo={project?.logo}
         websiteUrl={project?.websiteUrl}
         projectScopePrompt={
           scopeId ? undefined : (

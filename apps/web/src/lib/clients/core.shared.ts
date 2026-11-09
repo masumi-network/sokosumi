@@ -2,10 +2,13 @@ import {
   attachStudioProductPhoto as coreAttachStudioProductPhoto,
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
+  getStudioBrandKit as coreGetStudioBrandKit,
   getStudioProductCatalog as coreGetStudioProductCatalog,
   importStudioProductCatalog as coreImportStudioProductCatalog,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
+  saveStudioBrandCopy as coreSaveStudioBrandCopy,
   suggestTaskTags as coreSuggestTaskTags,
+  type SaveStudioBrandCopy,
   type StudioProductCatalog,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
@@ -4152,6 +4155,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getStudioBrandKit(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioBrandKit({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch the Studio brand kit",
+    );
+  }
+
+  async function saveStudioBrandCopy(id: string, body: SaveStudioBrandCopy) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSaveStudioBrandCopy({ client, path: { id }, body }),
+      "Failed to save Studio brand copy",
+    );
+  }
+
   async function getStudioProductCatalog(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7019,6 +7039,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getImageStudioState,
     attachStudioProductPhoto,
     getStudioProductCatalog,
+    getStudioBrandKit,
+    saveStudioBrandCopy,
     replaceStudioProductCatalog,
     importStudioProductCatalog,
     getProjectsByIdImageStudio,

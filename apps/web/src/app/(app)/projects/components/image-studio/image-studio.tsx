@@ -11,11 +11,9 @@ import {
   AlertTriangle,
   Columns2,
   Download,
-  ExternalLink,
   MessageSquare,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -61,6 +59,7 @@ import {
   MAX_ARCHIVE_MIB,
 } from "./studio-ad-archive";
 import type { StudioBatchProduct } from "./studio-batch";
+import { StudioBrandKitDialog } from "./studio-brand-kit";
 import { StudioChat } from "./studio-chat";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
@@ -143,6 +142,7 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
+  projectLogo,
   projectScopePrompt,
   websiteUrl,
 }: {
@@ -163,6 +163,7 @@ export function ImageStudio({
    * project before anything is sent.
    */
   projectId: string | null;
+  projectLogo?: string | null;
   projectScopePrompt?: React.ReactNode;
   websiteUrl?: string | null;
 }) {
@@ -898,20 +899,6 @@ export function ImageStudio({
       />
     );
 
-  const brandAction = activeProjectId ? (
-    <Button asChild size="sm" variant="outline">
-      <Link
-        aria-label={t("brandKitNewTab")}
-        href={`/projects/${encodeURIComponent(activeProjectId)}/design-md`}
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        {t("brandKit")}
-        <ExternalLink aria-hidden />
-      </Link>
-    </Button>
-  ) : null;
-
   const studioColumn = (
     <div
       className={cn(
@@ -927,7 +914,10 @@ export function ImageStudio({
             STUDIO_COMPOSER_GUTTER_CLASS,
           )}
         >
-          {brandAction}
+          <StudioBrandKitDialog
+            key={activeProjectId}
+            projectId={activeProjectId}
+          />
           <StudioProductCatalogDialog
             key={activeProjectId}
             canUseProduct={!uploadingPhoto}
@@ -1148,6 +1138,7 @@ export function ImageStudio({
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}
           labels={labels}
+          projectLogo={projectLogo}
           onAnimate={
             videoModelsFor(catalog, "image").length > 0 ? animate : undefined
           }

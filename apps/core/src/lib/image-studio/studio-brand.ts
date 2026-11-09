@@ -1,5 +1,8 @@
+import { designMdBrandLook, isOwnedProjectLogoUrl } from "@sokosumi/utils";
+
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
+import { studioBrandKitSchema } from "@/schemas/studio-brand-kit.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 
 /** Enough for colours, type, and voice. The stored job prompt stays the brief. */
@@ -10,6 +13,7 @@ export interface StudioBrand {
   memory: string | null;
   /** Who the business is and sounds like, from the Project's Brand Brain. */
   brandBrain: string | null;
+  approvedLines?: string;
 }
 
 const NO_BRAND: StudioBrand = {
@@ -31,9 +35,13 @@ export function applyStudioBrandPrompt(
   const design = clipBrandText(brand.designMd);
   const memory = clipBrandText(brand.memory);
   const brandBrain = clipBrandText(brand.brandBrain);
-  if (!design && !memory && !brandBrain) return prompt;
+  const approvedLines = clipBrandText(brand.approvedLines);
+  if (!design && !memory && !brandBrain && !approvedLines) return prompt;
 
   const parts = ["Follow this project's brand."];
+  if (approvedLines) {
+    parts.push(`Approved ad copy (use where relevant):\n${approvedLines}`);
+  }
   if (brandBrain) parts.push(`Brand Brain:\n${brandBrain}`);
   if (design) parts.push(`Design:\n${design}`);
   if (memory) parts.push(`Memory:\n${memory}`);
@@ -52,19 +60,51 @@ export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
       },
     });
     if (!project) return NO_BRAND;
+    const brain = parseBrandBrain(project.brandBrain?.body);
+    const approvedLines = clipBrandText(brain?.voice.examples.join("\n"));
     return {
       designMd: await readDesignMd(project.designMdUrl),
       memory: clipBrandText(project.contextMd),
-      brandBrain: brandBrainText(project.brandBrain?.body),
+      brandBrain: brandBrainText(brain),
+      ...(approvedLines ? { approvedLines } : {}),
     };
   } catch {
     return NO_BRAND;
   }
 }
 
+export async function readStudioBrandKit(projectId: string) {
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: {
+      logo: true,
+      briefing: true,
+      designMdUrl: true,
+      brandBrain: { select: { body: true, updatedAt: true } },
+    },
+  });
+  const design = await readDesignMdContent(project.designMdUrl);
+  const look = designMdBrandLook(design ?? "");
+  const brain = parseBrandBrain(project.brandBrain?.body);
+  return studioBrandKitSchema.parse({
+    logo:
+      project.logo && isOwnedProjectLogoUrl(project.logo, projectId)
+        ? project.logo
+        : null,
+    colors: look.colors,
+    fonts: look.fonts,
+    summary: brain?.summary ?? project.briefing?.slice(0, 2000) ?? "",
+    tone: brain?.voice.tone ?? look.tone ?? "",
+    audience: brain?.audience ?? [],
+    approvedLines: brain?.voice.examples ?? [],
+    version: project.brandBrain?.updatedAt?.toISOString() ?? null,
+  });
+}
+
 /** The Brand Brain lines a picture can follow: its summary, voice, audience and products. */
-function brandBrainText(body: unknown): string | null {
-  const brain = parseBrandBrain(body);
+function brandBrainText(
+  brain: ReturnType<typeof parseBrandBrain>,
+): string | null {
   if (!brain) return null;
   return clipBrandText(
     [

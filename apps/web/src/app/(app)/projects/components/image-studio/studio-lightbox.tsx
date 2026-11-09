@@ -45,6 +45,7 @@ export function StudioLightbox({
   creditsByAssetId,
   elapsedByAssetId,
   labels,
+  projectLogo,
   onAnimate,
   onClose,
   onEditWithAssistant,
@@ -68,6 +69,7 @@ export function StudioLightbox({
   /** How long the provider took per version, in milliseconds. */
   elapsedByAssetId: Record<string, number>;
   labels: StudioLabels;
+  projectLogo?: string | null;
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
@@ -195,6 +197,7 @@ export function StudioLightbox({
                   caption={caption}
                   key={single.id}
                   labels={labels}
+                  projectLogo={projectLogo}
                 />
               )}
               {onEditWithAssistant && !isVideoAsset(single) ? (

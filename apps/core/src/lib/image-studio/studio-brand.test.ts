@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { projectFindUniqueMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
+const {
+  projectFindUniqueMock,
+  projectFindUniqueOrThrowMock,
+  ssrfSafeFetchMock,
+} = vi.hoisted(() => ({
   projectFindUniqueMock: vi.fn(),
+  projectFindUniqueOrThrowMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    project: { findUnique: projectFindUniqueMock },
+    project: {
+      findUnique: projectFindUniqueMock,
+      findUniqueOrThrow: projectFindUniqueOrThrowMock,
+    },
   },
 }));
 
@@ -20,12 +28,25 @@ import { LIMITS } from "@/config/constants";
 import {
   applyStudioBrandPrompt,
   loadStudioBrand,
+  readStudioBrandKit,
 } from "@/lib/image-studio/studio-brand";
 
 const DESIGN_MD_URL =
   "https://abc123.public.blob.vercel-storage.com/design-md/hash.md";
 
 describe("applyStudioBrandPrompt", () => {
+  it("includes approved lines alongside the generation brief", () => {
+    const prompt = applyStudioBrandPrompt("Launch ad", {
+      designMd: null,
+      memory: null,
+      brandBrain: null,
+      approvedLines: "Made from reclaimed clay.",
+    });
+    expect(prompt).toContain(
+      "Approved ad copy (use where relevant):\nMade from reclaimed clay.",
+    );
+    expect(prompt).toMatch(/Brief:\nLaunch ad$/);
+  });
   it("leaves the brief alone when Design and Memory are empty", () => {
     expect(
       applyStudioBrandPrompt("a red fox", {
@@ -103,6 +124,50 @@ describe("applyStudioBrandPrompt", () => {
     });
     expect(prompt).toContain("x".repeat(1600));
     expect(prompt).not.toContain("x".repeat(1601));
+  });
+});
+
+describe("readStudioBrandKit", () => {
+  it("loads approved copy and the visual details from the existing project sources", async () => {
+    const version = new Date("2026-11-09T12:00:00.000Z");
+    const logo =
+      "https://abc123.public.blob.vercel-storage.com/projects/project-1/logos/hash";
+    projectFindUniqueOrThrowMock.mockResolvedValueOnce({
+      logo,
+      designMdUrl:
+        "https://abc123.public.blob.vercel-storage.com/design-md/brand-kit-hash.md",
+      brandBrain: {
+        updatedAt: version,
+        body: {
+          summary: "A ceramics studio",
+          voice: {
+            tone: "Direct",
+            do: [],
+            dont: [],
+            examples: ["Made from reclaimed clay."],
+          },
+          audience: ["Home cooks"],
+          products: [],
+          competitors: [],
+          channels: [],
+        },
+      },
+    });
+    ssrfSafeFetchMock.mockResolvedValueOnce(
+      new Response(
+        'colors:\n  primary: "#a33421"\ntypography:\n  heading:\n    fontFamily: "Inter"',
+      ),
+    );
+    await expect(readStudioBrandKit("project-1")).resolves.toEqual({
+      logo,
+      colors: ["#a33421"],
+      fonts: ["Inter"],
+      summary: "A ceramics studio",
+      tone: "Direct",
+      audience: ["Home cooks"],
+      approvedLines: ["Made from reclaimed clay."],
+      version: version.toISOString(),
+    });
   });
 });
 

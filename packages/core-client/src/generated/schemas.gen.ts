@@ -38807,6 +38807,132 @@ export const ProjectImageSessionSchema = {
     ]
 } as const;
 
+export const StudioBrandKitSchema = {
+    type: 'object',
+    properties: {
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        summary: {
+            type: 'string'
+        },
+        tone: {
+            type: 'string'
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        },
+        version: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'logo',
+        'colors',
+        'fonts',
+        'summary',
+        'tone',
+        'audience',
+        'approvedLines',
+        'version'
+    ]
+} as const;
+
+export const SaveStudioBrandCopySchema = {
+    type: 'object',
+    properties: {
+        copy: {
+            $ref: '#/components/schemas/StudioBrandCopy'
+        },
+        version: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'copy',
+        'version'
+    ]
+} as const;
+
+export const StudioBrandCopySchema = {
+    type: 'object',
+    properties: {
+        summary: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        tone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        }
+    },
+    required: [
+        'summary',
+        'tone',
+        'audience',
+        'approvedLines'
+    ]
+} as const;
+
 export const CreateProjectImageJobRequestSchema = {
     type: 'object',
     properties: {

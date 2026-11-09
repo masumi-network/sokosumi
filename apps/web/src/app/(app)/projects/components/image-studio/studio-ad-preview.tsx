@@ -10,6 +10,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,10 +40,12 @@ export function StudioAdPreview({
   asset,
   caption,
   labels,
+  projectLogo,
 }: {
   asset: StudioAsset;
   caption?: string;
   labels: StudioLabels;
+  projectLogo?: string | null;
 }) {
   const t = useTranslations("App.Studio");
   const [ratio, setRatio] = useState<PlacementRatio>(
@@ -59,12 +62,12 @@ export function StudioAdPreview({
   const displayCaption = caption?.trim();
   const attribution = (
     <div className="flex min-w-0 items-center gap-2">
-      <span
-        aria-hidden
-        className="bg-muted text-muted-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-medium"
-      >
-        {asset.projectName?.trim().at(0)?.toLocaleUpperCase()}
-      </span>
+      <ProjectAvatar
+        className="shrink-0 rounded-full"
+        fallbackClassName="rounded-full"
+        logo={projectLogo}
+        name={asset.projectName ?? ""}
+      />
       <div className="min-w-0">
         <p className="text-sm font-medium break-words">{asset.projectName}</p>
         <p className="text-muted-foreground text-xs">{t("previewSponsored")}</p>

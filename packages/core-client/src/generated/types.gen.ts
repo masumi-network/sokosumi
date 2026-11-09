@@ -10344,6 +10344,29 @@ export type ProjectImageSession = {
     createdAt: Date;
 };
 
+export type StudioBrandKit = {
+    logo: string | null;
+    colors: Array<string>;
+    fonts: Array<string>;
+    summary: string;
+    tone: string;
+    audience: Array<string>;
+    approvedLines: Array<string>;
+    version: Date | null;
+};
+
+export type SaveStudioBrandCopy = {
+    copy: StudioBrandCopy;
+    version: Date | null;
+};
+
+export type StudioBrandCopy = {
+    summary: string;
+    tone: string;
+    audience: Array<string>;
+    approvedLines: Array<string>;
+};
+
 export type CreateProjectImageJobRequest = {
     modelId?: string;
     prompt: string;
@@ -67316,6 +67339,200 @@ export type GetProjectsByIdImageStudioResponses = {
 };
 
 export type GetProjectsByIdImageStudioResponse = GetProjectsByIdImageStudioResponses[keyof GetProjectsByIdImageStudioResponses];
+
+export type GetStudioBrandKitData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit';
+};
+
+export type GetStudioBrandKitErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetStudioBrandKitError = GetStudioBrandKitErrors[keyof GetStudioBrandKitErrors];
+
+export type GetStudioBrandKitResponses = {
+    /**
+     * Studio brand kit
+     */
+    200: {
+        data: StudioBrandKit;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetStudioBrandKitResponse = GetStudioBrandKitResponses[keyof GetStudioBrandKitResponses];
+
+export type SaveStudioBrandCopyData = {
+    body: SaveStudioBrandCopy;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit';
+};
+
+export type SaveStudioBrandCopyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Brand kit changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveStudioBrandCopyError = SaveStudioBrandCopyErrors[keyof SaveStudioBrandCopyErrors];
+
+export type SaveStudioBrandCopyResponses = {
+    /**
+     * Studio brand copy saved
+     */
+    200: {
+        data: {
+            version: Date;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveStudioBrandCopyResponse = SaveStudioBrandCopyResponses[keyof SaveStudioBrandCopyResponses];
 
 export type PostProjectsByIdImageStudioJobsData = {
     body: CreateProjectImageJobRequest;

@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
@@ -33,7 +39,16 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   writeStudioAssetCaption: vi.fn(),
 }));
 
-const mocks = vi.hoisted(() => ({ assets: [] as unknown[] }));
+const mocks = vi.hoisted(() => ({
+  assets: [] as unknown[],
+  loadBrandKit: vi.fn(),
+  saveBrandCopy: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
+  getStudioBrandKit: mocks.loadBrandKit,
+  saveStudioBrandCopy: mocks.saveBrandCopy,
+}));
 
 vi.mock("./use-studio-state", () => ({
   useStudioState: () => ({
@@ -84,11 +99,52 @@ describe("starting from a template", () => {
     expect(rendered).toEqual(names);
   });
 
-  it("links to the current project's brand kit in a separate tab", () => {
+  it("opens the brand kit and links to the current project's design in a separate tab", () => {
+    mocks.loadBrandKit.mockRejectedValueOnce(new Error("Unavailable"));
     mount();
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
     const kit = screen.getByRole("link", { name: "brandKitNewTab" });
     expect(kit).toHaveAttribute("href", "/projects/p/design-md");
     expect(kit).toHaveAttribute("target", "_blank");
+  });
+
+  it("shows the extracted style and saves reviewed copy for the current project", async () => {
+    const version = new Date("2026-11-09T12:00:00.000Z");
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: ["#a33421"],
+      fonts: ["Inter"],
+      summary: "A ceramics studio",
+      tone: "Direct",
+      audience: ["Home cooks"],
+      approvedLines: [],
+      version,
+    });
+    mocks.saveBrandCopy.mockResolvedValueOnce({
+      ok: true,
+      version: new Date(),
+    });
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    expect(await screen.findByText("#a33421")).toBeInTheDocument();
+    expect(screen.getByText("Inter")).toBeInTheDocument();
+    const copy = screen.getByLabelText("BrandKit.approvedLines");
+    await waitFor(() => expect(copy).toBeEnabled());
+    fireEvent.change(copy, {
+      target: { value: "Made from reclaimed clay.\n\nFired in Prague." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "BrandKit.save" }));
+    await screen.findByText("BrandKit.saved");
+    expect(mocks.saveBrandCopy).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      version,
+      copy: {
+        summary: "A ceramics studio",
+        tone: "Direct",
+        audience: ["Home cooks"],
+        approvedLines: ["Made from reclaimed clay.", "Fired in Prague."],
+      },
+    });
   });
 
   it("fills the composer with the template's brief and sets its frame", () => {
