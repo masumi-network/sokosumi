@@ -8445,7 +8445,8 @@
         "sent": "Gesendet",
         "failed": "Senden fehlgeschlagen",
         "retry": "Erneut versuchen",
-        "remove": "Entfernen"
+        "remove": "Entfernen",
+        "noReply": "Der AI coworker hat nicht geantwortet."
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
