@@ -249,6 +249,16 @@ export function gscSearchAnalyticsArguments(
   };
 }
 
+const DAY_MS = 86_400_000;
+/** The equal-length window that ends the day before the period starts. */
+export function previousSeoPeriod(from: string, to: string) {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - start) / DAY_MS) + 1;
+  const date = (offset: number) =>
+    new Date(start + offset * DAY_MS).toISOString().slice(0, 10);
+  return { from: date(-days), to: date(-1) };
+}
+
 export function withinPeriod(
   date: string,
   query: NativeStatisticsQuery,

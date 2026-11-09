@@ -230,8 +230,19 @@ describe("native statistics collection boundary", () => {
       source: "ga4",
       pageIds: [state.pageId],
     });
-    expect(state.reads).toHaveLength(3);
+    // Totals, days, and the totals of the 2 days before.
+    expect(state.reads).toHaveLength(4);
     expect(state.reads[1].args.limit).toBe(400);
+    expect(state.reads.map((read) => read.args.dateRanges).at(-1)).toEqual([
+      { startDate: "2025-12-30", endDate: "2025-12-31" },
+    ]);
+    const payload = state.observations[0].payload as {
+      metrics: Array<{ key: string; previous?: unknown }>;
+    };
+    expect(payload.metrics[0]).toMatchObject({
+      key: "page_views",
+      previous: { from: "2025-12-30", to: "2025-12-31", value: 6 },
+    });
   });
   it("rejects a changed page-group version before any toolkit read", async () => {
     await expect(
@@ -366,6 +377,49 @@ describe("Search Console query rows", () => {
           },
         ],
       },
+    });
+  });
+
+  it("stores no earlier-window value when that read fails, and keeps the totals", async () => {
+    const current = gsc({ rows: [] });
+    state.answer = (slug, args) => {
+      if (args.start_date === "2025-12-30")
+        return { successful: false, error: "quota" };
+      return current(slug, args);
+    };
+    await syncProjectSeoStatistics(actor, gscInput);
+    expect(
+      state.reads.some((read) => read.args.end_date === "2025-12-31"),
+    ).toBe(true);
+    const payload = state.observations[0].payload as {
+      metrics: Array<{ value: number | null; previous?: unknown }>;
+    };
+    expect(payload.metrics[0].value).toBe(1);
+    expect(payload.metrics.every((metric) => !metric.previous)).toBe(true);
+  });
+
+  it("gives no earlier position or rate when the earlier window had no impressions", async () => {
+    const current = gsc({ rows: [] });
+    state.answer = (slug, args) =>
+      args.start_date === "2025-12-30"
+        ? {
+            rows: [
+              { keys: [], clicks: 0, impressions: 0, ctr: 0, position: 0 },
+            ],
+          }
+        : current(slug, args);
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      metrics: Array<{ key: string; previous?: { value: number | null } }>;
+    };
+    const before = Object.fromEntries(
+      payload.metrics.map((metric) => [metric.key, metric.previous?.value]),
+    );
+    expect(before).toEqual({
+      clicks: 0,
+      impressions: 0,
+      ctr: null,
+      position: null,
     });
   });
 

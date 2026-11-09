@@ -346,6 +346,15 @@ export const seoActionSchema = z
     evidence: z.array(z.string()),
   })
   .openapi("ProjectSeoAction");
+/** The same read over the equal-length window just before the period. Absent when it failed or on older observations. */
+export const seoPreviousPeriodSchema = z
+  .object({
+    from: seoDateSchema,
+    to: seoDateSchema,
+    value: z.number().finite().nullable(),
+  })
+  .strict()
+  .openapi("ProjectSeoPreviousPeriod");
 export const seoMetricSchema = z
   .object({
     id: z.string(),
@@ -365,6 +374,7 @@ export const seoMetricSchema = z
       z.object({ date: seoDateSchema, value: z.number().nullable() }),
     ),
     notes: z.array(z.string()),
+    previous: seoPreviousPeriodSchema.optional(),
   })
   .openapi("ProjectSeoMetric");
 export const SEO_SEARCH_QUERY_ROW_LIMIT = 250;
@@ -559,6 +569,7 @@ export const nativeSeoMetricsSchema = z
               }),
             )
             .max(400),
+          previous: seoPreviousPeriodSchema.optional(),
         }),
       )
       .max(20),

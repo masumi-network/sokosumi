@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_MIN_COMPARE_IMPRESSIONS,
+  seoPeriodChange,
   seoWeekOverWeek,
 } from "./seo-performance-model";
 import { SeoDate, SeoPeriod, SeoSection, SeoState } from "./seo-shared";
@@ -40,6 +41,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     visible.find((metric) => metric.id === chosenMetric) ??
     seoDefaultMetric(visible);
   const compared = seoWeekOverWeek(visible);
+  const periodChanges = seoPeriodChange(visible);
   // Google reports a few days late, so the period ends on the last reported day. It starts where the
   // read starts, because Google leaves quiet days out; the agent card and search queries do the same.
   const reported = seoReportedPeriod(visible);
@@ -132,6 +134,27 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
             : ArrowDown,
       muted: false,
     };
+  }
+  /** The period total against the equal window before it. A lower position is better. */
+  function periodChange(metric: ProjectSeoMetric) {
+    const before = periodChanges.get(metric.id);
+    if (!before || metric.value === null) return null;
+    const scale =
+      10 ** (metric.unit === "count" ? 0 : metric.unit === "ratio" ? 3 : 1);
+    const shown = (value: number) => Math.round(value * scale) / scale;
+    const delta = shown(shown(metric.value) - shown(before.previous));
+    const values = {
+      days: before.days,
+      previous: measuredValue(before.previous, metric.unit),
+      change: measuredValue(delta, metric.unit, "exceptZero"),
+    };
+    if (delta === 0) return t("overview.periodSame", values);
+    if (metric.unit === "position")
+      return t(
+        delta < 0 ? "overview.periodBetter" : "overview.periodWorse",
+        values,
+      );
+    return t("overview.periodCompare", values);
   }
   function value(metric: ProjectSeoMetric) {
     return metric.value === null || metric.coverage === "unavailable"
@@ -227,6 +250,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   ? null
                   : (compared?.values[metric.key] ?? null);
               const moved = week ? change(metric.key, week, metric.unit) : null;
+              const sincePeriod = periodChange(metric);
               return (
                 <Button
                   key={metric.id}
@@ -293,6 +317,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                         {t("overview.noComparison")}
                       </span>
                     )
+                  ) : null}
+                  {sincePeriod ? (
+                    <span className="text-muted-foreground text-xs font-normal">
+                      {sincePeriod}
+                    </span>
                   ) : null}
                 </Button>
               );

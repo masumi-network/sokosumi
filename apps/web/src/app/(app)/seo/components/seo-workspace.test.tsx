@@ -1210,6 +1210,63 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText(/: 140 · week before: 140$/)).toBeVisible();
   });
 
+  it("names each total's change against the equal window before the period", () => {
+    const workspace = seoTestWorkspace();
+    const base = {
+      label: "",
+      source: "search_console",
+      propertyId: "sc-domain:example.com",
+      channel: "organic" as const,
+      from: "2026-10-01",
+      to: "2026-10-14",
+      timeZone: "UTC",
+      observedAt: new Date(),
+      coverage: "complete" as const,
+      notes: [],
+      points: [],
+    };
+    const before = (value: number) => ({
+      from: "2026-09-17",
+      to: "2026-09-30",
+      value,
+    });
+    workspace.metrics = [
+      {
+        ...base,
+        id: "s:clicks",
+        key: "clicks",
+        unit: "count",
+        value: 30,
+        previous: before(12),
+      },
+      {
+        ...base,
+        id: "s:impressions",
+        key: "impressions",
+        unit: "count",
+        value: 900,
+        previous: before(900),
+      },
+      {
+        ...base,
+        id: "s:position",
+        key: "position",
+        unit: "position",
+        value: 4.2,
+        previous: before(6.1),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=traffic");
+    expect(screen.getByText("Previous 14 days: 12 (+18)")).toBeVisible();
+    expect(screen.getByText("Previous 14 days: 900, no change")).toBeVisible();
+    // A lower position is better, so the words say it, not a sign.
+    expect(screen.getByText("Previous 14 days: 6.1, better now")).toBeVisible();
+  });
+
   it("puts the Google search totals under the agent verdict only when both counts exist", () => {
     const workspace = seoTestWorkspace();
     const base = {

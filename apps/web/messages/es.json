@@ -10678,7 +10678,11 @@
         "noteFound": "Encontrado: {found}",
         "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
         "noteRuleName": "Regla: «{name}»",
-        "suggestion": "Sugerencia:"
+        "suggestion": "Sugerencia:",
+        "periodCompare": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous} ({change})",
+        "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
+        "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
+        "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio"
       },
       "keywords": {
         "title": "Palabras clave seguidas",

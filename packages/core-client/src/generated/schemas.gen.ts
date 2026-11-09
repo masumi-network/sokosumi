@@ -37753,6 +37753,9 @@ export const ProjectSeoMetricSchema = {
             items: {
                 type: 'string'
             }
+        },
+        previous: {
+            $ref: '#/components/schemas/ProjectSeoPreviousPeriod'
         }
     },
     required: [
@@ -37772,6 +37775,32 @@ export const ProjectSeoMetricSchema = {
         'points',
         'notes'
     ]
+} as const;
+
+export const ProjectSeoPreviousPeriodSchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        value: {
+            type: [
+                'number',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'from',
+        'to',
+        'value'
+    ],
+    additionalProperties: false
 } as const;
 
 export const ProjectSeoSearchQueriesSchema = {

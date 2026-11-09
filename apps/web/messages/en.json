@@ -10678,7 +10678,11 @@
         "noteFound": "Found: {found}",
         "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}",
         "noteRuleName": "Rule: “{name}”",
-        "suggestion": "Suggestion:"
+        "suggestion": "Suggestion:",
+        "periodCompare": "Previous {days, plural, one {day} other {# days}}: {previous} ({change})",
+        "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
+        "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
+        "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change"
       },
       "keywords": {
         "title": "Tracked keywords",

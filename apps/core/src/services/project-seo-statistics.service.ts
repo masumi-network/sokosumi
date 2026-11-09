@@ -27,6 +27,7 @@ import {
   type NativeStatisticsQuery,
   normalizeGa4Statistics,
   normalizeGscStatistics,
+  previousSeoPeriod,
   type SeoNativeTool,
   unwrapNativeStatistics,
 } from "@/lib/seo/native-statistics";
@@ -301,6 +302,21 @@ export async function syncProjectSeoStatistics(
     );
     return payload;
   };
+  // Totals over the equal window before the period, read the same way, so a change compares like with like.
+  const previousQuery: NativeStatisticsQuery = {
+    ...query,
+    ...previousSeoPeriod(query.from, query.to),
+  };
+  const collectPrevious = async () =>
+    normalize(
+      previousQuery,
+      unwrapNativeStatistics(
+        await read(integration, tool, build(previousQuery, false)),
+        expected,
+      ),
+      null,
+      new Date().toISOString(),
+    );
   const collectQueries = async (): Promise<NativeSearchQueries | null> =>
     input.provider === "search_console"
       ? normalizeGscQueries(
@@ -331,12 +347,14 @@ export async function syncProjectSeoStatistics(
         )
       : null;
   // Independent reads: native aggregate totals, the daily series, Search Console query rows and tracked keyword days. Distinct users are never summed.
-  const [period, daily, queries, keywordSeries] = await Promise.allSettled([
-    collect(false),
-    collect(true),
-    collectQueries(),
-    collectKeywordSeries(),
-  ]);
+  const [period, daily, queries, keywordSeries, previous] =
+    await Promise.allSettled([
+      collect(false),
+      collect(true),
+      collectQueries(),
+      collectKeywordSeries(),
+      collectPrevious(),
+    ]);
   if (period.status === "rejected" && daily.status === "rejected") {
     await recordSeoConnectionFailure(actor, input.provider, integration);
     throw unprocessableEntity(
@@ -349,6 +367,19 @@ export async function syncProjectSeoStatistics(
     daily.status === "fulfilled" ? daily.value : null,
     new Date().toISOString(),
   );
+  // A failed earlier window leaves the change unknown; it never reads as zero.
+  if (previous.status === "fulfilled" && period.status === "fulfilled")
+    for (const metric of metrics.metrics) {
+      const before = previous.value.metrics.find(
+        (candidate) => candidate.key === metric.key,
+      );
+      if (before)
+        metric.previous = {
+          from: previousQuery.from,
+          to: previousQuery.to,
+          value: before.value,
+        };
+    }
   if (input.provider === "search_console") {
     if (queries.status === "fulfilled" && queries.value) {
       metrics.queries = queries.value;

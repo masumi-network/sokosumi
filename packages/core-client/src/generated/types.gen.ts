@@ -10043,6 +10043,13 @@ export type ProjectSeoMetric = {
         value: number | null;
     }>;
     notes: Array<string>;
+    previous?: ProjectSeoPreviousPeriod;
+};
+
+export type ProjectSeoPreviousPeriod = {
+    from: string;
+    to: string;
+    value: number | null;
 };
 
 export type ProjectSeoSearchQueries = {

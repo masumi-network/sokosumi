@@ -135,3 +135,42 @@ export function seoWeekOverWeek(metrics: ProjectSeoMetric[]) {
     values,
   };
 }
+
+/** Days in a window, both ends included. */
+export function seoWindowDays(window: Window) {
+  return dayNumber(window.to) - dayNumber(window.from) + 1;
+}
+
+/**
+ * Each total against the same read over the equal window before the period.
+ * A missing side gives no comparison. A rate or a position compares only when
+ * Google showed the pages often enough in both windows.
+ */
+export function seoPeriodChange(metrics: ProjectSeoMetric[]) {
+  const impressions = metrics.find((metric) => metric.key === "impressions");
+  const busy = (value: number | null | undefined, window: Window) =>
+    value != null && !seoRarelyShown(value, window);
+  const ratesCompare = Boolean(
+    impressions?.previous &&
+      busy(impressions.value, impressions) &&
+      busy(impressions.previous.value, impressions.previous),
+  );
+  const changes = new Map<string, { previous: number; days: number }>();
+  for (const metric of metrics) {
+    const before = metric.previous;
+    if (
+      !before ||
+      before.value === null ||
+      metric.value === null ||
+      metric.coverage === "unavailable"
+    )
+      continue;
+    if ((metric.key === "ctr" || metric.key === "position") && !ratesCompare)
+      continue;
+    changes.set(metric.id, {
+      previous: before.value,
+      days: seoWindowDays(before),
+    });
+  }
+  return changes;
+}

@@ -1,6 +1,10 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoRarelyShown, seoWeekOverWeek } from "./seo-performance-model";
+import {
+  seoPeriodChange,
+  seoRarelyShown,
+  seoWeekOverWeek,
+} from "./seo-performance-model";
 
 function metric(
   key: string,
@@ -99,5 +103,52 @@ describe("seoRarelyShown", () => {
     const twoDays = { from: "2026-11-06", to: "2026-11-07" };
     expect(seoRarelyShown(99, twoDays)).toBe(true);
     expect(seoRarelyShown(100, twoDays)).toBe(false);
+  });
+});
+
+describe("seoPeriodChange", () => {
+  const totals = (
+    key: string,
+    unit: ProjectSeoMetric["unit"],
+    value: number | null,
+    previous: number | null | undefined,
+  ): ProjectSeoMetric => ({
+    ...metric(key, unit, []),
+    value,
+    ...(previous === undefined
+      ? {}
+      : {
+          previous: { from: "2026-09-17", to: "2026-09-30", value: previous },
+        }),
+  });
+
+  it("compares each total with the window before and names its length", () => {
+    const changes = seoPeriodChange([
+      totals("clicks", "count", 30, 12),
+      totals("impressions", "count", 900, 400),
+      totals("position", "position", 4.2, 6.1),
+    ]);
+    expect(changes.get("clicks")).toEqual({ previous: 12, days: 14 });
+    expect(changes.get("position")).toEqual({ previous: 6.1, days: 14 });
+  });
+
+  it("drops the rate and position when either window had too few impressions", () => {
+    const changes = seoPeriodChange([
+      totals("clicks", "count", 3, 1),
+      // 2 weeks need 200 impressions; the earlier window has 150.
+      totals("impressions", "count", 900, 150),
+      totals("ctr", "ratio", 0.01, 0.02),
+      totals("position", "position", 4.2, 6.1),
+    ]);
+    expect([...changes.keys()]).toEqual(["clicks", "impressions"]);
+  });
+
+  it("gives no comparison when a side is missing or unmeasured", () => {
+    const changes = seoPeriodChange([
+      totals("clicks", "count", 30, undefined),
+      totals("impressions", "count", 900, null),
+      totals("sessions", "count", null, 4),
+    ]);
+    expect(changes.size).toBe(0);
   });
 });
