@@ -17,6 +17,10 @@ export const SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE =
 export const SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE =
   "Search Console daily positions for tracked keywords were unavailable for this sync. Other measurements are kept.";
 
+/** The country or device read failed. Like the keyword note, it does not mark lost data. */
+export const SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE =
+  "Search Console totals by country or by device were unavailable for this sync. Other measurements are kept.";
+
 const SEO_STATISTICS_LOSS_NOTES = [
   SEO_STATISTICS_QUERY_FAILED_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,

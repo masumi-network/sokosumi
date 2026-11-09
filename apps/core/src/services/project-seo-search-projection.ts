@@ -95,6 +95,8 @@ export function projectSearchEvidence(
         id: `${current.row.id}:query:${index}`,
       })),
       keywordSeries: current.data.keywordSeries,
+      countries: current.data.countries,
+      devices: current.data.devices,
     },
     actions,
   };

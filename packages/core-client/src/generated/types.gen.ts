@@ -10071,6 +10071,8 @@ export type ProjectSeoSearchQueries = {
         id: string;
     }>;
     keywordSeries?: ProjectSeoKeywordSeries;
+    countries?: ProjectSeoSearchBreakdown;
+    devices?: ProjectSeoSearchBreakdown;
 };
 
 export type ProjectSeoKeywordSeries = {
@@ -10084,6 +10086,18 @@ export type ProjectSeoKeywordSeries = {
             impressions: number;
             position: number | null;
         }>;
+    }>;
+};
+
+export type ProjectSeoSearchBreakdown = {
+    rowLimit: number;
+    truncated: boolean;
+    rows: Array<{
+        key: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        averagePosition: number;
     }>;
 };
 

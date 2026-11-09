@@ -11130,7 +11130,21 @@
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
       "filterDates": "Nach Datum filtern",
-      "syncNow": "Jetzt synchronisieren"
+      "syncNow": "Jetzt synchronisieren",
+      "breakdown": {
+        "title": "Länder und Geräte",
+        "help": "Google-Suchwerte dieser Seiten nach Land der Suchenden und nach Gerät.",
+        "country": "Land",
+        "device": "Gerät",
+        "unknownCountry": "Unbekanntes Land",
+        "devices": {
+          "desktop": "Desktop",
+          "mobile": "Mobil",
+          "tablet": "Tablet"
+        },
+        "more": "{count, plural, one {# weiteres Land} other {# weitere Länder}} mit weniger Klicks.",
+        "truncated": "Nur die ersten {count} Zeilen nach Klicks wurden gelesen. Es kann mehr geben."
+      }
     }
   },
   "Share": {

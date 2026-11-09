@@ -1,11 +1,17 @@
 import { z } from "@hono/zod-openapi";
 import {
+  SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
 } from "@sokosumi/utils";
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import {
+  type GscBreakdownDimension,
+  gscBreakdownArguments,
+  normalizeGscBreakdown,
+} from "@/lib/seo/native-gsc-breakdown";
 import {
   gscKeywordSeriesArguments,
   gscQueryArguments,
@@ -327,6 +333,20 @@ export async function syncProjectSeoStatistics(
           ),
         )
       : null;
+  const collectBreakdown = async (dimension: GscBreakdownDimension) =>
+    input.provider === "search_console"
+      ? normalizeGscBreakdown(
+          dimension,
+          unwrapNativeStatistics(
+            await read(
+              integration,
+              tool,
+              gscBreakdownArguments(query, dimension),
+            ),
+            ["rows"],
+          ),
+        )
+      : null;
   const tracked =
     input.provider === "search_console"
       ? selectTrackedKeywords(workspace.keywords)
@@ -347,13 +367,15 @@ export async function syncProjectSeoStatistics(
         )
       : null;
   // Independent reads: native aggregate totals, the daily series, Search Console query rows and tracked keyword days. Distinct users are never summed.
-  const [period, daily, queries, keywordSeries, previous] =
+  const [period, daily, queries, keywordSeries, previous, byCountry, byDevice] =
     await Promise.allSettled([
       collect(false),
       collect(true),
       collectQueries(),
       collectKeywordSeries(),
       collectPrevious(),
+      collectBreakdown("country"),
+      collectBreakdown("device"),
     ]);
   if (period.status === "rejected" && daily.status === "rejected") {
     await recordSeoConnectionFailure(actor, input.provider, integration);
@@ -400,6 +422,12 @@ export async function syncProjectSeoStatistics(
           );
       } else metrics.notes.push(SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE);
     }
+    if (byCountry.status === "fulfilled" && byCountry.value)
+      metrics.countries = byCountry.value;
+    if (byDevice.status === "fulfilled" && byDevice.value)
+      metrics.devices = byDevice.value;
+    if (byCountry.status === "rejected" || byDevice.status === "rejected")
+      metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
     if (tracked.leftOut.length)
       metrics.notes.push(keywordSeriesLeftOutNote(tracked.leftOut));
   }

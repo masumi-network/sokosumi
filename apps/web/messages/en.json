@@ -11130,7 +11130,21 @@
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
       "filterDates": "Filter by date",
-      "syncNow": "Sync now"
+      "syncNow": "Sync now",
+      "breakdown": {
+        "title": "Countries and devices",
+        "help": "Google search totals for these pages by searcher country and by device.",
+        "country": "Country",
+        "device": "Device",
+        "unknownCountry": "Unknown country",
+        "devices": {
+          "desktop": "Desktop",
+          "mobile": "Mobile",
+          "tablet": "Tablet"
+        },
+        "more": "{count, plural, one {# more country} other {# more countries}} with fewer clicks.",
+        "truncated": "Only the first {count} rows by clicks were read. More can exist."
+      }
     }
   },
   "Share": {

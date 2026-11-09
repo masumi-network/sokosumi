@@ -1,4 +1,5 @@
 import {
+  SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   seoStatisticsLostData,
 } from "@sokosumi/utils";
@@ -346,6 +347,10 @@ describe("Search Console query rows", () => {
           ],
         };
       const dimensions = args.dimensions as string[];
+      if (dimensions.join() === "country")
+        return { rows: [{ keys: ["deu"], ...metric }] };
+      if (dimensions.join() === "device")
+        return { rows: [{ keys: ["MOBILE"], ...metric }] };
       if (dimensions.join() === "date,query") return seriesRows;
       if (dimensions.includes("query")) return queryRows;
       return {
@@ -421,6 +426,62 @@ describe("Search Console query rows", () => {
       ctr: null,
       position: null,
     });
+  });
+
+  it("stores totals by country and by device and hands them to the workspace", async () => {
+    state.answer = gsc({
+      rows: [{ keys: ["battery", state.pageUrl], ...metric }],
+    });
+    const workspace = await syncProjectSeoStatistics(actor, gscInput);
+    const byCountry = state.reads.find(
+      (read) =>
+        (read.args.dimensions as string[] | undefined)?.join() === "country",
+    );
+    const totals = state.reads.find(
+      (read) => (read.args.dimensions as string[] | undefined)?.length === 0,
+    );
+    // The same page filter as the totals, so the rows add up to the same pages.
+    expect(byCountry?.args.dimension_filter_groups).toEqual(
+      totals?.args.dimension_filter_groups,
+    );
+    const row = {
+      clicks: 1,
+      impressions: 9,
+      ctr: 0.11,
+      averagePosition: 4.2,
+    };
+    expect(workspace.searchQueries?.countries?.rows).toEqual([
+      { key: "DE", ...row },
+    ]);
+    expect(workspace.searchQueries?.devices?.rows).toEqual([
+      { key: "mobile", ...row },
+    ]);
+    const payload = state.observations[0].payload as { notes: string[] };
+    expect(payload.notes).not.toContain(
+      SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
+    );
+  });
+
+  it("keeps the other reads and says so when the device read fails", async () => {
+    const current = gsc({
+      rows: [{ keys: ["battery", state.pageUrl], ...metric }],
+    });
+    state.answer = (slug, args) =>
+      (args.dimensions as string[] | undefined)?.join() === "device"
+        ? { rows: [{ keys: ["watch"], ...metric }] }
+        : current(slug, args);
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      notes: string[];
+      countries?: unknown;
+      devices?: unknown;
+      queries?: unknown;
+    };
+    expect(payload.devices).toBeUndefined();
+    expect(payload.countries).toBeDefined();
+    expect(payload.queries).toBeDefined();
+    expect(payload.notes).toContain(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
+    expect(seoStatisticsLostData(payload.notes)).toBe(false);
   });
 
   it("keeps totals and says so when the query read leaves the selection", async () => {

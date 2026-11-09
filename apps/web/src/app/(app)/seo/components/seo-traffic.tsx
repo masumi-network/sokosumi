@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoBreakdown } from "./seo-breakdown";
 import { SeoQueryFilter } from "./seo-keywords";
 import { SeoMeasurements } from "./seo-measurements";
 import { MIN_PAGES_FOR_SELECTIONS } from "./seo-pages";
@@ -35,6 +36,7 @@ export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
       />
       <SeoSearchQueries model={model} />
       <SeoTopPages model={model} />
+      <SeoBreakdown model={model} />
     </div>
   );
 }

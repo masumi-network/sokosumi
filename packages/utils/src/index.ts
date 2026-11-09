@@ -434,6 +434,7 @@ export {
 } from "./project-logo-path.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export {
+  SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,
   SEO_STATISTICS_QUERY_FAILED_NOTE,

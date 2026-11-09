@@ -418,6 +418,32 @@ export const seoKeywordSeriesSchema = z
   })
   .strict()
   .openapi("ProjectSeoKeywordSeries");
+export const SEO_BREAKDOWN_ROW_LIMIT = 250;
+/**
+ * Search Console totals for the same pages and period, grouped by one
+ * dimension. A country key is ISO alpha-2, or Google's alpha-3 code when it
+ * has no alpha-2 twin. A device key is desktop, mobile or tablet.
+ */
+export const seoSearchBreakdownSchema = z
+  .object({
+    rowLimit: z.number().int().positive().max(SEO_BREAKDOWN_ROW_LIMIT),
+    truncated: z.boolean(),
+    rows: z
+      .array(
+        z
+          .object({
+            key: z.string().regex(/^(?:[A-Z]{2,3}|desktop|mobile|tablet)$/),
+            clicks: z.number().finite().nonnegative(),
+            impressions: z.number().finite().nonnegative(),
+            ctr: z.number().finite().min(0).max(1),
+            averagePosition: z.number().finite().min(1),
+          })
+          .strict(),
+      )
+      .max(SEO_BREAKDOWN_ROW_LIMIT),
+  })
+  .strict()
+  .openapi("ProjectSeoSearchBreakdown");
 export const seoSearchQueriesSchema = z
   .object({
     observationId: seoIdSchema,
@@ -431,6 +457,9 @@ export const seoSearchQueriesSchema = z
     rows: z.array(seoSearchQueryRowSchema.extend({ id: z.string() })),
     /** Daily positions of tracked keywords from the same observation. Absent when not requested. */
     keywordSeries: seoKeywordSeriesSchema.optional(),
+    /** Totals by country and by device from the same observation. Absent when the read failed or on older observations. */
+    countries: seoSearchBreakdownSchema.optional(),
+    devices: seoSearchBreakdownSchema.optional(),
   })
   .openapi("ProjectSeoSearchQueries");
 export const seoTimelineSchema = z
@@ -584,6 +613,9 @@ export const nativeSeoMetricsSchema = z
       .optional(),
     /** Daily positions of tracked keywords for the same pages and period. Absent when none were requested. */
     keywordSeries: seoKeywordSeriesSchema.optional(),
+    /** Search Console totals by country and by device. Absent when the read failed. */
+    countries: seoSearchBreakdownSchema.optional(),
+    devices: seoSearchBreakdownSchema.optional(),
   })
   .strict()
   .refine((input) => input.from <= input.to, "Period ends before it starts")
@@ -602,5 +634,6 @@ export type SeoActor = {
   privateMetricsAllowed?: boolean;
 };
 export type NativeSeoMetrics = z.infer<typeof nativeSeoMetricsSchema>;
+export type SeoSearchBreakdown = z.infer<typeof seoSearchBreakdownSchema>;
 export type SeoWorkspaceQuery = z.infer<typeof seoWorkspaceQuerySchema>;
 export type RequestSeoAnalysis = z.infer<typeof requestSeoAnalysisSchema>;

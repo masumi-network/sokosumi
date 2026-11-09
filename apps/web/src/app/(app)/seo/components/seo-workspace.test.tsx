@@ -1210,6 +1210,67 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText(/: 140 · week before: 140$/)).toBeVisible();
   });
 
+  it("lists search totals by country and device, folding countries past ten", () => {
+    const workspace = seoTestWorkspace();
+    const row = (key: string, clicks: number) => ({
+      key,
+      clicks,
+      impressions: clicks * 10,
+      ctr: 0.1,
+      averagePosition: 5.25,
+    });
+    const codes = [
+      "DE",
+      "AT",
+      "CH",
+      "US",
+      "GB",
+      "FR",
+      "IT",
+      "ES",
+      "NL",
+      "BE",
+      "ZZZ",
+    ];
+    workspace.searchQueries = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      timeZone: "UTC",
+      observedAt: new Date(),
+      rowLimit: 250,
+      truncated: false,
+      rows: [],
+      countries: {
+        rowLimit: 250,
+        truncated: false,
+        rows: codes.map((code, index) => row(code, 20 - index)),
+      },
+      devices: { rowLimit: 250, truncated: false, rows: [row("mobile", 7)] },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=traffic");
+    const section = screen
+      .getByRole("heading", { name: "Countries and devices" })
+      .closest("section");
+    if (!section) throw new Error("Breakdown section missing");
+    const country = within(section).getAllByRole("table")[0];
+    expect(within(country).getByText("Germany")).toBeVisible();
+    expect(within(country).getAllByRole("row")).toHaveLength(11);
+    // The 11th country, Google's unknown region, folds into the count.
+    expect(within(country).queryByText("Unknown country")).toBeNull();
+    expect(
+      within(section).getByText("1 more country with fewer clicks."),
+    ).toBeVisible();
+    const device = within(section).getAllByRole("table")[1];
+    expect(within(device).getByText("Mobile")).toBeVisible();
+    expect(within(device).getByText("5.3")).toBeVisible();
+  });
+
   it("names each total's change against the equal window before the period", () => {
     const workspace = seoTestWorkspace();
     const base = {

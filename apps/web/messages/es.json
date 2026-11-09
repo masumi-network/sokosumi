@@ -11130,7 +11130,21 @@
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
       "filterDates": "Filtrar por fecha",
-      "syncNow": "Sincronizar ahora"
+      "syncNow": "Sincronizar ahora",
+      "breakdown": {
+        "title": "Países y dispositivos",
+        "help": "Totales de búsqueda de Google de estas páginas por país de quien busca y por dispositivo.",
+        "country": "País",
+        "device": "Dispositivo",
+        "unknownCountry": "País desconocido",
+        "devices": {
+          "desktop": "Escritorio",
+          "mobile": "Móvil",
+          "tablet": "Tableta"
+        },
+        "more": "{count, plural, one {# país más} other {# países más}} con menos clics.",
+        "truncated": "Solo se leyeron las primeras {count} filas por clics. Puede haber más."
+      }
     }
   },
   "Share": {

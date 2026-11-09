@@ -17,7 +17,7 @@ import {
 } from "./native-statistics";
 
 const GSC_QUERY_DIMENSIONS = ["query", "page"];
-const numberSchema = z
+export const gscNumberSchema = z
   .union([z.string().regex(/^\d+(?:\.\d+)?$/), z.number()])
   .transform(Number)
   .pipe(z.number().finite().nonnegative());
@@ -26,10 +26,10 @@ const gscQueryReportSchema = z.object({
     .array(
       z.object({
         keys: z.array(z.string()),
-        clicks: numberSchema,
-        impressions: numberSchema,
-        ctr: numberSchema,
-        position: numberSchema,
+        clicks: gscNumberSchema,
+        impressions: gscNumberSchema,
+        ctr: gscNumberSchema,
+        position: gscNumberSchema,
       }),
     )
     .max(SEO_SEARCH_QUERY_ROW_LIMIT)
@@ -106,9 +106,9 @@ const gscKeywordSeriesReportSchema = z.object({
     .array(
       z.object({
         keys: z.array(z.string()),
-        clicks: numberSchema,
-        impressions: numberSchema,
-        position: numberSchema,
+        clicks: gscNumberSchema,
+        impressions: gscNumberSchema,
+        position: gscNumberSchema,
       }),
     )
     .max(SEO_KEYWORD_SERIES_ROW_LIMIT)

@@ -37885,6 +37885,12 @@ export const ProjectSeoSearchQueriesSchema = {
         },
         keywordSeries: {
             $ref: '#/components/schemas/ProjectSeoKeywordSeries'
+        },
+        countries: {
+            $ref: '#/components/schemas/ProjectSeoSearchBreakdown'
+        },
+        devices: {
+            $ref: '#/components/schemas/ProjectSeoSearchBreakdown'
         }
     },
     required: [
@@ -37967,6 +37973,64 @@ export const ProjectSeoKeywordSeriesSchema = {
         'rowLimit',
         'truncated',
         'keywords'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoSearchBreakdownSchema = {
+    type: 'object',
+    properties: {
+        rowLimit: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            maximum: 250
+        },
+        truncated: {
+            type: 'boolean'
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string',
+                        pattern: '^(?:[A-Z]{2,3}|desktop|mobile|tablet)$'
+                    },
+                    clicks: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    impressions: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    ctr: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    averagePosition: {
+                        type: 'number',
+                        minimum: 1
+                    }
+                },
+                required: [
+                    'key',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'averagePosition'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 250
+        }
+    },
+    required: [
+        'rowLimit',
+        'truncated',
+        'rows'
     ],
     additionalProperties: false
 } as const;
