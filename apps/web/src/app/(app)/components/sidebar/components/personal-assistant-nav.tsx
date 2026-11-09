@@ -1,6 +1,6 @@
 import { cache, Suspense } from "react";
 
-import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 import PersonalAssistantNavClient, {
@@ -23,7 +23,7 @@ const loadYourBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
     return {
       id: member.bot.id,
       imageUrl: member.bot.avatarImageUrl,
-      seed: member.bot.avatarSeed ?? defaultOrbSeed(member.userId),
+      seed: botFaceSeed(member.bot, member.userId),
       name: member.bot.name,
       status: member.bot.status,
       lastActivityAt: member.bot.lastActivityAt,

@@ -14,12 +14,35 @@
 BEGIN;
 
 -- Prisma does not wrap PostgreSQL migrations implicitly, and the old release
--- keeps claiming avatars while this runs. Take write locks first, in the order
--- a claim writes (avatar, then bot), so no claim lands between reading the
--- pool and handing it out: one avatar never goes to two bots, and the bots
--- read here are the ones that hold a crafted-style avatar at commit.
-LOCK TABLE "soko_bot_avatar" IN SHARE ROW EXCLUSIVE MODE;
-LOCK TABLE "soko_bot" IN SHARE ROW EXCLUSIVE MODE;
+-- keeps claiming avatars while this runs. Lock both tables first, so no claim
+-- lands between reading the pool and handing it out: one avatar never goes to
+-- two bots, and the bots read here are the ones that hold a crafted-style
+-- avatar at commit. EXCLUSIVE mode blocks writes and `FOR UPDATE` row locks
+-- but lets plain reads through.
+--
+-- The app writes these tables in both orders (a claim writes the avatar, then
+-- the bot; creating or reactivating a bot writes the bot, then claims), so no
+-- fixed lock order is deadlock-free. Instead both locks are taken in one
+-- NOWAIT statement, retried every 50 ms. A failed attempt rolls back its
+-- subtransaction and so releases any lock it got, so this never waits while
+-- holding a lock. After about 30 s it gives up and the deploy fails. The locks
+-- hold until COMMIT.
+DO $$
+DECLARE
+  deadline timestamptz := clock_timestamp() + interval '30 seconds';
+BEGIN
+  LOOP
+    BEGIN
+      LOCK TABLE "soko_bot_avatar", "soko_bot" IN EXCLUSIVE MODE NOWAIT;
+      EXIT;
+    EXCEPTION WHEN lock_not_available THEN
+      IF clock_timestamp() > deadline THEN
+        RAISE EXCEPTION 'could not lock "soko_bot_avatar" and "soko_bot" within 30 s; retry the migration';
+      END IF;
+      PERFORM pg_sleep(0.05);
+    END;
+  END LOOP;
+END $$;
 
 -- Bots on a crafted-style avatar, in random order.
 CREATE TEMP TABLE "crafted_bot" AS

@@ -3,8 +3,8 @@
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
+import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
 
 export function AssigneeAvatar({
   assignee,
@@ -25,7 +25,7 @@ export function AssigneeAvatar({
   ) {
     return (
       <AssistantOrb
-        seed={assignee.avatarSeed ?? defaultOrbSeed(assignee.id)}
+        seed={botFaceSeed(assignee, assignee.id)}
         expression="idle"
         animate={false}
         size={orbSize}

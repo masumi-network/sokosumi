@@ -85,7 +85,8 @@ copy/delete-legacy steps below are leftover Blob cleanup if objects still
 exist under `soko-bot-avatars/` — not a first-run step on every deploy.
 Confirm DB URLs and the Blob listing before deleting.
 
-The Soko Bot avatar pool in Vercel Blob is
+The Soko Bot avatar pool in Vercel Blob has two paths. Avatars already in use
+keep `soko-bots/avatars/{key}-{hash12}.png`; new ones are stored as
 `soko-bots/avatars/original/{key}-{hash12}.webp`. Older objects used
 `soko-bot-avatars/`. Chat files stay under `soko-bots/{uuid}/chats/`.
 

@@ -254,6 +254,8 @@ export function SokoBotConsole({
   const [loadingAvatars, setLoadingAvatars] = useState(false);
   const [isSavingAvatar, startSavingAvatar] = useTransition();
   const [editingPicture, setEditingPicture] = useState(false);
+  // A shared bot's `botId` is set; the personal bot's is not.
+  const ownsBot = !botId;
   function saveAvatar() {
     if (!pickedAvatar) return;
     const avatarId = pickedAvatar.id;
@@ -303,9 +305,9 @@ export function SokoBotConsole({
                 imageUrl={bot.avatarImageUrl}
                 // Only the owner changes their own bot's picture here; shared
                 // bots get theirs from admin.
-                onEdit={botId ? null : () => setEditingPicture(true)}
+                onEdit={ownsBot ? () => setEditingPicture(true) : null}
               />
-              {botId ? null : (
+              {ownsBot ? (
                 <Dialog
                   open={editingPicture}
                   onOpenChange={(open) => {
@@ -338,7 +340,7 @@ export function SokoBotConsole({
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              )}
+              ) : null}
               <div className="flex flex-col items-center gap-2">
                 <div className="flex flex-wrap items-center justify-center gap-2.5">
                   <h1 className="text-foreground truncate text-3xl font-light tracking-tight">
