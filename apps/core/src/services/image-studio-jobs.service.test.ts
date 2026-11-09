@@ -620,8 +620,9 @@ describe("image studio job submission", () => {
   });
 
   it("sends Design and Memory to fal and keeps the stored prompt as the brief", async () => {
+    // Own URL: readDesignMdContent caches by URL across the test process.
     const designMdUrl =
-      "https://abc123.public.blob.vercel-storage.com/design-md/hash.md";
+      "https://abc123.public.blob.vercel-storage.com/design-md/jobs-brand.md";
     projectFindUniqueMock.mockResolvedValue({
       designMdUrl,
       contextMd: "We never use serif.",
@@ -650,8 +651,9 @@ describe("image studio job submission", () => {
 
   it("still sends the brief when Design cannot be read", async () => {
     projectFindUniqueMock.mockResolvedValue({
+      // A file no earlier test read: read files are cached by URL.
       designMdUrl:
-        "https://abc123.public.blob.vercel-storage.com/design-md/hash.md",
+        "https://abc123.public.blob.vercel-storage.com/design-md/unread-jobs.md",
       contextMd: null,
     });
     ssrfSafeFetchMock.mockRejectedValue(new Error("blocked"));
