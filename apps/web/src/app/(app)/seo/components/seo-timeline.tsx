@@ -109,6 +109,7 @@ export function SeoTimeline({
       ),
   );
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
+  const viewed = new Set(workspace.scope.pageIds);
   // The market only tells runs apart when they used different ones.
   const manyMarkets =
     new Set(
@@ -141,9 +142,11 @@ export function SeoTimeline({
                   (observation.coverage.failed > 0 ||
                     (observation.coverage.modules?.failed ?? 0) > 0);
                 // A run leads with what it found; "no issues" needs a complete run that measured something.
+                // Its issue count covers only the viewed pages, so a run with other pages shows no result.
                 const result =
                   observation &&
                   observation.coverage.checked > 0 &&
+                  observation.pageIds.every((id) => viewed.has(id)) &&
                   (observation.issues > 0 || !incomplete)
                     ? observation.issues
                     : null;
@@ -241,7 +244,7 @@ export function SeoTimeline({
                             {event.taskId ? (
                               <Link
                                 href={`/tasks/${encodeURIComponent(event.taskId)}`}
-                                className="inline-block py-2 text-foreground underline underline-offset-4"
+                                className="inline-block py-3 text-foreground underline underline-offset-4"
                               >
                                 {t("openTask")}
                               </Link>

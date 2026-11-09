@@ -219,6 +219,53 @@ describe("SEO timeline recovery", () => {
     expect(screen.queryByText("No issues found")).toBeNull();
   });
 
+  it("does not claim no issues for a run that also checked pages outside the view", () => {
+    const workspace = seoTestWorkspace();
+    const observation = {
+      id: "wider",
+      kind: "page_check",
+      source: "agent",
+      observedAt: new Date("2026-11-01T10:00:00Z"),
+      pageIds: [...workspace.scope.pageIds, "another-page"],
+      scopeVersion: 0,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "test-rules",
+      artifactHash: "hash",
+      // Core counts issues on the viewed pages only.
+      issues: 0,
+      coverage: { checked: 10, skipped: 0, failed: 0 },
+    };
+    workspace.observations = [observation];
+    workspace.timeline = [
+      {
+        id: "wider",
+        kind: "check",
+        title: "SEO check results imported",
+        status: "completed",
+        detail: "",
+        at: observation.observedAt,
+        pageIds: observation.pageIds,
+        taskId: null,
+        observationId: observation.id,
+      },
+    ];
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("Check results")).toBeVisible();
+    expect(screen.queryByText("No issues found")).toBeNull();
+  });
+
   it("shows a failed check and offers a reviewed new check without hiding its source Task", () => {
     const workspace = seoTestWorkspace();
     workspace.timeline = [
