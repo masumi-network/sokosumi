@@ -535,6 +535,118 @@ describe("SEO workspace integration", () => {
     ).toHaveValue(
       "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?",
     );
+    // One click, one request.
+    expect(asked).toHaveLength(1);
+  });
+
+  it("sends a Site health fix request only once the chat shows no running turn", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const measured = (device: "desktop" | "mobile", characters: number) => ({
+      id: `description-${device}`,
+      observationId: "check-description",
+      pageUrl: workspace.pages[0].url,
+      device,
+      rowId: "description-length",
+      title: "Raw HTML: Meta description length",
+      severity: "measure" as const,
+      evidence: [
+        `meta description ${characters} characters`,
+        "vendor tools: Ahrefs under 160 (N1-247)",
+      ],
+      sourceRef: "html:description",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    workspace.findings.push(measured("desktop", 163), measured("mobile", 170));
+    const prompt = `The check measured “Meta description length” on ${workspace.pages[0].url} as 163 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.`;
+    const asked: string[] = [];
+    let history: () => Promise<Response> = async () =>
+      Response.json({ turns: [] });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (!url.endsWith("/chat")) return Response.json(workspace);
+        if (init?.method !== "POST") return history();
+        const question = JSON.parse(String(init.body)).question;
+        asked.push(question);
+        return Response.json({
+          id: crypto.randomUUID(),
+          question,
+          response: "Draft",
+          status: "completed",
+          actions: [],
+          scope: { pageIds: workspace.scope.pageIds },
+          createdAt: new Date().toISOString(),
+        });
+      }),
+    );
+    // History still loading: the request waits for it, then goes once.
+    let loaded: (response: Response) => void = () => undefined;
+    history = () =>
+      new Promise<Response>((resolve) => {
+        loaded = resolve;
+      });
+    const view = renderWorkspace(workspace, "?tab=health");
+    // Both device rows are the one suggestion; only its first row offers the fix.
+    expect(await screen.findAllByText(/Suggestion: outside/)).toHaveLength(2);
+    const fixes = screen.getAllByRole("button", { name: "Draft a fix" });
+    expect(fixes).toHaveLength(1);
+    await user.click(fixes[0]);
+    await screen.findByRole("dialog");
+    expect(asked).toEqual([]);
+    loaded(Response.json({ turns: [] }));
+    await waitFor(() => expect(asked).toEqual([prompt]));
+    view.unmount();
+
+    // Closed before the history loads: the request waits in the input, not out of sight.
+    asked.length = 0;
+    history = () =>
+      new Promise<Response>((resolve) => {
+        loaded = resolve;
+      });
+    const closed = renderWorkspace(workspace, "?tab=health");
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Draft a fix" }))[0],
+    );
+    await screen.findByRole("dialog");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    loaded(Response.json({ turns: [] }));
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
+    const reopened = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(within(reopened).getByLabelText("Your question")).toHaveValue(
+        prompt,
+      ),
+    );
+    expect(asked).toEqual([]);
+    closed.unmount();
+
+    // A turn already running: the request becomes a draft in the input, not a second turn.
+    asked.length = 0;
+    history = async () =>
+      Response.json({
+        turns: [
+          {
+            id: crypto.randomUUID(),
+            question: "Earlier question",
+            response: null,
+            status: "running",
+            actions: [],
+            scope: { pageIds: workspace.scope.pageIds },
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+    renderWorkspace(workspace, "?tab=health");
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Draft a fix" }))[0],
+    );
+    const sheet = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(within(sheet).getByLabelText("Your question")).toHaveValue(prompt),
+    );
+    expect(asked).toEqual([]);
   });
 
   it("names each page-detail row's page on a multi-page Audit", async () => {

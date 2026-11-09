@@ -47,6 +47,7 @@ function PageDetail({
   dated,
   showGuidance,
   suggested,
+  offersFix,
   onAsk,
 }: {
   finding: Diagnostic;
@@ -55,8 +56,10 @@ function PageDetail({
   dated: boolean;
   /** The same rule on several pages carries the same guidance; the first row shows it. */
   showGuidance: boolean;
-  /** A measurement the Agent tab counts as a suggestion; it alone offers "Draft a fix". */
+  /** A row of a measurement the Agent tab counts as a suggestion; it carries the "Suggestion:" mark. */
   suggested: boolean;
+  /** The suggestion's first row offers "Draft a fix"; its other device rows do not repeat it. */
+  offersFix: boolean;
   /** Opens the agent chat: a note's question as a draft, a fix request sent; absent without a chat. */
   onAsk?: (question: string, send: boolean) => void;
 }) {
@@ -110,7 +113,7 @@ function PageDetail({
   }, [foldable, fullValue, detail]);
   const toggle = foldable && clamped;
   // A note can always be asked about; a measurement only when some tool range leaves it out.
-  const ask = measure ? (suggested ? onAsk : undefined) : onAsk;
+  const ask = measure ? (offersFix ? onAsk : undefined) : onAsk;
   return (
     <li className="space-y-1">
       {measure ? (
@@ -280,6 +283,10 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const suggestions = suggestionList.length;
   const suggestedRows = new Set(
     suggestionList.flatMap((suggestion) => suggestion.findingIds),
+  );
+  // One fix per suggestion: its first row carries the button, so devices do not repeat it.
+  const fixRows = new Set(
+    suggestionList.map((suggestion) => suggestion.findingIds[0]),
   );
   const references = pageDetailReferences(
     overview.diagnostics.map((finding) => ({
@@ -466,6 +473,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       dated={!oneCheck}
                       showGuidance={guidanceRows.has(finding.id)}
                       suggested={suggestedRows.has(finding.id)}
+                      offersFix={fixRows.has(finding.id)}
                       onAsk={askAgent}
                     />
                   ))}
@@ -493,6 +501,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       dated={!oneCheck}
                       showGuidance={guidanceRows.has(finding.id)}
                       suggested={false}
+                      offersFix={false}
                       onAsk={askAgent}
                     />
                   ))}
