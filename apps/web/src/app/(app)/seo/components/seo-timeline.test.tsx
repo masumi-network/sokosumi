@@ -230,15 +230,15 @@ describe("SEO timeline recovery", () => {
     expect(
       within(clean).getByText("Earlier checks covered 12 rules."),
     ).toBeVisible();
-    // Every folded check keeps its Task.
+    // Every folded check keeps its Task, on its own line, newest first.
     expect(
       within(clean)
         .getAllByRole("link", { name: "Open task", hidden: true })
         .map((link) => link.getAttribute("href")),
     ).toEqual([
+      "/tasks/clean-3-task",
       "/tasks/clean-2-task",
       "/tasks/clean-1-task",
-      "/tasks/clean-3-task",
     ]);
     // The folded row names the days it spans, and each check says what it covered.
     expect(within(clean).getByText(/^Nov 2\W+4, 2026$/)).toBeVisible();
@@ -247,7 +247,7 @@ describe("SEO timeline recovery", () => {
       within(clean).getByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov 4, 2026.* · Rule checks: 24 checked, 0 not checked, 0 unavailable$/.test(
+          /^Nov 4, 2026.* · Rule checks: 24 checked, 0 not checked, 0 unavailable · Open task$/.test(
             element.textContent ?? "",
           ),
       ),

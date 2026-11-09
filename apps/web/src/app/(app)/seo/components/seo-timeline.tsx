@@ -313,6 +313,17 @@ export function SeoTimeline({
                                 </>
                               ) : null}
                               {coverageText(observation.coverage)}
+                              {earlier.length && event.taskId ? (
+                                <>
+                                  {" · "}
+                                  <Link
+                                    href={`/tasks/${encodeURIComponent(event.taskId)}`}
+                                    className="inline-block py-3 text-foreground underline underline-offset-4"
+                                  >
+                                    {t("openTask")}
+                                  </Link>
+                                </>
+                              ) : null}
                             </p>
                           ) : null}
                           {observation ? (
@@ -345,7 +356,8 @@ export function SeoTimeline({
                               ) : null}
                             </p>
                           ))}
-                          {event.taskId ? (
+                          {/* A folded row puts the newest check's Task on its own line above. */}
+                          {event.taskId && !earlier.length ? (
                             <Link
                               href={`/tasks/${encodeURIComponent(event.taskId)}`}
                               className="inline-block py-3 text-foreground underline underline-offset-4"
