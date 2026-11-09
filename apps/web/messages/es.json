@@ -10793,7 +10793,7 @@
         "earlierRules": "Las comprobaciones anteriores cubrieron {counts} reglas.",
         "rulesRan": "{count, plural, one {# regla comprobada} other {# reglas comprobadas}}",
         "rulesSkipped": "{count} sin comprobar",
-        "rulesUnavailable": "{count} no disponibles",
+        "rulesUnavailable": "{count, plural, one {# no disponible} other {# no disponibles}}",
         "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
         "optionalNotRequested": "{count, plural, one {# comprobación opcional no solicitada} other {# comprobaciones opcionales no solicitadas}}"
       },

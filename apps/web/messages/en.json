@@ -10791,7 +10791,7 @@
         "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
         "cleanChecks": "No issues in {count} checks",
         "earlierRules": "Earlier checks covered {counts} rules.",
-        "rulesRan": "{count, plural, one {# rule ran} other {# rules ran}}",
+        "rulesRan": "{count, plural, one {# rule checked} other {# rules checked}}",
         "rulesSkipped": "{count} not checked",
         "rulesUnavailable": "{count} unavailable",
         "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}",
@@ -11090,7 +11090,7 @@
         "lastCheckOn": "Last check",
         "askHow": "Ask the agent",
         "traffic": "Google search: shown {impressions, plural, one {# time} other {# times}}, {clicks, plural, one {# click} other {# clicks}}",
-        "askShort": "Ask agent"
+        "askShort": "Ask"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

@@ -389,7 +389,7 @@ describe("SEO workspace integration", () => {
       expect(
         screen.getByText(
           onTimeline
-            ? /^2 rules ran · 1 not checked/
+            ? /^2 rules checked · 1 not checked/
             : "Rule checks: 2 checked, 1 not checked, 0 unavailable",
         ),
       ).toBeInTheDocument();

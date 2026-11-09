@@ -54,7 +54,7 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText(/12 rules checked/)).toBeVisible();
+    expect(screen.getAllByText(/12 rules checked/)[0]).toBeVisible();
     expect(
       screen.queryByText("Some requested work could not be completed."),
     ).toBeNull();
@@ -248,7 +248,7 @@ describe("SEO timeline recovery", () => {
       within(clean).getByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov 4, 2026.* · 24 rules ran · Open task$/.test(
+          /^Nov 4, 2026.* · 24 rules checked · Open task$/.test(
             element.textContent ?? "",
           ),
       ),
@@ -257,7 +257,7 @@ describe("SEO timeline recovery", () => {
       within(clean).getAllByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov \d, 2026.* · 12 rules ran · Open task$/.test(
+          /^Nov \d, 2026.* · 12 rules checked · Open task$/.test(
             element.textContent ?? "",
           ),
       ),
