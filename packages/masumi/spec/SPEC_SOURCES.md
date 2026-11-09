@@ -23,10 +23,17 @@ Record the new provenance below whenever a snapshot changes.
 
 | File                    | Source                                     | Version | Recorded   |
 | ----------------------- | ------------------------------------------ | ------- | ---------- |
-| `payment.openapi.json`  | `https://payment.masumi.network/api-docs`  | 1.0.0   | 2026-09-01 |
-| `registry.openapi.json` | `https://registry.masumi.network/api-docs` | 0.1.2   | 2026-08-07 |
+| `payment.openapi.json`  | `https://payment.masumi.network/api-docs`  | 1.0.0   | 2026-11-09 |
+| `registry.openapi.json` | `https://registry.masumi.network/api-docs` | 0.1.2   | 2026-11-09 |
 
-Last refresh: 2026-09-01 — the payment deployment had moved well past the pin
+Last refresh: 2026-11-09 — both deployments had moved while holding their
+versions. Payment adds 17 paths (more `/hydra/**` operations, manual-action
+acknowledgement, `/release-status`, `/security-status`, `/wallet/consolidate`)
+and removes none. Registry adds `/registry-entry-purchases/` and
+`/registry-entry-spec/` and removes none. `POST /purchase` now caps each amount
+at 19 digits, so Core's pre-charge mirror moved with it.
+
+Previous refresh: 2026-09-01 — the payment deployment had moved well past the pin
 while holding version 1.0.0, so the version guard could not have caught it. It
 adds 32 paths (the `/hydra/**` head lifecycle and the `/reports/**` exports),
 drops `GET /x402/budgets` (per-key usage credits replaced per-wallet budgets,

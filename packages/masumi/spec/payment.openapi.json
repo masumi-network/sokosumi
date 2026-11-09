@@ -741,6 +741,12 @@
                 "type": "string",
                 "nullable": true,
                 "description": "SHA256 hash of the result to be submitted (hex string). Null if not applicable"
+              },
+              "manualActionAcknowledgedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time",
+                "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
               }
             },
             "required": [
@@ -1459,6 +1465,12 @@
                 "type": "string",
                 "nullable": true,
                 "description": "Additional details about the error, if any"
+              },
+              "manualActionAcknowledgedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time",
+                "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
               }
             },
             "required": [
@@ -1991,7 +2003,39 @@
               "apiBaseUrl": {
                 "type": "string",
                 "maxLength": 250,
-                "description": "Base URL of the agent API for interactions"
+                "description": "Primary interaction URL: MIP api base, x402 manifest URL, or OpenAPI spec URL"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Standard",
+                  "OpenApi",
+                  "X402",
+                  "A2A"
+                ],
+                "description": "Registry entry type when encoded on-chain"
+              },
+              "openApiSpecUrl": {
+                "type": "string",
+                "maxLength": 250,
+                "description": "OpenAPI spec URL for OpenApi registry entries"
+              },
+              "x402ResourcesUrl": {
+                "type": "string",
+                "maxLength": 250,
+                "description": "x402 manifest URL for X402 registry entries"
+              },
+              "a2aAgentCardUrl": {
+                "type": "string",
+                "maxLength": 250,
+                "description": "Agent Card URL for A2A registry entries"
+              },
+              "a2aProtocolVersions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Declared A2A protocol versions"
               },
               "ExampleOutputs": {
                 "type": "array",
@@ -2704,7 +2748,39 @@
               "apiBaseUrl": {
                 "type": "string",
                 "maxLength": 250,
-                "description": "Base URL of the agent API for interactions"
+                "description": "Primary interaction URL: MIP api base, x402 manifest URL, or OpenAPI spec URL"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Standard",
+                  "OpenApi",
+                  "X402",
+                  "A2A"
+                ],
+                "description": "Registry entry type when encoded on-chain"
+              },
+              "openApiSpecUrl": {
+                "type": "string",
+                "maxLength": 250,
+                "description": "OpenAPI spec URL for OpenApi registry entries"
+              },
+              "x402ResourcesUrl": {
+                "type": "string",
+                "maxLength": 250,
+                "description": "x402 manifest URL for X402 registry entries"
+              },
+              "a2aAgentCardUrl": {
+                "type": "string",
+                "maxLength": 250,
+                "description": "Agent Card URL for A2A registry entries"
+              },
+              "a2aProtocolVersions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Declared A2A protocol versions"
               },
               "ExampleOutputs": {
                 "type": "array",
@@ -3385,6 +3461,358 @@
           "Metadata"
         ]
       },
+      "RegistryListEntry": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RegistryEntry"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "supportedPaymentSources": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "allOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "chain": {
+                              "type": "string",
+                              "enum": [
+                                "Cardano"
+                              ],
+                              "description": "The blockchain this payment source is available on"
+                            },
+                            "network": {
+                              "type": "string",
+                              "enum": [
+                                "Preprod",
+                                "Mainnet"
+                              ],
+                              "description": "The Cardano network this payment source is available on"
+                            },
+                            "paymentSourceType": {
+                              "type": "string",
+                              "enum": [
+                                "Web3CardanoV1",
+                                "Web3CardanoV2"
+                              ],
+                              "description": "The configured payment source type"
+                            },
+                            "address": {
+                              "type": "string",
+                              "maxLength": 250,
+                              "description": "The escrow smart contract address for this payment source"
+                            },
+                            "pricing": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "pricingType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Fixed"
+                                      ],
+                                      "description": "A fixed amount is advertised for this payment source"
+                                    },
+                                    "fixed": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "asset": {
+                                            "type": "string",
+                                            "maxLength": 250,
+                                            "description": "Chain-native asset identifier"
+                                          },
+                                          "amount": {
+                                            "type": "string",
+                                            "maxLength": 19,
+                                            "pattern": "^\\d+$",
+                                            "description": "Atomic token amount"
+                                          },
+                                          "decimals": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 255,
+                                            "description": "Asset decimals when required by the rail"
+                                          }
+                                        },
+                                        "required": [
+                                          "asset",
+                                          "amount"
+                                        ]
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 5
+                                    }
+                                  },
+                                  "required": [
+                                    "pricingType",
+                                    "fixed"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "pricingType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Dynamic"
+                                      ],
+                                      "description": "The exact positive amount is supplied dynamically for each payment request"
+                                    },
+                                    "dynamic": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "asset": {
+                                            "type": "string",
+                                            "maxLength": 250,
+                                            "description": "Optional accepted asset identifier"
+                                          },
+                                          "decimals": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 255,
+                                            "description": "Asset decimals when required by the rail"
+                                          }
+                                        },
+                                        "required": [
+                                          "asset"
+                                        ]
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "pricingType"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "pricingType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Free"
+                                      ],
+                                      "description": "This payment source does not require payment"
+                                    }
+                                  },
+                                  "required": [
+                                    "pricingType"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "chain",
+                            "network",
+                            "paymentSourceType",
+                            "address",
+                            "pricing"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "chain": {
+                              "type": "string",
+                              "enum": [
+                                "EVM"
+                              ],
+                              "description": "The chain family used by standard x402"
+                            },
+                            "network": {
+                              "type": "string",
+                              "pattern": "^eip155:\\d+$",
+                              "description": "CAIP-2 EVM network id, for example eip155:8453"
+                            },
+                            "paymentSourceType": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "Web3CardanoV1",
+                                "Web3CardanoV2",
+                                null
+                              ],
+                              "description": "The configured payment source type"
+                            },
+                            "address": {
+                              "type": "string",
+                              "pattern": "^0x[a-fA-F0-9]{40}$",
+                              "description": "Alias for payTo, kept for existing payment-source shape"
+                            },
+                            "scheme": {
+                              "type": "string",
+                              "enum": [
+                                "Exact"
+                              ],
+                              "description": "x402 payment scheme"
+                            },
+                            "payTo": {
+                              "type": "string",
+                              "pattern": "^0x[a-fA-F0-9]{40}$",
+                              "description": "EVM address receiving the x402 payment"
+                            },
+                            "resource": {
+                              "type": "string",
+                              "maxLength": 500,
+                              "format": "uri",
+                              "description": "Optional absolute resource URL this x402 option protects"
+                            },
+                            "extra": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "nullable": true
+                              },
+                              "description": "Additional x402 metadata"
+                            },
+                            "pricing": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "pricingType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Fixed"
+                                      ],
+                                      "description": "A fixed amount is advertised for this payment source"
+                                    },
+                                    "fixed": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "asset": {
+                                            "type": "string",
+                                            "maxLength": 250,
+                                            "description": "Chain-native asset identifier"
+                                          },
+                                          "amount": {
+                                            "type": "string",
+                                            "maxLength": 19,
+                                            "pattern": "^\\d+$",
+                                            "description": "Atomic token amount"
+                                          },
+                                          "decimals": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 255,
+                                            "description": "Asset decimals when required by the rail"
+                                          }
+                                        },
+                                        "required": [
+                                          "asset",
+                                          "amount"
+                                        ]
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 5
+                                    }
+                                  },
+                                  "required": [
+                                    "pricingType",
+                                    "fixed"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "pricingType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Dynamic"
+                                      ],
+                                      "description": "The exact positive amount is supplied dynamically for each payment request"
+                                    },
+                                    "dynamic": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "asset": {
+                                            "type": "string",
+                                            "maxLength": 250,
+                                            "description": "Optional accepted asset identifier"
+                                          },
+                                          "decimals": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 255,
+                                            "description": "Asset decimals when required by the rail"
+                                          }
+                                        },
+                                        "required": [
+                                          "asset"
+                                        ]
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "pricingType"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "pricingType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Free"
+                                      ],
+                                      "description": "This payment source does not require payment"
+                                    }
+                                  },
+                                  "required": [
+                                    "pricingType"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "chain",
+                            "network",
+                            "scheme",
+                            "payTo",
+                            "pricing"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "Payment-node source row ID for x402 verify/settle. May change when sources are replaced."
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
+                    }
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 25
+              }
+            }
+          }
+        ]
+      },
       "RegistryEntry": {
         "type": "object",
         "properties": {
@@ -3411,14 +3839,15 @@
             "enum": [
               "Standard",
               "OpenApi",
-              "X402"
+              "X402",
+              "A2A"
             ],
-            "description": "The agent access model. Standard for legacy/untyped entries; OpenApi or X402 otherwise"
+            "description": "The agent access model. Standard for legacy/untyped entries; OpenApi, X402, or A2A otherwise"
           },
           "apiBaseUrl": {
             "type": "string",
             "nullable": true,
-            "description": "Base URL of the agent API for interactions. Null for OpenApi/X402 agents"
+            "description": "Base URL of the agent API for interactions. Null for OpenApi/X402 agents; required for A2A agents alongside a2aAgentCardUrl"
           },
           "openApiSpecUrl": {
             "type": "string",
@@ -3429,6 +3858,26 @@
             "type": "string",
             "nullable": true,
             "description": "URL to the agent x402 resource manifest JSON. Null unless the agent is X402-type"
+          },
+          "a2aAgentCardUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "URL to the agent MIP-002 Agent Card JSON. Null unless the agent is A2A-type"
+          },
+          "a2aProtocolVersions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A2A protocol versions this agent declares support for. Empty for non-A2A agents"
+          },
+          "paymentSourceType": {
+            "type": "string",
+            "enum": [
+              "Web3CardanoV1",
+              "Web3CardanoV2"
+            ],
+            "description": "Which payment source version (V1/V2) this registry entry is registered under"
           },
           "Capability": {
             "type": "object",
@@ -4218,6 +4667,9 @@
           "apiBaseUrl",
           "openApiSpecUrl",
           "x402ResourcesUrl",
+          "a2aAgentCardUrl",
+          "a2aProtocolVersions",
+          "paymentSourceType",
           "Capability",
           "Author",
           "Legal",
@@ -5973,6 +6425,9 @@
             "type": "string",
             "nullable": true
           },
+          "release": {
+            "$ref": "#/components/schemas/DescribedRelease"
+          },
           "scriptCatalogueHash": {
             "type": "string",
             "nullable": true
@@ -5996,10 +6451,16 @@
           },
           "lastHealthError": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Why the last probe failed: one failed check per line. Null when it passed"
           },
           "participantCount": {
             "type": "number"
+          },
+          "pausedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Set while the Host is paused for maintenance"
           }
         },
         "required": [
@@ -6013,13 +6474,50 @@
           "publicPeerHost",
           "hasAdminToken",
           "hydraVersion",
+          "release",
           "scriptCatalogueHash",
           "ledgerParamsHash",
           "status",
           "lastHealthAt",
           "lastHealthError",
-          "participantCount"
+          "participantCount",
+          "pausedAt"
         ]
+      },
+      "DescribedRelease": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "nullable": true,
+            "description": "`git describe` form, e.g. 0.29.0-5-gabc1234, or a bare tag"
+          },
+          "commit": {
+            "type": "string",
+            "nullable": true
+          },
+          "tag": {
+            "type": "string",
+            "nullable": true,
+            "description": "Release tag the build starts from"
+          },
+          "commitsAhead": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Commits on top of the tag; 0 for the tag itself"
+          },
+          "dirty": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version",
+          "commit",
+          "tag",
+          "commitsAhead",
+          "dirty"
+        ],
+        "description": "Project release of the Host image, as of the last Check"
       },
       "HydraRelationDetail": {
         "allOf": [
@@ -6048,6 +6546,7 @@
                         "Open",
                         "Closed",
                         "FanoutPossible",
+                        "FanningOut",
                         "Final"
                       ]
                     },
@@ -6245,6 +6744,7 @@
               "Open",
               "Closed",
               "FanoutPossible",
+              "FanningOut",
               "Final"
             ]
           },
@@ -6303,6 +6803,20 @@
           "fanoutTxHash": {
             "type": "string",
             "nullable": true
+          },
+          "retiredAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "When an operator retired this head because it cannot reach Final"
+          },
+          "retiredReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "retiredHeadOutputTxHash": {
+            "type": "string",
+            "nullable": true,
+            "description": "L1 tx holding the head output at retirement"
           },
           "Invite": {
             "type": "object",
@@ -6525,7 +7039,92 @@
           "reconciliationStalledSince",
           "initTxHash",
           "closeTxHash",
-          "fanoutTxHash"
+          "fanoutTxHash",
+          "retiredAt",
+          "retiredReason",
+          "retiredHeadOutputTxHash"
+        ]
+      },
+      "HydraHostPauseState": {
+        "type": "object",
+        "properties": {
+          "hostId": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Draining",
+              "Stopping",
+              "Paused"
+            ],
+            "description": "Draining: new work refused, waiting for in-flight work. Stopping: nodes asked to stop. Paused: every node reports Stopped."
+          },
+          "pausedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "pauseStopRequestedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "inFlight": {
+            "type": "object",
+            "properties": {
+              "l2Transactions": {
+                "type": "integer"
+              },
+              "topups": {
+                "type": "integer"
+              },
+              "withdrawals": {
+                "type": "integer"
+              },
+              "closingHeads": {
+                "type": "integer",
+                "description": "Heads closing or in their dispute window. The nodes stay up until these settle."
+              }
+            },
+            "required": [
+              "l2Transactions",
+              "topups",
+              "withdrawals",
+              "closingHeads"
+            ]
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nodeId": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "error": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "nodeId",
+                "state",
+                "error"
+              ]
+            }
+          }
+        },
+        "required": [
+          "hostId",
+          "phase",
+          "pausedAt",
+          "pauseStopRequestedAt",
+          "inFlight",
+          "nodes"
         ]
       },
       "HydraLowBalanceRule": {
@@ -6565,7 +7164,8 @@
               "Unknown",
               "Healthy",
               "Low"
-            ]
+            ],
+            "description": "Last evaluated state. A Low rule stays Low on a reading the history replay has not checked, so lastKnownAmount can be at or above the threshold while it is Low."
           },
           "lastKnownAmount": {
             "type": "string",
@@ -6665,6 +7265,7 @@
                   "Open",
                   "Closed",
                   "FanoutPossible",
+                  "FanningOut",
                   "Final"
                 ]
               }
@@ -7007,6 +7608,26 @@
           "resolvedAt",
           "needsOperator",
           "PaymentSource"
+        ]
+      },
+      "ReleaseWithUpdate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DescribedRelease"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "updateAvailable": {
+                "type": "boolean",
+                "nullable": true,
+                "description": "Null when it cannot be told: no latest release known, or a build without a release tag"
+              }
+            },
+            "required": [
+              "updateAvailable"
+            ]
+          }
         ]
       }
     },
@@ -7415,8 +8036,8 @@
     },
     "/wallet/list": {
       "get": {
-        "description": "Lists hot wallets across payment sources with cursor-based pagination",
-        "summary": "List hot wallets, optionally filtered by payment source and type. (read access required)",
+        "description": "Lists hot wallets across payment sources with cursor-based pagination. searchQuery applies before pagination, so a wallet beyond the first page is still found.",
+        "summary": "List hot wallets, optionally filtered or searched by payment source, type and free text. (read access required)",
         "tags": [
           "wallet"
         ],
@@ -7497,6 +8118,17 @@
             "description": "Filter to wallets with this Cardano address",
             "name": "walletAddress",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 500,
+              "description": "Free-text search applied before pagination, so a wallet beyond the first page is still found. Matches wallet address, collection address, note, payment key hash and id (case-insensitive substring), and the wallet type by either its API name (\"Purchasing\") or the label the admin UI renders (\"Buying\"). \"%\" and \"_\" are matched literally. Balance is not searchable: it is read from the chain, not stored. Combined with the exact filters above as a logical AND."
+            },
+            "required": false,
+            "description": "Free-text search applied before pagination, so a wallet beyond the first page is still found. Matches wallet address, collection address, note, payment key hash and id (case-insensitive substring), and the wallet type by either its API name (\"Purchasing\") or the label the admin UI renders (\"Buying\"). \"%\" and \"_\" are matched literally. Balance is not searchable: it is read from the chain, not stored. Combined with the exact filters above as a logical AND.",
+            "name": "searchQuery",
+            "in": "query"
           }
         ],
         "responses": {
@@ -7564,7 +8196,7 @@
     "/wallet/low-balance": {
       "get": {
         "description": "Lists low-balance monitoring rules for wallets",
-        "summary": "List wallet low-balance rules. (read access required)",
+        "summary": "List wallet low-balance rules. (admin access required)",
         "tags": [
           "wallet"
         ],
@@ -8348,7 +8980,9 @@
                   },
                   "walletAddress": {
                     "type": "string",
+                    "minLength": 58,
                     "maxLength": 250,
+                    "pattern": "^(addr1|addr_test1)[0-9a-z]+$",
                     "description": "Cardano address of the admin wallet signing the request"
                   },
                   "validUntil": {
@@ -8587,8 +9221,7 @@
                 "properties": {
                   "usageLimited": {
                     "type": "string",
-                    "default": "true",
-                    "description": "Whether the API key is usage limited. Meaning only allowed to use the specified credits or can freely spend"
+                    "description": "Whether the API key is usage limited. Meaning only allowed to use the specified credits or can freely spend. Omitted defaults to true for non-admin keys; admin keys are never usage limited."
                   },
                   "UsageCredits": {
                     "type": "array",
@@ -8598,7 +9231,7 @@
                         "unit": {
                           "type": "string",
                           "maxLength": 150,
-                          "description": "Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA). For x402/EVM spending the unit is chain-qualified as \"<caip2Network>:<assetAddress>\" (lowercased), e.g. \"eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\", or \"<caip2Network>:native\" for the gas token."
+                          "description": "Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA); \"lovelace\" is accepted and stored as the empty string. For x402/EVM spending the unit is chain-qualified as \"<caip2Network>:<assetAddress>\" (lowercased), e.g. \"eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\". Gas-token units are not supported."
                         },
                         "amount": {
                           "type": "string",
@@ -8644,8 +9277,7 @@
                       "ReadAndPay",
                       "Admin"
                     ],
-                    "default": "Read",
-                    "description": "[DEPRECATED] The permission of the API key. Use canRead/canPay/canAdmin flags instead. Will be removed in a future version."
+                    "description": "[DEPRECATED] The permission of the API key. Use canRead/canPay/canAdmin flags instead. Will be removed in a future version. Omitted means read-only; sending it together with contradictory canRead/canPay/canAdmin flags is rejected."
                   },
                   "canRead": {
                     "type": "boolean",
@@ -8831,7 +9463,7 @@
                         "unit": {
                           "type": "string",
                           "maxLength": 150,
-                          "description": "Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA). For x402/EVM spending the unit is chain-qualified as \"<caip2Network>:<assetAddress>\" (lowercased), e.g. \"eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\", or \"<caip2Network>:native\" for the gas token."
+                          "description": "Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA); \"lovelace\" is accepted and stored as the empty string. For x402/EVM spending the unit is chain-qualified as \"<caip2Network>:<assetAddress>\" (lowercased), e.g. \"eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\". Gas-token units are not supported."
                         },
                         "amount": {
                           "type": "string",
@@ -8848,8 +9480,7 @@
                   },
                   "usageLimited": {
                     "type": "boolean",
-                    "default": true,
-                    "description": "Whether the API key is usage limited"
+                    "description": "Whether the API key is usage limited. Omit to leave it unchanged."
                   },
                   "status": {
                     "type": "string",
@@ -8857,8 +9488,7 @@
                       "Active",
                       "Revoked"
                     ],
-                    "default": "Active",
-                    "description": "The status of the API key"
+                    "description": "The status of the API key. Omit to leave it unchanged."
                   },
                   "NetworkLimit": {
                     "type": "array",
@@ -10094,6 +10724,98 @@
         }
       }
     },
+    "/wallet/consolidate": {
+      "post": {
+        "description": "Merges a hot wallet's L1 UTxOs by queuing a fund transfer back to the wallet itself. The amount is the whole balance less 2 ADA, which pays the fee and becomes the change output, so the transfer spends nearly every UTxO and leaves about two. Runs through the same background processor as any transfer: poll GET /wallet/transfer-funds with the returned id.",
+        "summary": "Merge a wallet's UTxOs. (admin access required)",
+        "tags": [
+          "wallet"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "description": "Consolidation request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "walletAddress": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 250,
+                    "description": "The Cardano address of the hot wallet whose UTxOs to merge"
+                  }
+                },
+                "required": [
+                  "walletAddress"
+                ],
+                "example": {
+                  "walletAddress": "addr_test1..."
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Consolidation queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/WalletFundTransfer"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "id": "unique_cuid_v2_of_fund_transfer",
+                      "status": "Confirmed",
+                      "txHash": "a3f8c12d9e4b71d2f0e5c8a9b3d6e7f1a2b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8",
+                      "toAddress": "addr_test1qz8x...purchasing_wallet_address",
+                      "lovelaceAmount": "100000000",
+                      "assets": null,
+                      "createdAt": "1970-01-20T20:00:36.260Z",
+                      "updatedAt": "1970-01-20T20:00:36.260Z",
+                      "lastCheckedAt": "1970-01-20T20:00:36.260Z",
+                      "errorNote": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (fewer than two UTxOs, under 4 ADA in the wallet, over 150 UTxOs, or over 40 distinct assets)"
+          },
+          "404": {
+            "description": "Not Found (wallet not found)"
+          },
+          "409": {
+            "description": "Conflict (the wallet is mid-transaction, or a fund transfer from it is still pending)"
+          },
+          "502": {
+            "description": "Bad Gateway (the chain provider could not list the wallet UTxOs)"
+          }
+        }
+      }
+    },
     "/payment": {
       "get": {
         "description": "Gets the payment status. It needs to be created first with a POST request.",
@@ -10194,10 +10916,10 @@
           {
             "schema": {
               "type": "string",
-              "description": "When true, only returns payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it"
+              "description": "When true, only returns payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes"
             },
             "required": false,
-            "description": "When true, only returns payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it",
+            "description": "When true, only returns payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes",
             "name": "filterNeedsManualAction",
             "in": "query"
           },
@@ -10400,7 +11122,8 @@
                       "properties": {
                         "amount": {
                           "type": "string",
-                          "maxLength": 25,
+                          "maxLength": 19,
+                          "pattern": "^\\d+$",
                           "description": "Amount of the asset in smallest unit (e.g., lovelace for ADA)"
                         },
                         "unit": {
@@ -10727,6 +11450,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "SHA256 hash of the result to be submitted (hex string). Null if not applicable"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -11596,10 +12325,10 @@
           {
             "schema": {
               "type": "string",
-              "description": "When true, only counts payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it"
+              "description": "When true, only counts payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes"
             },
             "required": false,
-            "description": "When true, only counts payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it",
+            "description": "When true, only counts payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes",
             "name": "filterNeedsManualAction",
             "in": "query"
           },
@@ -11744,10 +12473,10 @@
           {
             "schema": {
               "type": "string",
-              "description": "When true, only counts purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it"
+              "description": "When true, only counts purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes"
             },
             "required": false,
-            "description": "When true, only counts purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it",
+            "description": "When true, only counts purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes",
             "name": "filterNeedsManualAction",
             "in": "query"
           },
@@ -12333,6 +13062,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "SHA256 hash of the result to be submitted (hex string). Null if not applicable"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -12982,6 +13717,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "SHA256 hash of the result to be submitted (hex string). Null if not applicable"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -13658,6 +14399,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "SHA256 hash of the result to be submitted (hex string). Null if not applicable"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -14352,6 +15099,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "Additional details about the error, if any"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -15417,7 +16170,9 @@
                   },
                   "walletAddress": {
                     "type": "string",
+                    "minLength": 58,
                     "maxLength": 500,
+                    "pattern": "^(addr1|addr_test1)[0-9a-z]+$",
                     "description": "The wallet address that signed the message"
                   },
                   "validUntil": {
@@ -16714,10 +17469,10 @@
           {
             "schema": {
               "type": "string",
-              "description": "When true, only returns purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it"
+              "description": "When true, only returns purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes"
             },
             "required": false,
-            "description": "When true, only returns purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it",
+            "description": "When true, only returns purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes",
             "name": "filterNeedsManualAction",
             "in": "query"
           },
@@ -16923,7 +17678,8 @@
                       "properties": {
                         "amount": {
                           "type": "string",
-                          "maxLength": 25,
+                          "maxLength": 19,
+                          "pattern": "^\\d+$",
                           "description": "Amount of the asset in smallest unit (e.g., lovelace for ADA)"
                         },
                         "unit": {
@@ -16942,18 +17698,26 @@
                   },
                   "unlockTime": {
                     "type": "string",
+                    "maxLength": 19,
+                    "pattern": "^\\d+$",
                     "description": "The time after which the purchase will be unlocked. In unix time (number)"
                   },
                   "externalDisputeUnlockTime": {
                     "type": "string",
+                    "maxLength": 19,
+                    "pattern": "^\\d+$",
                     "description": "The time after which the purchase will be unlocked for external dispute. In unix time (number)"
                   },
                   "submitResultTime": {
                     "type": "string",
+                    "maxLength": 19,
+                    "pattern": "^\\d+$",
                     "description": "The time by which the result has to be submitted. In unix time (number)"
                   },
                   "payByTime": {
                     "type": "string",
+                    "maxLength": 19,
+                    "pattern": "^\\d+$",
                     "description": "The time after which the purchase has to be submitted to the smart contract"
                   },
                   "metadata": {
@@ -17229,6 +17993,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "Additional details about the error, if any"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -17833,6 +18603,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "Additional details about the error, if any"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -19023,6 +19799,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "Additional details about the error, if any"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -19668,6 +20450,12 @@
                               "type": "string",
                               "nullable": true,
                               "description": "Additional details about the error, if any"
+                            },
+                            "manualActionAcknowledgedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time",
+                              "description": "When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it"
                             }
                           },
                           "required": [
@@ -20767,7 +21555,7 @@
                         "Assets": {
                           "type": "array",
                           "items": {
-                            "$ref": "#/components/schemas/RegistryEntry"
+                            "$ref": "#/components/schemas/RegistryListEntry"
                           }
                         }
                       },
@@ -20874,9 +21662,10 @@
                     "enum": [
                       "Standard",
                       "OpenApi",
-                      "X402"
+                      "X402",
+                      "A2A"
                     ],
-                    "description": "The agent access model. Defaults to Standard when omitted (Standard emits no on-chain type field for backwards compatibility). Standard requires apiBaseUrl; OpenApi requires openApiSpecUrl; X402 advertises priced resources."
+                    "description": "The agent access model. Defaults to Standard when omitted (Standard emits no on-chain type field for backwards compatibility). Standard requires apiBaseUrl; OpenApi requires openApiSpecUrl; X402 advertises priced resources; A2A (V2 payment sources only) requires both apiBaseUrl and a2aAgentCardUrl plus a2aProtocolVersions."
                   },
                   "sellingWalletVkey": {
                     "type": "string",
@@ -21413,6 +22202,27 @@
                     "format": "uri",
                     "description": "URL to the agent self-hosted x402 resource manifest (e.g. /.well-known/x402.json): a JSON document listing this agent resources, each { resource, type (http|mcp), inputSchema?, outputSchema? }. Payment stays agent-level (supportedPaymentSources), not per resource. Required for X402-type agents; omit for others."
                   },
+                  "a2aAgentCardUrl": {
+                    "type": "string",
+                    "maxLength": 250,
+                    "format": "uri",
+                    "description": "URL to the agent MIP-002 Agent Card JSON document. Required for A2A-type agents (V2 payment sources only), alongside apiBaseUrl; omit for others."
+                  },
+                  "a2aProtocolVersions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[0-9]+\\.[0-9]+$"
+                    },
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "description": "A2A protocol versions this agent declares support for. Required and non-empty for A2A-type agents; every value must appear in the fetched Agent Card protocolVersions. Omit for other types."
+                  },
+                  "skipAgentCardValidation": {
+                    "type": "boolean",
+                    "description": "A2A-only override: when true, skip fetching/validating the Agent Card before registering. Ignored for other types."
+                  },
                   "description": {
                     "type": "string",
                     "maxLength": 250,
@@ -21654,6 +22464,9 @@
                       "apiBaseUrl": "https://api.example.com",
                       "openApiSpecUrl": null,
                       "x402ResourcesUrl": null,
+                      "a2aAgentCardUrl": null,
+                      "a2aProtocolVersions": [],
+                      "paymentSourceType": "Web3CardanoV1",
                       "Capability": {
                         "name": "Capability Name",
                         "version": "1.0.0"
@@ -21814,6 +22627,9 @@
                       "apiBaseUrl": "https://api.example.com",
                       "openApiSpecUrl": null,
                       "x402ResourcesUrl": null,
+                      "a2aAgentCardUrl": null,
+                      "a2aProtocolVersions": [],
+                      "paymentSourceType": "Web3CardanoV1",
                       "Capability": {
                         "name": "Capability Name",
                         "version": "1.0.0"
@@ -22106,7 +22922,7 @@
                         "Assets": {
                           "type": "array",
                           "items": {
-                            "$ref": "#/components/schemas/RegistryEntry"
+                            "$ref": "#/components/schemas/RegistryListEntry"
                           }
                         }
                       },
@@ -22219,6 +23035,9 @@
                       "apiBaseUrl": "https://api.example.com",
                       "openApiSpecUrl": null,
                       "x402ResourcesUrl": null,
+                      "a2aAgentCardUrl": null,
+                      "a2aProtocolVersions": [],
+                      "paymentSourceType": "Web3CardanoV1",
                       "Capability": {
                         "name": "Capability Name",
                         "version": "1.0.0"
@@ -22348,9 +23167,10 @@
                     "enum": [
                       "Standard",
                       "OpenApi",
-                      "X402"
+                      "X402",
+                      "A2A"
                     ],
-                    "description": "The agent access model. Defaults to Standard when omitted (Standard emits no on-chain type field for backwards compatibility). Standard requires apiBaseUrl; OpenApi requires openApiSpecUrl; X402 advertises priced resources."
+                    "description": "The agent access model. Defaults to Standard when omitted (Standard emits no on-chain type field for backwards compatibility). Standard requires apiBaseUrl; OpenApi requires openApiSpecUrl; X402 advertises priced resources; A2A (V2 payment sources only) requires both apiBaseUrl and a2aAgentCardUrl plus a2aProtocolVersions."
                   },
                   "recipientWalletAddress": {
                     "type": "string",
@@ -22880,6 +23700,27 @@
                     "format": "uri",
                     "description": "URL to the agent self-hosted x402 resource manifest (e.g. /.well-known/x402.json): a JSON document listing this agent resources, each { resource, type (http|mcp), inputSchema?, outputSchema? }. Payment stays agent-level (supportedPaymentSources), not per resource. Required for X402-type agents; omit for others."
                   },
+                  "a2aAgentCardUrl": {
+                    "type": "string",
+                    "maxLength": 250,
+                    "format": "uri",
+                    "description": "URL to the agent MIP-002 Agent Card JSON document. Required for A2A-type agents (V2 payment sources only), alongside apiBaseUrl; omit for others."
+                  },
+                  "a2aProtocolVersions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[0-9]+\\.[0-9]+$"
+                    },
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "description": "A2A protocol versions this agent declares support for. Required and non-empty for A2A-type agents; every value must appear in the fetched Agent Card protocolVersions. Omit for other types."
+                  },
+                  "skipAgentCardValidation": {
+                    "type": "boolean",
+                    "description": "A2A-only override: when true, skip fetching/validating the Agent Card before registering. Ignored for other types."
+                  },
                   "description": {
                     "type": "string",
                     "maxLength": 250,
@@ -23118,6 +23959,9 @@
                       "apiBaseUrl": "https://api.example.com",
                       "openApiSpecUrl": null,
                       "x402ResourcesUrl": null,
+                      "a2aAgentCardUrl": null,
+                      "a2aProtocolVersions": [],
+                      "paymentSourceType": "Web3CardanoV1",
                       "Capability": {
                         "name": "Capability Name",
                         "version": "1.0.0"
@@ -25162,6 +26006,15 @@
                       "Web3CardanoV2"
                     ],
                     "description": "Filter by payment source type. When omitted, income totals default to Web3CardanoV1 for backwards compatibility."
+                  },
+                  "paymentRail": {
+                    "type": "string",
+                    "enum": [
+                      "cardano",
+                      "x402"
+                    ],
+                    "default": "cardano",
+                    "description": "cardano: escrow paymentRequest income (default). x402: seller-side settled x402 attempts for the agentIdentifier on this payment node."
                   }
                 },
                 "required": [
@@ -25835,7 +26688,10 @@
                                     "X402_PAYMENT_SETTLED",
                                     "X402_PAYMENT_FAILED",
                                     "X402_WALLET_LOW_BALANCE",
-                                    "HYDRA_HEAD_LOW_BALANCE"
+                                    "HYDRA_HEAD_LOW_BALANCE",
+                                    "HYDRA_HEAD_SNAPSHOT_ROUND_STUCK",
+                                    "HYDRA_HEAD_POST_TX_FAILED",
+                                    "HYDRA_HEAD_CONTEST_MISSING"
                                   ]
                                 }
                               },
@@ -26013,11 +26869,14 @@
                         "X402_PAYMENT_SETTLED",
                         "X402_PAYMENT_FAILED",
                         "X402_WALLET_LOW_BALANCE",
-                        "HYDRA_HEAD_LOW_BALANCE"
+                        "HYDRA_HEAD_LOW_BALANCE",
+                        "HYDRA_HEAD_SNAPSHOT_ROUND_STUCK",
+                        "HYDRA_HEAD_POST_TX_FAILED",
+                        "HYDRA_HEAD_CONTEST_MISSING"
                       ]
                     },
                     "minItems": 1,
-                    "maxItems": 10,
+                    "maxItems": 15,
                     "description": "Array of event types to subscribe to"
                   },
                   "name": {
@@ -26094,7 +26953,10 @@
                               "X402_PAYMENT_SETTLED",
                               "X402_PAYMENT_FAILED",
                               "X402_WALLET_LOW_BALANCE",
-                              "HYDRA_HEAD_LOW_BALANCE"
+                              "HYDRA_HEAD_LOW_BALANCE",
+                              "HYDRA_HEAD_SNAPSHOT_ROUND_STUCK",
+                              "HYDRA_HEAD_POST_TX_FAILED",
+                              "HYDRA_HEAD_CONTEST_MISSING"
                             ]
                           }
                         },
@@ -26199,7 +27061,7 @@
                     "nullable": true,
                     "minLength": 10,
                     "maxLength": 200,
-                    "description": "Authentication token for extended webhook requests. Required when format is EXTENDED"
+                    "description": "Authentication token for extended webhook requests. Omit to keep the stored token; required when changing a webhook to EXTENDED"
                   },
                   "format": {
                     "type": "string",
@@ -26227,11 +27089,14 @@
                         "X402_PAYMENT_SETTLED",
                         "X402_PAYMENT_FAILED",
                         "X402_WALLET_LOW_BALANCE",
-                        "HYDRA_HEAD_LOW_BALANCE"
+                        "HYDRA_HEAD_LOW_BALANCE",
+                        "HYDRA_HEAD_SNAPSHOT_ROUND_STUCK",
+                        "HYDRA_HEAD_POST_TX_FAILED",
+                        "HYDRA_HEAD_CONTEST_MISSING"
                       ]
                     },
                     "minItems": 1,
-                    "maxItems": 10,
+                    "maxItems": 15,
                     "description": "Array of event types to subscribe to"
                   },
                   "name": {
@@ -26306,7 +27171,10 @@
                               "X402_PAYMENT_SETTLED",
                               "X402_PAYMENT_FAILED",
                               "X402_WALLET_LOW_BALANCE",
-                              "HYDRA_HEAD_LOW_BALANCE"
+                              "HYDRA_HEAD_LOW_BALANCE",
+                              "HYDRA_HEAD_SNAPSHOT_ROUND_STUCK",
+                              "HYDRA_HEAD_POST_TX_FAILED",
+                              "HYDRA_HEAD_CONTEST_MISSING"
                             ]
                           }
                         },
@@ -26996,6 +27864,7 @@
                   "recipientWalletAddress": {
                     "type": "string",
                     "maxLength": 250,
+                    "pattern": "^(addr1|addr_test1)[0-9a-z]+$",
                     "description": "Optional managed hot wallet address on the same payment source that should receive the minted inbox registry NFT. If omitted, the minting wallet receives it."
                   },
                   "sendFundingLovelace": {
@@ -31603,7 +32472,8 @@
                 "Started",
                 "Completed",
                 "Expired",
-                "Revoked"
+                "Revoked",
+                "Failed"
               ]
             },
             "required": false,
@@ -31675,7 +32545,8 @@
                                   "Started",
                                   "Completed",
                                   "Expired",
-                                  "Revoked"
+                                  "Revoked",
+                                  "Failed"
                                 ]
                               },
                               "createdAt": {
@@ -31789,7 +32660,7 @@
                     "type": "integer",
                     "minimum": 300,
                     "maximum": 86400,
-                    "description": "How long a deposit must settle before this head will take it. Both nodes run the value signed here. A top-up is unusable for one period and cannot be recovered for three. Defaults to 600 on preprod and 1200 on mainnet: on mainnet the funds are real, so the wait is what rules out a rollback before they count on L2."
+                    "description": "How long a deposit must settle before this head will take it — and, since this service always keeps hydra-node 2.4's deposit-activation equal to this same value, also how long before the deposit matures. Both nodes run the value signed here. A top-up is unusable until it matures, absorbable for one period after that, and cannot be recovered until two periods after it matures. Defaults to 600 on preprod and 1200 on mainnet: on mainnet the funds are real, so the wait is what rules out a rollback before they count on L2."
                   },
                   "contestationPeriodSeconds": {
                     "type": "integer",
@@ -31873,7 +32744,7 @@
       },
       "delete": {
         "summary": "Revoke an unredeemed invite. (admin access required)",
-        "description": "Stops the Host honouring the nonce and releases the node and peer port it reserved. Refused once redeemed: by then the reservation is a running node with a peer, and removing that is closing a head.",
+        "description": "Stops the Host honouring the nonce and releases the node and peer port it reserved. Refused once redeemed: by then the reservation is a running node with a peer, and removing that is closing a head. Set `discardRedemption` to cancel a redemption this service could not adopt; its node is removed unless a head here claims it.",
         "tags": [
           "hydra"
         ],
@@ -31891,6 +32762,10 @@
                   "id": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "discardRedemption": {
+                    "type": "boolean",
+                    "description": "Also cancel an invite the counterparty already redeemed but this service could not adopt. Its node is removed unless a head here claims it. For a redemption of someone else’s invite that is stuck here, this abandons it: the node is removed and the issuer is left with a head whose peer never joins."
                   }
                 },
                 "required": [
@@ -31929,7 +32804,8 @@
                             "Started",
                             "Completed",
                             "Expired",
-                            "Revoked"
+                            "Revoked",
+                            "Failed"
                           ]
                         }
                       },
@@ -31955,7 +32831,10 @@
             "description": "Unauthorized"
           },
           "409": {
-            "description": "Already redeemed, or not an invite we issued"
+            "description": "Already redeemed without discardRedemption, adopted meanwhile, or not an invite we issued"
+          },
+          "502": {
+            "description": "Revoked here, but the Host refused to remove the node or forget the redemption"
           }
         }
       }
@@ -32608,7 +33487,7 @@
     "/hydra/host/check": {
       "post": {
         "summary": "Probe a Hydra Host and record its capabilities. (admin access required)",
-        "description": "Asks the Host which hydra-node version, script catalogue and ledger parameters it runs, and records the answer. A failed probe marks the Host Unreachable, which stops new placements without disturbing the heads already on it.",
+        "description": "Asks the Host which hydra-node version, script catalogue and ledger parameters it runs, and records the answer. A failed probe marks the Host Unreachable, which stops new placements without disturbing the heads already on it. Every check runs, and `lastHealthError` holds one failed check per line. A Host with no free node slots still passes: only a new placement needs a free slot.",
         "tags": [
           "hydra"
         ],
@@ -33283,6 +34162,7 @@
                 "Open",
                 "Closed",
                 "FanoutPossible",
+                "FanningOut",
                 "Final"
               ],
               "description": "Filter by head status"
@@ -33525,6 +34405,7 @@
                             "Open",
                             "Closed",
                             "FanoutPossible",
+                            "FanningOut",
                             "Final"
                           ]
                         }
@@ -33550,6 +34431,9 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid input, or the head has no local participant"
+          },
           "401": {
             "description": "Unauthorized"
           },
@@ -33557,7 +34441,16 @@
             "description": "Hydra head not found"
           },
           "409": {
-            "description": "Head is not in a state that permits init"
+            "description": "Head is disabled, is not Idle, has its Hydra Host paused, is opened by the counterparty, or its node reports no numeric L2 maxTxSize or one above 15000"
+          },
+          "502": {
+            "description": "The Hydra node could not be reached, or the InitTx could not be verified"
+          },
+          "503": {
+            "description": "The node is behind the chain and did not post Init, or independent L1 evidence is not available yet"
+          },
+          "504": {
+            "description": "The node failed to post the InitTx, Init did not confirm in time, or its outcome waits on the node catching up"
           }
         }
       }
@@ -33627,6 +34520,7 @@
                             "Open",
                             "Closed",
                             "FanoutPossible",
+                            "FanningOut",
                             "Final"
                           ]
                         }
@@ -33660,6 +34554,9 @@
           },
           "409": {
             "description": "Head is not in a state that permits fanout"
+          },
+          "503": {
+            "description": "The node is behind the chain and did not post the fanout"
           }
         }
       }
@@ -33732,6 +34629,7 @@
                             "Open",
                             "Closed",
                             "FanoutPossible",
+                            "FanningOut",
                             "Final"
                           ]
                         }
@@ -34019,6 +34917,16 @@
           },
           {
             "schema": {
+              "type": "string",
+              "description": "Inclusive cursor: the id of the last row already seen. It is returned again first."
+            },
+            "required": false,
+            "description": "Inclusive cursor: the id of the last row already seen. It is returned again first.",
+            "name": "cursorId",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "integer",
               "minimum": 1,
               "maximum": 50,
@@ -34264,7 +35172,7 @@
             "description": "Hydra head not found"
           },
           "409": {
-            "description": "Head not open, disabled, not yet identified on chain, or its node is still catching up"
+            "description": "Head not open, disabled, not yet identified on chain, or its node is still catching up; a withdrawal is already in progress or still settling; `drain` while escrows are still live; or the wallet is busy"
           },
           "502": {
             "description": "No live connection to the head"
@@ -34291,6 +35199,16 @@
             "required": true,
             "description": "The Hydra head whose withdrawals to list",
             "name": "headId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Inclusive cursor: the id of the last row already seen. It is returned again first."
+            },
+            "required": false,
+            "description": "Inclusive cursor: the id of the last row already seen. It is returned again first.",
+            "name": "cursorId",
             "in": "query"
           },
           {
@@ -34461,6 +35379,1288 @@
         }
       }
     },
+    "/hydra/head/consolidate": {
+      "post": {
+        "summary": "Merge the local wallet's in-head UTxOs. (admin access required)",
+        "description": "An in-head self-send that spends every plain UTxO at the local participant's address (datum or not) and produces one UTxO carrying everything, plus a pure-ADA collateral UTxO of 5 ADA when the funds allow it. Free, and nothing leaves the head. UTxOs still being folded in by a deposit, or carrying a reference script, are left alone. One round spends at most 100 UTxOs; `remainingCount` above zero means call again. Waits for the head to confirm.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "headId": {
+                    "type": "string",
+                    "description": "The Hydra head whose local wallet UTxOs to merge"
+                  }
+                },
+                "required": [
+                  "headId"
+                ],
+                "example": {
+                  "headId": "cuid_v2_auto_generated"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Consolidated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "headId": {
+                          "type": "string"
+                        },
+                        "txId": {
+                          "type": "string",
+                          "description": "The confirmed in-head self-send"
+                        },
+                        "inputCount": {
+                          "type": "integer",
+                          "description": "UTxOs spent"
+                        },
+                        "outputCount": {
+                          "type": "integer",
+                          "description": "UTxOs produced: one carrying everything, plus a pure-ADA collateral UTxO when the funds allow it"
+                        },
+                        "remainingCount": {
+                          "type": "integer",
+                          "description": "Eligible UTxOs left for another round, because one round spends at most 100. Non-zero means call again."
+                        }
+                      },
+                      "required": [
+                        "headId",
+                        "txId",
+                        "inputCount",
+                        "outputCount",
+                        "remainingCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "headId": "cuid_v2_auto_generated",
+                      "txId": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "inputCount": 63,
+                      "outputCount": 2,
+                      "remainingCount": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Head has no local participant, or the wallet has nothing to consolidate"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          },
+          "409": {
+            "description": "Head not open or disabled, its node is still catching up, a withdrawal is in progress or still settling, or the wallet is busy"
+          },
+          "502": {
+            "description": "No live connection to the head"
+          },
+          "504": {
+            "description": "The head accepted the self-send but did not confirm it in time"
+          }
+        }
+      }
+    },
+    "/hydra/head/snapshot-round": {
+      "get": {
+        "summary": "Read the head's snapshot round in flight. (admin access required)",
+        "description": "Live view of the snapshot round our node reports (`GET /snapshot/last-seen`). A round needs every party to sign; when one party can never sign it, the head confirms nothing until the round is reset. `stuck` turns true once the same round has not moved for ten minutes, and the HYDRA_HEAD_SNAPSHOT_ROUND_STUCK webhook fires once per round.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "The Hydra head to inspect"
+            },
+            "required": true,
+            "description": "The Hydra head to inspect",
+            "name": "headId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshot round",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "headId": {
+                          "type": "string"
+                        },
+                        "inFlight": {
+                          "type": "boolean",
+                          "description": "Whether our node reports a snapshot round in flight"
+                        },
+                        "tag": {
+                          "type": "string",
+                          "description": "The last-seen tag our node reports, for example SeenSnapshot or LastSeenSnapshot"
+                        },
+                        "snapshotNumber": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "The snapshot number under signature, if named"
+                        },
+                        "signatoryCount": {
+                          "type": "integer",
+                          "description": "Parties that have signed the round so far"
+                        },
+                        "txIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Unconfirmed transactions the round would confirm, and a reset would drop"
+                        },
+                        "signature": {
+                          "type": "string",
+                          "description": "Identifies this exact round. A reset must send it back unchanged."
+                        },
+                        "since": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "When this exact round was first recorded"
+                        },
+                        "stuck": {
+                          "type": "boolean",
+                          "description": "True once the same round has not moved for ten minutes. Only then can it be reset."
+                        }
+                      },
+                      "required": [
+                        "headId",
+                        "inFlight",
+                        "tag",
+                        "snapshotNumber",
+                        "signatoryCount",
+                        "txIds",
+                        "signature",
+                        "since",
+                        "stuck"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "headId": "cuid_v2_auto_generated",
+                      "inFlight": true,
+                      "tag": "SeenSnapshot",
+                      "snapshotNumber": 314,
+                      "signatoryCount": 1,
+                      "txIds": [
+                        "dc3edee5c3eb0b5b50809ec9fa41fb590818412383da4f03cbf645fb0c1728e7"
+                      ],
+                      "signature": "SeenSnapshot|314|1",
+                      "since": "1970-01-01T00:00:00.000Z",
+                      "stuck": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Head has no local participant"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          },
+          "409": {
+            "description": "Head not open"
+          },
+          "502": {
+            "description": "No live connection to the head, or the node did not answer"
+          }
+        }
+      }
+    },
+    "/hydra/head/snapshot-round/reset": {
+      "post": {
+        "summary": "Reset a stuck snapshot round. (admin access required)",
+        "description": "Side-loads the node's own latest confirmed snapshot, Hydra's documented recovery for a stuck head. That snapshot is already signed by every party, so nothing new enters the head: the stuck round and its unconfirmed transactions (`droppedTxIds`) are discarded. Refused unless the round in flight still matches `expectedSignature`, has been stuck for ten minutes, and the counterparty has not confirmed a later snapshot than this node nor is more than one behind it (`peerConfirmedSnapshotNumber`, which the counterparty's operator reads off their node: its API is not reachable from here, so this service cannot check it itself). Also refused while the confirmed snapshot holds a deposit that the chain has not settled, because a reset then can stall the head again. If the head still does not move afterwards, the other party's node holds a stuck round too: at the same confirmed snapshot it must be reset on its side, and one snapshot behind it must side-load this node's confirmed snapshot instead (if Hydra refuses that, close the head: this node contests with its later snapshot).",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "headId": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The Hydra head whose stuck round to reset"
+                  },
+                  "expectedSignature": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "The round signature from GET /hydra/head/snapshot-round. The reset is refused if the round changed."
+                  },
+                  "peerConfirmedSnapshotNumber": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "The confirmed snapshot number shown by the counterparty node (GET /snapshot on it, 0 if it shows InitialSnapshot), as its operator reports it. The reset is refused if it is ahead of this node (this node is then behind and resetting does not help) or more than one behind it (within the protocol no counterparty can be)."
+                  }
+                },
+                "required": [
+                  "headId",
+                  "expectedSignature",
+                  "peerConfirmedSnapshotNumber"
+                ],
+                "example": {
+                  "headId": "cuid_v2_auto_generated",
+                  "expectedSignature": "SeenSnapshot|314|1",
+                  "peerConfirmedSnapshotNumber": 313
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Round reset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "headId": {
+                          "type": "string"
+                        },
+                        "confirmedSnapshotNumber": {
+                          "type": "integer",
+                          "description": "The signed snapshot the node was reset to"
+                        },
+                        "droppedTxIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Unconfirmed transactions the reset discarded"
+                        },
+                        "roundAfter": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "tag": {
+                              "type": "string",
+                              "description": "The last-seen tag our node reports, for example SeenSnapshot or LastSeenSnapshot"
+                            },
+                            "snapshotNumber": {
+                              "type": "integer",
+                              "nullable": true,
+                              "description": "The snapshot number under signature, if named"
+                            }
+                          },
+                          "required": [
+                            "tag",
+                            "snapshotNumber"
+                          ],
+                          "description": "The node’s round after the reset, when it could be read"
+                        }
+                      },
+                      "required": [
+                        "headId",
+                        "confirmedSnapshotNumber",
+                        "droppedTxIds",
+                        "roundAfter"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "headId": "cuid_v2_auto_generated",
+                      "confirmedSnapshotNumber": 313,
+                      "droppedTxIds": [
+                        "dc3edee5c3eb0b5b50809ec9fa41fb590818412383da4f03cbf645fb0c1728e7"
+                      ],
+                      "roundAfter": {
+                        "tag": "LastSeenSnapshot",
+                        "snapshotNumber": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Head has no local participant"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          },
+          "409": {
+            "description": "Head not open or disabled, no round in flight, the round changed since it was read, it is not stuck long enough, the confirmed snapshot does not match the verified one or holds a deposit that the chain has not settled, or the counterparty number is ahead of this node or more than one behind it"
+          },
+          "502": {
+            "description": "No live connection to the head, the node could not be read, or the node refused the reset or is still stuck"
+          },
+          "504": {
+            "description": "The node did not answer the reset; read the round and ask for the counterparty's snapshot number again before retrying"
+          }
+        }
+      }
+    },
+    "/hydra/head/l2-reservations": {
+      "get": {
+        "summary": "List the pending L2 reservations on a head. (admin access required)",
+        "description": "Each in-head transaction the service reserved a wallet for and has not seen confirmed. Automatic recovery releases an expired one only when its release nudge shows up in a verified snapshot. Some can never get that proof (a body input already spent elsewhere, a nudge output spent before release read it, or a non-locking action), and they hold their wallet until an admin releases them. `releasable` says whether the release endpoint will accept the row now.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "The Hydra head to inspect"
+            },
+            "required": true,
+            "description": "The Hydra head to inspect",
+            "name": "headId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "L2 reservations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "headId": {
+                          "type": "string"
+                        },
+                        "reservations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "transactionId": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "description": "Send it back to release; the release is refused if the row changed"
+                              },
+                              "intendedTxHash": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Hash of the reserved in-head body"
+                              },
+                              "expiresAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The body's validity upper bound, as head time"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "initial-lock",
+                                  "action"
+                                ],
+                                "description": "An initial lock, or an action on an existing escrow"
+                              },
+                              "purchaseRequestIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "paymentRequestIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "walletAddress": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The wallet this reservation holds"
+                              },
+                              "inputRefs": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Inputs (txHash#index) the body spends"
+                              },
+                              "inputsReportedUnspent": {
+                                "type": "integer",
+                                "nullable": true,
+                                "description": "Body inputs our node reports unspent. Read from the node's reference map: a hint, not evidence."
+                              },
+                              "releaseNudgeTxHash": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The recorded release nudge, if one was sent"
+                              },
+                              "rejectedByHeadReason": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "releasable": {
+                                "type": "boolean",
+                                "description": "Whether an admin may release it now. The release also re-reads the node's snapshot round and UTxO set, and can still refuse."
+                              },
+                              "blockedReason": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Why it cannot be released now"
+                              }
+                            },
+                            "required": [
+                              "transactionId",
+                              "updatedAt",
+                              "intendedTxHash",
+                              "expiresAt",
+                              "kind",
+                              "purchaseRequestIds",
+                              "paymentRequestIds",
+                              "walletAddress",
+                              "inputRefs",
+                              "inputsReportedUnspent",
+                              "releaseNudgeTxHash",
+                              "rejectedByHeadReason",
+                              "releasable",
+                              "blockedReason"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "headId",
+                        "reservations"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "headId": "cuid_v2_auto_generated",
+                      "reservations": [
+                        {
+                          "transactionId": "cuid_v2_auto_generated",
+                          "updatedAt": "1970-01-01T00:00:00.000Z",
+                          "intendedTxHash": "dc3edee5c3eb0b5b50809ec9fa41fb590818412383da4f03cbf645fb0c1728e7",
+                          "expiresAt": "1970-01-01T00:00:00.000Z",
+                          "kind": "initial-lock",
+                          "purchaseRequestIds": [
+                            "cuid_v2_auto_generated"
+                          ],
+                          "paymentRequestIds": [],
+                          "walletAddress": "addr_test1qp6ctf8vcjxzd53et7p0hlqyncn59stnfd4g8mp978v33r6dlzjvt4s2t6wn3v993pu9aea4h3z0jeyn6lsvw6hugtesfx55dd",
+                          "inputRefs": [
+                            "dc3edee5c3eb0b5b50809ec9fa41fb590818412383da4f03cbf645fb0c1728e7#1"
+                          ],
+                          "inputsReportedUnspent": 0,
+                          "releaseNudgeTxHash": "5f2e1c7a9b3d4e6f8a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f",
+                          "rejectedByHeadReason": null,
+                          "releasable": true,
+                          "blockedReason": null
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          }
+        }
+      }
+    },
+    "/hydra/head/l2-reservations/release": {
+      "post": {
+        "summary": "Release an expired L2 reservation without a proof. (admin access required)",
+        "description": "Frees the wallet and returns each request to where the reservation found it: an initial lock goes back to locking, an action back to its retry. The service cannot prove the body never applied in a snapshot its node withheld, so check the other party’s node or L1 first and send `acknowledgeUnprovable: true`. Refused unless the head is open with a live, verified session, the body is past its validity bound on the head’s clock by the release grace (5 minutes), or by 30 minutes when automatic recovery could still prove it dead, our node shows no confirmation of it, and the row is unchanged since `expectedUpdatedAt`. If the body confirms later, the head’s replay halts for review instead of applying it.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "headId": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The Hydra head the reservation is on"
+                  },
+                  "transactionId": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The reservation to release"
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "updatedAt from GET /hydra/head/l2-reservations"
+                  },
+                  "acknowledgeUnprovable": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ],
+                    "description": "Confirms the admin checked, on the other party’s node or on L1, that the body did not apply. The service cannot prove it."
+                  }
+                },
+                "required": [
+                  "headId",
+                  "transactionId",
+                  "expectedUpdatedAt",
+                  "acknowledgeUnprovable"
+                ],
+                "example": {
+                  "headId": "cuid_v2_auto_generated",
+                  "transactionId": "cuid_v2_auto_generated",
+                  "expectedUpdatedAt": "1970-01-01T00:00:00.000Z",
+                  "acknowledgeUnprovable": true
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reservation released",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "transactionId": {
+                          "type": "string"
+                        },
+                        "purchaseRequestIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Purchases returned to where the reservation found them"
+                        },
+                        "paymentRequestIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Payments returned to their retry action"
+                        }
+                      },
+                      "required": [
+                        "transactionId",
+                        "purchaseRequestIds",
+                        "paymentRequestIds"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "transactionId": "cuid_v2_auto_generated",
+                      "purchaseRequestIds": [
+                        "cuid_v2_auto_generated"
+                      ],
+                      "paymentRequestIds": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head or pending L2 reservation not found"
+          },
+          "409": {
+            "description": "Head not open or closing, the row changed since it was read, the body is not provably expired or shows confirmed, or a request on it is in an action that cannot be restored"
+          },
+          "502": {
+            "description": "No live connection to the head"
+          }
+        }
+      }
+    },
+    "/hydra/head/l2-reservations/stalled-release": {
+      "get": {
+        "summary": "Show the released L2 reservation the head's replay is held on. (admin access required)",
+        "description": "When a reservation was released (on its input proof or by an admin) and its body later confirmed in a snapshot anyway, the head's replay holds on that body with stall reason `replay-apply-retry`. This returns that reservation, or null. `reapplicable` says whether the re-apply endpoint will accept it now.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "The Hydra head to inspect"
+            },
+            "required": true,
+            "description": "The Hydra head to inspect",
+            "name": "headId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stalled release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "headId": {
+                          "type": "string"
+                        },
+                        "reservation": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "transactionId": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "description": "Send it back to re-apply; the call is refused if the row changed"
+                            },
+                            "intendedTxHash": {
+                              "type": "string",
+                              "description": "Hash of the released body that confirmed in the head"
+                            },
+                            "releasedBy": {
+                              "type": "string",
+                              "enum": [
+                                "input-proof",
+                                "operator"
+                              ],
+                              "description": "Who released the reservation"
+                            },
+                            "releasedAt": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "initial-lock",
+                                "action"
+                              ],
+                              "description": "An initial lock, or an action on an existing escrow"
+                            },
+                            "purchaseRequestIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "paymentRequestIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "reapplicable": {
+                              "type": "boolean",
+                              "description": "Whether an admin may re-apply it now"
+                            },
+                            "blockedReason": {
+                              "type": "string",
+                              "nullable": true,
+                              "description": "Why it cannot be re-applied now"
+                            }
+                          },
+                          "required": [
+                            "transactionId",
+                            "updatedAt",
+                            "intendedTxHash",
+                            "releasedBy",
+                            "releasedAt",
+                            "kind",
+                            "purchaseRequestIds",
+                            "paymentRequestIds",
+                            "reapplicable",
+                            "blockedReason"
+                          ],
+                          "description": "Null when replay is not held on a released reservation"
+                        }
+                      },
+                      "required": [
+                        "headId",
+                        "reservation"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "headId": "cuid_v2_auto_generated",
+                      "reservation": {
+                        "transactionId": "cuid_v2_auto_generated",
+                        "updatedAt": "1970-01-01T00:00:00.000Z",
+                        "intendedTxHash": "dc3edee5c3eb0b5b50809ec9fa41fb590818412383da4f03cbf645fb0c1728e7",
+                        "releasedBy": "operator",
+                        "releasedAt": "1970-01-01T00:00:00.000Z",
+                        "kind": "action",
+                        "purchaseRequestIds": [],
+                        "paymentRequestIds": [
+                          "cuid_v2_auto_generated"
+                        ],
+                        "reapplicable": true,
+                        "blockedReason": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          }
+        }
+      }
+    },
+    "/hydra/head/l2-reservations/reapply": {
+      "post": {
+        "summary": "Re-apply a released L2 reservation whose body confirmed. (admin access required)",
+        "description": "Undoes the release of an action reservation: the row goes back to Pending and each request back to the reservation and its in-flight action, so the head's next replay pass applies the body the normal way. Refused for an initial lock (its purchase went back to locking and may be locked again), and unless replay is held on this body, our node shows it confirmed and spending the escrow output each request points at, each request is still where the release left it, and the row is unchanged since `expectedUpdatedAt`.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "headId": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The Hydra head whose replay is held"
+                  },
+                  "transactionId": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The released reservation to re-apply"
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "updatedAt from GET /hydra/head/l2-reservations/stalled-release"
+                  }
+                },
+                "required": [
+                  "headId",
+                  "transactionId",
+                  "expectedUpdatedAt"
+                ],
+                "example": {
+                  "headId": "cuid_v2_auto_generated",
+                  "transactionId": "cuid_v2_auto_generated",
+                  "expectedUpdatedAt": "1970-01-01T00:00:00.000Z"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reservation re-applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "transactionId": {
+                          "type": "string"
+                        },
+                        "purchaseRequestIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Purchases put back on the reservation"
+                        },
+                        "paymentRequestIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Payments put back on the reservation"
+                        }
+                      },
+                      "required": [
+                        "transactionId",
+                        "purchaseRequestIds",
+                        "paymentRequestIds"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "transactionId": "cuid_v2_auto_generated",
+                      "purchaseRequestIds": [],
+                      "paymentRequestIds": [
+                        "cuid_v2_auto_generated"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          },
+          "409": {
+            "description": "Replay is not held on this released reservation, the row changed, it is an initial lock, or a check on the node or the requests failed"
+          }
+        }
+      }
+    },
+    "/hydra/host/pause": {
+      "get": {
+        "summary": "Read the pause state of a Hydra Host. (admin access required)",
+        "description": "Reports the pause phase, the in-flight work that still holds the nodes, and the state each node reports.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pause state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/HydraHostPauseState"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "hostId": "cuid_v2_auto_generated",
+                      "phase": "Draining",
+                      "pausedAt": "2026-10-17T10:00:00.000Z",
+                      "pauseStopRequestedAt": null,
+                      "inFlight": {
+                        "l2Transactions": 1,
+                        "topups": 0,
+                        "withdrawals": 0,
+                        "closingHeads": 0
+                      },
+                      "nodes": [
+                        {
+                          "nodeId": "node-1",
+                          "state": "Running",
+                          "error": null
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra host not found"
+          }
+        }
+      },
+      "post": {
+        "summary": "Pause a Hydra Host for maintenance. (admin access required)",
+        "description": "Refuses new work on every head of this Host at once: L2 locks, top-ups, withdrawals, consolidation, init and commit. The service stops the nodes once in-flight work has settled and no head on the Host is closing or in its dispute window, or at once with `force`. The pause survives restarts of this service and of the Host. Keep it short: a stopped node cannot contest a close, and reserved L2 actions are parked for manual action after a little over three hours.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "force": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Stop the nodes now, without waiting for in-flight work. That work then waits for Resume."
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "example": {
+                  "id": "cuid_v2_auto_generated",
+                  "force": false
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pause accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/HydraHostPauseState"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "hostId": "cuid_v2_auto_generated",
+                      "phase": "Draining",
+                      "pausedAt": "2026-10-17T10:00:00.000Z",
+                      "pauseStopRequestedAt": null,
+                      "inFlight": {
+                        "l2Transactions": 1,
+                        "topups": 0,
+                        "withdrawals": 0,
+                        "closingHeads": 0
+                      },
+                      "nodes": [
+                        {
+                          "nodeId": "node-1",
+                          "state": "Running",
+                          "error": null
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra host not found"
+          },
+          "409": {
+            "description": "Host has no admin token, so its nodes cannot be stopped; or a forced pause found another pause action running. In the second case the pause stays recorded unless the other action was a Resume; read the pause state, then retry."
+          }
+        }
+      }
+    },
+    "/hydra/host/resume": {
+      "post": {
+        "summary": "Resume a paused Hydra Host. (admin access required)",
+        "description": "Starts the nodes the pause stopped, then accepts new work again. If a node does not start, the Host stays paused and the call can be repeated.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "example": {
+                  "id": "cuid_v2_auto_generated"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/HydraHostPauseState"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "hostId": "cuid_v2_auto_generated",
+                      "phase": "Active",
+                      "pausedAt": null,
+                      "pauseStopRequestedAt": null,
+                      "inFlight": {
+                        "l2Transactions": 0,
+                        "topups": 0,
+                        "withdrawals": 0,
+                        "closingHeads": 0
+                      },
+                      "nodes": [
+                        {
+                          "nodeId": "node-1",
+                          "state": "Running",
+                          "error": null
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra host not found"
+          },
+          "409": {
+            "description": "Host has no admin token, or another pause action is running"
+          },
+          "502": {
+            "description": "A node did not start; the Host stays paused"
+          }
+        }
+      }
+    },
     "/hydra/head/balance": {
       "get": {
         "summary": "Read this node's own in-head balance. (admin access required)",
@@ -34526,6 +36726,18 @@
                           "type": "boolean",
                           "description": "True when any reported UTxO is unbacked, so the balance is optimistic"
                         },
+                        "l2MintedUtxoCount": {
+                          "type": "number",
+                          "description": "In-head UTxOs at this address that carry a unit with a positive net L2 mint in the head, as far as the signed history replay has checked. It is 0 until the replay has caught up after a connect, and it leaves out token UTxOs from transactions the replay has not reached yet. The service never spends them. A token minted inside the head and still unburned blocks its final fanout."
+                        },
+                        "l2MintedLovelace": {
+                          "type": "string",
+                          "description": "Lovelace held by those UTxOs. It is counted in balance, and the service does not spend it."
+                        },
+                        "l2MintChecked": {
+                          "type": "boolean",
+                          "description": "True when the history replay is current, so l2MintedUtxoCount counts every L2-minted UTxO the replay has verified; spendableBalance still counts token UTxOs from transactions it has not reached. False when not connected, right after a connect until the replay completes, and while the replay has failed. While connected and false, no UTxO counts as L2-minted and spendableBalance can read high. Low-balance rules do not turn Healthy on such a reading, and auto top-up waits."
+                        },
                         "balance": {
                           "type": "array",
                           "items": {
@@ -34546,6 +36758,27 @@
                             ]
                           },
                           "description": "This node's own funds currently inside the head (ADA + native tokens). Excludes the counterparty."
+                        },
+                        "spendableBalance": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "unit": {
+                                "type": "string",
+                                "description": "Empty string for ADA/lovelace; otherwise policyId+assetName hex"
+                              },
+                              "quantity": {
+                                "type": "string",
+                                "description": "Aggregate quantity across the local address in-head UTxOs"
+                              }
+                            },
+                            "required": [
+                              "unit",
+                              "quantity"
+                            ]
+                          },
+                          "description": "balance without the L2-minted UTxOs counted above. Low-balance rules compare against this. It still counts token UTxOs the replay has not checked yet and UTxOs of a deposit the head has not finished folding in; the service does not spend those until they are checked or folded in."
                         }
                       },
                       "required": [
@@ -34555,7 +36788,11 @@
                         "utxoCount",
                         "unbackedLovelace",
                         "hasUnbackedUtxos",
-                        "balance"
+                        "l2MintedUtxoCount",
+                        "l2MintedLovelace",
+                        "l2MintChecked",
+                        "balance",
+                        "spendableBalance"
                       ]
                     }
                   },
@@ -34572,7 +36809,16 @@
                       "utxoCount": 1,
                       "unbackedLovelace": "0",
                       "hasUnbackedUtxos": false,
+                      "l2MintedUtxoCount": 0,
+                      "l2MintedLovelace": "0",
+                      "l2MintChecked": true,
                       "balance": [
+                        {
+                          "unit": "",
+                          "quantity": "10000000"
+                        }
+                      ],
+                      "spendableBalance": [
                         {
                           "unit": "",
                           "quantity": "10000000"
@@ -34615,6 +36861,16 @@
             "required": true,
             "description": "The Hydra head whose transactions to list",
             "name": "headId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Inclusive cursor: the id of the last row already seen, of any kind. It is returned again first. An id this head does not list returns an empty page."
+            },
+            "required": false,
+            "description": "Inclusive cursor: the id of the last row already seen, of any kind. It is returned again first. An id this head does not list returns an empty page.",
+            "name": "cursorId",
             "in": "query"
           },
           {
@@ -34914,6 +37170,15 @@
                         "isReady": {
                           "type": "boolean"
                         },
+                        "syncReady": {
+                          "type": "boolean",
+                          "nullable": true,
+                          "description": "Whether both sessions and history are verified. Null outside Open."
+                        },
+                        "syncReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "peerConnected": {
                           "type": "boolean",
                           "nullable": true,
@@ -34968,6 +37233,8 @@
                         "connected",
                         "nodeState",
                         "isReady",
+                        "syncReady",
+                        "syncReason",
                         "peerConnected",
                         "reason",
                         "paramDrift",
@@ -35083,7 +37350,8 @@
                                   "CommandFailed",
                                   "PostTxOnChainFailed",
                                   "TxInvalid",
-                                  "InvalidInput"
+                                  "InvalidInput",
+                                  "ContestMissing"
                                 ]
                               },
                               "errorMessage": {
@@ -35100,6 +37368,7 @@
                                   "Open",
                                   "Closed",
                                   "FanoutPossible",
+                                  "FanningOut",
                                   "Final"
                                 ]
                               },
@@ -35278,6 +37547,22 @@
                     "data": {
                       "type": "object",
                       "properties": {
+                        "autoFund": {
+                          "type": "boolean"
+                        },
+                        "automaticFundingLimitLovelace": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Lifetime node funding limit in lovelace. Null means unlimited."
+                        },
+                        "fundedLovelace": {
+                          "type": "string",
+                          "description": "Queued or confirmed funding to this address, including historical and manual transfers."
+                        },
+                        "remainingFundingLovelace": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "address": {
                           "type": "string"
                         },
@@ -35317,6 +37602,10 @@
                         }
                       },
                       "required": [
+                        "autoFund",
+                        "automaticFundingLimitLovelace",
+                        "fundedLovelace",
+                        "remainingFundingLovelace",
                         "address",
                         "balanceLovelace",
                         "isUnderfunded",
@@ -35344,7 +37633,7 @@
             "description": "Unauthorized"
           },
           "404": {
-            "description": "Hydra head not found"
+            "description": "Local participant not found"
           }
         }
       },
@@ -35417,7 +37706,7 @@
                             "sufficient",
                             "in-flight"
                           ],
-                          "description": "`sent`: a transfer was started. `sufficient`: the node already holds enough. `in-flight`: an earlier transfer to this node has not confirmed yet, so nothing was sent — the balance below is still the pre-transfer one."
+                          "description": "`sent`: a transfer was started. `sufficient`: the node already holds enough. `in-flight`: an earlier transfer to this node has not confirmed yet, so nothing was sent. The balance below is still the pre-transfer one."
                         }
                       },
                       "required": [
@@ -35446,7 +37735,109 @@
             "description": "Unauthorized"
           },
           "404": {
-            "description": "Hydra head not found"
+            "description": "Local participant not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Set optional automatic node funding limits. (admin access required)",
+        "description": "Automatic funding is unlimited by default. A lifetime limit counts pending and confirmed transfers to the node address, including manual and historical transfers. A refill is skipped if it would exceed the limit. Explicit admin funding remains available.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "autoFund": {
+                    "type": "boolean"
+                  },
+                  "automaticFundingLimitLovelace": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 19,
+                    "pattern": "^(0|[1-9][0-9]*)$",
+                    "description": "Null removes the limit. Zero blocks automatic funding."
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "example": {
+                  "id": "cuid_v2_auto_generated",
+                  "automaticFundingLimitLovelace": null
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Automatic funding settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "autoFund": {
+                          "type": "boolean"
+                        },
+                        "automaticFundingLimitLovelace": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "autoFund",
+                        "automaticFundingLimitLovelace"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "id": "cuid_v2_auto_generated",
+                      "autoFund": true,
+                      "automaticFundingLimitLovelace": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Local participant not found"
           }
         }
       }
@@ -35544,7 +37935,7 @@
             "description": "Unauthorized"
           },
           "404": {
-            "description": "Hydra head not found"
+            "description": "Local participant not found"
           },
           "409": {
             "description": "The node is still needed, so its funds are kept"
@@ -35626,7 +38017,7 @@
       },
       "post": {
         "summary": "Create or update a Hydra in-head low-balance rule. (admin access required)",
-        "description": "Upserts a rule (keyed by participant + asset) that alerts when the participant's own in-head balance for the asset falls below the threshold, and optionally auto-tops-up from its assigned funding wallet.",
+        "description": "Upserts a rule (keyed by participant + asset) that alerts when the participant's own spendable in-head balance for the asset falls below the threshold, and optionally auto-tops-up from its assigned funding wallet.",
         "tags": [
           "hydra"
         ],
@@ -35643,7 +38034,7 @@
                 "properties": {
                   "hydraLocalParticipantId": {
                     "type": "string",
-                    "description": "Local participant whose in-head balance to monitor"
+                    "description": "Local participant whose spendable in-head balance to monitor"
                   },
                   "assetUnit": {
                     "type": "string",
@@ -35652,7 +38043,7 @@
                   "thresholdAmount": {
                     "type": "string",
                     "pattern": "^\\d+$",
-                    "description": "Alert when the in-head balance falls below this"
+                    "description": "Alert when the spendable in-head balance falls below this"
                   },
                   "enabled": {
                     "type": "boolean",
@@ -35661,7 +38052,7 @@
                   "topupEnabled": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Auto top-up from the assigned funding wallet when low"
+                    "description": "Auto top-up from the assigned funding wallet when low. Skipped while the history replay is not current, and for a unit with a positive net L2 mint in the head."
                   },
                   "topupAmount": {
                     "type": "string",
@@ -36339,6 +38730,533 @@
           },
           "404": {
             "description": "Remote participant not found"
+          }
+        }
+      }
+    },
+    "/hydra/head/chain-check": {
+      "post": {
+        "summary": "Read a Hydra head state on L1. (admin access required)",
+        "description": "Reads the newest transaction that moved the head's state token, through the payment source's independent L1 observer. Returns whether the head is still open, closed (contestation running), or fanned out. Read-only.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID of the HydraHead to check"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "example": {
+                  "id": "cuid_v2_auto_generated"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Head state on chain",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "chainState": {
+                          "type": "string",
+                          "enum": [
+                            "open",
+                            "closed",
+                            "gone"
+                          ],
+                          "description": "Head state after its newest state-token transaction; gone means fanned out"
+                        },
+                        "latestTxHash": {
+                          "type": "string",
+                          "description": "Newest transaction that moved the head state token"
+                        }
+                      },
+                      "required": [
+                        "chainState",
+                        "latestTxHash"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "chainState": "open",
+                      "latestTxHash": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          },
+          "409": {
+            "description": "Head identifier not observed yet, or no independent L1 observer configured"
+          },
+          "502": {
+            "description": "The head state could not be read on chain"
+          },
+          "503": {
+            "description": "Independent L1 evidence not yet available"
+          }
+        }
+      }
+    },
+    "/hydra/head/retire": {
+      "post": {
+        "summary": "Retire a Hydra head that cannot reach Final. (admin access required)",
+        "description": "Marks a closed head that fanout cannot finish as retired and frees its relation for a new head. Moves no funds: whatever is left stays on L1 behind the head script. Allowed for FanoutPossible and FanningOut heads, and for Closed heads after the contestation deadline, when L1 shows the head closed. Stores the reason, the L1 tx that holds the head output and the remaining UTxO set for a later recovery. Cannot be undone through the API.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "headId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID of the HydraHead"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 1000,
+                    "description": "Why the head cannot reach Final. Stored with the head for a later recovery."
+                  },
+                  "acknowledgeStrandedFunds": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  },
+                  "acknowledgeRemainingUtxoUnknown": {
+                    "type": "boolean"
+                  },
+                  "acknowledgeFanoutStalled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "headId",
+                  "reason",
+                  "acknowledgeStrandedFunds"
+                ],
+                "example": {
+                  "headId": "cuid_v2_auto_generated",
+                  "reason": "An output above the fanout size limit blocks the final fanout step",
+                  "acknowledgeStrandedFunds": true
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Head retired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "headId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "Disconnected",
+                            "Connected",
+                            "Connecting",
+                            "Idle",
+                            "Initializing",
+                            "Open",
+                            "Closed",
+                            "FanoutPossible",
+                            "FanningOut",
+                            "Final"
+                          ]
+                        },
+                        "retiredAt": {
+                          "type": "string"
+                        },
+                        "retiredHeadOutputTxHash": {
+                          "type": "string"
+                        },
+                        "remainingUtxoCount": {
+                          "type": "number",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "headId",
+                        "status",
+                        "retiredAt",
+                        "retiredHeadOutputTxHash",
+                        "remainingUtxoCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "headId": "cuid_v2_auto_generated",
+                      "status": "FanoutPossible",
+                      "retiredAt": "2026-10-21T12:00:00.000Z",
+                      "retiredHeadOutputTxHash": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+                      "remainingUtxoCount": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input, or the stranded funds were not acknowledged"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          },
+          "409": {
+            "description": "Already retired, status not retirable, contestation still running, L1 shows the head open or fanned out, the node is still settling the head (pass acknowledgeFanoutStalled for a stuck drain) or does not hold it as closed, or the head changed meanwhile"
+          },
+          "502": {
+            "description": "The head state could not be read on chain, the node returned an unreadable head state, or the node reported no readable contestation deadline for a Closed head"
+          },
+          "503": {
+            "description": "Independent L1 evidence or the remaining UTxO set is not available yet"
+          }
+        }
+      }
+    },
+    "/hydra/head/partial-fanout": {
+      "get": {
+        "summary": "List what a closed Hydra head can still fan out. (admin access required)",
+        "description": "Lists the in-head outputs a partial fanout can select now, read from the node head state: the set the node checks a selection against. fanoutMode says whether the node waits for a selection. Read-only.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "ID of the HydraHead"
+            },
+            "required": true,
+            "description": "ID of the HydraHead",
+            "name": "headId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Outputs left to fan out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "headId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "Disconnected",
+                            "Connected",
+                            "Connecting",
+                            "Idle",
+                            "Initializing",
+                            "Open",
+                            "Closed",
+                            "FanoutPossible",
+                            "FanningOut",
+                            "Final"
+                          ]
+                        },
+                        "fanoutMode": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "AutoDrain",
+                            "DistributingSelection",
+                            "AwaitingSelection",
+                            null
+                          ],
+                          "description": "Null before the first step. A selection is accepted only before it or in AwaitingSelection."
+                        },
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reference": {
+                                "type": "string"
+                              },
+                              "address": {
+                                "type": "string"
+                              },
+                              "lovelace": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "reference",
+                              "address",
+                              "lovelace"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "headId",
+                        "status",
+                        "fanoutMode",
+                        "outputs"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "headId": "cuid_v2_auto_generated",
+                      "status": "FanningOut",
+                      "fanoutMode": "AwaitingSelection",
+                      "outputs": [
+                        {
+                          "reference": "abababababababababababababababababababababababababababababababab#0",
+                          "address": "addr_test1vz...",
+                          "lovelace": "2000000"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          },
+          "409": {
+            "description": "Status not FanoutPossible or FanningOut, or the node does not hold the head as closed"
+          },
+          "502": {
+            "description": "No connection to the head, or the node returned an unreadable head state"
+          }
+        }
+      },
+      "post": {
+        "summary": "Fan out part of a closed Hydra head. (admin access required)",
+        "description": "Asks the node to fan out the selected in-head outputs in one or more L1 steps. Allowed for FanoutPossible and FanningOut heads. Selecting everything that remains ends in the final step and Final. Once a step lands the head is FanningOut, and only this endpoint can continue the fanout. Use it to move every output that fits out of a head that one oversized output keeps from reaching Final, then retire the head.",
+        "tags": [
+          "hydra"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "headId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID of the HydraHead"
+                  },
+                  "outputRefs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[0-9a-fA-F]{64}#\\d{1,10}$"
+                    },
+                    "minItems": 1,
+                    "maxItems": 4095,
+                    "description": "In-head references (txHash#index) of the outputs to fan out in this step"
+                  },
+                  "replaceInProgressSelection": {
+                    "type": "boolean",
+                    "description": "Send the selection even while the node fans out on its own; it replaces the selection in progress."
+                  }
+                },
+                "required": [
+                  "headId",
+                  "outputRefs"
+                ],
+                "example": {
+                  "headId": "cuid_v2_auto_generated",
+                  "outputRefs": [
+                    "abababababababababababababababababababababababababababababababab#0"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Partial fanout step result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "headId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "Disconnected",
+                            "Connected",
+                            "Connecting",
+                            "Idle",
+                            "Initializing",
+                            "Open",
+                            "Closed",
+                            "FanoutPossible",
+                            "FanningOut",
+                            "Final"
+                          ]
+                        },
+                        "selectedCount": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "headId",
+                        "status",
+                        "selectedCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "headId": "cuid_v2_auto_generated",
+                      "status": "FanningOut",
+                      "selectedCount": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Hydra head not found"
+          },
+          "409": {
+            "description": "Head disabled, status not FanoutPossible or FanningOut, an output is not in the head, or the node is still fanning out on its own and replaceInProgressSelection is not set, or a fanout command for the head is already in progress"
+          },
+          "502": {
+            "description": "No connection to the head, or the node returned an unreadable head state"
+          },
+          "503": {
+            "description": "The node is behind the chain and did not post the step"
           }
         }
       }
@@ -44582,6 +47500,485 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/release-status": {
+      "get": {
+        "summary": "Compare the running release with the newest published one.",
+        "description": "Reports the release this service and each Hydra Host were built from, and the newest release published on GitHub. The GitHub check runs at most once every six hours. A failed check sets `checkError` and keeps the last good answer in `latest` and `checkedAt`. With no good answer yet, `latest` is null and `updateAvailable` is null: a build is never reported as up to date without an answer. Hosts are listed only for an admin key, as of their last Check.",
+        "tags": [
+          "health"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Release status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "latest": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "url": {
+                              "type": "string"
+                            },
+                            "publishedAt": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "url",
+                            "publishedAt"
+                          ],
+                          "description": "Newest published release, including pre-releases. Null when not checked yet."
+                        },
+                        "checkedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "When GitHub last answered"
+                        },
+                        "checkError": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Why the last check failed, when it did"
+                        },
+                        "service": {
+                          "$ref": "#/components/schemas/ReleaseWithUpdate"
+                        },
+                        "hosts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "network": {
+                                "type": "string",
+                                "enum": [
+                                  "Preprod",
+                                  "Mainnet"
+                                ]
+                              },
+                              "release": {
+                                "$ref": "#/components/schemas/ReleaseWithUpdate"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "network",
+                              "release"
+                            ]
+                          },
+                          "description": "Hydra Hosts, as of their last probe. Empty for a key without admin access."
+                        }
+                      },
+                      "required": [
+                        "latest",
+                        "checkedAt",
+                        "checkError",
+                        "service",
+                        "hosts"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "latest": {
+                        "version": "0.30.0",
+                        "url": "https://github.com/masumi-network/masumi-payment-service/releases/tag/0.30.0",
+                        "publishedAt": "2026-10-15T12:00:00Z"
+                      },
+                      "checkedAt": "2026-10-17T10:00:00.000Z",
+                      "checkError": null,
+                      "service": {
+                        "version": "0.29.0-5-gabc1234",
+                        "commit": "abc1234",
+                        "tag": "0.29.0",
+                        "commitsAhead": 5,
+                        "dirty": false,
+                        "updateAvailable": true
+                      },
+                      "hosts": [
+                        {
+                          "id": "cuid_v2_auto_generated",
+                          "name": "hydra1",
+                          "network": "Mainnet",
+                          "release": {
+                            "version": "0.29.0-5-gabc1234",
+                            "commit": "abc1234",
+                            "tag": "0.29.0",
+                            "commitsAhead": 5,
+                            "dirty": false,
+                            "updateAvailable": true
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/security-status": {
+      "get": {
+        "summary": "Report insecure service configuration.",
+        "description": "Reports whether ENCRYPTION_KEY is the public value from .env.example. The service still starts with that key, but anyone with a copy of the database can then decrypt every stored secret. The service has no tool to re-encrypt secrets: a new key on an existing database makes the stored secrets unreadable and every API key invalid. For production, start a new database with a private key. Admin access is required.",
+        "tags": [
+          "health"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Security status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "isEncryptionKeyPublic": {
+                          "type": "boolean",
+                          "description": "True when ENCRYPTION_KEY is the public .env.example value. A database copy then exposes every secret."
+                        }
+                      },
+                      "required": [
+                        "isEncryptionKeyPublic"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "isEncryptionKeyPublic": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/payment/acknowledge-manual-action": {
+      "post": {
+        "description": "Hides payment requests from Needs Action (filterNeedsManualAction). Only the acknowledgement is stored: NextAction, error fields, transactions and on-chain state do not change. The acknowledgement is cleared when the requested action or the error changes, so a new error shows up again. Each request names the nextActionLastChangedAt the caller read: a request that changed since then is skipped, so an error the caller has not seen is not hidden. Requests that are not in Needs Action, changed since they were read, not found, or outside the caller's scope are skipped. Only the creating key or an admin key can acknowledge a request.",
+        "summary": "Acknowledge payment requests in Needs Action (PAY access required)",
+        "tags": [
+          "error-state-recovery"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "description": "Requests to acknowledge",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "network": {
+                    "type": "string",
+                    "enum": [
+                      "Preprod",
+                      "Mainnet"
+                    ],
+                    "description": "The network the requests were made on"
+                  },
+                  "requests": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "blockchainIdentifier": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 8000,
+                          "description": "The blockchain identifier of the request"
+                        },
+                        "nextActionLastChangedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "description": "nextActionLastChangedAt as the caller last read it. A request whose action or error changed since then is skipped, so an error the caller has not seen stays in Needs Action."
+                        }
+                      },
+                      "required": [
+                        "blockchainIdentifier",
+                        "nextActionLastChangedAt"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "description": "The requests to acknowledge"
+                  }
+                },
+                "required": [
+                  "network",
+                  "requests"
+                ],
+                "example": {
+                  "network": "Preprod",
+                  "requests": [
+                    {
+                      "blockchainIdentifier": "blockchain_identifier",
+                      "nextActionLastChangedAt": "2024-04-20T18:04:20.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Acknowledged count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "acknowledgedCount": {
+                          "type": "number",
+                          "description": "Requests that were in Needs Action and are now acknowledged. Others in the list are skipped."
+                        }
+                      },
+                      "required": [
+                        "acknowledgedCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "acknowledgedCount": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (invalid input)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/purchase/acknowledge-manual-action": {
+      "post": {
+        "description": "Hides purchase requests from Needs Action (filterNeedsManualAction). Only the acknowledgement is stored: NextAction, error fields, transactions and on-chain state do not change. The acknowledgement is cleared when the requested action or the error changes, so a new error shows up again. Each request names the nextActionLastChangedAt the caller read: a request that changed since then is skipped, so an error the caller has not seen is not hidden. Requests that are not in Needs Action, changed since they were read, not found, or outside the caller's scope are skipped. Only the creating key or an admin key can acknowledge a request.",
+        "summary": "Acknowledge purchase requests in Needs Action (PAY access required)",
+        "tags": [
+          "error-state-recovery"
+        ],
+        "security": [
+          {
+            "API-Key": []
+          }
+        ],
+        "requestBody": {
+          "description": "Requests to acknowledge",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "network": {
+                    "type": "string",
+                    "enum": [
+                      "Preprod",
+                      "Mainnet"
+                    ],
+                    "description": "The network the requests were made on"
+                  },
+                  "requests": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "blockchainIdentifier": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 8000,
+                          "description": "The blockchain identifier of the request"
+                        },
+                        "nextActionLastChangedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "description": "nextActionLastChangedAt as the caller last read it. A request whose action or error changed since then is skipped, so an error the caller has not seen stays in Needs Action."
+                        }
+                      },
+                      "required": [
+                        "blockchainIdentifier",
+                        "nextActionLastChangedAt"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "description": "The requests to acknowledge"
+                  }
+                },
+                "required": [
+                  "network",
+                  "requests"
+                ],
+                "example": {
+                  "network": "Preprod",
+                  "requests": [
+                    {
+                      "blockchainIdentifier": "blockchain_identifier",
+                      "nextActionLastChangedAt": "2024-04-20T18:04:20.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Acknowledged count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "acknowledgedCount": {
+                          "type": "number",
+                          "description": "Requests that were in Needs Action and are now acknowledged. Others in the list are skipped."
+                        }
+                      },
+                      "required": [
+                        "acknowledgedCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "example": {
+                    "status": "success",
+                    "data": {
+                      "acknowledgedCount": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (invalid input)"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         }
       }
