@@ -4,6 +4,7 @@ import {
   SOKO_BOT_JUDGE_RUBRIC,
   SOKO_BOT_SCENARIOS,
   type SokoBotJudgeVerdict,
+  type SokoBotScenario,
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
@@ -332,11 +333,10 @@ async function storeTurnVerdict(turnId: string, call: JudgeCall) {
   });
 }
 
-type LabScenario = (typeof SOKO_BOT_SCENARIOS)[number];
 type Transcript = Awaited<ReturnType<typeof loadTranscript>>["transcript"];
 
 /** What the judge reads for a lab turn: the scenario's rubric and the turn. */
-function labJudgePayload(scenario: LabScenario, transcript: Transcript) {
+function labJudgePayload(scenario: SokoBotScenario, transcript: Transcript) {
   return {
     scenario: {
       id: scenario.id,
@@ -363,6 +363,20 @@ export async function loadLabJudgePayload(turnId: string, scenarioId: string) {
   if (!scenario) throw new SokoBotLabJudgeError("Unknown scenario");
   const { transcript } = await loadTranscript(turnId);
   return labJudgePayload(scenario, transcript);
+}
+
+/**
+ * Grades an eval turn against its scenario's rubric. The verdict is stored
+ * on the turn, as the lab's is; the eval result keeps its own copy.
+ */
+export async function judgeEvalScenarioTurn(
+  turnId: string,
+  scenario: SokoBotScenario,
+): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
+  const { transcript } = await loadTranscript(turnId);
+  const call = await askJudge(labJudgePayload(scenario, transcript));
+  await storeTurnVerdict(turnId, call);
+  return { verdict: call.verdict, model: sokoBotJudgeModel() };
 }
 
 /**

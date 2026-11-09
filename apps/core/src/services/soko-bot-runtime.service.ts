@@ -168,6 +168,12 @@ import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import { contactExportTable } from "@/lib/contacts/export-table";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  evalCoworkerRefusal,
+  globalCoworkersFor,
+  isEvalWorkspace,
+  simulatedEvalTool,
+} from "@/lib/evals/eval-guard";
 import { tryUseLogger } from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
@@ -6656,7 +6662,7 @@ export class SokoBotRuntimeService {
   }
 
   /** AI Coworkers this bot may hand Task work to. */
-  private findCoworkers(
+  private async findCoworkers(
     authorized: AuthorizedSokoBotRuntime,
     query: string | undefined,
   ) {
@@ -6666,7 +6672,7 @@ export class SokoBotRuntimeService {
         AND: [
           {
             OR: [
-              { isWhitelisted: true },
+              ...(await globalCoworkersFor(authorized.turn.workspaceId)),
               // A shared bot sees no member's private assignments.
               ...(authorized.reader.sharedScope
                 ? []
@@ -7649,6 +7655,15 @@ export class SokoBotRuntimeService {
       ...raw,
       input: await this.resolveTaskIds(authorized, raw.input),
     };
+    if (await isEvalWorkspace(authorized.turn.workspaceId)) {
+      const refusal = await evalCoworkerRefusal(
+        authorized.turn.workspaceId,
+        input.input,
+      );
+      if (refusal) throw new SokoBotRuntimeValidationError(refusal);
+      const simulated = simulatedEvalTool(input.capability, input.input);
+      if (simulated) return simulated;
+    }
     switch (input.capability) {
       case "newsletter_draft_issue": {
         const { projectId, ...params } =
