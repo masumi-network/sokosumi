@@ -1,6 +1,6 @@
 import type { CmoBrandMedia } from "@sokosumi/core-client";
 import { ArrowUpRight } from "lucide-react";
-
+import { AGENT_NAME } from "../lib/agent";
 import type { BrandBrain } from "../lib/brand-sections";
 
 type Page = CmoBrandMedia["pages"][number];
@@ -100,7 +100,7 @@ export function SiteGallery({ media }: { media: CmoBrandMedia }) {
       ) : null}
       <p className="note">
         Saved to the Project's files in Sokosumi, under Brand research, for your
-        whole team. Cuso uses them in your posts.
+        whole team. {AGENT_NAME} uses them in your posts.
       </p>
     </div>
   );

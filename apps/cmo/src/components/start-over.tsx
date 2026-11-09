@@ -2,7 +2,7 @@
 
 import { RotateCcw } from "lucide-react";
 import { useState } from "react";
-
+import { AGENT_NAME } from "../lib/agent";
 import { SubmitButton } from "./submit-button";
 
 interface StartOverProps {
@@ -42,8 +42,8 @@ export function StartOver({
       action={async () => setError(await startOver())}
     >
       <p className="note">
-        Cuso stops and his unsent posts are canceled. Your chat and files stay
-        in Sokosumi.
+        {AGENT_NAME} stops and his unsent posts are canceled. Your chat and
+        files stay in Sokosumi.
       </p>
       <div className="start-over-actions">
         <SubmitButton className={className}>Start over</SubmitButton>

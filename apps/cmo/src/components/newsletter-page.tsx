@@ -161,7 +161,7 @@ export function NewsletterPage({
     return (
       <div className="page-body">
         {loadError ? (
-          <section className="panel">
+          <section className="card">
             <p role="alert">Could not load Newsletter.</p>
             <div>
               <button type="button" className={BUTTON} onClick={reload}>
@@ -178,7 +178,7 @@ export function NewsletterPage({
   if (newsletter.state === "disabled") {
     return (
       <div className="page-body">
-        <section className="panel">
+        <section className="card">
           <h3>Newsletter sending is in pilot</h3>
           <p>
             Sending opens when this workspace joins the pilot. Your newsletter
@@ -191,7 +191,7 @@ export function NewsletterPage({
   if (newsletter.state === "setup") {
     return (
       <div className="page-body">
-        <section className="panel">
+        <section className="card">
           <h3>Set up your newsletter</h3>
           <p>
             In Sokosumi, switch to the {businessDisplayName(overview)}{" "}
@@ -233,7 +233,7 @@ export function NewsletterPage({
           status.
         </p>
       ) : null}
-      <section className="panel">
+      <section className="card">
         <h3>{newsletter.name}</h3>
         <div className="crow">
           <a href={settingsUrl.href}>Sender and design settings in Sokosumi</a>
@@ -261,7 +261,7 @@ export function NewsletterPage({
         />
       ) : null}
 
-      <section className="panel">
+      <section className="card">
         <div className="crow">
           <h3 className="grow">Subscribers</h3>
           <a href={subscribersUrl.href}>Manage subscribers in Sokosumi</a>
@@ -355,7 +355,7 @@ export function NewsletterPage({
         {message ? <p role="status">{message}</p> : null}
       </section>
 
-      <section className="panel">
+      <section className="card">
         <div className="crow">
           <h3 className="grow">Latest issues</h3>
           <a href={issuesUrl.href}>All issues in Sokosumi</a>
@@ -489,7 +489,7 @@ function CalendarIssueHandoff({
   }
 
   return (
-    <section className="panel">
+    <section className="card">
       <h3>Prepare a calendar issue</h3>
       <p>{piece.title}</p>
       <p className="note">
@@ -590,7 +590,7 @@ function IssuePreview({
   editUrl.search = settingsUrl.search;
 
   return (
-    <section className="panel">
+    <section className="card">
       <div className="crow">
         <h3 className="grow" ref={heading} tabIndex={-1}>
           {issue.subject}
