@@ -9020,7 +9020,7 @@
           "title": "Entscheidungen",
           "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
           "loadOlder": "Ältere laden",
-          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke beim Tag auf das ×."
+          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag."
         },
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
