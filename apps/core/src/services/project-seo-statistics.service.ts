@@ -1,12 +1,20 @@
 import { z } from "@hono/zod-openapi";
-import { SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE } from "@sokosumi/utils";
+import {
+  SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
+} from "@sokosumi/utils";
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
+  gscKeywordSeriesArguments,
   gscQueryArguments,
+  keywordSeriesLeftOutNote,
+  type NativeKeywordSeries,
   type NativeSearchQueries,
+  normalizeGscKeywordSeries,
   normalizeGscQueries,
+  selectTrackedKeywords,
 } from "@/lib/seo/native-gsc-queries";
 import {
   bindSeoToolArguments,
@@ -303,11 +311,31 @@ export async function syncProjectSeoStatistics(
           ),
         )
       : null;
-  // Independent reads: native aggregate totals, the daily series and Search Console query rows. Distinct users are never summed.
-  const [period, daily, queries] = await Promise.allSettled([
+  const tracked =
+    input.provider === "search_console"
+      ? selectTrackedKeywords(workspace.keywords)
+      : { chosen: [], leftOut: [] };
+  const collectKeywordSeries = async (): Promise<NativeKeywordSeries | null> =>
+    tracked.chosen.length
+      ? normalizeGscKeywordSeries(
+          query,
+          tracked.chosen,
+          unwrapNativeStatistics(
+            await read(
+              integration,
+              tool,
+              gscKeywordSeriesArguments(query, tracked.chosen),
+            ),
+            ["rows"],
+          ),
+        )
+      : null;
+  // Independent reads: native aggregate totals, the daily series, Search Console query rows and tracked keyword days. Distinct users are never summed.
+  const [period, daily, queries, keywordSeries] = await Promise.allSettled([
     collect(false),
     collect(true),
     collectQueries(),
+    collectKeywordSeries(),
   ]);
   if (period.status === "rejected" && daily.status === "rejected") {
     await recordSeoConnectionFailure(actor, input.provider, integration);
@@ -332,6 +360,17 @@ export async function syncProjectSeoStatistics(
           `Only the first ${queries.value.rowLimit} query rows by clicks were kept. More rows can exist.`,
         );
     } else metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
+    if (tracked.chosen.length) {
+      if (keywordSeries.status === "fulfilled" && keywordSeries.value) {
+        metrics.keywordSeries = keywordSeries.value;
+        if (keywordSeries.value.truncated)
+          metrics.notes.push(
+            `Only the first ${keywordSeries.value.rowLimit} daily keyword rows by clicks were kept. Some days can be missing.`,
+          );
+      } else metrics.notes.push(SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE);
+    }
+    if (tracked.leftOut.length)
+      metrics.notes.push(keywordSeriesLeftOutNote(tracked.leftOut));
   }
   const current = await integrationFor(actor, input.provider);
   if (

@@ -10063,6 +10063,21 @@ export type ProjectSeoSearchQueries = {
         averagePosition: number;
         id: string;
     }>;
+    keywordSeries?: ProjectSeoKeywordSeries;
+};
+
+export type ProjectSeoKeywordSeries = {
+    rowLimit: number;
+    truncated: boolean;
+    keywords: Array<{
+        keyword: string;
+        points: Array<{
+            date: string;
+            clicks: number;
+            impressions: number;
+            position: number | null;
+        }>;
+    }>;
 };
 
 export type ProjectSeoTimelineItem = {

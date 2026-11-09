@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { SEO_SEARCH_QUERY_ROW_LIMIT } from "@/schemas/project-seo.schema";
-import { gscQueryArguments, normalizeGscQueries } from "./native-gsc-queries";
+import {
+  SEO_KEYWORD_SERIES_ROW_LIMIT,
+  SEO_SEARCH_QUERY_ROW_LIMIT,
+} from "@/schemas/project-seo.schema";
+import {
+  GSC_FILTER_EXPRESSION_LIMIT,
+  gscKeywordSeriesArguments,
+  gscQueryArguments,
+  keywordSeriesLeftOutNote,
+  normalizeGscKeywordSeries,
+  normalizeGscQueries,
+  selectTrackedKeywords,
+} from "./native-gsc-queries";
 import { gscStatisticsArguments } from "./native-statistics";
 
 const query = {
@@ -85,5 +96,130 @@ describe("Search Console query rows", () => {
       row([`query ${i}`, "https://www.example.test/"]),
     );
     expect(normalizeGscQueries(query, { rows }).truncated).toBe(true);
+  });
+});
+
+describe("tracked keyword daily rows", () => {
+  const day = (
+    date: string,
+    text: string,
+    impressions: number,
+    position: number,
+    clicks = 1,
+  ) => ({ keys: [date, text], clicks, impressions, ctr: 0, position });
+
+  it("adds an escaped keyword filter to the same page filter group", () => {
+    const args = gscKeywordSeriesArguments(query, ["c++ guide", "A.b"]),
+      totals = gscStatisticsArguments(query, false);
+    expect(args.dimensions).toEqual(["date", "query"]);
+    expect(args.row_limit).toBe(SEO_KEYWORD_SERIES_ROW_LIMIT);
+    for (const key of [
+      "site_url",
+      "start_date",
+      "end_date",
+      "search_type",
+      "data_state",
+    ])
+      expect(args[key]).toEqual(totals[key]);
+    const [pageGroup] = totals.dimension_filter_groups as Array<{
+      filters: unknown[];
+    }>;
+    expect(args.dimension_filter_groups).toEqual([
+      {
+        groupType: "and",
+        filters: [
+          ...pageGroup.filters,
+          {
+            dimension: "query",
+            operator: "includingRegex",
+            expression: "(?i)^(?:c\\+\\+ guide|a\\.b)$",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("chooses 25 saved keywords by priority and names the rest", () => {
+    const keywords = Array.from({ length: 30 }, (_, i) => ({
+      keyword: `kw ${String(i).padStart(2, "0")}`,
+      saved: true,
+      priority: (i === 29 ? "high" : "medium") as "high" | "medium",
+    }));
+    const { chosen, leftOut } = selectTrackedKeywords([
+      ...keywords,
+      { keyword: "KW  29", saved: true, priority: "low" },
+      { keyword: "unsaved", saved: false, priority: "high" },
+    ]);
+    expect(chosen).toHaveLength(25);
+    expect(chosen.slice(0, 3)).toEqual(["kw 29", "kw 00", "kw 01"]);
+    expect(leftOut).toEqual(["kw 24", "kw 25", "kw 26", "kw 27", "kw 28"]);
+    const note = keywordSeriesLeftOutNote(leftOut);
+    expect(note).toContain('"kw 24", "kw 25", "kw 26", "kw 27", "kw 28".');
+    expect(note).not.toMatch(/[–—]/);
+  });
+
+  it("keeps a set of long keywords within the filter expression limit", () => {
+    const keywords = Array.from({ length: 25 }, (_, i) => ({
+      keyword: `${i}${".".repeat(200)}`,
+      saved: true,
+      priority: "medium" as const,
+    }));
+    const { chosen, leftOut } = selectTrackedKeywords(keywords);
+    expect(leftOut.length).toBeGreaterThan(0);
+    const [group] = gscKeywordSeriesArguments(query, chosen)
+      .dimension_filter_groups as Array<{
+      filters: Array<{ expression: string }>;
+    }>;
+    expect(group.filters[1].expression.length).toBeLessThanOrEqual(
+      GSC_FILTER_EXPRESSION_LIMIT,
+    );
+  });
+
+  it("merges case and spacing variants per day with an impression-weighted position", () => {
+    const result = normalizeGscKeywordSeries(
+      query,
+      ["battery health", "unused keyword"],
+      {
+        rows: [
+          day("2026-10-10", "Battery Health", 10, 2, 1),
+          day("2026-10-10", "battery  health", 30, 6, 2),
+          day("2026-10-09", "battery health", 0, 0, 0),
+        ],
+      },
+    );
+    expect(result).toEqual({
+      rowLimit: SEO_KEYWORD_SERIES_ROW_LIMIT,
+      truncated: false,
+      keywords: [
+        {
+          keyword: "battery health",
+          points: [
+            { date: "2026-10-09", clicks: 0, impressions: 0, position: null },
+            { date: "2026-10-10", clicks: 3, impressions: 40, position: 5 },
+          ],
+        },
+        { keyword: "unused keyword", points: [] },
+      ],
+    });
+  });
+
+  it("refuses a query outside the set, a date outside the period, duplicates and other groupings", () => {
+    const read = (rows: unknown[]) => () =>
+      normalizeGscKeywordSeries(query, ["battery"], { rows });
+    expect(read([day("2026-10-10", "battery pack", 1, 1)])).toThrow(
+      "outside the keywords",
+    );
+    expect(read([day("2026-11-06", "battery", 1, 1)])).toThrow(
+      "outside the period",
+    );
+    expect(
+      read([
+        day("2026-10-10", "battery", 1, 1),
+        day("2026-10-10", "battery", 1, 1),
+      ]),
+    ).toThrow("duplicate");
+    expect(
+      read([{ ...day("2026-10-10", "battery", 1, 1), keys: ["battery"] }]),
+    ).toThrow("different keyword grouping");
   });
 });

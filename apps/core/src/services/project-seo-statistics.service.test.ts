@@ -1,3 +1,7 @@
+import {
+  SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
+  seoStatisticsLostData,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => {
@@ -15,6 +19,7 @@ const state = vi.hoisted(() => {
     integrationActive: true,
     pageUrl: "https://example.test/a",
     observations: [] as Array<Record<string, unknown>>,
+    keywords: [] as Array<Record<string, unknown>>,
     reads: [] as Array<{ slug: string; args: Record<string, unknown> }>,
     answer: undefined as
       | ((slug: string, args: Record<string, unknown>) => unknown)
@@ -80,7 +85,7 @@ vi.mock("@/lib/db/prisma", () => {
         return saved;
       },
     },
-    projectSeoKeyword: { findMany: async () => [] },
+    projectSeoKeyword: { findMany: async () => state.keywords },
     projectSeoCompetitor: { findMany: async () => [] },
     projectSeoAnalysis: { findMany: async () => [] },
     projectSeoActionTask: { findMany: async () => [] },
@@ -205,6 +210,7 @@ beforeEach(() => {
   state.pageUrl = "https://example.test/a";
   state.integrationActive = true;
   state.observations.length = 0;
+  state.keywords.length = 0;
   state.reads.length = 0;
   state.answer = answer;
   vi.stubGlobal(
@@ -320,7 +326,7 @@ describe("Search Console query rows", () => {
     channel: "organic" as const,
   };
   const metric = { clicks: 1, impressions: 9, ctr: 0.11, position: 4.2 };
-  function gsc(queryRows: unknown) {
+  function gsc(queryRows: unknown, seriesRows: unknown = { rows: [] }) {
     return (slug: string, args: Record<string, unknown>) => {
       if (slug.endsWith("LIST_SITES"))
         return {
@@ -329,6 +335,7 @@ describe("Search Console query rows", () => {
           ],
         };
       const dimensions = args.dimensions as string[];
+      if (dimensions.join() === "date,query") return seriesRows;
       if (dimensions.includes("query")) return queryRows;
       return {
         rows: dimensions.length
@@ -375,5 +382,85 @@ describe("Search Console query rows", () => {
     expect(payload.queries).toBeUndefined();
     expect(payload.metrics[0].value).toBe(1);
     expect(payload.notes.join(" ")).toContain("query rows were unavailable");
+  });
+
+  const seriesRead = () =>
+    state.reads.filter(
+      (read) =>
+        (read.args.dimensions as string[] | undefined)?.join() === "date,query",
+    );
+  const saved = (keyword: string, priority = "medium") => ({
+    id: `55555555-5555-4555-8555-${String(state.keywords.length).padStart(12, "0")}`,
+    keyword,
+    keywordKey: keyword.toLowerCase(),
+    countryCode: "US",
+    languageCode: "en",
+    pageId: null,
+    priority,
+    saved: true,
+    version: 1,
+    updatedAt: state.at,
+  });
+
+  it("makes no keyword read and stores no series without tracked keywords", async () => {
+    state.answer = gsc({
+      rows: [{ keys: ["battery", state.pageUrl], ...metric }],
+    });
+    await syncProjectSeoStatistics(actor, gscInput);
+    expect(seriesRead()).toHaveLength(0);
+    const payload = state.observations[0].payload as { notes: string[] };
+    expect(payload).not.toHaveProperty("keywordSeries");
+    expect(payload.notes).not.toContain(
+      SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
+    );
+  });
+
+  it("stores daily rows of tracked keywords and hands them to the workspace", async () => {
+    state.keywords.push(saved("Battery"), saved("charger", "high"));
+    state.answer = gsc(
+      { rows: [{ keys: ["battery", state.pageUrl], ...metric }] },
+      { rows: [{ keys: ["2026-01-01", "battery"], ...metric }] },
+    );
+    const workspace = await syncProjectSeoStatistics(actor, gscInput);
+    expect(seriesRead()).toHaveLength(1);
+    const series = {
+      rowLimit: 10_000,
+      truncated: false,
+      keywords: [
+        { keyword: "charger", points: [] },
+        {
+          keyword: "battery",
+          points: [
+            { date: "2026-01-01", clicks: 1, impressions: 9, position: 4.2 },
+          ],
+        },
+      ],
+    };
+    expect(state.observations[0].payload).toMatchObject({
+      keywordSeries: series,
+    });
+    expect(workspace.searchQueries?.keywordSeries).toEqual(series);
+  });
+
+  it("keeps totals and query rows and says so when the keyword read fails", async () => {
+    state.keywords.push(saved("battery"));
+    state.answer = gsc(
+      { rows: [{ keys: ["battery", state.pageUrl], ...metric }] },
+      { rows: [{ keys: ["2026-01-01", "other query"], ...metric }] },
+    );
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      keywordSeries?: unknown;
+      queries?: { rows: unknown[] };
+      notes: string[];
+      metrics: Array<{ value: number | null }>;
+    };
+    expect(payload.keywordSeries).toBeUndefined();
+    expect(payload.metrics[0].value).toBe(1);
+    expect(payload.queries?.rows).toHaveLength(1);
+    expect(payload.notes).toContain(
+      SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
+    );
+    expect(seoStatisticsLostData(payload.notes)).toBe(false);
   });
 });

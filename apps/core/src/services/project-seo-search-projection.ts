@@ -94,6 +94,7 @@ export function projectSearchEvidence(
         ...row,
         id: `${current.row.id}:query:${index}`,
       })),
+      keywordSeries: current.data.keywordSeries,
     },
     actions,
   };

@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
+import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
 
 export const SEO_MAX_PAGES = 10;
 export const SEO_MAX_KEYWORDS = 20;
@@ -376,6 +377,37 @@ export const seoSearchQueryRowSchema = z.object({
   ctr: z.number().finite().min(0).max(1),
   averagePosition: z.number().finite().min(1),
 });
+export const SEO_KEYWORD_SERIES_ROW_LIMIT = 10_000;
+export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 25;
+/**
+ * Daily Search Console rows for tracked keywords, grouped by normalized query
+ * and date over every selected page. A day without rows has no point. A
+ * requested keyword without rows has no points. Position is null at 0 impressions.
+ */
+export const seoKeywordSeriesSchema = z
+  .object({
+    rowLimit: z.number().int().positive().max(SEO_KEYWORD_SERIES_ROW_LIMIT),
+    truncated: z.boolean(),
+    keywords: z
+      .array(
+        z.object({
+          keyword: z.string().min(1).max(2048),
+          points: z
+            .array(
+              z.object({
+                date: seoDateSchema,
+                clicks: z.number().finite().nonnegative(),
+                impressions: z.number().finite().nonnegative(),
+                position: z.number().finite().nullable(),
+              }),
+            )
+            .max(SEO_STATS_MAX_DAYS),
+        }),
+      )
+      .max(SEO_KEYWORD_SERIES_MAX_KEYWORDS),
+  })
+  .strict()
+  .openapi("ProjectSeoKeywordSeries");
 export const seoSearchQueriesSchema = z
   .object({
     observationId: seoIdSchema,
@@ -387,6 +419,8 @@ export const seoSearchQueriesSchema = z
     rowLimit: z.number().int().positive(),
     truncated: z.boolean(),
     rows: z.array(seoSearchQueryRowSchema.extend({ id: z.string() })),
+    /** Daily positions of tracked keywords from the same observation. Absent when not requested. */
+    keywordSeries: seoKeywordSeriesSchema.optional(),
   })
   .openapi("ProjectSeoSearchQueries");
 export const seoTimelineSchema = z
@@ -537,6 +571,8 @@ export const nativeSeoMetricsSchema = z
       })
       .strict()
       .optional(),
+    /** Daily positions of tracked keywords for the same pages and period. Absent when none were requested. */
+    keywordSeries: seoKeywordSeriesSchema.optional(),
   })
   .strict()
   .refine((input) => input.from <= input.to, "Period ends before it starts")

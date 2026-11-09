@@ -37853,6 +37853,9 @@ export const ProjectSeoSearchQueriesSchema = {
                     'id'
                 ]
             }
+        },
+        keywordSeries: {
+            $ref: '#/components/schemas/ProjectSeoKeywordSeries'
         }
     },
     required: [
@@ -37866,6 +37869,77 @@ export const ProjectSeoSearchQueriesSchema = {
         'truncated',
         'rows'
     ]
+} as const;
+
+export const ProjectSeoKeywordSeriesSchema = {
+    type: 'object',
+    properties: {
+        rowLimit: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            maximum: 10000
+        },
+        truncated: {
+            type: 'boolean'
+        },
+        keywords: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    keyword: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 2048
+                    },
+                    points: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                date: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                },
+                                clicks: {
+                                    type: 'number',
+                                    minimum: 0
+                                },
+                                impressions: {
+                                    type: 'number',
+                                    minimum: 0
+                                },
+                                position: {
+                                    type: [
+                                        'number',
+                                        'null'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'date',
+                                'clicks',
+                                'impressions',
+                                'position'
+                            ]
+                        },
+                        maxItems: 366
+                    }
+                },
+                required: [
+                    'keyword',
+                    'points'
+                ]
+            },
+            maxItems: 25
+        }
+    },
+    required: [
+        'rowLimit',
+        'truncated',
+        'keywords'
+    ],
+    additionalProperties: false
 } as const;
 
 export const ProjectSeoTimelineItemSchema = {

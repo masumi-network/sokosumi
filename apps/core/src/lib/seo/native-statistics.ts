@@ -205,7 +205,7 @@ export function ga4StatisticsArguments(
   };
 }
 
-function escapeRegex(value: string): string {
+export function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
@@ -249,7 +249,10 @@ export function gscSearchAnalyticsArguments(
   };
 }
 
-function withinPeriod(date: string, query: NativeStatisticsQuery): boolean {
+export function withinPeriod(
+  date: string,
+  query: NativeStatisticsQuery,
+): boolean {
   const parsed = new Date(`${date}T00:00:00Z`);
   return (
     DATE.test(date) &&

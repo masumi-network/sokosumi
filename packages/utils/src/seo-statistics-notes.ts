@@ -10,6 +10,13 @@ export const SEO_STATISTICS_NO_AGGREGATE_NOTE =
 export const SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE =
   "Search Console query rows were unavailable for this sync. Totals are kept.";
 
+/**
+ * The tracked keyword daily read failed. Totals and query rows are separate
+ * reads, so this note does not mark the sync as having lost data.
+ */
+export const SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE =
+  "Search Console daily positions for tracked keywords were unavailable for this sync. Other measurements are kept.";
+
 const SEO_STATISTICS_LOSS_NOTES = [
   SEO_STATISTICS_QUERY_FAILED_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,
