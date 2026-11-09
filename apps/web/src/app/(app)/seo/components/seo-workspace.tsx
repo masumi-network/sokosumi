@@ -68,9 +68,17 @@ export function SeoWorkspace({
   const tabBar = useRef<HTMLDivElement>(null);
   const activeTab = model.filters.tab;
   useEffect(() => {
-    tabBar.current
-      ?.querySelector<HTMLElement>(`[role="tab"][data-state="active"]`)
-      ?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    const bar = tabBar.current;
+    const tab = bar?.querySelector<HTMLElement>(
+      `[role="tab"][data-state="active"]`,
+    );
+    if (!bar || !tab) return;
+    // Scroll the bar only; scrolling the tab into view could move the page.
+    const outer = bar.getBoundingClientRect();
+    const inner = tab.getBoundingClientRect();
+    if (inner.left < outer.left) bar.scrollLeft -= outer.left - inner.left;
+    else if (inner.right > outer.right)
+      bar.scrollLeft += inner.right - outer.right;
   }, [activeTab]);
   const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}:${model.editingKeyword?.id ?? ""}:${model.keywordDraft?.keyword ?? ""}`;
   const editDialog =
