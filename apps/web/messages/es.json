@@ -10935,7 +10935,8 @@
         "next": "Próxima ejecución",
         "manage": "Gestionar plan de tareas",
         "offBody": "Desactivadas. El agente puede comprobar estas páginas cada semana y guardar cada resultado aquí. Nada se ejecuta hasta que lo programes.",
-        "agentWeekly": "Que el agente compruebe cada semana"
+        "agentWeekly": "Que el agente compruebe cada semana",
+        "offUnavailable": "Desactivadas. Este espacio de trabajo no puede programar comprobaciones."
       },
       "pageChange": {
         "title": "Registrar un cambio",

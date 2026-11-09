@@ -10935,7 +10935,8 @@
         "next": "Next run",
         "manage": "Manage task schedule",
         "offBody": "Off. The agent can check these pages every week and save each result here. Nothing runs until you schedule it.",
-        "agentWeekly": "Let the agent check weekly"
+        "agentWeekly": "Let the agent check weekly",
+        "offUnavailable": "Off. This workspace cannot schedule checks."
       },
       "pageChange": {
         "title": "Record a change",

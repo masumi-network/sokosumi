@@ -1669,8 +1669,13 @@ describe("SEO workspace integration", () => {
       ).toBeNull();
       view.unmount();
       renderWorkspace(workspace, "", true);
-      // Without a scheduler and without schedules the agent offers nothing to turn on.
-      expect(screen.queryByTestId("seo-automation")).toBeNull();
+      // An editor still learns the schedule is off, without a button that cannot work.
+      expect(screen.getByTestId("seo-automation")).toHaveTextContent(
+        "Off. This workspace cannot schedule checks.",
+      );
+      expect(
+        screen.queryByRole("button", { name: "Let the agent check weekly" }),
+      ).toBeNull();
     },
   );
 

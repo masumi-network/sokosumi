@@ -9,13 +9,13 @@ import { cn } from "@/lib/utils";
 import { SeoDate, SeoState } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** Scheduled checks on the agent's home: off until the owner turns them on; the schedule page holds the details. */
+/** Scheduled checks on the agent's home: off until the owner turns them on; the schedule page holds the details. Editors also see when the workspace cannot schedule. */
 export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const scheduleT = useTranslations("App.Tasks.Schedules");
   const { monitors, availableActions, scope } = model.data;
   const canCreate = availableActions.canCreateMonitor === true;
-  if (!monitors.length && !canCreate) return null;
+  if (!monitors.length && !canCreate && !availableActions.canEdit) return null;
   return (
     <div
       className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4")}
@@ -27,7 +27,7 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
           <h3 className="text-sm font-semibold">{t("monitor.title")}</h3>
           {monitors.length ? null : (
             <p className="text-muted-foreground text-sm">
-              {t("monitor.offBody")}
+              {t(canCreate ? "monitor.offBody" : "monitor.offUnavailable")}
             </p>
           )}
         </div>
@@ -64,7 +64,7 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
             </li>
           ))}
         </ul>
-      ) : (
+      ) : canCreate ? (
         <Button
           variant="outline"
           size="sm"
@@ -73,7 +73,7 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
         >
           {t("monitor.agentWeekly")}
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

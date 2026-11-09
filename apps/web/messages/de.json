@@ -10935,7 +10935,8 @@
         "next": "Nächster Durchlauf",
         "manage": "Aufgabenplan verwalten",
         "offBody": "Aus. Der Agent kann diese Seiten jede Woche prüfen und jedes Ergebnis hier speichern. Nichts läuft, bevor du es planst.",
-        "agentWeekly": "Agent wöchentlich prüfen lassen"
+        "agentWeekly": "Agent wöchentlich prüfen lassen",
+        "offUnavailable": "Aus. In diesem Workspace lassen sich keine Prüfungen planen."
       },
       "pageChange": {
         "title": "Änderung vermerken",
