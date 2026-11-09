@@ -51,6 +51,22 @@ const { loadTaskScheduleDialogOptionsMock, scheduleDialogPropsMock } =
     scheduleDialogPropsMock: vi.fn(),
   }));
 
+const { openNewTaskWizardMock, newTaskWizardMock } = vi.hoisted(() => {
+  const openNewTaskWizardMock = vi.fn();
+  return {
+    openNewTaskWizardMock,
+    newTaskWizardMock: {
+      current: { openNewTaskWizard: openNewTaskWizardMock } as {
+        openNewTaskWizard: typeof openNewTaskWizardMock;
+      } | null,
+    },
+  };
+});
+
+vi.mock("@/app/components/new-task-wizard-provider", () => ({
+  useOptionalNewTaskWizard: () => newTaskWizardMock.current,
+}));
+
 vi.mock("@/app/tasks/actions", () => ({
   loadTaskScheduleDialogOptions: loadTaskScheduleDialogOptionsMock,
 }));
@@ -2142,7 +2158,7 @@ describe("TaskDetailActions", () => {
       const user = userEvent.setup();
       const options = { coworkerOptions, projectOptions: [] };
       loadTaskScheduleDialogOptionsMock.mockResolvedValue(options);
-      renderActions({ repeatBlueprint: blueprint });
+      renderActions({ taskBlueprint: blueprint });
 
       await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
       await user.click(screen.getByRole("menuitem", { name: "repeat" }));
@@ -2173,6 +2189,68 @@ describe("TaskDetailActions", () => {
       await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
       expect(screen.queryByRole("menuitem", { name: "repeat" })).toBeNull();
+    });
+  });
+
+  describe("Duplicate", () => {
+    const blueprint = {
+      name: "Weekly report",
+      description: "Summarise the week",
+      projectId: "project-1",
+      visibility: "PRIVATE" as const,
+      assigneeId: null,
+      assigneeSokoBotId: "bot-1",
+      assigneeUserId: null,
+    };
+
+    afterEach(() => {
+      newTaskWizardMock.current = {
+        openNewTaskWizard: openNewTaskWizardMock,
+      };
+    });
+
+    it("opens the New Task form with the brief as a private Draft copy and leaves the Task alone", async () => {
+      const user = userEvent.setup();
+      renderActions({ taskBlueprint: blueprint });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "duplicate" }));
+
+      expect(openNewTaskWizardMock).toHaveBeenCalledWith({
+        prompt: "Summarise the week",
+        projectId: "project-1",
+        copy: {
+          taskId: "task-1",
+          name: "Weekly report",
+          visibility: "PRIVATE",
+          assigneeId: null,
+          assigneeSokoBotId: "bot-1",
+          assigneeUserId: null,
+        },
+      });
+      expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
+      expect(createTaskLink).not.toHaveBeenCalled();
+      expect(createTaskAndLink).not.toHaveBeenCalled();
+      expect(archiveMock).not.toHaveBeenCalled();
+    });
+
+    it("is not offered where the viewer cannot create a Task", async () => {
+      const user = userEvent.setup();
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "duplicate" })).toBeNull();
+    });
+
+    it("is not offered outside the app shell's New Task wizard", async () => {
+      const user = userEvent.setup();
+      newTaskWizardMock.current = null;
+      renderActions({ taskBlueprint: blueprint });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "duplicate" })).toBeNull();
     });
   });
 });
