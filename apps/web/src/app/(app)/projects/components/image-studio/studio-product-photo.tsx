@@ -92,7 +92,6 @@ export function StudioProductPhotoControl({
           <Button
             aria-label={t("removeProductPhoto")}
             onClick={() => onPhotoChange(null)}
-            className="size-7"
             size="icon"
             type="button"
             variant="ghost"
