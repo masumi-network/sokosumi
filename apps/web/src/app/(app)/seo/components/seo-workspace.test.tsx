@@ -328,6 +328,9 @@ describe("SEO workspace integration", () => {
 
   it("keeps a Competitors date field while its date is cleared mid-edit", async () => {
     const workspace = seoTestWorkspace();
+    // No other filter: the date fields alone keep the filter block.
+    workspace.availableActions.canEdit = false;
+    workspace.scopes = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
