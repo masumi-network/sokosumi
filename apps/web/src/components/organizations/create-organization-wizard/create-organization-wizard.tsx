@@ -51,7 +51,11 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileUpload, FileUploadTrigger } from "@/components/ui/file-upload";
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadTrigger,
+} from "@/components/ui/file-upload";
 import {
   Form,
   FormControl,
@@ -235,10 +239,14 @@ export function CreateOrganizationWizard({
   /** Shared error id for the details step (message lives outside FormField). */
   const detailsErrorId = useId();
   const inviteFieldsId = useId();
+  const logoDropzoneTitleId = useId();
+  const logoHintId = useId();
 
   const logoStartedRef = useRef(false);
   const brandStartedRef = useRef(false);
   const linkStartedRef = useRef(false);
+  /** The first logo replaces the drop target, so focus moves to "Replace". */
+  const focusReplaceLogoRef = useRef(false);
   const orgCreateInFlightRef = useRef(false);
   // Lock callbacks synchronously, before React renders the pending state.
   const leavingRef = useRef(false);
@@ -566,6 +574,7 @@ export function CreateOrganizationWizard({
           }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
+        focusReplaceLogoRef.current = !previousLogo;
         setLogoUrl(uploaded.publicUrl);
         await persistLogo(uploaded.publicUrl, previousLogo);
       } catch (error) {
@@ -802,25 +811,29 @@ export function CreateOrganizationWizard({
 
             {step === 1 && (
               <>
-                <div className="flex min-h-24 flex-none items-center justify-center">
-                  {isResolvingLogo ? (
-                    <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-                      <Loader2 className="text-muted-foreground size-6 animate-spin motion-reduce:animate-pulse" />
-                    </div>
-                  ) : (
-                    <OrganizationLogoUploadField
-                      disabled={isUploadingLogo}
-                      isUploading={isUploadingLogo}
-                      labels={logoLabels}
-                      logoValue={logoUrl}
-                      onPendingLogoFilesChange={setPendingLogoFiles}
-                      onRemove={handleRemoveLogo}
-                      onUpload={handleLogoUpload}
-                      pendingLogoFiles={pendingLogoFiles}
-                    />
-                  )}
-                </div>
-                <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                {/* With no logo, the drop target below is the step's one
+                    upload control; an empty tile would be a second one. */}
+                {isResolvingLogo || logoUrl ? (
+                  <div className="mb-8 flex min-h-24 flex-none items-center justify-center">
+                    {isResolvingLogo ? (
+                      <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
+                        <Loader2 className="text-muted-foreground size-6 animate-spin motion-reduce:animate-pulse" />
+                      </div>
+                    ) : (
+                      <OrganizationLogoUploadField
+                        disabled={isUploadingLogo}
+                        isUploading={isUploadingLogo}
+                        labels={logoLabels}
+                        logoValue={logoUrl}
+                        onPendingLogoFilesChange={setPendingLogoFiles}
+                        onRemove={handleRemoveLogo}
+                        onUpload={handleLogoUpload}
+                        pendingLogoFiles={pendingLogoFiles}
+                      />
+                    )}
+                  </div>
+                ) : null}
+                <h2 className="text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Logo.title")}
                 </h2>
                 <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
@@ -833,9 +846,50 @@ export function CreateOrganizationWizard({
                       : t("Logo.notFound")}
                 </p>
 
-                {/* The hover overlay alone reads as decoration, so the upload
-                    target gets an explicit labelled control. */}
-                {!isResolvingLogo && (
+                {/* With no logo, one drop target that also opens the file
+                    picker. With one, the hover overlay alone reads as
+                    decoration, so replacing gets an explicit labelled
+                    control. */}
+                {!isResolvingLogo && !logoUrl && (
+                  <FileUpload
+                    value={pendingLogoFiles}
+                    onValueChange={setPendingLogoFiles}
+                    accept={ORGANIZATION_LOGO_ACCEPT}
+                    maxFiles={1}
+                    maxSize={ORGANIZATION_LOGO_MAX_SIZE_BYTES}
+                    multiple={false}
+                    disabled={isUploadingLogo}
+                    onAccept={handleLogoUpload}
+                    // FileUpload's reasons are English; one translated line covers
+                    // size, type and count, as `logoLabels` does.
+                    onFileReject={() => toast.error(t("Logo.uploadError"))}
+                    className="mx-auto mt-8 w-full max-w-md"
+                  >
+                    <FileUploadDropzone
+                      role="button"
+                      aria-labelledby={logoDropzoneTitleId}
+                      aria-describedby={logoHintId}
+                      aria-busy={isUploadingLogo || undefined}
+                      className="cursor-pointer gap-1 px-6 py-10"
+                    >
+                      {isUploadingLogo ? (
+                        <Loader2 className="text-muted-foreground mb-2 size-5 animate-spin motion-reduce:animate-pulse" />
+                      ) : (
+                        <CloudUpload className="mb-2 size-5" />
+                      )}
+                      <span id={logoDropzoneTitleId} className="font-medium">
+                        {t("Logo.dropzone")}
+                      </span>
+                      <span
+                        id={logoHintId}
+                        className="text-muted-foreground text-sm"
+                      >
+                        {t("Logo.uploadHint")}
+                      </span>
+                    </FileUploadDropzone>
+                  </FileUpload>
+                )}
+                {!isResolvingLogo && logoUrl && (
                   <div className="mt-8 flex flex-col items-center gap-2">
                     <FileUpload
                       value={pendingLogoFiles}
@@ -846,12 +900,18 @@ export function CreateOrganizationWizard({
                       multiple={false}
                       disabled={isUploadingLogo}
                       onAccept={handleLogoUpload}
-                      onFileReject={(_file: File, message?: string) => {
-                        toast.error(message ?? t("Logo.uploadError"));
-                      }}
+                      // FileUpload's reasons are English; one translated line covers
+                      // size, type and count, as `logoLabels` does.
+                      onFileReject={() => toast.error(t("Logo.uploadError"))}
                     >
                       <FileUploadTrigger asChild>
                         <Button
+                          ref={(node) => {
+                            if (node && focusReplaceLogoRef.current) {
+                              focusReplaceLogoRef.current = false;
+                              node.focus();
+                            }
+                          }}
                           type="button"
                           variant="outline"
                           size="lg"
@@ -859,7 +919,7 @@ export function CreateOrganizationWizard({
                           loading={isUploadingLogo}
                         >
                           <CloudUpload className="size-4" />
-                          {logoUrl ? t("Logo.replace") : t("Logo.upload")}
+                          {t("Logo.replace")}
                         </Button>
                       </FileUploadTrigger>
                     </FileUpload>
@@ -1142,6 +1202,7 @@ export function CreateOrganizationWizard({
               <ArrowRight className="size-4" />
             </Button>
           )}
+          {/* Without a logo, moving on skips it, and the label says so. */}
           {step === 1 && (
             <Button
               variant="primary"
@@ -1150,8 +1211,8 @@ export function CreateOrganizationWizard({
               onClick={() => setStep((current) => current + 1)}
               disabled={isBusy}
             >
-              {t("Nav.next")}
-              <ArrowRight className="size-4" />
+              {logoUrl ? t("Nav.next") : t("Nav.skipForNow")}
+              {logoUrl ? <ArrowRight className="size-4" /> : null}
             </Button>
           )}
           {/* Last configurable step: the label says so, and drops the forward
