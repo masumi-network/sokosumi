@@ -5,6 +5,7 @@ import type { Prisma } from "@sokosumi/database";
 import { put } from "@vercel/blob";
 import { createGateway, generateText } from "ai";
 import { HTTPException } from "hono/http-exception";
+import sharp from "sharp";
 
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -15,7 +16,7 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
-import { buildSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
+import { buildOriginalSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
 import { toDbAvatarState } from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import {
@@ -252,20 +253,28 @@ async function generateImage(prompt: string): Promise<Buffer> {
   return Buffer.from(image.uint8Array);
 }
 
-/** Store a generated image in our blob store and return its public URL. */
-async function persistAvatarImage(
-  buffer: Buffer,
-  key: string,
-): Promise<string> {
+/**
+ * WebP quality for a stored avatar. Web shows it as is, at most 184 CSS px
+ * (the console profile, `md:size-46`), so 368 device px on a 2x screen, while
+ * the model draws about 1024 px of flat colour. The browser's downscale hides
+ * any artefact at 80 (sharp's default); higher only adds bytes.
+ */
+const AVATAR_WEBP_QUALITY = 80;
+
+/** Store a generated image in our blob store as WebP and return its public URL. */
+async function persistAvatarImage(image: Buffer, key: string): Promise<string> {
   const token = getEnv().BLOB_READ_WRITE_TOKEN;
   if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  const buffer = await sharp(image)
+    .webp({ quality: AVATAR_WEBP_QUALITY })
+    .toBuffer();
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");
   const blob = await put(
-    buildSokoBotAvatarBlobPathname(key, hash, "png"),
+    buildOriginalSokoBotAvatarBlobPathname(key, hash),
     buffer,
     {
       access: "public",
-      contentType: "image/png",
+      contentType: "image/webp",
       token,
       addRandomSuffix: false,
       allowOverwrite: true,
