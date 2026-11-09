@@ -61,6 +61,13 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           signDisplay,
         });
   }
+  const impressionsMetric = visible.find(
+    (metric) => metric.key === "impressions",
+  );
+  const totalImpressions =
+    impressionsMetric && impressionsMetric.coverage !== "unavailable"
+      ? impressionsMetric.value
+      : null;
   const weekImpressions = compared?.values.impressions;
   // A rate or an average over a handful of impressions moves at random from week to week.
   const enoughImpressions =
@@ -89,6 +96,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     const shown = (value: number) => Math.round(value * scale) / scale;
     const delta = shown(shown(week.current) - shown(week.previous));
     const values = {
+      period: compared ? windowLabel(compared.current) : "",
       current: measuredValue(week.current, unit),
       previous: measuredValue(week.previous, unit),
     };
@@ -183,12 +191,16 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   onClick={() => setMetric(metric.id)}
                 >
                   <span className="text-muted-foreground flex items-center gap-2 text-xs font-normal">
-                    {active.id === metric.id ? (
-                      <span
-                        aria-hidden
-                        className="bg-chart-1 h-0.5 w-3 shrink-0 rounded-full"
-                      />
-                    ) : null}
+                    {/* Every tile carries the line marker, so each one reads as a chart choice. */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "h-0.5 w-3 shrink-0 rounded-full",
+                        active.id === metric.id
+                          ? "bg-chart-1"
+                          : "bg-muted-foreground/40",
+                      )}
+                    />
                     {label(metric)}
                   </span>
                   <span
@@ -197,6 +209,14 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   >
                     {value(metric)}
                   </span>
+                  {/* A rate or an average says how many impressions it rests on. */}
+                  {(metric.key === "ctr" || metric.key === "position") &&
+                  totalImpressions !== null &&
+                  metric.value !== null ? (
+                    <span className="text-muted-foreground text-xs font-normal">
+                      {t("overview.basedOn", { count: totalImpressions })}
+                    </span>
+                  ) : null}
                   {/* One comparison line; "About this data" names both weeks. */}
                   {week ? (
                     moved ? (

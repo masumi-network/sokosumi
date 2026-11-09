@@ -10650,11 +10650,12 @@
         "synced": "Last synced",
         "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
         "noComparison": "Not enough days to compare",
-        "weekCompare": "Last 7 days: {current} vs {previous}",
-        "weekBetter": "Last 7 days: {current} vs {previous}, better",
-        "weekWorse": "Last 7 days: {current} vs {previous}, worse",
+        "weekCompare": "{period}: {current} · week before: {previous}",
+        "weekBetter": "{period}: {current} · week before: {previous}, better",
+        "weekWorse": "{period}: {current} · week before: {previous}, worse",
         "tooFewToCompare": "Too few impressions to compare weeks",
-        "reportDelay": "Google reports search data a few days late."
+        "reportDelay": "Google reports search data a few days late.",
+        "basedOn": "From {count, plural, one {# impression} other {# impressions}}"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -11083,7 +11084,8 @@
           "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}"
         },
         "lastCheckOn": "Last check",
-        "askHow": "Ask the agent"
+        "askHow": "Ask the agent",
+        "traffic": "Google search: shown {impressions, plural, one {# time} other {# times}}, {clicks, plural, one {# click} other {# clicks}}"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

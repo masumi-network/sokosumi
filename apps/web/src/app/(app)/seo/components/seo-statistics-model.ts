@@ -129,3 +129,20 @@ export function seoDefaultMetric<
       best = metric;
   return best ?? metrics[0];
 }
+
+/** Google search totals for the selected pages and the days Google reported, or null before both counts exist. */
+export function seoSearchTraffic(metrics: ProjectSeoMetric[]) {
+  const search = latestSeoMeasurements(metrics).filter(
+    (metric) => metric.source === "search_console",
+  );
+  const total = (key: string) => {
+    const metric = search.find((item) => item.key === key);
+    return metric && metric.coverage !== "unavailable" ? metric.value : null;
+  };
+  const impressions = total("impressions");
+  const clicks = total("clicks");
+  const period = seoReportedPeriod(search);
+  return impressions === null || clicks === null || !period
+    ? null
+    : { impressions, clicks, period };
+}

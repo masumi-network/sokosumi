@@ -10650,11 +10650,12 @@
         "synced": "Zuletzt synchronisiert",
         "windowDays": "Letzte 7 Tage: {current}. Vorherige 7 Tage: {previous}. Beide enden am neuesten Tag, den Google gemeldet hat.",
         "noComparison": "Zu wenige Tage für einen Vergleich",
-        "weekCompare": "Letzte 7 Tage: {current} statt {previous}",
-        "weekBetter": "Letzte 7 Tage: {current} statt {previous}, besser",
-        "weekWorse": "Letzte 7 Tage: {current} statt {previous}, schlechter",
+        "weekCompare": "{period}: {current} · Woche davor: {previous}",
+        "weekBetter": "{period}: {current} · Woche davor: {previous}, besser",
+        "weekWorse": "{period}: {current} · Woche davor: {previous}, schlechter",
         "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich",
-        "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung."
+        "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung.",
+        "basedOn": "Aus {count, plural, one {# Impression} other {# Impressionen}}"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -11083,7 +11084,8 @@
           "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}"
         },
         "lastCheckOn": "Letzte Prüfung",
-        "askHow": "Agent fragen"
+        "askHow": "Agent fragen",
+        "traffic": "Google-Suche: {impressions, plural, one {# Mal} other {# Mal}} gezeigt, {clicks, plural, one {# Klick} other {# Klicks}}"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",

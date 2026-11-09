@@ -526,9 +526,63 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     // An arrow up beside a falling number reads as worse; the words carry it.
-    const change = screen.getByText("Last 7 days: 4.0 vs 5.0, better");
+    const change = screen.getByText(/: 4\.0 · week before: 5\.0, better$/);
     expect(change.querySelector("svg")).toBeNull();
-    expect(screen.getByText("Last 7 days: 140 vs 140")).toBeVisible();
+    // The line names the newest 7 days, so "week before" has a clear anchor.
+    expect(change).toHaveTextContent(/^Oct 8\W+14:/);
+    expect(screen.getByText(/: 140 · week before: 140$/)).toBeVisible();
+    // An average says how many impressions it rests on.
+    expect(screen.getByText("From 140 impressions")).toBeVisible();
+  });
+
+  it("puts the Google search totals under the agent verdict only when both counts exist", () => {
+    const workspace = seoTestWorkspace();
+    const base = {
+      label: "",
+      unit: "count" as const,
+      source: "search_console",
+      propertyId: "sc-domain:example.com",
+      channel: "organic" as const,
+      from: "2026-01-01",
+      to: "2026-01-02",
+      timeZone: "UTC",
+      observedAt: new Date(),
+      coverage: "complete" as const,
+      notes: [],
+    };
+    const impressions = {
+      ...base,
+      id: "sync:impressions",
+      key: "impressions",
+      value: 35,
+      points: [
+        { date: "2026-01-01", value: 20 },
+        { date: "2026-01-02", value: 15 },
+      ],
+    };
+    workspace.metrics = [
+      impressions,
+      {
+        ...base,
+        id: "sync:clicks",
+        key: "clicks",
+        value: 2,
+        points: [{ date: "2026-01-02", value: 2 }],
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const { unmount } = renderWorkspace(workspace);
+    expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
+      /^Google search: shown 35 times, 2 clicks · Jan 1\W+2, 2026$/,
+    );
+    unmount();
+    // Without clicks the line would read as zero clicks; it stays away.
+    workspace.metrics = [impressions];
+    renderWorkspace(workspace);
+    expect(screen.queryByTestId("seo-agent-traffic")).toBeNull();
   });
 
   it("does not judge a position change on a handful of impressions", async () => {
@@ -578,7 +632,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     expect(screen.queryByText(/better|worse/)).toBeNull();
     // A count is a fact at any size; it keeps its numbers.
-    expect(screen.getByText("Last 7 days: 14 vs 14")).toBeVisible();
+    expect(screen.getByText(/: 14 · week before: 14$/)).toBeVisible();
   });
 
   it("renders source measurements without replacing missing values with zero", async () => {

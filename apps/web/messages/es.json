@@ -10650,11 +10650,12 @@
         "synced": "Última sincronización",
         "windowDays": "Últimos 7 días: {current}. 7 días anteriores: {previous}. Ambos terminan en el día más reciente que informó Google.",
         "noComparison": "No hay días suficientes para comparar",
-        "weekCompare": "Últimos 7 días: {current} frente a {previous}",
-        "weekBetter": "Últimos 7 días: {current} frente a {previous}, mejor",
-        "weekWorse": "Últimos 7 días: {current} frente a {previous}, peor",
+        "weekCompare": "{period}: {current} · semana anterior: {previous}",
+        "weekBetter": "{period}: {current} · semana anterior: {previous}, mejor",
+        "weekWorse": "{period}: {current} · semana anterior: {previous}, peor",
         "tooFewToCompare": "Muy pocas impresiones para comparar semanas",
-        "reportDelay": "Google informa los datos de búsqueda con unos días de retraso."
+        "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
+        "basedOn": "De {count, plural, one {# impresión} other {# impresiones}}"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -11083,7 +11084,8 @@
           "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}"
         },
         "lastCheckOn": "Última comprobación",
-        "askHow": "Preguntar al agente"
+        "askHow": "Preguntar al agente",
+        "traffic": "Búsqueda de Google: mostrada {impressions, plural, one {# vez} other {# veces}}, {clicks, plural, one {# clic} other {# clics}}"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",

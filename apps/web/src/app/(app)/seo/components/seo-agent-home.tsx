@@ -18,7 +18,8 @@ import {
 import { SeoChatThread, useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
-import { SeoDate } from "./seo-shared";
+import { SeoDate, SeoPeriod } from "./seo-shared";
+import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import { useSeoChat } from "./use-seo-chat";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -194,6 +195,8 @@ function SeoAgentPanel({
   const t = useTranslations("App.Seo");
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
+  // How the pages do in search sits next to whether they are healthy.
+  const traffic = seoSearchTraffic(model.data.metrics);
   // The first proposal with its own button carries the one primary action.
   // Action cards and connection buttons keep their own style.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
@@ -246,6 +249,15 @@ function SeoAgentPanel({
                 checked: brief.lastCheck.checked,
                 pages: brief.lastCheck.pages,
               })}
+            </p>
+          ) : null}
+          {traffic ? (
+            <p className="text-sm" data-testid="seo-agent-traffic">
+              {t("agent.traffic", {
+                impressions: traffic.impressions,
+                clicks: traffic.clicks,
+              })}{" "}
+              · <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
             </p>
           ) : null}
           {autopilot.state === "refreshing" ? (
