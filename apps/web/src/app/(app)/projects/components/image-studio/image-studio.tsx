@@ -58,6 +58,7 @@ import {
   MAX_ARCHIVE_IMAGES,
   MAX_ARCHIVE_MIB,
 } from "./studio-ad-archive";
+import { productBrief, type StudioBatchProduct } from "./studio-batch";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
@@ -187,6 +188,7 @@ export function ImageStudio({
   );
   const [prompt, setPrompt] = useState("");
   const productDetailsRef = useRef<string | null>(null);
+  const [batchProducts, setBatchProducts] = useState<StudioBatchProduct[]>([]);
   const catalogPhotoRef = useRef<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [productPhoto, setProductPhoto] = useState<StudioProductPhoto | null>(
@@ -505,18 +507,13 @@ export function ImageStudio({
     product: StudioProduct,
     photo: StudioProductPhoto | null,
   ) {
+    setBatchProducts([]);
     const previousPhotoId = catalogPhotoRef.current;
     catalogPhotoRef.current = photo?.id ?? null;
     setProductPhoto(
       (current) => photo ?? (current?.id === previousPhotoId ? null : current),
     );
-    const details = [
-      `Feature one product: ${product.name.trim()}.`,
-      product.description.trim(),
-      product.price.trim() ? `Approved price: ${product.price.trim()}.` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const details = productBrief(product);
     setMode("image");
     setHasNewerSettings(true);
     setTemplateUndo(null);
@@ -532,8 +529,26 @@ export function ImageStudio({
     requestAnimationFrame(() => promptRef.current?.focus());
   }
 
+  function useProductBatch(products: StudioBatchProduct[]) {
+    const previousDetails = productDetailsRef.current;
+    productDetailsRef.current = null;
+    catalogPhotoRef.current = null;
+    setProductPhoto(null);
+    setBatchProducts(products);
+    setMode("image");
+    setHasNewerSettings(true);
+    setTemplateUndo(null);
+    setPrompt((current) =>
+      previousDetails && current.endsWith(previousDetails)
+        ? current.slice(0, -previousDetails.length).trim()
+        : current,
+    );
+    requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
   /** Put an image's brief and frame back in the composer, ready to edit. */
   function reusePrompt(asset: StudioAsset) {
+    setBatchProducts([]);
     setHasNewerSettings(true);
     setTemplateUndo(null);
     setPrompt(asset.prompt);
@@ -584,6 +599,7 @@ export function ImageStudio({
       requests.map((request) => ({ ...request, projectId: target })),
     );
     setPrompt("");
+    setBatchProducts([]);
     setHasNewerSettings(false);
   }
 
@@ -817,6 +833,11 @@ export function ImageStudio({
           setHasNewerSettings(true);
         }}
         productPhoto={productPhoto}
+        batchProducts={batchProducts}
+        onClearProductBatch={() => {
+          setBatchProducts([]);
+          setHasNewerSettings(true);
+        }}
         uploadingPhoto={uploadingPhoto}
         onPhotoUploadChange={setUploadingPhoto}
         onPromptChange={(value) => {
@@ -883,6 +904,7 @@ export function ImageStudio({
             key={activeProjectId}
             canUseProduct={!uploadingPhoto}
             onUseProduct={useProduct}
+            onUseBatch={useProductBatch}
             projectId={activeProjectId}
             websiteUrl={websiteUrl}
           />
@@ -957,6 +979,7 @@ export function ImageStudio({
                   ? () => {
                       if (prompt.trim().length > 0 || hasNewerSettings) return;
                       const { request } = failure;
+                      setBatchProducts([]);
                       setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
@@ -1089,6 +1112,7 @@ export function ImageStudio({
           onSchedule={scheduleAsset}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
+            setBatchProducts([]);
             setParentAssetId(undefined);
             setHasNewerSettings(true);
             setTemplateUndo(null);

@@ -6,7 +6,7 @@ import type {
 import { isValidHttpUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
 import { Package, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,12 +28,15 @@ import {
   saveStudioProducts,
 } from "@/lib/actions/image-studio/product-catalog";
 
+import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
+
 const MAX_PRODUCTS = 20;
 
 export function StudioProductCatalogDialog({
   projectId,
   websiteUrl,
   onUseProduct,
+  onUseBatch,
   canUseProduct = true,
 }: {
   projectId: string;
@@ -42,6 +45,7 @@ export function StudioProductCatalogDialog({
     product: StudioProduct,
     photo: StudioProductPhoto | null,
   ) => void;
+  onUseBatch?: (products: StudioBatchProduct[]) => void;
   canUseProduct?: boolean;
 }) {
   const t = useTranslations("App.Studio.ProductCatalog");
@@ -53,10 +57,37 @@ export function StudioProductCatalogDialog({
   const [dirty, setDirty] = useState(false);
   const [message, setMessage] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [transitionPending, startTransition] = useTransition();
+  const batchPreparation = useRef<AbortController | null>(null);
+  const [preparingBatch, setPreparingBatch] = useState(false);
+  const pending = transitionPending || preparingBatch;
+  const [batchCopies, setBatchCopies] = useState<Record<string, number>>({});
+  const [includePhotos, setIncludePhotos] = useState(true);
   const products = catalog?.products ?? [];
   const selected = products.find(({ id }) => id === selectedId) ?? products[0];
   const full = products.length >= MAX_PRODUCTS;
+  const batchSelection = products.flatMap((product) =>
+    batchCopies[product.id]
+      ? [{ product, copies: batchCopies[product.id] }]
+      : [],
+  );
+  const batchCount = batchSelection.reduce(
+    (sum, entry) => sum + entry.copies,
+    0,
+  );
+  const canApplyBatch =
+    canUseProduct &&
+    batchCount > 0 &&
+    batchCount <= MAX_BATCH &&
+    batchSelection.every(
+      ({ product }) =>
+        product.name.trim() &&
+        (!includePhotos ||
+          !product.imageUrl ||
+          isValidHttpUrl(product.imageUrl)),
+    );
+
+  useEffect(() => () => batchPreparation.current?.abort(), []);
 
   function handleLoad() {
     startTransition(async () => {
@@ -72,7 +103,12 @@ export function StudioProductCatalogDialog({
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (pending) return;
+    if (transitionPending) return;
+    if (!nextOpen) {
+      batchPreparation.current?.abort();
+      batchPreparation.current = null;
+      setPreparingBatch(false);
+    }
     setOpen(nextOpen);
     if (nextOpen && !dirty) handleLoad();
   }
@@ -181,6 +217,44 @@ export function StudioProductCatalogDialog({
         setMessage(t("attachPhotoError"));
       }
     });
+  }
+
+  async function handleUseBatch() {
+    if (pending || !canApplyBatch || !onUseBatch) return;
+    const preparation = new AbortController();
+    batchPreparation.current = preparation;
+    setPreparingBatch(true);
+    setMessage("");
+    try {
+      const entries: StudioBatchProduct[] = [];
+      for (const { product, copies } of batchSelection) {
+        let photo: StudioProductPhoto | null = null;
+        if (includePhotos && product.imageUrl) {
+          try {
+            photo = await attachStudioCatalogPhoto({
+              projectId,
+              name: product.name,
+              imageUrl: product.imageUrl,
+            });
+          } catch {
+            if (!preparation.signal.aborted) {
+              setMessage(t("batchPhotoError", { name: product.name }));
+            }
+            return;
+          }
+          if (preparation.signal.aborted) return;
+        }
+        entries.push({ product, copies, photo });
+      }
+      usedProduct.current = true;
+      setOpen(false);
+      onUseBatch(entries);
+    } finally {
+      if (!preparation.signal.aborted) {
+        batchPreparation.current = null;
+        setPreparingBatch(false);
+      }
+    }
   }
 
   return (
@@ -367,6 +441,24 @@ export function StudioProductCatalogDialog({
                         {t("useDetailsOnly")}
                       </Button>
                     ) : null}
+                    {onUseBatch && !batchCopies[selected.id] ? (
+                      <Button
+                        disabled={
+                          !selected.name.trim() || batchCount >= MAX_BATCH
+                        }
+                        onClick={() =>
+                          setBatchCopies((current) => ({
+                            ...current,
+                            [selected.id]: 1,
+                          }))
+                        }
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        {t("addToBatch")}
+                      </Button>
+                    ) : null}
                     <Button
                       onClick={() =>
                         setProducts(
@@ -381,6 +473,87 @@ export function StudioProductCatalogDialog({
                     </Button>
                   </div>
                 </>
+              ) : null}
+              {onUseBatch && batchSelection.length ? (
+                <section
+                  className="border-border space-y-3 rounded-lg border p-3"
+                  aria-label={t("batchTitle")}
+                >
+                  <h3 className="text-sm font-medium">{t("batchTitle")}</h3>
+                  <ul className="space-y-2">
+                    {batchSelection.map(({ product, copies }) => (
+                      <li
+                        key={product.id}
+                        className="flex flex-wrap items-center gap-2"
+                      >
+                        <span className="min-w-0 flex-1 text-sm break-words">
+                          {product.name || t("untitled")}
+                        </span>
+                        <select
+                          aria-label={t("copiesFor", { name: product.name })}
+                          className="border-input bg-background text-foreground focus-visible:ring-ring h-9 rounded-md border px-2 text-sm focus-visible:ring-2"
+                          onChange={(event) => {
+                            const count = Number(event.currentTarget.value);
+                            setBatchCopies((current) => ({
+                              ...current,
+                              [product.id]: count,
+                            }));
+                          }}
+                          value={copies}
+                        >
+                          {Array.from(
+                            { length: MAX_BATCH - batchCount + copies },
+                            (_, index) => (
+                              <option key={index + 1} value={index + 1}>
+                                {index + 1}×
+                              </option>
+                            ),
+                          )}
+                        </select>
+                        <Button
+                          aria-label={t("removeFromBatch", {
+                            name: product.name,
+                          })}
+                          onClick={() =>
+                            setBatchCopies((current) => ({
+                              ...current,
+                              [product.id]: 0,
+                            }))
+                          }
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          {t("removeBatchItem")}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                  {batchSelection.some(({ product }) => product.imageUrl) ? (
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        checked={includePhotos}
+                        onChange={(event) =>
+                          setIncludePhotos(event.currentTarget.checked)
+                        }
+                        type="checkbox"
+                      />
+                      {t("includePhotos")}
+                    </label>
+                  ) : null}
+                  <p className="text-muted-foreground text-xs">
+                    {t("batchNote")}
+                  </p>
+                  <Button
+                    disabled={!canApplyBatch}
+                    onClick={handleUseBatch}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    {t("useBatch")}
+                  </Button>
+                </section>
               ) : null}
             </fieldset>
           </div>
@@ -421,7 +594,7 @@ export function StudioProductCatalogDialog({
         ) : null}
         <DialogFooter>
           <Button
-            disabled={pending}
+            disabled={transitionPending}
             onClick={() => handleOpenChange(false)}
             type="button"
             variant="outline"

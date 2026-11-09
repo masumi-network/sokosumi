@@ -3,7 +3,8 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { MAX_BATCH, StudioComposer } from "./studio-composer";
+import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
+import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import type { StudioCatalog, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
@@ -55,16 +56,45 @@ const LARGE_CATALOG: StudioCatalog = {
   })),
 };
 
+const BATCH_PRODUCTS: StudioBatchProduct[] = [
+  {
+    product: {
+      id: "vase",
+      name: "Vase",
+      description: "Terracotta",
+      price: "EUR 12",
+      url: null,
+      imageUrl: null,
+    },
+    photo: { id: "vase-file", name: "Vase photo" },
+    copies: 2,
+  },
+  {
+    product: {
+      id: "mug",
+      name: "Mug",
+      description: "Porcelain",
+      price: "EUR 9",
+      url: null,
+      imageUrl: null,
+    },
+    photo: { id: "mug-file", name: "Mug photo" },
+    copies: 1,
+  },
+];
+
 function Harness({
   catalog = LARGE_CATALOG,
   initial,
   onGenerate,
   productPhotos = false,
+  batchProducts,
 }: {
   catalog?: StudioCatalog;
   initial: StudioTarget;
   onGenerate: (requests: GenerationRequest[]) => void;
   productPhotos?: boolean;
+  batchProducts?: StudioBatchProduct[];
 }) {
   const [target, setTarget] = useState(initial);
   const [prompt, setPrompt] = useState("A campaign image");
@@ -72,6 +102,7 @@ function Harness({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   return (
     <StudioComposer
+      batchProducts={batchProducts}
       busy={false}
       catalog={catalog}
       labels={TEST_LABELS}
@@ -156,6 +187,79 @@ describe("an honest generation plan", () => {
     expect(
       onGenerate.mock.calls[1][0].map((request) => request.referenceFileIds),
     ).toEqual([undefined, undefined]);
+  });
+
+  it("prices each product copy across placements and sends only that product's brief and photo", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        batchProducts={BATCH_PRODUCTS}
+        catalog={TEST_CATALOG}
+        initial={{
+          modelIds: ["model-a"],
+          settings: SETTINGS,
+          placementRatios: ["1:1", "9:16"],
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(
+      screen.getByText('placementPlanCredits:{"count":6,"credits":24}'),
+    ).toBeInTheDocument();
+    generate();
+
+    const requests = onGenerate.mock.calls[0][0];
+    expect(requests).toHaveLength(6);
+    expect(
+      new Set(requests.map(({ idempotencyKey }) => idempotencyKey)).size,
+    ).toBe(6);
+    expect(
+      requests.map(({ referenceFileIds }) => referenceFileIds?.[0]),
+    ).toEqual([
+      "vase-file",
+      "vase-file",
+      "vase-file",
+      "vase-file",
+      "mug-file",
+      "mug-file",
+    ]);
+    expect(requests.map(({ settings }) => settings.aspectRatio)).toEqual([
+      "1:1",
+      "9:16",
+      "1:1",
+      "9:16",
+      "1:1",
+      "9:16",
+    ]);
+    for (const request of requests) {
+      const isVase = request.referenceFileIds?.[0] === "vase-file";
+      expect(request.prompt).toContain(isVase ? "Vase" : "Mug");
+      expect(request.prompt).not.toContain(isVase ? "Mug" : "Vase");
+    }
+  });
+
+  it("blocks an oversized product batch until the chosen models fit", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        batchProducts={BATCH_PRODUCTS}
+        initial={{
+          modelIds: ["many-0", "many-1", "many-2"],
+          settings: SETTINGS,
+          placementRatios: ["1:1", "9:16"],
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      'productBatchLimit:{"count":12}',
+    );
+    generate();
+    expect(onGenerate).not.toHaveBeenCalled();
+
+    fireEvent.click(modelEntry("Many 2"));
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toHaveLength(MAX_BATCH);
   });
 
   it("selects only models that fit and buys every checked model", () => {

@@ -25,6 +25,11 @@ import {
   priceUnitLabelKey,
 } from "./catalog";
 import {
+  MAX_BATCH,
+  productBrief,
+  type StudioBatchProduct,
+} from "./studio-batch";
+import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,
 } from "./studio-classes";
@@ -44,13 +49,11 @@ import {
 } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
 
-// Each job is queued separately against Core's per-project concurrency limit.
-export const MAX_BATCH = 12;
-
 const NO_PLACEMENTS: NonNullable<StudioTarget["placementRatios"]> = [];
 
 const COPY_CHOICES = [1, 2, 3, 4] as const;
 const MAX_PROMPT_LENGTH = 4_000;
+const NO_PRODUCTS: readonly StudioBatchProduct[] = [];
 
 function chipClass(active: boolean, disabled = false): string {
   return cn(
@@ -130,6 +133,8 @@ export function StudioComposer({
   promptRef,
   referenceAssets,
   productPhoto,
+  batchProducts = NO_PRODUCTS,
+  onClearProductBatch,
   uploadingPhoto = false,
   onProductPhotoChange,
   onPhotoUploadChange,
@@ -184,6 +189,8 @@ export function StudioComposer({
   /** Images the person picked in the gallery to generate *from*. */
   referenceAssets: StudioAsset[];
   productPhoto?: StudioProductPhoto | null;
+  batchProducts?: readonly StudioBatchProduct[];
+  onClearProductBatch?: () => void;
   onProductPhotoChange?: (photo: StudioProductPhoto | null) => void;
   uploadingPhoto?: boolean;
   onPhotoUploadChange?: (uploading: boolean) => void;
@@ -199,7 +206,22 @@ export function StudioComposer({
   const [modelQuery, setModelQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const promptHelpId = useId();
-  const promptLength = prompt.trim().length;
+  const hasProductBatch = batchProducts.length > 0;
+  const productCopies = batchProducts.reduce(
+    (sum, entry) => sum + entry.copies,
+    0,
+  );
+  const batchPrompts = useMemo(
+    () =>
+      batchProducts.map(({ product }) =>
+        [prompt.trim(), productBrief(product)].filter(Boolean).join("\n\n"),
+      ),
+    [batchProducts, prompt],
+  );
+  const promptLength = Math.max(
+    prompt.trim().length,
+    ...batchPrompts.map((value) => value.length),
+  );
   const promptTooLong = promptLength > MAX_PROMPT_LENGTH;
 
   /**
@@ -218,9 +240,14 @@ export function StudioComposer({
     placementRatios = NO_PLACEMENTS,
   } = target;
   const frameCount = Math.max(1, placementRatios.length);
-  const referenceCount = referenceAssets.length + (productPhoto ? 1 : 0);
+  const hasPhotoReference = hasProductBatch
+    ? batchProducts.some(({ photo }) => photo !== null)
+    : productPhoto != null;
+  const referenceCount = referenceAssets.length + (hasPhotoReference ? 1 : 0);
   const tooManyReferences = referenceCount > MAX_STUDIO_REFERENCES;
-  const modelLimit = Math.floor(MAX_BATCH / frameCount);
+  const modelLimit = Math.floor(
+    MAX_BATCH / (frameCount * Math.max(1, productCopies)),
+  );
 
   // A reference is an edit request. Only offer models that can consume every
   // selected image; a generation-only model must never drop the base image.
@@ -319,6 +346,8 @@ export function StudioComposer({
 
   const references = referenceAssets;
 
+  const overSelectionLimit = selectedModels.length > modelLimit;
+
   // The summary, price and submitted requests all read this same plan.
   const plan = useMemo(() => {
     const frames = placementRatios.length
@@ -335,14 +364,35 @@ export function StudioComposer({
     const each = configured.length
       ? Math.min(copies, Math.floor(MAX_BATCH / configured.length))
       : 0;
-    const legs: typeof configured = [];
-    for (let copy = 0; copy < each; copy += 1) {
-      legs.push(...configured);
-    }
-    return { copies: each, legs, configured };
+    const entries = hasProductBatch
+      ? batchProducts.map(({ copies, photo }, index) => ({
+          copies,
+          photo,
+          prompt: batchPrompts[index],
+        }))
+      : [{ copies: each, photo: productPhoto ?? null, prompt: prompt.trim() }];
+    const legs = overSelectionLimit
+      ? []
+      : entries.flatMap((entry) =>
+          Array.from({ length: entry.copies }, () =>
+            configured.map((leg) => ({
+              ...leg,
+              prompt: entry.prompt,
+              photo: entry.photo,
+            })),
+          ).flat(),
+        );
+    return { copies: hasProductBatch ? productCopies : each, legs, configured };
   }, [
+    batchProducts,
+    batchPrompts,
     copies,
+    hasProductBatch,
+    overSelectionLimit,
     placementRatios,
+    productCopies,
+    productPhoto,
+    prompt,
     selectedModels,
     settings,
     tooManyReferences,
@@ -361,8 +411,9 @@ export function StudioComposer({
 
   const totalJobs = plan.legs.length;
   const selectionLimitReached = selectedModels.length >= modelLimit;
-  const overSelectionLimit = selectedModels.length > modelLimit;
-  const selectionLimitReason = t("modelSelectionLimit", { count: modelLimit });
+  const selectionLimitReason = hasProductBatch
+    ? t("productBatchLimit", { count: MAX_BATCH })
+    : t("modelSelectionLimit", { count: modelLimit });
   const canGenerate =
     !busy &&
     !uploadingPhoto &&
@@ -414,7 +465,7 @@ export function StudioComposer({
       const id = crypto.randomUUID();
       return {
         id,
-        prompt: prompt.trim(),
+        prompt: leg.prompt,
         modelId: leg.model.id,
         modelLabel: leg.model.label,
         settings: leg.settings,
@@ -423,7 +474,7 @@ export function StudioComposer({
             ? (references[0]?.id ?? null)
             : parentAssetId,
         referenceAssetIds: references.map((asset) => asset.id),
-        ...(productPhoto ? { referenceFileIds: [productPhoto.id] } : {}),
+        ...(leg.photo ? { referenceFileIds: [leg.photo.id] } : {}),
         // One key per request, never shared across the batch: these are
         // deliberately different images, not retries of one.
         idempotencyKey: `ui:${id}`,
@@ -457,7 +508,9 @@ export function StudioComposer({
       : mixedSettings
         ? t("mixedSettings")
         : (plannedSettings[0] ?? labels.moreOptions),
-    plan.copies > 1 ? t("copyCount", { count: plan.copies }) : null,
+    !hasProductBatch && plan.copies > 1
+      ? t("copyCount", { count: plan.copies })
+      : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -509,7 +562,7 @@ export function StudioComposer({
                 {t("tooManyReferences", { count: MAX_STUDIO_REFERENCES })}
               </p>
             ) : null}
-            {productPhoto &&
+            {hasPhotoReference &&
             !tooManyReferences &&
             selectedModels.length === 0 ? (
               <p
@@ -518,6 +571,35 @@ export function StudioComposer({
               >
                 {t("productPhotoNeedsModel")}
               </p>
+            ) : null}
+            {hasProductBatch ? (
+              <div className="flex items-center gap-2 px-4 pt-1 pb-2">
+                <span className="text-muted-foreground shrink-0 text-xs font-medium">
+                  {t("batchProductCount", { count: batchProducts.length })}
+                </span>
+                <div className="app-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto">
+                  {batchProducts.map(({ product, copies }) => (
+                    <span
+                      key={product.id}
+                      className="border-border flex max-w-48 shrink-0 gap-1 rounded-md border px-2 py-0.5 text-xs"
+                      title={product.name}
+                    >
+                      <span className="truncate">{product.name}</span>
+                      <span className="shrink-0">· {copies}×</span>
+                    </span>
+                  ))}
+                </div>
+                {onClearProductBatch ? (
+                  <Button
+                    onClick={onClearProductBatch}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    {t("clearProductBatch")}
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             {references.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2 px-4 pt-1 pb-2">
@@ -596,7 +678,7 @@ export function StudioComposer({
         toolbarStart={
           <>
             {modeSwitch}
-            {onProductPhotoChange && onPhotoUploadChange ? (
+            {!hasProductBatch && onProductPhotoChange && onPhotoUploadChange ? (
               <StudioProductPhotoControl
                 onPhotoChange={onProductPhotoChange}
                 onUploadingChange={onPhotoUploadChange}
@@ -806,7 +888,9 @@ export function StudioComposer({
                     const selected = placementRatios.includes(ratio);
                     const unsupported = !shared.aspectRatios.includes(ratio);
                     const exceedsLimit =
-                      selectedModels.length * (placementRatios.length + 1) >
+                      selectedModels.length *
+                        (placementRatios.length + 1) *
+                        Math.max(1, productCopies) >
                       MAX_BATCH;
                     const disabled = !selected && (unsupported || exceedsLimit);
                     const reason = unsupported
@@ -916,71 +1000,77 @@ export function StudioComposer({
                   </Row>
                 ) : null}
 
-                <Row label={labels.copies}>
-                  {COPY_CHOICES.map((count) => {
-                    // Against the models that will actually run, and against the
-                    // plan rather than the raw choice: this is where the ceiling
-                    // becomes visible, so `plan.copies` is what reads as pressed.
-                    const images = selectedModels.length * frameCount * count;
-                    const overCeiling = images > MAX_BATCH && count > 1;
-                    /**
-                     * Why this one is unavailable, in its own arithmetic.
-                     *
-                     * The ceiling is unchanged; only the explaining is new. A
-                     * dimmed "3" beside a footnote about a limit left a sighted
-                     * reader to do the multiplication and a screen-reader user with
-                     * "3, dimmed" and nothing at all.
-                     */
-                    const reason = overCeiling
-                      ? frameCount > 1
-                        ? t("placementCopiesOverCeiling", {
-                            images,
-                            limit: MAX_BATCH,
-                          })
-                        : t("copiesOverCeiling", {
-                            models: selectedModels.length,
-                            copies: count,
-                            images,
-                            limit: MAX_BATCH,
-                          })
-                      : undefined;
-                    return (
-                      <button
-                        // `aria-disabled`, not `disabled`: a natively disabled
-                        // control is not focusable, so the reason could never be
-                        // read out — which is the whole point of having one. The
-                        // press is blocked below instead.
-                        aria-describedby={
-                          reason ? `studio-copies-${count}-reason` : undefined
-                        }
-                        aria-disabled={overCeiling || undefined}
-                        aria-pressed={plan.copies === count}
-                        className={chipClass(
-                          plan.copies === count,
-                          overCeiling,
-                        )}
-                        key={count}
-                        onClick={() => {
-                          if (overCeiling) return;
-                          setCopies(count);
-                          onCopiesChange?.();
-                        }}
-                        title={reason}
-                        type="button"
-                      >
-                        {count}
-                        {reason ? (
-                          <span
-                            className="sr-only"
-                            id={`studio-copies-${count}-reason`}
-                          >
-                            {reason}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </Row>
+                {hasProductBatch ? (
+                  <p className="text-muted-foreground text-xs">
+                    {t("copiesFromProducts")}
+                  </p>
+                ) : (
+                  <Row label={labels.copies}>
+                    {COPY_CHOICES.map((count) => {
+                      // Against the models that will actually run, and against the
+                      // plan rather than the raw choice: this is where the ceiling
+                      // becomes visible, so `plan.copies` is what reads as pressed.
+                      const images = selectedModels.length * frameCount * count;
+                      const overCeiling = images > MAX_BATCH && count > 1;
+                      /**
+                       * Why this one is unavailable, in its own arithmetic.
+                       *
+                       * The ceiling is unchanged; only the explaining is new. A
+                       * dimmed "3" beside a footnote about a limit left a sighted
+                       * reader to do the multiplication and a screen-reader user with
+                       * "3, dimmed" and nothing at all.
+                       */
+                      const reason = overCeiling
+                        ? frameCount > 1
+                          ? t("placementCopiesOverCeiling", {
+                              images,
+                              limit: MAX_BATCH,
+                            })
+                          : t("copiesOverCeiling", {
+                              models: selectedModels.length,
+                              copies: count,
+                              images,
+                              limit: MAX_BATCH,
+                            })
+                        : undefined;
+                      return (
+                        <button
+                          // `aria-disabled`, not `disabled`: a natively disabled
+                          // control is not focusable, so the reason could never be
+                          // read out — which is the whole point of having one. The
+                          // press is blocked below instead.
+                          aria-describedby={
+                            reason ? `studio-copies-${count}-reason` : undefined
+                          }
+                          aria-disabled={overCeiling || undefined}
+                          aria-pressed={plan.copies === count}
+                          className={chipClass(
+                            plan.copies === count,
+                            overCeiling,
+                          )}
+                          key={count}
+                          onClick={() => {
+                            if (overCeiling) return;
+                            setCopies(count);
+                            onCopiesChange?.();
+                          }}
+                          title={reason}
+                          type="button"
+                        >
+                          {count}
+                          {reason ? (
+                            <span
+                              className="sr-only"
+                              id={`studio-copies-${count}-reason`}
+                            >
+                              {reason}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </Row>
+                )}
                 <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
                   {t("batchCeiling", { count: MAX_BATCH })}
                 </p>
@@ -997,7 +1087,7 @@ export function StudioComposer({
                     variant="ghost"
                   >
                     <span className="min-w-0 truncate tabular-nums">
-                      {frameCount > 1
+                      {hasProductBatch || frameCount > 1
                         ? batchCredits === null
                           ? t("placementPlan", { count: totalJobs })
                           : t("placementPlanCredits", {
