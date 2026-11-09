@@ -68,4 +68,4 @@ New Sokosumi brand colours for the original style are a separate, later spec, de
 
 - Before any work starts, Andreas tells Francis (author of #6710) and Patrick (#6956). #6956 is not merged.
 - Related: SOKD-122 (the crafted style).
-- Tickets: `issues/01`–`06`. 01–05 land together on one integration branch; 06 waits until 01–05 run in production and ships in a later release.
+- Tickets: `issues/01`–`06`. 01–05 land together on the integration branch (one PR). 06 is built in the same run on its own branch stacked on the integration branch (a second draft PR), and is merged only after 01–05 run in production.
