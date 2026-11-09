@@ -67,11 +67,7 @@
   padding: 20px 24px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  background: color-mix(
-    in srgb,
-    var(--brand, var(--border)) calc(10% - var(--sc-step, 0) * 2%),
-    var(--background)
-  );
+  background: var(--surface);
 }
 
 .sc-stage.you {
@@ -102,7 +98,7 @@
 
 .sc-owner {
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--surface);
   color: var(--muted);
   font-size: 0.75rem;

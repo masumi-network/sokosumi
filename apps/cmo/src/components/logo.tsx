@@ -30,8 +30,8 @@ export function Logo() {
       role="img"
       viewBox="0 0 1921.83 407.3"
     >
-      {PATHS.map((d) => (
-        <path d={d} key={d} />
+      {PATHS.map((d, index) => (
+        <path d={d} key={index} />
       ))}
     </svg>
   );

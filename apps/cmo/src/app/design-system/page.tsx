@@ -2,6 +2,9 @@ import "./design-system.css";
 
 import { notFound } from "next/navigation";
 
+import { Logo } from "../../components/logo";
+import { isDesignSystemPublic } from "./access";
+
 /**
  * Preview of the design system (`apps/cmo/design-system.md`): tokens and the
  * real base classes, once in light and once in dark, side by side. Local and
@@ -52,6 +55,8 @@ const SWATCHES: Swatch[] = [
   { name: "Peach", token: "--peach" },
   { name: "Done", token: "--ok" },
   { name: "Needs an answer", token: "--warn" },
+  { name: "Cuso stage", token: "--stage" },
+  { name: "Modal scrim", token: "--scrim" },
 ];
 
 const TYPE: TypeStep[] = [
@@ -111,6 +116,15 @@ function Board({ scheme }: BoardProps) {
             <li key={rule}>{rule}</li>
           ))}
         </ol>
+      </Section>
+
+      <Section title="Logo">
+        <p className="ds-logo">
+          <Logo />
+        </p>
+        <p className="ds-t-small ds-muted">
+          16px high in a header, drawn in the text colour.
+        </p>
       </Section>
 
       <Section title="Colour">
@@ -211,6 +225,35 @@ function Board({ scheme }: BoardProps) {
         </div>
       </Section>
 
+      <Section title="Checklist">
+        <ul className="ds-checklist">
+          <li className="ds-check done">
+            <span className="ds-check-box" aria-hidden="true">
+              ✓
+            </span>
+            <span className="ds-t-small">Read your homepage</span>
+          </li>
+          <li className="ds-check working">
+            <span className="ds-check-box" aria-hidden="true">
+              ·
+            </span>
+            <span className="ds-t-small">Compare competitors</span>
+          </li>
+          <li className="ds-check">
+            <span className="ds-check-box" aria-hidden="true" />
+            <span className="ds-t-small">Draft your first month</span>
+          </li>
+        </ul>
+      </Section>
+
+      <Section title="Skeleton">
+        <div className="ds-skeleton" aria-hidden="true">
+          <span className="ds-skel-bar" />
+          <span className="ds-skel-bar short" />
+          <span className="ds-skel-bar" />
+        </div>
+      </Section>
+
       <Section title="Status">
         <ul className="ds-status">
           <li>
@@ -304,7 +347,14 @@ function Board({ scheme }: BoardProps) {
 }
 
 export default function DesignSystemPage() {
-  if (process.env.VERCEL_ENV === "production") notFound();
+  if (
+    !isDesignSystemPublic({
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      NODE_ENV: process.env.NODE_ENV,
+    })
+  ) {
+    notFound();
+  }
   return (
     <main className="ds">
       <h1 className="ds-t-h1">Design system</h1>

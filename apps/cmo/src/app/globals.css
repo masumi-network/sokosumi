@@ -517,7 +517,7 @@ a.button {
 
 /* Status is a glyph disc, not a wash: the tags stay neutral and the
    foreground tone marks the finished or live ones. */
-.tag.strong,
+.tag.emphasis,
 .tag.ok,
 .tag.warn {
   color: var(--foreground);
@@ -1998,7 +1998,7 @@ textarea {
 .rv-dot i {
   width: 12px;
   height: 12px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--muted);
 }
 
@@ -2119,7 +2119,7 @@ textarea {
 .rv-dots i {
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--line);
 }
 
@@ -2205,7 +2205,7 @@ textarea {
   justify-self: start;
   padding: 1px 8px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--surface);
   color: var(--muted);
   font-size: 0.6875rem;
@@ -2378,7 +2378,7 @@ textarea {
   position: relative;
   height: 8px;
   margin: 4px 0;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--surface);
 }
 
@@ -2386,7 +2386,7 @@ textarea {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--brand);
   transform-origin: left;
 }
@@ -2466,7 +2466,7 @@ textarea {
 
 .ff-owner {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--surface);
   color: var(--muted);
   font-size: 0.6875rem;
@@ -2827,7 +2827,7 @@ textarea {
   grid-column: 1 / -1;
   justify-self: start;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--surface);
   color: var(--muted);
   font-size: 0.75rem;
@@ -3222,7 +3222,7 @@ a.rv-dot {
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -3286,7 +3286,7 @@ a.rv-dot {
 .bb-bar {
   position: relative;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--surface);
 }
 
@@ -3295,7 +3295,7 @@ a.rv-dot {
   top: 0;
   bottom: 0;
   left: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--brand);
   transform-origin: left;
 }
@@ -3370,7 +3370,7 @@ a.rv-dot {
 
 .cw-images {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--brand-soft);
   font-size: 0.75rem;
   font-weight: 500;
@@ -3504,7 +3504,7 @@ a.rv-dot {
   height: 4px;
   margin-top: 8px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--border);
 }
 
@@ -3581,7 +3581,7 @@ a.rv-dot {
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--background);
   color: var(--muted);
   font: inherit;
@@ -3674,7 +3674,7 @@ a.rv-dot {
   top: 8px;
   right: 8px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--background);
   font-size: 0.75rem;
 }

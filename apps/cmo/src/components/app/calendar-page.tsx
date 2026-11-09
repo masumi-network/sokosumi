@@ -14,12 +14,12 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 type Media = CmoOverview["media"][number];
 
-const STATUS: Record<Entry["status"], { label: string; strong: boolean }> = {
-  idea: { label: "Planned", strong: false },
-  draft: { label: "Written", strong: true },
-  scheduled: { label: "Scheduled", strong: true },
-  published: { label: "Published", strong: true },
-  skipped: { label: "Skipped", strong: false },
+const STATUS: Record<Entry["status"], { label: string; emphasis: boolean }> = {
+  idea: { label: "Planned", emphasis: false },
+  draft: { label: "Written", emphasis: true },
+  scheduled: { label: "Scheduled", emphasis: true },
+  published: { label: "Published", emphasis: true },
+  skipped: { label: "Skipped", emphasis: false },
 };
 
 function samePillar(named: string | undefined, pillar: string): boolean {
@@ -279,7 +279,7 @@ function PieceCard({
         {excerpt(entry) ? (
           <span className="cal-excerpt">{excerpt(entry)}</span>
         ) : null}
-        <span className={status.strong ? "tag strong" : "tag"}>
+        <span className={status.emphasis ? "tag emphasis" : "tag"}>
           {entry.status === "published" ? (
             <Check size={11} aria-hidden="true" />
           ) : null}

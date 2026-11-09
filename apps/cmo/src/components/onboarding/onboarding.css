@@ -43,7 +43,7 @@ body:has(.ob) .site-header {
   align-items: center;
   gap: 6px;
   padding: 4px 10px 4px 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   color: var(--muted);
   font-size: 13px;
   transition:
@@ -83,7 +83,7 @@ button.ob-step {
   place-items: center;
   width: 20px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: 50%;
   border: 1px solid var(--border);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -115,7 +115,7 @@ button.ob-step {
   min-width: 0;
   padding: 4px 8px 4px 4px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: none;
   color: var(--muted);
   font: inherit;
@@ -258,7 +258,7 @@ button.ob-step {
   align-items: center;
   padding: 3px 10px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -282,7 +282,7 @@ button.ob-step {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--surface);
   color: var(--muted);
   font-size: 12px;
@@ -541,7 +541,7 @@ button.ob-step {
   place-items: center;
   width: 20px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: 50%;
   border: 1px solid var(--border);
 }
 
@@ -605,7 +605,7 @@ button.ob-step {
 .ob-live {
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--muted);
 }
 
@@ -1276,7 +1276,7 @@ button.ob-step {
   height: 36px;
   padding: 0 16px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
