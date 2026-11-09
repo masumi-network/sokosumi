@@ -45,6 +45,16 @@ function dateOf(day: number) {
 export const SEO_MIN_COMPARE_IMPRESSIONS = 100;
 
 /**
+ * Google rarely shows the pages: fewer impressions over the period than a comparison needs
+ * for that many weeks. A period shorter than a week still needs one week's worth.
+ */
+export function seoRarelyShown(impressions: number, period: Window) {
+  const days = dayNumber(period.to) - dayNumber(period.from) + 1;
+  const weeks = Math.max(1, days / SEO_COMPARE_DAYS);
+  return impressions < SEO_MIN_COMPARE_IMPRESSIONS * weeks;
+}
+
+/**
  * The 7 days up to the newest reported day against the 7 before, from one sync's
  * daily points. Counts are sums; CTR is clicks over impressions; position is
  * weighted by impressions, as Search Console weights it. A side is null unless

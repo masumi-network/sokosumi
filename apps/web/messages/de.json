@@ -10667,7 +10667,12 @@
         "askAboutNote": "Eine Prüfung hat „{name}“ auf meiner Seite markiert. Was bedeutet das, und sollte ich etwas ändern?",
         "showAll": "Alles zeigen",
         "showLess": "Weniger zeigen",
-        "askAboutNoteOnPage": "Eine Prüfung hat „{name}“ auf {url} markiert. Was bedeutet das, und sollte ich etwas ändern?"
+        "askAboutNoteOnPage": "Eine Prüfung hat „{name}“ auf {url} markiert. Was bedeutet das, und sollte ich etwas ändern?",
+        "insideToolRanges": "{total, plural, one {im Tool-Bereich} other {in allen # Tool-Bereichen}}",
+        "outsideToolRanges": "{total, plural, one {außerhalb des Tool-Bereichs ({tools})} other {außerhalb von {outside} der # Tool-Bereiche ({tools})}}",
+        "referencesAndRules": "Quellen und Regel-IDs",
+        "ruleIds": "Regel-IDs: {ids}",
+        "rulesOnly": "Regel-IDs"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -10720,7 +10725,8 @@
         "help": "Konkurrenzseiten zum Vergleich mit deinen.",
         "yourPage": "Deine Seite",
         "compare": "Mit meiner Seite vergleichen",
-        "compareDraft": "Vergleiche meine Seite mit {url}. Was macht sie bei denselben Suchanfragen besser, und was sollte ich zuerst ändern?"
+        "compareDraft": "Vergleiche meine Seite mit {url}. Was macht sie bei denselben Suchanfragen besser, und was sollte ich zuerst ändern?",
+        "paidOff": "Rang- und Backlink-Zahlen brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind."
       },
       "actions": {
         "title": "Aktionen",
@@ -11081,7 +11087,7 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "Die Search Console zeigt noch keine Impressionen für genau „{keyword}“ auf {pages, plural, one {deiner Seite} other {deinen Seiten}}. Der Agent entwirft einen Plan, damit du dafür gefunden wirst; du bestätigst jede Änderung.",
+          "keyword": "Google hat {pages, plural, one {deine Seite} other {deine Seiten}} für genau „{keyword}“ noch nicht gezeigt. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
         },
         "prompts": {
@@ -11096,7 +11102,8 @@
           "waiting": "{count, plural, one {# Vorschlag zu prüfen} other {# Vorschläge zu prüfen}}",
           "clear": "Keine Probleme in der letzten Prüfung",
           "noCheck": "Noch keine Prüfung. Starte eine, um Probleme zu finden.",
-          "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}"
+          "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}",
+          "clearRarelyShown": "{pages, plural, one {Deine Seite besteht die letzte Prüfung, aber Google zeigt sie noch selten} other {Deine Seiten bestehen die letzte Prüfung, aber Google zeigt sie noch selten}}"
         },
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Plan entwerfen",

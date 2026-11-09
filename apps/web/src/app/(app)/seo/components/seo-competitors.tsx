@@ -211,8 +211,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                           ) : null}
                           {toggle ? (
                             <Button
-                              // Removing is the rare choice; it stays quieter than Compare.
-                              variant={row.confirmed ? "ghost" : "outline"}
+                              variant="outline"
                               size="sm"
                               disabled={model.pending}
                               onClick={() => {
@@ -234,9 +233,12 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               })}
             </TableBody>
           </Table>
-          {hidden.length && !paidOff ? (
+          {hidden.length ? (
+            // Missing numbers always say why: paid data off, or not measured yet.
             <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-              {t("unmeasuredColumns", { columns: format.list(hidden) })}
+              {paidOff && (!shown.rank || !shown.backlinks)
+                ? t("competitors.paidOff")
+                : t("unmeasuredColumns", { columns: format.list(hidden) })}
             </p>
           ) : null}
         </div>

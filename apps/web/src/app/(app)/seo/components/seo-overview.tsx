@@ -2,7 +2,7 @@
 
 import { Play } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,10 @@ import {
   pageDetailGuidance,
   pageDetailGuidanceRows,
   pageDetailReferences,
+  pageDetailRuleCodes,
   seoOverviewModel,
+  toolRangeFit,
+  withoutRuleCodes,
 } from "./seo-overview-model";
 import { SeoPages } from "./seo-pages";
 import {
@@ -60,6 +63,7 @@ function PageDetail({
   onAsk?: (question: string) => void;
 }) {
   const t = useTranslations("App.Seo");
+  const format = useFormatter();
   const headingId = useId();
   const valueId = useId();
   const pageLabelId = useId();
@@ -68,6 +72,11 @@ function PageDetail({
   const first = finding.evidence[0];
   const measure = finding.severity === "measure";
   const guidance = showGuidance ? pageDetailGuidance(finding.evidence) : [];
+  const value = measure && first ? measureValue(name, first) : undefined;
+  // Each page's value gets its own fit, though only the first row shows the ranges.
+  const fit = value
+    ? toolRangeFit(value, pageDetailGuidance(finding.evidence))
+    : null;
   const foldable =
     !measure && first !== undefined && first.length > NOTE_VALUE_FOLD_CHARS;
   // With one page there is nothing to tell apart, unless the row is for a page removed since.
@@ -80,9 +89,20 @@ function PageDetail({
         // A measurement is one line; its value drops the words its name already says.
         <p className="text-sm break-words">
           <span className="font-medium">{name}:</span>{" "}
-          <span className="text-muted-foreground">
-            {first ? measureValue(name, first) : t("none")}
-          </span>
+          <span className="text-muted-foreground">{value ?? t("none")}</span>
+          {fit ? (
+            // Google sets no limit for these; the tools' ranges say whether a value stands out.
+            <span>
+              {" · "}
+              {fit.outside.length
+                ? t("overview.outsideToolRanges", {
+                    outside: fit.outside.length,
+                    total: fit.total,
+                    tools: format.list(fit.outside),
+                  })
+                : t("overview.insideToolRanges", { total: fit.total })}
+            </span>
+          ) : null}
         </p>
       ) : (
         <>
@@ -108,7 +128,7 @@ function PageDetail({
         <ul className="text-muted-foreground space-y-0.5 text-xs">
           {guidance.map((line, index) => (
             <li key={`${index}:${line}`} className="break-words">
-              {line}
+              {withoutRuleCodes(line)}
             </li>
           ))}
         </ul>
@@ -214,6 +234,12 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
       name: checkName(finding.title),
       evidence: finding.evidence,
     })),
+  );
+  // Rule IDs leave the shown guidance and fold with the sources.
+  const ruleCodes = pageDetailRuleCodes(
+    overview.diagnostics
+      .filter((finding) => guidanceRows.has(finding.id))
+      .flatMap((finding) => pageDetailGuidance(finding.evidence)),
   );
   // A question about a note goes to the agent's chat as a draft; the owner sends it.
   const askAgent = data.auditId
@@ -410,10 +436,14 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
               </section>
             ) : null}
             {/* Rows show their value and guidance; provenance folds once. */}
-            {references.length ? (
+            {references.length || ruleCodes.length ? (
               <details className="text-muted-foreground text-sm">
                 <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
-                  {t("overview.references", { count: references.length })}
+                  {references.length && ruleCodes.length
+                    ? t("overview.referencesAndRules")
+                    : references.length
+                      ? t("overview.references", { count: references.length })
+                      : t("overview.rulesOnly")}
                 </summary>
                 <ul className="list-inside list-disc space-y-1 pt-1">
                   {references.map((reference) => (
@@ -423,6 +453,11 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         : reference.line}
                     </li>
                   ))}
+                  {ruleCodes.length ? (
+                    <li className="break-words">
+                      {t("overview.ruleIds", { ids: ruleCodes.join(", ") })}
+                    </li>
+                  ) : null}
                 </ul>
               </details>
             ) : null}

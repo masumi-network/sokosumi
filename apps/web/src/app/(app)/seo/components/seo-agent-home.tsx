@@ -19,6 +19,7 @@ import { SeoChatThread, useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
+import { seoRarelyShown } from "./seo-performance-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
@@ -153,7 +154,8 @@ function AgentConversation({
 }) {
   const t = useTranslations("App.Seo");
   return (
-    <div className={cn(HOLDER_ITEM_CLASS, "flex min-w-0 flex-col md:min-h-96")}>
+    // The card takes its content's height: a short thread leaves no gap above the questions.
+    <div className={cn(HOLDER_ITEM_CLASS, "flex min-w-0 flex-col self-start")}>
       <div className="border-b px-4 py-3">
         <h3 className="text-sm font-semibold">{t("chat.title")}</h3>
         <p className="text-muted-foreground text-xs">{t("chat.description")}</p>
@@ -164,7 +166,7 @@ function AgentConversation({
         inputId={SEO_AGENT_INPUT_ID}
         latestOnly
         compactPrompts
-        className="max-h-[40rem] flex-1"
+        className="max-h-[40rem]"
       />
     </div>
   );
@@ -202,6 +204,9 @@ function SeoAgentPanel({
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
   // How the pages do in search sits next to whether they are healthy.
   const traffic = seoSearchTraffic(model.data.metrics);
+  const rarelyShown = Boolean(
+    traffic && seoRarelyShown(traffic.impressions, traffic.period),
+  );
   // The first proposal with its own button carries the one primary action.
   // Action cards and connection buttons keep their own style.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
@@ -241,7 +246,11 @@ function SeoAgentPanel({
                 : brief.opportunities
                   ? t("agent.verdict.waiting", { count: brief.opportunities })
                   : brief.emptyState === "no_fixes" && lastCheckMeasured
-                    ? t("agent.verdict.clear")
+                    ? rarelyShown
+                      ? t("agent.verdict.clearRarelyShown", {
+                          pages: brief.lastCheck?.pages ?? 1,
+                        })
+                      : t("agent.verdict.clear")
                     : brief.lastCheck
                       ? t("actions.checksIncomplete")
                       : t("agent.verdict.noCheck")}

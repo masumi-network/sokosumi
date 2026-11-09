@@ -10667,7 +10667,12 @@
         "askAboutNote": "A check flagged “{name}” on my page. What does it mean, and should I change anything?",
         "showAll": "Show all",
         "showLess": "Show less",
-        "askAboutNoteOnPage": "A check flagged “{name}” on {url}. What does it mean, and should I change anything?"
+        "askAboutNoteOnPage": "A check flagged “{name}” on {url}. What does it mean, and should I change anything?",
+        "insideToolRanges": "{total, plural, one {within the tool range} other {within all # tool ranges}}",
+        "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
+        "referencesAndRules": "Sources and rule IDs",
+        "ruleIds": "Rule IDs: {ids}",
+        "rulesOnly": "Rule IDs"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -10720,7 +10725,8 @@
         "help": "Competitor pages to compare with yours.",
         "yourPage": "Your page",
         "compare": "Compare with my page",
-        "compareDraft": "Compare my page with {url}. What does it do better for the same searches, and what should I change first?"
+        "compareDraft": "Compare my page with {url}. What does it do better for the same searches, and what should I change first?",
+        "paidOff": "Rank and backlink numbers need paid search data, which is off in this workspace."
       },
       "actions": {
         "title": "Actions",
@@ -11081,7 +11087,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "keyword": "Search Console shows no impressions for exactly “{keyword}” on {pages, plural, one {your page} other {your pages}} yet. The agent drafts a plan to rank for it; you approve each change.",
+          "keyword": "Google has not shown {pages, plural, one {your page} other {your pages}} for exactly “{keyword}” yet. The agent can draft a plan to rank for it.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches."
         },
         "prompts": {
@@ -11096,7 +11102,8 @@
           "waiting": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
           "clear": "No issues found in the last check",
           "noCheck": "No check yet. Run one to find issues.",
-          "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}"
+          "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}",
+          "clearRarelyShown": "{pages, plural, one {Your page passes the last check, but Google rarely shows it yet} other {Your pages pass the last check, but Google rarely shows them yet}}"
         },
         "lastCheckOn": "Last check",
         "askHow": "Draft a plan",

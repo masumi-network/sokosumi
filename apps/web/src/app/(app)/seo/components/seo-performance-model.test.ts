@@ -1,6 +1,6 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoWeekOverWeek } from "./seo-performance-model";
+import { seoRarelyShown, seoWeekOverWeek } from "./seo-performance-model";
 
 function metric(
   key: string,
@@ -85,5 +85,19 @@ describe("seoWeekOverWeek", () => {
     gap[10] = null;
     const result = seoWeekOverWeek([metric("clicks", "count", gap)]);
     expect(result?.values.clicks).toEqual({ current: null, previous: 70 });
+  });
+});
+
+describe("seoRarelyShown", () => {
+  it("scales the weekly minimum with the period, never below one week", () => {
+    const month = { from: "2026-10-12", to: "2026-11-07" };
+    // 27 days need about 386 impressions.
+    expect(seoRarelyShown(35, month)).toBe(true);
+    expect(seoRarelyShown(300, month)).toBe(true);
+    expect(seoRarelyShown(400, month)).toBe(false);
+    // Two days still need one week's 100.
+    const twoDays = { from: "2026-11-06", to: "2026-11-07" };
+    expect(seoRarelyShown(99, twoDays)).toBe(true);
+    expect(seoRarelyShown(100, twoDays)).toBe(false);
   });
 });

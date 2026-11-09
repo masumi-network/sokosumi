@@ -5,8 +5,11 @@ import {
   pageDetailGuidance,
   pageDetailGuidanceRows,
   pageDetailReferences,
+  pageDetailRuleCodes,
   seoOverviewModel,
   seoPageSummaries,
+  toolRangeFit,
+  withoutRuleCodes,
 } from "./seo-overview-model";
 import { SEO_TEST_PAGE, seoTestWorkspace } from "./seo-test-fixture";
 
@@ -356,5 +359,52 @@ describe("page detail lines", () => {
     ];
     // A row without lines does not take the slot; other lines still show.
     expect([...pageDetailGuidanceRows(rows)]).toEqual(["a", "c"]);
+  });
+});
+
+describe("tool ranges", () => {
+  const description = [
+    "Google sets no length limit (N1-065)",
+    "vendor tools: Ahrefs under 160 (N1-247); Screaming Frog 70 to 155 (N1-267); Moz 55 to 300 (N1-279); Yoast 120 to 156 (N1-286)",
+  ];
+
+  it("names the tools whose range a value leaves, with inclusive ends", () => {
+    expect(toolRangeFit("163 characters", description)).toEqual({
+      total: 4,
+      outside: ["Ahrefs", "Screaming Frog", "Yoast"],
+    });
+    // 155 is Screaming Frog's top: inside. 160 is not under 160: outside.
+    expect(toolRangeFit("155 characters", description)?.outside).toEqual([]);
+    expect(toolRangeFit("160 characters", description)?.outside).toEqual([
+      "Ahrefs",
+      "Screaming Frog",
+      "Yoast",
+    ]);
+    expect(
+      toolRangeFit("9 characters", [
+        "vendor tools: Ahrefs under 70; Screaming Frog 30 to 60; Moz 10 or more",
+      ])?.outside,
+    ).toEqual(["Screaming Frog", "Moz"]);
+  });
+
+  it("says nothing when a range or the value does not read", () => {
+    expect(
+      toolRangeFit("163 characters", ["vendor tools: Ahrefs about 160"]),
+    ).toBeNull();
+    expect(toolRangeFit("none", description)).toBeNull();
+    expect(toolRangeFit("163 characters", ["Google sets no limit"])).toBeNull();
+  });
+
+  it("folds rule IDs out of the shown line, once each", () => {
+    expect(withoutRuleCodes(description[1])).toBe(
+      "vendor tools: Ahrefs under 160; Screaming Frog 70 to 155; Moz 55 to 300; Yoast 120 to 156",
+    );
+    expect(pageDetailRuleCodes([...description, description[0]])).toEqual([
+      "N1-065",
+      "N1-247",
+      "N1-267",
+      "N1-279",
+      "N1-286",
+    ]);
   });
 });

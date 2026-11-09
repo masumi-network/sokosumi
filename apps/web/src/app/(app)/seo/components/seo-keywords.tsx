@@ -349,8 +349,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                                 </Button>
                               ) : null}
                               <Button
-                                // Removing is the quiet action, as on Competitors.
-                                variant={row.saved ? "ghost" : "outline"}
+                                variant="outline"
                                 size="sm"
                                 disabled={model.pending}
                                 onClick={() => {

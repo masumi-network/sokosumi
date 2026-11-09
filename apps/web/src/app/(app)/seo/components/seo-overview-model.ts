@@ -196,3 +196,56 @@ export function pageDetailReferences(rows: readonly PageDetailRow[]) {
     names: rows.length > 1 && seen.rows === rows.length ? [] : [...seen.names],
   }));
 }
+
+/** A rule ID the check cites, e.g. "(N1-246)": provenance, not reading text. */
+const RULE_CODE = /\s*\(([A-Z][A-Z0-9]*-\d+)\)/g;
+
+/** A guidance line as people read it: without the rule IDs it cites. */
+export function withoutRuleCodes(line: string) {
+  return line.replace(RULE_CODE, "");
+}
+
+/** Every rule ID the shown guidance cites, once, in order: they fold with the sources. */
+export function pageDetailRuleCodes(lines: readonly string[]) {
+  return [
+    ...new Set(
+      lines.flatMap((line) => [...line.matchAll(RULE_CODE)].map((m) => m[1])),
+    ),
+  ];
+}
+
+const TOOL_RANGES_PREFIX = "vendor tools:";
+const TOOL_RANGE_FORMS: readonly [
+  RegExp,
+  (a: number, b: number) => (value: number) => boolean,
+][] = [
+  [/^(.+?) under (\d+)$/, (max) => (value) => value < max],
+  [
+    /^(.+?) (\d+) to (\d+)$/,
+    (min, max) => (value) => value >= min && value <= max,
+  ],
+  [/^(.+?) (\d+) or more$/, (min) => (value) => value >= min],
+];
+
+/**
+ * Where a measured number sits against the tools' ranges in its guidance.
+ * Null unless the value starts with a whole number and every range reads as one known form:
+ * a range read wrong would tell the owner to act when nothing is wrong.
+ */
+export function toolRangeFit(value: string, guidance: readonly string[]) {
+  const measured = /^(\d+)(?:\s|$)/.exec(value.trim());
+  const line = guidance.find((entry) => entry.startsWith(TOOL_RANGES_PREFIX));
+  if (!measured || !line) return null;
+  const number = Number(measured[1]);
+  const outside: string[] = [];
+  const ranges = withoutRuleCodes(line.slice(TOOL_RANGES_PREFIX.length))
+    .split(";")
+    .map((range) => range.trim());
+  for (const range of ranges) {
+    const form = TOOL_RANGE_FORMS.find(([pattern]) => pattern.test(range));
+    if (!form) return null;
+    const [, tool, a, b] = range.match(form[0]) ?? [];
+    if (!form[1](Number(a), Number(b))(number)) outside.push(tool);
+  }
+  return { total: ranges.length, outside };
+}

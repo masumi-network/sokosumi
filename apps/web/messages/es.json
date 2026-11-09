@@ -10667,7 +10667,12 @@
         "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
         "showAll": "Mostrar todo",
         "showLess": "Mostrar menos",
-        "askAboutNoteOnPage": "Una comprobación marcó «{name}» en {url}. ¿Qué significa y debería cambiar algo?"
+        "askAboutNoteOnPage": "Una comprobación marcó «{name}» en {url}. ¿Qué significa y debería cambiar algo?",
+        "insideToolRanges": "{total, plural, one {dentro del rango de la herramienta} other {dentro de los # rangos de herramientas}}",
+        "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
+        "referencesAndRules": "Fuentes e ID de reglas",
+        "ruleIds": "ID de reglas: {ids}",
+        "rulesOnly": "ID de reglas"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10720,7 +10725,8 @@
         "help": "Páginas de la competencia para compararlas con las tuyas.",
         "yourPage": "Tu página",
         "compare": "Comparar con mi página",
-        "compareDraft": "Compara mi página con {url}. ¿Qué hace mejor para las mismas búsquedas y qué debería cambiar primero?"
+        "compareDraft": "Compara mi página con {url}. ¿Qué hace mejor para las mismas búsquedas y qué debería cambiar primero?",
+        "paidOff": "Las cifras de posición y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo."
       },
       "actions": {
         "title": "Acciones",
@@ -11081,7 +11087,7 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "keyword": "Search Console aún no muestra impresiones para exactamente «{keyword}» en {pages, plural, one {tu página} other {tus páginas}}. El agente prepara un plan para que aparezcas en esa búsqueda; tú apruebas cada cambio.",
+          "keyword": "Google aún no ha mostrado {pages, plural, one {tu página} other {tus páginas}} para exactamente «{keyword}». El agente puede preparar un plan para que aparezcas en esa búsqueda.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas."
         },
         "prompts": {
@@ -11096,7 +11102,8 @@
           "waiting": "{count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
           "clear": "Sin problemas en la última comprobación",
           "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",
-          "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}"
+          "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}",
+          "clearRarelyShown": "{pages, plural, one {Tu página pasa la última comprobación, pero Google aún la muestra poco} other {Tus páginas pasan la última comprobación, pero Google aún las muestra poco}}"
         },
         "lastCheckOn": "Última comprobación",
         "askHow": "Preparar un plan",

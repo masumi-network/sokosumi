@@ -346,7 +346,7 @@ describe("SEO workspace integration", () => {
       title: "Raw HTML: Title length",
       severity: "measure",
       evidence: [
-        "title 40 characters",
+        "title 80 characters",
         "vendor tools: Ahrefs under 70 (N1-246)",
         "Source: raw HTML; the rendered DOM was not requested.",
       ],
@@ -421,9 +421,11 @@ describe("SEO workspace integration", () => {
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
-    expect(
-      screen.getByText("vendor tools: Ahrefs under 70 (N1-246)"),
-    ).toBeVisible();
+    // Rule IDs leave the shown line and fold with the sources.
+    expect(screen.getByText("vendor tools: Ahrefs under 70")).toBeVisible();
+    // Each page's value says where it sits against the tools' ranges.
+    expect(screen.getByText(/within the tool range/)).toBeVisible();
+    expect(screen.getByText(/outside the tool range \(Ahrefs\)/)).toBeVisible();
     // A long note value starts folded and opens in place.
     const showAll = screen.getByRole("button", { name: "Show all" });
     expect(showAll).toHaveAttribute("aria-expanded", "false");
@@ -447,8 +449,9 @@ describe("SEO workspace integration", () => {
     );
     expect(reference).not.toBeVisible();
     expect(screen.queryByText("Check details")).toBeNull();
-    await user.click(screen.getByText("1 source"));
+    await user.click(screen.getByText("Sources and rule IDs"));
     expect(reference).toBeVisible();
+    expect(screen.getByText("Rule IDs: N1-246")).toBeVisible();
     // A note on a page removed since names that page in the question; nothing is sent.
     await user.click(
       screen.getByRole("button", {
@@ -1030,15 +1033,46 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
+    // A measured check with no issues.
+    workspace.observations.push({
+      id: crypto.randomUUID(),
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 2, skipped: 0, failed: 0 },
+    });
     const { unmount } = renderWorkspace(workspace);
+    // Fewer impressions than one week needs for a comparison: the verdict says Google rarely shows the page.
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
+      "Your page passes the last check, but Google rarely shows it yet",
+    );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
       /^Google search: 35 impressions, 2 clicks · Jan 1\W+2, 2026 · Open Traffic$/,
     );
     unmount();
     // Without clicks the line would read as zero clicks; it stays away.
     workspace.metrics = [impressions];
-    renderWorkspace(workspace);
+    const second = renderWorkspace(workspace);
     expect(screen.queryByTestId("seo-agent-traffic")).toBeNull();
+    second.unmount();
+    // Enough impressions for a week's comparison: the plain verdict.
+    workspace.metrics = [
+      { ...impressions, value: 100 },
+      { ...impressions, id: "sync:clicks", key: "clicks", value: 2 },
+    ];
+    renderWorkspace(workspace);
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
+      "No issues found in the last check",
+    );
   });
 
   it("does not judge a position change on a handful of impressions", async () => {
@@ -2527,6 +2561,21 @@ describe("SEO workspace integration", () => {
       observedAt: null,
       observationId: null,
     });
+    workspace.competitors.push({
+      id: "rival",
+      url: "https://rival.example/",
+      role: "competitor",
+      confirmed: true,
+      source: "saved",
+      rank: null,
+      backlinks: null,
+      referringDomains: null,
+      observedAt: null,
+      observationId: null,
+      version: 1,
+      canConfirm: true,
+      exclusionReason: null,
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -2538,6 +2587,12 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText(/Search volume/)).toBeNull();
     expect(screen.queryByText(/Tracking a keyword is free/)).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();
+    // A competitor without numbers says why, instead of a bare URL.
+    expect(
+      screen.getByText(
+        "Rank and backlink numbers need paid search data, which is off in this workspace.",
+      ),
+    ).toBeVisible();
   });
 
   it("explains organization statistics sharing before a sync", async () => {
