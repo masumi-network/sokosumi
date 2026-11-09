@@ -120,10 +120,7 @@ export function CreateState({
       setCreated({
         name: result.value.name ?? trimmed,
         imageUrl: picked?.imageUrl ?? null,
-        orbSeed: botFaceSeed(
-          result.value,
-          result.value.userId ?? result.value.id,
-        ),
+        orbSeed: botFaceSeed(result.value, result.value.userId),
       });
       // Let the reveal play, then the last step: mail and calendar.
       await new Promise((resolve) => setTimeout(resolve, 1500));

@@ -247,7 +247,9 @@ export function SokoBotConsole({
   }, [integrationOutcome, router, t, consoleRoute]);
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
-  // Same seed Core hands chat participants, so console and room match.
+  // Same seed Core hands chat participants, so console and room match. Not
+  // `botFaceSeed`: that derives a `defaultOrbSeed`, and Core's fallback is the
+  // raw `orb:` id, so the two would draw different orbs for the same bot.
   const seed = bot.avatarSeed ?? `orb:${bot.userId ?? bot.id}`;
   const [isOpeningChat, startOpeningChat] = useTransition();
   const [pickedAvatar, setPickedAvatar] = useState<SokoBotAvatar | null>(null);
