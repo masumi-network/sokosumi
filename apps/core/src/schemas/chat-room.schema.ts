@@ -820,6 +820,23 @@ export const chatRoomPinnedMessageListItemSchema = z
   })
   .openapi("ChatRoomPinnedMessageListItem");
 
+export const chatSavedMessageMutationSchema = z
+  .object({
+    messageId: z.string().uuid(),
+    saved: z.boolean().openapi({
+      description: "Whether the message is now on the reader's Saved list.",
+    }),
+  })
+  .openapi("ChatSavedMessageMutation");
+
+export const chatSavedMessageListItemSchema = z
+  .object({
+    messageId: z.string().uuid(),
+    savedAt: dateTimeSchema,
+    message: z.object(chatRoomMessageSchema.shape),
+  })
+  .openapi("ChatSavedMessageListItem");
+
 export const createChatRoomMessageRequestSchema = z
   .object({
     content: z
