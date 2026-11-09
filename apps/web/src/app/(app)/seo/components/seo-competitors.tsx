@@ -54,8 +54,6 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       : row.confirmed
         ? "competitors.confirmed"
         : "competitors.suggested";
-  // The section title already says "Competitors"; a label only helps when rows differ.
-  const mixed = new Set(model.data.competitors.map(state)).size > 1;
   return (
     <SeoSection
       title={t("competitors.title")}
@@ -128,11 +126,10 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                 <TableRow key={row.id}>
                   <TableCell className="min-w-56 whitespace-normal">
                     <SeoPageLink url={row.url} />
-                    {mixed ? (
-                      <div className="mt-1">
-                        <SeoState>{t(state(row))}</SeoState>
-                      </div>
-                    ) : null}
+                    {/* Without paid metrics, the state is what says why a row is listed. */}
+                    <div className="mt-1">
+                      <SeoState>{t(state(row))}</SeoState>
+                    </div>
                     {row.exclusionReason ? (
                       <p className="text-muted-foreground mt-2 text-sm">
                         {row.exclusionReason}

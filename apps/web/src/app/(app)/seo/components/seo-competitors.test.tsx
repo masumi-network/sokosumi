@@ -145,4 +145,32 @@ describe("SEO competitor baselines", () => {
       ).toBeVisible();
     },
   );
+
+  it("says why a lone competitor is listed", () => {
+    const workspace = seoTestWorkspace();
+    workspace.competitors = [
+      {
+        id: "saved-competitor",
+        url: "https://competitor.example/",
+        role: "competitor",
+        confirmed: true,
+        source: "saved",
+        rank: null,
+        backlinks: null,
+        referringDomains: null,
+        observedAt: null,
+        observationId: null,
+        version: 1,
+        canConfirm: true,
+        exclusionReason: null,
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    // A bare URL gives no reason; the state names it even when every row shares it.
+    expect(screen.getByText("Confirmed competitor")).toBeVisible();
+  });
 });
