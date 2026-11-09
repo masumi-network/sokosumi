@@ -1,4 +1,8 @@
-import type { MarketingStrategyPlan, ScenarioCheck } from "@sokosumi/soko-bot";
+import {
+  CMO_PRODUCTION_TURN_PREFIX,
+  type MarketingStrategyPlan,
+  type ScenarioCheck,
+} from "@sokosumi/soko-bot";
 import { isProjectSocialProvider } from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
@@ -230,6 +234,16 @@ export async function startCmoCase(
     const frozen = parseMarketingPlan(evalCase.plan) as MarketingStrategyPlan;
     if (!frozen) throw new Error("The frozen plan does not parse");
     const cuso = await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
+    // Core starts at most four production runs a day per Cuso; a lane makes
+    // several months a day, so earlier months' runs count as yesterday's.
+    await prisma.sokoBotTurn.updateMany({
+      where: {
+        sokoBotId: lane.cusoBotId,
+        clientTurnId: { startsWith: CMO_PRODUCTION_TURN_PREFIX },
+        createdAt: { gt: new Date(Date.now() - DAY_MS) },
+      },
+      data: { createdAt: new Date(Date.now() - DAY_MS - 60 * 60_000) },
+    });
     const plan = monthPlanFromTomorrow(frozen, new Date());
     await connectPlanChannels(lane, plan);
     const strategy = await prisma.marketingStrategy.create({
