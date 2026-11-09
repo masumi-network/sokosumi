@@ -233,9 +233,6 @@ struct RoomDetailsView: View {
     if permissions.canRemove(member.id, in: room, currentUserId: workspaces.currentUserId) {
       memberRow(member)
         .contextMenu { removeAction(member) }
-      #if os(iOS)
-        .swipeActions { removeAction(member) }
-      #endif
     } else {
       memberRow(member)
     }
