@@ -8610,6 +8610,23 @@
         "pinError": "No se pudo fijar el mensaje.",
         "unpinError": "No se pudo desfijar el mensaje."
       },
+      "SavedMessages": {
+        "save": "Guardar para después",
+        "saved": "Guardado para después",
+        "view": "Ver guardados",
+        "saveError": "No se pudo guardar el mensaje.",
+        "removeError": "No se pudo quitar el mensaje de Guardados.",
+        "error": "No se pudieron cargar los mensajes guardados.",
+        "title": "Guardados",
+        "description": "Mensajes que guardaste para después. Solo tú ves esta lista.",
+        "empty": "Aún no hay nada guardado",
+        "emptyHint": "Abre las acciones de un mensaje y elige Guardar para después para conservarlo aquí.",
+        "remove": "Quitar de guardados",
+        "removed": "Quitado de guardados",
+        "loadOlder": "Cargar anteriores",
+        "untitled": "Mensaje sin texto",
+        "savedAgo": "Guardado {time}"
+      },
       "Quote": {
         "action": "Citar",
         "dismiss": "Quitar cita",
@@ -9013,7 +9030,8 @@
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",
           "overview": "Resumen",
-          "threads": "Hilos"
+          "threads": "Hilos",
+          "saved": "Guardados"
         },
         "Briefing": {
           "welcomeBack": "Bienvenido de nuevo",

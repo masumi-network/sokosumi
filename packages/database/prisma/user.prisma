@@ -109,6 +109,7 @@ model User {
   chatRoomMessages                 ChatRoomMessage[]             @relation("ChatRoomUserSender")
   chatRoomPinnedMessages           ChatRoomPinnedMessage[]       @relation("ChatRoomPinnedMessagePinnedBy")
   chatRoomReactions                ChatRoomReaction[]
+  chatRoomSavedMessages            ChatRoomSavedMessage[]
   chatRoomReadStates               ChatRoomReadState[]
   chatRoomThreadReadStates         ChatRoomThreadReadState[]
   chatRoomUserMentions             ChatRoomUserMention[]
