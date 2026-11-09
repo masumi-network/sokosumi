@@ -109,6 +109,13 @@ export function SeoTimeline({
       ),
   );
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
+  // The market only tells runs apart when they used different ones.
+  const manyMarkets =
+    new Set(
+      workspace.observations.map(
+        ({ countryCode, languageCode }) => `${countryCode}/${languageCode}`,
+      ),
+    ).size > 1;
   return (
     <SeoSection title={t("timeline.title")}>
       {nodes.length === 0 ? (
@@ -117,10 +124,7 @@ export function SeoTimeline({
         <div className={cn(HOLDER_ITEM_CLASS, "p-2")}>
           <ol aria-label={t("timeline.graphLabel")} className="divide-y">
             {visible.map(
-              (
-                { event, observation, at, isRecheck, label, syncs: runs },
-                index,
-              ) => {
+              ({ event, observation, at, label, syncs: runs }, index) => {
                 const status = event.status.toLowerCase();
                 // A sync's status is its coverage; "unavailable" means nothing was read.
                 const failed =
@@ -136,6 +140,13 @@ export function SeoTimeline({
                   observation &&
                   (observation.coverage.failed > 0 ||
                     (observation.coverage.modules?.failed ?? 0) > 0);
+                // A run leads with what it found; "no issues" needs a complete run that measured something.
+                const result =
+                  observation &&
+                  observation.coverage.checked > 0 &&
+                  (observation.issues > 0 || !incomplete)
+                    ? observation.issues
+                    : null;
                 return (
                   <li
                     key={event.id}
@@ -166,7 +177,9 @@ export function SeoTimeline({
                               ? t("timeline.metricsSyncedTimes", {
                                   count: runs,
                                 })
-                              : t(`timeline.${label}`)}
+                              : result !== null
+                                ? t("timeline.result", { count: result })
+                                : t(`timeline.${label}`)}
                         </h3>
                         <span className="text-muted-foreground text-xs">
                           <SeoDate value={at} />
@@ -187,10 +200,9 @@ export function SeoTimeline({
                           {t("pages.count", {
                             count: observation.pageIds.length,
                           })}
-                          {observation.countryCode
+                          {manyMarkets && observation.countryCode
                             ? ` · ${observation.countryCode} / ${observation.languageCode ?? t("none")}`
                             : ""}
-                          {isRecheck ? ` · ${t("timeline.previousCheck")}` : ""}
                         </p>
                       ) : event.kind === "page_change" ? (
                         <p className="text-sm break-words">{event.title}</p>
@@ -226,16 +238,16 @@ export function SeoTimeline({
                                 })}
                               </p>
                             ) : null}
+                            {event.taskId ? (
+                              <Link
+                                href={`/tasks/${encodeURIComponent(event.taskId)}`}
+                                className="inline-block py-2 text-foreground underline underline-offset-4"
+                              >
+                                {t("openTask")}
+                              </Link>
+                            ) : null}
                           </div>
                         </details>
-                        {event.taskId ? (
-                          <Link
-                            href={`/tasks/${encodeURIComponent(event.taskId)}`}
-                            className="inline-block py-3 underline underline-offset-4"
-                          >
-                            {t("openTask")}
-                          </Link>
-                        ) : null}
                         {failed && event.kind === "check" && onRetry ? (
                           <Button variant="outline" size="sm" onClick={onRetry}>
                             {t("timeline.runNewCheck")}

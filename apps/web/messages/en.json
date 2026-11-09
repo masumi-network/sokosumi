@@ -10784,13 +10784,13 @@
         "pageChanged": "Page change recorded",
         "savedAt": "Saved",
         "checkSummary": "{checked} rules checked",
-        "previousCheck": "Repeat of an earlier check",
-        "sourceDetails": "Event details",
+        "sourceDetails": "Details",
         "resultsSaved": "Results saved",
         "incomplete": "Some requested work could not be completed.",
         "showAll": "Show all {count} events",
         "metricsSyncedTimes": "{count, plural, one {Statistics synced} other {Statistics synced # times}}",
-        "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}"
+        "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}",
+        "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}"
       },
       "analysis": {
         "title": "Run a check",

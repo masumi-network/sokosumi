@@ -121,6 +121,7 @@ describe("SEO timeline recovery", () => {
         id: "second",
         sourceTaskId: "second-task",
         observedAt: new Date("2026-11-02T10:00:00Z"),
+        issues: 2,
       },
     ];
     workspace.timeline = workspace.observations.map((observation) => ({
@@ -152,8 +153,10 @@ describe("SEO timeline recovery", () => {
       name: "SEO activity, newest first",
     });
     const [recheck, check] = within(graph).getAllByRole("listitem");
-    expect(within(recheck).getByText("Recheck results")).toBeVisible();
-    expect(within(check).getByText("Check results")).toBeVisible();
+    // Each run leads with what it found; one market needs no label.
+    expect(within(recheck).getByText("2 issues found")).toBeVisible();
+    expect(within(check).getByText("No issues found")).toBeVisible();
+    expect(within(graph).queryByText(/US \/ en/)).toBeNull();
     expect(recheck.querySelector("time")).toHaveAttribute(
       "datetime",
       "2026-11-02T10:00:00.000Z",
@@ -165,9 +168,55 @@ describe("SEO timeline recovery", () => {
     expect(
       within(recheck).getByText("Saved").closest("div")?.querySelector("time"),
     ).toHaveAttribute("datetime", "2026-11-03T12:00:00.000Z");
-    expect(
-      within(recheck).getByRole("link", { name: "Open task" }),
-    ).toHaveAttribute("href", "/tasks/second-task");
+    const task = within(recheck).getByRole("link", { name: "Open task" });
+    expect(task).toHaveAttribute("href", "/tasks/second-task");
+    expect(task.closest("details")).not.toBeNull();
+  });
+
+  it("does not claim no issues for an incomplete check", () => {
+    const workspace = seoTestWorkspace();
+    const observation = {
+      id: "partial",
+      kind: "page_check",
+      source: "agent",
+      observedAt: new Date("2026-11-01T10:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 0,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "test-rules",
+      artifactHash: "hash",
+      issues: 0,
+      coverage: { checked: 10, skipped: 0, failed: 2 },
+    };
+    workspace.observations = [observation];
+    workspace.timeline = [
+      {
+        id: "partial",
+        kind: "check",
+        title: "SEO check results imported",
+        status: "partial",
+        detail: "",
+        at: observation.observedAt,
+        pageIds: observation.pageIds,
+        taskId: null,
+        observationId: observation.id,
+      },
+    ];
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("Check results")).toBeVisible();
+    expect(screen.queryByText("No issues found")).toBeNull();
   });
 
   it("shows a failed check and offers a reviewed new check without hiding its source Task", () => {

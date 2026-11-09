@@ -10784,13 +10784,13 @@
         "pageChanged": "Cambio de página registrado",
         "savedAt": "Guardado",
         "checkSummary": "{checked} reglas comprobadas",
-        "previousCheck": "Repite una comprobación anterior",
-        "sourceDetails": "Detalles del evento",
+        "sourceDetails": "Detalles",
         "resultsSaved": "Resultados guardados",
         "incomplete": "No se pudo completar parte del trabajo solicitado.",
         "showAll": "Mostrar los {count} eventos",
         "metricsSyncedTimes": "{count, plural, one {Estadísticas sincronizadas} other {Estadísticas sincronizadas # veces}}",
-        "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}"
+        "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}",
+        "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}"
       },
       "analysis": {
         "title": "Iniciar comprobación",

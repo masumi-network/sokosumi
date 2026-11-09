@@ -10784,13 +10784,13 @@
         "pageChanged": "Seitenänderung erfasst",
         "savedAt": "Gespeichert",
         "checkSummary": "{checked} Regeln geprüft",
-        "previousCheck": "Wiederholung einer früheren Prüfung",
-        "sourceDetails": "Ereignisdetails",
+        "sourceDetails": "Details",
         "resultsSaved": "Ergebnisse gespeichert",
         "incomplete": "Einige angeforderte Arbeiten konnten nicht abgeschlossen werden.",
         "showAll": "Alle {count} Ereignisse anzeigen",
         "metricsSyncedTimes": "{count, plural, one {Statistiken synchronisiert} other {Statistiken # Mal synchronisiert}}",
-        "metricsFailedTimes": "{count, plural, one {Statistik-Synchronisierung fehlgeschlagen} other {Statistik-Synchronisierung # Mal fehlgeschlagen}}"
+        "metricsFailedTimes": "{count, plural, one {Statistik-Synchronisierung fehlgeschlagen} other {Statistik-Synchronisierung # Mal fehlgeschlagen}}",
+        "result": "{count, plural, =0 {Keine Probleme gefunden} one {# Problem gefunden} other {# Probleme gefunden}}"
       },
       "analysis": {
         "title": "Prüfung starten",
