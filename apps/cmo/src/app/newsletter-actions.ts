@@ -13,10 +13,11 @@ import {
   postProjectsByIdNewsletterIssuesByIssueIdSubmit,
   postProjectsByIdNewsletterIssuesPreview,
   postProjectsByIdNewsletterSubscribersFromContacts,
+  prepareCmoCalendarNewsletterIssue,
 } from "@sokosumi/core-client";
 
 import { errorText } from "../lib/error-text";
-import { inCusoWorkspace } from "../lib/workspace-options";
+import { inCusoWorkspace, requireCore } from "../lib/workspace-options";
 import { loadOverview } from "./cmo-actions";
 
 async function newsletterProject(projectId: string) {
@@ -90,6 +91,62 @@ export async function subscribeNewsletterContacts(
     });
   if (!data) return { error: errorText(error, "Could not add subscribers.") };
   return { result: data.data };
+}
+
+interface CalendarDraftCursors {
+  draft: string | null;
+  review: string | null;
+}
+
+export async function loadCalendarDrafts(
+  projectId: string,
+  cursors?: CalendarDraftCursors,
+) {
+  const options = await newsletterProject(projectId);
+  async function page(
+    status: "DRAFT" | "NEEDS_APPROVAL",
+    cursor: string | null | undefined,
+  ) {
+    if (cursor === null) return null;
+    const { data } = await getProjectsByIdNewsletterIssues({
+      ...options,
+      query: { status, cursor, limit: 20 },
+    });
+    if (!data) throw new Error("Could not load existing newsletter drafts");
+    return data;
+  }
+  const [draft, review] = await Promise.all([
+    page("DRAFT", cursors?.draft),
+    page("NEEDS_APPROVAL", cursors?.review),
+  ]);
+  return {
+    issues: [...(draft?.data ?? []), ...(review?.data ?? [])].map(
+      ({ id, subject }) => ({ id, subject }),
+    ),
+    next: {
+      draft: draft?.meta.pagination.nextCursor ?? null,
+      review: review?.meta.pagination.nextCursor ?? null,
+    },
+  };
+}
+
+export async function prepareCalendarIssue(
+  projectId: string,
+  strategyId: string,
+  entryId: string,
+  issueId?: string,
+) {
+  const core = await requireCore();
+  const { data, error } = await prepareCmoCalendarNewsletterIssue({
+    ...core,
+    path: { id: entryId },
+    body: { projectId, strategyId, issueId },
+  });
+  if (!data)
+    return {
+      error: errorText(error, "Could not prepare the newsletter issue."),
+    };
+  return { issueId: data.data.issueId };
 }
 
 export async function previewNewsletterIssue(

@@ -7,7 +7,9 @@ import { cmoOverview } from "../test-fixtures/cmo";
 import { NewsletterPage } from "./newsletter-page";
 
 const actions = vi.hoisted(() => ({
+  loadCalendarDrafts: vi.fn(),
   loadNewsletter: vi.fn(),
+  prepareCalendarIssue: vi.fn(),
   previewNewsletterIssue: vi.fn(),
   changeNewsletterIssue: vi.fn(),
   subscribeNewsletterContacts: vi.fn(),
@@ -15,7 +17,7 @@ const actions = vi.hoisted(() => ({
 
 vi.mock("../app/newsletter-actions", () => actions);
 
-it("previews the saved issue before approval and keeps subscriber consent explicit", async () => {
+it("opens the linked calendar issue for review and keeps subscriber consent explicit", async () => {
   actions.loadNewsletter.mockResolvedValue({
     state: "ready",
     name: "Acme Weekly",
@@ -42,6 +44,12 @@ it("previews the saved issue before approval and keeps subscriber consent explic
     html: "<p>Preview</p>",
   });
   actions.changeNewsletterIssue.mockResolvedValue(null);
+  actions.loadCalendarDrafts.mockResolvedValue({
+    issues: [{ id: "issue-1", subject: "Hello" }],
+    next: { draft: null, review: null },
+  });
+  actions.prepareCalendarIssue.mockResolvedValue({ issueId: "issue-1" });
+  const closeHandoff = vi.fn();
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -53,6 +61,14 @@ it("previews the saved issue before approval and keeps subscriber consent explic
           overview={cmoOverview()}
           webOrigin="https://app.example.com"
           draft={vi.fn()}
+          calendarHandoff={{
+            piece: {
+              entryId: "calendar-entry",
+              strategyId: "strategy-1",
+              title: "Weekly launch",
+            },
+            close: closeHandoff,
+          }}
         />,
       );
     });
@@ -69,7 +85,25 @@ it("previews the saved issue before approval and keeps subscriber consent explic
         (element) => element.textContent === text,
       );
     expect(button("Approve issue")).toBeUndefined();
-    await act(async () => button("Preview")?.click());
+    const issue = container.querySelector<HTMLSelectElement>(
+      "#calendar-newsletter-issue",
+    );
+    if (!issue)
+      throw new Error("Calendar handoff is missing its issue selection");
+    issue.value = "issue-1";
+    await act(async () => button("Prepare issue")?.click());
+
+    expect(actions.prepareCalendarIssue).toHaveBeenCalledWith(
+      "project-1",
+      "strategy-1",
+      "calendar-entry",
+      "issue-1",
+    );
+    expect(closeHandoff).toHaveBeenCalledOnce();
+    expect(actions.previewNewsletterIssue).toHaveBeenCalledWith(
+      "project-1",
+      "issue-1",
+    );
 
     expect(container.querySelector("iframe")?.getAttribute("sandbox")).toBe("");
     expect(container.textContent).toContain("A look at what changed this week");

@@ -29,6 +29,7 @@ vi.mock("@sokosumi/core-client", () => ({
 
 const {
   changeNewsletterIssue,
+  loadCalendarDrafts,
   loadNewsletter,
   previewNewsletterIssue,
   subscribeNewsletterContacts,
@@ -65,6 +66,28 @@ describe("CMO newsletter", () => {
       expect.objectContaining(project),
     );
     expect(getProjectsByIdNewsletterIssues).not.toHaveBeenCalled();
+  });
+
+  it("loads older eligible drafts without paging through sent issues", async () => {
+    getProjectsByIdNewsletterIssues.mockResolvedValueOnce({
+      data: {
+        data: [{ id: "older-draft", subject: "Already written" }],
+        meta: { pagination: { nextCursor: null } },
+      },
+    });
+
+    expect(
+      await loadCalendarDrafts("project-1", { draft: "cursor", review: null }),
+    ).toEqual({
+      issues: [{ id: "older-draft", subject: "Already written" }],
+      next: { draft: null, review: null },
+    });
+    expect(getProjectsByIdNewsletterIssues).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        ...project,
+        query: { status: "DRAFT", cursor: "cursor", limit: 20 },
+      }),
+    );
   });
 
   it("passes explicit consent and the selected Contacts list to the current project", async () => {

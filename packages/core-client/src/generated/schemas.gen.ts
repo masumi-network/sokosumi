@@ -42555,6 +42555,13 @@ export const CmoOverviewSchema = {
             ],
             description: 'The approved version as Cuso carries it out, with the pieces he made: the month the Calendar shows. Differs from strategy while a change waits for approval.'
         },
+        approvedStrategyId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
         media: {
             type: 'array',
             items: {

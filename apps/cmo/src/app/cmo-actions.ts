@@ -308,11 +308,15 @@ export async function loadMessages(): Promise<CusoMessage[]> {
 }
 
 /** The words of a piece Cuso wrote into the owner's Files. */
-export async function loadPieceText(entryId: string): Promise<string | null> {
+export async function loadPieceText(
+  entryId: string,
+  strategyId?: string,
+): Promise<string | null> {
   const core = await requireCore();
   const { data } = await getCmoCalendarEntryText({
     ...core,
     path: { id: entryId },
+    query: { strategyId },
   });
   return data?.data.text ?? null;
 }

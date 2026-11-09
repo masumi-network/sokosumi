@@ -4,7 +4,9 @@ import type { CmoOverview, NewsletterIssueStatus } from "@sokosumi/core-client";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   changeNewsletterIssue,
+  loadCalendarDrafts,
   loadNewsletter,
+  prepareCalendarIssue,
   previewNewsletterIssue,
   subscribeNewsletterContacts,
 } from "../app/newsletter-actions";
@@ -26,16 +28,27 @@ const STATUS = {
 type Newsletter = Awaited<ReturnType<typeof loadNewsletter>>;
 type Preview = Awaited<ReturnType<typeof previewNewsletterIssue>>;
 
+export interface NewsletterCalendarDraft {
+  entryId: string;
+  strategyId: string;
+  title: string;
+}
+
 interface NewsletterPageProps {
   overview: CmoOverview;
   webOrigin: string;
   draft: () => void;
+  calendarHandoff?: {
+    piece: NewsletterCalendarDraft;
+    close: () => void;
+  };
 }
 
 export function NewsletterPage({
   overview,
   webOrigin,
   draft,
+  calendarHandoff,
 }: NewsletterPageProps) {
   const { projectId } = overview;
   const [newsletter, setNewsletter] = useState<Newsletter | null>(null);
@@ -104,8 +117,8 @@ export function NewsletterPage({
     previewButton.current?.focus();
   }
 
-  function openIssue(issueId: string, button: HTMLButtonElement) {
-    previewButton.current = button;
+  function openIssue(issueId: string, button?: HTMLButtonElement) {
+    previewButton.current = button ?? null;
     setSelected(null);
     setIssueError(null);
     startOpening(async () => {
@@ -209,6 +222,20 @@ export function NewsletterPage({
           workspace there.
         </p>
       </section>
+
+      {calendarHandoff ? (
+        <CalendarIssueHandoff
+          key={`${calendarHandoff.piece.strategyId}/${calendarHandoff.piece.entryId}`}
+          projectId={projectId}
+          piece={calendarHandoff.piece}
+          close={calendarHandoff.close}
+          prepared={async (issueId) => {
+            calendarHandoff.close();
+            openIssue(issueId);
+            await reload();
+          }}
+        />
+      ) : null}
 
       <section className="panel">
         <div className="crow">
@@ -333,6 +360,125 @@ export function NewsletterPage({
         />
       ) : null}
     </div>
+  );
+}
+
+interface CalendarIssueHandoffProps {
+  projectId: string;
+  piece: NewsletterCalendarDraft;
+  close: () => void;
+  prepared: (issueId: string) => Promise<void>;
+}
+
+function CalendarIssueHandoff({
+  projectId,
+  piece,
+  close,
+  prepared,
+}: CalendarIssueHandoffProps) {
+  const [drafts, setDrafts] = useState<Awaited<
+    ReturnType<typeof loadCalendarDrafts>
+  > | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [prepareError, setPrepareError] = useState<string | null>(null);
+
+  const load = useCallback(
+    async (cursor?: NonNullable<typeof drafts>["next"]) => {
+      setLoadError(false);
+      setLoading(true);
+      try {
+        const page = await loadCalendarDrafts(projectId, cursor);
+        setDrafts((current) => {
+          const issues =
+            cursor && current
+              ? [...current.issues, ...page.issues]
+              : page.issues;
+          return {
+            ...page,
+            issues: Array.from(
+              new Map(issues.map((issue) => [issue.id, issue])).values(),
+            ),
+          };
+        });
+      } catch {
+        setLoadError(true);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [projectId],
+  );
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function prepare(formData: FormData) {
+    const choice = formData.get("issueId");
+    if (typeof choice !== "string" || !choice) return;
+    setPrepareError(null);
+    try {
+      const result = await prepareCalendarIssue(
+        projectId,
+        piece.strategyId,
+        piece.entryId,
+        choice === "create" ? undefined : choice,
+      );
+      if (result.issueId) await prepared(result.issueId);
+      else
+        setPrepareError(
+          result.error ?? "Could not prepare the newsletter issue.",
+        );
+    } catch {
+      setPrepareError("Could not prepare the newsletter issue. Try again.");
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h3>Prepare a calendar issue</h3>
+      <p>{piece.title}</p>
+      <p className="note">
+        Use a draft already written for this piece or create one from the
+        calendar copy. If an issue is already linked, it opens as saved.
+      </p>
+      <form className="fields" action={prepare}>
+        <div className="field">
+          <label htmlFor="calendar-newsletter-issue">Newsletter issue</label>
+          <select id="calendar-newsletter-issue" name="issueId" required>
+            <option value="">Choose an option</option>
+            <option value="create">Create from calendar copy</option>
+            {drafts?.issues.map((issue) => (
+              <option key={issue.id} value={issue.id}>
+                {issue.subject}
+              </option>
+            ))}
+          </select>
+        </div>
+        {loading ? <p role="status">Loading existing drafts…</p> : null}
+        {loadError ? <p role="alert">Could not load existing drafts.</p> : null}
+        {loadError || drafts?.next.draft || drafts?.next.review ? (
+          <div>
+            <button
+              type="button"
+              className={BUTTON}
+              disabled={loading}
+              onClick={() => load(drafts?.next)}
+            >
+              {loadError ? "Retry loading drafts" : "Load more drafts"}
+            </button>
+          </div>
+        ) : null}
+        {prepareError ? <p role="alert">{prepareError}</p> : null}
+        <div className="crow">
+          <SubmitButton className={BUTTON}>Prepare issue</SubmitButton>
+          <button type="button" className={BUTTON} onClick={close}>
+            Close
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 
