@@ -63,6 +63,7 @@ import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
 import { MailAutoReadToggle } from "../mail-auto-read-toggle.client";
 import { ProactiveSettings } from "../proactive-settings.client";
+import { RenameSokoBotForm } from "../rename-soko-bot-form.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
@@ -480,6 +481,9 @@ export function SokoBotConsole({
                 >
                   <HolderPanel>
                     <div className="space-y-5">
+                      {canManage ? (
+                        <RenameSokoBotForm initial={state.bot.name ?? ""} />
+                      ) : null}
                       <ProactiveSettings
                         initial={{
                           paused: bot.proactivePaused,
@@ -607,7 +611,7 @@ export function SokoBotConsole({
                           {t("Schedules.empty")}
                         </p>
                       )}
-                      <ScheduleForm />
+                      <ScheduleForm timezone={bot.ingestTimezone} />
                     </div>
                   </HolderPanel>
                 </HolderSection>

@@ -37,6 +37,12 @@ export const createSokoBotRequestSchema = z
   .strict()
   .openapi("CreateSokoBotRequest");
 
+/** A new name, held to the same rule as the name a bot is created with. */
+export const renameSokoBotRequestSchema = createSokoBotRequestSchema
+  .pick({ name: true })
+  .strict()
+  .openapi("RenameSokoBotRequest");
+
 export const createScopedSokoBotRequestSchema = createSokoBotRequestSchema
   .extend({
     scope: sokoBotScopeSchema,

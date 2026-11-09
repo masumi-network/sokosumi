@@ -9460,9 +9460,6 @@
         "Form": {
           "open": "Nueva programación",
           "name": "Nombre",
-          "cron": "Expresión cron",
-          "cronHint": "Cinco campos, p. ej. 0 9 * * 1-5 para días laborables a las 09:00.",
-          "timezone": "Zona horaria",
           "prompt": "Prompt",
           "submit": "Crear programación",
           "cancel": "Cancelar",
@@ -9471,6 +9468,12 @@
         }
       },
       "Settings": {
+        "nameTitle": "Nombre",
+        "nameDescription": "Se muestra en el chat, en las Tasks y en la barra lateral.",
+        "nameRequired": "Escribe un nombre.",
+        "rename": "Guardar",
+        "renamed": "Nombre guardado.",
+        "renameError": "No se pudo guardar el nombre.",
         "Proactive": {
           "pauseTitle": "Pausar todo lo que inicia por su cuenta",
           "pauseDescription": "Detiene el stand-up, el resumen semanal, las revisiones de correo y los avisos. El chat y las Tareas asignadas siguen funcionando.",

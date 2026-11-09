@@ -331,6 +331,10 @@ interface TaskScheduleWhenProps {
   onChange: (value: ScheduleWhen) => void;
   /** The cron of the schedule being edited, as Core stored it. */
   storedCron?: string;
+  /** The repeat choices offered; a Soko Bot schedule has no interval. */
+  repeats?: readonly ScheduleRepeat[];
+  /** A Soko Bot schedule never ends, so it hides the "Ends" row. */
+  showEnds?: boolean;
 }
 
 /** The "When" part of the schedule dialog: how often, at what time, until when. */
@@ -338,6 +342,8 @@ export function TaskScheduleWhen({
   value,
   onChange,
   storedCron,
+  repeats = REPEATS,
+  showEnds = true,
 }: TaskScheduleWhenProps) {
   const t = useTranslations("App.Tasks.Schedules.Dialog.When");
   const formatter = useFormatter();
@@ -359,7 +365,7 @@ export function TaskScheduleWhen({
   return (
     <div className="space-y-3">
       <Row label={t("repeat")}>
-        {REPEATS.map((repeat) => (
+        {repeats.map((repeat) => (
           <button
             key={repeat}
             type="button"
@@ -493,48 +499,50 @@ export function TaskScheduleWhen({
         </Row>
       ) : null}
 
-      <Row label={t("ends")} htmlFor={endAfterId}>
-        <MenuChip
-          label={t("ends")}
-          value={value.endsMode}
-          onChange={(endsMode) =>
-            set({ endsMode: endsMode as TaskScheduleEndsMode })
-          }
-          options={[
-            { value: TaskScheduleEndsMode.NEVER, label: t("endsNever") },
-            { value: TaskScheduleEndsMode.ON, label: t("endsOn") },
-            { value: TaskScheduleEndsMode.AFTER, label: t("endsAfter") },
-          ]}
-        />
-        {value.endsMode === TaskScheduleEndsMode.ON ? (
-          <DateChip
-            value={value.endOnLocalDate}
-            onChange={(endOnLocalDate) => set({ endOnLocalDate })}
-            label={t("endDate")}
-            placeholder={t("pickDate")}
+      {showEnds ? (
+        <Row label={t("ends")} htmlFor={endAfterId}>
+          <MenuChip
+            label={t("ends")}
+            value={value.endsMode}
+            onChange={(endsMode) =>
+              set({ endsMode: endsMode as TaskScheduleEndsMode })
+            }
+            options={[
+              { value: TaskScheduleEndsMode.NEVER, label: t("endsNever") },
+              { value: TaskScheduleEndsMode.ON, label: t("endsOn") },
+              { value: TaskScheduleEndsMode.AFTER, label: t("endsAfter") },
+            ]}
           />
-        ) : null}
-        {value.endsMode === TaskScheduleEndsMode.AFTER ? (
-          <>
-            <Input
-              id={endAfterId}
-              type="number"
-              min={1}
-              value={value.endAfterOccurrences}
-              onChange={(event) =>
-                set({
-                  endAfterOccurrences: Math.max(
-                    1,
-                    Number(event.target.value) || 1,
-                  ),
-                })
-              }
-              className="h-7 w-16 rounded-full px-3 text-xs tabular-nums"
+          {value.endsMode === TaskScheduleEndsMode.ON ? (
+            <DateChip
+              value={value.endOnLocalDate}
+              onChange={(endOnLocalDate) => set({ endOnLocalDate })}
+              label={t("endDate")}
+              placeholder={t("pickDate")}
             />
-            <span className="text-muted-foreground text-xs">{t("runs")}</span>
-          </>
-        ) : null}
-      </Row>
+          ) : null}
+          {value.endsMode === TaskScheduleEndsMode.AFTER ? (
+            <>
+              <Input
+                id={endAfterId}
+                type="number"
+                min={1}
+                value={value.endAfterOccurrences}
+                onChange={(event) =>
+                  set({
+                    endAfterOccurrences: Math.max(
+                      1,
+                      Number(event.target.value) || 1,
+                    ),
+                  })
+                }
+                className="h-7 w-16 rounded-full px-3 text-xs tabular-nums"
+              />
+              <span className="text-muted-foreground text-xs">{t("runs")}</span>
+            </>
+          ) : null}
+        </Row>
+      ) : null}
     </div>
   );
 }

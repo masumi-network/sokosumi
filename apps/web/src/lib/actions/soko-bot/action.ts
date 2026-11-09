@@ -583,6 +583,23 @@ export const setSokoBotFollowBoardAction = withSession<
   }
 });
 
+export const renameSokoBotAction = withSession<
+  BotScopedParams & { name: unknown },
+  ActionResultDto<SokoBot, ActionError>
+>(async ({ name, botId }) => {
+  const parsed = z.string().trim().min(1).max(80).safeParse(name);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const bot = await sokoBotService.rename(parsed.data, parsedBot.data);
+    revalidate(parsedBot.data);
+    return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 export const setSokoBotVersionAction = withSession<
   SetVersionParams,
   ActionResultDto<SokoBot, ActionError>

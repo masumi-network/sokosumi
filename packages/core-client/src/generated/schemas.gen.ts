@@ -46109,6 +46109,21 @@ export const UpdateSokoBotBoardFollowingRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const RenameSokoBotRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        }
+    },
+    required: [
+        'name'
+    ],
+    additionalProperties: false
+} as const;
+
 export const UpdateSokoBotVersionRequestSchema = {
     type: 'object',
     properties: {
