@@ -46,11 +46,23 @@ describe("TaskMetadataDueField", () => {
     });
   });
 
+  it.each([
+    [null, "No due date", "Set a due date"],
+    ["2026-11-20", "Due Nov 20", "Change due date"],
+    ["2026-11-09", "Overdue · Nov 9", "Change due date"],
+  ])("names the %s button by its visible label", (dueOn, label, action) => {
+    renderField(dueOn);
+
+    const button = screen.getByRole("button", { name: label });
+    expect(button).toHaveTextContent(label);
+    expect(button).toHaveAccessibleDescription(action);
+  });
+
   it("sets a due date from the date field", async () => {
     const user = userEvent.setup();
     renderField(null);
 
-    await user.click(screen.getByRole("button", { name: "Set a due date" }));
+    await user.click(screen.getByRole("button", { name: "No due date" }));
     await user.type(screen.getByLabelText("Due date"), "2026-11-20");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -67,7 +79,7 @@ describe("TaskMetadataDueField", () => {
     renderField("2026-11-09");
 
     expect(screen.getByText("Overdue · Nov 9")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Change due date" }));
+    await user.click(screen.getByRole("button", { name: "Overdue · Nov 9" }));
     await user.click(screen.getByRole("button", { name: "Clear" }));
 
     expect(setTaskDueOnMock).toHaveBeenCalledWith({
@@ -82,7 +94,7 @@ describe("TaskMetadataDueField", () => {
     const user = userEvent.setup();
     renderField("2026-11-20");
 
-    await user.click(screen.getByRole("button", { name: "Change due date" }));
+    await user.click(screen.getByRole("button", { name: "Due Nov 20" }));
     await user.click(screen.getByRole("button", { name: "Clear" }));
 
     expect(await screen.findByText("Due Nov 20")).toBeInTheDocument();

@@ -34,6 +34,7 @@ export function TaskMetadataDueField({
   const t = useTranslations("App.Tasks.Due");
   const router = useRouter();
   const inputId = useId();
+  const hintId = useId();
   const [current, setCurrent] = useState(dueOn);
   const [draft, setDraft] = useState(dueOn ?? "");
   const [open, setOpen] = useState(false);
@@ -77,7 +78,7 @@ export function TaskMetadataDueField({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={current ? t("change") : t("set")}
+          aria-describedby={hintId}
           disabled={isPending}
           className={cn(
             "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
@@ -101,6 +102,10 @@ export function TaskMetadataDueField({
           )}
         </button>
       </PopoverTrigger>
+      {/* The visible label names the button (WCAG 2.5.3); the action is its description. */}
+      <span id={hintId} className="sr-only">
+        {current ? t("change") : t("set")}
+      </span>
       <PopoverContent align="start" className="w-64">
         <form onSubmit={handleSubmit} className="space-y-3">
           <label htmlFor={inputId} className="text-sm font-medium">
