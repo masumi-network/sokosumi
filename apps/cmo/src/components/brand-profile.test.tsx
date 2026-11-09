@@ -221,6 +221,36 @@ describe("Brand Brain reveal", () => {
     expect(html).toContain("Quiet Rockets");
   });
 
+  it("shows customers' own words and what Cuso read of the closest competitors", () => {
+    const html = render(
+      brain({
+        voiceOfCustomer: [
+          {
+            quote: "Our launch slipped twice",
+            kind: "pain",
+            sourceUrl: "https://g2.com/acme",
+          },
+        ],
+        competitors: [
+          {
+            name: "Boring Rockets",
+            promise: "Rockets that never fail",
+            price: "$90 a month",
+            weakness: "Slow support",
+          },
+          { name: "Quiet Rockets" },
+        ],
+      }),
+    );
+    expect(html).toContain("In your customers&#x27; words");
+    expect(html).toContain("What hurts");
+    expect(html).toContain("“Our launch slipped twice”");
+    expect(html).toContain("g2.com");
+    expect(html).toContain("<dt>Promises</dt><dd>Rockets that never fail</dd>");
+    expect(html).toContain("<dt>Complaints</dt><dd>Slow support</dd>");
+    expect(html).not.toContain("Loved for");
+  });
+
   it("leads with the summary and offers research for an older Brand Brain", () => {
     const html = render(brain({}));
     expect(html).toContain("Acme sells rockets to founders.");

@@ -79,6 +79,7 @@ export function ChatMobileBottomNav({
 
   return (
     <nav
+      data-mobile-bottom-nav
       aria-label={t("ariaLabel")}
       className={cn(
         "bg-background z-40 md:hidden",

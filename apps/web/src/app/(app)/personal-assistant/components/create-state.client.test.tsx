@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import en from "@/messages/en.json";
 
 import { CreateState } from "./create-state.client";
+import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
 
 const pushMock = vi.fn();
 const createMock = vi.fn();
@@ -34,6 +35,13 @@ function renderCreate() {
 }
 
 describe("CreateState", () => {
+  it("hides the mobile tab bar while the flow is open", () => {
+    const { unmount } = renderCreate();
+    expect(document.body.dataset.sokoBotCreating).toBe("true");
+    unmount();
+    expect(document.body.dataset.sokoBotCreating).toBeUndefined();
+  });
+
   it("asks for the name first, then the picture, with the steps shown", async () => {
     const user = userEvent.setup();
     renderCreate();
@@ -60,6 +68,32 @@ describe("CreateState", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("Atlas");
   });
 
+  it("moves focus into each step, since the old step hides the focused control", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    expect(
+      screen.getByRole("heading", { name: "Pick a picture for Atlas" }),
+    ).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+  });
+
+  it("locks the pictures while the bot is being created", async () => {
+    const user = userEvent.setup();
+    createMock.mockReturnValue(new Promise(() => {}));
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    const pictures = screen.getByTestId("avatar-picker").closest("fieldset");
+    expect(pictures).not.toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Create Atlas" }));
+    expect(pictures).toBeDisabled();
+  });
+
   it("creates the bot with the name from the first step", async () => {
     const user = userEvent.setup();
     createMock.mockResolvedValue({
@@ -75,5 +109,7 @@ describe("CreateState", () => {
       input: { name: "Atlas", avatarId: null },
     });
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
+    // Opened from Soko Bots, not setup: the bot still says hello in its room.
+    expect(openNewSokoBotRoom).toHaveBeenCalledWith("bot-1");
   });
 });

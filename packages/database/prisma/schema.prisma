@@ -152,9 +152,10 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables   DataTable[]
-  contacts     Contact[]
-  contactLists ContactList[]
+  dataTables       DataTable[]
+  contacts         Contact[]
+  contactLists     ContactList[]
+  contactCompanies ContactCompany[]
 
   calendarRevision Int @default(0)
 
@@ -4620,6 +4621,7 @@ model ChatRoomMessage {
   userMentionsAsSource ChatRoomUserMention[]     @relation("ChatRoomUserMentionSource")
   reactions            ChatRoomReaction[]
   pins                 ChatRoomPinnedMessage[]
+  saves                ChatRoomSavedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
   attachedSkills       ChatRoomMessageSkill[]
   signal               ChatMessageSignal?
@@ -4655,6 +4657,24 @@ model ChatRoomPinnedMessage {
   @@unique([roomId, messageId])
   @@index([roomId, pinnedAt(sort: Desc)])
   @@map("chat_room_pinned_message")
+}
+
+/// A message one reader saved for later: private to them, never shown to
+/// anyone else. Lists only messages the reader can still read; the content is
+/// read live from the message, never copied here.
+model ChatRoomSavedMessage {
+  id     String @id @default(uuid(7)) @db.Uuid
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  savedAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+  @@index([userId, savedAt(sort: Desc)])
+  @@map("chat_room_saved_message")
 }
 
 model ChatRoomReaction {

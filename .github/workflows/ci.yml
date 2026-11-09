@@ -119,10 +119,16 @@ jobs:
         run: >-
           nohup docker run --name postgres --publish 5432:5432
           --env POSTGRES_USER=user --env POSTGRES_PASSWORD=password
-          --env POSTGRES_DB=sokosumi postgres:17 > /tmp/postgres.log 2>&1 &
+          --env POSTGRES_DB=sokosumi pgvector/pgvector:pg17 > /tmp/postgres.log 2>&1 &
 
       - *checkout
-      - *setup
+
+      # The avatar pipeline tests encode real MP4s with ffmpeg.
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          turbo_team: ${{ vars.TURBO_TEAM }}
+          ffmpeg: "true"
 
       # TCP, not the socket: the image's init server listens on the socket
       # only and restarts before the real server comes up.
@@ -421,11 +427,12 @@ jobs:
 
       # Biome is one binary with no workspace dependencies: nested
       # biome.json files extend the root and the Grit plugin is a repo
-      # file. So no Setup and no install. setup-biome takes the exact
-      # version from package.json: it cannot parse pnpm 12's
-      # two-document pnpm-lock.yaml.
+      # file. So no Setup and no workspace install: npm installs the exact
+      # version from package.json, its binary from the npm registry.
+      # setup-biome downloaded it from GitHub Releases, which answered 504
+      # for over an hour (2026-11-08) and failed this job.
       - name: Install Biome
-        uses: biomejs/setup-biome@v2
+        run: npm install --global --no-fund --no-audit "@biomejs/biome@$(node -p "require('./package.json').devDependencies['@biomejs/biome']")"
 
       - name: Run Biome checks
         run: biome check .

@@ -117,10 +117,25 @@ export function CatchUpView({
           <div data-testid="catch-up-summary">
             <BriefingHeader summary={data} onChanged={reload} />
           </div>
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
-            <div className="flex min-w-0 flex-col gap-4">
-              <BriefingTopics topics={data.topics} onChanged={reload} />
-            </div>
+          {/* Two columns only when both hold a group. A lone group, or groups
+              on one side only, read as one full-width list instead of
+              leaving the other column empty. */}
+          <div
+            className={cn(
+              "grid items-start gap-4",
+              data.topics.length > 0 &&
+                (data.openLoops.length > 0 ||
+                  data.quietRooms.length > 0 ||
+                  elsewhereRooms.length > 0) &&
+                "lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]",
+            )}
+            data-testid="catch-up-groups"
+          >
+            {data.topics.length > 0 ? (
+              <div className="flex min-w-0 flex-col gap-4">
+                <BriefingTopics topics={data.topics} onChanged={reload} />
+              </div>
+            ) : null}
             <div className="flex min-w-0 flex-col gap-4">
               <OpenLoopsList items={data.openLoops} onChanged={reload} />
               <QuietRooms rooms={data.quietRooms} onChanged={reload} />

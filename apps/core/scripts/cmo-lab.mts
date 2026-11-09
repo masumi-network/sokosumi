@@ -6,44 +6,43 @@
  *
  * pnpm --filter core cmo:lab -- --slots alice@sokosumi.test,bob@sokosumi.test
  * pnpm --filter core cmo:lab -- --slots alice@sokosumi.test --only cal.com,Hiltl
+ * pnpm --filter core cmo:lab -- --slots alice@sokosumi.test --only Linear --make
+ *
+ * --make also approves each plan and waits while Core makes the month and
+ * Jev reviews it (hours; run Core's syncs meanwhile), then reports what Jev
+ * flagged before and after the rewrite run.
  *
  * Local database only: each slot is a local test account that works with a
  * Cuso, and the lab rewrites his Project's website, Brand Brain and strategy.
- * Brands and their main offers: scripts/fixtures/cmo-lab-brands.json.
+ * Brands and their main offers: src/services/evals/fixtures/cmo-brands.json,
+ * which the CMO eval cases use too.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import type { SokoBotTurnStatus } from "@sokosumi/database";
-import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
-import { parseBrandBrain } from "@/services/brand-brain.service";
-import { findCusoForUser } from "@/services/cmo-cuso.service";
+import {
+  findCusoForUser,
+  startCmoProductionForProject,
+} from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
-import { cmoPlanProblems } from "@/services/cmo-plan-review.service";
+import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import {
+  brandBrainChecks,
+  findings,
+  strategyChecks,
+} from "@/services/evals/cmo-brand-checks";
+import {
+  CMO_EVAL_BRANDS,
+  type CmoEvalBrand,
+} from "@/services/evals/eval-cmo-cases";
+import {
+  approveMarketingStrategy,
   newestMarketingStrategy,
-  parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 
-interface Brand {
-  name: string;
-  url: string;
-  goal: string;
-  /** What the brand sells, as a pattern the plan's headline parts must match. */
-  main: string;
-  /** What the Brand Brain must name, when it differs from the plan (a launch). */
-  brain?: string;
-  /** A side product the plan must not be about. */
-  avoid?: string;
-  /** The language its posts must be written in. */
-  contentLanguage?: string;
-  /** Words the plan's summary uses when it must not be in English. */
-  planLanguage?: string;
-  /** A business with many product lines lists at least this many offers. */
-  minOffers?: number;
-  why?: string;
-}
+type Brand = CmoEvalBrand;
 
 const args = process.argv.slice(2);
 function flag(name: string): string | undefined {
@@ -55,6 +54,9 @@ const only = flag("only")
   ?.split(",")
   .map((name) => name.trim());
 const out = flag("out") ?? "cmo-lab-results.json";
+const make = args.includes("--make");
+/** How long --make waits for a month to be made and reviewed. */
+const MAKE_DEADLINE_MS = 5 * 60 * 60_000;
 
 const databaseUrl = process.env.DATABASE_URL ?? "";
 if (!/@(localhost|127\.0\.0\.1)[:/]/.test(databaseUrl)) {
@@ -68,14 +70,9 @@ if (slots.length === 0) {
   );
 }
 
-const brands = (
-  JSON.parse(
-    await readFile(
-      new URL("./fixtures/cmo-lab-brands.json", import.meta.url),
-      "utf8",
-    ),
-  ) as Brand[]
-).filter((brand) => !only || only.includes(brand.name));
+const brands = CMO_EVAL_BRANDS.filter(
+  (brand) => !only || only.includes(brand.name),
+);
 
 const ACTIVE: SokoBotTurnStatus[] = [
   "QUEUED",
@@ -127,6 +124,15 @@ async function run(email: string, brand: Brand) {
       completedAt: new Date(),
     },
   });
+  // An earlier month's production runs would count against today's cap.
+  await prisma.sokoBotTurn.updateMany({
+    where: {
+      sokoBotId: cuso.sokoBotId,
+      clientTurnId: { startsWith: "cmo:production:" },
+      createdAt: { gt: new Date(Date.now() - 24 * 60 * 60_000) },
+    },
+    data: { createdAt: new Date(Date.now() - 25 * 60 * 60_000) },
+  });
   // A lab run is many turns a day; the owner's daily brake would stop it.
   await prisma.sokoBot.update({
     where: { id: cuso.sokoBotId },
@@ -141,63 +147,122 @@ async function run(email: string, brand: Brand) {
     prisma.brandBrain.findUnique({ where: { projectId: cuso.projectId } }),
     newestMarketingStrategy(cuso.projectId),
   ]);
+  const made =
+    make && plan === "COMPLETED" && strategy
+      ? await makeMonth(user.id, cuso, strategy.id)
+      : undefined;
   return {
     research,
     plan,
     ...judge(brand, { brandBrain: brain?.body, strategy: strategy?.plan }),
+    ...(made ? { made } : {}),
   };
+}
+
+/** Jev's flags of one review round: pieces read, pieces flagged, the rules missed. */
+function flags(review: ReturnType<typeof parseCmoMonthReview>) {
+  const reads = Object.values(review?.writing ?? {});
+  const rules: Record<string, number> = {};
+  for (const read of reads)
+    for (const rule of [
+      ...read.missed,
+      ...read.problems,
+      ...(read.soundsLikeBrand ? [] : ["brand voice"]),
+    ])
+      rules[rule] = (rules[rule] ?? 0) + 1;
+  return {
+    read: reads.length,
+    flagged: reads.filter(
+      (read) =>
+        !read.followsSkill || !read.soundsLikeBrand || read.problems.length > 0,
+    ).length,
+    rules: Object.fromEntries(
+      Object.entries(rules).sort((left, right) => right[1] - left[1]),
+    ),
+  };
+}
+
+/** Approves the plan and waits for the made month's review, both rounds. */
+async function makeMonth(
+  userId: string,
+  cuso: { projectId: string; workspaceId: string },
+  strategyId: string,
+) {
+  await approveMarketingStrategy({
+    projectId: cuso.projectId,
+    workspaceId: cuso.workspaceId,
+    userId,
+    strategyId,
+  });
+  await startCmoProductionForProject(cuso.projectId);
+  const deadline = Date.now() + MAKE_DEADLINE_MS;
+  let first: ReturnType<typeof flags> | undefined;
+  for (;;) {
+    const version = await prisma.marketingStrategy.findUniqueOrThrow({
+      where: { id: strategyId },
+      select: { monthReview: true },
+    });
+    const review = parseCmoMonthReview(version.monthReview);
+    if (review?.round === 1) first ??= flags(review);
+    const done = review && (review.round === 2 || !review.rewriteRunId);
+    if (done || Date.now() > deadline) {
+      const posts = await prisma.socialPost.findMany({
+        where: { marketingStrategyId: strategyId, status: { not: "CANCELED" } },
+        select: { text: true, planning: true },
+      });
+      const written = posts.filter((post) => {
+        const planning = post.planning as { brief?: unknown; title?: unknown };
+        return post.text !== planning?.brief && post.text !== planning?.title;
+      });
+      return {
+        finished: Boolean(done),
+        posts: `${written.length} of ${posts.length} written`,
+        first: first ?? flags(review),
+        last: review?.round === 2 ? flags(review) : undefined,
+      };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 60_000));
+  }
 }
 
 function judge(
   brand: Brand,
   saved: { brandBrain: unknown; strategy: unknown },
-): { pass: boolean; findings: string[]; summary?: string; offer?: string } {
-  const brain = parseBrandBrain(saved.brandBrain);
-  const strategy = parseMarketingPlan(
-    saved.strategy,
-  ) as MarketingStrategyPlan | null;
-  const findings: string[] = [];
-  if (!brain) findings.push("no Brand Brain");
-  else if (!new RegExp(brand.brain ?? brand.main, "i").test(brain.summary))
-    findings.push(
-      `Brand Brain misses the main offer: ${brain.summary.slice(0, 140)}`,
-    );
-  if (brain && brand.minOffers && brain.offers.length < brand.minOffers)
-    findings.push(
-      `Brand Brain lists ${brain.offers.length} offers, not every product line: ${brain.offers.map((offer) => offer.name).join(", ")}`,
-    );
-  if (!strategy) return { pass: false, findings: [...findings, "no strategy"] };
-  const head = [
-    strategy.summary,
-    strategy.offer?.what ?? "",
-    ...strategy.pillars.map((pillar) => pillar.name),
-  ].join(" ");
-  if (!new RegExp(brand.main, "i").test(head))
-    findings.push("the plan does not sell the main offer");
-  if (
-    brand.avoid &&
-    // What the plan sells; the summary may name the side product as one part.
-    new RegExp(brand.avoid, "i").test(strategy.offer?.what ?? "")
-  )
-    findings.push(`the plan sells a side product: ${strategy.offer?.what}`);
-  if (
-    brand.contentLanguage &&
-    !new RegExp(brand.contentLanguage, "i").test(strategy.contentLanguage ?? "")
-  )
-    findings.push(
-      `posts in "${strategy.contentLanguage ?? "no language"}", not ${brand.contentLanguage}`,
-    );
-  if (
-    brand.planLanguage &&
-    !new RegExp(brand.planLanguage, "i").test(strategy.summary)
-  )
-    findings.push("the plan is not in the owner's language");
-  findings.push(...cmoPlanProblems(strategy));
+): {
+  pass: boolean;
+  findings: string[];
+  summary?: string;
+  offer?: string;
+  read?: Record<string, unknown>;
+} {
+  const learned = brandBrainChecks(brand, saved.brandBrain);
+  const planned = strategyChecks(brand, saved.strategy);
+  const failed = findings([...learned.checks, ...planned.checks]);
+  const brain = learned.brain;
+  const strategy = planned.strategy;
+  if (!strategy) return { pass: false, findings: failed };
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
   return {
-    pass: findings.length === 0,
-    findings,
+    pass: failed.length === 0,
+    findings: failed,
     summary: strategy.summary,
     offer: strategy.offer?.what,
+    read: {
+      customerQuotes: brain?.voiceOfCustomer?.length ?? 0,
+      competitorsRead:
+        brain?.competitors.filter((rival) => rival.promise || rival.price)
+          .length ?? 0,
+      linkedinStories: `${pieces.filter((entry) => entry.channel === "linkedin" && entry.story).length} of ${pieces.filter((entry) => entry.channel === "linkedin").length}`,
+      comparison: pieces
+        .filter((entry) =>
+          /\b(vs\.?|versus|alternatives?)\b/i.test(entry.title),
+        )
+        .map((entry) => entry.title),
+      sourceOfTruth: strategy.measurement?.sourceOfTruth,
+      experiment: strategy.measurement?.experiment?.change,
+    },
   };
 }
 
@@ -226,6 +291,9 @@ for (let start = 0; start < brands.length; start += slots.length) {
       `${result.pass ? "PASS" : "FAIL"}  ${brand.name}  (research ${result.research}, plan ${result.plan})`,
     );
     for (const finding of result.findings) console.log(`      ${finding}`);
+    const extra = result as { read?: unknown; made?: unknown };
+    if (extra.read) console.log(`      read: ${JSON.stringify(extra.read)}`);
+    if (extra.made) console.log(`      made: ${JSON.stringify(extra.made)}`);
   });
 }
 const passed = results.filter((result) => result.pass).length;

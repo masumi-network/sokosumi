@@ -18,6 +18,7 @@
       "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
       "resend": "Neuen Code senden",
       "resendIn": "Neuer Code in {seconds} s",
+      "didntGetIt": "Nicht angekommen?",
       "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut.",
       "notSent": "Wir konnten keinen Code senden. Versuche es erneut."
     },
@@ -509,6 +510,7 @@
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",
         "emptyJobs": "Noch keine Jobs. Beauftrage diesen Coworker, um zu starten.",
+        "noMatches": "Keine Jobs passen zu deiner Suche.",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
@@ -587,6 +589,7 @@
           "back": "Zurück",
           "next": "Weiter",
           "skip": "Überspringen",
+          "skipForNow": "Vorerst überspringen",
           "finishSetup": "Einrichtung abschließen",
           "finish": "Zum Workspace"
         },
@@ -608,7 +611,7 @@
           "found": "Das haben wir auf {domain} gefunden. Passt nicht? Lade dein eigenes hoch.",
           "foundNoDomain": "Das haben wir auf deiner Website gefunden. Passt nicht? Lade dein eigenes hoch.",
           "notFound": "Auf deiner Website wurde kein Logo gefunden. Lade eines hoch oder überspringe diesen Schritt.",
-          "upload": "Logo hochladen",
+          "dropzone": "Logo hier ablegen oder Datei auswählen",
           "replace": "Logo ersetzen",
           "remove": "Entfernen",
           "uploadHint": "PNG, JPG oder SVG. Bis 2 MB.",
@@ -617,7 +620,7 @@
         },
         "Brand": {
           "title": "Markenrichtlinien",
-          "tooltip": "Markenrichtlinien sind eine DESIGN.md-Datei: Farben, Schriften, Tonalität und Stil an einem Ort. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
+          "tooltip": "Markenrichtlinien halten Farben, Schriften, Tonalität und Stil an einem Ort fest. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
           "generating": "Wir lesen {domain}, um deinen Markenstil zu erstellen…",
           "generatingNoDomain": "Wir lesen deine Website, um deinen Markenstil zu erstellen…",
           "generated": "Wir haben deinen Markenstil aus {domain} erzeugt.",
@@ -626,16 +629,23 @@
           "failedSubtitle": "Kein Problem — du kannst die Markenrichtlinien später hinzufügen.",
           "retry": "Erneut versuchen",
           "skipHint": "Das läuft im Hintergrund weiter — du kannst jederzeit fortfahren.",
-          "editHint": "Später in den Organisationseinstellungen bearbeiten, ersetzen oder entfernen."
+          "editHint": "Deine Coworker nutzen sie, damit ihre Arbeit nach dir aussieht und klingt. Ändere sie jederzeit in den Organisationseinstellungen.",
+          "colors": "Farben",
+          "fonts": "Schriften",
+          "tone": "Tonalität",
+          "noSummary": "Deine Markenrichtlinien sind gespeichert. Farben, Schriften oder Tonalität konnten wir hier nicht herauslesen.",
+          "viewFull": "Vollständige Richtlinien ansehen"
         },
         "Invite": {
           "title": "{organization} ist bereit",
           "titleFallback": "Alles erledigt",
           "subtitle": "Deine Organisation ist eingerichtet. Lade dein Team ein — oder mach das später.",
+          "linkLabel": "Einladungslink",
           "linkHint": "Jeder mit diesem Link kann als Mitglied beitreten.",
           "copy": "Kopieren",
           "copied": "Kopiert",
           "regenerate": "Link zurücksetzen",
+          "emailsLabel": "Per E-Mail einladen (optional)",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Kommas, Semikolons oder Zeilenumbrüche.",
           "sendInvites": "Einladungen senden",
@@ -1026,6 +1036,7 @@
       },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
+      "files": "{count, plural, one {# Datei} other {# Dateien}}",
       "assignee": "Zugewiesen an",
       "project": "Projekt",
       "destination": "Konto",
@@ -1751,7 +1762,13 @@
           "CANCELED": "Abgebrochen"
         },
         "visibilityLabel": "Sichtbarkeit",
-        "visibilityPrivate": "Privat"
+        "visibilityPrivate": "Privat",
+        "activeFilters": "Aktive Filter",
+        "chip": "{label}: {value}",
+        "removeFilter": "Filter {filter} entfernen",
+        "clear": "Filter zurücksetzen",
+        "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
+        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen."
       },
       "Detail": {
         "back": "Zurück zu Tasks",
@@ -1887,7 +1904,8 @@
           "resumeReady": "Zurück zu Bereit",
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
-          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut."
+          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2023,7 +2041,8 @@
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
         "privateLabel": "Privat",
-        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker."
+        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker.",
+        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen."
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -5228,6 +5247,10 @@
           "designSystem": {
             "title": "Designsystem",
             "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten."
+          },
+          "evals": {
+            "title": "Evals",
+            "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
           }
         }
       },
@@ -6170,7 +6193,7 @@
           "realRunsByVersion": "Echte Nutzung nach Version",
           "descriptionBot": "Bewertungen (1–5) für die echten Durchläufe dieses Bots, letzte 30 Tage. Echte Durchläufe werden nicht mehr bewertet, daher erscheinen nur frühere Bewertungen."
         },
-        "labLink": "Verhaltenslabor",
+        "evalsLink": "Evals",
         "evaluationsLink": "Modellvergleiche",
         "versionsLink": "Versionen",
         "Versions": {
@@ -6749,6 +6772,99 @@
           "doneBody": "Der erste geht am Donnerstag um 09:00 in deiner Zeitzone raus.",
           "doneAction": "Kalender öffnen"
         }
+      },
+      "Evals": {
+        "title": "Evals",
+        "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
+        "noHistory": "No daily runs yet",
+        "historyLabel": "Pass rate in the last {count} daily runs",
+        "noDailyRuns": "No daily run has finished yet.",
+        "trendBarTitle": "{rate} passed ({passed} of {scored})",
+        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "wasRate": "was {rate}",
+        "noCasesMatch": "No case matches this filter.",
+        "runTitle": "{trigger} run, {when}",
+        "comparedWith": "Compared with the daily run of {when}",
+        "noBaseline": "No daily run before this one to compare with.",
+        "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
+        "passedOf": "{passed} of {scored} passed",
+        "suiteFilter": "Suite",
+        "outcomeFilter": "Cases",
+        "allSuites": "All",
+        "allCases": "All cases",
+        "onlyChanges": "Only what needs a look",
+        "cancelRun": "Stop run",
+        "cancelError": "The run could not be stopped.",
+        "backToRun": "Back to the run",
+        "Suite": {
+          "soko-bot": "Soko Bot",
+          "cmo": "CMO"
+        },
+        "Runs": {
+          "title": "Runs",
+          "when": "When",
+          "run": "Run",
+          "pr": "PR",
+          "versions": "Versions",
+          "cost": "Cost"
+        },
+        "Trigger": {
+          "DAILY": "Daily",
+          "MANUAL": "Manual"
+        },
+        "Status": {
+          "QUEUED": "Queued",
+          "RUNNING": "Running",
+          "COMPLETED": "Done",
+          "CANCELLED": "Stopped"
+        },
+        "Outcome": {
+          "regressed": "Regressed",
+          "error": "Error",
+          "failing": "Failing",
+          "flaky": "Flaky",
+          "fixed": "Fixed",
+          "passing": "Passing",
+          "pending": "Waiting",
+          "skipped": "Skipped"
+        },
+        "State": {
+          "PENDING": "Waiting",
+          "RUNNING": "Running",
+          "PASSED": "Passed",
+          "FAILED": "Failed",
+          "ERROR": "Could not run",
+          "SKIPPED": "Skipped"
+        },
+        "RunDialog": {
+          "open": "Run evals",
+          "title": "Run evals",
+          "description": "Runs on this deployment. If a run is in progress, this one waits until it is done.",
+          "suites": "Suites",
+          "all": "Both",
+          "sokoBot": "Soko Bot",
+          "cmo": "CMO",
+          "repeats": "Repeats",
+          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "cases": "Only these cases",
+          "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
+          "casesHint": "Leave empty to run every case of the suites.",
+          "cancel": "Cancel",
+          "start": "Start run",
+          "error": "The run could not be started."
+        },
+        "Case": {
+          "judge": "Judge: {verdict}",
+          "seconds": "{seconds} s",
+          "passed": "Passed",
+          "failed": "Failed",
+          "answer": "Answer",
+          "tools": "Tools, in order",
+          "toolFailed": "failed",
+          "thisRun": "This run, repeat {repeat}",
+          "before": "Daily run of {when}"
+        },
+        "labLink": "Try one scenario on your own bot"
       }
     },
     "Billing": {
@@ -7881,10 +7997,14 @@
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "Header": {
           "back": "Zurück zu Agents",
-          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
+          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
+          "backToAgent": "Zurück zu {name}",
+          "yourJobs": "Deine Jobs",
+          "yourJobsCount": "Deine Jobs · {count}"
         },
         "Modal": {
-          "back": "Zurück"
+          "back": "Zurück",
+          "title": "Job-Details"
         },
         "Footer": {
           "termsAndConditions": "Allgemeine Geschäftsbedingungen",
@@ -8259,6 +8379,7 @@
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
       "headerVisitSwitch": "Zu {workspace} wechseln",
+      "headerMore": "Weitere Chat-Optionen",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",
@@ -8490,6 +8611,23 @@
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
         "unpinError": "Nachricht konnte nicht gelöst werden."
+      },
+      "SavedMessages": {
+        "save": "Für später speichern",
+        "saved": "Für später gespeichert",
+        "view": "Gespeicherte ansehen",
+        "saveError": "Die Nachricht konnte nicht gespeichert werden.",
+        "removeError": "Die Nachricht konnte nicht aus Gespeichert entfernt werden.",
+        "error": "Gespeicherte Nachrichten konnten nicht geladen werden.",
+        "title": "Gespeichert",
+        "description": "Nachrichten, die du für später gespeichert hast. Nur du siehst diese Liste.",
+        "empty": "Noch nichts gespeichert",
+        "emptyHint": "Öffne die Aktionen einer Nachricht und wähle Für später speichern, um sie hier zu behalten.",
+        "remove": "Aus Gespeichert entfernen",
+        "removed": "Aus Gespeichert entfernt",
+        "loadOlder": "Ältere laden",
+        "untitled": "Nachricht ohne Text",
+        "savedAgo": "Gespeichert {time}"
       },
       "Quote": {
         "action": "Zitieren",
@@ -8894,7 +9032,8 @@
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
-          "threads": "Threads"
+          "threads": "Threads",
+          "saved": "Gespeichert"
         },
         "Briefing": {
           "welcomeBack": "Willkommen zurück",
@@ -10162,6 +10301,7 @@
       "columns": {
         "name": "Name",
         "organization": "Organisation",
+        "location": "Ort",
         "role": "Rolle",
         "stage": "Beziehung",
         "lists": "Listen",
@@ -10200,7 +10340,8 @@
         "add": "Kontakt hinzufügen",
         "more": "Weitere Aktionen",
         "filter": "Filter",
-        "kind": "Art"
+        "kind": "Art",
+        "source": "Quelle"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -10228,6 +10369,17 @@
       "noMatches": "Keine Kontakte passen zu diesen Filtern.",
       "clearFilters": "Filter entfernen",
       "merged": "Zusammengeführt in {name}",
+      "duplicates": "{count, plural, =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+      "duplicatesMore": "{count}+ mögliche Duplikate",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {Keine möglichen Duplikate} =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+        "titleMore": "{count}+ mögliche Duplikate",
+        "description": "Diese Einträge haben denselben Namen oder denselben Nachnamen und Anfangsbuchstaben bei derselben Firma. Führe die zusammen, die eine Person sind; öffne einen Eintrag, um ihn vorher zu prüfen.",
+        "merge": "Zusammenführen",
+        "mergeGroup": "Einträge für {name} zusammenführen",
+        "noDetails": "Keine E-Mail oder Firma",
+        "empty": "Nichts mehr zusammenzuführen."
+      },
       "deleteList": {
         "title": "{name} löschen?",
         "description": "Die Liste verschwindet für das ganze Team. Die Menschen darauf bleiben in den Kontakten.",
@@ -10259,7 +10411,9 @@
         "failed": "Die Liste wurde nicht gespeichert. Versuch es noch einmal.",
         "cancel": "Abbrechen",
         "save": "Speichern",
-        "create": "Liste erstellen"
+        "create": "Liste erstellen",
+        "smart": "Mit den aktuellen Filtern füllen",
+        "smartHint": "Eine intelligente Liste: Wer zu diesen Filtern passt, steht darauf, jetzt und später."
       },
       "addDialog": {
         "title": "Kontakt hinzufügen",
@@ -10267,6 +10421,8 @@
         "name": "Name",
         "organization": "Organisation",
         "role": "Rolle",
+        "location": "Ort",
+        "locationPlaceholder": "Stadt, Land",
         "channels": "Erreichbar über",
         "channelType": "Art von Kanal {index}",
         "channelValue": "Kanal {index}",
@@ -10299,7 +10455,7 @@
         "title": "{count, plural, =2 {2 Kontakte zusammenführen} other {# Kontakte zusammenführen}}",
         "description": "Wähle den Kontakt, der bleibt. Alles von den anderen wandert dorthin: Kanäle, Verlauf und Listen. Leere Felder werden aus ihnen ergänzt.",
         "keep": "Behalten",
-        "noDetails": "Keine Rolle oder Organisation",
+        "noDetails": "Keine E-Mail, Rolle oder Organisation",
         "interactions": "{count, plural, =0 {Keine Interaktionen} =1 {1 Interaktion} other {# Interaktionen}}",
         "failed": "Das Zusammenführen wurde nicht abgeschlossen. Nichts wurde geändert.",
         "cancel": "Abbrechen",
@@ -10531,6 +10687,84 @@
         "pricing": "{credits, number} Credits pro gefundener Person. Findet die Suche niemanden, ist sie kostenlos.",
         "personLabel": "Wen suchst du?",
         "personPlaceholder": "z. B. Jane Doe, Partnerin bei XYZ Ventures"
+      },
+      "layout": {
+        "label": "Ansicht",
+        "table": "Tabelle",
+        "map": "Karte"
+      },
+      "map": {
+        "label": "Orte",
+        "loading": "Kontakte werden auf der Karte platziert…",
+        "errorTitle": "Die Karte wurde nicht geladen",
+        "error": "Beim Laden der Karte ist etwas schiefgelaufen.",
+        "retry": "Erneut versuchen",
+        "emptyTitle": "Noch niemand auf der Karte",
+        "empty": "Gib einem Kontakt einen Ort, zum Beispiel eine Stadt, dann erscheint er hier.",
+        "emptyUnplaced": "Keiner dieser Orte war auffindbar. Versuch es mit Stadt und Land.",
+        "placed": "{count, plural, one {# Kontakt} other {# Kontakte}} auf der Karte",
+        "unplaced": "{count, plural, one {# Kontakt} other {# Kontakte}} nicht platziert",
+        "pending": "{count, plural, one {# Kontakt wird} other {# Kontakte werden}} platziert…",
+        "zoomIn": "Hineinzoomen",
+        "zoomOut": "Herauszoomen",
+        "resetZoom": "Ganze Welt zeigen",
+        "withoutLocation": "{count} ohne Ort",
+        "place": "{place}, {count, plural, one {# Kontakt} other {# Kontakte}}",
+        "nearby": "{place} und {others, plural, one {# Ort} other {# Orte}} in der Nähe",
+        "people": "{count, plural, one {# Kontakt} other {# Kontakte}}"
+      },
+      "company": {
+        "loading": "Firma wird geladen…",
+        "edit": "Bearbeiten",
+        "whyItMatters": "Warum wichtig",
+        "people": "Personen",
+        "knownBy": "Bekannt bei",
+        "knownByLabel": "{count, plural, one {# Teammitglied kennt} other {# Teammitglieder kennen}} jemanden hier",
+        "nobody": "Noch niemand",
+        "lastContact": "Letzter Kontakt",
+        "never": "Nie",
+        "warmth": "Beziehung",
+        "warmthLevels": {
+          "warm": "Warm",
+          "cooling": "Abkühlend",
+          "cold": "Kalt",
+          "none": "Noch kein Kontakt"
+        },
+        "strongestStage": "Stärkste Phase",
+        "nextSteps": "Nächste Schritte",
+        "noNextSteps": "Nichts geplant.",
+        "recent": "Letzte Kontakte",
+        "noRecent": "Noch keine Kontakte.",
+        "someone": "Jemand",
+        "editTitle": "Firma bearbeiten",
+        "editDescription": "Was das Team über diese Firma weiß. Leere Felder werden im Hintergrund von ihrer Website ergänzt.",
+        "nameRequired": "Gib der Firma einen Namen.",
+        "saveFailed": "Die Firma konnte nicht gespeichert werden.",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "fields": {
+          "name": "Name",
+          "website": "Website",
+          "industry": "Branche",
+          "size": "Größe",
+          "headquarters": "Hauptsitz",
+          "linkedinUrl": "LinkedIn",
+          "description": "Über",
+          "whyItMatters": "Warum sie für uns wichtig ist"
+        }
+      },
+      "overview": {
+        "label": "Listenübersicht",
+        "people": "{count, plural, one {# Person} other {# Personen}}",
+        "quiet": "{count} seit 90 Tagen ohne Kontakt",
+        "map": "Auf Karte zeigen",
+        "stages": "Phase",
+        "companies": "Firmen",
+        "places": "Orte",
+        "knownBy": "Bekannt bei",
+        "none": "Nicht gesetzt",
+        "nobody": "Noch niemand",
+        "more": "und {count} weitere"
       }
     }
   },
@@ -10837,6 +11071,7 @@
     "Assistant": {
       "metadataTitle": "Assistenten einrichten",
       "later": "Später",
+      "laterHint": "Du kannst ihn jederzeit unter Soko Bots einrichten.",
       "skip": "Überspringen",
       "continue": "Weiter"
     }

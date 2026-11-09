@@ -435,12 +435,14 @@ function safeEventText(
   limit = EVENT_TEXT_LIMIT,
 ): string | null {
   if (typeof value !== "string") return null;
-  const trimmed = value.trim();
+  const trimmed = value.replaceAll("\u0000", "").trim();
   if (!trimmed) return null;
   const scrubbed = redactSokoBotSensitiveText(trimmed);
-  return scrubbed.length > limit
-    ? `${scrubbed.slice(0, limit - 1)}…`
-    : scrubbed;
+  // A cut inside an emoji leaves half of it; Postgres refused that and the
+  // turn never settled ("invalid input syntax for type json").
+  return (
+    scrubbed.length > limit ? `${scrubbed.slice(0, limit - 1)}…` : scrubbed
+  ).toWellFormed();
 }
 
 function safeEventJson(
@@ -477,7 +479,10 @@ export function summarizeContextPacket(packet: unknown) {
   };
 }
 
-function safeEventProjection(type: string, data: Record<string, unknown>) {
+export function safeEventProjection(
+  type: string,
+  data: Record<string, unknown>,
+) {
   if (type === "reasoning.completed") {
     // A provider reasoning summary; the chat shows it as the bot's Thought,
     // so it keeps more than a one-line event summary.
@@ -2268,7 +2273,7 @@ export class SokoBotControlPlane {
       Date.now() +
         (input.background
           ? BACKGROUND_RUN_DEADLINE_MS
-          : personAsked
+          : personAsked || input.personStarted
             ? PERSON_TURN_DEADLINE_MS
             : TURN_DEADLINE_MS),
     );

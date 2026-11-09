@@ -20,6 +20,8 @@ interface AgentActionButtonsProps {
   onClose?: (() => void) | undefined;
   trailingActions?: ReactNode;
   className?: string | undefined;
+  /** Agent page would 404 (deleted or no access): Back goes to the catalog. */
+  agentUnavailable?: boolean | undefined;
 }
 
 function AgentActionButtons({
@@ -30,6 +32,7 @@ function AgentActionButtons({
   onClose,
   trailingActions,
   className,
+  agentUnavailable = false,
 }: AgentActionButtonsProps) {
   const t = useTranslations("Components.Agents.ActionButtons");
   const router = useRouter();
@@ -41,12 +44,12 @@ function AgentActionButtons({
     : undefined;
 
   const onBack = () => {
-    // Check if we're inside of jobs/<id> and if it's mobile, redirect to /agents
+    // Check if we're inside of jobs/<id> and if it's mobile, redirect to the agent
     if (typeof window !== "undefined") {
       const pathMatch = window.location.pathname.includes("/jobs/");
 
       if (isMobile && pathMatch) {
-        router.push("/agents");
+        router.push(agentUnavailable ? "/agents" : `/agents/${agent.id}`);
       } else if (window.history.length > 1) {
         router.back();
       } else {

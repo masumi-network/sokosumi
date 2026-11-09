@@ -5,6 +5,7 @@ import {
   Building,
   Building2,
   Coins,
+  FlaskConical,
   LifeBuoy,
   ListTodo,
   type LucideIcon,
@@ -124,6 +125,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "sokoBots",
     href: "/admin/soko-bots",
     Icon: BrainCircuit,
+    group: "operations",
+  },
+  {
+    key: "evals",
+    href: "/admin/evals",
+    Icon: FlaskConical,
     group: "operations",
   },
   {

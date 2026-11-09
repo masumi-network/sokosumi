@@ -4,6 +4,7 @@ import {
   isSokoBotSilentAnswer,
   type RuntimeEvent,
   type RuntimeJsonValue,
+  SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
@@ -367,12 +368,18 @@ export async function isOwnerDirected(turnId: string): Promise<boolean> {
       source: true,
       parentTurnId: true,
       askedByUserId: true,
+      requestedByUserId: true,
       chainDepth: true,
       chatMentionId: true,
     },
   });
   if (!turn) return false;
-  const ownerAsked = turn.askedByUserId === null && turn.chainDepth === 0;
+  // A shared bot runs as the member who asked, so their own request counts
+  // as the owner's; a teammate asking someone's personal bot does not.
+  const ownerAsked =
+    turn.chainDepth === 0 &&
+    (turn.askedByUserId === null ||
+      turn.askedByUserId === turn.requestedByUserId);
   return (
     ownerAsked &&
     (turn.parentTurnId !== null ||
@@ -392,6 +399,12 @@ export async function isTaintBlocked(
     !(await isTainted(turnId))
   )
     return false;
+  if (
+    (
+      SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES as readonly SokoBotCapability[]
+    ).includes(capability)
+  )
+    return !(await isOwnerDirected(turnId));
   if (
     (
       SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly SokoBotCapability[]

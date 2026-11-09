@@ -217,7 +217,23 @@ const cmoCompanyLinkSchema = z.object({
   name: shortText,
   url: z.string().url().max(500).optional(),
   note: shortText.optional(),
+  /** A competitor's headline promise, from its homepage. */
+  promise: shortText.optional(),
+  /** Its entry price as published, or "Not public". */
+  price: shortText.optional(),
+  /** What buyers praise it for, from reviews. */
+  strength: shortText.optional(),
+  /** What buyers complain about, from reviews: where the business can win. */
+  weakness: shortText.optional(),
 });
+
+/** What a customer's own words tell the marketing. */
+export const CMO_CUSTOMER_QUOTE_KINDS = [
+  "pain",
+  "trigger",
+  "outcome",
+  "objection",
+] as const;
 
 export const brandBrainSchema = z.object({
   /** One paragraph: what the business is and why customers choose it. */
@@ -247,6 +263,20 @@ export const brandBrainSchema = z.object({
     .max(10)
     .default([]),
   competitors: z.array(cmoCompanyLinkSchema).max(10),
+  /**
+   * Customers' exact words from reviews, forums and the site, so hooks and
+   * ads use the buyer's phrasing. Never paraphrased.
+   */
+  voiceOfCustomer: z
+    .array(
+      z.object({
+        quote: shortText,
+        kind: z.enum(CMO_CUSTOMER_QUOTE_KINDS),
+        sourceUrl: z.string().url().max(500).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
   /** Well-known platforms, firms and tools a buyer also weighs, anywhere. */
   alternatives: z.array(cmoCompanyLinkSchema).max(6).default([]),
   channels: z
@@ -299,6 +329,7 @@ export const CMO_BUYING_BARRIERS = [
   "awareness",
   "understanding",
   "trust",
+  "switching",
 ] as const;
 
 const uniqueIgnoringCase = (texts: readonly string[]) =>
@@ -316,7 +347,17 @@ export const cmoSearchAdSchema = z.object({
     .max(15)
     .refine(uniqueIgnoringCase, "Headlines must differ"),
   descriptions: z.array(z.string().trim().min(1).max(90)).min(2).max(4),
+  /** Searches the ad must not show for ("jobs", "free" for a paid-only offer). */
+  negativeKeywords: z
+    .array(z.string().trim().min(1).max(80))
+    .max(30)
+    .optional(),
+  /** The most one click may cost, in the ad budget's currency, from get_market_keywords. */
+  maxCpc: z.number().positive().max(1_000).optional(),
   finalUrl: z.url({ protocol: /^https?$/ }).max(2048),
+  /** The display path after the domain ("example.com/teams/trial"). */
+  path1: z.string().trim().min(1).max(15).optional(),
+  path2: z.string().trim().min(1).max(15).optional(),
   /** Where it runs: a country or city as Google names it; none is everywhere. */
   location: z.string().trim().min(1).max(80).optional(),
   /** The audience's language, ISO 639-1 ("de"). */
@@ -357,6 +398,20 @@ export const cmoCalendarEntrySchema = z.object({
   /** Why this piece, on this day and channel, tied to the Brand Brain. */
   why: shortText.optional(),
   socialPostId: z.string().uuid().optional(),
+  /**
+   * What the piece's picture or video shows, for a format that has one. Core
+   * makes it from this, attaches it and makes each carousel slide.
+   */
+  visual: longText.optional(),
+  /** Brand pictures (brandPictures fileIds) the visual is made from. */
+  visualFileIds: z.array(z.string().max(100)).max(3).optional(),
+  /** A carousel's slides in order: what each one shows and its few words. */
+  slides: z.array(shortText).max(10).optional(),
+  /**
+   * The one real moment the piece is built on, from the Brand Brain: a
+   * customer and what they did, a launch, a number, a decision.
+   */
+  story: shortText.optional(),
   imageFileId: z.string().max(100).optional(),
   /** A carousel's slides in order, the cover first (also its imageFileId). */
   slideFileIds: z.array(z.string().max(100)).max(10).optional(),
@@ -400,6 +455,10 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   approach: true,
   pillar: true,
   campaignId: true,
+  visual: true,
+  visualFileIds: true,
+  slides: true,
+  story: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 
@@ -509,6 +568,8 @@ const strategyPlanShape = {
     .array(
       z.object({
         area: z.enum(CMO_IMPROVEMENT_AREAS),
+        /** What the page does today, as Cuso saw it. */
+        now: shortText.optional(),
         idea: shortText,
         why: shortText,
         url: z.string().url().max(500).optional(),
@@ -711,6 +772,12 @@ const strategyPlanShape = {
         .array(z.object({ when: shortText, then: shortText }))
         .max(4)
         .default([]),
+      /** Where sales are counted: "Shopify", or "Google Analytics key events". */
+      sourceOfTruth: shortText.optional(),
+      /** The month's one test: the change, what it should move, when it is judged. */
+      experiment: z
+        .object({ change: shortText, expect: shortText, judge: shortText })
+        .optional(),
     })
     .optional(),
   /** Older plans: assumptions as open questions. New plans ask `questions`. */

@@ -51,6 +51,7 @@ export function AddContactDialog({
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
   const [role, setRole] = useState("");
+  const [location, setLocation] = useState("");
   const [channels, setChannels] = useState<ChannelDraft[]>([newChannel()]);
   const [prospect, setProspect] = useState(false);
   const [whyInteresting, setWhyInteresting] = useState("");
@@ -81,6 +82,7 @@ export function AddContactDialog({
         name: name.trim() || undefined,
         organization: organization.trim() || null,
         role: role.trim() || null,
+        location: location.trim() || null,
         stage: prospect ? "PROSPECT" : undefined,
         whyInteresting: prospect ? whyInteresting.trim() || null : undefined,
         channels: filled.map((channel, index) => ({
@@ -149,6 +151,17 @@ export function AddContactDialog({
                 onChange={(event) => setRole(event.target.value)}
               />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="add-contact-location">{t("location")}</Label>
+            <Input
+              id="add-contact-location"
+              value={location}
+              maxLength={200}
+              autoComplete="off"
+              placeholder={t("locationPlaceholder")}
+              onChange={(event) => setLocation(event.target.value)}
+            />
           </div>
           <fieldset className="grid gap-2">
             <legend className="mb-2 text-sm font-medium">

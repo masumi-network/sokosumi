@@ -667,6 +667,10 @@ button.ob-step {
   white-space: nowrap;
 }
 
+.ob-feed-item.wrap .ob-feed-label {
+  white-space: normal;
+}
+
 .ob-feed-state {
   display: grid;
   color: var(--muted);

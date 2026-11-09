@@ -53,7 +53,12 @@ export type ValueOptionName =
   | "to"
   | "relation"
   | "note"
-  | "sort";
+  | "sort"
+  | "suite"
+  | "cases"
+  | "repeats"
+  | "soko-bot-version"
+  | "cuso-version";
 
 type CliOptionValue = string | string[];
 
@@ -107,6 +112,14 @@ export interface CliOptions {
   relation?: string;
   note?: string;
   sort?: string;
+  suite?: string;
+  cases?: string;
+  repeats?: string;
+  "soko-bot-version"?: string;
+  "cuso-version"?: string;
+  wait?: boolean;
+  tick?: boolean;
+  markdown?: boolean;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
@@ -211,6 +224,14 @@ Organizer setup on Preprod (platform admin):
   Give the returned Coworker ID and Vendor ID to that developer, plus the selected organization ID and Workspace slug.
   A Workspace owner or admin approves pending Coworker access requests.
   Vendor admins manage that Vendor's Coworkers. Provisioning does not assign a Coworker to a person by email.
+
+Evals (platform admin; Core runs them on the deployment you select):
+  sokosumi evals run [--suite soko-bot|cmo] [--cases ID,ID] [--repeats 1-3] [--soko-bot-version V] [--cuso-version V] [--wait] [--tick]
+  sokosumi evals show RUN_ID [--markdown]
+  sokosumi evals list [--limit N]
+  sokosumi evals cases
+  --wait follows the run until it ends; --tick also moves it on, for a Core without the minute cron (preview, local).
+  --markdown prints the table for a PR's Evidence. The daily run on mainnet is the baseline every run is compared with.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.

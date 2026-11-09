@@ -184,7 +184,7 @@ export default function SignUpForm({
       <FirstAndLastNameFields
         control={form.control}
         testIdPrefix="auth-field"
-        namesInside
+        centered
       />
       {withPassword ? (
         <FormFields
@@ -218,6 +218,8 @@ export default function SignUpForm({
               form.setValue("code", code);
             }}
             onBlur={field.onBlur}
+            // The chip above cuts a long address off; this line shows it whole.
+            email={email}
             error={fieldState.error?.message}
             // Step 1's send failed, or Log in handed over without one.
             unsent={emailCode.sentTo !== email}

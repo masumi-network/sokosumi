@@ -546,6 +546,10 @@ _Avoid_: Workspace badge, workspace indicator
 A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
 _Avoid_: Announcement (a use of this), pinned room, thread pin
 
+**Saved message**:
+A room message one reader saved for later, on their private Saved list (Catch up's Saved tab). Any message they can read, in a Channel, Direct or Thread. Nobody else sees it. The list reads each message live, so a deleted message or a room they left drops out. Distinct from a Pinned message, which is shared, and from Send to yourself, which copies the message.
+_Avoid_: Bookmark, starred message
+
 ### Chat reactions
 
 **Reaction**:

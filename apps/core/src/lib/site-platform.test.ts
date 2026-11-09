@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { sitePlatformOf } from "./site-platform";
+import { siteLanguageOf, sitePlatformOf } from "./site-platform";
 
 describe("sitePlatformOf", () => {
   it("knows a Shopify storefront by its CDN, theme or headers", () => {
@@ -25,5 +25,15 @@ describe("sitePlatformOf", () => {
         "<html><body>We talk about Shopify apps</body></html>",
       ),
     ).toBe("other");
+  });
+});
+
+describe("siteLanguageOf", () => {
+  it("names the language the page declares, in English", () => {
+    expect(siteLanguageOf('<html lang="de-CH" data-theme="normal">')).toBe(
+      "German",
+    );
+    expect(siteLanguageOf("<html class='x' lang='fr'>")).toBe("French");
+    expect(siteLanguageOf("<html><body>")).toBeNull();
   });
 });
