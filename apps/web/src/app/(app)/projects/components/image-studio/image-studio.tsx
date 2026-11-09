@@ -2,7 +2,7 @@
 
 import type { CreateProjectVideoJobRequest } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { AlertTriangle, Columns2, X } from "lucide-react";
+import { AlertTriangle, Columns2, Download, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -41,6 +41,12 @@ import {
   supportsVariation,
   videoModelsFor,
 } from "./catalog";
+import {
+  createStudioAdArchive,
+  MAX_ARCHIVE_BYTES,
+  MAX_ARCHIVE_IMAGES,
+  MAX_ARCHIVE_MIB,
+} from "./studio-ad-archive";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
@@ -179,6 +185,7 @@ export function ImageStudio({
     [],
   );
   const [pending, startTransition] = useTransition();
+  const [downloadingAds, startAdDownload] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
   const [captionByAssetId, setCaptionByAssetId] = useState<
@@ -291,6 +298,34 @@ export function ImageStudio({
       }),
     [checkedIds, state.assets],
   );
+
+  const archiveLimit =
+    checkedAssets.length > MAX_ARCHIVE_IMAGES
+      ? t("archiveImageLimit", { count: MAX_ARCHIVE_IMAGES })
+      : checkedAssets.reduce((sum, asset) => sum + asset.bytes, 0) >
+          MAX_ARCHIVE_BYTES
+        ? t("archiveSizeLimit", { size: MAX_ARCHIVE_MIB })
+        : null;
+
+  function handleDownloadAds() {
+    if (downloadingAds || archiveLimit || checkedAssets.length < 2) return;
+    startAdDownload(async () => {
+      try {
+        const archive = await createStudioAdArchive(checkedAssets);
+        const url = URL.createObjectURL(
+          new Blob([archive], { type: "application/zip" }),
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "studio-ads.zip";
+        link.click();
+        // Allow the browser to begin saving before releasing the blob.
+        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      } catch {
+        toast.error(t("archiveDownloadFailed"));
+      }
+    });
+  }
 
   /**
    * The most recent generation that ended badly and has not been superseded.
@@ -888,6 +923,29 @@ export function ImageStudio({
             <Columns2 aria-hidden />
             {labels.compareSelected}
           </Button>
+          {checkedAssets.length > 1 ? (
+            <Button
+              aria-describedby={
+                archiveLimit ? "studio-archive-limit" : undefined
+              }
+              aria-disabled={archiveLimit ? true : undefined}
+              loading={downloadingAds}
+              onClick={handleDownloadAds}
+              size="sm"
+              variant="secondary"
+            >
+              <Download aria-hidden />
+              {t("downloadAdsZip")}
+            </Button>
+          ) : null}
+          {archiveLimit ? (
+            <p
+              className="text-muted-foreground basis-full text-right text-xs"
+              id="studio-archive-limit"
+            >
+              {archiveLimit}
+            </p>
+          ) : null}
           <Button onClick={clearReferences} size="sm" variant="ghost">
             {labels.clearSelection}
           </Button>

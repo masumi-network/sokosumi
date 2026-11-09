@@ -5,6 +5,7 @@ import type {
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
 } from "@sokosumi/core-client";
+import { extensionForEntityImageMime } from "@sokosumi/utils";
 import type { StudioTemplateId } from "./studio-templates";
 
 export type StudioAsset = ProjectImageAsset;
@@ -142,10 +143,14 @@ export function isVideoAsset(asset: Pick<StudioAsset, "mediaType">): boolean {
 
 /** The extension a download of this version should carry. */
 export function assetFileExtension(
-  asset: Pick<StudioAsset, "mediaType" | "settings">,
+  asset: Pick<StudioAsset, "contentType" | "mediaType" | "settings">,
 ): string {
   if (isVideoAsset(asset)) return "mp4";
-  return asset.settings?.outputFormat ?? "png";
+  return (
+    extensionForEntityImageMime(asset.contentType ?? "") ??
+    asset.settings?.outputFormat ??
+    "png"
+  );
 }
 
 export function assetContentUrl(

@@ -257,7 +257,10 @@ export {
   sanitizeDriveFileName,
   validateDriveFolderPath,
 } from "./drive-file-path.js";
-export { isVercelBlobPublicHost } from "./entity-image-upload.js";
+export {
+  extensionForEntityImageMime,
+  isVercelBlobPublicHost,
+} from "./entity-image-upload.js";
 export {
   CURATED_FILE_VOCABULARY,
   CURATED_VOCABULARY_VERSION,
