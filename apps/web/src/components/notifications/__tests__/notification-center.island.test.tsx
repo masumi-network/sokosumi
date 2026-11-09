@@ -37,6 +37,7 @@ const getNotificationsCountsMock = vi.fn();
 const patchNotificationReadMock = vi.fn();
 const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
+const patchNotificationSnoozeMock = vi.fn();
 const isMobileMock = vi.fn();
 const accountNoticeMock = vi.fn();
 const toastErrorMock = vi.fn();
@@ -53,6 +54,8 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
       patchNotificationUnreadMock(...args),
     patchNotificationsReadAll: (...args: unknown[]) =>
       patchNotificationsReadAllMock(...args),
+    patchNotificationSnooze: (...args: unknown[]) =>
+      patchNotificationSnoozeMock(...args),
   },
 }));
 
@@ -76,6 +79,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values?.message ? `${key}: ${String(values.message)}` : key,
+  useFormatter: () => ({ dateTime: () => "Mon 09:00" }),
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: null }),
@@ -250,6 +254,7 @@ beforeEach(() => {
     patchNotificationReadMock,
     patchNotificationUnreadMock,
     patchNotificationsReadAllMock,
+    patchNotificationSnoozeMock,
     isMobileMock,
     accountNoticeMock,
     toastErrorMock,
@@ -1504,6 +1509,7 @@ describe("Notification Center Needs you view", () => {
         "filterUnread",
         "filterNeedsYou",
         "filterMentions",
+        "filterSnoozed",
       ]);
       const needsYou = screen.getByRole("tab", { name: "filterNeedsYou 1" });
       expect(needsYou.getAttribute("aria-selected")).toBe("false");
@@ -1708,6 +1714,82 @@ describe("Notification Center Needs you view", () => {
     })) {
       expect(option.getAttribute("aria-selected")).toBe("true");
     }
+  });
+});
+
+describe("Notification Center snooze", () => {
+  it("snoozes a row off the list, then finds it under Snoozed and brings it back", async () => {
+    const later = row("later", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([later]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 0 },
+    });
+    patchNotificationSnoozeMock.mockResolvedValue({ data: later });
+
+    await renderPage();
+    const user = userEvent.setup();
+
+    getNotificationsMock.mockResolvedValue(page([]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0, mentions: 0 },
+    });
+    await user.click(screen.getByRole("button", { name: "snooze: later" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /snoozePreset.tomorrow/ }),
+    );
+    await settle();
+
+    expect(patchNotificationSnoozeMock).toHaveBeenCalledWith(
+      { id: "later" },
+      { until: expect.any(Date) },
+    );
+    const [, body] = patchNotificationSnoozeMock.mock.calls[0] as [
+      unknown,
+      { until: Date },
+    ];
+    expect(body.until.getTime()).toBeGreaterThan(Date.now());
+    expect(screen.queryByText("later")).toBeNull();
+
+    const snoozed = { ...later, snoozedUntil: body.until };
+    getNotificationsMock.mockResolvedValue(page([snoozed]));
+    await user.click(screen.getByRole("tab", { name: "filterSnoozed" }));
+    await settle();
+
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      snoozed: "true",
+    });
+    expect(screen.getByText("later")).toBeTruthy();
+    expect(screen.getByText("snoozedUntil")).toBeTruthy();
+
+    getNotificationsMock.mockResolvedValue(page([]));
+    await user.click(screen.getByRole("button", { name: "unsnooze: later" }));
+    await settle();
+
+    expect(patchNotificationSnoozeMock).toHaveBeenLastCalledWith(
+      { id: "later" },
+      { until: null },
+    );
+    expect(screen.queryByText("later")).toBeNull();
+  });
+
+  it("offers no snooze on a chat row", async () => {
+    getNotificationsMock.mockResolvedValue(
+      page([
+        row("mention", {
+          kind: "CHAT",
+          messageKey: "Notifications.Chat.mentioned",
+          messageParams: { label: "mention" },
+          isRead: false,
+          readAt: null,
+        }),
+      ]),
+    );
+
+    await renderPage();
+
+    expect(screen.getByText("mention")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^snooze:/ })).toBeNull();
   });
 });
 

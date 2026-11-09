@@ -10544,6 +10544,10 @@ export type NotificationItem = {
      * When the notification was created
      */
     createdAt: Date;
+    /**
+     * When a snoozed row comes back. Ahead only in the Snoozed view; null when never snoozed.
+     */
+    snoozedUntil?: Date | null;
 };
 
 /**
@@ -10614,6 +10618,13 @@ export type PushDeviceBrowserUpdate = {
     browser?: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
     operatingSystem?: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
     registeredAt?: Date;
+};
+
+export type SnoozeNotificationRequest = {
+    /**
+     * When the row comes back, unread. Must lie ahead and within 31 days. Null unsnoozes it now.
+     */
+    until: Date | null;
 };
 
 export type MarkAllReadResponse = {
@@ -69305,6 +69316,10 @@ export type GetNotificationsData = {
          */
         mentions?: 'true' | 'false';
         /**
+         * When true, only rows the reader snoozed whose time has not come yet. Otherwise those rows are left out until it has.
+         */
+        snoozed?: 'true' | 'false';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -70260,6 +70275,108 @@ export type PatchNotificationsByIdUnreadResponses = {
 };
 
 export type PatchNotificationsByIdUnreadResponse = PatchNotificationsByIdUnreadResponses[keyof PatchNotificationsByIdUnreadResponses];
+
+export type PatchNotificationsByIdSnoozeData = {
+    /**
+     * When the row comes back, or null to unsnooze
+     */
+    body?: SnoozeNotificationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        /**
+         * Notification ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/{id}/snooze';
+};
+
+export type PatchNotificationsByIdSnoozeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsByIdSnoozeError = PatchNotificationsByIdSnoozeErrors[keyof PatchNotificationsByIdSnoozeErrors];
+
+export type PatchNotificationsByIdSnoozeResponses = {
+    /**
+     * Notification snoozed
+     */
+    200: {
+        data: NotificationItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsByIdSnoozeResponse = PatchNotificationsByIdSnoozeResponses[keyof PatchNotificationsByIdSnoozeResponses];
 
 export type PatchNotificationsReadAllData = {
     body?: never;

@@ -39575,6 +39575,15 @@ export const NotificationItemSchema = {
             format: 'date-time',
             example: '2026-06-16T15:00:00.000Z',
             description: 'When the notification was created'
+        },
+        snoozedUntil: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When a snoozed row comes back. Ahead only in the Snoozed view; null when never snoozed.'
         }
     },
     required: [
@@ -39821,6 +39830,25 @@ export const PushDeviceBrowserUpdateSchema = {
             format: 'date-time'
         }
     },
+    additionalProperties: false
+} as const;
+
+export const SnoozeNotificationRequestSchema = {
+    type: 'object',
+    properties: {
+        until: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            description: 'When the row comes back, unread. Must lie ahead and within 31 days. Null unsnoozes it now.',
+            example: '2026-06-17T09:00:00.000Z'
+        }
+    },
+    required: [
+        'until'
+    ],
     additionalProperties: false
 } as const;
 

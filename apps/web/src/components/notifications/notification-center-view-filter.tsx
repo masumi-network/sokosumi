@@ -27,8 +27,8 @@ interface NotificationCenterViewFilterProps {
 
 /**
  * The Notification Center's view strip, drawn once and used by both frames:
- * All, Unread, Needs you or Mentions, with a live count on the narrowed
- * views; Mentions counts the mentions still unread. A
+ * All, Unread, Needs you, Mentions or Snoozed, with a live count on the
+ * narrowed views but Snoozed; Mentions counts the mentions still unread. A
  * lens, not a write: switching refetches under the new view and never marks
  * anything read.
  *
@@ -95,6 +95,9 @@ export function NotificationCenterViewFilter({
           {mentionsCount > 0 ? (
             <span className={COUNT_CLASS_NAME}>{mentionsCount}</span>
           ) : null}
+        </TabsTrigger>
+        <TabsTrigger value="snoozed" className={TRIGGER_CLASS_NAME}>
+          {t("filterSnoozed")}
         </TabsTrigger>
       </TabsList>
     </Tabs>

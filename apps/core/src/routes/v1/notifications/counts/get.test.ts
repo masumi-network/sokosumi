@@ -1,10 +1,25 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { notificationFeedWhere } from "@/helpers/notification-feed";
+import {
+  notificationFeedWhere,
+  notSnoozedWhere,
+} from "@/helpers/notification-feed";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountGetCounts from "./get";
+
+const NOW = new Date("2026-06-16T16:00:00.000Z");
+
+// The feed leaves snoozed rows out as of now, so now is held still.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -143,12 +158,14 @@ describe("GET /notifications/counts", () => {
         userId: "user_123",
         isRead: false,
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
       },
     });
     expect(notificationCountMock).toHaveBeenCalledWith({
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
         id: { in: ["n_task"] },
       },
     });
@@ -157,6 +174,7 @@ describe("GET /notifications/counts", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
         isRead: false,
         messageKey: {
           in: [
@@ -201,6 +219,7 @@ describe("GET /notifications/counts", () => {
         userId: "user_123",
         isRead: false,
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
         ...exclusion,
       },
     });
@@ -208,6 +227,7 @@ describe("GET /notifications/counts", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
         ...exclusion,
         id: { in: [] },
       },
@@ -240,6 +260,7 @@ describe("GET /notifications/counts", () => {
         userId: "user_123",
         isRead: false,
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
         ...exclusion,
       },
     });
@@ -247,6 +268,7 @@ describe("GET /notifications/counts", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
         ...exclusion,
         id: { in: [] },
       },

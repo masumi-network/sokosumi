@@ -23,6 +23,7 @@ const VIEWS: Record<NotificationCenterView, true> = {
   unread: true,
   "needs-action": true,
   mentions: true,
+  snoozed: true,
 };
 
 export function isNotificationCenterView(

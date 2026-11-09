@@ -5,6 +5,7 @@ import {
   type SendEmailInput,
   sendEmails,
 } from "@/clients/email.client";
+import { notSnoozedWhere } from "@/helpers/notification-feed";
 import {
   FOLLOW_UP_SOURCE_MESSAGE_KEYS,
   followUpEventId,
@@ -522,6 +523,8 @@ export async function sendFollowUps(
       where: {
         isRead: false,
         inApp: true,
+        // The reader said "not now": no reminder while the row is snoozed.
+        ...notSnoozedWhere(now),
         messageKey: { in: [...FOLLOW_UP_SOURCE_MESSAGE_KEYS] },
         createdAt: {
           // The first page opens at the window. Every later one opens at the

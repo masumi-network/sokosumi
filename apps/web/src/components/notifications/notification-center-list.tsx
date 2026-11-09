@@ -6,7 +6,7 @@ import {
   isNeedsActionNotification,
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
@@ -49,6 +49,7 @@ export function NotificationCenterList({
   const router = useRouter();
   const formatMessage = useNotificationMessage();
   const formatTime = useNotificationTimeFormatter();
+  const format = useFormatter();
   const { data: session } = useSession();
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -105,7 +106,11 @@ export function NotificationCenterList({
           ? notifications.filter((notification) =>
               isMentionNotification(notification.messageKey),
             )
-          : notifications;
+          : view === "snoozed"
+            ? notifications.filter(
+                (notification) => notification.snoozedUntil != null,
+              )
+            : notifications;
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network and navigation
@@ -239,7 +244,16 @@ export function NotificationCenterList({
                 notification.messageKey,
                 notification.messageParams ?? {},
               )}
-              timeLabel={formatTime(notification.createdAt)}
+              timeLabel={
+                view === "snoozed" && notification.snoozedUntil
+                  ? t("snoozedUntil", {
+                      when: format.dateTime(
+                        notification.snoozedUntil,
+                        "dateTime",
+                      ),
+                    })
+                  : formatTime(notification.createdAt)
+              }
               onClick={handleNotificationClick}
             />
           </LeavingRow>

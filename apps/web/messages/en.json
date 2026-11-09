@@ -831,7 +831,26 @@
       "vendorGrantAcceptSuccess": "Vendor access approved",
       "vendorGrantAcceptError": "Failed to approve vendor access",
       "coworkerAccessAcceptSuccess": "Coworker early access approved",
-      "coworkerAccessAcceptError": "Failed to approve coworker early access"
+      "coworkerAccessAcceptError": "Failed to approve coworker early access",
+      "filterSnoozed": "Snoozed",
+      "emptySnoozedState": "Nothing is snoozed",
+      "emptySnoozedStateDescription": "Snooze a notification to put it away for now. It comes back unread at the time you pick.",
+      "snooze": "Snooze notification: {message}",
+      "snoozeTooltip": "Snooze",
+      "snoozeMenuLabel": "Remind me",
+      "snoozePreset": {
+        "hour": "In an hour",
+        "tomorrow": "Tomorrow morning",
+        "nextWeek": "Next week"
+      },
+      "snoozedToast": "Snoozed until {when}",
+      "snoozedUntil": "Back {when}",
+      "undo": "Undo",
+      "unsnooze": "Unsnooze notification: {message}",
+      "unsnoozeTooltip": "Unsnooze",
+      "unsnoozed": "Back in your notifications",
+      "snoozeError": "Could not snooze the notification. Try again.",
+      "unsnoozeError": "Could not unsnooze the notification. Try again."
     },
     "HashValue": {
       "copy": "Copy",

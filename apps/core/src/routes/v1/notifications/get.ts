@@ -81,6 +81,17 @@ const mentionsQuerySchema = z
     example: "true",
   });
 
+const snoozedQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .transform((val) => val === "true")
+  .openapi({
+    param: { name: "snoozed", in: "query" },
+    description:
+      "When true, only rows the reader snoozed whose time has not come yet. Otherwise those rows are left out until it has.",
+    example: "true",
+  });
+
 const query = z
   .object({
     kind: notificationKindsQuerySchema,
@@ -90,6 +101,7 @@ const query = z
       "With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.",
     ),
     mentions: mentionsQuerySchema,
+    snoozed: snoozedQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -155,7 +167,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const [where, needsActionIds] = await Promise.all([
-      resolvedNotificationFeedWhere(userContext.userId, queryParams.kind),
+      resolvedNotificationFeedWhere(userContext.userId, queryParams.kind, {
+        snoozed: queryParams.snoozed,
+      }),
       queryParams.needsAction
         ? findNeedsActionNotificationIds(
             userContext.userId,

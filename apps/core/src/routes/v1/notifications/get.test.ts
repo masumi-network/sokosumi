@@ -1,12 +1,27 @@
 import { NotificationKind } from "@sokosumi/database";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
-import { notificationFeedWhere } from "@/helpers/notification-feed";
+import {
+  notificationFeedWhere,
+  notSnoozedWhere,
+} from "@/helpers/notification-feed";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountGetNotifications from "./get";
+
+const NOW = new Date("2026-06-16T16:00:00.000Z");
+
+// The feed leaves snoozed rows out as of now, so now is held still.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -136,6 +151,7 @@ describe("GET /notifications", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
       },
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
       skip: undefined,
@@ -146,6 +162,7 @@ describe("GET /notifications", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
       },
     });
 
@@ -178,6 +195,7 @@ describe("GET /notifications", () => {
             NotificationKind.JOB,
             NotificationKind.TASK,
           ]),
+          ...notSnoozedWhere(NOW),
           isRead: false,
         },
       }),
@@ -204,6 +222,7 @@ describe("GET /notifications", () => {
             NotificationKind.JOB,
             NotificationKind.CHAT,
           ]),
+          ...notSnoozedWhere(NOW),
           isRead: false,
         },
       }),
@@ -225,6 +244,7 @@ describe("GET /notifications", () => {
           {
             userId: "user_123",
             ...notificationFeedWhere([NotificationKind.JOB]),
+            ...notSnoozedWhere(NOW),
             isRead: false,
           },
           { id: "notif_cursor" },
@@ -291,6 +311,7 @@ describe("GET /notifications", () => {
         where: {
           userId: "user_123",
           ...notificationFeedWhere(),
+          ...notSnoozedWhere(NOW),
           NOT: {
             AND: [
               { messageKey: "notifications.vendorGrant.pending" },
@@ -304,6 +325,7 @@ describe("GET /notifications", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
         NOT: {
           AND: [
             { messageKey: "notifications.vendorGrant.pending" },
@@ -336,6 +358,7 @@ describe("GET /notifications", () => {
         where: {
           userId: "user_123",
           ...notificationFeedWhere(),
+          ...notSnoozedWhere(NOW),
           NOT: {
             AND: [
               { messageKey: "notifications.coworkerAccess.pending" },
@@ -479,6 +502,7 @@ describe("GET /notifications?needsAction=true", () => {
     const expectedWhere = {
       userId: "user_123",
       ...notificationFeedWhere(),
+      ...notSnoozedWhere(NOW),
       id: { in: ["n_task_asked_again", "n_job_waiting", "n_grant_pending"] },
     };
     expect(notificationFindManyMock).toHaveBeenLastCalledWith(
@@ -592,6 +616,7 @@ describe("GET /notifications?needsAction=true", () => {
         where: {
           userId: "user_123",
           ...notificationFeedWhere(),
+          ...notSnoozedWhere(NOW),
           id: { in: [] },
         },
       }),
@@ -619,6 +644,7 @@ describe("GET /notifications?needsAction=true", () => {
         where: {
           userId: "user_123",
           ...notificationFeedWhere([NotificationKind.TASK]),
+          ...notSnoozedWhere(NOW),
           id: { in: ["n_task"] },
         },
       }),
@@ -649,6 +675,7 @@ describe("GET /notifications?needsAction=true", () => {
           {
             userId: "user_123",
             ...notificationFeedWhere(),
+            ...notSnoozedWhere(NOW),
             id: { in: ["n_task"] },
           },
           { id: "n_task" },
@@ -668,7 +695,11 @@ describe("GET /notifications?needsAction=true", () => {
     expect(response.status).toBe(200);
     expect(notificationFindManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: { userId: "user_123", ...notificationFeedWhere() },
+        where: {
+          userId: "user_123",
+          ...notificationFeedWhere(),
+          ...notSnoozedWhere(NOW),
+        },
       }),
     );
   });
@@ -696,6 +727,7 @@ describe("GET /notifications?mentions=true", () => {
     const where = {
       userId: "user_123",
       ...notificationFeedWhere(),
+      ...notSnoozedWhere(NOW),
       messageKey: {
         in: [
           "Notifications.Chat.mentioned",
@@ -716,7 +748,43 @@ describe("GET /notifications?mentions=true", () => {
     expect(response.status).toBe(200);
     expect(notificationFindManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: { userId: "user_123", ...notificationFeedWhere() },
+        where: {
+          userId: "user_123",
+          ...notificationFeedWhere(),
+          ...notSnoozedWhere(NOW),
+        },
+      }),
+    );
+  });
+});
+
+describe("GET /notifications?snoozed=true", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationFindFirstMock.mockResolvedValue(null);
+    notificationFindManyMock.mockResolvedValue([]);
+    notificationCountMock.mockResolvedValue(0);
+    vendorGrantFindManyMock.mockResolvedValue([]);
+    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([]);
+    prismaTransactionMock.mockImplementation(
+      async (operations: Array<Promise<unknown>>) =>
+        await Promise.all(operations),
+    );
+  });
+
+  it("lists only the rows still snoozed, which the feed otherwise leaves out", async () => {
+    const response = await createApp().request(
+      "http://localhost/?snoozed=true",
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user_123",
+          ...notificationFeedWhere(),
+          AND: [{ snoozedUntil: { gt: NOW } }],
+        },
       }),
     );
   });

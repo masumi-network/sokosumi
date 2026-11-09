@@ -3,15 +3,30 @@ import {
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 } from "@sokosumi/utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { notificationFeedWhere } from "@/helpers/notification-feed";
+import {
+  notificationFeedWhere,
+  notSnoozedWhere,
+} from "@/helpers/notification-feed";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountMarkNotificationRead from "./[id]/read/patch";
 import mountMarkAllRead from "./read-all/patch";
+
+const NOW = new Date("2026-06-16T16:00:00.000Z");
+
+// The feed leaves snoozed rows out as of now, so now is held still.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -458,6 +473,7 @@ describe("PATCH /notifications/read-all", () => {
         userId: "user_123",
         isRead: false,
         ...notificationFeedWhere(),
+        ...notSnoozedWhere(NOW),
       },
       data: {
         isRead: true,

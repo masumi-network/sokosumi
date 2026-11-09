@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlarmClock,
   AtSign,
   BellOff,
   CheckCheck,
@@ -40,6 +41,12 @@ const EMPTY_COPY = {
     icon: AtSign,
     title: "emptyMentionsState",
     description: "emptyMentionsStateDescription",
+    isNarrowed: true,
+  },
+  snoozed: {
+    icon: AlarmClock,
+    title: "emptySnoozedState",
+    description: "emptySnoozedStateDescription",
     isNarrowed: true,
   },
 } as const satisfies Record<

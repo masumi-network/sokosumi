@@ -4,6 +4,7 @@ import type { NotificationItem } from "@sokosumi/core-client";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { NotificationReadToggle } from "@/components/notifications/notification-read-toggle";
 import { NotificationRowIcon } from "@/components/notifications/notification-row-icon";
+import { NotificationSnoozeControl } from "@/components/notifications/notification-snooze-control";
 import {
   NotificationUnreadLabel,
   NotificationUnreadRail,
@@ -105,7 +106,11 @@ export function NotificationCenterRow({
   // Beside the row rather than inside it, because the row itself is the button
   // that opens the notification and a button cannot nest in a button.
   const readToggle = (
-    <div className="p-3">
+    <div className="flex p-3">
+      <NotificationSnoozeControl
+        notification={notification}
+        notificationMessage={message}
+      />
       <NotificationReadToggle
         notificationId={notification.id}
         isRead={notification.isRead}

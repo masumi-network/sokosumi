@@ -72,6 +72,7 @@ function buildListQuery(
     ...(view === "unread" ? { isRead: "false" as const } : {}),
     ...(view === "needs-action" ? { needsAction: "true" as const } : {}),
     ...(view === "mentions" ? { mentions: "true" as const } : {}),
+    ...(view === "snoozed" ? { snoozed: "true" as const } : {}),
   };
 }
 
@@ -105,6 +106,11 @@ interface NotificationContextValue {
   markRead: (id: string) => Promise<void>;
   /** Put one row back to unread, the reader's way out of a read they did not mean. */
   markUnread: (id: string) => Promise<void>;
+  /**
+   * Snooze a row until `until`, or unsnooze it with null. Either way it
+   * leaves the list it is in now; the refetch brings the counts.
+   */
+  snooze: (id: string, until: Date | null) => Promise<void>;
   /** Mark several rows read in one write, for a surface the reader has seen. */
   markAllRead: () => Promise<void>;
   /** Drop a notification from local feed state (e.g. resolved vendor grant). */
@@ -159,6 +165,7 @@ const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   setView: noopSetView,
   markRead: noopAsync,
   markUnread: noopAsync,
+  snooze: noopAsync,
   markAllRead: noopAsync,
   removeNotification: noopRemove,
   refetch: noopAsync,
@@ -563,6 +570,24 @@ export function NotificationProvider({
     [dispatch, fetchNotifications],
   );
 
+  const snooze = useCallback(
+    async (id: string, until: Date | null) => {
+      dispatch({ type: "remove", id });
+      dismissNotificationToast(id);
+
+      try {
+        await notificationsBrowserClient.patchNotificationSnooze(
+          { id },
+          { until },
+        );
+      } finally {
+        // On success it brings the counts; on failure it puts the row back.
+        void fetchNotifications();
+      }
+    },
+    [dispatch, fetchNotifications],
+  );
+
   const removeNotification = useCallback(
     (id: string) => {
       dispatch({ type: "remove", id });
@@ -634,6 +659,7 @@ export function NotificationProvider({
     setView,
     markRead,
     markUnread,
+    snooze,
     markAllRead,
     removeNotification,
     refetch: fetchNotifications,

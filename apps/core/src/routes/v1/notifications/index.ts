@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountMarkNotificationRead from "./[id]/read/patch.js";
+import mountSnoozeNotification from "./[id]/snooze/patch.js";
 import mountMarkNotificationUnread from "./[id]/unread/patch.js";
 import mountGetCounts from "./counts/get.js";
 import mountGetNotifications from "./get.js";
@@ -22,6 +23,7 @@ mountRevokePushDevice(app);
 mountUpdatePushDeviceBrowser(app);
 mountMarkNotificationRead(app);
 mountMarkNotificationUnread(app);
+mountSnoozeNotification(app);
 mountMarkAllRead(app);
 mountMarkNotificationsRead(app);
 

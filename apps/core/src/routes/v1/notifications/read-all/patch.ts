@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
+import { notSnoozedWhere } from "@/helpers/notification-feed";
 import { markNotificationsRead } from "@/helpers/notification-read";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -25,7 +26,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/read-all",
     description:
-      "Mark all in-app notification-center items as read for the interactive session user. Scoped by the feed rule, so it reaches a mention and a room message but never a direct message. A mention read here is read everywhere, including the room's sidebar badge, which counts the same rows.",
+      "Mark all in-app notification-center items as read for the interactive session user. Scoped by the feed rule, so it reaches a mention and a room message but never a direct message. Snoozed rows are left alone, so they come back unread. A mention read here is read everywhere, including the room's sidebar badge, which counts the same rows.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(
@@ -49,8 +50,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
 
+    // Snoozed rows are not on screen, so "all" does not reach them.
     const { count, clearedRoomIds } = await markNotificationsRead(
       userContext.userId,
+      notSnoozedWhere(),
     );
 
     // Scheduled rather than awaited, for the same reason the single-row route

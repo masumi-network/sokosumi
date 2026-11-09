@@ -115,6 +115,7 @@ interface StoredNotification {
   isRead: boolean;
   inApp: boolean;
   createdAt: Date;
+  snoozedUntil?: Date | null;
 }
 
 interface RowOverrides {
@@ -128,6 +129,7 @@ interface RowOverrides {
   isRead?: boolean;
   inApp?: boolean;
   createdAt?: Date;
+  snoozedUntil?: Date | null;
 }
 
 /** A stored notification as the database holds it: JSON columns as text. */
@@ -313,6 +315,7 @@ function seed(stored: readonly StoredNotification[]) {
         isRead: boolean;
         messageKey: { in: string[] };
         OR: AfterClause[];
+        AND: { OR: { snoozedUntil: null | { lte: Date } }[] }[];
       }>;
       orderBy?: OrderByClause[];
       take?: number;
@@ -336,7 +339,15 @@ function seed(stored: readonly StoredNotification[]) {
               where.messageKey.in.includes(one.messageKey)) &&
             withinRange(one.createdAt, where.createdAt) &&
             (where.OR === undefined ||
-              where.OR.some((clause) => isAfter(one, clause))),
+              where.OR.some((clause) => isAfter(one, clause))) &&
+            (where.AND ?? []).every((clause) =>
+              clause.OR.some(({ snoozedUntil }) =>
+                snoozedUntil === null
+                  ? (one.snoozedUntil ?? null) === null
+                  : one.snoozedUntil != null &&
+                    one.snoozedUntil <= snoozedUntil.lte,
+              ),
+            ),
         )
         .sort((a, b) => compareBy(a, b, query.orderBy ?? [], stored))
         .slice(0, query.take ?? stored.length);
@@ -841,6 +852,22 @@ describe("NotificationFollowUpSyncService", () => {
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
+  });
+
+  it("does not remind a reader of a row they snoozed", async () => {
+    seed([row({ snoozedUntil: new Date(now.getTime() + 60_000) })]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toEqual([]);
+  });
+
+  it("reminds again once the snooze is over", async () => {
+    seed([row({ snoozedUntil: new Date(now.getTime() - 60_000) })]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toHaveLength(1);
   });
 
   it("says nothing about a message the reader only opted into", async () => {

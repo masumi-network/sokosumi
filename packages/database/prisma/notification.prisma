@@ -16,6 +16,11 @@ model Notification {
   readAt             DateTime?
   createdAt          DateTime         @default(now())
 
+  /// Until when the reader snoozed this row. While it lies ahead the row is
+  /// out of the feed, its counts and its follow-up email; once it passes the
+  /// row is back, unread. Null when never snoozed or unsnoozed.
+  snoozedUntil DateTime?
+
   /// Whether this notification is shown in the app at all: the Notification
   /// Center for a feed kind, the in-app toast for a browser-only one. Decided
   /// once, when the notification is created, from the reader's preference

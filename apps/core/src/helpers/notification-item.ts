@@ -33,5 +33,6 @@ export function mapNotificationToItem(notification: Notification) {
     isRead: notification.isRead,
     readAt: notification.readAt,
     createdAt: notification.createdAt,
+    snoozedUntil: notification.snoozedUntil,
   };
 }

@@ -87,7 +87,8 @@ export type NotificationCenterView =
   | "all"
   | "unread"
   | "needs-action"
-  | "mentions";
+  | "mentions"
+  | "snoozed";
 
 /**
  * Whether a row the list already holds still belongs under `view`, as far as
@@ -108,6 +109,8 @@ function belongsToView(
       return isNeedsActionNotification(notification.messageKey);
     case "mentions":
       return isMention(notification);
+    case "snoozed":
+      return notification.snoozedUntil != null;
     default: {
       const _exhaustive: never = view;
       void _exhaustive;

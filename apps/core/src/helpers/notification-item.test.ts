@@ -22,6 +22,7 @@ function row(overrides: Partial<Notification> = {}): Notification {
     isRead: false,
     readAt: null,
     createdAt: new Date("2026-06-16T15:00:00.000Z"),
+    snoozedUntil: null,
     inApp: true,
     emailId: null,
     emailScheduledAt: null,

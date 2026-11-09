@@ -232,14 +232,37 @@ export function mergeAccessNotificationExclusions(
 }
 
 /**
+ * Rows the reader has not snoozed past `now`: never snoozed, or back from it.
+ * Wrapped in `AND` so spreading it next to the feed rule's own `OR` keeps both.
+ */
+export function notSnoozedWhere(
+  now: Date = new Date(),
+): Prisma.NotificationWhereInput {
+  return { AND: [snoozeClause(false, now)] };
+}
+
+function snoozeClause(
+  snoozed: boolean,
+  now: Date,
+): Prisma.NotificationWhereInput {
+  return snoozed
+    ? { snoozedUntil: { gt: now } }
+    : { OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }] };
+}
+
+/**
  * The feed clause for one reader, with the access requests that have been
  * answered already taken out. The list and the counts both start from here,
  * so neither can apply one exclusion and forget the other. `requestedKinds`
  * narrows as it does in `notificationFeedWhere`.
+ *
+ * Snoozed rows are left out until their time passes. `snoozed` asks for the
+ * opposite: only the rows still snoozed, for the Snoozed view.
  */
 export async function resolvedNotificationFeedWhere(
   userId: string,
   requestedKinds?: readonly NotificationKind[],
+  { snoozed = false }: { snoozed?: boolean } = {},
 ): Promise<Prisma.NotificationWhereInput> {
   const [staleVendorGrantReferenceIds, staleCoworkerAccessReferenceIds] =
     await Promise.all([
@@ -247,7 +270,7 @@ export async function resolvedNotificationFeedWhere(
       findStaleCoworkerAccessNotificationReferenceIds(userId),
     ]);
 
-  return {
+  const where: Prisma.NotificationWhereInput = {
     userId,
     ...notificationFeedWhere(requestedKinds),
     ...mergeAccessNotificationExclusions(
@@ -258,6 +281,14 @@ export async function resolvedNotificationFeedWhere(
         staleCoworkerAccessReferenceIds,
       ),
     ),
+  };
+
+  return {
+    ...where,
+    AND: [
+      ...(where.AND === undefined ? [] : [where.AND].flat()),
+      snoozeClause(snoozed, new Date()),
+    ],
   };
 }
 

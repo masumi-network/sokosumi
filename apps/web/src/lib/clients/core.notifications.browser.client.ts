@@ -17,6 +17,10 @@ import type {
   PatchNotificationsByIdReadErrors,
   PatchNotificationsByIdReadResponse,
   PatchNotificationsByIdReadResponses,
+  PatchNotificationsByIdSnoozeData,
+  PatchNotificationsByIdSnoozeErrors,
+  PatchNotificationsByIdSnoozeResponse,
+  PatchNotificationsByIdSnoozeResponses,
   PatchNotificationsByIdUnreadData,
   PatchNotificationsByIdUnreadErrors,
   PatchNotificationsByIdUnreadResponse,
@@ -71,6 +75,9 @@ function transformNotificationItem(data: Record<string, unknown>) {
     data.readAt = new Date(data.readAt as string | Date);
   }
   data.createdAt = new Date(data.createdAt as string | Date);
+  if (data.snoozedUntil) {
+    data.snoozedUntil = new Date(data.snoozedUntil as string | Date);
+  }
   return data;
 }
 
@@ -270,6 +277,28 @@ export const notificationsBrowserClient = {
           responseTransformer: transformNotificationItemResponse,
         }),
       "Failed to mark notification as unread",
+    );
+  },
+
+  async patchNotificationSnooze(
+    path: PatchNotificationsByIdSnoozeData["path"],
+    body: PatchNotificationsByIdSnoozeData["body"],
+  ): Promise<PatchNotificationsByIdSnoozeResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.patch<
+          PatchNotificationsByIdSnoozeResponses,
+          PatchNotificationsByIdSnoozeErrors
+        >({
+          url: "/notifications/{id}/snooze",
+          path,
+          body,
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          responseTransformer: transformNotificationItemResponse,
+        }),
+      "Failed to snooze notification",
     );
   },
 

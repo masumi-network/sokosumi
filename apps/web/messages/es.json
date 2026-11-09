@@ -815,7 +815,26 @@
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
       "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor",
       "coworkerAccessAcceptSuccess": "Acceso anticipado de coworker aprobado",
-      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker"
+      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker",
+      "filterSnoozed": "Pospuestas",
+      "emptySnoozedState": "No hay nada pospuesto",
+      "emptySnoozedStateDescription": "Pospón una notificación para apartarla por ahora. Vuelve sin leer a la hora que elijas.",
+      "snooze": "Posponer notificación: {message}",
+      "snoozeTooltip": "Posponer",
+      "snoozeMenuLabel": "Recuérdamelo",
+      "snoozePreset": {
+        "hour": "En una hora",
+        "tomorrow": "Mañana por la mañana",
+        "nextWeek": "La próxima semana"
+      },
+      "snoozedToast": "Pospuesta hasta {when}",
+      "snoozedUntil": "Vuelve {when}",
+      "undo": "Deshacer",
+      "unsnooze": "Dejar de posponer notificación: {message}",
+      "unsnoozeTooltip": "Traer de vuelta ahora",
+      "unsnoozed": "De vuelta en tus notificaciones",
+      "snoozeError": "No se pudo posponer la notificación. Inténtalo de nuevo.",
+      "unsnoozeError": "No se pudo traer de vuelta la notificación. Inténtalo de nuevo."
     },
     "HashValue": {
       "copy": "Copiar",

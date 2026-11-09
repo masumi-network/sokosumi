@@ -138,6 +138,7 @@ function row(): Notification {
     isRead: false,
     readAt: null,
     createdAt: new Date(NOW),
+    snoozedUntil: null,
     emailId: null,
     emailScheduledAt: null,
     publishId: null,

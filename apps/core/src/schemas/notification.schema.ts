@@ -65,6 +65,11 @@ export const notificationItemSchema = z
       description: "When the notification was created",
       example: "2026-06-16T15:00:00.000Z",
     }),
+    snoozedUntil: dateTimeSchema.nullable().optional().openapi({
+      description:
+        "When a snoozed row comes back. Ahead only in the Snoozed view; null when never snoozed.",
+      example: null,
+    }),
   })
   .openapi("NotificationItem");
 

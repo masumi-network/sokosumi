@@ -20,6 +20,7 @@ import {
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
   notificationFeedWhere,
+  notSnoozedWhere,
 } from "./notification-feed";
 
 const notificationFindManyMock = vi.fn();
@@ -298,6 +299,16 @@ describe("mergeAccessNotificationExclusions", () => {
     const coworker = excludeResolvedCoworkerAccessNotificationsWhere(["a1"]);
     expect(mergeAccessNotificationExclusions(vendor, coworker)).toEqual({
       AND: [vendor, coworker],
+    });
+  });
+});
+
+describe("notSnoozedWhere", () => {
+  it("keeps rows never snoozed and rows whose snooze is over", () => {
+    const now = new Date("2026-06-16T15:00:00.000Z");
+
+    expect(notSnoozedWhere(now)).toEqual({
+      AND: [{ OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }] }],
     });
   });
 });

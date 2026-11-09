@@ -815,7 +815,26 @@
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
-      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden"
+      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden",
+      "filterSnoozed": "Zurückgestellt",
+      "emptySnoozedState": "Nichts ist zurückgestellt",
+      "emptySnoozedStateDescription": "Stelle eine Benachrichtigung zurück, um sie vorerst wegzulegen. Sie kommt zur gewählten Zeit ungelesen zurück.",
+      "snooze": "Benachrichtigung zurückstellen: {message}",
+      "snoozeTooltip": "Zurückstellen",
+      "snoozeMenuLabel": "Erinnere mich",
+      "snoozePreset": {
+        "hour": "In einer Stunde",
+        "tomorrow": "Morgen früh",
+        "nextWeek": "Nächste Woche"
+      },
+      "snoozedToast": "Zurückgestellt bis {when}",
+      "snoozedUntil": "Zurück {when}",
+      "undo": "Rückgängig",
+      "unsnooze": "Benachrichtigung zurückholen: {message}",
+      "unsnoozeTooltip": "Jetzt zurückholen",
+      "unsnoozed": "Wieder in deinen Benachrichtigungen",
+      "snoozeError": "Die Benachrichtigung konnte nicht zurückgestellt werden. Versuche es erneut.",
+      "unsnoozeError": "Die Benachrichtigung konnte nicht zurückgeholt werden. Versuche es erneut."
     },
     "HashValue": {
       "copy": "Kopieren",
