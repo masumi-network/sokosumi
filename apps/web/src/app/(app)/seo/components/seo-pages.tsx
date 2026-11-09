@@ -216,7 +216,8 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                     </p>
                   ) : null}
                   {totals.length || summary ? (
-                    <dl className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                    // Two columns on a phone, like the query and keyword cards.
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5">
                       {totals.map(({ key, value }) => (
                         <div key={key}>
                           <dt className="text-muted-foreground text-xs">
@@ -238,7 +239,7 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                         </div>
                       ))}
                       {summary ? (
-                        <div>
+                        <div className="col-span-2">
                           <dt className="text-muted-foreground text-xs">
                             {t("pages.lastCheck")}
                           </dt>

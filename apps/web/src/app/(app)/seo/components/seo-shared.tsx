@@ -21,11 +21,38 @@ import { cn } from "@/lib/utils";
  */
 export const SEO_STACKED_TABLE_CLASS = [
   "max-sm:[&_thead]:hidden",
-  "max-sm:[&_tbody_tr]:flex max-sm:[&_tbody_tr]:flex-wrap max-sm:[&_tbody_tr]:gap-x-4 max-sm:[&_tbody_tr]:gap-y-1 max-sm:[&_tbody_tr]:px-3 max-sm:[&_tbody_tr]:py-3",
-  "max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal",
-  "max-sm:[&_td:first-child]:basis-full max-sm:[&_td:last-child:not(:empty)]:basis-full",
-  "max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:mr-1 max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
+  // Two columns of label-above-value, like the page cards' numbers.
+  "max-sm:[&_tbody_tr]:grid max-sm:[&_tbody_tr]:grid-cols-2 max-sm:[&_tbody_tr]:gap-x-4 max-sm:[&_tbody_tr]:gap-y-2 max-sm:[&_tbody_tr]:px-3 max-sm:[&_tbody_tr]:py-3",
+  "max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal max-sm:[&_td:empty]:hidden",
+  "max-sm:[&_td:first-child]:col-span-2 max-sm:[&_td:last-child:not(:empty)]:col-span-2",
+  "max-sm:[&_td[data-label]]:before:block max-sm:[&_td[data-label]]:before:text-xs max-sm:[&_td[data-label]]:before:font-normal max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
 ].join(" ");
+
+/** "US", "en" read as "United States · English" in the reader's language; an unknown code stays as written. */
+export function seoMarketName(
+  locale: string,
+  countryCode: string,
+  languageCode: string | null,
+) {
+  const name = (type: "region" | "language", code: string) => {
+    try {
+      return (
+        new Intl.DisplayNames([locale], { type }).of(
+          type === "region" ? code.toUpperCase() : code,
+        ) ?? code
+      );
+    } catch {
+      // A code Intl does not accept is shown as saved.
+      return code;
+    }
+  };
+  return [
+    countryCode ? name("region", countryCode) : null,
+    languageCode ? name("language", languageCode) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 /** A search box helps only in a list longer than about one screen. */
 export const SEO_SEARCH_MIN_ROWS = 10;

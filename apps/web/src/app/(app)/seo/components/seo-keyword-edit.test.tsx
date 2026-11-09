@@ -203,6 +203,17 @@ describe("Saved keyword edits", () => {
     },
   );
 
+  it("names a tracked keyword's market in words", () => {
+    const { workspace } = savedKeywordWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    expect(screen.getByText("Germany · German")).toBeVisible();
+    expect(screen.queryByText(/DE \/ de/)).toBeNull();
+  });
+
   it("keeps the Priority column while a search leaves one row", async () => {
     const user = userEvent.setup();
     const { workspace } = savedKeywordWorkspace();

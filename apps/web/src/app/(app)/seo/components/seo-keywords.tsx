@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import {
   SeoSection,
   SeoSource,
   SeoState,
+  seoMarketName,
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -33,6 +34,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
+  const locale = useLocale();
   const rows = model.filteredKeywords;
   const queries = model.data.searchQueries;
   const averages = queries ? searchConsoleIndex(queries.rows) : null;
@@ -164,7 +166,11 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                         ) : null}
                       </TableCell>
                       <TableCell data-label={t("keywords.market")}>
-                        {row.countryCode} / {row.languageCode}
+                        {seoMarketName(
+                          locale,
+                          row.countryCode,
+                          row.languageCode,
+                        )}
                         {row.device ? (
                           <div className="text-muted-foreground text-sm">
                             {t(`analysis.${row.device}`)}
