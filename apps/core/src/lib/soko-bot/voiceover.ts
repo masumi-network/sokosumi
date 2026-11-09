@@ -11,19 +11,41 @@ const SPEAK_TIMEOUT_MS = 120_000;
 /** A 5,000-character mp3 at 128 kbps is about 5 MB. */
 const MAX_AUDIO_BYTES = 25_000_000;
 
+/** fal types `timestamps` as untyped items: read what each one has. */
 const responseSchema = z.object({
   audio: z.object({ url: z.string().url() }),
-  timestamps: z
-    .array(
-      z.object({
-        text: z.string().optional(),
-        word: z.string().optional(),
-        start: z.number(),
-        end: z.number(),
-      }),
-    )
-    .nullish(),
+  timestamps: z.array(z.unknown()).nullish(),
 });
+
+const timingSchema = z.object({
+  text: z.string().optional(),
+  word: z.string().optional(),
+  character: z.string().optional(),
+  start: z.number().optional(),
+  start_time: z.number().optional(),
+  end: z.number().optional(),
+  end_time: z.number().optional(),
+});
+
+/** One timing in a shape we know, or null for one we don't. */
+function readTiming(
+  raw: unknown,
+): { text: string; start: number; end: number } | null {
+  const parsed = timingSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const { text, word, character, start, start_time, end, end_time } =
+    parsed.data;
+  const begins = start ?? start_time;
+  const ends = end ?? end_time;
+  if (begins === undefined || ends === undefined) return null;
+  return { text: text ?? word ?? character ?? "", start: begins, end: ends };
+}
+
+/** Answers fal gives before any model runs, so nothing is charged. */
+const UNBILLED_STATUSES = new Set([401, 403, 429]);
+
+/** The voice service said no, so nothing was made or charged. */
+export class VoiceoverRefusedError extends Error {}
 
 export interface Voiceover {
   bytes: Uint8Array;
@@ -40,7 +62,7 @@ export async function speakVoiceover(input: {
   languageCode?: string;
 }): Promise<Voiceover> {
   const key = getEnv().FAL_KEY;
-  if (!key) throw new Error("Voice-overs are not configured");
+  if (!key) throw new VoiceoverRefusedError("Voice-overs are not configured");
   const response = await fetch(`https://fal.run/${VOICEOVER_MODEL}`, {
     method: "POST",
     headers: {
@@ -56,8 +78,15 @@ export async function speakVoiceover(input: {
     }),
     signal: AbortSignal.timeout(SPEAK_TIMEOUT_MS),
   });
-  if (!response.ok)
-    throw new Error(`The voice service answered ${response.status}`);
+  if (!response.ok) {
+    // fal's error says what was wrong with the request (a voice, the text).
+    const detail = (await response.text().catch(() => "")).slice(0, 300);
+    const message = `The voice service answered ${response.status}${detail ? `: ${detail}` : ""}`;
+    // A 422 may still be billed; server errors and turned-away calls are not.
+    throw UNBILLED_STATUSES.has(response.status) || response.status >= 500
+      ? new VoiceoverRefusedError(message)
+      : new Error(message);
+  }
   const parsed = responseSchema.safeParse(await response.json());
   if (!parsed.success) throw new Error("The voice service sent no audio");
   const { bytes } = await downloadMedia(
@@ -65,11 +94,9 @@ export async function speakVoiceover(input: {
     MAX_AUDIO_BYTES,
     "audio/mpeg",
   );
-  const timings = (parsed.data.timestamps ?? []).map((timing) => ({
-    text: timing.text ?? timing.word ?? "",
-    start: timing.start,
-    end: timing.end,
-  }));
+  const timings = (parsed.data.timestamps ?? [])
+    .map(readTiming)
+    .filter((timing) => timing !== null);
   return {
     bytes,
     costUsd: (input.text.length / 1000) * USD_PER_1000_CHARACTERS,
