@@ -172,5 +172,12 @@ describe("SEO competitor baselines", () => {
     renderWorkspace(workspace);
     // A bare URL gives no reason; the state names it even when every row shares it.
     expect(screen.getByText("Confirmed competitor")).toBeVisible();
+    // The address may wrap after "." or "/", never inside "//"; its name stays whole.
+    const link = screen.getByRole("link", {
+      name: "https://competitor.example/",
+    });
+    expect(link.querySelectorAll("wbr")).toHaveLength(2);
+    expect(link.innerHTML).not.toContain("/<wbr>/");
+    expect(link.innerHTML).toContain("competitor.<wbr>example/");
   });
 });
