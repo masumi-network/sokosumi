@@ -153,7 +153,9 @@ describe("loadStudioBrand", () => {
     });
 
     projectFindUniqueMock.mockResolvedValue({
-      designMdUrl: DESIGN_MD_URL,
+      // A file no earlier test read: read files are cached by URL.
+      designMdUrl:
+        "https://abc123.public.blob.vercel-storage.com/design-md/unread.md",
       contextMd: "Keep the fox.",
     });
     ssrfSafeFetchMock.mockRejectedValue(new Error("blocked"));
