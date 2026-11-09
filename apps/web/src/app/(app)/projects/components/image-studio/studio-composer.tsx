@@ -39,6 +39,7 @@ import {
 import {
   STUDIO_CREATIVE_DIRECTIONS,
   type StudioCreativeDirection,
+  studioAdCopyPrompts,
 } from "./studio-creative-directions";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import { StudioProductPhotoControl } from "./studio-product-photo";
@@ -406,14 +407,19 @@ export function StudioComposer({
     const legs = overSelectionLimit
       ? []
       : entries.flatMap((entry) =>
-          Array.from({ length: entry.copies }, () =>
+          studioAdCopyPrompts(
+            entry.prompt,
+            entry.copies,
+            MAX_PROMPT_LENGTH,
+          ).flatMap((copyPrompt) =>
             configured.map((leg) => ({
               ...leg,
-              prompt: entry.prompt,
+              prompt: copyPrompt,
               photo: entry.photo,
               product: entry.product,
+              varied: copyPrompt !== entry.prompt,
             })),
-          ).flat(),
+          ),
         );
     return { copies: hasProductBatch ? productCopies : each, legs, configured };
   }, [
@@ -1178,6 +1184,12 @@ export function StudioComposer({
                   {batchCredits === null ? (
                     <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
                       {labels.creditsUnderivable}
+                    </p>
+                  ) : null}
+
+                  {plan.legs.some(({ varied }) => varied) ? (
+                    <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                      {t("variedAdCopies")}
                     </p>
                   ) : null}
 

@@ -274,6 +274,13 @@ describe("an honest generation plan", () => {
       "1:1",
       "9:16",
     ]);
+    expect(requests[0].prompt).toBe(requests[1].prompt);
+    expect(requests[2].prompt).toBe(requests[3].prompt);
+    expect(requests[0].prompt).toContain("Ad variation: Frame the product");
+    expect(requests[2].prompt).toContain("Ad variation: Place the product");
+    expect(requests[4].prompt).toBe(requests[5].prompt);
+    expect(requests[4].prompt).not.toContain("Ad variation:");
+    expect(screen.getByText("variedAdCopies")).toBeInTheDocument();
     for (const request of requests) {
       const isVase = request.referenceFileIds?.[0] === "vase-file";
       expect(request.product).toEqual(
@@ -285,6 +292,59 @@ describe("an honest generation plan", () => {
         "Creative direction: Illustrate how the product works",
       );
     }
+  });
+
+  it("uses distinct treatments for a full batch and replaces an existing treatment when reused", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        batchProducts={[{ ...BATCH_PRODUCTS[0], copies: MAX_BATCH }]}
+        catalog={TEST_CATALOG}
+        initial={{
+          modelIds: ["model-a"],
+          settings: { ...SETTINGS, seed: 42 },
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    generate();
+    const requests = onGenerate.mock.calls[0][0];
+    expect(new Set(requests.map(({ prompt }) => prompt)).size).toBe(MAX_BATCH);
+    expect(new Set(requests.map(({ settings }) => settings.seed))).toEqual(
+      new Set([42]),
+    );
+
+    const treatment = requests[0].prompt.split("\n\nAd variation:")[1];
+    fireEvent.change(
+      screen.getByRole("textbox", { name: TEST_LABELS.promptPlaceholder }),
+      { target: { value: `A campaign image\n\nAd variation:${treatment}` } },
+    );
+    generate();
+    expect(onGenerate.mock.calls[1][0].map(({ prompt }) => prompt)).toEqual(
+      requests.map(({ prompt }) => prompt),
+    );
+  });
+
+  it("preserves the full brief when there is no room for variation guidance", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+    const prompt = "x".repeat(4_000);
+    fireEvent.change(
+      screen.getByRole("textbox", { name: TEST_LABELS.promptPlaceholder }),
+      { target: { value: prompt } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    expect(screen.queryByText("variedAdCopies")).toBeNull();
+    generate();
+    expect(
+      onGenerate.mock.calls[0][0].map((request) => request.prompt),
+    ).toEqual([prompt, prompt]);
   });
 
   it("blocks an oversized product batch until the chosen models fit", () => {

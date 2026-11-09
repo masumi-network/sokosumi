@@ -4289,6 +4289,7 @@
       "modelChoosesFormat": "Modell wählt",
       "copiesOverCeiling": "{models, plural, one {# Modell} other {# Modelle}} x {copies} Kopien sind {images} Bilder, das Limit ist {limit}.",
       "batchCeiling": "Höchstens {count} Bilder pro Klick. Sokosumi schickt sie in kleinen Gruppen los, sobald der Anbieter Kapazität hat.",
+      "variedAdCopies": "Studio variiert Layouts und Überschriften der Kopien im Rahmen deines Briefings.",
       "savedSubmission": "Gespeicherte Anfrage für {model}",
       "submissionUnconfirmed": "Übermittlung nicht bestätigt",
       "submissionNotStarted": "Bildgenerierung konnte nicht gestartet werden",

@@ -4289,6 +4289,7 @@
       "modelChoosesFormat": "Model chooses",
       "copiesOverCeiling": "{models, plural, one {# model} other {# models}} x {copies} copies is {images} images, and the limit is {limit}.",
       "batchCeiling": "At most {count} images per press. Sokosumi sends them a few at a time, as the provider frees up.",
+      "variedAdCopies": "Studio explores different layouts and headlines across copies, within your brief.",
       "savedSubmission": "Saved request for {model}",
       "submissionUnconfirmed": "Submission not confirmed",
       "submissionNotStarted": "Failed to start image generation",
