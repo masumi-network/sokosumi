@@ -1,7 +1,14 @@
+import { z } from "@hono/zod-openapi";
+import { productBrief } from "@sokosumi/utils";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
+import prisma from "@/lib/db/prisma";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
-import { describeImageStudioRefusal } from "@/lib/image-studio/request-validation";
+import {
+  describeImageStudioRefusal,
+  IMAGE_PROMPT_MAX_LENGTH,
+} from "@/lib/image-studio/request-validation";
 
 import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
 import {
@@ -16,6 +23,10 @@ import {
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
 import { authorizeAgentSession } from "@/services/image-studio-sessions.service";
+import {
+  copyRemoteStudioProductPhoto,
+  readStudioProductCatalog,
+} from "@/services/studio-product-catalog.service";
 
 import { authorizeAgentGrant as authorize } from "./authorize";
 
@@ -34,6 +45,9 @@ import { authorizeAgentGrant as authorize } from "./authorize";
  */
 
 const app = new Hono();
+const createAgentImageJobSchema = createImageJobRequestSchema.extend({
+  catalogProductId: z.string().uuid().optional(),
+});
 
 /**
  * Confirm the grant's user still has access to the grant's project.
@@ -121,7 +135,7 @@ app.post("/generations", async (c) => {
   > | null;
   if (!raw) return c.json({ ok: false, error: "invalid_input" }, 400);
 
-  const parsed = createImageJobRequestSchema.safeParse({
+  const parsed = createAgentImageJobSchema.safeParse({
     ...raw,
     settings: {
       aspectRatio: raw.aspectRatio,
@@ -141,19 +155,84 @@ app.post("/generations", async (c) => {
     );
   }
   const input = parsed.data;
+  const replay = input.catalogProductId
+    ? await prisma.projectImageJob.findUnique({
+        where: {
+          projectId_idempotencyKey: {
+            projectId: context.projectId,
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+      })
+    : null;
 
-  const job = await createImageJob({
-    projectId: context.projectId,
-    workspaceId: context.workspaceId,
-    userId: context.userId,
-    sessionId: input.sessionId,
-    prompt: input.prompt,
-    modelId: input.modelId,
-    settings: { ...DEFAULT_SETTINGS, ...input.settings },
-    referenceAssetIds: input.referenceAssetIds,
-    parentAssetId: input.parentAssetId,
-    idempotencyKey: input.idempotencyKey,
-  });
+  let prompt = input.prompt;
+  let product: { id: string; name: string } | undefined;
+  let photoId: string | undefined;
+  if (input.catalogProductId && !replay) {
+    const catalog = await readStudioProductCatalog(context.projectId);
+    const selected = catalog.products.find(
+      ({ id }) => id === input.catalogProductId,
+    );
+    if (!selected)
+      return c.json({ ok: false, error: "product_not_found" }, 404);
+    product = { id: selected.id, name: selected.name };
+    prompt = [
+      prompt,
+      productBrief(selected),
+      selected.photo || selected.imageUrl
+        ? "Use the last reference image for the product's appearance."
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    if (prompt.length > IMAGE_PROMPT_MAX_LENGTH) {
+      return c.json({ ok: false, error: "product_brief_too_long" }, 422);
+    }
+    photoId = selected.photo?.id;
+    if (!photoId && selected.imageUrl) {
+      try {
+        const photo = await copyRemoteStudioProductPhoto({
+          name: selected.name,
+          imageUrl: selected.imageUrl,
+          workspaceId: context.workspaceId,
+          organizationId: context.organizationId,
+          userId: context.userId,
+        });
+        photoId = photo.id;
+      } catch (error) {
+        if (!(error instanceof HTTPException) || error.status !== 422)
+          throw error;
+        return c.json({ ok: false, error: "product_photo_unavailable" }, 422);
+      }
+    }
+  }
+
+  const job =
+    replay ??
+    (await createImageJob({
+      projectId: context.projectId,
+      workspaceId: context.workspaceId,
+      userId: context.userId,
+      sessionId: input.sessionId,
+      prompt,
+      ...(product ? { product } : {}),
+      modelId: input.modelId,
+      settings: { ...DEFAULT_SETTINGS, ...input.settings },
+      referenceAssetIds: input.referenceAssetIds,
+      ...(photoId
+        ? {
+            referenceFileIds: [photoId],
+            referenceFileActor: {
+              kind: "interactive",
+              userId: context.userId,
+              organizationId: context.organizationId,
+            },
+          }
+        : {}),
+      parentAssetId: input.parentAssetId,
+      idempotencyKey: input.idempotencyKey,
+    }));
 
   return c.json({
     ok: true,

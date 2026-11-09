@@ -8,13 +8,3 @@ export interface StudioBatchProduct {
   photo: StudioProductPhoto | null;
   copies: number;
 }
-
-export function productBrief(product: StudioProduct): string {
-  return [
-    `Feature one product: ${product.name.trim()}.`,
-    product.description.trim(),
-    product.price.trim() ? `Approved price: ${product.price.trim()}.` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}

@@ -21015,6 +21015,44 @@ export const HistoryImageItemSchema = {
     ]
 } as const;
 
+export const StudioAgentProductSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        {
+            type: 'object',
+            properties: {
+                hasPhoto: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'hasPhoto'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioProductIdentitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
 export const ProjectImageStudioCatalogSchema = {
     type: 'object',
     properties: {
@@ -21457,25 +21495,6 @@ export const ProjectImageAssetSchema = {
         'jobId',
         'settings',
         'contentPath'
-    ]
-} as const;
-
-export const StudioProductIdentitySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 160
-        }
-    },
-    required: [
-        'id',
-        'name'
     ]
 } as const;
 

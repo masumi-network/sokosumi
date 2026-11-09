@@ -6,7 +6,7 @@ import type {
   StudioProductIdentity,
   StudioProductPhoto,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, productBrief } from "@sokosumi/utils";
 import {
   AlertTriangle,
   Columns2,
@@ -60,7 +60,7 @@ import {
   MAX_ARCHIVE_IMAGES,
   MAX_ARCHIVE_MIB,
 } from "./studio-ad-archive";
-import { productBrief, type StudioBatchProduct } from "./studio-batch";
+import type { StudioBatchProduct } from "./studio-batch";
 import { StudioChat } from "./studio-chat";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,

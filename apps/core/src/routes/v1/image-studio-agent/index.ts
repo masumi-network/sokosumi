@@ -6,6 +6,7 @@ import {
   requireAgentGrant,
 } from "@/routes/image-studio-agent/authorize";
 
+import mountProducts from "./products-get.js";
 import mountRecordInitialTurn from "./sessions-initial-turn-post.js";
 import mountRegisterSession from "./sessions-post.js";
 
@@ -17,6 +18,7 @@ import mountRegisterSession from "./sessions-post.js";
  * and authorization calls remain on the older unversioned surface; this router
  * exists because recording a conversation persists a row, and that is held to
  * the documented contract rather than to the shape of its neighbours.
+ * The project catalog also uses this versioned grant surface.
  *
  * Holding it to the contract means its failures too: `defaultValidationHook`
  * turns a schema failure into the documented envelope, and the grant check
@@ -37,5 +39,6 @@ app.use("*", async (c, next) => {
 
 mountRegisterSession(app);
 mountRecordInitialTurn(app);
+mountProducts(app);
 
 export default app;

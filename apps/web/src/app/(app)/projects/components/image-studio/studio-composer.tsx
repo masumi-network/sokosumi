@@ -4,6 +4,7 @@ import type {
   StudioProductIdentity,
   StudioProductPhoto,
 } from "@sokosumi/core-client";
+import { productBrief } from "@sokosumi/utils";
 import { Check, ChevronDown, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
@@ -27,11 +28,7 @@ import {
   creditsForImage,
   priceUnitLabelKey,
 } from "./catalog";
-import {
-  MAX_BATCH,
-  productBrief,
-  type StudioBatchProduct,
-} from "./studio-batch";
+import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
 import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,

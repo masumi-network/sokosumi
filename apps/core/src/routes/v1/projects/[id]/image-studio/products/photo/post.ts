@@ -1,10 +1,4 @@
-import { createHash } from "node:crypto";
-
 import { createRoute } from "@hono/zod-openapi";
-import { extensionForEntityImageMime } from "@sokosumi/utils";
-
-import { LIMITS } from "@/config/constants";
-import { serviceUnavailable, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -12,7 +6,6 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
-import { downloadRemoteImage } from "@/lib/remote-image";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.schema";
@@ -20,7 +13,7 @@ import {
   studioProductPhotoRequestSchema,
   studioProductPhotoSchema,
 } from "@/schemas/studio-product.schema";
-import { writeStudioDriveFile } from "@/services/image-studio-drive.service";
+import { copyRemoteStudioProductPhoto } from "@/services/studio-product-catalog.service";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -64,34 +57,15 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       workspaceId,
       userId,
     });
-    const photo = await downloadRemoteImage(imageUrl, {
-      timeoutMs: 8_000,
-      maxBytes: LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES,
-      isAllowedContentType: (mime) =>
-        mime === "image/jpeg" || mime === "image/png" || mime === "image/webp",
-    });
-    const extension = photo
-      ? extensionForEntityImageMime(photo.contentType)
-      : null;
-    if (!photo || !extension) {
-      throw unprocessableEntity(
-        "Could not read a supported product photo at that URL.",
-      );
-    }
-
     // A changed source image gets its own file. A job retry still reads the
     // photo it used originally, even when the store replaces its image.
-    const bytes = new Uint8Array(photo.bytes);
-    const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 32);
-    const file = await writeStudioDriveFile({
+    const photo = await copyRemoteStudioProductPhoto({
+      imageUrl,
+      name,
       workspaceId,
       organizationId,
       userId,
-      name: `product-photo-${hash}.${extension}`,
-      bytes,
-      contentType: photo.contentType,
     });
-    if (!file) throw serviceUnavailable("Could not save the product photo.");
-    return ok(c, { id: file.id, name });
+    return ok(c, photo);
   });
 }

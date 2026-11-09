@@ -6026,6 +6026,15 @@ export type HistoryImageItem = {
     modelLabel: string;
 };
 
+export type StudioAgentProduct = StudioProductIdentity & {
+    hasPhoto: boolean;
+};
+
+export type StudioProductIdentity = {
+    id: string;
+    name: string;
+};
+
 export type ProjectImageStudioCatalog = {
     defaultModelId: string;
     models: Array<ProjectImageStudioCatalogModel>;
@@ -6119,11 +6128,6 @@ export type ProjectImageAsset = {
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
-};
-
-export type StudioProductIdentity = {
-    id: string;
-    name: string;
 };
 
 export type ProjectVideoSettings = {
@@ -45230,6 +45234,81 @@ export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses = {
 };
 
 export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponse = PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses[keyof PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses];
+
+export type ListStudioAgentProductsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/image-studio-agent/products';
+};
+
+export type ListStudioAgentProductsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListStudioAgentProductsError = ListStudioAgentProductsErrors[keyof ListStudioAgentProductsErrors];
+
+export type ListStudioAgentProductsResponses = {
+    /**
+     * Saved products in the authorized project
+     */
+    200: {
+        data: {
+            products: Array<StudioAgentProduct>;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListStudioAgentProductsResponse = ListStudioAgentProductsResponses[keyof ListStudioAgentProductsResponses];
 
 export type GetImageStudioCatalogData = {
     body?: never;
