@@ -44,6 +44,8 @@ const mocks = vi.hoisted(() => ({
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
   uploadLogo: vi.fn(),
+  findWebsiteLogo: vi.fn(),
+  saveWebsiteLogo: vi.fn(),
   loadWebsiteCopy: vi.fn(),
   startDesignMdGeneration: vi.fn(),
   prepareWebsiteDraft: vi.fn(),
@@ -52,10 +54,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
+  findStudioWebsiteLogo: mocks.findWebsiteLogo,
   getStudioBrandKit: mocks.loadBrandKit,
   getStudioWebsiteCopy: mocks.loadWebsiteCopy,
   prepareStudioWebsiteDraft: mocks.prepareWebsiteDraft,
   saveStudioBrandCopy: mocks.saveBrandCopy,
+  saveStudioWebsiteLogo: mocks.saveWebsiteLogo,
   uploadStudioProjectLogo: mocks.uploadLogo,
 }));
 
@@ -384,9 +388,11 @@ describe("starting from a template", () => {
     });
     mount("https://coffee.example");
     fireEvent.click(screen.getByRole("button", { name: "prepare" }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: "WebsiteDraft.reviewCopy" }),
-    );
+    const review = await screen.findByRole("button", {
+      name: "WebsiteDraft.reviewCopy",
+    });
+    await waitFor(() => expect(review).toBeEnabled());
+    fireEvent.click(review);
     await screen.findByText("BrandKit.websiteProfileAdded");
     expect(screen.getByLabelText("BrandKit.tone")).toHaveValue(
       "Warm and relaxed",
@@ -395,6 +401,63 @@ describe("starting from a template", () => {
       "Home coffee enthusiasts",
     );
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+  });
+
+  it("stages a website logo for approval and preserves unsaved brand copy", async () => {
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "A ceramics studio",
+      tone: "Direct",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    const logo = "https://blob.example/website-logo.png";
+    mocks.findWebsiteLogo.mockResolvedValue({ logo });
+    mocks.saveWebsiteLogo.mockResolvedValueOnce({ logo });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const tone = await screen.findByLabelText("BrandKit.tone");
+    await waitFor(() => expect(tone).toBeEnabled());
+    fireEvent.change(tone, { target: { value: "Clear and warm" } });
+    const findLogo = () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "BrandKit.findWebsiteLogo" }),
+      );
+    findLogo();
+    const preview = await screen.findByRole("img", {
+      name: "BrandKit.websiteLogoPreview",
+    });
+    expect(preview).toHaveAttribute("src", logo);
+    expect(mocks.findWebsiteLogo).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+    });
+    expect(mocks.saveWebsiteLogo).not.toHaveBeenCalled();
+    const discard = screen.getByRole("button", {
+      name: "BrandKit.discardWebsiteLogo",
+    });
+    await waitFor(() => expect(discard).toBeEnabled());
+    fireEvent.click(discard);
+    expect(preview).not.toBeInTheDocument();
+    expect(mocks.saveWebsiteLogo).not.toHaveBeenCalled();
+
+    findLogo();
+    const approve = await screen.findByRole("button", {
+      name: "BrandKit.useWebsiteLogo",
+    });
+    await waitFor(() => expect(approve).toBeEnabled());
+    fireEvent.click(approve);
+    await screen.findByText("BrandKit.logoSaved");
+    expect(
+      screen.getByRole("img", { name: "BrandKit.currentLogo" }),
+    ).toHaveAttribute("src", logo);
+    expect(tone).toHaveValue("Clear and warm");
+    expect(mocks.saveWebsiteLogo).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      logo,
+    });
   });
 
   it("uploads an approved logo while preserving an unsaved brand copy edit", async () => {

@@ -16,11 +16,11 @@ import {
   Palette,
   WandSparkles,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 
-import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { DesignMdGenerateDialog } from "@/components/design-md/design-md-generate-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,9 +36,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  findStudioWebsiteLogo,
   getStudioBrandKit,
   getStudioWebsiteCopy,
   saveStudioBrandCopy,
+  saveStudioWebsiteLogo,
   uploadStudioProjectLogo,
 } from "@/lib/actions/image-studio/brand-kit";
 
@@ -84,11 +86,19 @@ export function StudioBrandKitDialog({
   >(null);
   const [brandPending, startTransition] = useTransition();
   const [logoPending, startLogoTransition] = useTransition();
+  const [websiteLogoPending, startWebsiteLogoTransition] = useTransition();
   const [websitePending, startWebsiteTransition] = useTransition();
-  const pending = brandPending || logoPending || websitePending;
+  const pending =
+    brandPending || logoPending || websiteLogoPending || websitePending;
   const logoInput = useRef<HTMLInputElement>(null);
+  const [logoCandidate, setLogoCandidate] = useState<string | null>(null);
   const [logoMessage, setLogoMessage] = useState<
-    "logoSaved" | "logoUploadError" | "logoFileInvalid" | null
+    | "logoSaved"
+    | "logoUploadError"
+    | "logoFileInvalid"
+    | "websiteLogoMissing"
+    | "websiteLogoError"
+    | null
   >(null);
   const [websiteMessage, setWebsiteMessage] = useState<
     | "websiteCopyAdded"
@@ -113,6 +123,7 @@ export function StudioBrandKitDialog({
     startTransition(async () => {
       setMessage(null);
       setLogoMessage(null);
+      setLogoCandidate(null);
       setWebsiteMessage(null);
       setWebsiteStyleSaved(false);
       try {
@@ -153,9 +164,44 @@ export function StudioBrandKitDialog({
       setLogoMessage(null);
       try {
         const { logo } = await uploadStudioProjectLogo({ projectId, file });
-        setKit((current) => (current ? { ...current, logo } : current));
-        onLogoChange(logo);
-        setLogoMessage("logoSaved");
+        applyLogo(logo);
+      } catch {
+        setLogoMessage("logoUploadError");
+      }
+    });
+  }
+
+  function applyLogo(logo: string | null) {
+    setKit((current) => (current ? { ...current, logo } : current));
+    onLogoChange(logo);
+    setLogoCandidate(null);
+    setLogoMessage("logoSaved");
+  }
+
+  function findWebsiteLogo() {
+    if (pending || !websiteUrl) return;
+    startWebsiteLogoTransition(async () => {
+      setLogoMessage(null);
+      try {
+        const { logo } = await findStudioWebsiteLogo({ projectId });
+        setLogoCandidate(logo);
+        if (!logo) setLogoMessage("websiteLogoMissing");
+      } catch {
+        setLogoMessage("websiteLogoError");
+      }
+    });
+  }
+
+  function approveWebsiteLogo() {
+    if (pending || !logoCandidate) return;
+    startWebsiteLogoTransition(async () => {
+      setLogoMessage(null);
+      try {
+        const { logo } = await saveStudioWebsiteLogo({
+          projectId,
+          logo: logoCandidate,
+        });
+        applyLogo(logo);
       } catch {
         setLogoMessage("logoUploadError");
       }
@@ -302,7 +348,14 @@ export function StudioBrandKitDialog({
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 {kit.logo ? (
-                  <ProjectAvatar logo={kit.logo} name={t("brandKit")} />
+                  <Image
+                    alt={t("BrandKit.currentLogo")}
+                    className="h-8 w-auto max-w-36 object-contain"
+                    height={32}
+                    src={kit.logo}
+                    unoptimized
+                    width={144}
+                  />
                 ) : null}
                 <input
                   accept={STUDIO_LOGO_MIME_TYPES.join(",")}
@@ -326,10 +379,56 @@ export function StudioBrandKitDialog({
                   <ImagePlus aria-hidden />
                   {t(kit.logo ? "BrandKit.replaceLogo" : "BrandKit.uploadLogo")}
                 </Button>
+                {websiteUrl && !logoCandidate ? (
+                  <Button
+                    loading={websiteLogoPending}
+                    onClick={findWebsiteLogo}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Globe aria-hidden />
+                    {t("BrandKit.findWebsiteLogo")}
+                  </Button>
+                ) : null}
               </div>
               <p className="text-muted-foreground text-xs">
                 {t("BrandKit.logoRequirements")}
               </p>
+              {logoCandidate ? (
+                <div className="border-border space-y-2 rounded-md border p-3">
+                  <Image
+                    alt={t("BrandKit.websiteLogoPreview")}
+                    className="h-14 w-auto max-w-full object-contain"
+                    height={56}
+                    src={logoCandidate}
+                    unoptimized
+                    width={160}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      loading={websiteLogoPending}
+                      onClick={approveWebsiteLogo}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {t("BrandKit.useWebsiteLogo")}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setLogoCandidate(null);
+                        setLogoMessage(null);
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      {t("BrandKit.discardWebsiteLogo")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
               {logoMessage ? (
                 <p role="status" className="text-muted-foreground text-sm">
                   {t(`BrandKit.${logoMessage}`)}

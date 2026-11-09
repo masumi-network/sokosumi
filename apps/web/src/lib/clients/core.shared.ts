@@ -1,5 +1,6 @@
 import {
   attachStudioProductPhoto as coreAttachStudioProductPhoto,
+  findStudioWebsiteLogo as coreFindStudioWebsiteLogo,
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   getStudioBrandKit as coreGetStudioBrandKit,
@@ -4220,6 +4221,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function findStudioWebsiteLogo(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreFindStudioWebsiteLogo({ client, path: { id } }),
+      "Failed to find a logo on the Studio project website",
+    );
+  }
+
   async function getStudioProductCatalog(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7093,6 +7102,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listStudioBatchAssets,
     saveStudioBrandCopy,
     uploadStudioProjectLogo,
+    findStudioWebsiteLogo,
     replaceStudioProductCatalog,
     importStudioProductCatalog,
     getProjectsByIdImageStudio,
