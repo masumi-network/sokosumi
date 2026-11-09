@@ -4,12 +4,15 @@ import { DomUtils, parseDocument } from "htmlparser2";
 import { badGateway, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
+import { importStudioProducts } from "@/lib/image-studio/product-import";
 import { parseOpenGraphFields } from "@/lib/open-graph-html";
 import { readHomepage } from "@/lib/site-platform";
 import {
   studioBrandKitSchema,
   studioWebsiteCopySchema,
+  studioWebsiteDraftSchema,
 } from "@/schemas/studio-brand-kit.schema";
+import { studioProductImportSchema } from "@/schemas/studio-product.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 
 /** Enough for colours, type, and voice. The stored job prompt stays the brief. */
@@ -109,11 +112,33 @@ export async function readStudioBrandKit(projectId: string) {
 }
 
 export async function readStudioWebsiteCopy(projectId: string) {
+  return readWebsiteCopy(await studioWebsiteUrl(projectId));
+}
+
+export async function prepareStudioWebsiteDraft(projectId: string) {
+  const websiteUrl = await studioWebsiteUrl(projectId);
+  const [brandCopy, products] = await Promise.allSettled([
+    readWebsiteCopy(websiteUrl),
+    importStudioProducts(websiteUrl).then((found) =>
+      studioProductImportSchema.parse({ products: found }),
+    ),
+  ]);
+  return studioWebsiteDraftSchema.parse({
+    brandCopy: brandCopy.status === "fulfilled" ? brandCopy.value : null,
+    products: products.status === "fulfilled" ? products.value.products : null,
+  });
+}
+
+async function studioWebsiteUrl(projectId: string) {
   const { websiteUrl } = await prisma.project.findUniqueOrThrow({
     where: { id: projectId },
     select: { websiteUrl: true },
   });
   if (!websiteUrl) throw unprocessableEntity("Set a project website first");
+  return websiteUrl;
+}
+
+async function readWebsiteCopy(websiteUrl: string) {
   const page = await readHomepage(websiteUrl);
   const contentType = page?.headers
     .get("content-type")

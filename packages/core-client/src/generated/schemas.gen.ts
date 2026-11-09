@@ -38904,6 +38904,103 @@ export const StudioWebsiteCopySchema = {
     ]
 } as const;
 
+export const StudioWebsiteDraftSchema = {
+    type: 'object',
+    properties: {
+        brandCopy: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioWebsiteCopy'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        products: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'brandCopy',
+        'products'
+    ]
+} as const;
+
+export const StudioProductSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        },
+        description: {
+            type: 'string',
+            maxLength: 800
+        },
+        price: {
+            type: 'string',
+            maxLength: 80
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        imageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        photo: {
+            $ref: '#/components/schemas/StudioProductPhoto'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'description',
+        'price',
+        'url',
+        'imageUrl'
+    ]
+} as const;
+
+export const StudioProductPhotoSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
 export const SaveStudioBrandCopySchema = {
     type: 'object',
     properties: {
@@ -39051,73 +39148,6 @@ export const StudioProductCatalogSchema = {
     required: [
         'products',
         'revision'
-    ]
-} as const;
-
-export const StudioProductSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 160
-        },
-        description: {
-            type: 'string',
-            maxLength: 800
-        },
-        price: {
-            type: 'string',
-            maxLength: 80
-        },
-        url: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 2048
-        },
-        imageUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 2048
-        },
-        photo: {
-            $ref: '#/components/schemas/StudioProductPhoto'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'description',
-        'price',
-        'url',
-        'imageUrl'
-    ]
-} as const;
-
-export const StudioProductPhotoSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 255
-        }
-    },
-    required: [
-        'id',
-        'name'
     ]
 } as const;
 

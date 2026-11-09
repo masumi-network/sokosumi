@@ -4,6 +4,7 @@ import type {
   SaveStudioBrandCopy,
   StudioBrandKit,
   StudioWebsiteCopy,
+  StudioWebsiteDraft,
 } from "@sokosumi/core-client";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { imageStudioService } from "@/lib/services/image-studio.service";
@@ -24,6 +25,11 @@ export const getStudioWebsiteCopy = withSession<
   ProjectInput,
   StudioWebsiteCopy
 >(({ projectId }) => imageStudioService.getWebsiteCopy(projectId));
+
+export const prepareStudioWebsiteDraft = withSession<
+  ProjectInput,
+  StudioWebsiteDraft
+>(({ projectId }) => imageStudioService.prepareWebsiteDraft(projectId));
 
 export const uploadStudioProjectLogo = withSession<
   ProjectInput & { file: File },

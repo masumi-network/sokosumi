@@ -7,6 +7,7 @@ import {
   getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
   importStudioProductCatalog as coreImportStudioProductCatalog,
   listStudioBatchAssets as coreListStudioBatchAssets,
+  prepareStudioWebsiteDraft as corePrepareStudioWebsiteDraft,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   suggestTaskTags as coreSuggestTaskTags,
@@ -4184,6 +4185,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function prepareStudioWebsiteDraft(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePrepareStudioWebsiteDraft({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to prepare website suggestions for Studio",
+    );
+  }
+
   async function listStudioBatchAssets(id: string, batchId: string) {
     return executeCoreOperation(
       getClient,
@@ -7075,6 +7089,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getStudioProductCatalog,
     getStudioBrandKit,
     getStudioWebsiteCopy,
+    prepareStudioWebsiteDraft,
     listStudioBatchAssets,
     saveStudioBrandCopy,
     uploadStudioProjectLogo,

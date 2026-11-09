@@ -45,13 +45,24 @@ const mocks = vi.hoisted(() => ({
   saveBrandCopy: vi.fn(),
   uploadLogo: vi.fn(),
   loadWebsiteCopy: vi.fn(),
+  prepareWebsiteDraft: vi.fn(),
+  loadProducts: vi.fn(),
+  saveProducts: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   getStudioBrandKit: mocks.loadBrandKit,
   getStudioWebsiteCopy: mocks.loadWebsiteCopy,
+  prepareStudioWebsiteDraft: mocks.prepareWebsiteDraft,
   saveStudioBrandCopy: mocks.saveBrandCopy,
   uploadStudioProjectLogo: mocks.uploadLogo,
+}));
+
+vi.mock("@/lib/actions/image-studio/product-catalog", () => ({
+  getStudioProducts: mocks.loadProducts,
+  saveStudioProducts: mocks.saveProducts,
+  importStudioProducts: vi.fn(),
+  attachStudioCatalogPhoto: vi.fn(),
 }));
 
 vi.mock("./use-studio-state", () => ({
@@ -210,6 +221,77 @@ describe("starting from a template", () => {
         ],
       },
     });
+  });
+
+  it("prepares website copy and products together for independent review", async () => {
+    mocks.saveBrandCopy.mockClear();
+    const product = {
+      id: "mug",
+      name: "Travel mug",
+      description: "A reusable mug.",
+      price: "$32",
+      url: "https://ceramics.example/mug",
+      imageUrl: null,
+    };
+    mocks.prepareWebsiteDraft.mockResolvedValueOnce({
+      brandCopy: {
+        summary: "A ceramics studio",
+        lines: ["Made from reclaimed clay."],
+      },
+      products: [product],
+    });
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "Existing description",
+      tone: "Direct",
+      audience: [],
+      approvedLines: ["Fired in Prague."],
+      version: null,
+    });
+    mocks.loadProducts.mockResolvedValueOnce({ revision: 4, products: [] });
+    mocks.saveProducts.mockResolvedValueOnce({
+      revision: 5,
+      products: [product],
+    });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "prepare" }));
+    const brandReview = await screen.findByRole("button", {
+      name: "WebsiteDraft.reviewCopy",
+    });
+    expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+    });
+    fireEvent.click(brandReview);
+    expect(
+      await screen.findByText("BrandKit.websiteCopyAdded"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("BrandKit.summary")).toHaveValue(
+      "Existing description",
+    );
+    expect(screen.getByLabelText("BrandKit.approvedLines")).toHaveValue(
+      "Fired in Prague.\nMade from reclaimed clay.",
+    );
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+    const close = screen.getByRole("button", { name: "BrandKit.close" });
+    await waitFor(() => expect(close).toBeEnabled());
+    fireEvent.click(close);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "reviewImportedProducts" }),
+    );
+    expect(await screen.findByLabelText("name")).toHaveValue("Travel mug");
+    expect(mocks.saveProducts).not.toHaveBeenCalled();
+    const save = screen.getByRole("button", { name: "save" });
+    await waitFor(() => expect(save).toBeEnabled());
+    fireEvent.click(save);
+    await waitFor(() =>
+      expect(mocks.saveProducts).toHaveBeenCalledExactlyOnceWith({
+        projectId: "p",
+        catalog: { revision: 4, products: [product] },
+      }),
+    );
   });
 
   it("uploads an approved logo while preserving an unsaved brand copy edit", async () => {

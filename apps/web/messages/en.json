@@ -4024,6 +4024,14 @@
       "startFromWebsite": "Start from a website",
       "brandKit": "Brand kit",
       "brandKitNewTab": "Open project design in a new tab",
+      "WebsiteDraft": {
+        "prepare": "Prepare from website",
+        "reviewCopy": "Review brand copy",
+        "ready": "Website suggestions are ready to review.",
+        "partial": "Some website details could not be read.",
+        "empty": "No brand copy or products were found on the project website.",
+        "error": "Could not prepare suggestions from the project website. Try again."
+      },
       "BrandKit": {
         "addWebsiteCopy": "Add website copy to draft",
         "websiteCopyAdded": "Website copy added. Review it before saving.",
@@ -4064,6 +4072,8 @@
       "productPhotoNeedsModel": "Select an image model that supports your photo and any other references.",
       "tooManyReferences": "Use up to {count} reference images per ad.",
       "ProductCatalog": {
+        "reviewImportedProducts": "Review imported products",
+        "catalogFull": "The catalog is full. Remove a product before adding another.",
         "title": "Products",
         "description": "Import or add up to {count} products. Review the details before using them in an ad.",
         "website": "Storefront or product page",

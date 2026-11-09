@@ -62,7 +62,6 @@ import {
   saveStudioDownload,
 } from "./studio-ad-download";
 import type { StudioBatchProduct } from "./studio-batch";
-import { StudioBrandKitDialog } from "./studio-brand-kit";
 import { StudioChat } from "./studio-chat";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
@@ -74,7 +73,6 @@ import { StudioComposer } from "./studio-composer";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
-import { StudioProductCatalogDialog } from "./studio-product-catalog";
 import { StudioTemplateCarousel } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
@@ -83,6 +81,7 @@ import {
   type StudioVideoDraft,
   videoDraftFor,
 } from "./studio-video-composer";
+import { StudioWebsiteTools } from "./studio-website-tools";
 import {
   creditsByAssetId,
   elapsedByAssetId,
@@ -974,17 +973,12 @@ export function ImageStudio({
             STUDIO_COMPOSER_GUTTER_CLASS,
           )}
         >
-          <StudioBrandKitDialog
-            hasWebsite={Boolean(websiteUrl)}
-            key={`brand-kit-${activeProjectId}`}
+          <StudioWebsiteTools
+            key={activeProjectId}
+            canUseProduct={!uploadingPhoto}
             onLogoChange={(logo) =>
               setBrandKitLogo({ projectId: activeProjectId, logo })
             }
-            projectId={activeProjectId}
-          />
-          <StudioProductCatalogDialog
-            key={`catalog-${activeProjectId}`}
-            canUseProduct={!uploadingPhoto}
             onUseProduct={useProduct}
             onUseBatch={useProductBatch}
             projectId={activeProjectId}

@@ -4024,6 +4024,14 @@
       "startFromWebsite": "Mit einer Website starten",
       "brandKit": "Marken-Kit",
       "brandKitNewTab": "Projektdesign in einem neuen Tab öffnen",
+      "WebsiteDraft": {
+        "prepare": "Entwurf aus Website erstellen",
+        "reviewCopy": "Markentexte prüfen",
+        "ready": "Die Vorschläge von der Website sind bereit zur Prüfung.",
+        "partial": "Einige Angaben konnten nicht von der Website gelesen werden.",
+        "empty": "Auf der Projekt-Website wurden keine Markentexte oder Produkte gefunden.",
+        "error": "Die Vorschläge von der Projekt-Website konnten nicht erstellt werden. Versuche es erneut."
+      },
       "BrandKit": {
         "addWebsiteCopy": "Website-Texte zum Entwurf hinzufügen",
         "websiteCopyAdded": "Website-Texte hinzugefügt. Prüfe sie vor dem Speichern.",
@@ -4064,6 +4072,8 @@
       "productPhotoNeedsModel": "Wähle ein Bildmodell, das dein Foto und alle weiteren Referenzen unterstützt.",
       "tooManyReferences": "Verwende bis zu {count} Referenzbilder pro Anzeige.",
       "ProductCatalog": {
+        "reviewImportedProducts": "Importierte Produkte prüfen",
+        "catalogFull": "Der Katalog ist voll. Entferne ein Produkt, bevor du ein weiteres hinzufügst.",
         "title": "Produkte",
         "description": "Importiere oder ergänze bis zu {count} Produkte. Prüfe die Angaben, bevor du sie in einer Anzeige verwendest.",
         "website": "Onlineshop oder Produktseite",

@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import { brandBrainSchema } from "@sokosumi/soko-bot";
 
+import { studioProductImportSchema } from "./studio-product.schema";
+
 export const studioBrandCopySchema = z
   .object({
     summary: brandBrainSchema.shape.summary,
@@ -18,6 +20,13 @@ export const studioWebsiteCopySchema = z
     lines: studioBrandCopySchema.shape.approvedLines,
   })
   .openapi("StudioWebsiteCopy");
+
+export const studioWebsiteDraftSchema = z
+  .object({
+    brandCopy: z.union([studioWebsiteCopySchema, z.null()]),
+    products: studioProductImportSchema.shape.products.nullable(),
+  })
+  .openapi("StudioWebsiteDraft");
 
 export const studioBrandKitSchema = z
   .object({

@@ -10361,6 +10361,26 @@ export type StudioWebsiteCopy = {
     lines: Array<string>;
 };
 
+export type StudioWebsiteDraft = {
+    brandCopy: StudioWebsiteCopy | null;
+    products: Array<StudioProduct> | null;
+};
+
+export type StudioProduct = {
+    id: string;
+    name: string;
+    description: string;
+    price: string;
+    url: string | null;
+    imageUrl: string | null;
+    photo?: StudioProductPhoto;
+};
+
+export type StudioProductPhoto = {
+    id: string;
+    name: string;
+};
+
 export type SaveStudioBrandCopy = {
     copy: StudioBrandCopy;
     version: Date | null;
@@ -10389,21 +10409,6 @@ export type CreateProjectImageJobRequest = {
 export type StudioProductCatalog = {
     products: Array<StudioProduct>;
     revision: number;
-};
-
-export type StudioProduct = {
-    id: string;
-    name: string;
-    description: string;
-    price: string;
-    url: string | null;
-    imageUrl: string | null;
-    photo?: StudioProductPhoto;
-};
-
-export type StudioProductPhoto = {
-    id: string;
-    name: string;
 };
 
 export type StudioProductImport = {
@@ -67757,6 +67762,102 @@ export type GetStudioWebsiteCopyResponses = {
 };
 
 export type GetStudioWebsiteCopyResponse = GetStudioWebsiteCopyResponses[keyof GetStudioWebsiteCopyResponses];
+
+export type PrepareStudioWebsiteDraftData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/website-draft';
+};
+
+export type PrepareStudioWebsiteDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project website missing
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PrepareStudioWebsiteDraftError = PrepareStudioWebsiteDraftErrors[keyof PrepareStudioWebsiteDraftErrors];
+
+export type PrepareStudioWebsiteDraftResponses = {
+    /**
+     * Website suggestions for review
+     */
+    200: {
+        data: StudioWebsiteDraft;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PrepareStudioWebsiteDraftResponse = PrepareStudioWebsiteDraftResponses[keyof PrepareStudioWebsiteDraftResponses];
 
 export type UploadStudioProjectLogoData = {
     body: {

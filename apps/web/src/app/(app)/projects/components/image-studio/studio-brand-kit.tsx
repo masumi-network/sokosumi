@@ -1,4 +1,8 @@
-import type { StudioBrandCopy, StudioBrandKit } from "@sokosumi/core-client";
+import type {
+  StudioBrandCopy,
+  StudioBrandKit,
+  StudioWebsiteCopy,
+} from "@sokosumi/core-client";
 import {
   ENTITY_IMAGE_MAX_SIZE_BYTES,
   isStudioLogoMime,
@@ -43,13 +47,19 @@ function lines(value: string): string[] {
 }
 
 export function StudioBrandKitDialog({
+  disabled,
   hasWebsite = false,
   onLogoChange,
+  onWebsiteCopyReviewed,
   projectId,
+  websiteCopy,
 }: {
+  disabled?: boolean;
   hasWebsite?: boolean;
   onLogoChange: (logo: string | null) => void;
+  onWebsiteCopyReviewed?: () => void;
   projectId: string;
+  websiteCopy?: StudioWebsiteCopy | null;
 }) {
   const t = useTranslations("App.Studio");
   const [open, setOpen] = useState(false);
@@ -96,13 +106,18 @@ export function StudioBrandKitDialog({
         const next = await getStudioBrandKit({ projectId });
         setKit(next);
         onLogoChange(next.logo);
-        setDraft({
+        const savedDraft = {
           summary: next.summary,
           tone: next.tone,
           audience: next.audience.join("\n"),
           approvedLines: next.approvedLines.join("\n"),
-        });
+        };
+        setDraft(savedDraft);
         setDirty(false);
+        if (websiteCopy) {
+          applyWebsiteCopy(websiteCopy, savedDraft);
+          onWebsiteCopyReviewed?.();
+        }
       } catch {
         setMessage("loadError");
       }
@@ -140,40 +155,42 @@ export function StudioBrandKitDialog({
     if (message !== "conflict") setMessage(null);
   }
 
+  function applyWebsiteCopy(website: StudioWebsiteCopy, current: typeof draft) {
+    const approved = lines(current.approvedLines);
+    const seen = new Set(approved.map((line) => line.toLowerCase()));
+    const additions = website.lines
+      .filter((line) => {
+        const key = line.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, Math.max(0, MAX_LINES - approved.length));
+    const summary = !current.summary.trim() ? website.summary : null;
+    if (!summary && !additions.length) {
+      setWebsiteMessage("websiteCopyEmpty");
+      return;
+    }
+    setDraft({
+      ...current,
+      summary: summary ?? current.summary,
+      approvedLines: additions.length
+        ? [current.approvedLines.trimEnd(), ...additions]
+            .filter(Boolean)
+            .join("\n")
+        : current.approvedLines,
+    });
+    setDirty(true);
+    setWebsiteMessage("websiteCopyAdded");
+    if (message !== "conflict") setMessage(null);
+  }
+
   function addWebsiteCopy() {
     if (pending || !kit) return;
     startWebsiteTransition(async () => {
       setWebsiteMessage(null);
       try {
-        const website = await getStudioWebsiteCopy({ projectId });
-        const seen = new Set(
-          copy.approvedLines.map((line) => line.toLowerCase()),
-        );
-        const additions = website.lines
-          .filter((line) => {
-            const key = line.toLowerCase();
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          })
-          .slice(0, Math.max(0, MAX_LINES - copy.approvedLines.length));
-        const summary = !copy.summary ? website.summary : null;
-        if (!summary && !additions.length) {
-          setWebsiteMessage("websiteCopyEmpty");
-          return;
-        }
-        setDraft({
-          ...draft,
-          summary: summary ?? draft.summary,
-          approvedLines: additions.length
-            ? [draft.approvedLines.trimEnd(), ...additions]
-                .filter(Boolean)
-                .join("\n")
-            : draft.approvedLines,
-        });
-        setDirty(true);
-        setWebsiteMessage("websiteCopyAdded");
-        if (message !== "conflict") setMessage(null);
+        applyWebsiteCopy(await getStudioWebsiteCopy({ projectId }), draft);
       } catch {
         setWebsiteMessage("websiteCopyError");
       }
@@ -214,15 +231,21 @@ export function StudioBrandKitDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (pending) return;
+        if (pending || disabled) return;
         setOpen(next);
-        if (next && !dirty) load();
+        if (!next) return;
+        if (!dirty) {
+          load();
+        } else if (websiteCopy) {
+          applyWebsiteCopy(websiteCopy, draft);
+          onWebsiteCopyReviewed?.();
+        }
       }}
     >
-      <DialogTrigger asChild>
-        <Button size="sm" type="button" variant="outline">
+      <DialogTrigger asChild disabled={disabled}>
+        <Button disabled={disabled} size="sm" type="button" variant="outline">
           <Palette aria-hidden />
-          {t("brandKit")}
+          {t(websiteCopy ? "WebsiteDraft.reviewCopy" : "brandKit")}
         </Button>
       </DialogTrigger>
       <DialogContent

@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   projectFindUniqueMock,
   projectFindUniqueOrThrowMock,
+  importProductsMock,
   ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
   projectFindUniqueMock: vi.fn(),
   projectFindUniqueOrThrowMock: vi.fn(),
+  importProductsMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
 }));
 
@@ -19,6 +21,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/image-studio/product-import", () => ({
+  importStudioProducts: importProductsMock,
+}));
+
 vi.mock("@sokosumi/net", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
@@ -28,6 +34,7 @@ import { LIMITS } from "@/config/constants";
 import {
   applyStudioBrandPrompt,
   loadStudioBrand,
+  prepareStudioWebsiteDraft,
   readStudioBrandKit,
   readStudioWebsiteCopy,
 } from "@/lib/image-studio/studio-brand";
@@ -217,6 +224,59 @@ describe("readStudioWebsiteCopy", () => {
     ssrfSafeFetchMock.mockRejectedValueOnce(new Error("fetch blocked"));
     await expect(readStudioWebsiteCopy("project-1")).rejects.toMatchObject({
       status: 502,
+    });
+  });
+});
+
+describe("prepareStudioWebsiteDraft", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("uses the same saved website for both suggestions", async () => {
+    const websiteUrl = "https://fieldwork.example/shop";
+    const product = {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      name: "Pour-over set",
+      description: "",
+      price: "$48",
+      url: `${websiteUrl}/pour-over`,
+      imageUrl: null,
+    };
+    projectFindUniqueOrThrowMock.mockResolvedValueOnce({ websiteUrl });
+    ssrfSafeFetchMock.mockResolvedValueOnce(
+      new Response("<main><h1>Brew at your own pace.</h1></main>", {
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+    importProductsMock.mockResolvedValueOnce([product]);
+
+    await expect(prepareStudioWebsiteDraft("project-1")).resolves.toEqual({
+      brandCopy: { summary: null, lines: ["Brew at your own pace."] },
+      products: [product],
+    });
+    expect(projectFindUniqueOrThrowMock).toHaveBeenCalledTimes(1);
+    expect(ssrfSafeFetchMock).toHaveBeenCalledExactlyOnceWith(
+      websiteUrl,
+      expect.any(Object),
+    );
+    expect(importProductsMock).toHaveBeenCalledExactlyOnceWith(websiteUrl);
+  });
+
+  it("returns usable copy when product discovery fails", async () => {
+    projectFindUniqueOrThrowMock.mockResolvedValueOnce({
+      websiteUrl: "https://fieldwork.example",
+    });
+    ssrfSafeFetchMock.mockResolvedValueOnce(
+      new Response("<h1>Freshly roasted.</h1>", {
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+    importProductsMock.mockRejectedValueOnce(
+      new Error("Storefront unavailable"),
+    );
+
+    await expect(prepareStudioWebsiteDraft("project-1")).resolves.toEqual({
+      brandCopy: { summary: null, lines: ["Freshly roasted."] },
+      products: null,
     });
   });
 });
