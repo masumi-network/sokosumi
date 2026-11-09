@@ -203,10 +203,23 @@ describe("SokoBotConsole", () => {
   });
 
   it("hides skills and avatar on a shared bot, and reads it by id", () => {
-    renderConsole({});
+    const element = consoleElement({});
+    // The live state Core holds for that bot id; any other id reads stale.
+    useStateMock.mockImplementation(
+      (initial: SokoBotChatState, id: string | null) => ({
+        state:
+          id === BOT_ID
+            ? { ...initial, bot: { ...initial.bot, name: "Ops live" } }
+            : initial,
+        refresh: vi.fn(),
+      }),
+    );
+    render(element);
     expect(screen.queryByTestId("skills")).not.toBeInTheDocument();
     expect(screen.queryByTestId("avatar")).not.toBeInTheDocument();
-    expect(useStateMock).toHaveBeenCalledWith(expect.anything(), BOT_ID);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Ops live" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps skills, avatar and the own-bot target on the caller's own bot", () => {
