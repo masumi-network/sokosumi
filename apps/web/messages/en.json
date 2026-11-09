@@ -8348,7 +8348,8 @@
         "sent": "Sent",
         "failed": "Failed to send",
         "retry": "Retry",
-        "remove": "Remove"
+        "remove": "Remove",
+        "noReply": "The AI coworker didn't reply."
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",

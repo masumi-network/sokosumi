@@ -8,11 +8,18 @@ import type {
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
 import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
 import { reasoningStepsForMetadata } from "@/app/chat/utils/coworker-thought";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
+import {
+  CLIENT_MESSAGE_ID_METADATA_KEY,
+  OUTBOUND_DELIVERY_STATUS_METADATA_KEY,
+  OUTBOUND_ERROR_METADATA_KEY,
+  outboundLocalMessageId,
+} from "@/app/chat/utils/outbound-room-message";
 import { clearPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
@@ -293,6 +300,36 @@ export function coworkerStreamErrorMessage(error: Error): string | null {
   return error.message || null;
 }
 
+/**
+ * After a failed turn: cut any partial reply and show the user's message as a
+ * failed outbound row (reason + Retry). Core may already have saved it, so the
+ * row states the reason, not "not sent". Its UI message id is the Core
+ * `client_message_id`, so Retry resends it without a second saved row.
+ */
+export function markFailedCoworkerTurn(
+  rows: ChatRoomMessage[],
+  reason: string,
+): ChatRoomMessage[] {
+  const userIndex = rows.findLastIndex((row) => row.sender.type === "user");
+  const user = rows[userIndex];
+  if (!user) {
+    return rows;
+  }
+  const clientTurnId = user.id.replace(/^stream:/, "");
+  return [
+    ...rows.slice(0, userIndex),
+    {
+      ...user,
+      id: outboundLocalMessageId(clientTurnId),
+      metadata: {
+        [CLIENT_MESSAGE_ID_METADATA_KEY]: clientTurnId,
+        [OUTBOUND_DELIVERY_STATUS_METADATA_KEY]: "failed",
+        [OUTBOUND_ERROR_METADATA_KEY]: reason,
+      },
+    },
+  ];
+}
+
 export interface UseCoworkerDirectRoomStreamResult {
   streamOverlayMessages: ChatRoomMessage[];
   isStreaming: boolean;
@@ -312,6 +349,8 @@ export interface UseCoworkerDirectRoomStreamResult {
   ) => boolean;
   /** Consume a one-shot draft pending message for this room (Strict Mode safe). */
   consumePendingStreamMessage: (text: string) => void;
+  /** Resend the failed turn (same message id and attachments). */
+  retryFailedStreamMessage: () => void;
 }
 
 export function useCoworkerDirectRoomStream({
@@ -321,6 +360,7 @@ export function useCoworkerDirectRoomStream({
   organizationSlug,
   onStreamSettled,
 }: UseCoworkerDirectRoomStreamParams): UseCoworkerDirectRoomStreamResult {
+  const t = useTranslations("App.Channels");
   const roomId = enabled && room ? room.id : null;
   const roomIdRef = useRef(roomId);
   roomIdRef.current = roomId;
@@ -340,9 +380,21 @@ export function useCoworkerDirectRoomStream({
    * thus live elapsed timers) do not reset on every stream chunk recompute.
    */
   const overlayCreatedAtByMessageIdRef = useRef(new Map<string, number>());
+  /** Failed turn shown on its message until Retry, a new send or leaving. */
+  const [failure, setFailure] = useState<{
+    roomId: string;
+    reason: string;
+  } | null>(null);
+  // Sync copy so a double-click Retry starts one request, not two.
+  const failureRef = useRef(failure);
+  failureRef.current = failure;
+  /** Body of the last send, so Retry keeps its thread parent and quote. */
+  const lastSendOptionsRef =
+    useRef<ReturnType<typeof buildCoworkerStreamSendMessageOptions>>(undefined);
 
   // Restore thread parent for mid-stream resume (sessionStorage survives remount).
   useEffect(() => {
+    setFailure(null);
     if (!roomId) {
       setStreamParentMessageId(null);
       overlayCreatedAtByMessageIdRef.current.clear();
@@ -402,7 +454,14 @@ export function useCoworkerDirectRoomStream({
     [],
   );
 
-  const { messages, sendMessage, status, setMessages, resumeStream } = useChat({
+  const {
+    messages,
+    sendMessage,
+    regenerate,
+    status,
+    setMessages,
+    resumeStream,
+  } = useChat({
     id: roomId ?? "coworker-direct-idle",
     // Drive resume ourselves keyed on roomId — AI SDK's `resume` effect only
     // re-fires when the boolean flips, so room A→B would skip reconnect.
@@ -410,21 +469,27 @@ export function useCoworkerDirectRoomStream({
     transport,
     onError(error) {
       const failedRoomId = roomIdRef.current;
+      const reason = coworkerStreamErrorMessage(error) ?? t("Outbound.noReply");
       if (failedRoomId) {
         autoStreamStartedRoomIds.delete(failedRoomId);
         writeStoredStreamParentMessageId(failedRoomId, null);
+        // Keep streamParentMessageId: the failed reply stays in its thread.
+        setFailure({ roomId: failedRoomId, reason });
       }
-      setStreamParentMessageId(null);
-      toast.error(
-        coworkerStreamErrorMessage(error) ?? "Failed to stream coworker reply.",
-      );
+      toast.error(reason);
     },
-    async onFinish() {
+    async onFinish({ isError }) {
       const settledRoomId = roomIdRef.current;
       if (!settledRoomId) {
         return;
       }
       autoStreamStartedRoomIds.delete(settledRoomId);
+      if (isError) {
+        // Refresh only: the failed overlay row stays (and hides Core's saved
+        // copy of the same text) until Retry or the next send.
+        await onStreamSettledRef.current(settledRoomId);
+        return;
+      }
       // Keep stream overlay until persisted messages merge — clearing first
       // blanks the transcript for the await gap (or forever if refetch fails).
       const settled = await onStreamSettledRef.current(settledRoomId);
@@ -516,7 +581,7 @@ export function useCoworkerDirectRoomStream({
     // Stable createdAt keeps elapsed timers from resetting on each chunk.
     // Keep empty assistant shells so the coworker avatar/name show while tokens
     // arrive (merge appends overlay in array order — user stays first).
-    return messages
+    const rows = messages
       .filter(
         (message) => message.role === "user" || message.role === "assistant",
       )
@@ -530,6 +595,9 @@ export function useCoworkerDirectRoomStream({
           parentMessageId: streamParentMessageId,
         }),
       );
+    return failure?.roomId === roomId && status === "error"
+      ? markFailedCoworkerTurn(rows, failure.reason)
+      : rows;
   }, [
     enabled,
     roomId,
@@ -538,6 +606,7 @@ export function useCoworkerDirectRoomStream({
     coworker,
     status,
     streamParentMessageId,
+    failure,
   ]);
 
   const sendStreamMessage = useCallback(
@@ -556,17 +625,32 @@ export function useCoworkerDirectRoomStream({
       // Shared useChat instance — clear leftover turns so a failed settle cannot
       // retag prior top-level UI messages with a new thread parentMessageId.
       setMessages([]);
+      setFailure(null);
       setStreamParentMessageId(parentMessageId);
       writeStoredStreamParentMessageId(roomId, parentMessageId);
       const files = toCoworkerStreamFileParts(options?.files);
+      lastSendOptionsRef.current =
+        buildCoworkerStreamSendMessageOptions(options);
       void sendMessage(
         files.length > 0 ? { text: trimmed, files } : { text: trimmed },
-        buildCoworkerStreamSendMessageOptions(options),
+        lastSendOptionsRef.current,
       );
       return true;
     },
     [enabled, roomId, sendMessage, setMessages],
   );
+
+  const retryFailedStreamMessage = useCallback(() => {
+    if (!roomId || failureRef.current?.roomId !== roomId) {
+      return;
+    }
+    failureRef.current = null;
+    setFailure(null);
+    writeStoredStreamParentMessageId(roomId, streamParentMessageId);
+    // Same last user message (id, text, files): Core dedupes it by
+    // client_message_id and its room lock refuses a second live turn.
+    void regenerate(lastSendOptionsRef.current);
+  }, [regenerate, roomId, streamParentMessageId]);
 
   const consumePendingStreamMessage = useCallback(
     (text: string) => {
@@ -596,5 +680,6 @@ export function useCoworkerDirectRoomStream({
     activeStreamParentMessageId: streamParentMessageId,
     sendStreamMessage,
     consumePendingStreamMessage,
+    retryFailedStreamMessage,
   };
 }
