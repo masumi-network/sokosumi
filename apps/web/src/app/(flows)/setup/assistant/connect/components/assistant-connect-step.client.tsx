@@ -3,7 +3,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import {
@@ -11,6 +11,7 @@ import {
   SokoBotSetupSteps,
 } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,13 @@ export function AssistantConnectStep({
   const tConnect = useTranslations("App.Chat.SokoBot");
   const [busy, setBusy] = useState<string | null>(null);
   const anyConnected = offers.some((offer) => offer.connected);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // The Picture step's Create button held focus and is gone, so start this
+  // step at its heading, as the earlier steps do.
+  useMountEffect(() => {
+    headingRef.current?.focus();
+  });
 
   async function handleConnect(provider: string) {
     setBusy(provider);
@@ -50,7 +58,11 @@ export function AssistantConnectStep({
       <div className="mb-8 w-full">
         <SokoBotSetupSteps current={3} />
       </div>
-      <h1 className="text-foreground text-center text-2xl font-light tracking-tight text-balance md:text-3xl">
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className="text-foreground text-center text-2xl font-light tracking-tight text-balance outline-none md:text-3xl"
+      >
         {tConnect("connectTitle", { bot: botName })}
       </h1>
       <p className="text-muted-foreground mt-3 text-center text-sm text-pretty md:text-base">
