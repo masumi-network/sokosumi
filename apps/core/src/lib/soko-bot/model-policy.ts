@@ -29,7 +29,16 @@ const EU_MODELS: Readonly<Record<string, { providers: readonly string[] }>> = {
  * cost and speed. Owner prompts, tasks and mail reach OpenAI for these; the
  * judge stays EU-only and Jev keeps its own exception in `classifier.ts`.
  */
-const GLOBAL_AGENT_MODELS: ReadonlySet<string> = new Set(["openai/gpt-6-luna"]);
+const GLOBAL_AGENT_MODELS: ReadonlySet<string> = new Set([
+  "openai/gpt-6-luna",
+  // Cheaper models the owner approved on 2026-11-09 for Cuso's model trials
+  // (`cmo-model-trials.ts`), run against eval lanes. Zero retention and no
+  // training still apply, so a provider that cannot promise both refuses.
+  "alibaba/qwen3.7-flash",
+  "openai/gpt-oss-20b",
+  "deepseek/deepseek-v4-flash",
+  "google/gemini-2.5-flash-lite",
+]);
 
 /** Whether the agent may run on `model` without EU pinning. */
 function isSokoBotGlobalAgentModel(model: string): boolean {
