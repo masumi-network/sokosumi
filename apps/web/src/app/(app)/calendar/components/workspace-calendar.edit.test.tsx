@@ -634,6 +634,48 @@ describe("WorkspaceCalendar editing", () => {
     expect(pushMock).toHaveBeenLastCalledWith("/schedules/schedule-1");
   });
 
+  it("downloads a Task's or a planned Run's entry as a calendar file", async () => {
+    const user = userEvent.setup();
+    const files: Blob[] = [];
+    const names: string[] = [];
+    vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+      files.push(blob as Blob);
+      return "blob:calendar";
+    });
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      names.push(this.download);
+    });
+    renderCalendar({ items: [RELEASED_ITEM, ITEM] });
+
+    await user.click(screen.getByRole("button", { name: "event.moreActions" }));
+    await user.click(screen.getByRole("menuitem", { name: "event.download" }));
+
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(toastSuccessMock).toHaveBeenCalledWith("event.downloaded");
+    expect(names).toEqual(["prepare-release-notes.ics"]);
+    expect(files[0].type).toBe("text/calendar;charset=utf-8");
+    const released = await files[0].text();
+    expect(released).toContain(
+      `UID:RUN-run-released-1@${window.location.hostname}\r\n`,
+    );
+    expect(released).toContain("SUMMARY:Prepare release notes\r\n");
+    expect(released).toContain(
+      `URL:${window.location.origin}/tasks/task-1\r\n`,
+    );
+
+    await openEventMenu(user, 1);
+    await user.click(screen.getByRole("menuitem", { name: "event.download" }));
+    const planned = await files[1].text();
+    expect(planned).toContain("DTSTART:20300102T090000Z\r\n");
+    expect(planned).toContain(
+      `URL:${window.location.origin}/schedules/schedule-1\r\n`,
+    );
+    vi.restoreAllMocks();
+  });
+
   it("opens a Task on tap but not after a drag the calendar will not move", () => {
     renderCalendar({ items: [RELEASED_ITEM] });
     const card = screen.getByRole("button", {

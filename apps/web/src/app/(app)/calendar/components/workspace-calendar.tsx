@@ -30,6 +30,7 @@ import {
 } from "date-fns";
 import {
   Building2,
+  CalendarArrowDown,
   ChevronLeft,
   ChevronRight,
   CircleDashed,
@@ -63,6 +64,10 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
+import {
+  calendarEventFile,
+  calendarEventFileName,
+} from "@/app/calendar/calendar-event-file";
 import {
   availableCalendarTypes,
   CALENDAR_TYPES,
@@ -356,6 +361,31 @@ function isMovedRun(item: WorkspaceCalendarItem): boolean {
   );
 }
 
+/** Saves the entry as an .ics file any calendar app imports. */
+function downloadCalendarEvent(item: WorkspaceCalendarItem) {
+  const { hostname, origin } = window.location;
+  const path = item.taskId
+    ? `/tasks/${item.taskId}`
+    : item.scheduleId
+      ? taskSchedulePath(item.scheduleId)
+      : "/calendar";
+  const file = calendarEventFile({
+    uid: `${item.kind}-${item.id}@${hostname}`,
+    title: item.taskName,
+    start: item.scheduledAt,
+    url: `${origin}${path}`,
+    now: new Date(),
+  });
+  const href = URL.createObjectURL(
+    new Blob([file], { type: "text/calendar;charset=utf-8" }),
+  );
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = calendarEventFileName(item.taskName);
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(href), 0);
+}
+
 interface RunHandlers {
   onMoveRun: (item: ChangeableRun) => void;
   onRestoreRun: (item: ChangeableRun) => void;
@@ -416,14 +446,20 @@ function CalendarEvent({
     </>
   ) : null;
 
+  const { taskId } = item;
   const menuButton = (
     <DropdownMenuTrigger asChild>
       <button
         aria-describedby={peopleNames ? peopleId : undefined}
-        aria-label={t("event.accessibleName", {
-          source: sourceName,
-          task: item.taskName,
-        })}
+        aria-label={
+          // A card with a Task is its own button; the menu needs another name.
+          taskId
+            ? t("event.moreActions", { task: item.taskName })
+            : t("event.accessibleName", {
+                source: sourceName,
+                task: item.taskName,
+              })
+        }
         className="text-muted-foreground press hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
         // Radix already toggled on pointerdown; the click must not reach the
         // card's own open handler.
@@ -503,25 +539,46 @@ function CalendarEvent({
     </>
   );
 
-  // A card with a Task (a released Run or a Run at) opens that Task. Only
-  // Runs still to come, which have no Task yet, carry a menu.
-  const { taskId } = item;
+  const downloadMenuItem = (
+    <DropdownMenuItem
+      onSelect={() => {
+        downloadCalendarEvent(item);
+        toast.success(t("event.downloaded"));
+      }}
+    >
+      <CalendarArrowDown aria-hidden className="size-4" />
+      {t("event.download")}
+    </DropdownMenuItem>
+  );
+
+  // A card with a Task (a released Run or a Run at) opens that Task; its
+  // menu button sits beside it, never inside the card's button.
   if (taskId) {
     return (
-      <button
-        aria-describedby={peopleNames ? peopleId : undefined}
-        aria-label={t("event.accessibleName", {
-          source: sourceName,
-          task: item.taskName,
-        })}
-        className={cardClassName}
-        data-testid="calendar-event"
-        onClick={onTap(() => onOpen(`/tasks/${taskId}`))}
-        type="button"
-        {...dragAttemptHandlers}
-      >
-        {cardContent(null)}
-      </button>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <div className="relative w-full min-w-0">
+          <button
+            aria-describedby={peopleNames ? peopleId : undefined}
+            aria-label={t("event.accessibleName", {
+              source: sourceName,
+              task: item.taskName,
+            })}
+            className={cardClassName}
+            data-testid="calendar-event"
+            onClick={onTap(() => onOpen(`/tasks/${taskId}`))}
+            type="button"
+            {...dragAttemptHandlers}
+          >
+            {cardContent(
+              <span aria-hidden className="ml-auto size-5 shrink-0" />,
+            )}
+          </button>
+          <span className="absolute right-1.5 bottom-1 flex">{menuButton}</span>
+        </div>
+        <DropdownMenuContent align="end">
+          {downloadMenuItem}
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   }
 
@@ -564,6 +621,7 @@ function CalendarEvent({
             {t("event.openSchedule")}
           </DropdownMenuItem>
         ) : null}
+        {downloadMenuItem}
       </DropdownMenuContent>
     </DropdownMenu>
   );
