@@ -441,6 +441,8 @@ export const sokoBotGenerateImageInputSchema = z
     referenceFileIds: z.array(z.uuid()).max(4).optional(),
     /** Most credits this image may cost; the price is checked first. */
     maxCredits: z.number().positive().max(10_000),
+    /** A Content Studio model id; leave it out for the default, Muse Image. */
+    model: z.string().trim().min(1).max(120).optional(),
   })
   .strict();
 
@@ -1836,7 +1838,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_files:
     "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Content Studio images are there once get_image has reported them ready. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
   generate_image:
-    "Generate an image in a Project's Content Studio from a prompt. It spends the owner's credits: set maxCredits, and it refuses when the image would cost more. Only for a request the owner made in this chat. To show a real product, pass up to four of the owner's image Files as referenceFileIds (a product photo) and say in the prompt what to keep from them. Generation takes a minute: to act on the result (post it, use it in a social post), call wait_for with its jobId and end your turn; get_image tells you where it stands now.",
+    "Generate an image in a Project's Content Studio from a prompt. It spends the owner's credits: set maxCredits, and it refuses when the image would cost more. Only for a request the owner made in this chat. To show a real product, pass up to four of the owner's image Files as referenceFileIds (a product photo) and say in the prompt what to keep from them. Leave model out: the default, Muse Image (muse-image, 1 credit), is the one to use. Pick another model only when the owner is unhappy with the pictures or names one: gemini-flash or gemini-pro for photo-real detail, ideogram-v3 for words in the picture, recraft-v3 for icons and flat brand graphics. Generation takes a minute: to act on the result (post it, use it in a social post), call wait_for with its jobId and end your turn; get_image tells you where it stands now.",
   get_image:
     "Check an image started with generate_image: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as media in create_social_post or update_social_post. A variation or edit is a new generate_image with a new prompt; there is no in-place edit.",
   generate_video:
