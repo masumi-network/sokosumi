@@ -1,4 +1,7 @@
-import { isOwnedProjectLogoUrl } from "@sokosumi/utils";
+import {
+  ENTITY_IMAGE_MAX_SIZE_BYTES,
+  isOwnedProjectLogoUrl,
+} from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { unprocessableEntity } from "@/helpers/error";
@@ -15,7 +18,7 @@ export async function renderBrandedStudioAsset(
   const source = await openAssetStream(options);
   try {
     if (
-      !source.contentType.startsWith("image/") ||
+      source.mediaType !== "IMAGE" ||
       source.size > LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES
     ) {
       throw unprocessableEntity(
@@ -31,7 +34,7 @@ export async function renderBrandedStudioAsset(
       url && isOwnedProjectLogoUrl(url, options.projectId)
         ? await downloadRemoteImage(url, {
             timeoutMs: 8_000,
-            maxBytes: 2 * 1024 * 1024,
+            maxBytes: ENTITY_IMAGE_MAX_SIZE_BYTES,
             isAllowedContentType: (mime) =>
               mime === "image/png" ||
               mime === "image/jpeg" ||

@@ -68,7 +68,8 @@ describe("Studio branded asset content", () => {
     ]);
     mocks.openAssetStream.mockResolvedValueOnce({
       stream: new Response(new Uint8Array(ad)).body,
-      contentType: "image/jpeg",
+      contentType: "application/octet-stream",
+      mediaType: "IMAGE",
       size: ad.length,
     });
     mocks.findProject.mockResolvedValueOnce({ logo });

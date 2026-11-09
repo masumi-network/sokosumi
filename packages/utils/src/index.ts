@@ -258,6 +258,7 @@ export {
   validateDriveFolderPath,
 } from "./drive-file-path.js";
 export {
+  ENTITY_IMAGE_MAX_SIZE_BYTES,
   extensionForEntityImageMime,
   isVercelBlobPublicHost,
 } from "./entity-image-upload.js";

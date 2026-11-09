@@ -265,13 +265,19 @@ export async function openAssetStream(options: {
   contentType: string;
   size: number;
   checksum: string;
+  mediaType: "IMAGE" | "VIDEO";
   /** Set when the store answered a byte range: the response is then a 206. */
   contentRange: string | null;
 }> {
   await requireProjectAccess(options);
   const asset = await prisma.projectImageAsset.findFirst({
     where: { id: options.assetId, projectId: options.projectId },
-    select: { blobPathname: true, contentType: true, checksum: true },
+    select: {
+      blobPathname: true,
+      contentType: true,
+      checksum: true,
+      mediaType: true,
+    },
   });
   if (!asset) throw notFound("Image not found");
 
@@ -294,6 +300,7 @@ export async function openAssetStream(options: {
   return {
     stream: result.stream,
     contentType: asset.contentType || result.blob.contentType,
+    mediaType: asset.mediaType,
     size: result.blob.size,
     checksum: asset.checksum,
     contentRange,
