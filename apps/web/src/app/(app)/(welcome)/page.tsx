@@ -147,7 +147,10 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       {landingNotice}
       {/* One welcome per breakpoint. The compositions differ enough — six 64px
           teammates versus four at 44px — that CSS alone cannot bridge them. */}
-      <div className="hidden min-h-full min-w-0 flex-1 flex-col md:flex">
+      {/* A definite height (main's box less its p-4) so ChatLanding's middle
+          column scrolls and the stats row stays in the first view. Main
+          scrolls instead below 28rem. */}
+      <div className="hidden min-h-full min-w-0 flex-1 flex-col md:flex md:h-[calc(100dvh-6rem-env(safe-area-inset-top))] md:min-h-[28rem] md:flex-none">
         <ChatLanding
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}

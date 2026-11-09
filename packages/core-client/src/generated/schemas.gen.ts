@@ -37911,7 +37911,7 @@ export const CreateProjectImageJobRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 200,
-            default: 'gemini-flash'
+            default: 'muse-image'
         },
         prompt: {
             type: 'string',
@@ -45081,6 +45081,11 @@ export const CreateSokoBotRequestSchema = {
             ],
             minimum: 0,
             maximum: 100
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
         }
     },
     required: [
@@ -45583,6 +45588,21 @@ export const UpdateSokoBotBoardFollowingRequestSchema = {
     },
     required: [
         'enabled'
+    ],
+    additionalProperties: false
+} as const;
+
+export const RenameSokoBotRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        }
+    },
+    required: [
+        'name'
     ],
     additionalProperties: false
 } as const;
@@ -46439,6 +46459,11 @@ export const CreateScopedSokoBotRequestSchema = {
             minimum: 0,
             maximum: 100
         },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        },
         scope: {
             $ref: '#/components/schemas/SokoBotScope'
         },
@@ -46448,11 +46473,6 @@ export const CreateScopedSokoBotRequestSchema = {
                 'null'
             ],
             format: 'uuid'
-        },
-        timezone: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 64
         }
     },
     required: [

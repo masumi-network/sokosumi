@@ -8426,7 +8426,8 @@
         "sent": "Gesendet",
         "failed": "Senden fehlgeschlagen",
         "retry": "Erneut versuchen",
-        "remove": "Entfernen"
+        "remove": "Entfernen",
+        "noReply": "Der AI coworker hat nicht geantwortet."
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
@@ -9442,9 +9443,6 @@
         "Form": {
           "open": "Neuer Zeitplan",
           "name": "Name",
-          "cron": "Cron-Ausdruck",
-          "cronHint": "Fünf Felder, z. B. 0 9 * * 1-5 für werktags um 09:00.",
-          "timezone": "Zeitzone",
           "prompt": "Prompt",
           "submit": "Zeitplan erstellen",
           "cancel": "Abbrechen",
@@ -9453,6 +9451,12 @@
         }
       },
       "Settings": {
+        "nameTitle": "Name",
+        "nameDescription": "Erscheint im Chat, bei Tasks und in der Seitenleiste.",
+        "nameRequired": "Gib einen Namen ein.",
+        "rename": "Speichern",
+        "renamed": "Name gespeichert.",
+        "renameError": "Der Name konnte nicht gespeichert werden.",
         "Proactive": {
           "pauseTitle": "Alles pausieren, was er von sich aus startet",
           "pauseDescription": "Stoppt Stand-up, Wochenrückblick, Mail-Checks und Nudges. Chat und zugewiesene Tasks laufen weiter.",

@@ -202,6 +202,18 @@ describe("SokoBotConsole", () => {
     expect(screen.queryByTestId("schedule")).not.toBeInTheDocument();
   });
 
+  it("lets the keyboard reach and scroll the memory", () => {
+    const state = chatState(true);
+    state.bot.memory = {
+      markdown: "# Soko Bot memory",
+      createdAt: "2026-10-29T12:00:00Z",
+    } as NonNullable<SokoBotChatState["bot"]["memory"]>;
+    renderConsole({ initialState: state });
+    expect(
+      screen.getByRole("region", { name: "Memory.title" }),
+    ).toHaveAttribute("tabindex", "0");
+  });
+
   it("hides skills and avatar on a shared bot, and reads it by id", () => {
     const element = consoleElement({});
     // The live state Core holds for that bot id; any other id reads stale.

@@ -221,10 +221,8 @@ function ProvideInputForm({
         activeGroupIndex={inputs.activeGroupIndex}
         maxUnlockedGroupIndex={inputs.maxUnlockedGroupIndex}
         goToNext={inputs.goToNext}
-        goBack={inputs.goBack}
         goToGroup={inputs.goToGroup}
         reset={inputs.reset}
-        resetMaxUnlockedTo={inputs.resetMaxUnlockedTo}
         customOnSubmit={handleSubmit}
         customRenderGroupFooter={renderGroupFooter}
         customIsSubmitting={isSubmitting}

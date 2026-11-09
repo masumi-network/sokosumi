@@ -2,7 +2,7 @@
 
 import type { SokoBotDailyStats } from "@sokosumi/core-client";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 
 /**
  * Whether the automation ran, not just what it decided. A bot that stayed
@@ -16,10 +16,12 @@ export function AutomationChecks({
 }) {
   const t = useTranslations("App.SokoBot.Console.Automation");
   const format = useFormatter();
+  // Without `now`, next-intl logs ENVIRONMENT_FALLBACK for every call.
+  const now = useNow({ updateInterval: 60_000 });
   const late = checks.items.filter((item) => item.late);
 
   function when(value: string | null): string {
-    return value ? format.relativeTime(new Date(value)) : t("never");
+    return value ? format.relativeTime(new Date(value), now) : t("never");
   }
 
   return (
