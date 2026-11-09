@@ -87,7 +87,7 @@ export function StudioAdPreview({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="app-scrollbar max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        className="app-scrollbar max-h-[calc(100dvh-2rem)] grid-cols-1 overflow-y-auto"
         showCloseButton={false}
       >
         <DialogHeader>
