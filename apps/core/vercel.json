@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pnpm install --frozen-lockfile --filter @sokosumi/core...",
+  "installCommand": "FFMPEG_BIN=/bin/sh pnpm install --frozen-lockfile --filter @sokosumi/core...",
   "buildCommand": "pnpm vercel-build",
   "ignoreCommand": "node ../../scripts/ci/vercel-ignore.mjs @sokosumi/core",
   "git": {
