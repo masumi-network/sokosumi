@@ -558,12 +558,14 @@ export async function topUpAvailableAvatars(
   options: { excludeIds?: string[]; requestedByUserId?: string } = {},
 ): Promise<AvailableAvatar[]> {
   if (canDraw()) {
-    // Count the real pool, not the caller's filtered view of it. Counting
-    // through `excludeIds` let a caller list the pool, hand the ids straight
-    // back, and drive the count to zero, so generation ran on a pool that
-    // needed nothing. Each image is billed, so that is spend on demand.
+    // Count what the caller has not seen yet. "Show others" hands back every
+    // id it has shown, so counting the whole pool found it full and never drew
+    // anything new. Handing ids back does let a caller drive the count to
+    // zero, and each image is billed, so that is spend on demand: what bounds
+    // it is `MAX_TOP_UP_PER_CALL` and the per-user hourly cap in
+    // `reserveDraws`.
     const available = await prisma.sokoBotAvatar.count({
-      where: unclaimedAvatarFilter(),
+      where: unclaimedAvatarFilter(options.excludeIds),
     });
     if (available < take) {
       // The only sweeper. A reservation whose run died would otherwise hold

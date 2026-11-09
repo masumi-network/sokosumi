@@ -102,13 +102,13 @@ async function list(take = 6) {
   };
 }
 
-async function topUp(take = 6) {
+async function topUp(take = 6, excludeIds: string[] = []) {
   const response = await createApp().request(
     "http://localhost/avatars/top-up",
     {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ take, excludeIds: [] }),
+      body: JSON.stringify({ take, excludeIds }),
     },
   );
   const body = await response.json();
@@ -256,6 +256,29 @@ describe("Soko Bot avatar picker", () => {
 
       expect(avatars).toHaveLength(6);
       expect(generateTextMock).not.toHaveBeenCalled();
+    });
+
+    it("draws new avatars when the user has seen the whole pool", async () => {
+      const seen = Array.from({ length: 6 }, () => store.seed().id);
+
+      const { status, avatars } = await topUp(6, seen);
+
+      expect(status).toBe(200);
+      expect(generateTextMock).toHaveBeenCalledTimes(6);
+      expect(avatars).toHaveLength(6);
+      expect(avatars?.some((one) => seen.includes(one.id))).toBe(false);
+    });
+
+    it("draws only the unseen avatars the pool is short of", async () => {
+      const seen = Array.from({ length: 4 }, () => store.seed().id);
+      store.seed();
+      store.seed();
+
+      const { avatars } = await topUp(6, seen);
+
+      expect(generateTextMock).toHaveBeenCalledTimes(4);
+      expect(avatars).toHaveLength(6);
+      expect(avatars?.some((one) => seen.includes(one.id))).toBe(false);
     });
 
     it("draws only what is left of the user's hourly allowance", async () => {
