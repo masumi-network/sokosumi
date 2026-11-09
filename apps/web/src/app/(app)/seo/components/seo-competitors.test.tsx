@@ -31,6 +31,12 @@ function CompetitorWorkspace({
 }
 
 function renderWorkspace(workspace: ProjectSeoWorkspace) {
+  // The workspace reads the Audit on mount; never let it reach a real server.
+  if (!vi.isMockFunction(globalThis.fetch))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });

@@ -1641,6 +1641,14 @@ describe("SEO workspace integration", () => {
     // A first visit on another tab caches the Audit without reading the chat.
     const first = renderWorkspace(workspace, "?tab=keywords", false, 60_000);
     await screen.findByRole("tab", { name: "Keywords", selected: true });
+    // The first mount read must finish, so the cache is fresh when the Audit opens again.
+    await waitFor(() =>
+      expect(
+        first.client
+          .getQueryCache()
+          .findAll({ predicate: (query) => query.state.dataUpdateCount > 0 }),
+      ).not.toHaveLength(0),
+    );
     first.unmount();
     render(
       <QueryClientProvider client={first.client}>
