@@ -1,8 +1,14 @@
 import type { StudioBrandCopy, StudioBrandKit } from "@sokosumi/core-client";
-import { ExternalLink, Palette } from "lucide-react";
+import {
+  ENTITY_IMAGE_MAX_SIZE_BYTES,
+  isStudioLogoMime,
+  resolveUserUploadContentType,
+  STUDIO_LOGO_MIME_TYPES,
+} from "@sokosumi/utils";
+import { ExternalLink, ImagePlus, Palette } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
@@ -21,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   getStudioBrandKit,
   saveStudioBrandCopy,
+  uploadStudioProjectLogo,
 } from "@/lib/actions/image-studio/brand-kit";
 
 const MAX_LINES = 8;
@@ -34,7 +41,13 @@ function lines(value: string): string[] {
     .filter(Boolean);
 }
 
-export function StudioBrandKitDialog({ projectId }: { projectId: string }) {
+export function StudioBrandKitDialog({
+  onLogoChange,
+  projectId,
+}: {
+  onLogoChange: (logo: string | null) => void;
+  projectId: string;
+}) {
   const t = useTranslations("App.Studio");
   const [open, setOpen] = useState(false);
   const [kit, setKit] = useState<StudioBrandKit | null>(null);
@@ -48,7 +61,13 @@ export function StudioBrandKitDialog({ projectId }: { projectId: string }) {
   const [message, setMessage] = useState<
     "saved" | "loadError" | "saveError" | "conflict" | null
   >(null);
-  const [pending, startTransition] = useTransition();
+  const [brandPending, startTransition] = useTransition();
+  const [logoPending, startLogoTransition] = useTransition();
+  const pending = brandPending || logoPending;
+  const logoInput = useRef<HTMLInputElement>(null);
+  const [logoMessage, setLogoMessage] = useState<
+    "logoSaved" | "logoUploadError" | "logoFileInvalid" | null
+  >(null);
   const copy: StudioBrandCopy = {
     summary: draft.summary.trim(),
     tone: draft.tone.trim(),
@@ -64,9 +83,11 @@ export function StudioBrandKitDialog({ projectId }: { projectId: string }) {
   function load() {
     startTransition(async () => {
       setMessage(null);
+      setLogoMessage(null);
       try {
         const next = await getStudioBrandKit({ projectId });
         setKit(next);
+        onLogoChange(next.logo);
         setDraft({
           summary: next.summary,
           tone: next.tone,
@@ -76,6 +97,31 @@ export function StudioBrandKitDialog({ projectId }: { projectId: string }) {
         setDirty(false);
       } catch {
         setMessage("loadError");
+      }
+    });
+  }
+
+  function uploadLogo(file: File) {
+    if (pending || !kit) return;
+    const type = resolveUserUploadContentType(file.name, file.type);
+    if (
+      !file.size ||
+      file.size > ENTITY_IMAGE_MAX_SIZE_BYTES ||
+      !type ||
+      !isStudioLogoMime(type)
+    ) {
+      setLogoMessage("logoFileInvalid");
+      return;
+    }
+    startLogoTransition(async () => {
+      setLogoMessage(null);
+      try {
+        const { logo } = await uploadStudioProjectLogo({ projectId, file });
+        setKit((current) => (current ? { ...current, logo } : current));
+        onLogoChange(logo);
+        setLogoMessage("logoSaved");
+      } catch {
+        setLogoMessage("logoUploadError");
       }
     });
   }
@@ -142,8 +188,40 @@ export function StudioBrandKitDialog({ projectId }: { projectId: string }) {
         {kit ? (
           <fieldset className="min-w-0 space-y-4" disabled={pending}>
             <div className="space-y-2">
-              {kit.logo ? (
-                <ProjectAvatar logo={kit.logo} name={t("brandKit")} />
+              <div className="flex flex-wrap items-center gap-2">
+                {kit.logo ? (
+                  <ProjectAvatar logo={kit.logo} name={t("brandKit")} />
+                ) : null}
+                <input
+                  accept={STUDIO_LOGO_MIME_TYPES.join(",")}
+                  aria-label={t("BrandKit.logoFile")}
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (file) uploadLogo(file);
+                  }}
+                  ref={logoInput}
+                  type="file"
+                />
+                <Button
+                  loading={logoPending}
+                  onClick={() => logoInput.current?.click()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <ImagePlus aria-hidden />
+                  {t(kit.logo ? "BrandKit.replaceLogo" : "BrandKit.uploadLogo")}
+                </Button>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                {t("BrandKit.logoRequirements")}
+              </p>
+              {logoMessage ? (
+                <p role="status" className="text-muted-foreground text-sm">
+                  {t(`BrandKit.${logoMessage}`)}
+                </p>
               ) : null}
               {kit.colors.length ? (
                 <ul
@@ -269,13 +347,14 @@ export function StudioBrandKitDialog({ projectId }: { projectId: string }) {
           {kit ? (
             <Button
               disabled={
+                pending ||
                 !dirty ||
                 !copy.summary ||
                 !copy.tone ||
                 invalidLines ||
                 message === "conflict"
               }
-              loading={pending}
+              loading={brandPending}
               onClick={save}
               type="button"
             >

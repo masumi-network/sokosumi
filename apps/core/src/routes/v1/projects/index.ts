@@ -34,6 +34,7 @@ import mountPostProjectImageAssetCaption from "./[id]/image-studio/asset-caption
 import mountGetProjectImageAssetContent from "./[id]/image-studio/asset-content-get.js";
 import mountGetProjectImageAssetSocialMedia from "./[id]/image-studio/asset-social-media-get.js";
 import mountStudioBrandKit from "./[id]/image-studio/brand-kit.js";
+import mountStudioBrandLogo from "./[id]/image-studio/brand-logo-post.js";
 import mountGetProjectImageStudio from "./[id]/image-studio/get.js";
 import mountCancelProjectImageJob from "./[id]/image-studio/job-cancel-post.js";
 import mountCreateProjectImageJob from "./[id]/image-studio/jobs-post.js";
@@ -228,6 +229,7 @@ mountDuplicateProjectSocialPost(app);
 mountRecycleSocialAccountPost(app);
 mountGetProjectImageStudio(app);
 mountStudioBrandKit(app);
+mountStudioBrandLogo(app);
 mountCreateProjectImageJob(app);
 mountGetStudioProductCatalog(app);
 mountImportStudioProductCatalog(app);

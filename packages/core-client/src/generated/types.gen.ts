@@ -67543,6 +67543,136 @@ export type SaveStudioBrandCopyResponses = {
 
 export type SaveStudioBrandCopyResponse = SaveStudioBrandCopyResponses[keyof SaveStudioBrandCopyResponses];
 
+export type UploadStudioProjectLogoData = {
+    body: {
+        file?: Blob | File;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/logo';
+};
+
+export type UploadStudioProjectLogoErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Logo is too large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Logo is not a supported image
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Logo storage is unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UploadStudioProjectLogoError = UploadStudioProjectLogoErrors[keyof UploadStudioProjectLogoErrors];
+
+export type UploadStudioProjectLogoResponses = {
+    /**
+     * Project logo updated
+     */
+    200: {
+        data: {
+            logo: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UploadStudioProjectLogoResponse = UploadStudioProjectLogoResponses[keyof UploadStudioProjectLogoResponses];
+
 export type PostProjectsByIdImageStudioJobsData = {
     body: CreateProjectImageJobRequest;
     headers?: {

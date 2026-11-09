@@ -19,6 +19,13 @@ export const getStudioBrandKit = withSession<ProjectInput, StudioBrandKit>(
   ({ projectId }) => imageStudioService.getBrandKit(projectId),
 );
 
+export const uploadStudioProjectLogo = withSession<
+  ProjectInput & { file: File },
+  { logo: string }
+>(({ projectId, file }) =>
+  imageStudioService.uploadProjectLogo(projectId, file),
+);
+
 export const saveStudioBrandCopy = withSession<
   ProjectInput & SaveStudioBrandCopy,
   { ok: true; version: Date } | { ok: false; conflict: boolean }

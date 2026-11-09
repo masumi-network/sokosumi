@@ -4025,6 +4025,13 @@
       "brandKit": "Marken-Kit",
       "brandKitNewTab": "Projektdesign in einem neuen Tab öffnen",
       "BrandKit": {
+        "logoFile": "Datei für das Projektlogo",
+        "uploadLogo": "Logo hochladen",
+        "replaceLogo": "Logo ersetzen",
+        "logoSaved": "Projektlogo gespeichert.",
+        "logoUploadError": "Das Projektlogo konnte nicht gespeichert werden.",
+        "logoFileInvalid": "Wähle ein statisches PNG-, JPEG- oder WebP-Bild bis 2 MB.",
+        "logoRequirements": "PNG, JPEG oder WebP bis 2 MB und 4 Megapixel.",
         "description": "Prüfe den visuellen Stil und speichere Ton, Zielgruppe und Texte für Anzeigen in Studio.",
         "colors": "Markenfarben",
         "summary": "Markenbeschreibung",

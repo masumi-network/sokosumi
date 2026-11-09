@@ -73,6 +73,10 @@ export const imageStudioService = {
     return (await coreClient.saveStudioBrandCopy(projectId, input)).data;
   },
 
+  async uploadProjectLogo(projectId: string, file: File) {
+    return (await coreClient.uploadStudioProjectLogo(projectId, file)).data;
+  },
+
   async getProductCatalog(projectId: string): Promise<StudioProductCatalog> {
     const result = await coreClient.getStudioProductCatalog(projectId);
     return result.data;

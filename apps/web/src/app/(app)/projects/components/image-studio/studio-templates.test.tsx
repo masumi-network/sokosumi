@@ -43,11 +43,13 @@ const mocks = vi.hoisted(() => ({
   assets: [] as unknown[],
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
+  uploadLogo: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   getStudioBrandKit: mocks.loadBrandKit,
   saveStudioBrandCopy: mocks.saveBrandCopy,
+  uploadStudioProjectLogo: mocks.uploadLogo,
 }));
 
 vi.mock("./use-studio-state", () => ({
@@ -145,6 +147,48 @@ describe("starting from a template", () => {
         approvedLines: ["Made from reclaimed clay.", "Fired in Prague."],
       },
     });
+  });
+
+  it("uploads an approved logo while preserving an unsaved brand copy edit", async () => {
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "A ceramics studio",
+      tone: "Direct",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    mocks.uploadLogo.mockResolvedValueOnce({
+      logo: "https://blob.example/approved.png",
+    });
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const copy = await screen.findByLabelText("BrandKit.approvedLines");
+    await waitFor(() => expect(copy).toBeEnabled());
+    fireEvent.change(copy, { target: { value: "Fired in Prague." } });
+
+    const picker = screen.getByLabelText("BrandKit.logoFile");
+    fireEvent.change(picker, {
+      target: {
+        files: [new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" })],
+      },
+    });
+    expect(screen.getByText("BrandKit.logoFileInvalid")).toBeInTheDocument();
+    expect(mocks.uploadLogo).not.toHaveBeenCalled();
+
+    const file = new File(["PNG data"], "approved.png", { type: "image/png" });
+    fireEvent.change(picker, { target: { files: [file] } });
+    await screen.findByText("BrandKit.logoSaved");
+    expect(mocks.uploadLogo).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      file,
+    });
+    expect(
+      screen.getByRole("button", { name: "BrandKit.replaceLogo" }),
+    ).toBeInTheDocument();
+    expect(copy).toHaveValue("Fired in Prague.");
   });
 
   it("fills the composer with the template's brief and sets its frame", () => {

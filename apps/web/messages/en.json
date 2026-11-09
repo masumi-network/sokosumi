@@ -4025,6 +4025,13 @@
       "brandKit": "Brand kit",
       "brandKitNewTab": "Open project design in a new tab",
       "BrandKit": {
+        "logoFile": "Project logo file",
+        "uploadLogo": "Upload logo",
+        "replaceLogo": "Replace logo",
+        "logoSaved": "Project logo saved.",
+        "logoUploadError": "Could not save the project logo.",
+        "logoFileInvalid": "Choose a still PNG, JPEG, or WebP image up to 2 MB.",
+        "logoRequirements": "PNG, JPEG, or WebP up to 2 MB and 4 megapixels.",
         "description": "Review the visual style and save the voice, audience, and copy Studio uses for ads.",
         "colors": "Brand colors",
         "summary": "Brand description",

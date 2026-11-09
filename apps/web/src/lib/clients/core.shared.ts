@@ -8,6 +8,7 @@ import {
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   suggestTaskTags as coreSuggestTaskTags,
+  uploadStudioProjectLogo as coreUploadStudioProjectLogo,
   type SaveStudioBrandCopy,
   type StudioProductCatalog,
 } from "@sokosumi/core-client";
@@ -4172,6 +4173,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function uploadStudioProjectLogo(id: string, file: File) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreUploadStudioProjectLogo({ client, path: { id }, body: { file } }),
+      "Failed to upload the Studio project logo",
+    );
+  }
+
   async function getStudioProductCatalog(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7041,6 +7051,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getStudioProductCatalog,
     getStudioBrandKit,
     saveStudioBrandCopy,
+    uploadStudioProjectLogo,
     replaceStudioProductCatalog,
     importStudioProductCatalog,
     getProjectsByIdImageStudio,

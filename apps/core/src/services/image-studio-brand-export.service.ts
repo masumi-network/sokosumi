@@ -1,6 +1,7 @@
 import {
   ENTITY_IMAGE_MAX_SIZE_BYTES,
   isOwnedProjectLogoUrl,
+  isStudioLogoMime,
 } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
@@ -35,10 +36,7 @@ export async function renderBrandedStudioAsset(
         ? await downloadRemoteImage(url, {
             timeoutMs: 8_000,
             maxBytes: ENTITY_IMAGE_MAX_SIZE_BYTES,
-            isAllowedContentType: (mime) =>
-              mime === "image/png" ||
-              mime === "image/jpeg" ||
-              mime === "image/webp",
+            isAllowedContentType: isStudioLogoMime,
           })
         : null;
     if (!logo)

@@ -4025,6 +4025,13 @@
       "brandKit": "Kit de marca",
       "brandKitNewTab": "Abrir el diseño del proyecto en una pestaña nueva",
       "BrandKit": {
+        "logoFile": "Archivo del logotipo del proyecto",
+        "uploadLogo": "Subir logotipo",
+        "replaceLogo": "Reemplazar logotipo",
+        "logoSaved": "Se guardó el logotipo del proyecto.",
+        "logoUploadError": "No se pudo guardar el logotipo del proyecto.",
+        "logoFileInvalid": "Elige una imagen estática PNG, JPEG o WebP de hasta 2 MB.",
+        "logoRequirements": "PNG, JPEG o WebP de hasta 2 MB y 4 megapíxeles.",
         "description": "Revisa el estilo visual y guarda la voz, el público y los textos que Studio usa en los anuncios.",
         "colors": "Colores de la marca",
         "summary": "Descripción de la marca",

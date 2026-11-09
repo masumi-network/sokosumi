@@ -145,7 +145,7 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
-  projectLogo,
+  projectLogo: initialProjectLogo,
   projectScopePrompt,
   websiteUrl,
 }: {
@@ -225,6 +225,10 @@ export function ImageStudio({
   const [pending, startTransition] = useTransition();
   const [downloadingAds, startAdDownload] = useTransition();
   const [includeLogoInArchive, setIncludeLogoInArchive] = useState(false);
+  const [brandKitLogo, setBrandKitLogo] = useState<{
+    projectId: string;
+    logo: string | null;
+  }>();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
   const [captionByAssetId, setCaptionByAssetId] = useState<
@@ -279,6 +283,10 @@ export function ImageStudio({
   // Keep the queue mounted while the landing page starts work in a project.
   const [pickedProjectId, setPickedProjectId] = useState<string | null>(null);
   const activeProjectId = projectId ?? pickedProjectId;
+  const projectLogo =
+    brandKitLogo?.projectId === activeProjectId
+      ? brandKitLogo.logo
+      : initialProjectLogo;
 
   const studio = useStudioState({
     projectId: activeProjectId,
@@ -930,11 +938,14 @@ export function ImageStudio({
           )}
         >
           <StudioBrandKitDialog
-            key={activeProjectId}
+            key={`brand-kit-${activeProjectId}`}
+            onLogoChange={(logo) =>
+              setBrandKitLogo({ projectId: activeProjectId, logo })
+            }
             projectId={activeProjectId}
           />
           <StudioProductCatalogDialog
-            key={activeProjectId}
+            key={`catalog-${activeProjectId}`}
             canUseProduct={!uploadingPhoto}
             onUseProduct={useProduct}
             onUseBatch={useProductBatch}
@@ -1166,7 +1177,11 @@ export function ImageStudio({
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}
           labels={labels}
-          projectLogo={projectLogo}
+          projectLogo={
+            lightboxAssets[0]?.projectId === activeProjectId
+              ? projectLogo
+              : undefined
+          }
           onAnimate={
             videoModelsFor(catalog, "image").length > 0 ? animate : undefined
           }
