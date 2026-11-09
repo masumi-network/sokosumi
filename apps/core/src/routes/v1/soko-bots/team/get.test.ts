@@ -105,10 +105,6 @@ function bot(id: string, overrides: Record<string, unknown> = {}) {
     status: "IDLE",
     lastActivityAt: null,
     archivedAt: null,
-    adminPausedAt: null,
-    avatar: null,
-    turns: [],
-    pendingDecisions: [],
     ...overrides,
   };
 }
@@ -125,47 +121,19 @@ describe("GET /team", () => {
     vi.clearAllMocks();
   });
 
-  it("gives each teammate's bot its own avatar state and avatar", async () => {
+  it("shows each teammate's bot with its one picture, or none for the orb", async () => {
     organizationFindMock.mockResolvedValue({
       name: "Acme",
       logo: null,
       members: [
         member("a", [
           bot("01960001-0001-7001-8001-0000000000a1", {
-            avatarImageUrl: "https://blob.test/a-idle.webp",
-            // A decision during a run: it is waiting on its owner.
-            turns: [{ status: "RUNNING", completedAt: null }],
-            pendingDecisions: [{ id: "d1" }],
-            avatar: {
-              styleId: "crafted-desk",
-              styleVersion: 1,
-              imageUrl: "https://blob.test/a-idle.webp",
-              renders: [
-                {
-                  state: "IDLE",
-                  stillUrl: "https://blob.test/a-idle.webp",
-                  loopUrl: null,
-                  loopLargeUrl: null,
-                },
-              ],
-            },
+            avatarImageUrl: "https://blob.test/a-mascot.webp",
+            status: "RUNNING",
           }),
         ]),
-        member("b", [
-          bot("01960001-0001-7001-8001-0000000000b1", {
-            avatarImageUrl: "https://blob.test/b-mascot.png",
-            turns: [
-              {
-                status: "COMPLETED",
-                completedAt: new Date(Date.now() - 60_000),
-              },
-            ],
-          }),
-        ]),
-        member("c", [
-          bot("01960001-0001-7001-8001-0000000000c1", { status: "PAUSED" }),
-        ]),
-        member("d", []),
+        member("b", [bot("01960001-0001-7001-8001-0000000000b1")]),
+        member("c", []),
       ],
     });
 
@@ -173,32 +141,16 @@ describe("GET /team", () => {
 
     expect(response.status).toBe(200);
     const { members } = (await response.json()).data;
-    expect(
-      members.map((one: { bot: { avatarState: string } | null }) =>
-        one.bot ? one.bot.avatarState : null,
-      ),
-    ).toEqual(["needs_you", "done", "offline", null]);
-    // Partial renders: the idle still is there, the other states are null.
-    expect(members[0].bot.avatar).toMatchObject({
-      styleId: "crafted-desk",
-      stillUrl: "https://blob.test/a-idle.webp",
-      states: {
-        idle: { stillUrl: "https://blob.test/a-idle.webp", loopUrl: null },
-        thinking: null,
-        offline: null,
-      },
+    expect(members[0].bot).toMatchObject({
+      avatarImageUrl: "https://blob.test/a-mascot.webp",
+      status: "RUNNING",
     });
-    // The legacy fallback: one image, no states, and the old field intact.
-    expect(members[1].bot).toMatchObject({
-      avatarImageUrl: "https://blob.test/b-mascot.png",
-      avatar: {
-        styleId: "mascot",
-        stillUrl: "https://blob.test/b-mascot.png",
-        states: { idle: null, working: null },
-      },
-    });
-    // A bot with no image at all keeps the generative orb.
-    expect(members[2].bot.avatar).toBeNull();
+    expect(members[1].bot.avatarImageUrl).toBeNull();
+    expect(members[2].bot).toBeNull();
+    for (const one of members.slice(0, 2)) {
+      expect(one.bot).not.toHaveProperty("avatarState");
+      expect(one.bot).not.toHaveProperty("avatar");
+    }
   });
 
   it("does the same in a personal workspace", async () => {
@@ -208,7 +160,7 @@ describe("GET /team", () => {
       image: null,
       sokoBots: [
         bot("01960001-0001-7001-8001-0000000000a1", {
-          turns: [{ status: "QUEUED", completedAt: null }],
+          avatarImageUrl: "https://blob.test/me.webp",
         }),
       ],
     });
@@ -216,30 +168,8 @@ describe("GET /team", () => {
     const response = await createApp(null).request("http://localhost/team");
 
     expect(response.status).toBe(200);
-    expect((await response.json()).data.members[0].bot.avatarState).toBe(
-      "thinking",
+    expect((await response.json()).data.members[0].bot.avatarImageUrl).toBe(
+      "https://blob.test/me.webp",
     );
-  });
-
-  it("asks the database for the latest foreground turn and any open decision", async () => {
-    organizationFindMock.mockResolvedValue({
-      name: "Acme",
-      logo: null,
-      members: [],
-    });
-    userFindMock.mockResolvedValue(null);
-
-    await createApp("org_1").request("http://localhost/team");
-
-    const select =
-      organizationFindMock.mock.calls[0]?.[0].select.members.select.user.select
-        .sokoBots.select;
-    expect(select.turns).toMatchObject({
-      where: { parentTurnId: null },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-    });
-    expect(select.pendingDecisions.where).toMatchObject({ status: "PENDING" });
-    expect(select.adminPausedAt).toBe(true);
   });
 });

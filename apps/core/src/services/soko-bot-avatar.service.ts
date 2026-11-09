@@ -10,28 +10,17 @@ import sharp from "sharp";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
-  conflict,
   notFound,
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { buildOriginalSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
-import { toDbAvatarState } from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import {
   CONCURRENCY_CONFLICT_KIND,
   serializableTransaction,
 } from "@/lib/db/transaction";
-import { planFresh, randomSeed } from "@/lib/soko-bot-avatar/draw";
-import {
-  AVATAR_STATES,
-  type AvatarLook,
-  findAvatarStyle,
-  type SokoBotAvatarStyle,
-  traitKeyOf,
-} from "@/lib/soko-bot-avatar/style";
-import { sokoBotAvatarLookSchema } from "@/schemas/soko-bot-avatar.schema";
 
 /**
  * Mascot avatar pool for Soko Bots. Images follow the "IP as logo" recipe
@@ -46,7 +35,6 @@ export const AVATAR_MODEL = "google/gemini-3.1-flash-image";
 const GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TOP_UP_PER_CALL = 6;
 const GENERATION_WINDOW_MS = 60 * 60 * 1000;
-export const KEEP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 interface AvatarSubject {
   subject: string;
@@ -299,89 +287,10 @@ interface AvatarReservation {
 /** Thrown when the caller has no hourly allowance left. Nothing is billed. */
 export class AvatarGenerationCappedError extends Error {}
 
-/** The unique-key columns of a look: creature, what it wears, the seed it came from. */
-export function avatarRowKey(
-  style: SokoBotAvatarStyle,
-  look: AvatarLook,
-  seed: number,
-) {
-  return {
-    subject: look.creature,
-    background: `${style.id}:${[...look.accessories].sort().join("+") || "none"}`,
-    seed,
-  };
-}
-
 /** Whether the pool can draw at all: it needs the Gateway and a blob store. */
 export function canDraw(): boolean {
   const env = getEnv();
   return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
-}
-
-/** Rolls per fresh look before it gives up on finding an unused combination. */
-const FRESH_LOOK_ROLLS = 12;
-
-/** The trait keys among `keys` that a pool or claimed look already has. */
-export async function takenTraitKeys(
-  client: Prisma.TransactionClient | typeof prisma,
-  style: SokoBotAvatarStyle,
-  keys: readonly string[],
-): Promise<Set<string>> {
-  const rows = await client.sokoBotAvatar.findMany({
-    where: {
-      styleId: style.id,
-      styleVersion: style.version,
-      traitKey: { in: [...keys] },
-    },
-    select: { traitKey: true },
-  });
-  return new Set(rows.flatMap((row) => (row.traitKey ? [row.traitKey] : [])));
-}
-
-/**
- * Up to `count` fresh looks, each from its own seed and none sharing a trait
- * key with a pool or claimed look (or with each other). A seed that lands on a
- * taken key is rolled again; with thousands of combinations that is rare, so a
- * slot that finds nothing in a few rolls is simply left out.
- */
-export async function pickFreshLooks(
-  client: Prisma.TransactionClient | typeof prisma,
-  style: SokoBotAvatarStyle,
-  count: number,
-) {
-  const chosen: { seed: number; look: AvatarLook; prompt: string }[] = [];
-  const used = new Set<string>();
-  for (let slot = 0; slot < count; slot += 1) {
-    const rolls = Array.from({ length: FRESH_LOOK_ROLLS }, () => {
-      const seed = randomSeed();
-      const plan = planFresh(style, seed);
-      return {
-        seed,
-        plan,
-        key: plan.kind === "edit" ? traitKeyOf(style, plan.look) : null,
-      };
-    });
-    const taken = await takenTraitKeys(
-      client,
-      style,
-      rolls.flatMap((roll) => (roll.key ? [roll.key] : [])),
-    );
-    const free = rolls.find(
-      (roll) =>
-        roll.plan.kind === "edit" &&
-        roll.key &&
-        !taken.has(roll.key) &&
-        !used.has(roll.key),
-    );
-    if (!free || free.plan.kind !== "edit" || !free.key) continue;
-    used.add(free.key);
-    chosen.push({
-      seed: free.seed,
-      look: free.plan.look,
-      prompt: free.plan.prompt,
-    });
-  }
-  return chosen;
 }
 
 /**
@@ -681,123 +590,23 @@ export async function topUpAvailableAvatars(
   return await listAvailableAvatars(take, options);
 }
 
+/** True when the row is a crafted look; its background is `<style>:<accessories>`. */
+function isCraftedRow(background: string): boolean {
+  return background.includes(":");
+}
+
 /**
- * Clean up private looks past their expiry, unless a bot holds them.
+ * Give an unclaimed avatar to a bot, releasing whatever it held before. The
+ * unique index on `claimedBySokoBotId` guarantees one avatar per bot; the
+ * updateMany guard guarantees one bot per avatar.
  *
- * - A pool look that was taken as a draft and never kept goes back to the pool.
- * - Everything else is deleted, renders with it: studio drafts, the tombstones
- *   of replaced looks, and private looks whose bot was deleted (no expiry left
- *   once a bot claimed them).
- */
-export async function sweepExpiredDrafts(
-  now: Date = new Date(),
-): Promise<number> {
-  const returned = await prisma.sokoBotAvatar.updateMany({
-    where: {
-      claimedBySokoBotId: null,
-      fromPool: true,
-      keptAt: null,
-      draftExpiresAt: { lt: now },
-    },
-    data: { draftForSokoBotId: null, draftExpiresAt: null },
-  });
-  const { count } = await prisma.sokoBotAvatar.deleteMany({
-    where: {
-      claimedBySokoBotId: null,
-      OR: [
-        { draftExpiresAt: { lt: now } },
-        { draftForSokoBotId: { not: null }, draftExpiresAt: null },
-      ],
-    },
-  });
-  return returned.count + count;
-}
-
-/**
- * Hand an unclaimed pool look to a bot as its draft, so Shuffle costs nothing
- * while the pool has looks. Null when the pool has none in this style.
- */
-export async function takePoolLookAsDraft(
-  sokoBotId: string,
-  expiresAt: Date,
-  style: SokoBotAvatarStyle,
-) {
-  const unclaimedInStyle = {
-    claimedBySokoBotId: null,
-    styleId: style.id,
-    styleVersion: style.version,
-    reservedAt: null,
-    // A draft, or a kept look its bot replaced, is private to that bot.
-    draftForSokoBotId: null,
-  };
-  const candidates = await prisma.sokoBotAvatar.findMany({
-    where: unclaimedInStyle,
-    orderBy: { createdAt: "desc" },
-    take: 12,
-    select: { id: true, imageUrl: true, look: true },
-  });
-  // A random pick, tried in turn: another bot may take the same look first.
-  while (candidates.length > 0) {
-    const [pick] = candidates.splice(crypto.randomInt(candidates.length), 1);
-    if (!pick) break;
-    const taken = await prisma.sokoBotAvatar.updateMany({
-      where: { id: pick.id, ...unclaimedInStyle },
-      data: { draftForSokoBotId: sokoBotId, draftExpiresAt: expiresAt },
-    });
-    if (taken.count === 1) return pick;
-  }
-  return null;
-}
-
-async function assertKeepAllowance(
-  tx: Prisma.TransactionClient,
-  userId: string,
-): Promise<void> {
-  const kept = await tx.sokoBotAvatar.count({
-    where: {
-      keptByUserId: userId,
-      keptAt: { gte: new Date(Date.now() - KEEP_WINDOW_MS) },
-    },
-  });
-  if (kept >= LIMITS.SOKO_BOT_AVATAR_KEEPS_PER_DAY) {
-    throw tooManyRequests(
-      `You can keep at most ${LIMITS.SOKO_BOT_AVATAR_KEEPS_PER_DAY} new looks per day. Try again tomorrow.`,
-      { kind: "avatar_keep_rate_limited" },
-    );
-  }
-}
-
-function traitKeyForRow(styleId: string, look: unknown): string | null {
-  const style = findAvatarStyle(styleId);
-  const parsed = sokoBotAvatarLookSchema.safeParse(look);
-  return style && parsed.success ? traitKeyOf(style, parsed.data) : null;
-}
-
-export interface ClaimOptions {
-  /** Run inside a caller's transaction (bot create); otherwise a serializable one. */
-  tx?: Prisma.TransactionClient;
-  /** Whose keep this is, recorded for the daily keep cap. Staff pass nothing. */
-  keptBy?: string;
-  /** Refuse past the daily cap. Bot creation records the keep but never refuses. */
-  enforceKeepCap?: boolean;
-}
-
-/**
- * Give an avatar to a bot, releasing whatever it held before. The unique index
- * on `claimedBySokoBotId` guarantees one avatar per bot; the updateMany guard
- * guarantees one bot per avatar.
- *
- * Claiming a crafted look is keeping it: the keep is recorded against
- * `keptBy`'s daily cap, the bot's other drafts go, and one render row per state
- * is created for the cron to work through. A kept look the bot replaces is
- * retired: its renders are deleted and the row stays as a tombstone for the cap
- * window (the cap reads it), never claimable again. A look that was never kept
- * (a pool pick) goes back to the pool.
+ * The selects and writes name only columns that predate the crafted style, so
+ * this keeps working while those columns are dropped.
  */
 export async function claimAvatar(
   sokoBotId: string,
   avatarId: string,
-  options: ClaimOptions = {},
+  outerTx?: Prisma.TransactionClient,
 ): Promise<string> {
   const run = async (tx: Prisma.TransactionClient) => {
     const avatar = await tx.sokoBotAvatar.findUnique({
@@ -807,146 +616,41 @@ export async function claimAvatar(
         imageUrl: true,
         claimedBySokoBotId: true,
         reservedAt: true,
-        styleId: true,
-        keptAt: true,
-        draftForSokoBotId: true,
-        draftExpiresAt: true,
-        look: true,
-        traitKey: true,
+        background: true,
       },
     });
     if (!avatar) throw notFound("Avatar not found");
     // Its image is still in flight, so claiming it would set the bot's avatar
     // to an empty URL that nothing ever fills in.
     if (avatar.reservedAt) throw notFound("Avatar not found");
-    // A draft is private to its bot, and an expired one is as good as swept.
-    if (avatar.draftForSokoBotId && avatar.draftForSokoBotId !== sokoBotId) {
-      throw notFound("Avatar not found");
-    }
-    const now = new Date();
-    if (
-      !avatar.keptAt &&
-      avatar.draftExpiresAt &&
-      avatar.draftExpiresAt < now
-    ) {
-      throw notFound("Avatar not found");
-    }
-    // A kept look nobody holds is retired: a replaced look does not come back.
-    if (avatar.keptAt && !avatar.claimedBySokoBotId) {
-      throw notFound("Avatar not found");
-    }
+    // Only the original style is offered, so only it can be picked.
+    if (isCraftedRow(avatar.background)) throw notFound("Avatar not found");
     if (avatar.claimedBySokoBotId && avatar.claimedBySokoBotId !== sokoBotId) {
       throw unprocessableEntity("This avatar was just taken by another bot");
     }
-    const crafted = findAvatarStyle(avatar.styleId) !== null;
-    const firstKeep = crafted && !avatar.keptAt;
-    if (firstKeep && options.keptBy && options.enforceKeepCap) {
-      await assertKeepAllowance(tx, options.keptBy);
-    }
-
-    // The look it held before. A kept one is retired to a tombstone (renders
-    // gone, row kept for the cap window); one that was never kept is released.
-    const retired = await tx.sokoBotAvatar.findMany({
-      where: {
-        claimedBySokoBotId: sokoBotId,
-        id: { not: avatarId },
-        keptAt: { not: null },
-      },
-      select: { id: true },
-    });
-    if (retired.length > 0) {
-      const ids = retired.map((one) => one.id);
-      await tx.sokoBotAvatarRender.deleteMany({
-        where: { avatarId: { in: ids } },
-      });
-      await tx.sokoBotAvatar.updateMany({
-        where: { id: { in: ids } },
-        data: {
-          claimedBySokoBotId: null,
-          claimedAt: null,
-          draftForSokoBotId: sokoBotId,
-          draftExpiresAt: new Date(now.getTime() + KEEP_WINDOW_MS),
-          // The combination is free for the next bot to use.
-          traitKey: null,
-        },
-      });
-    }
     await tx.sokoBotAvatar.updateMany({
-      where: {
-        claimedBySokoBotId: sokoBotId,
-        id: { not: avatarId },
-        keptAt: null,
-      },
+      where: { claimedBySokoBotId: sokoBotId, id: { not: avatarId } },
       data: { claimedBySokoBotId: null, claimedAt: null },
     });
-    // A draft takes its place among the claimed looks under its trait key.
-    const traitKey =
-      crafted && !avatar.traitKey
-        ? traitKeyForRow(avatar.styleId, avatar.look)
-        : null;
-    let claimed: { count: number };
-    try {
-      claimed = await tx.sokoBotAvatar.updateMany({
-        where: {
-          id: avatarId,
-          OR: [{ claimedBySokoBotId: null }, { claimedBySokoBotId: sokoBotId }],
-        },
-        data: {
-          claimedBySokoBotId: sokoBotId,
-          claimedAt: now,
-          ...(crafted ? { draftExpiresAt: null } : {}),
-          ...(traitKey ? { traitKey } : {}),
-          ...(firstKeep
-            ? { keptAt: now, keptByUserId: options.keptBy ?? null }
-            : {}),
-        },
-      });
-    } catch (error) {
-      // Another bot holds, or was just offered, this exact combination.
-      if (!isPrismaUniqueViolation(error)) throw error;
-      throw conflict(
-        "Another look just took this combination. Change something and try again.",
-        { kind: "avatar_look_taken" },
-      );
-    }
+    const claimed = await tx.sokoBotAvatar.updateMany({
+      where: {
+        id: avatarId,
+        OR: [{ claimedBySokoBotId: null }, { claimedBySokoBotId: sokoBotId }],
+      },
+      data: { claimedBySokoBotId: sokoBotId, claimedAt: new Date() },
+    });
     if (claimed.count === 0) {
       throw unprocessableEntity("This avatar was just taken by another bot");
     }
     await tx.sokoBot.update({
       where: { id: sokoBotId },
       data: { avatarImageUrl: avatar.imageUrl },
+      select: { id: true },
     });
-    if (crafted) {
-      // The idle still is the look itself; the other states are drawn by the cron.
-      await tx.sokoBotAvatarRender.createMany({
-        data: AVATAR_STATES.map((state) => ({
-          avatarId,
-          state: toDbAvatarState(state),
-          ...(state === "idle"
-            ? { status: "STILL_READY" as const, stillUrl: avatar.imageUrl }
-            : {}),
-        })),
-        skipDuplicates: true,
-      });
-      // The bot's other drafts: a pool look goes back, one drawn for the bot is deleted.
-      const others = {
-        draftForSokoBotId: sokoBotId,
-        claimedBySokoBotId: null,
-        keptAt: null,
-        id: { not: avatarId },
-      };
-      await tx.sokoBotAvatar.updateMany({
-        where: { ...others, fromPool: true },
-        data: { draftForSokoBotId: null, draftExpiresAt: null },
-      });
-      await tx.sokoBotAvatar.deleteMany({
-        where: { ...others, fromPool: false },
-      });
-    }
     return avatar.imageUrl;
   };
-  return options.tx
-    ? run(options.tx)
+  return outerTx
+    ? run(outerTx)
     : serializableTransaction(
         run,
         "Another avatar change is running. Try again.",

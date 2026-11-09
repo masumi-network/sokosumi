@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import { readFile } from "node:fs/promises";
-import type { z } from "@hono/zod-openapi";
 import { put } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { unprocessableEntity } from "@/helpers/error";
@@ -13,6 +12,7 @@ import {
 } from "@/lib/soko-bot-avatar/provider";
 import {
   type AvatarAccessory,
+  type AvatarChange,
   type AvatarLook,
   accessoryPrompt,
   COAT_TRAIT,
@@ -26,15 +26,12 @@ import {
   type SokoBotAvatarStyle,
   seededRandom,
 } from "@/lib/soko-bot-avatar/style";
-import type { sokoBotAvatarChangeSchema } from "@/schemas/soko-bot-avatar.schema";
 
 /**
  * Style-agnostic drawing: turn one change into one edit prompt, run it through
  * the provider, and level the result. Every name that reaches a prompt comes
  * from the style it is given.
  */
-
-export type AvatarChange = z.infer<typeof sokoBotAvatarChangeSchema>;
 
 const ASSET_TIMEOUT_MS = 60_000;
 /** Typed changes kept on a look; older ones are dropped, they are only a record. */

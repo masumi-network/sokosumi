@@ -101,7 +101,7 @@ describe("createSharedSokoBot", () => {
     ]);
   });
 
-  it("records who kept the avatar it creates the bot with, without enforcing the keep cap", async () => {
+  it("claims the avatar it creates the bot with, in the same transaction", async () => {
     const tx = recordingTx(["caller"]);
     transactionMock.mockImplementation(async (run) => await run(tx));
 
@@ -113,10 +113,7 @@ describe("createSharedSokoBot", () => {
       avatarId: "avatar-1",
     });
 
-    expect(claimAvatarMock).toHaveBeenCalledWith(BOT_ID, "avatar-1", {
-      tx,
-      keptBy: "caller",
-    });
+    expect(claimAvatarMock).toHaveBeenCalledWith(BOT_ID, "avatar-1", tx);
   });
 
   it("refuses a workspace without an organization before any transaction", async () => {

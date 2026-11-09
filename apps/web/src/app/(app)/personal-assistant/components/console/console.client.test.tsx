@@ -1,4 +1,3 @@
-import type { SokoBotAvatarView } from "@sokosumi/core-client";
 import {
   cleanup,
   fireEvent,
@@ -7,17 +6,12 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { useContext } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 
 import { SokoBotTargetContext } from "../soko-bot-target";
 import { SokoBotConsole, type SokoBotConsoleProps } from "./console.client";
-
-const reduceMotion = vi.hoisted(() => ({ current: false }));
-vi.mock("motion/react", () => ({
-  useReducedMotion: () => reduceMotion.current,
-}));
 
 const pushMock = vi.fn();
 const toastErrorMock = vi.fn();
@@ -127,8 +121,6 @@ function chatState(viewerCanManage: boolean): SokoBotChatState {
       name: "Ops",
       avatarSeed: null,
       avatarImageUrl: null,
-      avatarState: "idle",
-      avatar: null,
       versionId: null,
       followWholeBoard: false,
       mailAutoRead: false,
@@ -291,157 +283,60 @@ describe("SokoBotConsole", () => {
   });
 });
 
-const NO_STATES = {
-  idle: null,
-  thinking: null,
-  working: null,
-  done: null,
-  needs_you: null,
-  offline: null,
-};
-
-function stateAssets(name: string) {
-  return {
-    stillUrl: `https://blob/${name}.png`,
-    loopUrl: `https://blob/${name}-480.mp4`,
-    loopLargeUrl: `https://blob/${name}-960.mp4`,
-  };
-}
-
-const CRAFTED: SokoBotAvatarView = {
-  styleId: "crafted-desk",
-  styleVersion: 1,
-  stillUrl: "https://blob/idle.png",
-  states: {
-    ...NO_STATES,
-    idle: stateAssets("idle"),
-    working: stateAssets("working"),
-    done: stateAssets("done"),
-  },
-};
-
-function craftedState(
-  avatarState: "idle" | "working" | "done",
-): SokoBotChatState {
+function stateWith(bot: Partial<SokoBotChatState["bot"]>): SokoBotChatState {
   const state = chatState(true);
-  return {
-    ...state,
-    bot: {
-      ...state.bot,
-      avatarState,
-      avatar: CRAFTED,
-      avatarImageUrl: CRAFTED.stillUrl,
-    },
-  };
-}
-
-function reducedMotion(matches: boolean) {
-  reduceMotion.current = matches;
-}
-
-function portrait() {
-  return screen.getByRole("img", { name: /^alt\(/ });
-}
-
-function loop() {
-  return document.querySelector("video");
+  return { ...state, bot: { ...state.bot, ...bot } };
 }
 
 describe("SokoBotConsole header portrait", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     viewMock.mockReturnValue(null);
-    reducedMotion(false);
-    // No media playback in the test DOM: a loop is a video that never plays.
-    Object.defineProperty(HTMLMediaElement.prototype, "play", {
-      configurable: true,
-      value: vi.fn(() => Promise.resolve()),
-    });
-  });
-  afterEach(() => {
-    reduceMotion.current = false;
   });
 
-  it("plays the current state once on mount, then rests on its still", () => {
-    renderConsole({ initialState: craftedState("working") });
-    expect(loop()).toHaveAttribute("src", "https://blob/working-960.mp4");
-    expect(loop()).toHaveAttribute("poster", "https://blob/working.png");
-    expect(loop()).toHaveAttribute("aria-hidden", "true");
-    expect(loop()).not.toHaveAttribute("loop");
-    expect(portrait()).toHaveAttribute("alt", "alt(Ops,label.working)");
-
-    fireEvent.ended(loop() as HTMLVideoElement);
-
-    expect(loop()).toBeNull();
-    expect(portrait()).toHaveAttribute("src", "https://blob/working.png");
-  });
-
-  it("plays again whenever the state changes", () => {
+  it("shows the bot's one picture whatever it is doing, and never a loop", () => {
     const { rerender } = renderConsole({
-      initialState: craftedState("working"),
+      initialState: stateWith({
+        status: "RUNNING",
+        avatarImageUrl: "https://blob/mascot.webp",
+      }),
     });
-    fireEvent.ended(loop() as HTMLVideoElement);
-    expect(loop()).toBeNull();
+    expect(screen.getByRole("img", { name: "Ops" })).toHaveAttribute(
+      "src",
+      "https://blob/mascot.webp",
+    );
+    expect(document.querySelector("video")).toBeNull();
 
-    rerender(consoleElement({ initialState: craftedState("done") }));
-    expect(loop()).toHaveAttribute("src", "https://blob/done-960.mp4");
-    expect(loop()).toHaveAttribute("poster", "https://blob/done.png");
-
-    fireEvent.ended(loop() as HTMLVideoElement);
-    expect(loop()).toBeNull();
-    expect(portrait()).toHaveAttribute("src", "https://blob/done.png");
+    rerender(
+      consoleElement({
+        initialState: stateWith({
+          status: "IDLE",
+          avatarImageUrl: "https://blob/mascot.webp",
+        }),
+      }),
+    );
+    expect(screen.getByRole("img", { name: "Ops" })).toHaveAttribute(
+      "src",
+      "https://blob/mascot.webp",
+    );
   });
 
-  it("rests on the still when the clip cannot play", () => {
-    renderConsole({ initialState: craftedState("working") });
-    fireEvent.error(loop() as HTMLVideoElement);
-    expect(loop()).toBeNull();
-    expect(portrait()).toHaveAttribute("src", "https://blob/working.png");
-  });
-
-  it("shows only stills under reduced motion", () => {
-    reducedMotion(true);
-    renderConsole({ initialState: craftedState("working") });
-    expect(loop()).toBeNull();
-    expect(portrait()).toHaveAttribute("src", "https://blob/working.png");
-  });
-
-  it("shows a legacy mascot's one image and never moves", () => {
-    const state = chatState(true);
-    renderConsole({
-      initialState: {
-        ...state,
-        bot: {
-          ...state.bot,
-          avatarState: "working",
-          avatarImageUrl: "https://blob/mascot.png",
-          avatar: {
-            styleId: "mascot",
-            styleVersion: 1,
-            stillUrl: "https://blob/mascot.png",
-            states: NO_STATES,
-          },
-        },
-      },
-    });
-    expect(loop()).toBeNull();
-    expect(portrait()).toHaveAttribute("src", "https://blob/mascot.png");
-  });
-
-  it("names the state in a pill, with the sweep only while busy", () => {
-    const { rerender } = renderConsole({
-      initialState: craftedState("working"),
-    });
-    expect(screen.getByText("label.working")).toBeInTheDocument();
+  it("draws the orb for a bot with no picture", () => {
+    renderConsole({ initialState: stateWith({ avatarImageUrl: null }) });
     expect(
-      document.querySelector('[data-slot="button-loading-bar"]'),
-    ).not.toBeNull();
-
-    rerender(consoleElement({ initialState: craftedState("done") }));
-    expect(screen.getByText("label.done")).toBeInTheDocument();
-    expect(
-      document.querySelector('[data-slot="button-loading-bar"]'),
+      screen.queryByRole("img", { name: "Ops" })?.getAttribute("src") ?? null,
     ).toBeNull();
+  });
+
+  it("names the bot's status in its badge and says when it was last active", () => {
+    renderConsole({
+      initialState: stateWith({
+        status: "RUNNING",
+        lastActivityAt: "2026-10-29T11:00:00Z",
+      }),
+    });
+    expect(screen.getByText("RUNNING")).toBeInTheDocument();
+    expect(screen.getByText("Console.lastActivity(now)")).toBeInTheDocument();
   });
 
   it("offers no way to the avatar studio, own bot or shared", () => {

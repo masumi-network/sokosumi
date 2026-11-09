@@ -1,16 +1,14 @@
-import {
-  type SokoBot,
-  SokoBotAvatarState,
-  type SokoBotAvatarView,
-  type SokoBotDelegation,
-  type SokoBotEvent,
-  type SokoBotPendingDecision,
-  type SokoBotSchedule,
+import type {
+  SokoBot,
+  SokoBotDelegation,
+  SokoBotEvent,
+  SokoBotPendingDecision,
+  SokoBotSchedule,
   SokoBotStatus,
-  type SokoBotToolCall,
-  type SokoBotTurn,
-  type SokoBotTurnRoute,
-  type SokoBotTurnStatus,
+  SokoBotToolCall,
+  SokoBotTurn,
+  SokoBotTurnRoute,
+  SokoBotTurnStatus,
 } from "@sokosumi/core-client";
 
 /**
@@ -151,10 +149,6 @@ export interface ChatBot {
   avatarSeed: string | null;
   /** Picked mascot image; null → generative orb. */
   avatarImageUrl: string | null;
-  /** What the face is doing, derived in Core. */
-  avatarState: SokoBotAvatarState;
-  /** Stills and loops of a crafted avatar; null without an image. */
-  avatar: SokoBotAvatarView | null;
   versionId: string | null;
   followWholeBoard: boolean;
   mailAutoRead: boolean;
@@ -315,8 +309,6 @@ function toChatBot(bot: SokoBot): ChatBot {
     name: bot.name,
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
-    avatarState: bot.avatarState ?? SokoBotAvatarState.IDLE,
-    avatar: bot.avatar ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
     mailAutoRead: bot.mailAutoRead ?? false,

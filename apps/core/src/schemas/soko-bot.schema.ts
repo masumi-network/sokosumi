@@ -7,10 +7,6 @@ import {
   routerModelSummarySchema,
 } from "@/lib/soko-bot/model-evaluation";
 import { chatResultDescriptorSchema } from "@/schemas/chat-result-descriptor.schema";
-import {
-  sokoBotAvatarOrNullSchema,
-  sokoBotAvatarStateSchema,
-} from "@/schemas/soko-bot-avatar.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import { sokoBotPendingDecisionSchema } from "./soko-bot-pending-decision.schema";
 
@@ -27,15 +23,6 @@ export const sokoBotSummarySchema = z
     avatarImageUrl: z.string().nullable().openapi({
       example: "https://blob.example/mascot.png",
     }),
-    /**
-     * The style of the bot's claimed avatar, null when it has none. Always
-     * sent; optional in the contract so clients written before it compile.
-     */
-    avatarStyleId: z
-      .string()
-      .nullable()
-      .optional()
-      .openapi({ example: "crafted-desk" }),
     owner: z.union([userSummarySchema, z.null()]),
   })
   .openapi("SokoBotSummary");
@@ -327,12 +314,8 @@ export const sokoBotSchema = z
     legacyMessages: z.array(sokoBotLegacyMessageSchema).optional(),
     pendingDecisions: z.array(sokoBotPendingDecisionSchema).optional(),
     schedules: z.array(sokoBotScheduleSchema).optional(),
-    /** The idle still (or a legacy mascot image); null → generative orb. */
+    /** Picked mascot image; null → generative orb. */
     avatarImageUrl: z.string().nullable().optional(),
-    /** What the avatar is doing, derived in Core. */
-    avatarState: sokoBotAvatarStateSchema.optional(),
-    /** Where each still and loop lives. Null when the bot has no image. */
-    avatar: sokoBotAvatarOrNullSchema.optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),
     mailAutoRead: z.boolean().optional(),
@@ -357,8 +340,6 @@ export const sokoBotActivitySchema = z
     lastTurnAt: dateTimeSchema.nullable(),
     /** What "Active 5m ago" counts from; any activity, not only turns. */
     lastActivityAt: dateTimeSchema.nullable(),
-    /** What the bot's face shows, for a surface that reads nothing else. */
-    avatarState: sokoBotAvatarStateSchema,
   })
   .openapi("SokoBotActivity");
 
@@ -1029,10 +1010,6 @@ export const sokoBotTeamSchema = z
             id: z.string().uuid(),
             name: z.string().nullable(),
             avatarImageUrl: z.string().nullable(),
-            // Always sent. Optional in the contract so clients written before
-            // them keep compiling; tighten once every consumer reads them.
-            avatarState: sokoBotAvatarStateSchema.optional(),
-            avatar: sokoBotAvatarOrNullSchema.optional(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
             lastActivityAt: dateTimeSchema.nullable(),

@@ -25,8 +25,6 @@ export interface CoworkerOption {
   kind?: "coworker" | "sokoBot" | "user";
   /** Present for sokoBot options without a claimed mascot. */
   avatarSeed?: string | null;
-  /** The style of a sokoBot option's claimed avatar; a crafted one is cropped to the face. */
-  avatarStyleId?: string | null;
   description?: string;
   caption?: string;
   vendor: Pick<Vendor, "id" | "name" | "slug" | "logos">;

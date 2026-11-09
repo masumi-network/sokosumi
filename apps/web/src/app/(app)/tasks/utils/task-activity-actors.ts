@@ -12,7 +12,6 @@ export interface TaskActivityActorInfo {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
-  avatarStyleId?: string | null;
   /** Present for sokoBot actors — format with i18n at render. */
   ownerName?: string;
 }
@@ -35,7 +34,6 @@ type SokoBotActorSummary = {
   name: string | null;
   avatarSeed?: string | null;
   avatarImageUrl?: string | null;
-  avatarStyleId?: string | null;
   /** Null for a shared bot: it has no owner. */
   owner: {
     id: string;
@@ -265,7 +263,6 @@ function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
     avatarSeed: sokoBot.avatarImageUrl
       ? null
       : (sokoBot.avatarSeed ?? defaultSokoBotOrbSeed(sokoBot)),
-    avatarStyleId: sokoBot.avatarStyleId,
     ownerName: sokoBot.owner?.name,
   };
 }

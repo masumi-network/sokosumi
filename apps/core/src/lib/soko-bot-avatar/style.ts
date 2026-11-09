@@ -5,6 +5,28 @@
  * {@link AVATAR_STYLES}; the pipeline does not change.
  */
 
+import { z } from "zod";
+
+/** A crafted look as stored on its avatar row. */
+export const sokoBotAvatarLookSchema = z.object({
+  creature: z.string(),
+  accessories: z.array(z.string()),
+  /** Typed changes applied so far, as the rewriter phrased them. */
+  typed: z.array(z.string()),
+  /**
+   * What makes the look one of a kind: an option id per axis (the creature's
+   * coat and the scene details the style varies). Absent on older looks.
+   */
+  traits: z.record(z.string(), z.string()).optional(),
+});
+
+/** One change to a look. Typed text goes through the rewriter first. */
+export type AvatarChange =
+  | { kind: "creature"; creature: string }
+  | { kind: "accessory"; accessory: string; enabled: boolean }
+  | { kind: "shuffle" }
+  | { kind: "typed"; text: string };
+
 export const AVATAR_STATES = [
   "idle",
   "thinking",

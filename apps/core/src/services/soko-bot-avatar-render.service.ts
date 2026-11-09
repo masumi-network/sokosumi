@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { Prisma } from "@sokosumi/database";
+import { Prisma, type SokoBotAvatarState } from "@sokosumi/database";
 
 import pLimit from "p-limit";
 
-import { fromDbAvatarState } from "@/helpers/soko-bot-avatar-state";
 import prisma from "@/lib/db/prisma";
 import {
   drawStill,
@@ -22,15 +21,30 @@ import {
   VideoSubmissionUncertainError,
 } from "@/lib/soko-bot-avatar/provider";
 import {
+  type AvatarState,
   creatureOf,
   findAvatarStyle,
   freshLook,
   loopPrompt,
   type SokoBotAvatarStyle,
+  sokoBotAvatarLookSchema,
   stillPrompt,
 } from "@/lib/soko-bot-avatar/style";
-import { sokoBotAvatarLookSchema } from "@/schemas/soko-bot-avatar.schema";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
+
+/** The wire states are lowercase, the enum is not. */
+const STATE_OF_DB: Record<SokoBotAvatarState, AvatarState> = {
+  IDLE: "idle",
+  THINKING: "thinking",
+  WORKING: "working",
+  DONE: "done",
+  NEEDS_YOU: "needs_you",
+  OFFLINE: "offline",
+};
+
+function fromDbAvatarState(state: SokoBotAvatarState): AvatarState {
+  return STATE_OF_DB[state];
+}
 
 /**
  * Render a kept avatar's states, one cron tick at a time (ADR 0039: no queue).

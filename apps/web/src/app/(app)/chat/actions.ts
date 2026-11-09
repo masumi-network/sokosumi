@@ -100,8 +100,6 @@ export interface ChatComposeSokoBot {
   name: string;
   image: string | null;
   avatarSeed: string | null;
-  /** The style of the bot's claimed avatar; a crafted one is cropped to the face. */
-  avatarStyleId?: string | null;
 }
 
 export interface ChatComposeRoster {
@@ -186,7 +184,6 @@ export async function loadChatComposeRosterAction(): Promise<
             name: bot.name?.trim() || t("personalAssistantBadge"),
             image: bot.avatarImageUrl ?? null,
             avatarSeed: bot.avatarSeed,
-            avatarStyleId: bot.avatar?.styleId ?? null,
           },
         ]
       : [];

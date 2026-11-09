@@ -90,7 +90,6 @@ function mapTaskAssignee(
       image: sokoBot.avatarImageUrl,
       kind: "sokoBot",
       avatarSeed: sokoBot.avatarSeed,
-      avatarStyleId: sokoBot.avatarStyleId,
     };
   }
 

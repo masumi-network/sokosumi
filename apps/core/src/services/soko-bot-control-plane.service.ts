@@ -1273,14 +1273,7 @@ export class SokoBotControlPlane {
             },
           });
         }
-        if (input.avatarId) {
-          // Recorded for the daily keep cap, never refused by it: creating a bot
-          // must not fail because of a limit on how often looks are kept.
-          await claimAvatar(updated.id, input.avatarId, {
-            tx,
-            keptBy: input.userId,
-          });
-        }
+        if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
 
@@ -1312,12 +1305,7 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      if (input.avatarId) {
-        await claimAvatar(bot.id, input.avatarId, {
-          tx,
-          keptBy: input.userId,
-        });
-      }
+      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
     const { ensureSystemSchedules } = await import(

@@ -207,13 +207,7 @@ export async function createSharedSokoBot(
         where: { id: bot.id },
         data: { sharedRoomId: room.id },
       });
-      if (input.avatarId) {
-        // Recorded for the daily keep cap, never refused by it.
-        await claimAvatar(bot.id, input.avatarId, {
-          tx,
-          keptBy: input.callerUserId,
-        });
-      }
+      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return shared;
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
