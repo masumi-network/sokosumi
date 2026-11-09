@@ -18,6 +18,7 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
+      "didntGetIt": "Didn't get it?",
       "rateLimited": "Too many tries in a row. Wait a minute, then try again.",
       "notSent": "We could not send a code. Try again."
     },
@@ -604,6 +605,7 @@
           "back": "Back",
           "next": "Continue",
           "skip": "Skip",
+          "skipForNow": "Skip for now",
           "finishSetup": "Finish setup",
           "finish": "Go to workspace"
         },
@@ -625,7 +627,7 @@
           "found": "We found this on {domain}. Not right? Upload your own.",
           "foundNoDomain": "We found this on your website. Not right? Upload your own.",
           "notFound": "We couldn't find a logo on your website. Upload one, or skip for now.",
-          "upload": "Upload a logo",
+          "dropzone": "Drop your logo here, or choose a file",
           "replace": "Replace logo",
           "remove": "Remove",
           "uploadHint": "PNG, JPG, or SVG. Up to 2 MB.",

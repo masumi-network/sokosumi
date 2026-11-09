@@ -856,11 +856,11 @@ describe("SignUpForm email code", () => {
     await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
   }
 
-  it("opens on the code that step 1 sent, without repeating the address", async () => {
+  it("opens on the code that step 1 sent, saying where it went", async () => {
     render(<SignUpStep codeSent />);
 
     const code = await screen.findByRole("textbox", { name: "codeLabel" });
-    expect(code).toHaveAccessibleDescription("sentNoAddress");
+    expect(code).toHaveAccessibleDescription("sent");
     expect(
       screen.queryByLabelText("Fields.Password.label"),
     ).not.toBeInTheDocument();
@@ -880,9 +880,7 @@ describe("SignUpForm email code", () => {
 
     await user.click(screen.getByRole("button", { name: "resend" }));
 
-    await waitFor(() =>
-      expect(code).toHaveAccessibleDescription("sentNoAddress"),
-    );
+    await waitFor(() => expect(code).toHaveAccessibleDescription("sent"));
   });
 
   it("creates the named account with the emailed code", async () => {

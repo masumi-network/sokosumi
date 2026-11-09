@@ -68,9 +68,7 @@ describe("AuthFlow signIn after Register handed over", () => {
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeSent")).toBeVisible();
     // Focus lands on the field, so the reason is read with it.
-    expect(codeField()).toHaveAccessibleDescription(
-      "Handover.codeSent sentNoAddress",
-    );
+    expect(codeField()).toHaveAccessibleDescription("Handover.codeSent sent");
     expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "ada@example.com",
     );
