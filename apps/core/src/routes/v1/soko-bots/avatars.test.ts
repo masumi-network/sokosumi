@@ -134,16 +134,6 @@ async function topUp(take = 6, excludeIds: string[] = []) {
   };
 }
 
-/** A crafted-style row as #6710 wrote it: background `<style>:<accessories>`, a WebP. */
-function seedCrafted(row: Record<string, unknown> = {}) {
-  return store.seed({
-    subject: "otter",
-    background: "crafted-desk:none",
-    imageUrl: "https://blob.test/otter-1.webp",
-    ...row,
-  });
-}
-
 /** A real PNG, like the image model answers with. */
 let drawnPng: Uint8Array;
 
@@ -174,28 +164,12 @@ describe("Soko Bot avatar picker", () => {
   });
 
   describe("listing", () => {
-    it("offers unused original-style avatars and never a crafted one", async () => {
+    it("offers unused avatars only", async () => {
       const free = store.seed();
       store.seed({ claimedBySokoBotId: "bot-1", claimedAt: new Date() });
       store.seed({ reservedAt: new Date(), imageUrl: "" });
-      seedCrafted();
-      seedCrafted({ background: "crafted-desk:scarf", subject: "frog" });
 
       await expect(list()).resolves.toEqual({ status: 200, ids: [free.id] });
-    });
-
-    it("offers again an original-style avatar a crafted pick released", async () => {
-      // Picking a crafted-style avatar cleared the claim on the bot's old avatar.
-      const released = store.seed({
-        claimedBySokoBotId: null,
-        claimedAt: null,
-      });
-      seedCrafted({ claimedBySokoBotId: "bot-1", claimedAt: new Date() });
-
-      await expect(list()).resolves.toEqual({
-        status: 200,
-        ids: [released.id],
-      });
     });
 
     it("never draws on a read", async () => {
@@ -247,20 +221,10 @@ describe("Soko Bot avatar picker", () => {
       const stored = await sharp(body).metadata();
       expect(stored.format).toBe("webp");
       expect([stored.width, stored.height]).toEqual([64, 64]);
-      // A new original-style avatar is offered, not hidden as a crafted one.
       await expect(list()).resolves.toEqual({
         status: 200,
         ids: [avatars![0]!.id],
       });
-    });
-
-    it("does not count crafted-style avatars as stock", async () => {
-      for (let i = 0; i < 6; i += 1) seedCrafted({ seed: i + 1 });
-
-      const { avatars } = await topUp(6);
-
-      expect(generateTextMock).toHaveBeenCalledTimes(6);
-      expect(avatars?.every((one) => !one.background.includes(":"))).toBe(true);
     });
 
     it("leaves a stocked pool alone", async () => {

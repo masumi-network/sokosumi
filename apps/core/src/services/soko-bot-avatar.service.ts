@@ -540,32 +540,12 @@ function avatarGenerationCapped() {
   );
 }
 
-/**
- * Only the original style is offered. A crafted row's background is
- * `<style>:<accessories>`, and an original one never holds a colon. This
- * reads a column that stays, so it keeps working while the crafted
- * columns are dropped. The filter and the predicate below both come from
- * this marker.
- */
-const CRAFTED_BACKGROUND_MARKER = ":";
-
-const notCraftedFilter = {
-  NOT: { background: { contains: CRAFTED_BACKGROUND_MARKER } },
-};
-
-/** True when the row is a crafted-style avatar; its background is `<style>:<accessories>`. */
-function isCraftedRow(background: string): boolean {
-  return background.includes(CRAFTED_BACKGROUND_MARKER);
-}
-
 function unclaimedAvatarFilter(excludeIds?: string[]) {
   return {
     claimedBySokoBotId: null,
     // A reserved row has no image yet. Counting it as available would let the
     // pool look full while every slot in it is still in flight.
     reservedAt: null,
-    // Only the original style is offered (see `CRAFTED_BACKGROUND_MARKER`).
-    ...notCraftedFilter,
     ...(excludeIds?.length ? { id: { notIn: excludeIds } } : {}),
   };
 }
@@ -702,9 +682,6 @@ export async function topUpAvailableAvatars(
  * Give an unclaimed avatar to a bot, releasing whatever it held before. The
  * unique index on `claimedBySokoBotId` guarantees one avatar per bot; the
  * updateMany guard guarantees one bot per avatar.
- *
- * The selects and writes name only columns that predate the crafted style, so
- * this keeps working while those columns are dropped.
  */
 export async function claimAvatar(
   sokoBotId: string,
@@ -719,15 +696,12 @@ export async function claimAvatar(
         imageUrl: true,
         claimedBySokoBotId: true,
         reservedAt: true,
-        background: true,
       },
     });
     if (!avatar) throw notFound("Avatar not found");
     // Its image is still in flight, so claiming it would set the bot's avatar
     // to an empty URL that nothing ever fills in.
     if (avatar.reservedAt) throw notFound("Avatar not found");
-    // Only the original style is offered, so only it can be picked.
-    if (isCraftedRow(avatar.background)) throw notFound("Avatar not found");
     if (avatar.claimedBySokoBotId && avatar.claimedBySokoBotId !== sokoBotId) {
       throw unprocessableEntity("This avatar was just taken by another bot");
     }
