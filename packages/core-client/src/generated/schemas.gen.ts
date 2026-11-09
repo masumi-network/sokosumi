@@ -39179,6 +39179,16 @@ export const CancelProjectImageJobResponseSchema = {
     ]
 } as const;
 
+export const StudioLogoPositionSchema = {
+    type: 'string',
+    enum: [
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right'
+    ]
+} as const;
+
 export const ProjectImageStudioCaptionSchema = {
     type: 'object',
     properties: {

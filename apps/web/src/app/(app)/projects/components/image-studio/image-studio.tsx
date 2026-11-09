@@ -6,6 +6,7 @@ import type {
   StudioProductIdentity,
   StudioProductPhoto,
 } from "@sokosumi/core-client";
+import { StudioLogoPosition } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, productBrief } from "@sokosumi/utils";
 import {
   AlertTriangle,
@@ -57,7 +58,8 @@ import {
   MAX_ARCHIVE_BYTES,
   MAX_ARCHIVE_IMAGES,
   MAX_ARCHIVE_MIB,
-} from "./studio-ad-archive";
+  saveStudioDownload,
+} from "./studio-ad-download";
 import type { StudioBatchProduct } from "./studio-batch";
 import { StudioBrandKitDialog } from "./studio-brand-kit";
 import { StudioChat } from "./studio-chat";
@@ -84,6 +86,7 @@ import {
   creditsByAssetId,
   elapsedByAssetId,
   isActive,
+  isVideoAsset,
   MAX_STUDIO_REFERENCES,
   type StudioAsset,
   type StudioCatalog,
@@ -221,6 +224,7 @@ export function ImageStudio({
   );
   const [pending, startTransition] = useTransition();
   const [downloadingAds, startAdDownload] = useTransition();
+  const [includeLogoInArchive, setIncludeLogoInArchive] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
   const [captionByAssetId, setCaptionByAssetId] = useState<
@@ -341,23 +345,34 @@ export function ImageStudio({
           MAX_ARCHIVE_BYTES
         ? t("archiveSizeLimit", { size: MAX_ARCHIVE_MIB })
         : null;
+  const canBrandArchive =
+    Boolean(projectLogo) &&
+    checkedAssets.length > 1 &&
+    checkedAssets.every(
+      (asset) => asset.projectId === activeProjectId && !isVideoAsset(asset),
+    );
 
   function handleDownloadAds() {
     if (downloadingAds || archiveLimit || checkedAssets.length < 2) return;
     startAdDownload(async () => {
       try {
-        const archive = await createStudioAdArchive(checkedAssets);
-        const url = URL.createObjectURL(
+        const logo =
+          canBrandArchive && includeLogoInArchive
+            ? StudioLogoPosition.BOTTOM_RIGHT
+            : undefined;
+        const archive = await createStudioAdArchive(checkedAssets, logo);
+        saveStudioDownload(
           new Blob([archive], { type: "application/zip" }),
+          logo ? "studio-branded-ads.zip" : "studio-ads.zip",
         );
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "studio-ads.zip";
-        link.click();
-        // Allow the browser to begin saving before releasing the blob.
-        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
       } catch {
-        toast.error(t("archiveDownloadFailed"));
+        toast.error(
+          t(
+            canBrandArchive && includeLogoInArchive
+              ? "brandExportFailed"
+              : "archiveDownloadFailed",
+          ),
+        );
       }
     });
   }
@@ -1107,6 +1122,19 @@ export function ImageStudio({
               <Download aria-hidden />
               {t("downloadAdsZip")}
             </Button>
+          ) : null}
+          {canBrandArchive ? (
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                checked={includeLogoInArchive}
+                disabled={downloadingAds}
+                onChange={(event) =>
+                  setIncludeLogoInArchive(event.currentTarget.checked)
+                }
+                type="checkbox"
+              />
+              {t("archiveIncludeLogo")}
+            </label>
           ) : null}
           {archiveLimit ? (
             <p

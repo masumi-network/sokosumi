@@ -1,5 +1,6 @@
 "use client";
 
+import type { StudioLogoPosition } from "@sokosumi/core-client";
 import { ImageOff, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -51,12 +52,14 @@ export function StudioImage({
   fit = "cover",
   labels,
   controls = false,
+  logoPosition,
 }: {
   asset: StudioAsset;
   className?: string;
   fit?: "cover" | "contain";
   /** For a video: playback controls and sound, rather than a muted preview. */
   controls?: boolean;
+  logoPosition?: StudioLogoPosition;
   labels: Pick<
     StudioLabels,
     "bytesUnavailable" | "imageUnreadable" | "imageRetry"
@@ -86,7 +89,7 @@ export function StudioImage({
     [],
   );
 
-  const base = assetContentUrl(asset);
+  const base = assetContentUrl(asset, logoPosition);
 
   /**
    * Ask the route what it thinks, now that the `img` has failed twice.
@@ -168,7 +171,7 @@ export function StudioImage({
   const src =
     attempt === 0 && reload === 0
       ? base
-      : `${base}?reload=${reload}-${attempt}`;
+      : `${base}${logoPosition ? "&" : "?"}reload=${reload}-${attempt}`;
 
   if (asset.mediaType === "VIDEO") {
     // A tile previews silently on hover; the lightbox gets real controls.

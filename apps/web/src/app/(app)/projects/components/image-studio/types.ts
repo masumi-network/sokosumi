@@ -4,6 +4,7 @@ import type {
   ProjectImageSettings,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
+  StudioLogoPosition,
 } from "@sokosumi/core-client";
 import { extensionForEntityImageMime } from "@sokosumi/utils";
 import type { StudioCreativeDirection } from "./studio-creative-directions";
@@ -158,8 +159,10 @@ export function assetFileExtension(
 
 export function assetContentUrl(
   asset: Pick<StudioAsset, "id" | "projectId">,
+  logo?: StudioLogoPosition,
 ): string {
-  return `/api/projects/${asset.projectId}/image-studio/assets/${asset.id}/content`;
+  const path = `/api/projects/${asset.projectId}/image-studio/assets/${asset.id}/content`;
+  return logo ? `${path}?logo=${encodeURIComponent(logo)}` : path;
 }
 
 /**

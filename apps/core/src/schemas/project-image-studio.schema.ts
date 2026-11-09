@@ -51,6 +51,16 @@ export const imageStudioAssetParamsSchema =
       }),
   });
 
+export const studioLogoPositionSchema = z
+  .enum(["top-left", "top-right", "bottom-left", "bottom-right"])
+  .openapi("StudioLogoPosition");
+
+export const imageStudioAssetContentQuerySchema = z.object({
+  logo: studioLogoPositionSchema.optional(),
+});
+
+export type StudioLogoPosition = z.infer<typeof studioLogoPositionSchema>;
+
 export const imageStudioCaptionSchema = z
   .object({
     text: z.string().min(1).max(500),

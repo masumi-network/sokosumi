@@ -7,8 +7,12 @@ import {
 } from "@/lib/hono";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { imageStudioAssetParamsSchema } from "@/schemas/project-image-studio.schema";
+import {
+  imageStudioAssetContentQuerySchema,
+  imageStudioAssetParamsSchema,
+} from "@/schemas/project-image-studio.schema";
 import { openAssetStream } from "@/services/image-studio-assets.service";
+import { renderBrandedStudioAsset } from "@/services/image-studio-brand-export.service";
 
 /**
  * The only way to read a stored image.
@@ -27,6 +31,7 @@ const route = withOrganizationSlugHeaderParameter(
     tags: ["Projects"],
     request: {
       params: imageStudioAssetParamsSchema,
+      query: imageStudioAssetContentQuerySchema,
     },
     responses: {
       200: {
@@ -45,6 +50,9 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      422: jsonErrorResponse(
+        "The selected image or brand logo cannot be rendered",
+      ),
       // Distinct from 404: the version exists, but the private store it lives
       // in is not configured, so the bytes cannot be fetched at all. A caller
       // should retry later rather than treat the version as gone.
@@ -59,11 +67,25 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, assetId } = c.req.valid("param");
 
-    const result = await openAssetStream({
+    const scope = {
       assetId,
       projectId,
       workspaceId: workspaceContext.workspaceId,
       userId: userContext.userId,
+    };
+    const { logo } = c.req.valid("query");
+    if (logo) {
+      const bytes = await renderBrandedStudioAsset(scope, logo);
+      return c.body(bytes, 200, {
+        "cache-control": "private, no-store",
+        "content-type": "image/png",
+        "content-length": String(bytes.byteLength),
+        "content-disposition": `inline; filename="${assetId}-branded.png"`,
+      });
+    }
+
+    const result = await openAssetStream({
+      ...scope,
       range: c.req.header("range"),
     });
 

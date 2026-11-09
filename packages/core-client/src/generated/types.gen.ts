@@ -10420,6 +10420,15 @@ export type CancelProjectImageJobResponse = {
     accepted: boolean;
 };
 
+export const StudioLogoPosition = {
+    TOP_LEFT: 'top-left',
+    TOP_RIGHT: 'top-right',
+    BOTTOM_LEFT: 'bottom-left',
+    BOTTOM_RIGHT: 'bottom-right'
+} as const;
+
+export type StudioLogoPosition = typeof StudioLogoPosition[keyof typeof StudioLogoPosition];
+
 export type ProjectImageStudioCaption = {
     text: string;
 };
@@ -68344,7 +68353,9 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentData = {
         id: string;
         assetId: string;
     };
-    query?: never;
+    query?: {
+        logo?: StudioLogoPosition;
+    };
     url: '/projects/{id}/image-studio/assets/{assetId}/content';
 };
 
@@ -68383,6 +68394,21 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The selected image or brand logo cannot be rendered
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createStudioAdArchive } from "./studio-ad-archive";
+import { createStudioAdArchive } from "./studio-ad-download";
 import type { StudioAsset } from "./types";
 
 const ASSET: StudioAsset = {
@@ -69,4 +69,28 @@ describe("downloading selected Studio ads", () => {
       createStudioAdArchive([ASSET, { ...ASSET, id: "asset-b" }]),
     ).rejects.toThrow("Studio image returned 404");
   });
+
+  it("exports the branded response with a PNG extension regardless of the original format", async () => {
+    const fetchAsset = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("branded", { headers: { "content-type": "image/png" } }),
+      );
+    vi.stubGlobal("fetch", fetchAsset);
+    const zip = await JSZip.loadAsync(
+      await createStudioAdArchive(
+        [{ ...ASSET, contentType: "image/webp" }],
+        StudioLogoPosition.BOTTOM_RIGHT,
+      ),
+    );
+    expect(fetchAsset).toHaveBeenCalledWith(
+      "/api/projects/project-a/image-studio/assets/asset-a/content?logo=bottom-right",
+      expect.any(Object),
+    );
+    expect(await zip.file("ad-1-1080x1350-branded.png")?.async("text")).toBe(
+      "branded",
+    );
+  });
 });
+
+import { StudioLogoPosition } from "@sokosumi/core-client";
