@@ -10653,7 +10653,8 @@
         "weekCompare": "Last 7 days: {current} vs {previous}",
         "weekBetter": "Last 7 days: {current} vs {previous}, better",
         "weekWorse": "Last 7 days: {current} vs {previous}, worse",
-        "tooFewToCompare": "Too few impressions to compare weeks"
+        "tooFewToCompare": "Too few impressions to compare weeks",
+        "reportDelay": "Google reports search data a few days late."
       },
       "keywords": {
         "title": "Tracked keywords",

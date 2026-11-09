@@ -10653,7 +10653,8 @@
         "weekCompare": "Últimos 7 días: {current} frente a {previous}",
         "weekBetter": "Últimos 7 días: {current} frente a {previous}, mejor",
         "weekWorse": "Últimos 7 días: {current} frente a {previous}, peor",
-        "tooFewToCompare": "Muy pocas impresiones para comparar semanas"
+        "tooFewToCompare": "Muy pocas impresiones para comparar semanas",
+        "reportDelay": "Google informa los datos de búsqueda con unos días de retraso."
       },
       "keywords": {
         "title": "Palabras clave seguidas",

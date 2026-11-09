@@ -238,6 +238,10 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               <span>
                 {t("overview.synced")} <SeoDate value={active.observedAt} />
               </span>
+              {/* Explains why the chart ends days before the sync. */}
+              {active.source === "search_console" ? (
+                <span>{t("overview.reportDelay")}</span>
+              ) : null}
               {seoCoverageIsNews(active) ? (
                 <SeoState>{t(`coverageStatus.${active.coverage}`)}</SeoState>
               ) : null}

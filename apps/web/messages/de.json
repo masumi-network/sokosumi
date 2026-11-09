@@ -10653,7 +10653,8 @@
         "weekCompare": "Letzte 7 Tage: {current} statt {previous}",
         "weekBetter": "Letzte 7 Tage: {current} statt {previous}, besser",
         "weekWorse": "Letzte 7 Tage: {current} statt {previous}, schlechter",
-        "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich"
+        "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich",
+        "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung."
       },
       "keywords": {
         "title": "Verfolgte Keywords",
