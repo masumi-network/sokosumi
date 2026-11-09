@@ -462,3 +462,17 @@ describe("Brand Brain research", () => {
     );
   });
 });
+
+describe("launch videos", () => {
+  it("builds every scene from the brand's real pictures and evens the sound out", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-launch-video");
+    expect(skill?.content).toContain("Never draw a logo or use a placeholder");
+    expect(skill?.content).toContain(
+      "Every scene shows one of those real pictures",
+    );
+    expect(skill?.content).toContain("loudnorm=I=-14");
+    expect(skill?.content).toContain('grep -E "^\\s+I:"');
+    expect(skill?.content).toContain('workspacePath "video/out/final.mp4"');
+  });
+});
