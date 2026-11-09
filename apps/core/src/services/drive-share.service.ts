@@ -19,11 +19,17 @@ import {
   normalizeDriveFolderPath,
   validateDriveFolderPath,
 } from "@sokosumi/utils";
-import { head, list } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
-import { badRequest, notFound, serviceUnavailable } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import {
+  driveHead,
+  driveList,
+  driveRoomsOf,
+  isInDataRoom,
+  roomContaining,
+} from "@/lib/drive-blob";
 
 /** The Drive store a share belongs to, as `resolveFileRequestContext` gives it. */
 export interface DriveShareStore {
@@ -161,6 +167,29 @@ async function requireShareableFile(
   if (!resource) throw notFound("File not found");
 }
 
+/** True when a link would point into a data room, which a link never may. */
+async function targetInDataRoom(
+  store: DriveShareStore,
+  target: DriveShareTarget,
+): Promise<boolean> {
+  const rooms = await driveRoomsOf(sourceScopeOf(store.scope), store.ownerId);
+  if (rooms.length === 0) return false;
+  if (target.kind === "folder")
+    return (
+      roomContaining(rooms, shareFolderPath(target.folderPath)) !== undefined
+    );
+  const resource = await prisma.fileResource.findUnique({
+    where: { id: target.resourceId },
+    select: { sourceId: true },
+  });
+  const path = resource
+    ? resource.sourceId.slice(
+        folderPrefix(store.scope, store.ownerId, "").length,
+      )
+    : "";
+  return roomContaining(rooms, path) !== undefined;
+}
+
 export function findDriveShare(
   store: DriveShareStore,
   target: DriveShareTarget,
@@ -181,6 +210,10 @@ export async function upsertDriveShare(input: {
   const { store, target } = input;
   if (target.kind === "file")
     await requireShareableFile(store, target.resourceId);
+  if (await targetInDataRoom(store, target))
+    throw badRequest(
+      "This is in a data room. Invite people to the room instead of sharing a link.",
+    );
   const passwordHash =
     input.password === undefined
       ? undefined
@@ -277,12 +310,6 @@ export type PublicDriveShare =
       truncated: boolean;
     };
 
-function blobToken(): string {
-  const token = getEnv().BLOB_READ_WRITE_TOKEN;
-  if (!token) throw serviceUnavailable("Blob storage is not configured");
-  return token;
-}
-
 /** The link and where its bytes live, or null when it no longer resolves. */
 async function resolveShare(token: string) {
   const share = await prisma.driveShare.findUnique({
@@ -311,6 +338,8 @@ async function resolveShare(token: string) {
       resource.lifecycle !== FileResourceLifecycle.ACTIVE
     )
       return null;
+    // A link never reaches into a data room, whichever came first.
+    if (await isInDataRoom(resource.sourceId)) return null;
     return {
       share,
       kind: "file" as const,
@@ -319,11 +348,13 @@ async function resolveShare(token: string) {
     };
   }
   const folderPath = share.folderPath ?? "";
+  const prefix = folderPrefix(scope, share.ownerId, folderPath);
+  if (await isInDataRoom(prefix)) return null;
   return {
     share,
     kind: "folder" as const,
     name: folderPath.split("/").at(-1) ?? folderPath,
-    prefix: folderPrefix(scope, share.ownerId, folderPath),
+    prefix,
   };
 }
 
@@ -336,9 +367,7 @@ export async function readPublicDriveShare(
   const { share, kind, name } = resolved;
   if (!isUnlocked(share, proof)) return { kind, name, locked: true };
   if (resolved.kind === "file") {
-    const meta = await head(resolved.pathname, { token: blobToken() }).catch(
-      () => null,
-    );
+    const meta = await driveHead(resolved.pathname);
     if (!meta) return null;
     return {
       kind,
@@ -358,14 +387,16 @@ export async function readPublicDriveShare(
   let cursor: string | undefined;
   let truncated = false;
   do {
-    const page = await list({
+    const page = await driveList({
       prefix: resolved.prefix,
-      token: blobToken(),
       cursor,
       limit: 1_000,
     });
     for (const blob of page.blobs) {
       if (isDriveFolderMarker(blob.pathname)) continue;
+      // A data room inside the shared folder stays out of the link.
+      if (blob.access === "private" || (await isInDataRoom(blob.pathname)))
+        continue;
       if (items.length >= MAX_FOLDER_ITEMS) {
         truncated = true;
         break;
@@ -455,8 +486,9 @@ export async function driveShareDownloadUrl(input: {
     pathname = `${resolved.prefix}${path}`;
     if (isDriveFolderMarker(pathname)) return null;
   }
-  const meta = await head(pathname, { token: blobToken() }).catch(() => null);
-  if (!meta) return null;
+  if (await isInDataRoom(pathname)) return null;
+  const meta = await driveHead(pathname);
+  if (!meta || meta.access !== "public") return null;
   const url = new URL(meta.url);
   url.searchParams.set("download", "1");
   return url.toString();

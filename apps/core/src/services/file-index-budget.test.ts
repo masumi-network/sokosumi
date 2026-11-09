@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const leaseNextFileIndexJob = vi.fn();
 const headMock = vi.fn();
+const getMock = vi.fn();
 
 vi.mock("@vercel/blob", () => ({
   head: (...args: unknown[]) => headMock(...args),
+  get: (...args: unknown[]) => getMock(...args),
+  BlobNotFoundError: class extends Error {},
 }));
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
@@ -149,9 +152,12 @@ describe("every call inside an extraction job is bounded", () => {
      * which is why removing the timeout left all six of them green.
      */
     headMock.mockResolvedValue({ size: 1, url: "https://example.test/x" });
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response(new Uint8Array([1])));
+    getMock.mockResolvedValue({
+      statusCode: 200,
+      stream: new Response(new Uint8Array([1])).body,
+      headers: new Headers(),
+      blob: { contentType: "text/plain", size: 1 },
+    });
 
     await downloadBlob("drive/users/u/x.txt");
 
@@ -161,9 +167,8 @@ describe("every call inside an extraction job is bounded", () => {
 
     // And the download it precedes is bounded too, so the pair really
     // does cover the front of the worst case.
-    const init = fetchSpy.mock.calls[0][1] as { signal?: AbortSignal };
-    expect(init.signal).toBeInstanceOf(AbortSignal);
-    fetchSpy.mockRestore();
+    const init = getMock.mock.calls[0][1] as { abortSignal?: AbortSignal };
+    expect(init.abortSignal).toBeInstanceOf(AbortSignal);
   });
 
   it("throws on a failed download so the job retries", async () => {
@@ -171,11 +176,10 @@ describe("every call inside an extraction job is bounded", () => {
     // although `head` finds it; returning null recorded such a file as
     // unreadable for good.
     headMock.mockResolvedValue({ size: 1, url: "https://example.test/x" });
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response("Blob not found", { status: 404 }));
+    getMock.mockResolvedValue(null);
 
-    await expect(downloadBlob("drive/users/u/x.txt")).rejects.toThrow("404");
-    fetchSpy.mockRestore();
+    await expect(downloadBlob("drive/users/u/x.txt")).rejects.toThrow(
+      "Blob download failed",
+    );
   });
 });

@@ -21,7 +21,7 @@ import {
   fetchDriveTaskOutputRecentsBatch,
 } from "@/helpers/drive-task-output-catalog";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { badRequest, forbidden, serviceUnavailable } from "@/helpers/error";
+import { badRequest, forbidden } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -85,10 +85,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
 
     let prefix: string;
     let scope: "user" | "organization";
@@ -162,7 +158,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const page = await fetchDriveRecentsPage({
       prefix,
-      token,
       limit: take,
       cursor,
       cursorSecret: env.BETTER_AUTH_SECRET,

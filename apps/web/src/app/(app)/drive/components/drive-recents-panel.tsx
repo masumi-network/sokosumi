@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import {
   DriveFilePreview,
   DriveItemCard,
+  driveFileUrl,
   driveItemActivation,
   forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
@@ -98,6 +99,7 @@ function toDriveFileItem(
     pathname: item.pathname,
     size: item.size,
     uploadedAt: item.activityAt,
+    dataRoom: item.dataRoom,
   };
 }
 
@@ -360,7 +362,7 @@ export function DriveRecentsPanel({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onSelect={() => {
-                            handleDownload(item.fileUrl, item.name);
+                            handleDownload(driveFileUrl(item), item.name);
                           }}
                         >
                           <Download className="size-4" aria-hidden />
@@ -420,7 +422,7 @@ export function DriveRecentsPanel({
                     <li key={item.pathname}>
                       <DriveFilePreview
                         name={item.name}
-                        fileUrl={item.fileUrl}
+                        fileUrl={driveFileUrl(item)}
                         sizeBytes={item.size}
                         detailsHref={
                           item.resourceId

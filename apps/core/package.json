@@ -81,6 +81,7 @@
     "neverthrow": "8.2.0",
     "p-limit": "7.3.3",
     "p-timeout": "8.1.0",
+    "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.5.438",
     "pg": "8.23.1",
     "puppeteer-core": "25.11.0",

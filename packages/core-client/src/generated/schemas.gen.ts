@@ -16769,6 +16769,747 @@ export const FileCollectionSchema = {
     ]
 } as const;
 
+export const DataRoomsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoom'
+    }
+} as const;
+
+export const DataRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        folderPath: {
+            type: 'string'
+        },
+        storage: {
+            type: 'string',
+            enum: [
+                'moving_in',
+                'private',
+                'moving_out'
+            ],
+            description: 'moving_in while its files go to the private store, private once they all are, moving_out after it was closed.'
+        },
+        token: {
+            type: 'string',
+            description: 'The room\'s address: /share/rooms/{token}'
+        },
+        title: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        logoFileId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        allowedDomains: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        allowDownload: {
+            type: 'boolean'
+        },
+        watermark: {
+            type: 'boolean'
+        },
+        notifyOnFirstVisit: {
+            type: 'boolean'
+        },
+        createdAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'folderPath',
+        'storage',
+        'token',
+        'title',
+        'logoFileId',
+        'allowedDomains',
+        'expiresAt',
+        'allowDownload',
+        'watermark',
+        'notifyOnFirstVisit',
+        'createdAt'
+    ]
+} as const;
+
+export const CreateDataRoomRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            description: 'Folder to turn into a data room, e.g. "Series A".',
+            example: 'Series A'
+        }
+    },
+    required: [
+        'scope',
+        'folderPath'
+    ]
+} as const;
+
+export const DataRoomDetailSchema = {
+    type: 'object',
+    properties: {
+        room: {
+            $ref: '#/components/schemas/DataRoom'
+        },
+        members: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/DataRoomMember'
+            }
+        },
+        rows: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/DataRoomTreeRow'
+            }
+        }
+    },
+    required: [
+        'room',
+        'members',
+        'rows'
+    ]
+} as const;
+
+export const DataRoomMemberSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        email: {
+            type: 'string'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        invited: {
+            type: 'boolean',
+            description: 'Invited by name; false when let in by an allowed domain.'
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        revokedAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        folderPaths: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Folders of the room this person may see; empty is all.'
+        },
+        firstVisitAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        lastVisitAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        views: {
+            type: 'integer'
+        },
+        downloads: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'email',
+        'name',
+        'invited',
+        'expiresAt',
+        'revokedAt',
+        'folderPaths',
+        'firstVisitAt',
+        'lastVisitAt',
+        'views',
+        'downloads'
+    ]
+} as const;
+
+export const DataRoomTreeRowSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'folder',
+                'file'
+            ]
+        },
+        path: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        depth: {
+            type: 'integer'
+        },
+        number: {
+            type: 'string',
+            example: '1.2'
+        },
+        resourceId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        sizeBytes: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        mimeType: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        updatedAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        isNew: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'kind',
+        'path',
+        'name',
+        'depth',
+        'number',
+        'resourceId',
+        'sizeBytes',
+        'mimeType',
+        'updatedAt',
+        'isNew'
+    ]
+} as const;
+
+export const UpdateDataRoomRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        title: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        logoFileId: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        allowedDomains: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 253
+            },
+            maxItems: 50
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        allowDownload: {
+            type: 'boolean'
+        },
+        watermark: {
+            type: 'boolean'
+        },
+        notifyOnFirstVisit: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'scope'
+    ]
+} as const;
+
+export const InviteDataRoomMembersRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        emails: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 320
+            },
+            minItems: 1,
+            maxItems: 100
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        folderPaths: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 1000
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'scope',
+        'emails'
+    ]
+} as const;
+
+export const UpdateDataRoomMemberRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        folderPaths: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 1000
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'scope'
+    ]
+} as const;
+
+export const DataRoomEventsSchema = {
+    type: 'object',
+    properties: {
+        events: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/DataRoomEvent'
+            }
+        },
+        nextBefore: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'events',
+        'nextBefore'
+    ]
+} as const;
+
+export const DataRoomEventSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'enter',
+                'view',
+                'download',
+                'download_all',
+                'ask'
+            ]
+        },
+        path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        memberId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        email: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'kind',
+        'path',
+        'memberId',
+        'email',
+        'name'
+    ]
+} as const;
+
+export const DataRoomQuestionsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoomQuestion'
+    }
+} as const;
+
+export const DataRoomQuestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        },
+        path: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        answer: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        answeredAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        email: {
+            type: 'string'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'path',
+        'body',
+        'answer',
+        'answeredAt',
+        'email',
+        'name'
+    ]
+} as const;
+
+export const AnswerDataRoomQuestionRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        answer: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 5000
+        }
+    },
+    required: [
+        'scope',
+        'answer'
+    ]
+} as const;
+
+export const SetDataRoomOrderRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        entries: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    path: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 1000
+                    },
+                    position: {
+                        type: 'integer',
+                        minimum: 1
+                    }
+                },
+                required: [
+                    'path',
+                    'position'
+                ]
+            },
+            maxItems: 5000
+        }
+    },
+    required: [
+        'scope',
+        'entries'
+    ]
+} as const;
+
 export const DriveFileUploadSessionSchema = {
     type: 'object',
     properties: {
@@ -16786,10 +17527,11 @@ export const DriveFileUploadSessionSchema = {
         access: {
             type: 'string',
             enum: [
-                'public'
+                'public',
+                'private'
             ],
             example: 'public',
-            description: 'Blob access level for the upload'
+            description: 'Blob access level for the upload: private inside a data room.'
         },
         method: {
             type: 'string',
@@ -16939,12 +17681,18 @@ export const DriveFolderSchema = {
             type: 'string',
             example: 'Documents',
             description: 'Relative folder path from current folder (single segment)'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'This folder is a data room, or is inside one.'
         }
     },
     required: [
         'type',
         'name',
-        'path'
+        'path',
+        'dataRoom'
     ]
 } as const;
 
@@ -17001,6 +17749,11 @@ export const DriveFileSchema = {
             format: 'date-time',
             example: '2026-08-18T10:00:00.000Z',
             description: 'When the file was uploaded to Blob storage'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.'
         }
     },
     required: [
@@ -17008,7 +17761,8 @@ export const DriveFileSchema = {
         'fileUrl',
         'pathname',
         'size',
-        'uploadedAt'
+        'uploadedAt',
+        'dataRoom'
     ]
 } as const;
 
@@ -17381,6 +18135,11 @@ export const DriveRecentsDriveFileItemSchema = {
                 ]
             },
             description: 'Tags on this file, automatic or confirmed. Labels a person removed are never listed.'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.'
         }
     },
     required: [
@@ -17392,7 +18151,8 @@ export const DriveRecentsDriveFileItemSchema = {
         'activityAt',
         'resourceId',
         'category',
-        'tags'
+        'tags',
+        'dataRoom'
     ]
 } as const;
 
@@ -39642,6 +40402,142 @@ export const DriveShareDownloadSchema = {
     },
     required: [
         'url'
+    ]
+} as const;
+
+export const DataRoomViewSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'in',
+                'out',
+                'closed',
+                'expired'
+            ]
+        },
+        title: {
+            type: 'string'
+        },
+        hasLogo: {
+            type: 'boolean'
+        },
+        allowDownload: {
+            type: 'boolean'
+        },
+        watermark: {
+            type: 'boolean'
+        },
+        viewer: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        email: {
+                            type: 'string'
+                        },
+                        name: {
+                            anyOf: [
+                                {
+                                    type: 'string'
+                                },
+                                {
+                                    type: 'null'
+                                }
+                            ]
+                        }
+                    },
+                    required: [
+                        'email',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        rows: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/DataRoomTreeRow'
+            }
+        }
+    },
+    required: [
+        'state',
+        'title',
+        'hasLogo',
+        'allowDownload',
+        'watermark',
+        'viewer',
+        'rows'
+    ]
+} as const;
+
+export const DataRoomCodeRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 320
+        }
+    },
+    required: [
+        'email'
+    ]
+} as const;
+
+export const DataRoomSessionSchema = {
+    type: 'object',
+    properties: {
+        session: {
+            type: 'string'
+        }
+    },
+    required: [
+        'session'
+    ]
+} as const;
+
+export const DataRoomSessionRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 320
+        },
+        code: {
+            type: 'string',
+            minLength: 4,
+            maxLength: 12
+        }
+    },
+    required: [
+        'email',
+        'code'
+    ]
+} as const;
+
+export const AskDataRoomQuestionRequestSchema = {
+    type: 'object',
+    properties: {
+        resourceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        body: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 5000
+        }
+    },
+    required: [
+        'resourceId',
+        'body'
     ]
 } as const;
 

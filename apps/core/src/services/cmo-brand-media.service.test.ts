@@ -15,6 +15,13 @@ const files = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), BLOB_READ_WRITE_TOKEN: "t" }),
+  };
+});
 vi.mock("@vercel/blob", () => ({ put: files.put, list: files.list }));
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 vi.mock("@/lib/files/in-process-indexer", () => ({

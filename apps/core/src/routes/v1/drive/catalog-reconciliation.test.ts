@@ -34,6 +34,16 @@ const { listMock, headMock, delMock, renameMock } = vi.hoisted(() => ({
   renameMock: vi.fn(),
 }));
 
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    dataRoom: {
+      findMany: vi.fn(async () => []),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      update: vi.fn(),
+    },
+  },
+}));
+
 // Hoisted with the mocks: `vi.mock` factories run before module scope, so
 // the class has to exist by then.
 const { BlobNotFoundError } = vi.hoisted(() => ({
@@ -118,7 +128,10 @@ beforeEach(() => {
     contentType: "text/markdown",
     cacheControl: "",
   });
-  renameMock.mockResolvedValue(undefined);
+  renameMock.mockImplementation(async (_from: string, to: string) => ({
+    url: `https://store.public.blob.vercel-storage.com/${to}`,
+    pathname: to,
+  }));
   delMock.mockResolvedValue(undefined);
 });
 
@@ -294,10 +307,10 @@ describe("folder rename", () => {
         : Promise.resolve({ contentType: "text/markdown", cacheControl: "" }),
     );
     // One file hits a transient failure; the other two commit.
-    renameMock.mockImplementation((from: string) =>
+    renameMock.mockImplementation((from: string, to: string) =>
       from === `${PREFIX}q2.md`
         ? Promise.reject(new Error("blob store 429"))
-        : Promise.resolve(undefined),
+        : Promise.resolve({ url: `https://store.example/${to}`, pathname: to }),
     );
 
     const response = await appWith(mountFolderRename).request("/rename", {

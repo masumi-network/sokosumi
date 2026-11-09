@@ -159,6 +159,10 @@ function DriveFilePickerWorkspace({
     }
   }, [open, activeOrganizationId, session?.user?.id]);
 
+  // A picked file is linked into a message, a post or an ad. A data room's
+  // files never leave it that way, so the picker does not offer them.
+  const pickableItems = items.filter((item) => !item.dataRoom);
+
   function handleFileClick(file: DriveFile) {
     onSelect(file);
     onOpenChange(false);
@@ -278,7 +282,7 @@ function DriveFilePickerWorkspace({
                   ))}
                 </div>
               </div>
-            ) : items.length === 0 ? (
+            ) : pickableItems.length === 0 ? (
               <div className="text-muted-foreground flex min-h-[400px] items-center justify-center text-center text-sm">
                 {searchQuery ? t("noMatchTitle") : t("pickerEmptyMessage")}
               </div>
@@ -288,7 +292,7 @@ function DriveFilePickerWorkspace({
                 shrinkContent
               >
                 <div className="space-y-1">
-                  {items.map((item) => {
+                  {pickableItems.map((item) => {
                     const itemKey =
                       item.type === "file"
                         ? item.pathname

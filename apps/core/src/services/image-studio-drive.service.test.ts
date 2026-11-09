@@ -32,6 +32,13 @@ vi.mock("@/lib/files/in-process-indexer", () => ({
 vi.mock("@vercel/blob", () => ({
   put: mocks.put,
 }));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), BLOB_READ_WRITE_TOKEN: "t" }),
+  };
+});
 
 import {
   ensureStudioAssetDriveFile,

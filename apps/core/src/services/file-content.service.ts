@@ -1,9 +1,9 @@
 import { PrismaRaw } from "@sokosumi/database/client";
-import { head } from "@vercel/blob";
+import { HTTPException } from "hono/http-exception";
 
-import { getEnv } from "@/config/env";
-import { notFound, serviceUnavailable } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { driveRead } from "@/lib/drive-blob";
 import type { FileActor } from "@/lib/files/actor";
 import { buildAuthorizedResourceSql } from "@/lib/files/evidence-scope";
 
@@ -61,12 +61,14 @@ export function entityTagFor(version: {
  *
  * Closing the remaining hole means moving the drive store to private access,
  * which is a migration of every existing object and is not this change.
+ *
+ * A data room's files are the exception: they live in a private store (see
+ * `lib/drive-blob.ts`), no storage URL for them works without a server-side
+ * token, and this route is the only way to their bytes.
  */
 
 /** Never stream a preview larger than this; the UI offers a download instead. */
 const FILE_PREVIEW_MAX_BYTES = 25 * 1024 * 1024;
-
-const FETCH_TIMEOUT_MS = 10_000;
 
 /**
  * Types the browser may render in place, on our own origin.
@@ -242,36 +244,28 @@ export async function openStoredFileContentStream(input: {
     throw notFound("File is too large to serve inline");
   }
 
-  const token = getEnv().BLOB_READ_WRITE_TOKEN;
-  // Distinct from 404: the entry is real, the store is simply not reachable
-  // from this deployment. A caller should retry, not conclude it is gone.
-  if (!token) throw serviceUnavailable("File storage is not configured");
+  // From whichever store holds it: a data room's files are in the private
+  // one, and this route is the only way in to them.
+  const read = await driveRead(input.objectKey).catch((error: unknown) => {
+    // Distinct from 404: the entry is real, the store is simply not reachable
+    // from this deployment. A caller should retry, not conclude it is gone.
+    if (error instanceof HTTPException) throw error;
+    return null;
+  });
+  if (!read) throw notFound("File bytes are no longer available");
 
-  let metadata: Awaited<ReturnType<typeof head>>;
-  try {
-    metadata = await head(input.objectKey, { token });
-  } catch {
-    throw notFound("File bytes are no longer available");
-  }
-
-  if (metadata.size > FILE_PREVIEW_MAX_BYTES) {
+  if (read.size > FILE_PREVIEW_MAX_BYTES) {
+    await read.stream.cancel();
     throw notFound("File is too large to serve inline");
   }
 
-  const response = await fetch(metadata.url, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!response.ok || !response.body) {
-    throw notFound("File bytes are no longer available");
-  }
-
   const contentType =
-    input.mimeType ?? metadata.contentType ?? "application/octet-stream";
+    input.mimeType ?? read.contentType ?? "application/octet-stream";
 
   return {
-    stream: response.body,
+    stream: read.stream,
     contentType,
-    size: metadata.size,
+    size: read.size,
     displayName: input.displayName,
     entityTag: input.entityTag,
     inline: !input.download && isInlineRenderable(contentType),

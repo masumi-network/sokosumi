@@ -10,9 +10,11 @@ const blob = vi.hoisted(() => ({ head: vi.fn(), list: vi.fn() }));
 vi.mock("@vercel/blob", () => blob);
 const db = vi.hoisted(() => ({
   driveShare: { findUnique: vi.fn(), update: vi.fn() },
+  dataRoom: { findMany: vi.fn() },
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 
+import { forgetDriveRooms } from "@/lib/drive-blob";
 import {
   createUnlockProof,
   driveShareDownloadUrl,
@@ -118,6 +120,8 @@ describe("shareFolderPath", () => {
 describe("driveShareDownloadUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    forgetDriveRooms();
+    db.dataRoom.findMany.mockResolvedValue([]);
     db.driveShare.findUnique.mockResolvedValue({
       id: "s1",
       kind: "FOLDER",
@@ -150,6 +154,20 @@ describe("driveShareDownloadUrl", () => {
         token: "tok",
         proof: undefined,
         path: "../secret.pdf",
+      }),
+    ).resolves.toBeNull();
+    expect(blob.head).not.toHaveBeenCalled();
+  });
+
+  it("never serves a file once its folder is a data room", async () => {
+    db.dataRoom.findMany.mockResolvedValue([
+      { folderPath: "Masumi Fundraising", storage: "PRIVATE" },
+    ]);
+    await expect(
+      driveShareDownloadUrl({
+        token: "tok",
+        proof: undefined,
+        path: "deck.pdf",
       }),
     ).resolves.toBeNull();
     expect(blob.head).not.toHaveBeenCalled();

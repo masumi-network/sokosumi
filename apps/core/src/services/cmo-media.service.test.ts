@@ -8,7 +8,16 @@ const { liveResources, head } = vi.hoisted(() => ({
 vi.mock("@/services/file-search.service", () => ({
   loadLiveResources: liveResources,
 }));
-vi.mock("@vercel/blob", () => ({ head }));
+vi.mock("@vercel/blob", () => ({
+  head,
+  BlobNotFoundError: class extends Error {},
+}));
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({ BLOB_READ_WRITE_TOKEN: "t" }),
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: { dataRoom: { findMany: vi.fn(async () => []) } },
+}));
 
 import { cmoCalendarMedia, cmoSocialPostMedia } from "./cmo-media.service";
 

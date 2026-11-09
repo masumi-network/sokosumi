@@ -177,6 +177,8 @@ const {
     nudge: vi.fn(),
     chunks: vi.fn(),
     download: vi.fn(),
+    BlobNotFoundError: class BlobNotFoundError extends Error {},
+    rooms: vi.fn(async () => []),
   },
   jobFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
@@ -346,6 +348,7 @@ vi.mock("@vercel/blob", () => ({
   head: files.head,
   list: files.list,
   put: files.put,
+  BlobNotFoundError: files.BlobNotFoundError,
 }));
 vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/soko-bot/agent-search")>()),
@@ -421,6 +424,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: files.resourceFindFirst,
     },
     taskFile: { upsert: files.taskFileUpsert },
+    dataRoom: { findMany: files.rooms },
     contact: { findUniqueOrThrow: research.contactName },
     projectImageAsset: { findFirst: images.assetFindFirst },
     project: { findFirst: social.postingInstructions },
@@ -7831,6 +7835,10 @@ describe("Soko Bot project social tools", () => {
       files.head.mockImplementation(async (pathname: string) => ({
         url: `https://x.public.blob.vercel-storage.com/${pathname}`,
       }));
+      getEnvMock.mockReturnValue({
+        ...getEnvMock(),
+        BLOB_READ_WRITE_TOKEN: "token",
+      });
     });
 
     afterEach(() => {
@@ -8799,6 +8807,14 @@ describe("Drive file tools", () => {
       organizationId: null,
     });
     files.adopt.mockResolvedValue({ ran: false });
+    getEnvMock.mockReturnValue({
+      ...getEnvMock(),
+      BLOB_READ_WRITE_TOKEN: "token",
+    });
+    // A path nobody wrote yet is a 404, as it is in the store.
+    files.head.mockImplementation(async () => {
+      throw new files.BlobNotFoundError("missing");
+    });
   });
 
   it("searches the catalog as the owner's bot", async () => {
@@ -9111,7 +9127,7 @@ describe("Drive file tools", () => {
       await expect(
         service["deleteFile"](asked as never, { fileId: "file-1" }, "call-1"),
       ).resolves.toEqual({ id: "file-1", filename: "meta.pdf", deleted: true });
-      expect(files.del).toHaveBeenCalledWith("drive/u/meta.pdf", {
+      expect(files.del).toHaveBeenCalledWith(["drive/u/meta.pdf"], {
         token: "token",
       });
       expect(files.tombstone).toHaveBeenCalledWith({
@@ -9390,10 +9406,11 @@ describe("Drive file tools", () => {
         sokoBotMembers: [],
       });
       chatMessageFindFirstMock.mockReset().mockResolvedValue({ id: "m-1" });
-      files.head.mockReset().mockResolvedValue({
-        url,
-        size: bytes.byteLength,
-        contentType: "image/png",
+      // The attachment is there; the Drive path it is saved to is not yet.
+      files.head.mockReset().mockImplementation(async (pathname: string) => {
+        if (pathname.startsWith("drive/"))
+          throw new files.BlobNotFoundError("missing");
+        return { url, size: bytes.byteLength, contentType: "image/png" };
       });
       files.list.mockReset().mockResolvedValue({ blobs: [] });
       files.put

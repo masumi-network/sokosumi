@@ -1,9 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isDriveFolderMarker } from "@sokosumi/utils";
-import type { ListBlobResult } from "@vercel/blob";
-import { list } from "@vercel/blob";
 import type { DriveTaskOutputRecentsRow } from "@/helpers/drive-task-output-catalog";
 import { badRequest } from "@/helpers/error";
+import { type DriveListedBlob, driveList } from "@/lib/drive-blob";
 import type { DriveRecentsItem } from "@/schemas/drive-recents.schema";
 
 const RECENTS_CURSOR_VERSION = 4;
@@ -190,6 +189,7 @@ function lastItemFromCursorPayload(
       resourceId: null,
       category: null,
       tags: [],
+      dataRoom: false,
     };
   if (payload.kind === "table")
     return {
@@ -255,7 +255,7 @@ export function decodeDriveRecentsCursor(
 }
 
 function mapDriveBlobToRecentsItem(
-  blob: ListBlobResult["blobs"][number],
+  blob: DriveListedBlob,
 ): DriveRecentsItem | null {
   if (isDriveFolderMarker(blob.pathname)) {
     return null;
@@ -279,6 +279,7 @@ function mapDriveBlobToRecentsItem(
     resourceId: null,
     category: null,
     tags: [],
+    dataRoom: blob.access === "private",
   };
 }
 
@@ -312,13 +313,11 @@ type DriveRecentsSource = (options: {
 
 async function fetchDriveBlobRecentsBatch(input: {
   prefix: string;
-  token: string;
   cursor?: string | null;
   take: number;
 }): Promise<DriveRecentsBatch> {
-  const page = await list({
+  const page = await driveList({
     prefix: input.prefix,
-    token: input.token,
     cursor: input.cursor ?? undefined,
     limit: input.take,
   });
@@ -345,7 +344,6 @@ async function fetchDriveBlobRecentsBatch(input: {
  */
 export async function fetchDriveRecentsPage(input: {
   prefix: string;
-  token: string;
   limit: number;
   cursor?: string;
   searchQuery?: string;
@@ -469,7 +467,6 @@ export async function fetchDriveRecentsPage(input: {
       fetch: ({ cursor, take }) =>
         fetchDriveBlobRecentsBatch({
           prefix: input.prefix,
-          token: input.token,
           cursor,
           take,
         }),
