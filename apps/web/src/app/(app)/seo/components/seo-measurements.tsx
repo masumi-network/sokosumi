@@ -111,10 +111,12 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         Icon: null,
         muted: false,
       };
+    // A search count still shows both weeks, but on a handful of impressions an arrow suggests a trend.
+    const trend = !weekImpressions || enoughImpressions;
     return {
       text: t("overview.weekCompare", values),
       Icon:
-        unit === "position" || delta === 0
+        unit === "position" || delta === 0 || !trend
           ? null
           : delta > 0
             ? ArrowUp

@@ -691,9 +691,9 @@ describe("SEO workspace integration", () => {
         id: "sync:impressions",
         key: "impressions",
         unit: "count",
-        value: 28,
-        // 14 impressions a week.
-        points: days.map((date) => ({ date, value: 2 })),
+        value: 21,
+        // 7 impressions, then 14: a doubling on numbers this small is noise.
+        points: days.map((date, day) => ({ date, value: day < 7 ? 1 : 2 })),
       },
       {
         ...base,
@@ -714,7 +714,10 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     expect(screen.queryByText(/better|worse/)).toBeNull();
     // A count is a fact at any size; it keeps its numbers.
-    expect(screen.getByText(/: 14 · week before: 14$/)).toBeVisible();
+    const count = screen.getByText(/: 14 · week before: 7$/);
+    expect(count).toBeVisible();
+    // The numbers stay; an arrow would read as a trend.
+    expect(count.querySelector("svg")).toBeNull();
   });
 
   it("renders source measurements without replacing missing values with zero", async () => {
