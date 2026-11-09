@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { normalizeSeoQuery } from "@sokosumi/utils";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
 type QueryRow = Omit<
@@ -101,8 +102,51 @@ export function topPages(rows: QueryRow[]): SeoTopPage[] {
     );
 }
 
-export function normalizeQuery(text: string) {
-  return text.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+/** Core matches tracked keywords with the same rule, so both sides agree on one key. */
+export const normalizeQuery = normalizeSeoQuery;
+
+const DAY_MS = 86_400_000;
+
+export type SeoKeywordTrend =
+  /** Statistics saved before daily positions existed: nothing to say per keyword. */
+  | { state: "absent" }
+  /** The last sync did not ask for this keyword (tracked later, or over the limit). */
+  | { state: "not_requested" }
+  /** Asked for, but Google listed no impressions for it in the period. */
+  | { state: "empty" }
+  | { state: "measured"; points: { date: string; value: number | null }[] };
+
+/**
+ * One tracked keyword's daily average position from the last Search Console sync.
+ * Days run from the read's first day to the last day Google reported for any
+ * tracked keyword; a day without impressions is a gap, never a zero.
+ */
+export function keywordTrend(
+  queries: ProjectSeoWorkspace["searchQueries"],
+  keyword: string,
+): SeoKeywordTrend {
+  const series = queries?.keywordSeries;
+  if (!queries || !series) return { state: "absent" };
+  const key = normalizeQuery(keyword);
+  const entry = series.keywords.find((item) => item.keyword === key);
+  if (!entry) return { state: "not_requested" };
+  if (!entry.points.length) return { state: "empty" };
+  const last = series.keywords
+    .flatMap((item) => item.points.map((point) => point.date))
+    .reduce((latest, date) => (date > latest ? date : latest));
+  const byDate = new Map(
+    entry.points.map((point) => [point.date, point.position]),
+  );
+  const points: { date: string; value: number | null }[] = [];
+  for (
+    let day = Date.parse(`${queries.from}T00:00:00Z`);
+    day <= Date.parse(`${last}T00:00:00Z`);
+    day += DAY_MS
+  ) {
+    const date = new Date(day).toISOString().slice(0, 10);
+    points.push({ date, value: byDate.get(date) ?? null });
+  }
+  return { state: "measured", points };
 }
 
 /**

@@ -10690,7 +10690,12 @@
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
         "searchConsoleNote": "Promedio de Search Console, todos los países",
         "notListed": "No figura en la lista de Search Console",
-        "notInKeptRows": "No está entre las primeras {count} filas guardadas"
+        "notInKeptRows": "No está entre las primeras {count} filas guardadas",
+        "trendShow": "Posiciones diarias",
+        "trendEmpty": "Sin impresiones de Search Console en este periodo",
+        "trendNotRequested": "Las posiciones diarias empiezan con la próxima sincronización",
+        "trendLabel": "Posición media de «{keyword}»",
+        "trendNoImpressions": "Sin impresiones"
       },
       "competitors": {
         "title": "Competidores",

@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { normalizeQuery, searchConsoleIndex } from "./seo-search-model";
+import {
+  SeoKeywordTrendChart,
+  SeoKeywordTrendToggle,
+} from "./seo-keyword-trend";
+import {
+  keywordTrend,
+  normalizeQuery,
+  searchConsoleIndex,
+} from "./seo-search-model";
 import {
   SEO_SEARCH_MIN_ROWS,
   SEO_STACKED_TABLE_CLASS,
@@ -83,6 +92,15 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   // A state label only helps when the list mixes tracked and found keywords.
   const mixed = new Set(model.data.keywords.map((row) => row.saved)).size > 1;
   const manyPages = model.data.scope.pageIds.length > 1;
+  // One keyword's daily positions open at a time, in a full-width row under it.
+  const [trendOpen, setTrendOpen] = useState<string | null>(null);
+  const columns =
+    4 +
+    Number(shown.volume) +
+    Number(shown.intent) +
+    Number(shown.priority) +
+    Number(shown.observed) +
+    Number(shown.source);
   return (
     <div className="space-y-5">
       <SeoQueryFilter model={model} rows={model.data.keywords.length} />
@@ -138,184 +156,222 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                     row.positionStatus === "unavailable"
                       ? averages?.get(normalizeQuery(row.keyword))
                       : undefined;
+                  // Daily positions are read for tracked keywords only.
+                  const trend = row.saved
+                    ? keywordTrend(queries, row.keyword)
+                    : ({ state: "absent" } as const);
+                  const trendId = `seo-keyword-trend-${row.id}`;
                   return (
-                    <TableRow key={row.id}>
-                      <TableCell className="min-w-48 whitespace-normal">
-                        <p className="font-medium break-words">
-                          <bdi>{row.keyword}</bdi>
-                        </p>
-                        {/* In a one-page scope the page link only repeats; "any page" still says something. */}
-                        {row.pageUrl ? (
-                          manyPages ? (
-                            <SeoPageLink url={row.pageUrl} />
-                          ) : null
-                        ) : (
-                          <span className="text-muted-foreground text-sm">
-                            {t("keywords.anyPage")}
-                          </span>
-                        )}
-                        {/* One page in scope: the target can only be that page. */}
-                        {row.version > 0 && manyPages ? (
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            {t("keywords.target")}:{" "}
-                            {target?.label ||
-                              target?.url ||
-                              t("keywords.anyPage")}
+                    <Fragment key={row.id}>
+                      <TableRow>
+                        <TableCell className="min-w-48 whitespace-normal">
+                          <p className="font-medium break-words">
+                            <bdi>{row.keyword}</bdi>
                           </p>
-                        ) : null}
-                        {mixed ? (
-                          <div className="mt-1">
-                            <SeoState>
-                              {t(
-                                row.saved
-                                  ? "keywords.saved"
-                                  : "keywords.discovered",
-                              )}
-                            </SeoState>
-                          </div>
-                        ) : null}
-                      </TableCell>
-                      <TableCell data-label={t("keywords.market")}>
-                        {seoMarketName(
-                          locale,
-                          row.countryCode,
-                          row.languageCode,
-                        )}
-                        {row.device ? (
-                          <div className="text-muted-foreground text-sm">
-                            {t(`analysis.${row.device}`)}
-                          </div>
-                        ) : null}
-                      </TableCell>
-                      {shown.volume ? (
-                        <TableCell
-                          className="text-right tabular-nums"
-                          data-label={t("keywords.volume")}
-                        >
-                          {row.volume === null
-                            ? t("none")
-                            : format.number(row.volume)}
-                        </TableCell>
-                      ) : null}
-                      <TableCell
-                        className="text-right whitespace-normal tabular-nums"
-                        data-label={t("keywords.position")}
-                      >
-                        {row.positionStatus === "ranked" &&
-                        row.position !== null ? (
-                          format.number(row.position)
-                        ) : row.positionStatus === "not_in_range" ? (
-                          row.checkedResults === null ? (
-                            t("keywords.notInRangeUnknown")
+                          {/* In a one-page scope the page link only repeats; "any page" still says something. */}
+                          {row.pageUrl ? (
+                            manyPages ? (
+                              <SeoPageLink url={row.pageUrl} />
+                            ) : null
                           ) : (
-                            t("keywords.notInRange", {
-                              count: row.checkedResults,
-                            })
-                          )
-                        ) : queries && average?.averagePosition ? (
-                          <>
-                            <p>
-                              {t("keywords.searchConsoleAverage", {
-                                position: format.number(
-                                  average.averagePosition,
-                                  {
-                                    minimumFractionDigits: 1,
-                                    maximumFractionDigits: 1,
-                                  },
-                                ),
-                                count: average.impressions,
-                              })}
+                            <span className="text-muted-foreground text-sm">
+                              {t("keywords.anyPage")}
+                            </span>
+                          )}
+                          {/* One page in scope: the target can only be that page. */}
+                          {row.version > 0 && manyPages ? (
+                            <p className="text-muted-foreground mt-1 text-xs">
+                              {t("keywords.target")}:{" "}
+                              {target?.label ||
+                                target?.url ||
+                                t("keywords.anyPage")}
                             </p>
-                            <p className="text-muted-foreground text-xs">
-                              {t("keywords.searchConsoleNote")} ·{" "}
-                              <SeoPeriod
-                                {...seoQueryPeriod(queries, model.data.metrics)}
-                              />
-                              {queries.truncated
-                                ? ` · ${t("queries.truncated", { count: queries.rowLimit })}`
-                                : null}
-                            </p>
-                          </>
-                        ) : queries ? (
-                          // Absent from the listed rows is not zero: Google hides rare searches.
-                          <>
-                            <p>
-                              {queries.truncated
-                                ? t("keywords.notInKeptRows", {
-                                    count: queries.rowLimit,
-                                  })
-                                : t("keywords.notListed")}
-                            </p>
-                            <p className="text-muted-foreground text-xs">
-                              <SeoPeriod
-                                {...seoQueryPeriod(queries, model.data.metrics)}
-                              />
-                            </p>
-                          </>
-                        ) : (
-                          t("keywords.unavailable")
-                        )}
-                      </TableCell>
-                      {shown.intent ? (
-                        <TableCell data-label={t("keywords.intent")}>
-                          {row.intent ?? t("none")}
-                        </TableCell>
-                      ) : null}
-                      {shown.priority ? (
-                        <TableCell data-label={t("keywords.priority")}>
-                          {t(`priority.${row.priority}`)}
-                        </TableCell>
-                      ) : null}
-                      {shown.observed ? (
-                        <TableCell data-label={t("observed")}>
-                          <SeoDate value={row.observedAt} />
-                        </TableCell>
-                      ) : null}
-                      {shown.source ? (
-                        <TableCell data-label={t("source")}>
-                          <span className="text-muted-foreground text-sm">
-                            {row.source}
-                          </span>
-                          {row.observationId ? (
-                            <div>
-                              <SeoSource
-                                workspace={model.data}
-                                observationId={row.observationId}
-                              />
+                          ) : null}
+                          <SeoKeywordTrendToggle
+                            trend={trend}
+                            open={trendOpen === row.id}
+                            controls={trendId}
+                            onToggle={() =>
+                              setTrendOpen((open) =>
+                                open === row.id ? null : row.id,
+                              )
+                            }
+                          />
+                          {mixed ? (
+                            <div className="mt-1">
+                              <SeoState>
+                                {t(
+                                  row.saved
+                                    ? "keywords.saved"
+                                    : "keywords.discovered",
+                                )}
+                              </SeoState>
                             </div>
                           ) : null}
                         </TableCell>
-                      ) : null}
-                      <TableCell>
-                        {model.data.availableActions.canEdit ? (
-                          <div className="flex flex-wrap justify-end gap-2 max-sm:justify-start">
-                            {row.version > 0 ? (
+                        <TableCell data-label={t("keywords.market")}>
+                          {seoMarketName(
+                            locale,
+                            row.countryCode,
+                            row.languageCode,
+                          )}
+                          {row.device ? (
+                            <div className="text-muted-foreground text-sm">
+                              {t(`analysis.${row.device}`)}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        {shown.volume ? (
+                          <TableCell
+                            className="text-right tabular-nums"
+                            data-label={t("keywords.volume")}
+                          >
+                            {row.volume === null
+                              ? t("none")
+                              : format.number(row.volume)}
+                          </TableCell>
+                        ) : null}
+                        <TableCell
+                          className="text-right whitespace-normal tabular-nums"
+                          data-label={t("keywords.position")}
+                        >
+                          {row.positionStatus === "ranked" &&
+                          row.position !== null ? (
+                            format.number(row.position)
+                          ) : row.positionStatus === "not_in_range" ? (
+                            row.checkedResults === null ? (
+                              t("keywords.notInRangeUnknown")
+                            ) : (
+                              t("keywords.notInRange", {
+                                count: row.checkedResults,
+                              })
+                            )
+                          ) : queries && average?.averagePosition ? (
+                            <>
+                              <p>
+                                {t("keywords.searchConsoleAverage", {
+                                  position: format.number(
+                                    average.averagePosition,
+                                    {
+                                      minimumFractionDigits: 1,
+                                      maximumFractionDigits: 1,
+                                    },
+                                  ),
+                                  count: average.impressions,
+                                })}
+                              </p>
+                              <p className="text-muted-foreground text-xs">
+                                {t("keywords.searchConsoleNote")} ·{" "}
+                                <SeoPeriod
+                                  {...seoQueryPeriod(
+                                    queries,
+                                    model.data.metrics,
+                                  )}
+                                />
+                                {queries.truncated
+                                  ? ` · ${t("queries.truncated", { count: queries.rowLimit })}`
+                                  : null}
+                              </p>
+                            </>
+                          ) : queries ? (
+                            // Absent from the listed rows is not zero: Google hides rare searches.
+                            <>
+                              <p>
+                                {queries.truncated
+                                  ? t("keywords.notInKeptRows", {
+                                      count: queries.rowLimit,
+                                    })
+                                  : t("keywords.notListed")}
+                              </p>
+                              <p className="text-muted-foreground text-xs">
+                                <SeoPeriod
+                                  {...seoQueryPeriod(
+                                    queries,
+                                    model.data.metrics,
+                                  )}
+                                />
+                              </p>
+                            </>
+                          ) : (
+                            t("keywords.unavailable")
+                          )}
+                        </TableCell>
+                        {shown.intent ? (
+                          <TableCell data-label={t("keywords.intent")}>
+                            {row.intent ?? t("none")}
+                          </TableCell>
+                        ) : null}
+                        {shown.priority ? (
+                          <TableCell data-label={t("keywords.priority")}>
+                            {t(`priority.${row.priority}`)}
+                          </TableCell>
+                        ) : null}
+                        {shown.observed ? (
+                          <TableCell data-label={t("observed")}>
+                            <SeoDate value={row.observedAt} />
+                          </TableCell>
+                        ) : null}
+                        {shown.source ? (
+                          <TableCell data-label={t("source")}>
+                            <span className="text-muted-foreground text-sm">
+                              {row.source}
+                            </span>
+                            {row.observationId ? (
+                              <div>
+                                <SeoSource
+                                  workspace={model.data}
+                                  observationId={row.observationId}
+                                />
+                              </div>
+                            ) : null}
+                          </TableCell>
+                        ) : null}
+                        <TableCell>
+                          {model.data.availableActions.canEdit ? (
+                            <div className="flex flex-wrap justify-end gap-2 max-sm:justify-start">
+                              {row.version > 0 ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={model.pending}
+                                  onClick={() => model.openKeywordEdit(row)}
+                                >
+                                  {t("edit")}
+                                </Button>
+                              ) : null}
                               <Button
-                                variant="outline"
+                                // Removing is the quiet action, as on Competitors.
+                                variant={row.saved ? "ghost" : "outline"}
                                 size="sm"
                                 disabled={model.pending}
-                                onClick={() => model.openKeywordEdit(row)}
+                                onClick={() => {
+                                  void model.toggleKeyword(row);
+                                }}
                               >
-                                {t("edit")}
+                                {t(
+                                  row.saved
+                                    ? "keywords.unsave"
+                                    : "keywords.save",
+                                )}
                               </Button>
-                            ) : null}
-                            <Button
-                              // Removing is the quiet action, as on Competitors.
-                              variant={row.saved ? "ghost" : "outline"}
-                              size="sm"
-                              disabled={model.pending}
-                              onClick={() => {
-                                void model.toggleKeyword(row);
-                              }}
-                            >
-                              {t(
-                                row.saved ? "keywords.unsave" : "keywords.save",
-                              )}
-                            </Button>
-                          </div>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
+                            </div>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                      {trendOpen === row.id && trend.state === "measured" ? (
+                        <TableRow id={trendId}>
+                          <TableCell
+                            colSpan={columns}
+                            className="whitespace-normal"
+                          >
+                            <SeoKeywordTrendChart
+                              keyword={row.keyword}
+                              points={trend.points}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </Fragment>
                   );
                 })}
               </TableBody>

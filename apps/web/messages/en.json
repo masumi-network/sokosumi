@@ -10690,7 +10690,12 @@
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
         "searchConsoleNote": "Search Console average, all countries",
         "notListed": "Not in Search Console's list",
-        "notInKeptRows": "Not in the first {count} rows kept"
+        "notInKeptRows": "Not in the first {count} rows kept",
+        "trendShow": "Daily positions",
+        "trendEmpty": "No Search Console impressions in this period",
+        "trendNotRequested": "Daily positions start with the next sync",
+        "trendLabel": "Average position for “{keyword}”",
+        "trendNoImpressions": "No impressions"
       },
       "competitors": {
         "title": "Competitors",

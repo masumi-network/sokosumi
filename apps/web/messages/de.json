@@ -10690,7 +10690,12 @@
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
         "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder",
         "notListed": "Nicht in der Search-Console-Liste",
-        "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen"
+        "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen",
+        "trendShow": "Tägliche Positionen",
+        "trendEmpty": "Keine Search-Console-Impressionen in diesem Zeitraum",
+        "trendNotRequested": "Tägliche Positionen beginnen mit der nächsten Synchronisierung",
+        "trendLabel": "Durchschnittliche Position für „{keyword}“",
+        "trendNoImpressions": "Keine Impressionen"
       },
       "competitors": {
         "title": "Mitbewerber",

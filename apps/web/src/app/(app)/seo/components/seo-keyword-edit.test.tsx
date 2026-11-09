@@ -383,6 +383,41 @@ describe("Search Console queries", () => {
     ).not.toHaveAttribute("aria-sort");
   });
 
+  it("opens a tracked keyword's daily positions under its row", async () => {
+    const user = userEvent.setup();
+    const workspace = searchQueryWorkspace();
+    if (!workspace.searchQueries) throw new Error("fixture");
+    workspace.searchQueries.keywordSeries = {
+      rowLimit: 10_000,
+      truncated: false,
+      keywords: [
+        {
+          keyword: "stablecoins",
+          points: [
+            { date: "2026-10-01", clicks: 1, impressions: 6, position: 3.2 },
+          ],
+        },
+      ],
+    };
+    workspace.keywords.push({
+      ...workspace.keywords[0],
+      id: "later-keyword",
+      keyword: "usdt",
+    });
+    renderWorkspace(workspace);
+    // A keyword tracked after the sync says when its days arrive.
+    expect(
+      screen.getByText("Daily positions start with the next sync"),
+    ).toBeVisible();
+    const toggle = screen.getByRole("button", { name: "Daily positions" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByRole("group", { name: "Average position for “Stablecoins”" }),
+    ).toBeVisible();
+  });
+
   it("names the impressions Google listed under no query", () => {
     renderWorkspace(searchQueryWorkspace());
     expect(

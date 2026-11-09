@@ -2,6 +2,7 @@ import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   hiddenImpressions,
+  keywordTrend,
   nextQuerySort,
   normalizeQuery,
   positionBuckets,
@@ -227,5 +228,55 @@ describe("query sort", () => {
       { key: "clicks", ascending: false },
     );
     expect(sorted.map((item) => item.query)).toEqual(["c", "a", "b"]);
+  });
+});
+
+describe("keyword trend", () => {
+  const point = (
+    date: string,
+    impressions: number,
+    position: number | null,
+  ) => ({
+    date,
+    clicks: 0,
+    impressions,
+    position,
+  });
+  function seriesWorkspace() {
+    const workspace = workspaceWith(rows, []);
+    if (!workspace.searchQueries) throw new Error("fixture");
+    workspace.searchQueries.keywordSeries = {
+      rowLimit: 10_000,
+      truncated: false,
+      keywords: [
+        {
+          keyword: "usdc",
+          points: [point("2026-10-01", 4, 6.5), point("2026-10-03", 0, null)],
+        },
+        { keyword: "stablecoin", points: [point("2026-10-04", 2, 3)] },
+        { keyword: "eurc", points: [] },
+      ],
+    };
+    return workspace.searchQueries;
+  }
+
+  it("fills missing days with gaps up to the last day Google reported", () => {
+    expect(keywordTrend(seriesWorkspace(), "  USDC ")).toEqual({
+      state: "measured",
+      points: [
+        { date: "2026-10-01", value: 6.5 },
+        { date: "2026-10-02", value: null },
+        { date: "2026-10-03", value: null },
+        { date: "2026-10-04", value: null },
+      ],
+    });
+  });
+
+  it("tells an unrequested keyword from one without impressions", () => {
+    const queries = seriesWorkspace();
+    expect(keywordTrend(queries, "EURC")).toEqual({ state: "empty" });
+    expect(keywordTrend(queries, "usdt")).toEqual({ state: "not_requested" });
+    queries.keywordSeries = undefined;
+    expect(keywordTrend(queries, "usdc")).toEqual({ state: "absent" });
   });
 });
