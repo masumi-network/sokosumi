@@ -8,12 +8,12 @@ import { AssistantAvatar, AssistantImageContext } from "./assistant-avatar";
 describe("AssistantAvatar", () => {
   it("shows the bot's one picture, uncropped", () => {
     render(
-      <AssistantImageContext.Provider value="https://blob/mascot.webp">
+      <AssistantImageContext.Provider value="https://blob/avatar.webp">
         <AssistantAvatar />
       </AssistantImageContext.Provider>,
     );
     const face = screen.getByRole("img", { name: "avatarAlt" });
-    expect(face).toHaveAttribute("src", "https://blob/mascot.webp");
+    expect(face).toHaveAttribute("src", "https://blob/avatar.webp");
     expect(face.className).toContain("object-cover");
     expect(document.querySelector("video")).toBeNull();
   });

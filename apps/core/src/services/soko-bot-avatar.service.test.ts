@@ -309,7 +309,7 @@ describe("claiming a Soko Bot avatar", () => {
     expect(store.bots.get(BOT_ID)?.avatarImageUrl).toBe(picked.imageUrl);
   });
 
-  it("will not hand out a crafted-style look", async () => {
+  it("will not hand out a crafted-style avatar", async () => {
     const crafted = store.seed({ background: "crafted-desk:none" });
 
     await expect(claimAvatar(BOT_ID, crafted.id)).rejects.toMatchObject({

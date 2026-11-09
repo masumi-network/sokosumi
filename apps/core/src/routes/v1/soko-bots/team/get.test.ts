@@ -128,7 +128,7 @@ describe("GET /team", () => {
       members: [
         member("a", [
           bot("01960001-0001-7001-8001-0000000000a1", {
-            avatarImageUrl: "https://blob.test/a-mascot.webp",
+            avatarImageUrl: "https://blob.test/an-avatar.webp",
             status: "RUNNING",
           }),
         ]),
@@ -142,7 +142,7 @@ describe("GET /team", () => {
     expect(response.status).toBe(200);
     const { members } = (await response.json()).data;
     expect(members[0].bot).toMatchObject({
-      avatarImageUrl: "https://blob.test/a-mascot.webp",
+      avatarImageUrl: "https://blob.test/an-avatar.webp",
       status: "RUNNING",
     });
     expect(members[1].bot.avatarImageUrl).toBeNull();

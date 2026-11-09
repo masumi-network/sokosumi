@@ -528,7 +528,7 @@ const notCraftedFilter = {
   NOT: { background: { contains: CRAFTED_BACKGROUND_MARKER } },
 };
 
-/** True when the row is a crafted look; its background is `<style>:<accessories>`. */
+/** True when the row is a crafted-style avatar; its background is `<style>:<accessories>`. */
 function isCraftedRow(background: string): boolean {
   return background.includes(CRAFTED_BACKGROUND_MARKER);
 }

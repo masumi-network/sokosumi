@@ -171,7 +171,7 @@ describe("Soko Bot avatar picker", () => {
     });
 
     it("offers again an original-style avatar a crafted pick released", async () => {
-      // Picking a crafted look cleared the claim on the bot's old avatar.
+      // Picking a crafted-style avatar cleared the claim on the bot's old avatar.
       const released = store.seed({
         claimedBySokoBotId: null,
         claimedAt: null,
@@ -240,7 +240,7 @@ describe("Soko Bot avatar picker", () => {
       });
     });
 
-    it("does not count crafted avatars as stock", async () => {
+    it("does not count crafted-style avatars as stock", async () => {
       for (let i = 0; i < 6; i += 1) seedCrafted({ seed: i + 1 });
 
       const { avatars } = await topUp(6);

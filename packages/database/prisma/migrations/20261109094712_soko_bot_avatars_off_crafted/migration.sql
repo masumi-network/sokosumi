@@ -21,7 +21,7 @@ BEGIN;
 LOCK TABLE "soko_bot_avatar" IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE "soko_bot" IN SHARE ROW EXCLUSIVE MODE;
 
--- Bots on a crafted avatar, in random order.
+-- Bots on a crafted-style avatar, in random order.
 CREATE TEMP TABLE "crafted_bot" AS
 SELECT b."id", b."deletedAt", row_number() OVER (ORDER BY random()) AS "n"
 FROM "soko_bot" b
