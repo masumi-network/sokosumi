@@ -436,8 +436,8 @@ describe("pages", () => {
             why: "Founders read LinkedIn.",
           },
         })}
-        onAsk={async () => {}}
         onOpenCalendar={() => {}}
+        connectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
     expect(html).toContain(strategy.summary);
@@ -486,6 +486,8 @@ describe("pages", () => {
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
+        addMailingList={async () => ({ overview: null, error: null })}
+        onChange={() => {}}
       />,
     );
     expect(html).toContain("@acme");
@@ -499,11 +501,30 @@ describe("pages", () => {
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
+        addMailingList={async () => ({ overview: null, error: null })}
+        onChange={() => {}}
       />,
     );
     expect(html).toContain("Ad accounts");
     expect(html).toContain("Google Ads");
     expect(html).toMatch(/Meta ads[\s\S]*Connect/);
+  });
+
+  it("imports a mailing list and shows its size once added", () => {
+    const channels = (mailingListSize: number) =>
+      renderToStaticMarkup(
+        <ChannelsPage
+          overview={overview({ mailingListSize })}
+          compose={() => {}}
+          connect={async () => ({ url: null, error: null })}
+          connectAds={async () => ({ url: null, error: null })}
+          addMailingList={async () => ({ overview: null, error: null })}
+          onChange={() => {}}
+        />,
+      );
+    expect(channels(0)).toContain("Add your list");
+    expect(channels(128)).toContain("128");
+    expect(channels(128)).toContain("Add more");
   });
 });
 

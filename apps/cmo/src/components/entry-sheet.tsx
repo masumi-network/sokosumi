@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-
+import { AGENT_NAME } from "../lib/agent";
 import { channelLabel, formatDay } from "../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../lib/channels";
 import { ChannelIcon } from "./channel-icon";
@@ -91,7 +91,7 @@ export function EntrySheet({
         exit={{ opacity: 0 }}
       />
       <motion.aside
-        className="sheet"
+        className="sheet card-focus"
         role="dialog"
         aria-label={entry.title}
         initial={{ x: 40, opacity: 0 }}
@@ -105,11 +105,11 @@ export function EntrySheet({
             {channelLabel(entry.channel)} ·{" "}
             {formatName(entry.channel, entry.format)}
             {formatHasVideo(entry.channel, entry.format)
-              ? " · video by Cuso"
+              ? ` · video by ${AGENT_NAME}`
               : media?.slides
-                ? ` · ${media.slides.length} images by Cuso`
+                ? ` · ${media.slides.length} images by ${AGENT_NAME}`
                 : formatHasImage(entry.channel, entry.format)
-                  ? " · image by Cuso"
+                  ? ` · image by ${AGENT_NAME}`
                   : ""}
           </span>
           {position ? (
@@ -200,7 +200,8 @@ export function EntrySheet({
             ) : null}
             {entry.brief ? <p>{entry.brief}</p> : null}
             <p className="note">
-              Cuso makes it with the rest of the month once you subscribe.
+              {AGENT_NAME} makes it with the rest of the month once you
+              subscribe.
             </p>
           </>
         )}
@@ -232,7 +233,7 @@ function ChangePiece({
   if (sent)
     return (
       <p className="note sheet-sent">
-        Sent. Cuso changes it and tells you in the chat.
+        Sent. {AGENT_NAME} changes it and tells you in the chat.
       </p>
     );
   return (
