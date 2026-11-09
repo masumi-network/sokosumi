@@ -71,7 +71,9 @@ function CaseRow({
           "grid grid-cols-1 items-center gap-x-4 gap-y-1 px-3 py-2 md:grid-cols-[7rem_minmax(0,1fr)_auto_auto_6rem]",
         )}
       >
-        <EvalOutcomeBadge outcome={evalCase.outcome} />
+        <span className="justify-self-start">
+          <EvalOutcomeBadge outcome={evalCase.outcome} />
+        </span>
         <span className="min-w-0">
           <span className="block truncate text-sm font-medium">
             {evalCase.title}
@@ -80,12 +82,17 @@ function CaseRow({
             {reason ?? evalCase.intent}
           </span>
         </span>
-        <EvalRepeatMarks states={evalCase.states} />
-        <EvalHistoryStrip history={evalCase.history} />
-        <span className="text-right text-xs tabular-nums">
-          {formatPassRate(evalCase.passRate)}
-          <span className="text-muted-foreground block">
-            {t("wasRate", { rate: formatPassRate(evalCase.baselinePassRate) })}
+        {/* One row on a phone; the grid's last three columns on wider screens. */}
+        <span className="flex items-center gap-4 md:contents">
+          <EvalRepeatMarks states={evalCase.states} />
+          <EvalHistoryStrip history={evalCase.history} />
+          <span className="ml-auto text-right text-xs tabular-nums md:ml-0">
+            {formatPassRate(evalCase.passRate)}
+            <span className="text-muted-foreground block">
+              {t("wasRate", {
+                rate: formatPassRate(evalCase.baselinePassRate),
+              })}
+            </span>
           </span>
         </span>
       </Link>
@@ -140,9 +147,17 @@ export function EvalRunCases({
     const key = `${evalCase.suite}\u0000${evalCase.area}`;
     groups.set(key, [...(groups.get(key) ?? []), evalCase]);
   }
+  const worst = (cases: EvalCaseReport[]) =>
+    Math.min(
+      ...cases.map((evalCase) => OUTCOME_ORDER.indexOf(evalCase.outcome)),
+    );
+  // The area holding a regression comes first, then errors, then failures.
+  const ordered = [...groups.entries()].sort(
+    ([, left], [, right]) => worst(left) - worst(right),
+  );
   return (
     <div className="flex flex-col gap-3">
-      {[...groups.entries()].map(([key, cases]) => {
+      {ordered.map(([key, cases]) => {
         const [suite, area] = key.split("\u0000");
         const sorted = [...cases].sort(
           (a, b) =>

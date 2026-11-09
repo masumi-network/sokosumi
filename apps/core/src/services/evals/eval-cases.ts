@@ -3,7 +3,11 @@ import {
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
-import { CMO_EVAL_CASES, type CmoEvalCase } from "./eval-cmo-cases";
+import {
+  CMO_COMMENT_SCENARIO,
+  CMO_EVAL_CASES,
+  type CmoEvalCase,
+} from "./eval-cmo-cases";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
 export type EvalSuite = (typeof EVAL_SUITES)[number];
@@ -26,6 +30,8 @@ export type EvalCase =
       /** The lane's personal Soko Bot, or its Cuso. */
       bot: "soko-bot" | "cuso";
       scenario: SokoBotScenario;
+      /** What the lane needs before the turn: comments on a published post. */
+      prepare?: "cmo-comments";
     })
   | (EvalCaseCommon & CmoEvalCase);
 
@@ -115,6 +121,10 @@ export const EVAL_CASES: readonly EvalCase[] = [
   ),
   ...CMO_EVAL_CASES,
   ...CMO_SCENARIOS.map((scenario) => scenarioCase(scenario, "cmo", "Chat")),
+  {
+    ...scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies"),
+    prepare: "cmo-comments",
+  } as EvalCase,
 ];
 
 export function evalCase(id: string): EvalCase | undefined {

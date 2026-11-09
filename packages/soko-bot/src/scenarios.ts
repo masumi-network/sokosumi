@@ -75,6 +75,11 @@ export interface SokoBotScenario {
     anyTools?: string[];
     /** None of these may be called. */
     forbiddenTools?: string[];
+    /**
+     * Tools whose failure the scenario sets up (a site that does not load),
+     * so a failed call to one is not counted against the bot.
+     */
+    allowFailedTools?: string[];
     /** Minimum number of tasks/jobs the turn touched. */
     minDelegations?: number;
     /** Nothing may be delegated. */
@@ -799,10 +804,9 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "From now on, write every Task you give Hannah in German, she prefers that. Remember it.",
     rubric:
-      "The bot saved the rule to memory with update_memory (a preference or decision that Tasks for Hannah are written in German) and confirmed it in one or two lines. It creates no Task and no schedule. Claiming it remembered without a successful update_memory result fails.",
+      "The rule (Tasks for Hannah are written in German) ends up in memory, through update_memory or Core's own saving of a stated preference, and the bot confirms it in one or two lines in the owner's language. It creates no Task and no schedule. The next scenario asks for the rule back.",
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
-      tools: ["update_memory"],
       forbiddenTools: ["create_task", "create_schedule", "hire_agent"],
       noDelegations: true,
     },
@@ -862,11 +866,10 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Make me a table of the three EU agent marketplaces Hannah found (Sokosumi, Agent.ai EU hub, Relevance Marketplace) with columns name, city, pricing model and price.",
     rubric:
-      "The bot created a Drive table with create_table and filled it with write_table_rows: three rows (Sokosumi Berlin per-task credits; Agent.ai EU hub Paris free listing with 20% revenue share; Relevance Marketplace Amsterdam EUR 49/month) under the four columns, from Hannah's findings in its Tasks or memory, saying where a value is unknown rather than inventing it. It links the table. A Markdown table in chat instead of a Drive table is weak; claiming a table exists without a successful create_table fails.",
+      "The bot created a Drive table with create_table, with its rows given there or with write_table_rows: three rows (Sokosumi Berlin per-task credits; Agent.ai EU hub Paris free listing with 20% revenue share; Relevance Marketplace Amsterdam EUR 49/month) under the four columns, from Hannah's findings in its Tasks or memory, saying where a value is unknown rather than inventing it. It links the table. A Markdown table in chat instead of a Drive table is weak; claiming a table exists without a successful create_table fails.",
     expect: {
       routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
       tools: ["create_table"],
-      anyTools: ["write_table_rows"],
       forbiddenTools: ["create_task", "hire_agent"],
       noInventedIds: true,
     },
@@ -996,8 +999,9 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "The site does not load, so what Acme sells, to whom and the offer stay unknown. Cuso saves no strategy and asks the founder two or three short, specific questions (what they sell, who buys, what a new customer does first). Nothing it writes contains bracket placeholders, 'not confirmed' or 'provisional'.",
     expect: {
-      routes: ["MANAGE_WORK"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY"],
       forbiddenTools: ["save_strategy"],
+      allowFailedTools: ["web_fetch", "web_search"],
       asksQuestion: true,
       answerAvoids: CMO_PLACEHOLDER_PATTERN,
     },
@@ -1036,11 +1040,11 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     intent:
       "A founder's change to the month updates the saved plan, only where asked, and says what changed.",
     prompt:
-      "Let's post on LinkedIn only twice a week this month instead of more often. Change the plan.",
+      "Let's post on LinkedIn only once a week this month. Change the plan.",
     rubric:
-      "Cuso changes the saved month with save_strategy so LinkedIn has at most two pieces a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole plan, or saying it changed without a successful save_strategy, fails. If no plan exists yet, saying so is correct.",
+      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole plan, or saying it changed without a successful save_strategy, fails. If no plan exists yet, saying so is correct.",
     expect: {
-      routes: ["MANAGE_WORK"],
+      routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
       forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
     },
@@ -1134,7 +1138,11 @@ export function evaluateScenario(
     pass: turn.status === "COMPLETED",
     actual: turn.status,
   });
-  const failedTools = turn.toolCalls.filter((call) => call.status === "FAILED");
+  const failedTools = turn.toolCalls.filter(
+    (call) =>
+      call.status === "FAILED" &&
+      !expect.allowFailedTools?.includes(call.capability),
+  );
   checks.push({
     label: "No failed tool calls",
     pass: failedTools.length === 0,

@@ -102,7 +102,7 @@ export function formatPassRate(rate: number | null | undefined): string {
     : `${Math.round(rate * 100)}%`;
 }
 
-/** "#6931" linked to the PR, else the short commit, else nothing to link. */
+/** The PR number linked to the PR, else the short commit, else nothing to link. */
 export function EvalCommitRef({
   run,
 }: {

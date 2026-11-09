@@ -64,7 +64,6 @@ const NOT_YET_COVERED = new Set([
   "get_posting_instructions",
   "get_social_post",
   "get_video",
-  "handle_social_comment",
   "install_skill",
   "list_ad_accounts",
   "list_ad_campaigns",
@@ -76,7 +75,6 @@ const NOT_YET_COVERED = new Set([
   "list_newsletter_subscribers",
   "list_skills",
   "list_social_account_statistics",
-  "list_social_comments",
   "list_social_post_statistics",
   "list_tables",
   "manage_reminder",
@@ -112,6 +110,7 @@ const NOT_YET_COVERED = new Set([
   "workspace_list",
   "workspace_read",
   "workspace_search",
+  "write_table_rows",
 ]);
 
 describe("eval cases", () => {

@@ -14,7 +14,12 @@ import {
 } from "@/services/soko-bot-lab-scenario.service";
 import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import type { EvalCase } from "./eval-cases";
-import { pollCmoCase, startCmoCase } from "./eval-cmo-runner";
+import {
+  commentChecks,
+  pollCmoCase,
+  prepareCmoComments,
+  startCmoCase,
+} from "./eval-cmo-runner";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
@@ -91,9 +96,11 @@ async function startScenario(
   bot: "soko-bot" | "cuso",
   lane: EvalLaneRecord,
   context: CaseContext,
+  prepare?: "cmo-comments",
 ): Promise<CaseStart> {
   const sokoBotId = bot === "cuso" ? lane.cusoBotId : lane.sokoBotId;
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
+  const state = prepare ? { comments: await prepareCmoComments(lane) } : {};
   if (bot === "soko-bot" && (context.firstOfSuite || scenario.setup))
     await resetEvalLaneForSokoBot(lane);
   for (const schedule of scenario.setup?.schedules ?? [])
@@ -124,7 +131,7 @@ async function startScenario(
           },
           clientTurnId,
         );
-  return { kind: "started", turnId, state: {} };
+  return { kind: "started", turnId, state };
 }
 
 /** What the admin page shows of a scenario turn: the answer and the tools in order. */
@@ -147,6 +154,7 @@ async function pollScenario(
   turnId: string,
   lane: EvalLaneRecord,
   context: CaseContext,
+  state: unknown,
 ): Promise<CasePoll> {
   const turn = await loadLabScenarioTurn(turnId);
   if (!SETTLED_TURN_STATUSES.includes(turn.status)) {
@@ -161,6 +169,14 @@ async function pollScenario(
     };
   }
   const result = evaluateScenario(scenario, turn);
+  const comments = (state as { comments?: Record<string, string> } | null)
+    ?.comments;
+  if (comments) {
+    const extra = commentChecks(turn.toolCalls, comments);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
   const judged = await judgeEvalScenarioTurn(turnId, scenario).catch(
     (error: unknown) => {
       console.warn("Eval judge failed", {
@@ -196,7 +212,13 @@ export async function startEvalCase(
       outcome: skipped("Needs a connected mailbox and calendar"),
     };
   if (evalCase.kind === "scenario")
-    return startScenario(evalCase.scenario, evalCase.bot, lane, context);
+    return startScenario(
+      evalCase.scenario,
+      evalCase.bot,
+      lane,
+      context,
+      evalCase.prepare,
+    );
   return startCmoCase(evalCase, lane, context);
 }
 
@@ -209,7 +231,13 @@ export async function pollEvalCase(
   if (evalCase.kind === "scenario") {
     if (!result.turnId)
       return { kind: "done", outcome: caseError("The case has no turn") };
-    return pollScenario(evalCase.scenario, result.turnId, lane, context);
+    return pollScenario(
+      evalCase.scenario,
+      result.turnId,
+      lane,
+      context,
+      result.state,
+    );
   }
   return pollCmoCase(evalCase, lane, result, context);
 }

@@ -20,6 +20,8 @@ const CACHE_MS = 60_000;
 let cache: { at: number; workspaceIds: Set<string> } | null = null;
 
 export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
+  // A Prisma double without the eval tables (unit tests) has no lanes.
+  if (typeof prisma.evalLane?.findMany !== "function") return false;
   if (!cache || Date.now() - cache.at > CACHE_MS) {
     const lanes = await prisma.evalLane.findMany({
       select: { workspaceId: true },

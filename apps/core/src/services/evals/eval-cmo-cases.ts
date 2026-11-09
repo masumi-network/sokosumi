@@ -1,5 +1,7 @@
+import type { SokoBotScenario } from "@sokosumi/soko-bot";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
 import brands from "./fixtures/cmo-brands.json";
+import monthPlans from "./fixtures/cmo-month-plans.json";
 
 export interface CmoEvalBrand {
   name: string;
@@ -34,6 +36,16 @@ export type CmoEvalCase =
       kind: "cmo-strategy";
       brand: CmoEvalBrand;
       brandBrain: unknown;
+    }
+  | {
+      /**
+       * Cuso and Core make an approved plan's pieces, and Jev reviews them:
+       * a short frozen plan, its dates moved to start tomorrow.
+       */
+      kind: "cmo-month";
+      brand: CmoEvalBrand;
+      brandBrain: unknown;
+      plan: unknown;
     };
 
 /**
@@ -82,6 +94,13 @@ function brand(name: string): CmoEvalBrand {
 }
 
 const frozenBrains = brandBrains as Record<string, unknown>;
+const frozenPlans = monthPlans as Record<string, unknown>;
+
+/**
+ * Making a month takes a production run, Core's pictures and Jev's review,
+ * so a few brands with different channels and a non-English one.
+ */
+const MONTH_BRANDS = ["cal.com", "Hiltl", "Blue Bottle Coffee"];
 
 export const CMO_EVAL_CASES = [
   ...RESEARCH_BRANDS.map((name) => ({
@@ -107,4 +126,71 @@ export const CMO_EVAL_CASES = [
     brand: brand(name),
     brandBrain: frozenBrains[name],
   })),
+  ...MONTH_BRANDS.filter((name) => frozenBrains[name] && frozenPlans[name]).map(
+    (name) => ({
+      id: `cmo-month-${slug(name)}`,
+      suite: "cmo" as const,
+      area: "Month",
+      title: `Makes ${name}'s pieces`,
+      intent:
+        "Every approved piece is written and made, and Jev finds it follows its writing skill and the brand's voice.",
+      kind: "cmo-month" as const,
+      brand: brand(name),
+      brandBrain: frozenBrains[name],
+      plan: frozenPlans[name],
+    }),
+  ),
 ];
+
+/** The brand the replies case answers for, and the comments it answers. */
+export const CMO_COMMENT_BRAND = "cal.com";
+
+export const CMO_EVAL_COMMENTS = [
+  {
+    key: "price",
+    author: "Maya Lindqvist",
+    text: "How much does Cal cost for a team of five?",
+    expect: ["reply", "owner"],
+  },
+  {
+    key: "angry",
+    author: "Derek Holm",
+    text: "Third time this week my booking link broke and a client couldn't book. Fix it or I'm cancelling.",
+    expect: ["owner"],
+  },
+  {
+    key: "spam",
+    author: "crypto_signals_247",
+    text: "🔥🔥 Want 10x returns? DM me for free crypto signals!!",
+    expect: ["skip"],
+  },
+  {
+    key: "praise",
+    author: "Priya Raman",
+    text: "Switched our whole sales team to Cal last month, booking calls is so much easier now.",
+    expect: ["reply"],
+  },
+  {
+    key: "german",
+    author: "Jonas Becker",
+    text: "Gibt es eine Integration mit Google Meet?",
+    expect: ["reply", "owner"],
+  },
+] as const;
+
+/** Cuso answers the day's comments: replies, skips and hand-overs. */
+export const CMO_COMMENT_SCENARIO: SokoBotScenario = {
+  id: "cmo-comment-replies",
+  title: "Answers the day's comments",
+  intent:
+    "Replies where a reply helps, in the commenter's language and the brand's voice; hands complaints to the owner and skips spam.",
+  prompt:
+    "Go through today's comments on our Instagram post and handle each one.",
+  rubric:
+    "Cuso called list_social_comments and handled every comment with handle_social_comment: the spam is skipped, the angry customer whose booking link broke goes to the owner with a one-line note, the praise gets a short thank-you, the German question gets a German reply (or goes to the owner if the Brand Brain does not say), and the price question gets the price from the Brand Brain or goes to the owner. Replies are under 300 characters, in the brand's voice, and invent no facts, prices or promises. Claiming a reply was posted without a successful handle_social_comment fails.",
+  expect: {
+    routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
+    tools: ["list_social_comments", "handle_social_comment"],
+    forbiddenTools: ["create_social_post", "publish_social_post", "hire_agent"],
+  },
+};
