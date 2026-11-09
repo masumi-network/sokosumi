@@ -230,8 +230,8 @@ export function TaskDetailActions({
   const [isRepeatLoading, startRepeatTransition] = useTransition();
 
   const newTaskWizard = useOptionalNewTaskWizard();
-  // A copy carries the brief, assignee and tags only: no Run at, jobs,
-  // payments, schedule, relations or priority. It opens in the New Task form
+  // A copy carries the brief, assignee and tags only: no Run at, due date,
+  // jobs, payments, schedule, relations or priority. It opens in the New Task form
   // as a Draft, so nothing runs until the viewer reviews and saves it.
   const handleDuplicate = () => {
     if (!taskBlueprint || !newTaskWizard) return;

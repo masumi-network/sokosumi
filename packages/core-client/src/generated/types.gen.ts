@@ -1874,6 +1874,10 @@ export type Task = {
      */
     runAt: Date | null;
     /**
+     * The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.
+     */
+    dueOn: string | null;
+    /**
      * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
      */
     scheduleId: string | null;
@@ -12177,6 +12181,10 @@ export type TaskListItem = {
      * The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.
      */
     runAt: Date | null;
+    /**
+     * The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.
+     */
+    dueOn: string | null;
     /**
      * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
      */
@@ -81709,6 +81717,10 @@ export type PatchTasksByIdData = {
          * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
          */
         runAt?: Date | null;
+        /**
+         * The day the Task should be done by (YYYY-MM-DD); null clears it. A request that changes only dueOn also works outside draft, queued and ready, except on a Task parked in GRANT_PENDING.
+         */
+        dueOn?: string | null;
     };
     path: {
         id: string;

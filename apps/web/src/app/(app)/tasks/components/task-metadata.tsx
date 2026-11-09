@@ -15,6 +15,8 @@ import {
 import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
+import { TaskDueBadge } from "./task-due-badge";
+import { TaskMetadataDueField } from "./task-metadata-due-field";
 import {
   TaskMetadataPriorityField,
   type TaskPriorityLabels,
@@ -44,6 +46,7 @@ interface TaskMetadataLabels {
 interface TaskMetadataTask {
   status: Task["status"];
   priority: Task["priority"];
+  dueOn: Task["dueOn"];
   visibility?: Task["visibility"];
   selectableStatuses: Task["selectableStatuses"];
   organization: Task["organization"];
@@ -179,6 +182,23 @@ export function TaskMetadata({
             </span>
           </PropertyRow>
         )}
+
+        {editable ? (
+          <TaskMetadataDueField
+            key={`${taskId}-${task.dueOn}`}
+            taskId={taskId}
+            dueOn={task.dueOn}
+            status={task.status}
+          />
+        ) : task.dueOn ? (
+          <div className="flex h-8 items-center">
+            <TaskDueBadge
+              dueOn={task.dueOn}
+              status={task.status}
+              variant="row"
+            />
+          </div>
+        ) : null}
 
         <PropertyRow
           label={labels.assignee}

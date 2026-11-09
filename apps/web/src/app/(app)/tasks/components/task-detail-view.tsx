@@ -512,6 +512,7 @@ async function TaskMetadataSection({
         task={{
           status: task.status,
           priority: task.priority,
+          dueOn: task.dueOn,
           visibility: task.visibility,
           selectableStatuses: task.selectableStatuses,
           organization: task.organization,

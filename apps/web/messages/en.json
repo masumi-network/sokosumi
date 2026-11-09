@@ -2093,6 +2093,17 @@
           "at": "Starts {datetime}"
         }
       },
+      "Due": {
+        "label": "Due date",
+        "none": "No due date",
+        "set": "Set a due date",
+        "change": "Change due date",
+        "save": "Save",
+        "clear": "Clear",
+        "due": "Due {date}",
+        "overdue": "Overdue · {date}",
+        "updateError": "Could not update the due date. Try again."
+      },
       "Schedules": {
         "viewList": "List view",
         "viewGrid": "Grid view",

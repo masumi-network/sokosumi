@@ -239,6 +239,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     links: [],
     files: [],
     runAt: null,
+    dueOn: null,
     scheduleId: null,
     selectableStatuses: [],
     participants: [],

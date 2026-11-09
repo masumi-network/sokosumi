@@ -2093,6 +2093,17 @@
           "at": "Empieza {datetime}"
         }
       },
+      "Due": {
+        "label": "Fecha límite",
+        "none": "Sin fecha límite",
+        "set": "Poner fecha límite",
+        "change": "Cambiar fecha límite",
+        "save": "Guardar",
+        "clear": "Quitar",
+        "due": "Vence el {date}",
+        "overdue": "Vencida · {date}",
+        "updateError": "No se pudo cambiar la fecha límite. Inténtalo de nuevo."
+      },
       "Schedules": {
         "viewList": "Vista de lista",
         "viewGrid": "Vista de cuadrícula",

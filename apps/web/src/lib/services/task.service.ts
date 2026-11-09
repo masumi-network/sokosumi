@@ -62,6 +62,8 @@ interface PatchTaskInput {
   /** A future time queues the Task; null clears a saved Run at. */
   runAt?: Date | null;
   priority?: TaskPriority;
+  /** `YYYY-MM-DD`; null clears the due date. */
+  dueOn?: string | null;
 }
 
 interface CreateTaskEventInput {
