@@ -62,20 +62,20 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, session, activeOrganizationId, sokoBot, access] =
-    await Promise.all([
-      searchParams,
-      getSession(),
-      userService.getActiveOrganizationId(),
-      sokoBotService.getMine().catch(() => null),
-      userService.getWorkspaceAccess().catch(() => null),
-    ]);
+  const [query, session, activeOrganizationId, access] = await Promise.all([
+    searchParams,
+    getSession(),
+    userService.getActiveOrganizationId(),
+    userService.getWorkspaceAccess().catch(() => null),
+  ]);
   // The app shell's loading fallback renders this page before the frame's
   // workspace gate redirects, so a brand-new account (sign-up lands here)
-  // would read coworkers and tasks it has no workspace for. Leave first.
+  // would read a bot, coworkers and tasks it has no workspace for. Leave
+  // before any of those reads.
   if (!isWorkspaceReady(access?.gate)) {
     redirect(WORKSPACE_GATE_PATH);
   }
+  const sokoBot = await sokoBotService.getMine().catch(() => null);
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
