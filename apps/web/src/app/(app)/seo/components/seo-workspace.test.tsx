@@ -298,6 +298,20 @@ describe("SEO workspace integration", () => {
     expect(evidence).toBeVisible();
   });
 
+  it("leaves the date filter off the Competitors tab unless dates are set", () => {
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const { unmount } = renderWorkspace(workspace, "?tab=competitors");
+    expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
+    unmount();
+    // A set date filter still shows, so it can be cleared.
+    renderWorkspace(workspace, "?tab=competitors&from=2026-01-01");
+    expect(screen.getByLabelText("Activity from")).toBeVisible();
+  });
+
   it("hides the page picker when the only page is the one selected", () => {
     const workspace = seoTestWorkspace();
     workspace.scopes = [];

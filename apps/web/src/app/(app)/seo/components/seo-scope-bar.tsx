@@ -123,7 +123,8 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
             void setFilters({ to: to || null });
           }}
         />
-      ) : (
+      ) : filters.tab === "competitors" ? null : (
+        // Competitors are a saved list; a date filter there changes nothing anyone looks for.
         <Button
           variant="ghost"
           size="sm"
