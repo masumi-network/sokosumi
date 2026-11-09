@@ -1,6 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -39,15 +39,25 @@ const messages = withKeys(enMessages as Messages, {
   },
 });
 
-const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
+const { mutate, viewer } = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  viewer: { userId: "owner" as string | null },
+}));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
-    data: { session: { activeOrganizationId: "org" }, user: { id: "owner" } },
+    // A null viewer is a session the client has not read yet.
+    data: viewer.userId
+      ? {
+          session: { activeOrganizationId: "org" },
+          user: { id: viewer.userId },
+        }
+      : null,
   }),
 }));
 const clients: QueryClient[] = [];
 afterEach(() => {
+  viewer.userId = "owner";
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
@@ -144,6 +154,29 @@ describe("Saved keyword edits", () => {
         },
       }),
     );
+  });
+
+  it("saves while the session loads without a read the server would refuse", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    const viewers: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: string, init?: RequestInit) => {
+        viewers.push(
+          new Headers(init?.headers).get("x-seo-viewer") ?? "missing",
+        );
+        return Response.json(workspace);
+      }),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    viewer.userId = null;
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Stop tracking" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+    await act(async () => {});
+    // A read without the viewer is refused (409); it waits for the session.
+    expect(viewers).toEqual([]);
   });
 
   it("edits a saved keyword target and priority with the version shown when editing began", async () => {

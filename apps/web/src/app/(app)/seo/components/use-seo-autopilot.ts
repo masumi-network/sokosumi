@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useEffect, useState } from "react";
 import type { SeoAgentBrief } from "./seo-agent-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -33,8 +32,11 @@ export function useSeoAutopilot(
       } catch {}
     setState(saved === false ? "failed" : "idle");
   }
-  useMountEffect(() => {
-    if (!brief.autoRefresh) return;
+  // The viewer is part of the stored key, so upkeep waits until the session is known.
+  const ready = !model.waitingForSession;
+  // Runs once the session is known; the stored key stops repeats.
+  useEffect(() => {
+    if (!ready || !brief.autoRefresh) return;
     try {
       if (sessionStorage.getItem(key)) return;
       sessionStorage.setItem(key, new Date().toISOString());
@@ -43,6 +45,6 @@ export function useSeoAutopilot(
       return;
     }
     void refresh(true);
-  });
+  }, [ready]);
   return { state, refresh };
 }

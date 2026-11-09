@@ -4,6 +4,7 @@ import type {
 } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -19,11 +20,20 @@ import messages from "../../../../../messages/en.json";
 import { openStatisticsSetup, seoTestWorkspace } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
 
-const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
+const { mutate, viewer } = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  viewer: { userId: "owner" as string | null },
+}));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
-    data: { session: { activeOrganizationId: "org" }, user: { id: "owner" } },
+    // A null viewer is a session the client has not read yet.
+    data: viewer.userId
+      ? {
+          session: { activeOrganizationId: "org" },
+          user: { id: viewer.userId },
+        }
+      : null,
   }),
 }));
 
@@ -54,7 +64,7 @@ function renderWorkspace(workspace: ProjectSeoWorkspace) {
     defaultOptions: { queries: { retry: false } },
   });
   clients.push(client);
-  render(
+  const content = () => (
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
         locale="en"
@@ -66,8 +76,10 @@ function renderWorkspace(workspace: ProjectSeoWorkspace) {
           <SeoWorkspace workspace={workspace} />
         </NuqsTestingAdapter>
       </NextIntlClientProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const view = render(content());
+  return { refreshViewer: () => view.rerender(content()) };
 }
 
 function properties(provider: string) {
@@ -87,6 +99,7 @@ function properties(provider: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  viewer.userId = "owner";
 });
 afterEach(() => {
   sessionStorage.clear();
@@ -129,6 +142,42 @@ async function renderWithPendingAgentRefresh() {
 }
 
 describe("statistics source and property recovery", () => {
+  it("lets the agent refresh only once the session is known, and reads as that viewer", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [
+      metric({
+        id: "search-clicks",
+        key: "clicks",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+      }),
+    ];
+    mutate.mockResolvedValue({ ok: true, value: null });
+    const viewers: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input, "https://web.test");
+        if (url.pathname.endsWith("/chat")) return Response.json({ turns: [] });
+        viewers.push(
+          new Headers(init?.headers).get("x-seo-viewer") ?? "missing",
+        );
+        return Response.json(workspace);
+      }),
+    );
+    viewer.userId = null;
+    const view = renderWorkspace(workspace);
+    await act(async () => {});
+    expect(mutate).not.toHaveBeenCalled();
+    viewer.userId = "owner";
+    view.refreshViewer();
+    await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+    await waitFor(() => expect(viewers.length).toBeGreaterThan(0));
+    // A read without the viewer is refused (409) and would hide the page.
+    expect(viewers.every((id) => id === "owner")).toBe(true);
+  });
+
   it("syncs the displayed source's saved property and period while generic setup keeps the newest source", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

@@ -10,7 +10,7 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   SeoWorkspaceLoadError,
@@ -83,6 +83,14 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   if (initialIdentity === null && session) setInitialIdentity(identity);
   const waitingForSession =
     initialIdentity === null && query.toString() === initialQuery.current;
+  // A read without the viewer is refused (409); after a save, the read waits for the session.
+  const viewerId = useRef(session?.user.id);
+  useEffect(() => {
+    viewerId.current = session?.user.id;
+  });
+  async function refetchForViewer() {
+    if (viewerId.current) await result.refetch();
+  }
   const key = [
     "seo-workspace",
     session?.session.activeOrganizationId,
@@ -180,7 +188,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       const run = (async () => {
         try {
           const response = await mutateSeo({ owner, command });
-          if (response.ok) await result.refetch();
+          if (response.ok) await refetchForViewer();
           return response.ok;
         } catch {
           return false;
@@ -224,7 +232,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       }
       toast.success(success);
       setDialog(null);
-      await result.refetch();
+      await refetchForViewer();
       return true;
     } catch {
       toast.error(t("saveFailed"));
@@ -349,6 +357,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     toggleCompetitor,
     createActionTask,
     loadingScope: !result.data && !waitingForSession,
+    waitingForSession,
     waitingForContext:
       !result.data && initialIdentity !== null && identity !== initialIdentity,
     filters,
