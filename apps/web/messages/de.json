@@ -10653,7 +10653,7 @@
         "worse": "Schlechter um {amount}",
         "windowDays": "Letzte 7 Tage: {current}. Vorherige 7 Tage: {previous}. Beide enden am neuesten Tag, den Google gemeldet hat.",
         "percentPoints": "{value} Pp.",
-        "vsPrevious": "{change} ggü. den 7 Tagen davor",
+        "vsPrevious": "Letzte 7 Tage: {change} ggü. den 7 davor",
         "noComparison": "Zu wenige Tage für einen Vergleich"
       },
       "keywords": {

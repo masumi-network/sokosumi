@@ -10653,7 +10653,7 @@
         "worse": "Worse by {amount}",
         "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
         "percentPoints": "{value} pts",
-        "vsPrevious": "{change} vs previous 7 days",
+        "vsPrevious": "Last 7 days: {change} vs the 7 before",
         "noComparison": "Not enough days to compare"
       },
       "keywords": {

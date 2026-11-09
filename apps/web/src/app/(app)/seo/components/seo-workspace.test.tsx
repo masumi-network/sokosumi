@@ -521,7 +521,9 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    const change = screen.getByText("Better by 1.0 vs previous 7 days");
+    const change = screen.getByText(
+      "Last 7 days: Better by 1.0 vs the 7 before",
+    );
     expect(
       change.closest("span")?.querySelector(".lucide-arrow-up"),
     ).not.toBeNull();
