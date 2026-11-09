@@ -23,10 +23,8 @@ interface JobInputsGroupedFormProps {
   activeGroupIndex: number;
   maxUnlockedGroupIndex: number;
   goToNext: () => void;
-  goBack: () => void;
   goToGroup: (index: number) => void;
   reset: () => void;
-  resetMaxUnlockedTo: (index: number) => void;
   customOnSubmit: (values: JobInputsFormSchemaType) => void | Promise<void>;
   customRenderGroupFooter: (
     props: FormFooterProps,
@@ -43,10 +41,8 @@ export function JobInputsGroupedForm({
   activeGroupIndex,
   maxUnlockedGroupIndex,
   goToNext,
-  goBack: _goBack,
   goToGroup,
   reset,
-  resetMaxUnlockedTo: _resetMaxUnlockedTo,
   customOnSubmit,
   customRenderGroupFooter,
   customIsSubmitting,
