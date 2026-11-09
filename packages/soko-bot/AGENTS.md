@@ -45,6 +45,7 @@ Core implements the port (`sandbox/sandbox-runtime.ts`, `in-process-runtime.ts`,
 - Change a capability in this package together with its tool schema, description, and Core handler. The package test locks schema/description keys to `SOKO_BOT_CAPABILITIES`.
 - Keep Prisma, HTTP, and the agent loop in Core. This package stays Zod/types/constants.
 - `SokoBotRuntime` is the seam. Swap adapters in Core; do not add a second contract package.
+- A change to a prompt, skill, tool, version or model is measured with the evals before it merges, and a new tool gets an eval case (`scenarios.ts`); see [evals](../../docs/agents/evals.md).
 
 ## Package-Specific Commands
 

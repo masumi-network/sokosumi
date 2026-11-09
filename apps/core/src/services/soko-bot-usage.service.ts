@@ -1,4 +1,4 @@
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -197,13 +197,15 @@ export async function sokoBotFleetDays(
           AND t."parentTurnId" IS NULL
           AND t."requestedByUserId" IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM "soko_bot_lab_run" l WHERE l."turnId" = t."id")
+          -- Lab and eval turns are ours, not a person writing to a bot.
+          AND t."clientTurnId" NOT LIKE 'lab:%'
           AS "fromPerson",
         COALESCE((t."usage" ->> 'inputTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'outputTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'cacheReadTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'cacheWriteTokens')::numeric, 0) AS tokens,
         COALESCE(t."costUsdMicros", 0) + t."overheadCostUsdMicros" AS micros,
-        b."versionId" IS NOT DISTINCT FROM ${CMO_SOKO_BOT_VERSION_ID} AS "cmo"
+        b."versionId" = ANY(${[...CMO_SOKO_BOT_VERSION_IDS]}) AS "cmo"
       FROM "soko_bot_turn" t
       JOIN "soko_bot" b ON b."id" = t."sokoBotId"
       WHERE t."createdAt" >= date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})

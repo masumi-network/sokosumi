@@ -89,7 +89,16 @@ export const DEFAULT_SOKO_BOT_VERSION_ID = "v33";
  * or migrated onto them; a bot is pinned to one at creation.
  */
 export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [cmoV1];
+/** The Cuso version a new hire starts on. */
 export const CMO_SOKO_BOT_VERSION_ID = cmoV1.id;
+/**
+ * Every Cuso version. A Cuso stays on the version he was hired on until he is
+ * moved, so finding one means any of these, never only the newest.
+ */
+export const CMO_SOKO_BOT_VERSION_IDS: readonly string[] =
+  SOKO_BOT_PRODUCT_VERSIONS.filter((version) => version.profile === "cmo").map(
+    (version) => version.id,
+  );
 
 export type { SokoBotSkill, SokoBotVersion };
 export { getSokoBotSkill, SOKO_BOT_SKILLS };
