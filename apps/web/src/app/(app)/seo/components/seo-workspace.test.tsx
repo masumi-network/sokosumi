@@ -312,6 +312,20 @@ describe("SEO workspace integration", () => {
     expect(screen.getByLabelText("Activity from")).toBeVisible();
   });
 
+  it("folds empty date fields opened on another tab when Competitors opens", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Filter by date" }));
+    expect(screen.getByLabelText("Activity from")).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Competitors" }));
+    expect(screen.queryByLabelText("Activity from")).toBeNull();
+  });
+
   it("hides the page picker when the only page is the one selected", () => {
     const workspace = seoTestWorkspace();
     workspace.scopes = [];

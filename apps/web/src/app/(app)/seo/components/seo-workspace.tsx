@@ -64,6 +64,11 @@ export function SeoWorkspace({
   // With only the date filter left, its own button is enough and needs no fold.
   const controls = seoScopeControls(model);
   const foldFilters = controls.pages || controls.channel;
+  const editScope = Boolean(
+    model.data.scope.id && model.data.availableActions.canEdit,
+  );
+  // An empty filter block would still add a gap under the header.
+  const showFilters = foldFilters || controls.dates || editScope;
   const [filtersOpen, setFiltersOpen] = useState(
     Boolean(model.filters.from || model.filters.to),
   );
@@ -265,26 +270,28 @@ export function SeoWorkspace({
           />
         </Button>
       ) : null}
-      <div
-        id="seo-scope-filters"
-        className={cn(
-          "space-y-3 md:block",
-          filtersOpen || !foldFilters ? "block" : "hidden",
-        )}
-      >
-        <SeoScopeBar model={model} />
-        {model.data.scope.id && model.data.availableActions.canEdit ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={unavailable}
-            onClick={() => model.setDialog("edit_scope")}
-          >
-            <Settings2 className="size-4" />
-            {t("editScope")}
-          </Button>
-        ) : null}
-      </div>
+      {showFilters ? (
+        <div
+          id="seo-scope-filters"
+          className={cn(
+            "space-y-3 md:block",
+            filtersOpen || !foldFilters ? "block" : "hidden",
+          )}
+        >
+          <SeoScopeBar model={model} />
+          {editScope ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={unavailable}
+              onClick={() => model.setDialog("edit_scope")}
+            >
+              <Settings2 className="size-4" />
+              {t("editScope")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {!unavailable && model.data.history.limited ? (
         <p role="status" className="text-muted-foreground text-sm">
           {t("historyLimited", { limit: model.data.history.limit })}

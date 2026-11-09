@@ -37,6 +37,8 @@ export function seoScopeControls({
     channel:
       Boolean(filters.channel) ||
       data.metrics.some((metric) => metric.source === "ga4"),
+    // Competitors are a saved list; a date filter there changes nothing anyone looks for.
+    dates: filters.tab !== "competitors" || Boolean(filters.from || filters.to),
   };
 }
 
@@ -52,7 +54,8 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
   // Dates narrow every check and finding shown; keep them folded until someone asks.
   const [opened, setDatesOpen] = useState(Boolean(filters.from || filters.to));
   // An active date filter always shows, also when a link or Back sets it later.
-  const datesOpen = opened || Boolean(filters.from || filters.to);
+  const datesOpen =
+    (opened && controls.dates) || Boolean(filters.from || filters.to);
   return (
     <div className="flex flex-wrap items-end gap-3">
       {controls.pages ? (
@@ -123,8 +126,7 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
             void setFilters({ to: to || null });
           }}
         />
-      ) : filters.tab === "competitors" ? null : (
-        // Competitors are a saved list; a date filter there changes nothing anyone looks for.
+      ) : controls.dates ? (
         <Button
           variant="ghost"
           size="sm"
@@ -140,7 +142,7 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
           <CalendarRange className="size-4" />
           {t("filterDates")}
         </Button>
-      )}
+      ) : null}
       {model.invalidDates ? (
         <p role="alert" className="text-destructive w-full text-sm">
           {t("invalidDates")}
