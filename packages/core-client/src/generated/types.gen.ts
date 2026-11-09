@@ -3697,6 +3697,64 @@ export type CreateChatRoomFileUploadSessionRequest = {
     size: number;
 };
 
+export type ChatSavedMessageListItem = {
+    messageId: string;
+    savedAt: Date;
+    message: {
+        id: string;
+        roomId: string;
+        parentMessageId: string | null;
+        content: string;
+        resultPreviews?: Array<ChatResultDescriptor>;
+        createdAt: Date;
+        deletedAt: Date | null;
+        editedAt: Date | null;
+        /**
+         * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+         */
+        pinnedAt: Date | null;
+        sender: ChatRoomMessageSender;
+        mentions: Array<ChatRoomMessageMention>;
+        reactions: Array<ChatRoomMessageReaction>;
+        threadReplyCount: number;
+        /**
+         * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+         */
+        threadUnreadReplyCount?: number;
+        threadLastReplyAt: Date | null;
+        /**
+         * Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.
+         */
+        threadRepliers?: Array<ChatRoomMessageSender>;
+        metadata: {
+            [key: string]: unknown;
+        } | null;
+        quote: ChatRoomMessageQuote;
+        membership: ChatRoomMessageMembership;
+        groupNameChange: ChatRoomMessageGroupNameChange;
+        /**
+         * Link preview cards scraped from message URLs (absent while pending).
+         */
+        unfurls: Array<ChatRoomMessageUnfurl> | null;
+        /**
+         * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
+         */
+        skills?: Array<ChatRoomMessageSkill>;
+        /**
+         * Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.
+         */
+        signal?: ChatMessageSignal | null;
+    };
+};
+
+export type ChatSavedMessageMutation = {
+    messageId: string;
+    /**
+     * Whether the message is now on the reader's Saved list.
+     */
+    saved: boolean;
+};
+
 export type ChatSignalListItem = {
     /**
      * `needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.
@@ -29678,6 +29736,331 @@ export type PostChatsRoomsByIdFilesResponses = {
 };
 
 export type PostChatsRoomsByIdFilesResponse = PostChatsRoomsByIdFilesResponses[keyof PostChatsRoomsByIdFilesResponses];
+
+export type GetChatsSavedMessagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/saved-messages';
+};
+
+export type GetChatsSavedMessagesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSavedMessagesError = GetChatsSavedMessagesErrors[keyof GetChatsSavedMessagesErrors];
+
+export type GetChatsSavedMessagesResponses = {
+    /**
+     * Saved messages retrieved
+     */
+    200: {
+        data: Array<ChatSavedMessageListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSavedMessagesResponse = GetChatsSavedMessagesResponses[keyof GetChatsSavedMessagesResponses];
+
+export type DeleteChatsSavedMessagesByMessageIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/saved-messages/{messageId}';
+};
+
+export type DeleteChatsSavedMessagesByMessageIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsSavedMessagesByMessageIdError = DeleteChatsSavedMessagesByMessageIdErrors[keyof DeleteChatsSavedMessagesByMessageIdErrors];
+
+export type DeleteChatsSavedMessagesByMessageIdResponses = {
+    /**
+     * Unsaved
+     */
+    200: {
+        data: ChatSavedMessageMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsSavedMessagesByMessageIdResponse = DeleteChatsSavedMessagesByMessageIdResponses[keyof DeleteChatsSavedMessagesByMessageIdResponses];
+
+export type PutChatsSavedMessagesByMessageIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/saved-messages/{messageId}';
+};
+
+export type PutChatsSavedMessagesByMessageIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsSavedMessagesByMessageIdError = PutChatsSavedMessagesByMessageIdErrors[keyof PutChatsSavedMessagesByMessageIdErrors];
+
+export type PutChatsSavedMessagesByMessageIdResponses = {
+    /**
+     * Saved
+     */
+    200: {
+        data: ChatSavedMessageMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsSavedMessagesByMessageIdResponse = PutChatsSavedMessagesByMessageIdResponses[keyof PutChatsSavedMessagesByMessageIdResponses];
 
 export type GetChatsSignalsNeedsYouData = {
     body?: never;
