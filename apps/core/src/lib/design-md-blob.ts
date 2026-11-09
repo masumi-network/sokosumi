@@ -34,10 +34,7 @@ export async function readDesignMdContent(
     const response = await ssrfSafeFetch(url, {
       maxResponseBytes: LIMITS.DESIGN_MD_MAX_SIZE_BYTES,
     });
-    if (!response.ok) {
-      console.warn("DESIGN.md not read", { status: response.status });
-      return null;
-    }
+    if (!response.ok) return null;
     const content = await response.text();
     if (designMdCache.size >= DESIGN_MD_CACHE_SIZE) {
       // Maps keep insertion order: the first key is the oldest.
