@@ -21,7 +21,13 @@ const {
   listFiles,
   advanceCmoMonthReview,
   getBrandBrain,
+  listMediaJobs,
+  advanceMedia,
+  turnCount,
 } = vi.hoisted(() => ({
+  listMediaJobs: vi.fn(),
+  advanceMedia: vi.fn(),
+  turnCount: vi.fn(),
   advanceCmoMonthReview: vi.fn(),
   getBrandBrain: vi.fn(),
   approvedStrategy: vi.fn(),
@@ -41,7 +47,11 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotSchedule: { updateMany: scheduleUpdateMany },
-    sokoBotTurn: { findMany: turnFindMany, findFirst: turnFindFirst },
+    sokoBotTurn: {
+      findMany: turnFindMany,
+      findFirst: turnFindFirst,
+      count: turnCount,
+    },
     sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
   },
 }));
@@ -73,6 +83,13 @@ vi.mock("@/services/cmo-month-review.service", async (importOriginal) => ({
   >()),
   advanceCmoMonthReview,
 }));
+vi.mock("@/services/cmo-media-maker.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-media-maker.service")
+  >()),
+  listCmoMediaJobs: listMediaJobs,
+  advanceCmoMedia: advanceMedia,
+}));
 vi.mock("@/services/brand-brain.service", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/brand-brain.service")>()),
   getBrandBrain,
@@ -85,8 +102,10 @@ import {
   cmoMixLedger,
   cmoPieceReady,
   cmoProductionMessage,
+  cmoProductionSteps,
   cmoReadyPieceIds,
   cmoSyncOrder,
+  readCmoProduction,
   syncCmoProduction,
 } from "./cmo-production.service";
 
@@ -277,6 +296,21 @@ describe("a piece kept in the Project's Files", () => {
   });
 });
 
+describe("cmoProductionSteps", () => {
+  it("counts the words pass and the pictures pass apart", () => {
+    const image = { format: "image" };
+    expect(
+      cmoProductionSteps([
+        piece({ id: "a", draft: "Words" }),
+        piece({ ...image, id: "b", draft: "Words" }),
+        piece({ ...image, id: "c", draft: "Words" }, ["drive/1.png"]),
+        piece({ ...image, id: "d" }, ["drive/1.png"]),
+        piece({ id: "e", status: "published" }),
+      ]),
+    ).toEqual({ written: 4, pictured: 1, needPictures: 3 });
+  });
+});
+
 describe("cmoReadyPieceIds", () => {
   it("counts a picture for the first piece that uses it, not a second", () => {
     const image = { format: "image", draft: "Words" };
@@ -357,21 +391,67 @@ describe("cmoProductionMessage", () => {
     expect(message).toContain("Connected networks: none yet");
   });
 
-  it("has a carousel's slides made from its cover", () => {
+  it("asks for a visual and names the proof, and leaves the media to Core", () => {
     const message = cmoProductionMessage({
       businessName: "Acme",
       strategy: strategy([]),
       pending: [
-        piece({ channel: "instagram", format: "carousel" }, [
-          "drive/photo.png",
-        ]),
+        piece({ id: "c", channel: "instagram", format: "carousel" }),
+        piece({ id: "x", channel: "x", format: "image", visual: "A shoe" }),
       ],
       connected: new Set(),
       attempt: 1,
       topUp: true,
+      proof: ["Book.io sold 130,000+ NFTs across 70+ titles."],
+      failedMedia: new Set(["x"]),
     });
-    expect(message).toContain("carousel: at least 3 slides, 1 made");
-    expect(message).toContain("referenceFileIds");
+    expect(message).toContain(
+      "carousel of 3 slides: one visual and a line per slide in slides, Core makes each slide · (write its visual)",
+    );
+    expect(message).toContain(
+      "(its picture failed twice: write a different visual)",
+    );
+    expect(message).toContain(
+      "- Book.io sold 130,000+ NFTs across 70+ titles.",
+    );
+    expect(message).toContain("never call generate_image or generate_video");
+  });
+
+  it("fits a full batch on every network in one background turn", () => {
+    const channels = [
+      ["x", "post"],
+      ["linkedin", "text"],
+      ["instagram", "carousel"],
+      ["facebook", "post"],
+      ["tiktok", "video"],
+      ["youtube", "short"],
+      ["seo", "article"],
+      ["newsletter", "issue"],
+      ["google_ads", "search"],
+      ["meta_ads", "image"],
+    ];
+    const calendar = Array.from({ length: 60 }, (_, index) => {
+      const [channel, format] = channels[index % channels.length] ?? [];
+      return entry({
+        id: `piece-${index}`,
+        channel,
+        format,
+        title: "A useful report without a visitor profile behind it",
+        brief:
+          "Show one real report and the decision it settles, in the brand's own words.",
+      } as Partial<CmoCalendarEntry>);
+    });
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy(calendar),
+      pending: calendar.map((item) => piece(item)),
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+    // Over a chat message's 20,000 characters, under a background turn's cap.
+    expect(message.length).toBeGreaterThan(20_000);
+    expect(message.length).toBeLessThan(100_000);
   });
 
   it("hands the run the writing skills of the batch's channels only", () => {
@@ -412,6 +492,9 @@ describe("advanceCmoProduction", () => {
     botFindUniqueOrThrow.mockResolvedValue({ sharedRoomId: "room-1" });
     cmoRunnerUserId.mockResolvedValue("user-1");
     startTurn.mockResolvedValue({ turnId: "run-1", status: "QUEUED" });
+    listMediaJobs.mockResolvedValue([]);
+    advanceMedia.mockResolvedValue(undefined);
+    turnCount.mockResolvedValue(0);
   });
 
   it("waits until the plan is approved and paid for", async () => {
@@ -493,6 +576,15 @@ describe("advanceCmoProduction", () => {
         }),
       }),
     );
+  });
+
+  it("says starting, not running, while no run works yet", async () => {
+    const read = await readCmoProduction(cuso([post({})]), {
+      connected: new Set(),
+      subscribed: true,
+      now: NOW,
+    });
+    expect(read.status).toMatchObject({ state: "starting", written: 0 });
   });
 
   it("leaves a working run alone", async () => {
@@ -717,7 +809,9 @@ describe("syncCmoProduction", () => {
     expect(scheduleUpdateMany).toHaveBeenCalledWith({
       where: expect.objectContaining({
         sokoBotId: "bot-1",
-        systemKey: { in: expect.arrayContaining(["cmo-daily-run"]) },
+        systemKey: {
+          in: expect.arrayContaining(["cmo-daily-run", "dreaming"]),
+        },
       }),
       data: { requestedByUserId: "owner-2" },
     });

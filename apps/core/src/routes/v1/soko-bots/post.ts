@@ -70,6 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               await sokoBotControlPlane.create({
                 userId: auth.userId,
                 workspaceId: workspace.workspaceId,
+                timezone,
                 ...body,
               })
             ).id

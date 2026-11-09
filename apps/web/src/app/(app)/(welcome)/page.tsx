@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
@@ -18,6 +19,7 @@ import { notificationService } from "@/lib/services/notification.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
+import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
@@ -60,12 +62,20 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, session, activeOrganizationId, sokoBot] = await Promise.all([
+  const [query, session, activeOrganizationId, access] = await Promise.all([
     searchParams,
     getSession(),
     userService.getActiveOrganizationId(),
-    sokoBotService.getMine().catch(() => null),
+    userService.getWorkspaceAccess().catch(() => null),
   ]);
+  // The app shell's loading fallback renders this page before the frame's
+  // workspace gate redirects, so a brand-new account (sign-up lands here)
+  // would read a bot, coworkers and tasks it has no workspace for. Leave
+  // before any of those reads.
+  if (!isWorkspaceReady(access?.gate)) {
+    redirect(WORKSPACE_GATE_PATH);
+  }
+  const sokoBot = await sokoBotService.getMine().catch(() => null);
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
@@ -108,7 +118,6 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
             name: sokoBot.name,
             avatarSeed: sokoBot.avatarSeed,
             avatarImageUrl: sokoBot.avatarImageUrl ?? null,
-            avatar: sokoBot.avatar ?? null,
           }}
           ownerId={userId}
           roomId={roomId}
@@ -138,7 +147,10 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       {landingNotice}
       {/* One welcome per breakpoint. The compositions differ enough — six 64px
           teammates versus four at 44px — that CSS alone cannot bridge them. */}
-      <div className="hidden min-h-full min-w-0 flex-1 flex-col md:flex">
+      {/* A definite height (main's box less its p-4) so ChatLanding's middle
+          column scrolls and the stats row stays in the first view. Main
+          scrolls instead below 28rem. */}
+      <div className="hidden min-h-full min-w-0 flex-1 flex-col md:flex md:h-[calc(100dvh-6rem-env(safe-area-inset-top))] md:min-h-[28rem] md:flex-none">
         <ChatLanding
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}

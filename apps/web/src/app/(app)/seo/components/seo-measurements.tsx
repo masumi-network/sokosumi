@@ -285,9 +285,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                       aria-hidden
                       className={cn(
                         "h-0.5 w-3 shrink-0 rounded-full",
-                        active.id === metric.id
-                          ? "bg-foreground"
-                          : "bg-muted-foreground/40",
+                        active.id === metric.id ? "bg-foreground" : "bg-border",
                       )}
                     />
                     {label(metric)}

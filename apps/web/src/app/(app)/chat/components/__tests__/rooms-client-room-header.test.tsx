@@ -699,6 +699,60 @@ describe("RoomsClient room header chrome", () => {
     });
   });
 
+  it("gathers pinned, decisions, threads and members into one mobile menu", async () => {
+    const user = userEvent.setup();
+    renderRoom(channelRoom());
+
+    const menu = screen.getByTestId("room-header-menu-trigger");
+    expect(menu).toHaveAccessibleName("headerMore");
+    // Desktop keeps its own buttons; CSS shows one set per breakpoint.
+    expect(menu.closest(".md\\:hidden")).not.toBeNull();
+    expect(
+      screen.getByTestId("pinned-messages-trigger").parentElement,
+    ).toHaveClass("hidden", "md:contents");
+
+    await user.click(menu);
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual([
+      "PinnedMessages.open",
+      "Signals.Decisions.open",
+      "UnreadThreads.open",
+      "RoomRoster.open",
+    ]);
+
+    await user.click(
+      screen.getByRole("menuitem", { name: "UnreadThreads.open" }),
+    );
+    expect(screen.getByTestId("thread-list-panel")).toBeTruthy();
+
+    await user.click(menu);
+    await user.click(screen.getByRole("menuitem", { name: "RoomRoster.open" }));
+    expect(screen.getByTestId("room-roster-panel")).toBeTruthy();
+
+    await user.click(menu);
+    await user.keyboard("{ArrowDown}");
+    await user.click(
+      screen.getByRole("menuitem", { name: "Signals.Decisions.open" }),
+    );
+    expect(await screen.findByTestId("room-decisions-panel")).toBeTruthy();
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByTestId("room-decisions-panel")).toBeNull(),
+    );
+    expect(menu).toHaveFocus();
+  });
+
+  it("offers only threads in a 1:1 Direct's mobile menu", async () => {
+    const user = userEvent.setup();
+    renderRoom(humanDirectRoom());
+
+    await user.click(screen.getByTestId("room-header-menu-trigger"));
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["UnreadThreads.open"]);
+  });
+
   it("shows the roster control on group directs without channel settings", async () => {
     renderRoom(groupDirectRoom());
     expect(await screen.findByTestId("room-roster-trigger")).toBeTruthy();

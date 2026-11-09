@@ -91,6 +91,7 @@ describe("contacts tool inputs", () => {
       search: "acme",
       stages: ["PROSPECT"],
       listId: ID,
+      mode: "both",
       sort: "lastContactAt",
       limit: 25,
     });

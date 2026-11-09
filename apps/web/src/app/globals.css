@@ -476,6 +476,8 @@
    Sokosumi blue. The accent is the text colour, so it flips with the theme. */
 [data-brand="cmo"] {
   --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --primary-hover: hsla(0, 0%, 20%, 1);
   --primary-variant: var(--foreground);
   --primary-solid: var(--foreground);
   --primary-solid-foreground: var(--background);
@@ -485,6 +487,7 @@
 }
 
 .dark [data-brand="cmo"] {
+  --primary-hover: hsla(0, 0%, 83%, 1);
   --primary-solid-hover: hsla(0, 0%, 83%, 1);
   --ring-halo: hsla(0, 0%, 96%, 0.22);
 }
@@ -648,6 +651,12 @@ body[data-agent-fullbleed="true"] main[data-app-main] {
 
 body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   overflow: visible !important;
+}
+
+/* Soko Bot create flow (CreateState): no tab bar, as in the first-run setup. */
+body[data-soko-bot-creating="true"] [data-mobile-bottom-nav],
+body[data-soko-bot-creating="true"] [data-mobile-bottom-nav-spacer] {
+  display: none;
 }
 
 /* Vercel injects its preview toolbar outside the app; leave every page room to scroll past it. */

@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   brandBrainSchema,
+  CMO_BRAND_SECTION_KEYS,
   cmoReportUpdateInputSchema,
   marketingStrategyPlanSchema,
 } from "@sokosumi/soko-bot";
@@ -36,9 +37,19 @@ const cmoPlanSchema = marketingStrategyPlanSchema.openapi("CmoPlan");
 
 export const cmoProductionSchema = z
   .object({
-    state: z.enum(["waiting", "running", "ready", "stuck"]),
+    state: z
+      .enum(["waiting", "starting", "running", "ready", "stuck"])
+      .describe(
+        "starting: approved, but no run is working yet; the next sync starts one.",
+      ),
     ready: z.number().int(),
     total: z.number().int(),
+    written: z.number().int().describe("Pieces whose words are written."),
+    pictured: z
+      .number()
+      .int()
+      .describe("Pieces with every picture they need, of needPictures."),
+    needPictures: z.number().int(),
     finishedAt: z.union([z.string(), z.null()]),
     pillars: z
       .union([
@@ -134,6 +145,15 @@ export const cmoWorkSchema = z
     status: z.enum(["running", "failed", "done"]),
     startedAt: dateTimeSchema,
     steps: z.array(cmoWorkStepSchema),
+    /** Each profile section stored so far, in profile order. */
+    sections: z
+      .array(
+        z.object({
+          key: z.enum(CMO_BRAND_SECTION_KEYS),
+          headline: z.string().describe("The section's answer at a glance."),
+        }),
+      )
+      .describe("Brand Brain sections Cuso has saved, in profile order."),
     /** Brand Brain profile sections stored so far, of `sectionsTotal`. */
     sectionsSaved: z.number().int().min(0),
     sectionsTotal: z.number().int().min(0),

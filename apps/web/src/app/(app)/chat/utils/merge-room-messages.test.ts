@@ -1,6 +1,6 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
+import { markFailedCoworkerTurn } from "../hooks/use-coworker-direct-room-stream";
 import {
   applyFullChatRoomMessageEvent,
   applyThreadUnreadReplyCounts,
@@ -714,5 +714,89 @@ describe("mergeMessagesWithStreamOverlay", () => {
       "stream:user",
       "stream:assistant",
     ]);
+  });
+});
+
+describe("mergeMessagesWithStreamOverlay with a failed coworker turn", () => {
+  const BILLING = "Provider account needs billing setup.";
+  const quote = {
+    messageId: "quoted-1",
+    authorName: "Ada",
+    snippet: "Launch on Friday",
+  };
+
+  /** Core's saved copy of UI message `u1`, with its quote snapshot. */
+  function savedTurn(): ChatRoomMessage {
+    return {
+      ...message("saved-u1", "2026-07-01T12:00:00.000Z", "Hi"),
+      quote,
+      metadata: { [CLIENT_MESSAGE_ID_METADATA_KEY]: "u1" },
+    };
+  }
+
+  function failedOverlay(): ChatRoomMessage[] {
+    return markFailedCoworkerTurn(
+      [message("stream:u1", "2026-07-01T12:00:01.000Z", "Hi")],
+      BILLING,
+    );
+  }
+
+  it("marks the saved row with the same client id and keeps its quote", () => {
+    const earlier = message("m0", "2026-07-01T11:00:00.000Z", "earlier");
+    const merged = mergeMessagesWithStreamOverlay(
+      [earlier, savedTurn()],
+      failedOverlay(),
+    );
+
+    expect(merged).toHaveLength(2);
+    expect(merged[0]?.id).toBe("m0");
+    expect(merged[1]).toMatchObject({
+      id: "pending:u1",
+      content: "Hi",
+      quote,
+      metadata: {
+        client_message_id: "u1",
+        outbound_delivery_status: "failed",
+        outbound_error: BILLING,
+      },
+    });
+  });
+
+  it("keeps an older same-text message with another client id", () => {
+    const older = {
+      ...message("saved-old", "2026-07-01T09:00:00.000Z", "Hi"),
+      metadata: { [CLIENT_MESSAGE_ID_METADATA_KEY]: "u0" },
+    };
+    const noClientId = message(
+      "saved-legacy",
+      "2026-07-01T10:00:00.000Z",
+      "Hi",
+    );
+
+    // Not saved by Core (e.g. 409 or offline): failed row is appended.
+    const merged = mergeMessagesWithStreamOverlay(
+      [older, noClientId],
+      failedOverlay(),
+    );
+
+    expect(merged.map((row) => row.id)).toEqual([
+      "saved-old",
+      "saved-legacy",
+      "pending:u1",
+    ]);
+    expect(merged[2]?.quote).toBeNull();
+  });
+
+  it("shows the saved turn once during Retry and after it settles", () => {
+    const older = message("saved-old", "2026-07-01T09:00:00.000Z", "Hi");
+    const retrying = mergeMessagesWithStreamOverlay(
+      [older, savedTurn()],
+      [message("stream:u1", "2026-07-01T12:00:01.000Z", "Hi")],
+    );
+    expect(retrying.map((row) => row.id)).toEqual(["saved-old", "stream:u1"]);
+
+    const settled = mergeMessagesWithStreamOverlay([older, savedTurn()], []);
+    expect(settled.map((row) => row.id)).toEqual(["saved-old", "saved-u1"]);
+    expect(settled[1]?.quote).toEqual(quote);
   });
 });

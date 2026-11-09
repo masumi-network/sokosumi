@@ -7,7 +7,7 @@ import type {
 } from "@sokosumi/core-client";
 import { Check, CheckCheck, ChevronDown, Hash, Send } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
@@ -231,6 +231,7 @@ function SectionHeading({
 /** One message behind a topic: face, who, when, and what they wrote. */
 function SourceMessage({ item }: { item: ChatCatchUpItem }) {
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   return (
     <Link
       href={chatRoomMessageHref(item.roomId, item.messageId)}
@@ -251,7 +252,7 @@ function SourceMessage({ item }: { item: ChatCatchUpItem }) {
             dateTime={item.createdAt.toISOString()}
             className="text-muted-foreground ml-auto shrink-0 text-xs"
           >
-            {format.relativeTime(item.createdAt)}
+            {format.relativeTime(item.createdAt, now)}
           </time>
         </span>
         <span className="line-clamp-3 text-sm text-pretty">{item.excerpt}</span>
@@ -350,6 +351,7 @@ function TopicCard({
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const sourcesId = useId();
   const [showSources, setShowSources] = useState(false);
   const [replying, setReplying] = useState(false);
@@ -373,7 +375,7 @@ function TopicCard({
             </span>
             <span aria-hidden>·</span>
             <time dateTime={topic.latestAt.toISOString()}>
-              {format.relativeTime(topic.latestAt)}
+              {format.relativeTime(topic.latestAt, now)}
             </time>
             {waits ? null : (
               <>
@@ -504,6 +506,7 @@ export function OpenLoopsList({
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const headingId = useId();
   const { hidden, done } = useDone(onChanged);
   const shown = items.filter((item) => !hidden.has(item.messageId));
@@ -533,7 +536,7 @@ export function OpenLoopsList({
                   <DueLabel dueAt={item.dueAt} />
                 ) : (
                   <time dateTime={item.createdAt.toISOString()}>
-                    {format.relativeTime(item.createdAt)}
+                    {format.relativeTime(item.createdAt, now)}
                   </time>
                 )}
               </span>
@@ -569,6 +572,7 @@ export function QuietRooms({
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const headingId = useId();
   const { isMarking, markRead } = useMarkRead(onChanged);
   if (rooms.length === 0) return null;
@@ -627,7 +631,7 @@ export function QuietRooms({
                   </span>
                   <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
                     {room.latest
-                      ? format.relativeTime(room.latest.createdAt)
+                      ? format.relativeTime(room.latest.createdAt, now)
                       : null}
                   </span>
                 </span>

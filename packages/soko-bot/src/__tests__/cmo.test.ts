@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   cmoMayExecute,
   cmoRoutineSkipReason,
+  cmoSaveBrandBrainInputSchema,
   cmoSaveStrategyInputSchema,
   isCmoScheduleKey,
   parseCmoStrategySave,
@@ -79,6 +80,9 @@ describe("CMO version", () => {
     expect(prompt).toContain("# Truth");
     expect(prompt).toContain("When the owner forbids or defers an action");
     expect(prompt).toContain("# You are Cuso");
+    expect(prompt).toContain(
+      "Answer in the language of the owner's latest message",
+    );
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
         "social-posting-instructions",
@@ -102,14 +106,23 @@ describe("CMO version", () => {
         "submit_newsletter_issue",
       ]),
     );
-    // A person starts and changes ads; contacts stay out.
+    // A person starts and changes ads, and changes contacts; Cuso reads
+    // them and keeps audience lists.
     for (const outside of [
       "create_ad_campaign",
       "update_ad_campaign",
-      "add_newsletter_subscribers_from_contacts",
-      "search_contacts",
+      "upsert_contact",
+      "update_contact",
+      "merge_contacts",
     ])
       expect(cmo.capabilities).not.toContain(outside);
+    for (const inside of [
+      "search_contacts",
+      "count_contacts",
+      "manage_contact_lists",
+      "add_newsletter_subscribers_from_contacts",
+    ])
+      expect(cmo.capabilities).toContain(inside);
   });
 
   it("dreams at night like every Soko Bot, pointing to his daily run", () => {
@@ -125,6 +138,40 @@ describe("CMO version", () => {
     for (const capability of SOKO_BOT_CMO_CAPABILITIES) {
       expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toBeTruthy();
     }
+  });
+});
+
+describe("cmoSaveBrandBrainInputSchema", () => {
+  const question = {
+    id: "q1",
+    question: "Do customers come from Google?",
+    statement: "Customers come from Google",
+    section: "marketing" as const,
+  };
+
+  it("accepts reveal, marketingToday or questions on their own", () => {
+    const reveal = { positioning: "Rockets", insights: [], buyers: [] };
+    expect(cmoSaveBrandBrainInputSchema.safeParse({ reveal }).success).toBe(
+      true,
+    );
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({
+        marketingToday: { summary: "Weekly posts" },
+      }).success,
+    ).toBe(true);
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [question] }).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty questions list so it cannot wipe stored ones", () => {
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [] }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a save that sends nothing", () => {
+    expect(cmoSaveBrandBrainInputSchema.safeParse({}).success).toBe(false);
   });
 });
 
@@ -398,5 +445,34 @@ describe("CMO scenarios", () => {
       ),
     );
     expect(result.checks.filter((check) => !check.pass)).toEqual([]);
+  });
+});
+
+describe("Brand Brain research", () => {
+  it("looks for the brand's own story, prices on shop pages, and keeps sister brands out of competitors", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-brand-brain");
+    expect(skill?.content).toContain("What it is famous for");
+    expect(skill?.content).toContain("open one before you give up");
+    expect(skill?.content).toContain(
+      "(a sister brand), a supplier and a partner are never competitors",
+    );
+    expect(skill?.content).toContain(
+      "never a page title or a product name alone",
+    );
+  });
+});
+
+describe("launch videos", () => {
+  it("builds every scene from the brand's real pictures and evens the sound out", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-launch-video");
+    expect(skill?.content).toContain("Never draw a logo or use a placeholder");
+    expect(skill?.content).toContain(
+      "Every scene shows one of those real pictures",
+    );
+    expect(skill?.content).toContain("loudnorm=I=-14");
+    expect(skill?.content).toContain('grep -E "^\\s+I:"');
+    expect(skill?.content).toContain('workspacePath "video/out/final.mp4"');
   });
 });

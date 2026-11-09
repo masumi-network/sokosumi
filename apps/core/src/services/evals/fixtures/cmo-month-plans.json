@@ -1,0 +1,1708 @@
+{
+  "cal.com": {
+    "month": "2026-11",
+    "summary": "Show revenue teams how Cal.com routes bookings, then guide them from a Teams trial to a working team flow.",
+    "why": "Cal.com sells beyond a booking link: routing, workflows and APIs support different meeting jobs. Practical LinkedIn examples and search pages can show revenue teams where the broader scheduling product fits, while the Teams trial gives them a low-risk next step.",
+    "goals": [
+      "More qualified Cal.com Teams trial starts",
+      "Help revenue teams understand booking and routing",
+      "Increase high-intent visits to team scheduling pages"
+    ],
+    "audience": "Revenue operations and sales leaders at growing teams",
+    "contentLanguage": "English",
+    "positioning": "Scheduling links, routing and workflows for every way revenue teams meet.",
+    "pillars": [
+      {
+        "name": "Team booking",
+        "share": 30,
+        "why": "Show how shared team booking removes scheduling back-and-forth."
+      },
+      {
+        "name": "Lead routing",
+        "share": 30,
+        "why": "Explain how bookings reach the right sales representative."
+      },
+      {
+        "name": "Setup and control",
+        "share": 20,
+        "why": "Make team setup and organization controls easier to evaluate."
+      },
+      {
+        "name": "Scheduling in products",
+        "share": 20,
+        "why": "Show where APIs and embeds fit product teams."
+      }
+    ],
+    "channels": [
+      {
+        "channel": "linkedin",
+        "cadence": "2 posts a week",
+        "why": "Reach operators with concrete team scheduling examples."
+      },
+      {
+        "channel": "seo",
+        "cadence": "2 pieces a week",
+        "why": "Answer practical scheduling and comparison searches over time."
+      },
+      {
+        "channel": "google_ads",
+        "cadence": "3 search ads this month",
+        "why": "Reach teams already searching for scheduling or routing tools."
+      }
+    ],
+    "idea": {
+      "who": "Revenue operations and sales leaders at growing teams",
+      "position": "Scheduling links, routing and workflows for team meetings",
+      "attract": "LinkedIn walkthroughs and high-intent search pages",
+      "offer": "14-day Cal.com Teams trial",
+      "sentence": "We'll help revenue teams route meetings with Cal.com, show the booking flow on LinkedIn and in search, and invite them to try Teams free for 14 days."
+    },
+    "alternatives": [
+      {
+        "sentence": "We'll target product engineers, show embedded booking through API guides, and lead with Cal.com API v2.",
+        "why": "Choose this when embedded scheduling is the main growth priority."
+      },
+      {
+        "sentence": "We'll target solo schedulers, show a simple booking-link setup, and lead with free personal scheduling.",
+        "why": "Choose this when individual sign-ups matter more than team trials."
+      }
+    ],
+    "ladder": {
+      "entry": {
+        "what": "14-day Cal.com Teams trial",
+        "why": "Try shared scheduling and routing before paying."
+      },
+      "core": {
+        "what": "Cal.com Teams, from $12 per user monthly",
+        "why": "Use shared bookings and team controls for daily scheduling."
+      },
+      "next": {
+        "what": "Cal.com Organizations, from $28 per user monthly",
+        "why": "Add organization-wide controls as teams grow."
+      }
+    },
+    "pace": {
+      "level": "steady",
+      "why": "Keep LinkedIn at two weekly while adding useful search work.",
+      "perWeek": 5
+    },
+    "ads": {
+      "monthly": 500,
+      "currency": "USD",
+      "expect": "Learn which team-scheduling searches bring qualified trial visits.",
+      "without": "Keep the same LinkedIn and SEO work; growth will be slower.",
+      "setByOwner": false
+    },
+    "beforeAfter": [
+      {
+        "channel": "linkedin",
+        "before": "No post in the last two months",
+        "after": "2 posts weekly on team scheduling"
+      },
+      {
+        "channel": "seo",
+        "before": "Several blog posts weekly",
+        "after": "2 focused pieces weekly for team buyers"
+      },
+      {
+        "channel": "google_ads",
+        "before": "Paid activity not confirmed",
+        "after": "3 high-intent search ads to test"
+      }
+    ],
+    "improvements": [
+      {
+        "area": "landing",
+        "now": "Broad scheduling story spans solo, team, and API buyers",
+        "idea": "Give revenue teams a clear Teams trial path",
+        "why": "A focused next step may turn team interest into trials.",
+        "url": "https://cal.com/teams"
+      },
+      {
+        "area": "pricing",
+        "now": "Teams is $12 per user monthly on yearly billing",
+        "idea": "Show the yearly billing basis beside every seat price",
+        "why": "Clear pricing helps buyers compare the Teams offer.",
+        "url": "https://cal.com/pricing"
+      },
+      {
+        "area": "site",
+        "now": "Cal.com and Cal.diy have different source models",
+        "idea": "Explain hosted Cal.com versus Cal.diy near developer entry points",
+        "why": "Developers need to know which product fits their needs.",
+        "url": "https://cal.com/blog/cal-com-goes-closed-source-why"
+      }
+    ],
+    "start": {
+      "working": [
+        {
+          "text": "Cal.com offers a 14-day trial for Teams and Organizations.",
+          "basis": "fact"
+        },
+        {
+          "text": "LinkedIn is the chosen social channel for this plan.",
+          "basis": "assumption"
+        },
+        {
+          "text": "The public blog already covers product, use-case and comparison topics.",
+          "basis": "fact"
+        }
+      ],
+      "gaps": [
+        {
+          "text": "No connected analytics baseline for qualified visits or team trial starts is available in this brief.",
+          "basis": "fact"
+        },
+        {
+          "text": "The current paid search activity is unknown.",
+          "basis": "fact"
+        }
+      ],
+      "resources": [
+        {
+          "text": "Cal.com pricing and product pages, blog, LinkedIn page and existing customer evidence.",
+          "basis": "fact"
+        }
+      ]
+    },
+    "objective": {
+      "outcome": "More qualified team trial starts",
+      "why": "The Teams trial is the clearest next step for revenue teams considering shared scheduling."
+    },
+    "barrier": {
+      "kind": "understanding",
+      "text": "Revenue teams may not see how Cal.com routes their bookings."
+    },
+    "mix": [
+      {
+        "approach": "educational",
+        "share": 35,
+        "why": "Teach teams how to route bookings and reduce scheduling handoffs."
+      },
+      {
+        "approach": "product-led",
+        "share": 30,
+        "why": "Show the actual booking flow, routing and team controls."
+      },
+      {
+        "approach": "social-proof",
+        "share": 20,
+        "why": "Use published customer outcomes and real reviewer words."
+      },
+      {
+        "approach": "promotional",
+        "share": 15,
+        "why": "Invite qualified teams to try the 14-day Teams offer."
+      }
+    ],
+    "focus": {
+      "segment": "Revenue operations leaders at growing sales teams",
+      "problem": "Inbound meetings need the right rep without manual handoffs.",
+      "trigger": "More inbound leads or a new sales team",
+      "objections": [
+        "Routing rules may be hard to set up",
+        "Teams may already use another scheduler",
+        "A paid plan may not be needed yet"
+      ],
+      "where": ["LinkedIn", "Google search", "Cal.com comparison pages"]
+    },
+    "offer": {
+      "what": "14-day Cal.com Teams trial",
+      "why": "Try shared bookings and routing before committing to a paid plan.",
+      "proof": [
+        "Teams has a 14-day trial.",
+        "Teams starts at $12 per user per month on yearly billing.",
+        "A G2 reviewer wrote: “I like the ease with which I integrated Cal.com into my website”."
+      ],
+      "action": "Start a 14-day Teams trial"
+    },
+    "campaigns": [
+      {
+        "id": "team-routing-trial",
+        "name": "Route the right meeting",
+        "message": "Show revenue teams how Cal.com turns inbound bookings into routed meetings.",
+        "audience": "Revenue operations and sales leaders at growing teams",
+        "offer": "14-day Cal.com Teams trial",
+        "channels": ["linkedin", "seo", "google_ads"],
+        "assets": [
+          "LinkedIn walkthroughs",
+          "team scheduling and routing search pages",
+          "Google search ads"
+        ],
+        "start": "2026-11-10",
+        "end": "2026-12-07",
+        "budget": "$500 Google Ads test; organic content alongside",
+        "metric": "Qualified Teams trial starts"
+      }
+    ],
+    "funnel": [
+      {
+        "stage": "awareness",
+        "name": "See the scheduling gap",
+        "goal": "Help revenue teams spot manual booking handoffs.",
+        "channels": ["linkedin", "seo", "google_ads"],
+        "metric": "Qualified visits",
+        "owner": "cuso",
+        "plays": [
+          {
+            "channel": "linkedin",
+            "what": "Short examples of team booking and routing",
+            "cadence": "2 posts a week"
+          },
+          {
+            "channel": "seo",
+            "what": "Problem and solution pages for team scheduling",
+            "cadence": "2 pieces a week"
+          },
+          {
+            "channel": "google_ads",
+            "what": "Search ads for team scheduling intent",
+            "cadence": "Test throughout the month"
+          }
+        ],
+        "measure": {
+          "value": "No connected traffic baseline in the brief",
+          "basis": "unknown",
+          "source": "No analytics figures supplied"
+        }
+      },
+      {
+        "stage": "consideration",
+        "name": "See how routing works",
+        "goal": "Show the booking flow and team controls clearly.",
+        "channels": ["linkedin", "seo"],
+        "metric": "Team page visits",
+        "owner": "shared",
+        "plays": [
+          {
+            "channel": "linkedin",
+            "what": "Product walkthroughs and practical setup guidance",
+            "cadence": "2 posts a week"
+          },
+          {
+            "channel": "seo",
+            "what": "Team routing, setup and comparison pages",
+            "cadence": "2 pieces a week"
+          }
+        ],
+        "measure": {
+          "value": "No connected team-page baseline in the brief",
+          "basis": "unknown",
+          "source": "No analytics figures supplied"
+        }
+      },
+      {
+        "stage": "conversion",
+        "name": "Try it with your team",
+        "goal": "Turn qualified evaluation into Teams trial starts.",
+        "channels": ["linkedin", "seo", "google_ads"],
+        "metric": "Teams trial starts",
+        "owner": "you",
+        "plays": [
+          {
+            "channel": "linkedin",
+            "what": "Point interested teams to the 14-day Teams trial",
+            "cadence": "In relevant posts"
+          },
+          {
+            "channel": "seo",
+            "what": "Make the trial the next step on team pages",
+            "cadence": "Review existing pages"
+          },
+          {
+            "channel": "google_ads",
+            "what": "Send high-intent searches to the Teams offer",
+            "cadence": "Test throughout the month"
+          }
+        ],
+        "measure": {
+          "value": "No trial-start baseline in the brief",
+          "basis": "unknown",
+          "source": "No analytics figures supplied"
+        }
+      }
+    ],
+    "proposals": [
+      {
+        "channel": "youtube",
+        "why": "A video can make the booking flow easier to see.",
+        "what": "Short team-routing product walkthroughs",
+        "perMonth": 2
+      },
+      {
+        "channel": "meta_ads",
+        "why": "Test visual reach after the search offer is clear.",
+        "what": "Team scheduling image ads",
+        "perMonth": 3
+      }
+    ],
+    "journey": [],
+    "weeks": [
+      {
+        "focus": "Explain team booking and routing",
+        "tasks": [
+          {
+            "task": "Map the Teams trial path on the team page",
+            "owner": "you",
+            "due": "2026-11-13",
+            "approval": true
+          },
+          {
+            "task": "Publish the first booking and routing examples",
+            "owner": "cuso",
+            "due": "2026-11-15",
+            "approval": false
+          }
+        ]
+      },
+      {
+        "focus": "Show how bookings reach the right rep",
+        "tasks": [
+          {
+            "task": "Check search terms and trial page visits",
+            "owner": "cuso",
+            "due": "2026-11-22",
+            "approval": false
+          },
+          {
+            "task": "Confirm the preferred team buyer",
+            "owner": "you",
+            "due": "2026-11-22",
+            "approval": true
+          }
+        ]
+      },
+      {
+        "focus": "Answer setup and comparison concerns",
+        "tasks": [
+          {
+            "task": "Review the Cal.com versus Calendly comparison page",
+            "owner": "you",
+            "due": "2026-11-29",
+            "approval": true
+          },
+          {
+            "task": "Use real review language in a team post",
+            "owner": "cuso",
+            "due": "2026-11-29",
+            "approval": false
+          }
+        ]
+      },
+      {
+        "focus": "Turn trial interest into a clear next step",
+        "tasks": [
+          {
+            "task": "Review trial starts against the monthly baseline",
+            "owner": "cuso",
+            "due": "2026-12-07",
+            "approval": false
+          },
+          {
+            "task": "Choose whether to continue the search test",
+            "owner": "you",
+            "due": "2026-12-07",
+            "approval": true
+          }
+        ]
+      }
+    ],
+    "budget": {
+      "total": "$500 recommended Google Ads test; no spend has been confirmed.",
+      "basis": "assumption",
+      "lines": [
+        {
+          "item": "Google Search test",
+          "amount": "$500"
+        }
+      ]
+    },
+    "measurement": {
+      "primary": "Qualified Teams trial starts",
+      "supporting": [
+        "Qualified team-page visits",
+        "Search ad clicks",
+        "Teams trial conversion rate"
+      ],
+      "tracking": [
+        "Use tagged links for LinkedIn and Google Ads.",
+        "Track team-page visits and Teams trial starts in Google Analytics."
+      ],
+      "rules": [
+        {
+          "when": "Search clicks arrive but team-page visits stay low",
+          "then": "Check the ad destination and page load."
+        },
+        {
+          "when": "Visitors reach the Teams page but few start trials",
+          "then": "Clarify the trial path and yearly billing."
+        },
+        {
+          "when": "A search term brings irrelevant clicks",
+          "then": "Add it as a negative keyword."
+        }
+      ],
+      "sourceOfTruth": "Google Analytics key events; no connected sales source is available in the brief.",
+      "experiment": {
+        "change": "Test team-routing search ads against practical team-scheduling searches.",
+        "expect": "Find which intent brings more qualified Teams trial visits.",
+        "judge": "After four weeks, compare qualified visits and trial starts in Google Analytics."
+      }
+    },
+    "openQuestions": [],
+    "questions": [
+      {
+        "id": "team-buyer",
+        "question": "Are revenue operations leaders the highest-priority team buyers?",
+        "statement": "Revenue operations leaders are the highest-priority buyers for Cal.com Teams."
+      },
+      {
+        "id": "trial-baseline",
+        "question": "Is about 20 Teams trial starts a month a fair baseline?",
+        "statement": "Cal.com currently gets about 20 Teams trial starts per month."
+      },
+      {
+        "id": "search-budget",
+        "question": "Is a $500 monthly Google Ads test within the budget?",
+        "statement": "A $500 monthly Google Ads test is within the approved budget."
+      }
+    ],
+    "calendar": [
+      {
+        "id": "cal-nov10-li-team-booking",
+        "date": "2026-11-10",
+        "time": "09:00",
+        "channel": "linkedin",
+        "title": "Make team booking easier to follow",
+        "format": "post",
+        "status": "idea",
+        "brief": "Explain the team booking handoff in plain steps and show where a shared booking flow removes email back-and-forth.",
+        "why": "Helps revenue teams recognize a scheduling problem Cal.com solves.",
+        "story": "A G2 reviewer wrote, “I like the ease with which I integrated Cal.com into my website.”",
+        "campaignId": "team-routing-trial",
+        "approach": "educational",
+        "pillar": "Team booking"
+      },
+      {
+        "id": "cal-nov11-seo-team-scheduling",
+        "date": "2026-11-11",
+        "time": "10:00",
+        "channel": "seo",
+        "title": "When does a team need scheduling software?",
+        "format": "article",
+        "status": "idea",
+        "brief": "Answer when shared team scheduling helps, how to assess the handoff, and what to look for in Cal.com Scheduling.",
+        "why": "Captures problem searches before teams choose a tool.",
+        "campaignId": "team-routing-trial",
+        "approach": "educational",
+        "pillar": "Team booking"
+      },
+      {
+        "id": "cal-nov13-seo-routing-page",
+        "date": "2026-11-13",
+        "time": "10:00",
+        "channel": "seo",
+        "title": "Explain routed bookings for sales teams",
+        "format": "page_fix",
+        "status": "idea",
+        "brief": "Improve the team scheduling page so sales teams can see how a booking reaches the right representative and where to start.",
+        "why": "Connects a specific routing search to the main Scheduling offer.",
+        "campaignId": "team-routing-trial",
+        "approach": "educational",
+        "pillar": "Lead routing"
+      },
+      {
+        "id": "cal-nov16-search-ad-team",
+        "date": "2026-11-16",
+        "time": "09:30",
+        "channel": "google_ads",
+        "title": "Search ad for team booking",
+        "format": "search_ad",
+        "status": "idea",
+        "brief": "Test a search ad for teams looking for shared scheduling and lead routing; send people to the Cal.com Teams offer.",
+        "why": "Reaches buyers already searching for a team scheduling tool.",
+        "campaignId": "team-routing-trial",
+        "approach": "promotional",
+        "pillar": "Lead routing"
+      }
+    ],
+    "previews": [],
+    "changes": []
+  },
+  "Hiltl": {
+    "month": "2026-11",
+    "summary": "Show Haus Hiltl dishes and buffet choices, then help Zurich diners plan an easy visit.",
+    "why": "Hiltl already has strong local recognition, a sizeable Instagram audience and clear buffet prices. This plan makes a first visit easier to picture and choose, with Haus Hiltl dining at the centre.",
+    "goals": [
+      "More visits to Haus Hiltl",
+      "More guests choosing a Hiltl buffet format"
+    ],
+    "audience": "Zurich diners and visitors choosing where to eat",
+    "contentLanguage": "German",
+    "positioning": "A Zurich dining institution where guests choose vegetarian food their way.",
+    "pillars": [
+      {
+        "name": "Buffet choices",
+        "share": 40,
+        "why": "Make the price and buffet format easy to understand."
+      },
+      {
+        "name": "Dishes and occasions",
+        "share": 25,
+        "why": "Give diners a clear reason to choose Haus Hiltl today."
+      },
+      {
+        "name": "Zurich since 1898",
+        "share": 20,
+        "why": "Connect Hiltl’s history to the food guests can enjoy now."
+      },
+      {
+        "name": "A table for groups",
+        "share": 15,
+        "why": "Show that a Hiltl visit can work for shared meals."
+      }
+    ],
+    "channels": [
+      {
+        "channel": "instagram",
+        "cadence": "11 posts a week",
+        "why": "Food and venue stories reach Hiltl’s largest listed social audience."
+      },
+      {
+        "channel": "linkedin",
+        "cadence": "6 posts this month",
+        "why": "Share Hiltl’s history, food craft and group dining occasions."
+      },
+      {
+        "channel": "seo",
+        "cadence": "1 to 2 pieces a week",
+        "why": "Help people searching for Zurich dining find the right visit details."
+      },
+      {
+        "channel": "meta_ads",
+        "cadence": "4 creatives this month",
+        "why": "Test local reach for people planning a Zurich meal."
+      }
+    ],
+    "idea": {
+      "who": "Zurich diners and visitors",
+      "position": "Vegetarian dining with choice since 1898",
+      "attract": "Show dishes, buffet choices and real visit occasions",
+      "offer": "Haus Hiltl buffet by weight or all-you-can-eat",
+      "sentence": "We’ll reach Zurich diners with appetizing dishes and clear buffet choices, then invite them to Haus Hiltl for a meal rooted in the city since 1898."
+    },
+    "alternatives": [
+      {
+        "sentence": "Reach office teams with weekday lunch ideas and a simple route to Haus Hiltl.",
+        "why": "This wins if weekday office lunches are the biggest visit opportunity."
+      },
+      {
+        "sentence": "Reach visitors with central Zurich dining guides that make Hiltl easy to choose.",
+        "why": "This wins when tourist discovery matters more than local repeat visits."
+      }
+    ],
+    "ladder": {
+      "entry": {
+        "what": "Buffet by weight, CHF 5.90 per 100 g",
+        "why": "A clear price lets guests choose their portion."
+      },
+      "core": {
+        "what": "Haus Hiltl buffet and à la carte",
+        "why": "The main dining offer, with choice for different appetites."
+      },
+      "next": {
+        "what": "Hiltl app rewards for return visits",
+        "why": "Give diners a simple reason to come back."
+      }
+    },
+    "pace": {
+      "level": "all_in",
+      "why": "A busy month builds repeated local discovery across food, history and visit guidance.",
+      "perWeek": 15
+    },
+    "ads": {
+      "monthly": 500,
+      "currency": "CHF",
+      "expect": "A first local test; results depend on reach and visit intent.",
+      "without": "Use Instagram, LinkedIn and search content organically.",
+      "setByOwner": false
+    },
+    "beforeAfter": [
+      {
+        "channel": "instagram",
+        "before": "32K followers; current posting cadence unknown",
+        "after": "11 weekly posts on dishes and buffet choices"
+      },
+      {
+        "channel": "linkedin",
+        "before": "5,045 followers; current posting cadence unknown",
+        "after": "6 monthly posts on Hiltl food and history"
+      },
+      {
+        "channel": "seo",
+        "before": "Site covers menus and locations; cadence unclear",
+        "after": "Weekly visit answers plus Zurich dining guides"
+      },
+      {
+        "channel": "meta_ads",
+        "before": "Current paid activity unknown",
+        "after": "Four local creative tests this month"
+      }
+    ],
+    "improvements": [
+      {
+        "area": "landing",
+        "now": "Restaurant pages list formats and prices across separate sections",
+        "idea": "Put both Haus Hiltl buffet prices beside the visit route",
+        "why": "Guests can compare formats before deciding to visit.",
+        "url": "https://hiltl.ch/en/locations/hiltl-a-la-carte-restaurant/"
+      }
+    ],
+    "objective": {
+      "outcome": "More visits to Haus Hiltl",
+      "why": "More diners choosing the main restaurant offer is the clearest business result."
+    },
+    "barrier": {
+      "kind": "understanding",
+      "text": "New guests may not know how the buffet works or what it costs."
+    },
+    "mix": [
+      {
+        "approach": "educational",
+        "share": 30,
+        "why": "Explain how the buffet works and how guests can choose their portion."
+      },
+      {
+        "approach": "product-led",
+        "share": 25,
+        "why": "Show specific Haus Hiltl dishes and the two buffet payment choices."
+      },
+      {
+        "approach": "social-proof",
+        "share": 25,
+        "why": "Use real diner praise and Hiltl’s verified food-service history."
+      },
+      {
+        "approach": "people-led",
+        "share": 20,
+        "why": "Tell the family and food stories behind a Zurich restaurant since 1898."
+      }
+    ],
+    "focus": {
+      "segment": "Zurich diners and city visitors",
+      "problem": "Choosing a satisfying meal with enough choice and clear value",
+      "trigger": "Planning a Zurich lunch, dinner or city visit",
+      "objections": [
+        "The buffet price feels high",
+        "Unsure how buffet pricing works",
+        "Worried about crowds or the experience"
+      ],
+      "where": [
+        "Instagram food and venue posts",
+        "LinkedIn company stories",
+        "Google searches for Zurich dining"
+      ]
+    },
+    "offer": {
+      "what": "Haus Hiltl dining: buffet by weight or CHF 63 all-you-can-eat",
+      "why": "Guests can pick a portion-priced buffet or a set-price all-you-can-eat visit.",
+      "proof": [
+        "Buffet by weight: CHF 5.90 per 100 g",
+        "All-you-can-eat: CHF 63",
+        "Founded in Zurich in 1898"
+      ],
+      "action": "Choose your Hiltl visit"
+    },
+    "campaigns": [
+      {
+        "id": "buffet-choices",
+        "name": "Choose Your Buffet",
+        "message": "See the two Haus Hiltl buffet formats and choose what suits you.",
+        "audience": "Zurich diners and visitors",
+        "offer": "Haus Hiltl dining",
+        "channels": ["instagram", "linkedin", "seo", "meta_ads"],
+        "assets": [
+          "Buffet price guide",
+          "Dish and buffet posts",
+          "Zurich dining search pages"
+        ],
+        "start": "2026-11-10",
+        "end": "2026-11-23",
+        "budget": "CHF 250 of the monthly test",
+        "metric": "Restaurant page visits"
+      },
+      {
+        "id": "zurich-table",
+        "name": "A Zurich Table",
+        "message": "A meal at Hiltl brings 1898 heritage to today’s Zurich table.",
+        "audience": "Zurich diners and city visitors",
+        "offer": "Haus Hiltl dining",
+        "channels": ["instagram", "linkedin", "seo"],
+        "assets": ["Hiltl history stories", "Visit and dish posts"],
+        "start": "2026-11-17",
+        "end": "2026-11-30",
+        "budget": "0, organic",
+        "metric": "Restaurant page visits"
+      },
+      {
+        "id": "easy-city-meal",
+        "name": "Easy City Meal",
+        "message": "Make a Zurich lunch or dinner plan around food with choice.",
+        "audience": "People planning a Zurich meal",
+        "offer": "Haus Hiltl dining",
+        "channels": ["instagram", "linkedin", "seo", "meta_ads"],
+        "assets": [
+          "Local dining search pages",
+          "Restaurant visit posts",
+          "Two ad creatives"
+        ],
+        "start": "2026-11-24",
+        "end": "2026-12-07",
+        "budget": "CHF 250 of the monthly test",
+        "metric": "Restaurant page visits"
+      }
+    ],
+    "funnel": [
+      {
+        "stage": "awareness",
+        "name": "Find a Zurich meal",
+        "goal": "Put Haus Hiltl on diners’ shortlist.",
+        "channels": ["instagram", "linkedin", "meta_ads", "seo"],
+        "metric": "Restaurant page visits",
+        "owner": "cuso",
+        "plays": [
+          {
+            "channel": "instagram",
+            "what": "Show dishes and visit occasions that make people picture a meal.",
+            "cadence": "11 posts a week"
+          },
+          {
+            "channel": "linkedin",
+            "what": "Tell specific Hiltl food and heritage stories for local diners.",
+            "cadence": "6 posts this month"
+          },
+          {
+            "channel": "meta_ads",
+            "what": "Test local food and buffet-choice ads around Zurich.",
+            "cadence": "Four creative tests"
+          },
+          {
+            "channel": "seo",
+            "what": "Answer searches for Zurich vegetarian dining and Hiltl visits.",
+            "cadence": "1 to 2 pieces a week"
+          }
+        ],
+        "measure": {
+          "value": "32K Instagram followers; restaurant-page visit baseline unknown",
+          "basis": "estimated",
+          "source": "Brand Brain social audience and website"
+        }
+      },
+      {
+        "stage": "consideration",
+        "name": "Choose a buffet format",
+        "goal": "Help guests understand the price and dining choice.",
+        "channels": ["instagram", "linkedin", "seo"],
+        "metric": "Menu page visits",
+        "owner": "shared",
+        "plays": [
+          {
+            "channel": "instagram",
+            "what": "Explain buffet by weight and all-you-can-eat with clear food examples.",
+            "cadence": "Weekly"
+          },
+          {
+            "channel": "linkedin",
+            "what": "Share practical details about group and restaurant dining.",
+            "cadence": "Weekly"
+          },
+          {
+            "channel": "seo",
+            "what": "Add clear answers to buffet price and visit questions.",
+            "cadence": "Weekly"
+          }
+        ],
+        "measure": {
+          "value": "Baseline not available",
+          "basis": "unknown",
+          "source": "No page-visit data in the Brand Brain"
+        }
+      },
+      {
+        "stage": "conversion",
+        "name": "Plan a Hiltl visit",
+        "goal": "Turn dining interest into a restaurant visit.",
+        "channels": ["instagram", "seo"],
+        "metric": "Restaurant visits",
+        "owner": "you",
+        "plays": [
+          {
+            "channel": "instagram",
+            "what": "Show the food and occasion, then point to the restaurant visit route.",
+            "cadence": "Across the week"
+          },
+          {
+            "channel": "seo",
+            "what": "Keep restaurant location, price and booking details easy to find.",
+            "cadence": "Weekly"
+          }
+        ],
+        "measure": {
+          "value": "Baseline not available",
+          "basis": "unknown",
+          "source": "No visit or booking counts in the Brand Brain"
+        }
+      },
+      {
+        "stage": "loyalty",
+        "name": "Return for another meal",
+        "goal": "Give guests a reason to choose Hiltl again.",
+        "channels": ["instagram"],
+        "metric": "Repeat visits",
+        "owner": "shared",
+        "plays": [
+          {
+            "channel": "instagram",
+            "what": "Share distinct dishes and visit occasions, with app rewards as a return route.",
+            "cadence": "Weekly"
+          }
+        ],
+        "measure": {
+          "value": "App rewards are listed; repeat-visit baseline unknown",
+          "basis": "estimated",
+          "source": "Brand Brain website and app summary"
+        }
+      }
+    ],
+    "proposals": [
+      {
+        "channel": "facebook",
+        "why": "Reach Zurich diners who follow local places there.",
+        "what": "Local dish and visit posts",
+        "perMonth": 8
+      },
+      {
+        "channel": "google_ads",
+        "why": "Meet people already searching for a restaurant nearby.",
+        "what": "Search ads for Zurich dining",
+        "perMonth": 4
+      },
+      {
+        "channel": "newsletter",
+        "why": "Give returning guests a direct route to new visit ideas.",
+        "what": "Monthly seasonal dining note",
+        "perMonth": 1
+      }
+    ],
+    "journey": [],
+    "weeks": [
+      {
+        "focus": "Make buffet choices clear",
+        "tasks": [
+          {
+            "task": "Check restaurant page price and visit details",
+            "owner": "you",
+            "due": "2026-11-10",
+            "approval": false
+          },
+          {
+            "task": "Connect Instagram and LinkedIn accounts",
+            "owner": "you",
+            "due": "2026-11-10",
+            "approval": true
+          },
+          {
+            "task": "Set up local Meta ad account access",
+            "owner": "you",
+            "due": "2026-11-12",
+            "approval": true
+          }
+        ]
+      },
+      {
+        "focus": "Bring Hiltl history to the table",
+        "tasks": [
+          {
+            "task": "Review restaurant visit route on mobile",
+            "owner": "you",
+            "due": "2026-11-17",
+            "approval": false
+          }
+        ]
+      },
+      {
+        "focus": "Reach people planning a Zurich meal",
+        "tasks": [
+          {
+            "task": "Check restaurant-page visits against week one",
+            "owner": "you",
+            "due": "2026-11-24",
+            "approval": false
+          }
+        ]
+      },
+      {
+        "focus": "Keep visit details easy to find",
+        "tasks": [
+          {
+            "task": "Review ad and page results before next month",
+            "owner": "you",
+            "due": "2026-12-07",
+            "approval": false
+          }
+        ]
+      }
+    ],
+    "measurement": {
+      "primary": "Haus Hiltl restaurant-page visits",
+      "supporting": [
+        "Menu page visits",
+        "Restaurant reservations",
+        "Restaurant visits"
+      ],
+      "tracking": [
+        "Tag campaign links with UTM codes",
+        "Track restaurant-page and menu-page visits"
+      ],
+      "rules": [
+        {
+          "when": "A post explains the buffet but gets few restaurant-page visits",
+          "then": "Make the visit route clearer in the next post."
+        },
+        {
+          "when": "The ad test brings visits but no booking signal",
+          "then": "Check the restaurant page before adding spend."
+        }
+      ],
+      "sourceOfTruth": "Google Analytics key events; restaurant visits need an internal count.",
+      "experiment": {
+        "change": "Test two local ad messages: buffet price choice and Zurich meal occasion.",
+        "expect": "More visits to the Haus Hiltl restaurant page from Zurich diners.",
+        "judge": "Compare tagged restaurant-page visits after four weeks."
+      }
+    },
+    "openQuestions": [],
+    "questions": [
+      {
+        "id": "largest-guest-group",
+        "question": "Are Zurich residents your largest guest group?",
+        "statement": "Zurich residents are the largest guest group for Haus Hiltl dining."
+      },
+      {
+        "id": "ad-test-budget",
+        "question": "Is CHF 500 a reasonable one-month local ad test?",
+        "statement": "CHF 500 is an acceptable test budget for local dining ads."
+      },
+      {
+        "id": "weekday-lunch",
+        "question": "Are weekday lunches a priority for more Haus Hiltl visits?",
+        "statement": "Weekday lunches are a priority occasion for growing Haus Hiltl visits."
+      }
+    ],
+    "calendar": [
+      {
+        "id": "hiltl-01",
+        "date": "2026-11-10",
+        "time": "11:30",
+        "channel": "instagram",
+        "title": "How the Hiltl buffet is priced",
+        "format": "carousel",
+        "status": "idea",
+        "brief": "Explain CHF 5.90 per 100 g and how guests choose their portion.",
+        "why": "Answer price and buffet-flow questions before a first visit.",
+        "campaignId": "buffet-choices",
+        "approach": "educational",
+        "pillar": "Buffet choices"
+      },
+      {
+        "id": "hiltl-03",
+        "date": "2026-11-11",
+        "time": "12:15",
+        "channel": "linkedin",
+        "title": "Hiltl food has travelled with SWISS",
+        "format": "post",
+        "status": "idea",
+        "brief": "Tell the story of Hiltl food appearing on SWISS flights since 2009.",
+        "why": "Connect Hiltl’s restaurant history to a real food partnership.",
+        "story": "Since 2009, SWISS has served Hiltl food on flights, taking a Zurich vegetarian kitchen beyond the city.",
+        "campaignId": "zurich-table",
+        "approach": "social-proof",
+        "pillar": "Zurich since 1898"
+      },
+      {
+        "id": "hiltl-10",
+        "date": "2026-11-14",
+        "time": "17:30",
+        "channel": "meta_ads",
+        "title": "Choose your buffet price",
+        "format": "image_ad",
+        "status": "idea",
+        "brief": "Test a local Zurich ad with CHF 5.90 per 100 g and CHF 63 all-you-can-eat as two choices.",
+        "why": "See whether clear prices help nearby diners consider a visit.",
+        "campaignId": "buffet-choices",
+        "approach": "product-led",
+        "pillar": "Buffet choices"
+      },
+      {
+        "id": "hiltl-12",
+        "date": "2026-11-15",
+        "time": "18:00",
+        "channel": "seo",
+        "title": "Make Haus Hiltl buffet prices easy to find",
+        "format": "page_fix",
+        "status": "idea",
+        "brief": "Rewrite the restaurant page title, description and heading around the two published buffet formats and prices.",
+        "why": "Answer a high-intent price question on the restaurant page.",
+        "campaignId": "buffet-choices",
+        "approach": "educational",
+        "pillar": "Buffet choices"
+      }
+    ],
+    "previews": [],
+    "changes": []
+  },
+  "Blue Bottle Coffee": {
+    "month": "2026-11",
+    "summary": "Show home brewers how a rotating Blue Bottle subscription fits their taste and routine, then help them choose a plan.",
+    "why": "Blue Bottle has a clear $22 subscription, flexible delivery and more than 450,000 subscriptions sold. Show real coffee choices and subscriber control to answer price and commitment concerns.",
+    "goals": [
+      "More Blue Bottle at Home subscription orders",
+      "More subscription page visits from home brewers"
+    ],
+    "audience": "U.S. home coffee drinkers choosing fresh beans for their brew routine",
+    "contentLanguage": "English",
+    "positioning": "Freshly roasted coffee chosen for your taste, delivered on a schedule you control.",
+    "pillars": [
+      {
+        "name": "Coffee that fits",
+        "share": 30,
+        "why": "Help people choose beans for their taste and brew method."
+      },
+      {
+        "name": "Fresh delivery, your way",
+        "share": 25,
+        "why": "Make the subscription schedule and controls easy to picture."
+      },
+      {
+        "name": "Subscriber experience",
+        "share": 25,
+        "why": "Use real subscriber feedback and published subscription scale."
+      },
+      {
+        "name": "Coffee craft",
+        "share": 20,
+        "why": "Connect careful coffee making to an everyday home ritual."
+      }
+    ],
+    "channels": [
+      {
+        "channel": "instagram",
+        "cadence": "4 posts weekly",
+        "why": "Show coffee choices and home brewing in a visual feed."
+      },
+      {
+        "channel": "x",
+        "cadence": "3 posts weekly",
+        "why": "Share timely coffee and origin notes with existing followers."
+      },
+      {
+        "channel": "facebook",
+        "cadence": "2 posts weekly",
+        "why": "Give coffee stories and product guidance a place to travel."
+      },
+      {
+        "channel": "linkedin",
+        "cadence": "2 posts weekly",
+        "why": "Explain product choices and company craft with useful context."
+      },
+      {
+        "channel": "seo",
+        "cadence": "1 page or article weekly",
+        "why": "Answer brew and subscription questions through the Coffee Lab."
+      },
+      {
+        "channel": "newsletter",
+        "cadence": "One issue every two weeks",
+        "why": "Bring coffee guidance and subscription choices to the email list."
+      },
+      {
+        "channel": "meta_ads",
+        "cadence": "Two tests monthly",
+        "why": "Reach home coffee buyers with subscription details and real proof."
+      }
+    ],
+    "idea": {
+      "who": "Home brewers who want better coffee without choosing each bag",
+      "position": "Rotating coffee matched to taste and brew method",
+      "attract": "Show the coffees, brew choices and delivery controls",
+      "offer": "Coffee subscriptions from $22 with free shipping",
+      "sentence": "We’ll help home brewers find a rotating coffee subscription that fits their taste and routine through specific brew guidance, coffee stories and flexible delivery choices."
+    },
+    "alternatives": [
+      {
+        "sentence": "Reach gift buyers with prepaid coffee subscriptions and gift guides.",
+        "why": "This wins when seasonal gifting is the strongest buying moment."
+      },
+      {
+        "sentence": "Lead with café-inspired drinks made at home using Craft Instant Espresso.",
+        "why": "This wins when quick preparation matters more than rotating beans."
+      }
+    ],
+    "ladder": {
+      "entry": {
+        "what": "Coffee subscription from $22",
+        "why": "Free shipping and flexible delivery lower the first step."
+      },
+      "core": {
+        "what": "Blue Bottle at Home subscription",
+        "why": "Rotating coffees arrive on the buyer’s chosen schedule."
+      },
+      "next": {
+        "what": "Brew tools and whole-bean coffees",
+        "why": "Help subscribers refine their home coffee routine."
+      }
+    },
+    "pace": {
+      "level": "all_in",
+      "why": "A full month builds repeated proof and useful coffee guidance.",
+      "perWeek": 15
+    },
+    "ads": {
+      "monthly": 3000,
+      "currency": "USD",
+      "expect": "A first month of subscription interest and learning; order volume not yet confirmed.",
+      "without": "Keep the same organic coffee guidance and subscription proof.",
+      "setByOwner": false
+    },
+    "beforeAfter": [
+      {
+        "channel": "instagram",
+        "before": "Cadence unclear; 519K followers",
+        "after": "4 weekly coffee and subscription posts"
+      },
+      {
+        "channel": "x",
+        "before": "About 19 posts monthly; 66.7K followers",
+        "after": "3 weekly coffee and subscription posts"
+      },
+      {
+        "channel": "facebook",
+        "before": "Cadence and audience not confirmed",
+        "after": "2 weekly home coffee posts"
+      },
+      {
+        "channel": "linkedin",
+        "before": "No visible post in about four months",
+        "after": "2 weekly coffee craft posts"
+      },
+      {
+        "channel": "seo",
+        "before": "Coffee Lab articles; cadence unclear",
+        "after": "1 weekly brew or subscription page"
+      },
+      {
+        "channel": "newsletter",
+        "before": "Signup offers news and first-order shipping",
+        "after": "One useful coffee issue every two weeks"
+      },
+      {
+        "channel": "meta_ads",
+        "before": "Third-party archive reported active ads",
+        "after": "Two subscription-focused creative tests monthly"
+      }
+    ],
+    "improvements": [
+      {
+        "area": "landing",
+        "now": "Subscription page offers a preference-guided choice and flexible delivery controls.",
+        "idea": "Put the $22 starting price, free shipping and controls beside the first choice.",
+        "why": "Answer price and commitment concerns before a shopper starts the quiz.",
+        "url": "https://bluebottlecoffee.com/us/eng/subscriptions"
+      },
+      {
+        "area": "seo",
+        "now": "Coffee Lab has brew tutorials; publishing rhythm is unclear.",
+        "idea": "Add a subscription guide comparing coffee choices by brew method.",
+        "why": "Help unsure home brewers choose before they reach the subscription page.",
+        "url": "https://blog.bluebottlecoffee.com/posts"
+      }
+    ],
+    "start": {
+      "working": [
+        {
+          "text": "The U.S. subscription starts at $22 and includes free shipping.",
+          "basis": "fact"
+        },
+        {
+          "text": "Subscribers may pause, skip, change or cancel anytime.",
+          "basis": "fact"
+        },
+        {
+          "text": "The subscription page reports more than 450,000 subscriptions sold.",
+          "basis": "fact"
+        }
+      ],
+      "gaps": [
+        {
+          "text": "Recent orders and subscription-page conversion are not available in the Brand Brain.",
+          "basis": "fact"
+        },
+        {
+          "text": "Instagram and Facebook posting cadence is unclear.",
+          "basis": "fact"
+        }
+      ],
+      "resources": [
+        {
+          "text": "Coffee Lab brew education and subscription preference quiz.",
+          "basis": "fact"
+        },
+        {
+          "text": "Instagram, X, Facebook and LinkedIn brand channels.",
+          "basis": "fact"
+        },
+        {
+          "text": "A newsletter signup offering complimentary shipping on a first purchase.",
+          "basis": "fact"
+        }
+      ]
+    },
+    "objective": {
+      "outcome": "More Blue Bottle at Home subscription orders",
+      "why": "Subscription orders are the clearest business outcome for the main offer."
+    },
+    "barrier": {
+      "kind": "trust",
+      "text": "Premium price and delivery reliability can make a subscription feel risky."
+    },
+    "mix": [
+      {
+        "approach": "social-proof",
+        "share": 30,
+        "why": "Use subscriber praise and the published subscription count to show what arrives."
+      },
+      {
+        "approach": "educational",
+        "share": 30,
+        "why": "Help home brewers match coffee choices to taste and brewing method."
+      },
+      {
+        "approach": "product-led",
+        "share": 25,
+        "why": "Show subscription choices, schedule controls and coffee details plainly."
+      },
+      {
+        "approach": "people-led",
+        "share": 15,
+        "why": "Tell the Oakland coffee story and explain the care behind each cup."
+      }
+    ],
+    "focus": {
+      "segment": "U.S. home brewers choosing specialty coffee",
+      "problem": "Finding fresh coffee that suits their taste and brewing method",
+      "trigger": "Running low or wanting a better daily cup",
+      "objections": [
+        "Premium price may not feel worth it",
+        "Worry about repeated charges or delivery problems",
+        "Unsure which coffee suits their brew method"
+      ],
+      "where": [
+        "Instagram coffee and recipe posts",
+        "X coffee and origin updates",
+        "Blue Bottle Coffee Lab",
+        "Subscription preference quiz"
+      ]
+    },
+    "offer": {
+      "what": "Coffee subscriptions from $22",
+      "why": "Free shipping and flexible delivery make trying a recurring coffee plan easier.",
+      "proof": [
+        "More than 450,000 subscriptions sold, stated on the subscription page",
+        "Subscriber praise for fresh flavor and variety",
+        "Subscribers can pause, skip, change or cancel anytime."
+      ],
+      "action": "Choose your coffee subscription"
+    },
+    "campaigns": [
+      {
+        "id": "home-coffee-fit",
+        "name": "Find your coffee fit",
+        "message": "Choose a rotating coffee that suits your taste and brew method.",
+        "audience": "U.S. home brewers choosing specialty coffee",
+        "offer": "Coffee subscriptions from $22",
+        "channels": ["instagram", "seo", "newsletter", "meta_ads"],
+        "assets": [
+          "Coffee choice guide",
+          "Brew-method article",
+          "Subscriber experience posts",
+          "Two Meta ad tests"
+        ],
+        "start": "2026-11-10",
+        "end": "2026-12-07",
+        "budget": "$3,000 USD for Meta tests; organic channels otherwise",
+        "metric": "Subscription orders and subscription page visits"
+      }
+    ],
+    "funnel": [
+      {
+        "stage": "awareness",
+        "name": "Discover the coffee",
+        "goal": "Reach home brewers looking for fresh, distinctive coffee.",
+        "channels": ["instagram", "x", "facebook", "linkedin", "meta_ads"],
+        "metric": "Qualified visits",
+        "owner": "cuso",
+        "plays": [
+          {
+            "channel": "instagram",
+            "what": "Show coffee, brew methods and subscription choice.",
+            "cadence": "4 posts weekly"
+          },
+          {
+            "channel": "x",
+            "what": "Share coffee origin and brew tips.",
+            "cadence": "3 posts weekly"
+          },
+          {
+            "channel": "facebook",
+            "what": "Share home coffee guidance and product stories.",
+            "cadence": "2 posts weekly"
+          },
+          {
+            "channel": "linkedin",
+            "what": "Explain coffee craft and subscriber product design.",
+            "cadence": "2 posts weekly"
+          },
+          {
+            "channel": "meta_ads",
+            "what": "Test subscription creative with starting price and flexibility.",
+            "cadence": "2 tests monthly"
+          }
+        ],
+        "measure": {
+          "value": "Estimated; audience and website visits are not provided.",
+          "basis": "estimated",
+          "source": "Brand Brain channel audience and offer details."
+        }
+      },
+      {
+        "stage": "consideration",
+        "name": "Find your fit",
+        "goal": "Help shoppers choose a coffee and see how delivery works.",
+        "channels": [
+          "seo",
+          "instagram",
+          "x",
+          "facebook",
+          "linkedin",
+          "newsletter"
+        ],
+        "metric": "Subscription page visits",
+        "owner": "shared",
+        "plays": [
+          {
+            "channel": "seo",
+            "what": "Answer brew-method and subscription-choice searches.",
+            "cadence": "1 page or article weekly"
+          },
+          {
+            "channel": "instagram",
+            "what": "Show a coffee choice and the home brew it suits.",
+            "cadence": "4 posts weekly"
+          },
+          {
+            "channel": "x",
+            "what": "Clarify coffee options and schedule controls.",
+            "cadence": "3 posts weekly"
+          },
+          {
+            "channel": "facebook",
+            "what": "Explain how a subscription fits a home routine.",
+            "cadence": "2 posts weekly"
+          },
+          {
+            "channel": "linkedin",
+            "what": "Share the reasoning behind coffee selection and delivery.",
+            "cadence": "2 posts weekly"
+          },
+          {
+            "channel": "newsletter",
+            "what": "Send a practical coffee guide and subscription link.",
+            "cadence": "Every two weeks"
+          }
+        ],
+        "measure": {
+          "value": "Estimated; no subscription page traffic is provided.",
+          "basis": "estimated",
+          "source": "The Brand Brain describes the quiz, Coffee Lab and offer."
+        }
+      },
+      {
+        "stage": "conversion",
+        "name": "Choose a delivery plan",
+        "goal": "Turn coffee interest into a first subscription order.",
+        "channels": ["meta_ads", "instagram", "facebook", "seo", "newsletter"],
+        "metric": "Subscription orders",
+        "owner": "you",
+        "plays": [
+          {
+            "channel": "meta_ads",
+            "what": "Show the $22 starting point, free shipping and flexible controls.",
+            "cadence": "Two tests monthly"
+          },
+          {
+            "channel": "instagram",
+            "what": "Make the offer and subscriber proof clear.",
+            "cadence": "4 posts weekly"
+          },
+          {
+            "channel": "facebook",
+            "what": "Repeat subscription details with a direct path to choose.",
+            "cadence": "2 posts weekly"
+          },
+          {
+            "channel": "seo",
+            "what": "Link coffee choice guidance to the subscription page.",
+            "cadence": "1 page or article weekly"
+          },
+          {
+            "channel": "newsletter",
+            "what": "Give readers the subscription choice and delivery details.",
+            "cadence": "Every two weeks"
+          }
+        ],
+        "measure": {
+          "value": "Estimated; order baseline is not provided.",
+          "basis": "estimated",
+          "source": "The Brand Brain lists subscription price, terms and subscriber count."
+        }
+      },
+      {
+        "stage": "loyalty",
+        "name": "Enjoy the next delivery",
+        "goal": "Help subscribers enjoy and manage their coffee routine.",
+        "channels": ["newsletter", "instagram", "x", "facebook"],
+        "metric": "Repeat subscription orders",
+        "owner": "shared",
+        "plays": [
+          {
+            "channel": "newsletter",
+            "what": "Share brew guidance for the coffee arriving this month.",
+            "cadence": "Every two weeks"
+          },
+          {
+            "channel": "instagram",
+            "what": "Show a practical brew detail for rotating coffees.",
+            "cadence": "4 posts weekly"
+          },
+          {
+            "channel": "x",
+            "what": "Share concise origin and brewing notes.",
+            "cadence": "3 posts weekly"
+          },
+          {
+            "channel": "facebook",
+            "what": "Offer useful brewing guidance for coffee at home.",
+            "cadence": "2 posts weekly"
+          }
+        ],
+        "measure": {
+          "value": "Estimated; repeat-order baseline is not provided.",
+          "basis": "estimated",
+          "source": "The Brand Brain describes recurring delivery and flexible subscription controls."
+        }
+      }
+    ],
+    "proposals": [
+      {
+        "channel": "youtube",
+        "why": "The brand has brew education, but visible uploads are two years old.",
+        "what": "Short brew-method and coffee-choice videos",
+        "perMonth": 4
+      },
+      {
+        "channel": "google_ads",
+        "why": "Reach home brewers actively looking for a recurring coffee delivery.",
+        "what": "Search ads for coffee subscriptions",
+        "perMonth": 3
+      }
+    ],
+    "journey": [],
+    "weeks": [
+      {
+        "focus": "Show the subscription and coffee choices",
+        "tasks": [
+          {
+            "task": "Confirm first-month subscription order baseline",
+            "owner": "you",
+            "due": "2026-11-16",
+            "approval": true
+          },
+          {
+            "task": "Place price and delivery controls by subscription choice",
+            "owner": "you",
+            "due": "2026-11-16",
+            "approval": true
+          }
+        ]
+      },
+      {
+        "focus": "Teach coffee choice by brew method",
+        "tasks": [
+          {
+            "task": "Review Coffee Lab guide topics for search gaps",
+            "owner": "cuso",
+            "due": "2026-11-23",
+            "approval": false
+          },
+          {
+            "task": "Check subscription quiz path from a home brewer’s view",
+            "owner": "you",
+            "due": "2026-11-23",
+            "approval": true
+          }
+        ]
+      },
+      {
+        "focus": "Build confidence with subscriber proof",
+        "tasks": [
+          {
+            "task": "Review subscription and delivery language near checkout",
+            "owner": "you",
+            "due": "2026-11-30",
+            "approval": true
+          },
+          {
+            "task": "Keep subscriber quotes exact and linked to their sources",
+            "owner": "cuso",
+            "due": "2026-11-30",
+            "approval": false
+          }
+        ]
+      },
+      {
+        "focus": "Bring coffee guidance back to subscribers",
+        "tasks": [
+          {
+            "task": "Review subscription visits and orders against baseline",
+            "owner": "you",
+            "due": "2026-12-07",
+            "approval": true
+          },
+          {
+            "task": "Use the strongest coffee-choice question in the next month",
+            "owner": "cuso",
+            "due": "2026-12-07",
+            "approval": false
+          }
+        ]
+      }
+    ],
+    "measurement": {
+      "primary": "Blue Bottle at Home subscription orders",
+      "supporting": [
+        "Subscription page visits",
+        "Subscription quiz starts",
+        "Repeat subscription orders",
+        "Meta ad clicks"
+      ],
+      "tracking": [
+        "Tag site links by channel and month",
+        "Use Google Analytics key events for subscription orders",
+        "Track subscription quiz starts and checkout completion"
+      ],
+      "rules": [
+        {
+          "when": "Subscription page visits rise but orders stay low",
+          "then": "Review price, delivery reassurance and the checkout path"
+        },
+        {
+          "when": "Coffee-choice content draws visits but few quiz starts",
+          "then": "Make the next step and quiz purpose clearer"
+        },
+        {
+          "when": "An ad receives clicks without subscription orders",
+          "then": "Pause that creative and test a clearer coffee fit"
+        }
+      ],
+      "sourceOfTruth": "Google Analytics key events; Shopify only if connected.",
+      "experiment": {
+        "change": "Compare coffee-choice creative with subscription-flexibility creative.",
+        "expect": "More subscription page visits that progress to orders.",
+        "judge": "At month end, compare tracked orders and page visits by tagged creative."
+      }
+    },
+    "openQuestions": [],
+    "questions": [
+      {
+        "id": "meta-budget",
+        "question": "Is a $3,000 monthly Meta test budget acceptable?",
+        "statement": "The plan may spend $3,000 USD on Meta ad tests."
+      },
+      {
+        "id": "newsletter-frequency",
+        "question": "Does your newsletter reach subscribers at least twice a month?",
+        "statement": "The newsletter can support two monthly subscription messages."
+      }
+    ],
+    "calendar": [
+      {
+        "id": "bb-nov10-ig-fit-01",
+        "date": "2026-11-10",
+        "time": "09:00",
+        "channel": "instagram",
+        "title": "Pick coffee for your brew method",
+        "format": "carousel",
+        "status": "idea",
+        "brief": "Four slides pair pour-over, espresso, and blend preferences with subscription choices; close with how the preference quiz helps shoppers narrow options.",
+        "why": "Answers the worry that a rotating coffee may not suit a home brewer’s taste.",
+        "campaignId": "home-coffee-fit",
+        "approach": "educational",
+        "pillar": "Coffee that fits"
+      },
+      {
+        "id": "bb-nov10-x-flex-01",
+        "date": "2026-11-10",
+        "time": "11:00",
+        "channel": "x",
+        "title": "A delivery schedule you can change",
+        "format": "post",
+        "status": "idea",
+        "brief": "Explain that subscribers can pause, skip, change or cancel anytime, with the $22 starting price and free shipping.",
+        "why": "Makes recurring delivery feel more manageable before a buyer chooses.",
+        "campaignId": "home-coffee-fit",
+        "approach": "product-led",
+        "pillar": "Fresh delivery, your way"
+      },
+      {
+        "id": "bb-nov11-fb-quote-01",
+        "date": "2026-11-11",
+        "time": "12:00",
+        "channel": "facebook",
+        "title": "Fresh coffee, a different bag each month",
+        "format": "image",
+        "status": "idea",
+        "brief": "Pair the exact subscriber review about fresh, robust coffee and variety with a simple bag-and-brewer still life.",
+        "why": "Uses a subscriber’s own words to show what variety can feel like.",
+        "campaignId": "home-coffee-fit",
+        "approach": "social-proof",
+        "pillar": "Subscriber experience"
+      },
+      {
+        "id": "bb-nov12-seo-guide-01",
+        "date": "2026-11-12",
+        "time": "10:00",
+        "channel": "seo",
+        "title": "How to choose a coffee subscription",
+        "format": "article",
+        "status": "idea",
+        "brief": "A full guide to choosing a subscription by brew method, flavor preference, coffee type and delivery frequency, using Blue Bottle’s actual plan choices.",
+        "why": "Captures shoppers researching how to choose a recurring coffee delivery.",
+        "campaignId": "home-coffee-fit",
+        "approach": "educational",
+        "pillar": "Coffee that fits"
+      }
+    ],
+    "previews": [],
+    "changes": []
+  }
+}

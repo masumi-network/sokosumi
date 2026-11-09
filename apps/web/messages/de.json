@@ -18,6 +18,7 @@
       "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
       "resend": "Neuen Code senden",
       "resendIn": "Neuer Code in {seconds} s",
+      "didntGetIt": "Nicht angekommen?",
       "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut.",
       "notSent": "Wir konnten keinen Code senden. Versuche es erneut."
     },
@@ -509,6 +510,7 @@
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",
         "emptyJobs": "Noch keine Jobs. Beauftrage diesen Coworker, um zu starten.",
+        "noMatches": "Keine Jobs passen zu deiner Suche.",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
@@ -587,6 +589,7 @@
           "back": "Zurück",
           "next": "Weiter",
           "skip": "Überspringen",
+          "skipForNow": "Vorerst überspringen",
           "finishSetup": "Einrichtung abschließen",
           "finish": "Zum Workspace"
         },
@@ -608,7 +611,7 @@
           "found": "Das haben wir auf {domain} gefunden. Passt nicht? Lade dein eigenes hoch.",
           "foundNoDomain": "Das haben wir auf deiner Website gefunden. Passt nicht? Lade dein eigenes hoch.",
           "notFound": "Auf deiner Website wurde kein Logo gefunden. Lade eines hoch oder überspringe diesen Schritt.",
-          "upload": "Logo hochladen",
+          "dropzone": "Logo hier ablegen oder Datei auswählen",
           "replace": "Logo ersetzen",
           "remove": "Entfernen",
           "uploadHint": "PNG, JPG oder SVG. Bis 2 MB.",
@@ -617,7 +620,7 @@
         },
         "Brand": {
           "title": "Markenrichtlinien",
-          "tooltip": "Markenrichtlinien sind eine DESIGN.md-Datei: Farben, Schriften, Tonalität und Stil an einem Ort. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
+          "tooltip": "Markenrichtlinien halten Farben, Schriften, Tonalität und Stil an einem Ort fest. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
           "generating": "Wir lesen {domain}, um deinen Markenstil zu erstellen…",
           "generatingNoDomain": "Wir lesen deine Website, um deinen Markenstil zu erstellen…",
           "generated": "Wir haben deinen Markenstil aus {domain} erzeugt.",
@@ -626,16 +629,23 @@
           "failedSubtitle": "Kein Problem — du kannst die Markenrichtlinien später hinzufügen.",
           "retry": "Erneut versuchen",
           "skipHint": "Das läuft im Hintergrund weiter — du kannst jederzeit fortfahren.",
-          "editHint": "Später in den Organisationseinstellungen bearbeiten, ersetzen oder entfernen."
+          "editHint": "Deine Coworker nutzen sie, damit ihre Arbeit nach dir aussieht und klingt. Ändere sie jederzeit in den Organisationseinstellungen.",
+          "colors": "Farben",
+          "fonts": "Schriften",
+          "tone": "Tonalität",
+          "noSummary": "Deine Markenrichtlinien sind gespeichert. Farben, Schriften oder Tonalität konnten wir hier nicht herauslesen.",
+          "viewFull": "Vollständige Richtlinien ansehen"
         },
         "Invite": {
           "title": "{organization} ist bereit",
           "titleFallback": "Alles erledigt",
           "subtitle": "Deine Organisation ist eingerichtet. Lade dein Team ein — oder mach das später.",
+          "linkLabel": "Einladungslink",
           "linkHint": "Jeder mit diesem Link kann als Mitglied beitreten.",
           "copy": "Kopieren",
           "copied": "Kopiert",
           "regenerate": "Link zurücksetzen",
+          "emailsLabel": "Per E-Mail einladen (optional)",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Kommas, Semikolons oder Zeilenumbrüche.",
           "sendInvites": "Einladungen senden",
@@ -954,26 +964,6 @@
         "ACCEPTED": "Freigegeben und ausgeführt.",
         "REJECTED": "Abgelehnt. Es wurde nichts erstellt.",
         "EXPIRED": "Ohne Entscheidung abgelaufen. Frage deinen Soko Bot bei Bedarf erneut."
-      },
-      "AvatarState": {
-        "alt": "{name}, {state}",
-        "label": {
-          "idle": "Bereit",
-          "thinking": "Denkt nach",
-          "working": "Arbeitet",
-          "done": "Fertig",
-          "needs_you": "Braucht dich",
-          "offline": "Offline"
-        },
-        "line": {
-          "idle": "Bereit, wenn du es bist",
-          "thinking": "Überlegt sich den nächsten Schritt",
-          "working": "Arbeitet an einer Anfrage",
-          "done": "Hat die letzte Anfrage erledigt",
-          "needs_you": "Eine Entscheidung wartet auf dich",
-          "offline": "Nimmt gerade keine Anfragen an"
-        },
-        "lastActive": "Zuletzt aktiv {time}"
       }
     },
     "Mermaid": {
@@ -1026,6 +1016,7 @@
       },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
+      "files": "{count, plural, one {# Datei} other {# Dateien}}",
       "assignee": "Zugewiesen an",
       "project": "Projekt",
       "destination": "Konto",
@@ -1751,7 +1742,13 @@
           "CANCELED": "Abgebrochen"
         },
         "visibilityLabel": "Sichtbarkeit",
-        "visibilityPrivate": "Privat"
+        "visibilityPrivate": "Privat",
+        "activeFilters": "Aktive Filter",
+        "chip": "{label}: {value}",
+        "removeFilter": "Filter {filter} entfernen",
+        "clear": "Filter zurücksetzen",
+        "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
+        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen."
       },
       "Detail": {
         "back": "Zurück zu Tasks",
@@ -1887,7 +1884,8 @@
           "resumeReady": "Zurück zu Bereit",
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
-          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut."
+          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2023,7 +2021,8 @@
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
         "privateLabel": "Privat",
-        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker."
+        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker.",
+        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen."
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -2093,6 +2092,17 @@
           "tomorrowAt": "Startet morgen um {time}",
           "at": "Startet {datetime}"
         }
+      },
+      "Due": {
+        "label": "Fälligkeitsdatum",
+        "none": "Kein Fälligkeitsdatum",
+        "set": "Fälligkeitsdatum festlegen",
+        "change": "Fälligkeitsdatum ändern",
+        "save": "Speichern",
+        "clear": "Entfernen",
+        "due": "Fällig am {date}",
+        "overdue": "Überfällig · {date}",
+        "updateError": "Das Fälligkeitsdatum konnte nicht geändert werden. Versuche es erneut."
       },
       "Schedules": {
         "viewList": "Listenansicht",
@@ -3233,7 +3243,6 @@
       },
       "Newsletter": {
         "title": "Newsletter",
-        "description": "Lege Absender, Erscheinungsbild und Begrüßungs-E-Mail für den Newsletter dieses Projekts fest.",
         "navigation": "Newsletter-Bereiche",
         "settings": "Einstellungen",
         "emptyTitle": "Richte deinen Newsletter ein",
@@ -3283,7 +3292,6 @@
         },
         "Subscribers": {
           "title": "Abonnenten",
-          "description": "Verwalte die Personen, die den Newsletter dieses Projekts erhalten.",
           "add": "Abonnenten hinzufügen",
           "import": "CSV importieren",
           "cancel": "Abbrechen",
@@ -3348,6 +3356,10 @@
             "error": "Abonnent konnte nicht entfernt werden. Versuche es erneut.",
             "success": "Abonnent entfernt"
           },
+          "Unsubscribe": {
+            "title": "Abonnenten abmelden?",
+            "description": "Dieser Newsletter wird nicht mehr an {email} gesendet. Nur die Person selbst kann sich wieder anmelden."
+          },
           "Import": {
             "description": "Importiere eine CSV mit einer E-Mail-Spalte und optional einer Namensspalte. Bestehende Abonnenten behalten ihren aktuellen Status.",
             "file": "CSV-Datei",
@@ -3369,11 +3381,10 @@
               "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
               "pendingConfirmation": "Warten auf Bestätigung"
             },
-            "invalidHint": "Korrigiere diese Zeilen und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 ungültige Zeilen gemeldet.",
+            "invalidHint": "Diese Zeilen brauchen eine gültige E-Mail-Adresse. Korrigiere sie und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 Zeilen gemeldet.",
             "invalidRow": "Zeile {row}: {value}",
-            "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
+            "blankEmail": "keine E-Mail-Adresse"
           },
-          "dismiss": "Schließen",
           "fromContacts": "Aus Kontakten hinzufügen",
           "openContactList": "Liste in Kontakte öffnen",
           "Consent": {
@@ -3381,7 +3392,7 @@
             "CONFIRMED": "Sie haben bereits zugestimmt (jetzt hinzufügen)",
             "ASK": "Zuerst fragen (Bestätigungs-E-Mail senden)",
             "confirm": "Ich bestätige, dass diese Personen dem Erhalt dieses Newsletters zugestimmt haben",
-            "note": "Hinzugefügte Personen werden auch unter Kontakte in der Liste „{newsletterName} subscribers“ gespeichert. Personen, die sich abgemeldet haben, werden nie erneut hinzugefügt."
+            "note": "Hinzugefügte Personen werden auch unter Kontakte in der Liste „{newsletterName} subscribers“ gespeichert. Personen, die sich abgemeldet haben, kannst du nicht erneut hinzufügen, aber sie können sich selbst wieder anmelden."
           },
           "FromContacts": {
             "description": "Wähle Personen und Listen aus den Kontakten deines Arbeitsbereichs.",
@@ -3420,7 +3431,6 @@
         },
         "Issues": {
           "title": "Ausgaben",
-          "description": "Schreibe Newsletter-Ausgaben und sieh dir an, wie sie im Posteingang aussehen.",
           "newIssue": "Neue Ausgabe",
           "Ai": {
             "action": "Für mich schreiben",
@@ -3682,7 +3692,8 @@
         "SignupForm": {
           "title": "Anmeldeformular",
           "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
-          "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "shareTitle": "Teilen",
+          "description": "Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
           "previewTitle": "Vorschau des Anmeldeformulars",
           "previewDescription": "Änderungen sind hier sofort sichtbar. Speichere das Design, um die öffentliche Seite und das eingebettete Formular zu aktualisieren.",
           "hostedPage": "Gehostete Anmeldeseite",
@@ -3706,7 +3717,6 @@
         },
         "Analytics": {
           "title": "Statistiken",
-          "description": "Verfolge Abonnentenwachstum und Interaktionen mit deinem Newsletter.",
           "keyMetrics": "Newsletter-Kennzahlen",
           "rangeLabel": "Zeitraum",
           "rangeSelected": "Zeitraum: {range}",
@@ -3803,34 +3813,31 @@
           "noFallback": "Newsletter können erst versendet werden, wenn diese Domain verifiziert ist.",
           "status": {
             "PENDING": "Ausstehend",
+            "PARTIAL": "Teilweise verifiziert",
             "VERIFIED": "Verifiziert",
             "FAILED": "Fehlgeschlagen"
           },
+          "statusDetail": {
+            "FAILED": "Die Verifizierung ist fehlgeschlagen. Vergleiche deine DNS-Einträge mit den Einträgen unten und prüfe dann erneut."
+          },
+          "recordsFound": "{found} von {total} DNS-Einträgen gefunden",
           "lastChecked": "Zuletzt geprüft {time}",
-          "verifiedDescription": "Der Newsletter dieses Projekts wird jetzt von dieser Adresse versendet.",
           "verifiedToast": "Domain verifiziert. Newsletter werden jetzt von deiner Adresse versendet.",
-          "checked": "Geprüft. Einige DNS-Einträge fehlen noch oder konnten nicht verifiziert werden. Prüfe ihren Status unten; DNS-Änderungen können einige Stunden dauern.",
+          "checked": "{found} von {total} DNS-Einträgen gefunden. Prüfe ihren Status unten; DNS-Änderungen können einige Stunden dauern.",
           "verifyRecords": "Einträge verifizieren",
           "checkAgain": "Erneut prüfen",
-          "connectTitle": "Wähle, wie du DNS einrichten möchtest",
           "dmarc": {
             "title": "Keine DMARC-Richtlinie gefunden",
             "description": "DMARC sagt Postfächern, was mit E-Mails passiert, die diese Prüfungen nicht bestehen. Lege den vorgeschlagenen DMARC-Eintrag unten an. Er beginnt mit p=none: Das überwacht nur und blockiert nie E-Mails."
           },
           "oneClick": {
-            "title": "Einrichtung mit einem Klick",
-            "description": "Melde dich bei deinem DNS-Anbieter an und bestätige. Sokosumi legt die Einträge für dich an.",
             "checking": "Einrichtung mit einem Klick wird geprüft…",
-            "lookup": "Anbietersuche wiederholen",
-            "found": "Deine Domain nutzt {provider}.",
+            "lookup": "Erneut versuchen",
             "connect": "Mit {provider} verbinden",
-            "unavailable": "Die Einrichtung mit einem Klick ist für deinen DNS-Anbieter noch nicht verfügbar. Wähle die manuelle Einrichtung, um die Einträge bei einem beliebigen DNS-Anbieter anzulegen."
+            "unavailable": "Die Einrichtung mit einem Klick ist für deinen DNS-Anbieter nicht verfügbar."
           },
           "manual": {
-            "title": "DNS-Einträge manuell einrichten",
-            "description": "Lege die Einträge selbst bei einem beliebigen DNS-Anbieter an.",
-            "action": "DNS-Einträge anzeigen",
-            "saved": "Du kannst die Seite verlassen und später zurückkommen — wir behalten diese Einträge hier, bis sie verifiziert sind."
+            "action": "Manuell einrichten"
           },
           "cloudflare": {
             "title": "Cloudflare-API-Token",
@@ -3841,15 +3848,10 @@
           },
           "records": {
             "title": "DNS-Einträge",
-            "description": "Lege alle hier gezeigten Einträge in den Einstellungen deines DNS-Anbieters an. Verwende das Hostformat, das dein Anbieter erwartet.",
-            "type": "Typ",
-            "host": "Host / Name",
             "relativeName": "Relativer Host",
             "fullName": "Vollständiger Name (FQDN)",
             "value": "Wert",
             "priority": "Priorität",
-            "ttl": "TTL",
-            "status": "Status",
             "found": "Gefunden",
             "missing": "Fehlt",
             "wrongValue": "Falscher Wert",
@@ -3864,7 +3866,7 @@
                 "explanation": "Erlaubt Sokosumi, in deinem Namen zu senden."
               },
               "bounce": {
-                "label": "Return-Path (MX)",
+                "label": "Return-Path",
                 "explanation": "Empfängt Bounces, damit Sokosumi unzustellbare Adressen nicht mehr anschreibt."
               },
               "dmarc": {
@@ -3960,7 +3962,7 @@
             "resumeUnavailable": "Verifiziere diese Absenderdomain vor dem Fortsetzen. Prüfe ihre DNS-Einträge und versuche es erneut."
           },
           "warmup": {
-            "title": "Aufwärmphase der Domain",
+            "chip": "Aufwärmphase · {used} / {cap} heute",
             "progress": "Tag {day} · Heute {used} von {cap} versendet (UTC)",
             "unlimited": "Tag {day} · Heute {used} versendet (UTC) · Unbegrenzt",
             "description": "Empfänger über dem heutigen Limit bleiben in der Warteschlange und werden automatisch angeschrieben, sobald wieder Kapazität verfügbar ist. Das Tageslimit wird um 00:00 UTC zurückgesetzt.",
@@ -4813,8 +4815,7 @@
           "subject": "Neue Saison, neue Farben",
           "body": "Sand, Ton und ein tiefes Meeresblau: die Palette hinter der Sommerkollektion."
         }
-      },
-      "projectTitle": "Newsletter von {project}"
+      }
     },
     "Social": {
       "title": "Social-Media-Beiträge",
@@ -4924,6 +4925,7 @@
         },
         "SokoBot": {
           "fallbackName": "Soko Bot",
+          "workingNow": "Arbeitet gerade",
           "needsAttention": "Braucht Aufmerksamkeit",
           "activeAgo": "Aktiv {time}",
           "ready": "Bereit",
@@ -5238,6 +5240,10 @@
           "designSystem": {
             "title": "Designsystem",
             "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten."
+          },
+          "evals": {
+            "title": "Evals",
+            "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
           }
         }
       },
@@ -6180,7 +6186,7 @@
           "realRunsByVersion": "Echte Nutzung nach Version",
           "descriptionBot": "Bewertungen (1–5) für die echten Durchläufe dieses Bots, letzte 30 Tage. Echte Durchläufe werden nicht mehr bewertet, daher erscheinen nur frühere Bewertungen."
         },
-        "labLink": "Verhaltenslabor",
+        "evalsLink": "Evals",
         "evaluationsLink": "Modellvergleiche",
         "versionsLink": "Versionen",
         "Versions": {
@@ -6416,7 +6422,7 @@
         },
         "Avatar": {
           "title": "Avatar",
-          "description": "Gib diesem Bot ein Maskottchen aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
+          "description": "Gib diesem Bot einen Avatar aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
           "apply": "Avatar setzen",
           "done": "Avatar aktualisiert.",
           "error": "Der Avatar konnte nicht gesetzt werden."
@@ -6759,6 +6765,99 @@
           "doneBody": "Der erste geht am Donnerstag um 09:00 in deiner Zeitzone raus.",
           "doneAction": "Kalender öffnen"
         }
+      },
+      "Evals": {
+        "title": "Evals",
+        "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
+        "noHistory": "No daily runs yet",
+        "historyLabel": "Pass rate in the last {count} daily runs",
+        "noDailyRuns": "No daily run has finished yet.",
+        "trendBarTitle": "{rate} passed ({passed} of {scored})",
+        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "wasRate": "was {rate}",
+        "noCasesMatch": "No case matches this filter.",
+        "runTitle": "{trigger} run, {when}",
+        "comparedWith": "Compared with the daily run of {when}",
+        "noBaseline": "No daily run before this one to compare with.",
+        "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
+        "passedOf": "{passed} of {scored} passed",
+        "suiteFilter": "Suite",
+        "outcomeFilter": "Cases",
+        "allSuites": "All",
+        "allCases": "All cases",
+        "onlyChanges": "Only what needs a look",
+        "cancelRun": "Stop run",
+        "cancelError": "The run could not be stopped.",
+        "backToRun": "Back to the run",
+        "Suite": {
+          "soko-bot": "Soko Bot",
+          "cmo": "CMO"
+        },
+        "Runs": {
+          "title": "Runs",
+          "when": "When",
+          "run": "Run",
+          "pr": "PR",
+          "versions": "Versions",
+          "cost": "Cost"
+        },
+        "Trigger": {
+          "DAILY": "Daily",
+          "MANUAL": "Manual"
+        },
+        "Status": {
+          "QUEUED": "Queued",
+          "RUNNING": "Running",
+          "COMPLETED": "Done",
+          "CANCELLED": "Stopped"
+        },
+        "Outcome": {
+          "regressed": "Regressed",
+          "error": "Error",
+          "failing": "Failing",
+          "flaky": "Flaky",
+          "fixed": "Fixed",
+          "passing": "Passing",
+          "pending": "Waiting",
+          "skipped": "Skipped"
+        },
+        "State": {
+          "PENDING": "Waiting",
+          "RUNNING": "Running",
+          "PASSED": "Passed",
+          "FAILED": "Failed",
+          "ERROR": "Could not run",
+          "SKIPPED": "Skipped"
+        },
+        "RunDialog": {
+          "open": "Run evals",
+          "title": "Run evals",
+          "description": "Runs on this deployment. If a run is in progress, this one waits until it is done.",
+          "suites": "Suites",
+          "all": "Both",
+          "sokoBot": "Soko Bot",
+          "cmo": "CMO",
+          "repeats": "Repeats",
+          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "cases": "Only these cases",
+          "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
+          "casesHint": "Leave empty to run every case of the suites.",
+          "cancel": "Cancel",
+          "start": "Start run",
+          "error": "The run could not be started."
+        },
+        "Case": {
+          "judge": "Judge: {verdict}",
+          "seconds": "{seconds} s",
+          "passed": "Passed",
+          "failed": "Failed",
+          "answer": "Answer",
+          "tools": "Tools, in order",
+          "toolFailed": "failed",
+          "thisRun": "This run, repeat {repeat}",
+          "before": "Daily run of {when}"
+        },
+        "labLink": "Try one scenario on your own bot"
       }
     },
     "Billing": {
@@ -7891,10 +7990,14 @@
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "Header": {
           "back": "Zurück zu Agents",
-          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
+          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
+          "backToAgent": "Zurück zu {name}",
+          "yourJobs": "Deine Jobs",
+          "yourJobsCount": "Deine Jobs · {count}"
         },
         "Modal": {
-          "back": "Zurück"
+          "back": "Zurück",
+          "title": "Job-Details"
         },
         "Footer": {
           "termsAndConditions": "Allgemeine Geschäftsbedingungen",
@@ -8269,6 +8372,7 @@
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
       "headerVisitSwitch": "Zu {workspace} wechseln",
+      "headerMore": "Weitere Chat-Optionen",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",
@@ -8334,7 +8438,8 @@
         "sent": "Gesendet",
         "failed": "Senden fehlgeschlagen",
         "retry": "Erneut versuchen",
-        "remove": "Entfernen"
+        "remove": "Entfernen",
+        "noReply": "Der AI coworker hat nicht geantwortet."
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
@@ -8500,6 +8605,23 @@
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
         "unpinError": "Nachricht konnte nicht gelöst werden."
+      },
+      "SavedMessages": {
+        "save": "Für später speichern",
+        "saved": "Für später gespeichert",
+        "view": "Gespeicherte ansehen",
+        "saveError": "Die Nachricht konnte nicht gespeichert werden.",
+        "removeError": "Die Nachricht konnte nicht aus Gespeichert entfernt werden.",
+        "error": "Gespeicherte Nachrichten konnten nicht geladen werden.",
+        "title": "Gespeichert",
+        "description": "Nachrichten, die du für später gespeichert hast. Nur du siehst diese Liste.",
+        "empty": "Noch nichts gespeichert",
+        "emptyHint": "Öffne die Aktionen einer Nachricht und wähle Für später speichern, um sie hier zu behalten.",
+        "remove": "Aus Gespeichert entfernen",
+        "removed": "Aus Gespeichert entfernt",
+        "loadOlder": "Ältere laden",
+        "untitled": "Nachricht ohne Text",
+        "savedAgo": "Gespeichert {time}"
       },
       "Quote": {
         "action": "Zitieren",
@@ -8904,7 +9026,8 @@
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
-          "threads": "Threads"
+          "threads": "Threads",
+          "saved": "Gespeichert"
         },
         "Briefing": {
           "welcomeBack": "Willkommen zurück",
@@ -9257,7 +9380,8 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}"
+        "pictureTitle": "Wähle ein Bild für {name}",
+        "skip": "Überspringen"
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -9331,9 +9455,6 @@
         "Form": {
           "open": "Neuer Zeitplan",
           "name": "Name",
-          "cron": "Cron-Ausdruck",
-          "cronHint": "Fünf Felder, z. B. 0 9 * * 1-5 für werktags um 09:00.",
-          "timezone": "Zeitzone",
           "prompt": "Prompt",
           "submit": "Zeitplan erstellen",
           "cancel": "Abbrechen",
@@ -9342,6 +9463,12 @@
         }
       },
       "Settings": {
+        "nameTitle": "Name",
+        "nameDescription": "Erscheint im Chat, bei Tasks und in der Seitenleiste.",
+        "nameRequired": "Gib einen Namen ein.",
+        "rename": "Speichern",
+        "renamed": "Name gespeichert.",
+        "renameError": "Der Name konnte nicht gespeichert werden.",
         "Proactive": {
           "pauseTitle": "Alles pausieren, was er von sich aus startet",
           "pauseDescription": "Stoppt Stand-up, Wochenrückblick, Mail-Checks und Nudges. Chat und zugewiesene Tasks laufen weiter.",
@@ -9539,6 +9666,7 @@
       },
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
+        "lastActivity": "zuletzt aktiv {time}",
         "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
         "openChatError": "Der Chat mit deinem Soko Bot konnte nicht geöffnet werden.",
@@ -9593,73 +9721,17 @@
       },
       "Avatar": {
         "title": "Bild",
-        "description": "Ein einzigartiges Maskottchen aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
+        "description": "Ein einzigartiges Bild aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
         "save": "Dieses Bild verwenden",
+        "edit": "Bild ändern",
         "saved": "Bild aktualisiert.",
         "saveError": "Das Bild konnte nicht aktualisiert werden.",
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
+        "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
-        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal.",
-        "edit": "Bild bearbeiten",
-        "Studio": {
-          "metadata": "Bild-Studio",
-          "back": "Zurück zu {name}",
-          "title": "Wie soll {name} aussehen?",
-          "description": "Ändere das Tier oder füge ein Accessoire hinzu. Der Schreibtisch bleibt: Dort arbeitet dein Bot.",
-          "draftAlt": "Neuer Look für {name}, noch nicht gespeichert",
-          "making": "Dein neuer Look entsteht · etwa 10 s",
-          "sizes": "Profil oben · Bild in Chat und Aufgaben",
-          "states": "Zustände",
-          "statesPlay": "Wähle einen Zustand, um ihn einmal abzuspielen",
-          "statesDraft": "Bewegt sich, sobald du ihn behältst",
-          "statesProgress": "Die Animationen entstehen · {ready} von {total} fertig",
-          "creature": "Tier",
-          "accessory": "Accessoire",
-          "creatures": {
-            "owl": "Eule",
-            "frog": "Frosch",
-            "hedgehog": "Igel",
-            "otter": "Otter",
-            "penguin": "Pinguin"
-          },
-          "accessories": {
-            "beanie": "Mütze",
-            "glasses": "Brille",
-            "scarf": "Schal",
-            "headphones": "Kopfhörer",
-            "magnifier": "Lupe"
-          },
-          "describe": "Oder beschreibe eine Änderung",
-          "placeholder": "Gib ihm einen kleinen Zauberhut",
-          "apply": "Anwenden",
-          "ideas": {
-            "wizard": "Ein kleiner Zauberhut",
-            "coffee": "Kaffee auf dem Schreibtisch",
-            "snow": "Lass es schneien",
-            "sleepy": "Lass es müde aussehen",
-            "beach": "Ab an den Strand"
-          },
-          "keep": "Diesen Look behalten",
-          "shuffle": "Zufällig",
-          "cancel": "Abbrechen",
-          "saved": "Gespeichert.",
-          "error": "Der Look konnte nicht geändert werden. Versuch es erneut.",
-          "keepError": "Der Look konnte nicht gespeichert werden. Versuch es erneut.",
-          "cancelError": "Der aktuelle Look konnte nicht wiederhergestellt werden. Versuch es erneut.",
-          "redo": "Animation neu erstellen",
-          "retry": "Erneut versuchen",
-          "redoing": "Wird erstellt…",
-          "drawing": "Wird gezeichnet…",
-          "animating": "Wird animiert…",
-          "redoError": "Die Animation konnte nicht neu erstellt werden. Versuch es erneut.",
-          "redoLimit": "Du hast heute schon viele Animationen neu erstellt. Versuch es morgen wieder.",
-          "redoBusy": "Diese Animation wird noch erstellt.",
-          "empty": "Noch kein Look. Wähle ein Tier oder tippe auf „Zufällig“, um zu starten.",
-          "rateLimited": "Du hast sehr viele neue Looks erstellt. Versuch es später noch einmal.",
-          "unavailable": "Der Look lässt sich gerade nicht ändern."
-        }
+        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
       },
       "Skills": {
         "builtIn": "Enthalten",
@@ -10172,6 +10244,7 @@
       "columns": {
         "name": "Name",
         "organization": "Organisation",
+        "location": "Ort",
         "role": "Rolle",
         "stage": "Beziehung",
         "lists": "Listen",
@@ -10210,7 +10283,8 @@
         "add": "Kontakt hinzufügen",
         "more": "Weitere Aktionen",
         "filter": "Filter",
-        "kind": "Art"
+        "kind": "Art",
+        "source": "Quelle"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -10238,6 +10312,17 @@
       "noMatches": "Keine Kontakte passen zu diesen Filtern.",
       "clearFilters": "Filter entfernen",
       "merged": "Zusammengeführt in {name}",
+      "duplicates": "{count, plural, =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+      "duplicatesMore": "{count}+ mögliche Duplikate",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {Keine möglichen Duplikate} =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+        "titleMore": "{count}+ mögliche Duplikate",
+        "description": "Diese Einträge haben denselben Namen oder denselben Nachnamen und Anfangsbuchstaben bei derselben Firma. Führe die zusammen, die eine Person sind; öffne einen Eintrag, um ihn vorher zu prüfen.",
+        "merge": "Zusammenführen",
+        "mergeGroup": "Einträge für {name} zusammenführen",
+        "noDetails": "Keine E-Mail oder Firma",
+        "empty": "Nichts mehr zusammenzuführen."
+      },
       "deleteList": {
         "title": "{name} löschen?",
         "description": "Die Liste verschwindet für das ganze Team. Die Menschen darauf bleiben in den Kontakten.",
@@ -10269,7 +10354,9 @@
         "failed": "Die Liste wurde nicht gespeichert. Versuch es noch einmal.",
         "cancel": "Abbrechen",
         "save": "Speichern",
-        "create": "Liste erstellen"
+        "create": "Liste erstellen",
+        "smart": "Mit den aktuellen Filtern füllen",
+        "smartHint": "Eine intelligente Liste: Wer zu diesen Filtern passt, steht darauf, jetzt und später."
       },
       "addDialog": {
         "title": "Kontakt hinzufügen",
@@ -10277,6 +10364,8 @@
         "name": "Name",
         "organization": "Organisation",
         "role": "Rolle",
+        "location": "Ort",
+        "locationPlaceholder": "Stadt, Land",
         "channels": "Erreichbar über",
         "channelType": "Art von Kanal {index}",
         "channelValue": "Kanal {index}",
@@ -10309,7 +10398,7 @@
         "title": "{count, plural, =2 {2 Kontakte zusammenführen} other {# Kontakte zusammenführen}}",
         "description": "Wähle den Kontakt, der bleibt. Alles von den anderen wandert dorthin: Kanäle, Verlauf und Listen. Leere Felder werden aus ihnen ergänzt.",
         "keep": "Behalten",
-        "noDetails": "Keine Rolle oder Organisation",
+        "noDetails": "Keine E-Mail, Rolle oder Organisation",
         "interactions": "{count, plural, =0 {Keine Interaktionen} =1 {1 Interaktion} other {# Interaktionen}}",
         "failed": "Das Zusammenführen wurde nicht abgeschlossen. Nichts wurde geändert.",
         "cancel": "Abbrechen",
@@ -10541,6 +10630,84 @@
         "pricing": "{credits, number} Credits pro gefundener Person. Findet die Suche niemanden, ist sie kostenlos.",
         "personLabel": "Wen suchst du?",
         "personPlaceholder": "z. B. Jane Doe, Partnerin bei XYZ Ventures"
+      },
+      "layout": {
+        "label": "Ansicht",
+        "table": "Tabelle",
+        "map": "Karte"
+      },
+      "map": {
+        "label": "Orte",
+        "loading": "Kontakte werden auf der Karte platziert…",
+        "errorTitle": "Die Karte wurde nicht geladen",
+        "error": "Beim Laden der Karte ist etwas schiefgelaufen.",
+        "retry": "Erneut versuchen",
+        "emptyTitle": "Noch niemand auf der Karte",
+        "empty": "Gib einem Kontakt einen Ort, zum Beispiel eine Stadt, dann erscheint er hier.",
+        "emptyUnplaced": "Keiner dieser Orte war auffindbar. Versuch es mit Stadt und Land.",
+        "placed": "{count, plural, one {# Kontakt} other {# Kontakte}} auf der Karte",
+        "unplaced": "{count, plural, one {# Kontakt} other {# Kontakte}} nicht platziert",
+        "pending": "{count, plural, one {# Kontakt wird} other {# Kontakte werden}} platziert…",
+        "zoomIn": "Hineinzoomen",
+        "zoomOut": "Herauszoomen",
+        "resetZoom": "Ganze Welt zeigen",
+        "withoutLocation": "{count} ohne Ort",
+        "place": "{place}, {count, plural, one {# Kontakt} other {# Kontakte}}",
+        "nearby": "{place} und {others, plural, one {# Ort} other {# Orte}} in der Nähe",
+        "people": "{count, plural, one {# Kontakt} other {# Kontakte}}"
+      },
+      "company": {
+        "loading": "Firma wird geladen…",
+        "edit": "Bearbeiten",
+        "whyItMatters": "Warum wichtig",
+        "people": "Personen",
+        "knownBy": "Bekannt bei",
+        "knownByLabel": "{count, plural, one {# Teammitglied kennt} other {# Teammitglieder kennen}} jemanden hier",
+        "nobody": "Noch niemand",
+        "lastContact": "Letzter Kontakt",
+        "never": "Nie",
+        "warmth": "Beziehung",
+        "warmthLevels": {
+          "warm": "Warm",
+          "cooling": "Abkühlend",
+          "cold": "Kalt",
+          "none": "Noch kein Kontakt"
+        },
+        "strongestStage": "Stärkste Phase",
+        "nextSteps": "Nächste Schritte",
+        "noNextSteps": "Nichts geplant.",
+        "recent": "Letzte Kontakte",
+        "noRecent": "Noch keine Kontakte.",
+        "someone": "Jemand",
+        "editTitle": "Firma bearbeiten",
+        "editDescription": "Was das Team über diese Firma weiß. Leere Felder werden im Hintergrund von ihrer Website ergänzt.",
+        "nameRequired": "Gib der Firma einen Namen.",
+        "saveFailed": "Die Firma konnte nicht gespeichert werden.",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "fields": {
+          "name": "Name",
+          "website": "Website",
+          "industry": "Branche",
+          "size": "Größe",
+          "headquarters": "Hauptsitz",
+          "linkedinUrl": "LinkedIn",
+          "description": "Über",
+          "whyItMatters": "Warum sie für uns wichtig ist"
+        }
+      },
+      "overview": {
+        "label": "Listenübersicht",
+        "people": "{count, plural, one {# Person} other {# Personen}}",
+        "quiet": "{count} seit 90 Tagen ohne Kontakt",
+        "map": "Auf Karte zeigen",
+        "stages": "Phase",
+        "companies": "Firmen",
+        "places": "Orte",
+        "knownBy": "Bekannt bei",
+        "none": "Nicht gesetzt",
+        "nobody": "Noch niemand",
+        "more": "und {count} weitere"
       }
     },
     "Seo": {
@@ -11471,6 +11638,7 @@
     "Assistant": {
       "metadataTitle": "Assistenten einrichten",
       "later": "Später",
+      "laterHint": "Du kannst ihn jederzeit unter Soko Bots einrichten.",
       "skip": "Überspringen",
       "continue": "Weiter"
     }

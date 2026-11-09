@@ -157,7 +157,7 @@ export function SeoTrendChart({
           >
             <svg
               aria-hidden
-              className="absolute inset-0 h-full w-full overflow-visible"
+              className="absolute inset-0 size-full overflow-visible"
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
             >
@@ -179,7 +179,7 @@ export function SeoTrendChart({
                       <line
                         key={point.date}
                         data-testid="seo-trend-bar"
-                        className="stroke-chart-5/50"
+                        className="stroke-muted-foreground"
                         vectorEffect="non-scaling-stroke"
                         strokeWidth={2}
                         x1={point.x - barWidth / 2}

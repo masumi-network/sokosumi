@@ -1,0 +1,415 @@
+/* Preview of design-system.md. Tokens only; each board sets its own
+ * color-scheme so theme tokens resolve per column. */
+.ds {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1376px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.ds-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+
+.ds-board {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 24px;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.ds-board.light {
+  color-scheme: light;
+}
+
+.ds-board.dark {
+  color-scheme: dark;
+}
+
+@media (max-width: 900px) {
+  .ds {
+    padding: 16px;
+  }
+
+  .ds-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ds-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ds-section ul,
+.ds-section ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-body-medium {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+  font-weight: 500;
+}
+
+.ds-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ds-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.ds-swatch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ds-swatch-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ds-logo {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--foreground);
+}
+
+.ds-logo .logo {
+  height: 1em;
+  width: auto;
+  display: block;
+}
+
+.ds-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ds-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ds-check-box {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-mark);
+  color: var(--primary-foreground);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ds-check.done .ds-check-box {
+  border-color: var(--line);
+  background: var(--ok);
+}
+
+.ds-check.working .ds-check-box {
+  border-style: dashed;
+  border-color: var(--line);
+}
+
+.ds-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
+}
+
+.ds-skel-bar {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-mark);
+  background: var(--border);
+}
+
+.ds-skel-bar.short {
+  width: 60%;
+}
+
+.ds-chip-fill {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.ds-type {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ds-type p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ds-t-statement {
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+.ds-t-value {
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  font-weight: 300;
+  letter-spacing: -0.005em;
+}
+
+.ds-t-h2 {
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ds-t-body {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ds-t-small {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ds-t-micro {
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+}
+
+.ds-radii {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ds-radii li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-radius-box {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.ds-shadow-box {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-hard);
+}
+
+.ds-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+}
+
+.ds-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.ds-status li,
+.ds-poses li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-poses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+}
+
+.ds-poses li {
+  flex-direction: column;
+}
+
+.ds-avatar {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--stage);
+}
+
+/* Only "Needs you" is labelled on Iris; Cuso's circle stays --stage. */
+.ds-pose-on-iris {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-mark);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.ds-avatar :is(img, video) {
+  width: 48px;
+  height: 48px;
+}
+
+.ds-avatar video {
+  border-radius: 50%;
+}
+
+/* The art is painted on light Iris, so it fills the stage in both themes. */
+.ds-stage {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  max-height: 640px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--primary-hover);
+}
+
+.ds-stage-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 100%;
+}
+
+.ds-r-mark {
+  border-radius: var(--radius-mark);
+}
+
+.ds-r-control {
+  border-radius: var(--radius-control);
+}
+
+.ds-r-card {
+  border-radius: var(--radius-card);
+}
+
+.ds-r-panel {
+  border-radius: var(--radius-panel);
+}
+
+.ds-scenes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ds-scenes :is(img, video) {
+  width: 160px;
+  height: 160px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  object-fit: cover;
+}
+
+/* The onboarding parts, stacked, each under a small label. */
+.ds-parts {
+  display: grid;
+  gap: 24px;
+}
+
+.ds-part {
+  display: grid;
+  gap: 8px;
+}
+
+.ds-parts .ob-side {
+  position: static;
+  max-height: none;
+}
+
+.ds-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.ds-side {
+  display: flex;
+  width: 240px;
+  height: 640px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.ds-side .side {
+  flex: 1;
+  border-right: 0;
+}
+
+.ds-statuses {
+  display: grid;
+  max-width: 240px;
+  gap: 8px;
+}
+
+.ds-statuses .cuso-status {
+  margin: 0;
+}
+
+.ds-avatars {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* One onboarding screen with its theme pinned (/design-system/onboarding/[screen]). */
+.ds-screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.ds-screen.light {
+  color-scheme: light;
+}
+
+.ds-screen.dark {
+  color-scheme: dark;
+}

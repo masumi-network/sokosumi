@@ -7,6 +7,7 @@ import type {
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
+import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationClassifierContext } from "./evaluation-dispatch";
 import { JEV_PROVIDER_OPTIONS, SOKO_BOT_JEV_MODEL } from "./jev";
 
@@ -263,7 +264,8 @@ const evaluateWithJev: RouteEvaluator = async ({
 }) => {
   const result = await experimental_evaluate({
     model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
-    state,
+    // Clipped text can end in half an emoji, which the Gateway refuses.
+    state: wellFormed(state),
     questions: routeQuestions(hasPendingProposals),
     abortSignal,
     maxRetries: 0,

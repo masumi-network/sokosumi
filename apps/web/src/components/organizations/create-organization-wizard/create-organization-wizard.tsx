@@ -14,7 +14,7 @@ import {
   Check,
   CloudUpload,
   Copy,
-  FileText,
+  ExternalLink,
   Info,
   Link2,
   Loader2,
@@ -51,7 +51,11 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileUpload, FileUploadTrigger } from "@/components/ui/file-upload";
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadTrigger,
+} from "@/components/ui/file-upload";
 import {
   Form,
   FormControl,
@@ -60,13 +64,13 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   createOrganizationWorkspaceAction,
@@ -79,6 +83,7 @@ import {
   ORGANIZATION_LOGO_ACCEPT,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
+import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 import { cn } from "@/lib/utils";
 import {
   cleanupOrganizationLogoBestEffort,
@@ -144,6 +149,61 @@ interface CreateOrganizationWizardProps {
   onOrganizationReady?: (organizationId: string) => void;
 }
 
+/**
+ * What the saved brand guidelines say, in plain words: colour swatches, fonts
+ * and tone. Rows the guidelines leave out are skipped; with none, one line
+ * says they are saved.
+ */
+function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
+  const t = useTranslations(
+    "Components.Organizations.CreateOrganizationWizard",
+  );
+  const rows = [
+    look?.colors.length
+      ? {
+          label: t("Brand.colors"),
+          value: (
+            <span className="flex flex-wrap gap-1.5">
+              {look.colors.map((color) => (
+                <span
+                  key={color}
+                  title={color}
+                  className="border-border size-5 rounded-md border"
+                  style={{ backgroundColor: color }}
+                >
+                  <span className="sr-only">{color}</span>
+                </span>
+              ))}
+            </span>
+          ),
+        }
+      : null,
+    look?.fonts.length
+      ? { label: t("Brand.fonts"), value: look.fonts.join(", ") }
+      : null,
+    look?.tone ? { label: t("Brand.tone"), value: look.tone } : null,
+  ].filter((row) => row !== null);
+
+  if (rows.length === 0) {
+    return (
+      <p className="text-muted-foreground mx-auto max-w-[46ch] text-sm text-balance">
+        {t("Brand.noSummary")}
+      </p>
+    );
+  }
+
+  return (
+    <dl className="bg-card-background mx-auto w-full max-w-sm divide-y rounded-xl border text-left text-sm">
+      {rows.map((row) => (
+        <div key={row.label} className="flex items-center gap-4 px-4 py-3">
+          <dt className="text-muted-foreground w-24 shrink-0">{row.label}</dt>
+          <dd className="min-w-0 break-words">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function CreateOrganizationWizard({
   open,
   onOpenChange,
@@ -178,10 +238,15 @@ export function CreateOrganizationWizard({
   const [isSendingInvites, setIsSendingInvites] = useState(false);
   /** Shared error id for the details step (message lives outside FormField). */
   const detailsErrorId = useId();
+  const inviteFieldsId = useId();
+  const logoDropzoneTitleId = useId();
+  const logoHintId = useId();
 
   const logoStartedRef = useRef(false);
   const brandStartedRef = useRef(false);
   const linkStartedRef = useRef(false);
+  /** The first logo replaces the drop target, so focus moves to "Replace". */
+  const focusReplaceLogoRef = useRef(false);
   const orgCreateInFlightRef = useRef(false);
   // Lock callbacks synchronously, before React renders the pending state.
   const leavingRef = useRef(false);
@@ -222,7 +287,11 @@ export function CreateOrganizationWizard({
     [organizationId],
   );
 
+  const [brandResult, setBrandResult] = useState<PersistedDesignMd | null>(
+    null,
+  );
   const brand = useDesignMdGeneration({
+    onCompleted: setBrandResult,
     messages: {
       generationFailed: tDesignMd("generateError"),
       saveFailed: tDesignMd("saveError"),
@@ -256,6 +325,7 @@ export function CreateOrganizationWizard({
     savedValuesRef.current = null;
     brandForceRef.current = false;
     brand.reset();
+    setBrandResult(null);
     form.reset({ name: "", url: "" });
   }, [brand, form]);
 
@@ -366,6 +436,7 @@ export function CreateOrganizationWizard({
           brandStartedRef.current = false;
           brandForceRef.current = true;
           brand.reset();
+          setBrandResult(null);
         }
 
         return organizationId;
@@ -503,6 +574,7 @@ export function CreateOrganizationWizard({
           }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
+        focusReplaceLogoRef.current = !previousLogo;
         setLogoUrl(uploaded.publicUrl);
         await persistLogo(uploaded.publicUrl, previousLogo);
       } catch (error) {
@@ -739,25 +811,29 @@ export function CreateOrganizationWizard({
 
             {step === 1 && (
               <>
-                <div className="flex min-h-24 flex-none items-center justify-center">
-                  {isResolvingLogo ? (
-                    <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-                      <Loader2 className="text-muted-foreground size-6 animate-spin motion-reduce:animate-pulse" />
-                    </div>
-                  ) : (
-                    <OrganizationLogoUploadField
-                      disabled={isUploadingLogo}
-                      isUploading={isUploadingLogo}
-                      labels={logoLabels}
-                      logoValue={logoUrl}
-                      onPendingLogoFilesChange={setPendingLogoFiles}
-                      onRemove={handleRemoveLogo}
-                      onUpload={handleLogoUpload}
-                      pendingLogoFiles={pendingLogoFiles}
-                    />
-                  )}
-                </div>
-                <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                {/* With no logo, the drop target below is the step's one
+                    upload control; an empty tile would be a second one. */}
+                {isResolvingLogo || logoUrl ? (
+                  <div className="mb-8 flex min-h-24 flex-none items-center justify-center">
+                    {isResolvingLogo ? (
+                      <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
+                        <Loader2 className="text-muted-foreground size-6 animate-spin motion-reduce:animate-pulse" />
+                      </div>
+                    ) : (
+                      <OrganizationLogoUploadField
+                        disabled={isUploadingLogo}
+                        isUploading={isUploadingLogo}
+                        labels={logoLabels}
+                        logoValue={logoUrl}
+                        onPendingLogoFilesChange={setPendingLogoFiles}
+                        onRemove={handleRemoveLogo}
+                        onUpload={handleLogoUpload}
+                        pendingLogoFiles={pendingLogoFiles}
+                      />
+                    )}
+                  </div>
+                ) : null}
+                <h2 className="text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Logo.title")}
                 </h2>
                 <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
@@ -770,9 +846,50 @@ export function CreateOrganizationWizard({
                       : t("Logo.notFound")}
                 </p>
 
-                {/* The hover overlay alone reads as decoration, so the upload
-                    target gets an explicit labelled control. */}
-                {!isResolvingLogo && (
+                {/* With no logo, one drop target that also opens the file
+                    picker. With one, the hover overlay alone reads as
+                    decoration, so replacing gets an explicit labelled
+                    control. */}
+                {!isResolvingLogo && !logoUrl && (
+                  <FileUpload
+                    value={pendingLogoFiles}
+                    onValueChange={setPendingLogoFiles}
+                    accept={ORGANIZATION_LOGO_ACCEPT}
+                    maxFiles={1}
+                    maxSize={ORGANIZATION_LOGO_MAX_SIZE_BYTES}
+                    multiple={false}
+                    disabled={isUploadingLogo}
+                    onAccept={handleLogoUpload}
+                    // FileUpload's reasons are English; one translated line covers
+                    // size, type and count, as `logoLabels` does.
+                    onFileReject={() => toast.error(t("Logo.uploadError"))}
+                    className="mx-auto mt-8 w-full max-w-md"
+                  >
+                    <FileUploadDropzone
+                      role="button"
+                      aria-labelledby={logoDropzoneTitleId}
+                      aria-describedby={logoHintId}
+                      aria-busy={isUploadingLogo || undefined}
+                      className="cursor-pointer gap-1 px-6 py-10"
+                    >
+                      {isUploadingLogo ? (
+                        <Loader2 className="text-muted-foreground mb-2 size-5 animate-spin motion-reduce:animate-pulse" />
+                      ) : (
+                        <CloudUpload className="mb-2 size-5" />
+                      )}
+                      <span id={logoDropzoneTitleId} className="font-medium">
+                        {t("Logo.dropzone")}
+                      </span>
+                      <span
+                        id={logoHintId}
+                        className="text-muted-foreground text-sm"
+                      >
+                        {t("Logo.uploadHint")}
+                      </span>
+                    </FileUploadDropzone>
+                  </FileUpload>
+                )}
+                {!isResolvingLogo && logoUrl && (
                   <div className="mt-8 flex flex-col items-center gap-2">
                     <FileUpload
                       value={pendingLogoFiles}
@@ -783,12 +900,18 @@ export function CreateOrganizationWizard({
                       multiple={false}
                       disabled={isUploadingLogo}
                       onAccept={handleLogoUpload}
-                      onFileReject={(_file: File, message?: string) => {
-                        toast.error(message ?? t("Logo.uploadError"));
-                      }}
+                      // FileUpload's reasons are English; one translated line covers
+                      // size, type and count, as `logoLabels` does.
+                      onFileReject={() => toast.error(t("Logo.uploadError"))}
                     >
                       <FileUploadTrigger asChild>
                         <Button
+                          ref={(node) => {
+                            if (node && focusReplaceLogoRef.current) {
+                              focusReplaceLogoRef.current = false;
+                              node.focus();
+                            }
+                          }}
                           type="button"
                           variant="outline"
                           size="lg"
@@ -796,7 +919,7 @@ export function CreateOrganizationWizard({
                           loading={isUploadingLogo}
                         >
                           <CloudUpload className="size-4" />
-                          {logoUrl ? t("Logo.replace") : t("Logo.upload")}
+                          {t("Logo.replace")}
                         </Button>
                       </FileUploadTrigger>
                     </FileUpload>
@@ -840,8 +963,10 @@ export function CreateOrganizationWizard({
                       : brandDomain
                         ? t("Brand.generating", { domain: brandDomain })
                         : t("Brand.generatingNoDomain")}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  {/* A popover, not a tooltip: a tap has to open it, or phones
+                      never see what brand guidelines are. */}
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <button
                         type="button"
                         aria-label={t("Brand.title")}
@@ -849,11 +974,14 @@ export function CreateOrganizationWizard({
                       >
                         <Info className="text-muted-foreground hover:text-foreground size-3.5 transition-colors duration-200" />
                       </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
+                    </PopoverTrigger>
+                    <PopoverContent
+                      aria-label={t("Brand.title")}
+                      className="text-sm"
+                    >
                       {t("Brand.tooltip")}
-                    </TooltipContent>
-                  </Tooltip>
+                    </PopoverContent>
+                  </Popover>
                 </p>
 
                 {brand.status !== "completed" && (
@@ -865,14 +993,22 @@ export function CreateOrganizationWizard({
                 )}
 
                 {brand.status === "completed" && (
-                  <div className="mt-10">
-                    <div className="bg-card-background text-muted-foreground mx-auto flex w-fit items-center gap-2 rounded-xl border px-3 py-2">
-                      <FileText className="size-4" />
-                      <span className="font-mono text-sm">DESIGN.md</span>
-                    </div>
-                    <p className="text-muted-foreground mt-4 text-sm">
+                  <div className="mt-8">
+                    <BrandLookSummary look={brandResult?.look} />
+                    <p className="text-muted-foreground mx-auto mt-4 max-w-[46ch] text-sm text-balance">
                       {t("Brand.editHint")}
                     </p>
+                    {brandResult && (
+                      <a
+                        href={brandResult.previewUrl ?? brandResult.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground focus-visible:ring-ring mt-3 inline-flex items-center gap-1.5 rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-2"
+                      >
+                        {t("Brand.viewFull")}
+                        <ExternalLink aria-hidden className="size-3.5" />
+                      </a>
+                    )}
                   </div>
                 )}
 
@@ -919,18 +1055,21 @@ export function CreateOrganizationWizard({
                 </p>
 
                 <div className="mx-auto mt-5 w-full max-w-md">
+                  <Label htmlFor={`${inviteFieldsId}-link`} className="mb-2">
+                    {t("Invite.linkLabel")}
+                  </Label>
                   <div className="bg-card-background has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
                     <Link2 className="text-muted-foreground size-4 shrink-0" />
-                    {isCreatingLink ? (
-                      <Skeleton className="h-4 w-56 rounded-sm" />
-                    ) : (
-                      <Input
-                        readOnly
-                        value={inviteLink ?? ""}
-                        onFocus={(event) => event.currentTarget.select()}
-                        className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono shadow-none focus-visible:ring-0"
-                      />
-                    )}
+                    <Input
+                      id={`${inviteFieldsId}-link`}
+                      name="inviteLink"
+                      aria-describedby={`${inviteFieldsId}-link-hint`}
+                      aria-busy={isCreatingLink}
+                      readOnly
+                      value={inviteLink ?? ""}
+                      onFocus={(event) => event.currentTarget.select()}
+                      className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono shadow-none focus-visible:ring-0"
+                    />
                     {linkFailed && !inviteLink ? (
                       <Button
                         type="button"
@@ -968,13 +1107,22 @@ export function CreateOrganizationWizard({
                       </Button>
                     )}
                   </div>
-                  <p className="text-muted-foreground mt-2 text-left text-sm">
+                  <p
+                    id={`${inviteFieldsId}-link-hint`}
+                    className="text-muted-foreground mt-2 text-left text-sm"
+                  >
                     {t("Invite.linkHint")}
                   </p>
 
                   <div className="bg-border my-3 h-px w-full" />
 
+                  <Label htmlFor={`${inviteFieldsId}-emails`} className="mb-2">
+                    {t("Invite.emailsLabel")}
+                  </Label>
                   <Textarea
+                    id={`${inviteFieldsId}-emails`}
+                    name="inviteEmails"
+                    aria-describedby={`${inviteFieldsId}-emails-hint`}
                     rows={2}
                     disabled={isLeaving}
                     value={emails}
@@ -983,7 +1131,10 @@ export function CreateOrganizationWizard({
                     className="bg-card-background dark:bg-card-background min-h-14 resize-none rounded-xl border px-4 py-3 shadow-none"
                   />
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <p className="text-muted-foreground text-left text-sm">
+                    <p
+                      id={`${inviteFieldsId}-emails-hint`}
+                      className="text-muted-foreground text-left text-sm"
+                    >
                       {t("Invite.emailsHint")}
                     </p>
                     <Button
@@ -1051,6 +1202,7 @@ export function CreateOrganizationWizard({
               <ArrowRight className="size-4" />
             </Button>
           )}
+          {/* Without a logo, moving on skips it, and the label says so. */}
           {step === 1 && (
             <Button
               variant="primary"
@@ -1059,8 +1211,8 @@ export function CreateOrganizationWizard({
               onClick={() => setStep((current) => current + 1)}
               disabled={isBusy}
             >
-              {t("Nav.next")}
-              <ArrowRight className="size-4" />
+              {logoUrl ? t("Nav.next") : t("Nav.skipForNow")}
+              {logoUrl ? <ArrowRight className="size-4" /> : null}
             </Button>
           )}
           {/* Last configurable step: the label says so, and drops the forward

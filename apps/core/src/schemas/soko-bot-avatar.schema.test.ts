@@ -7,7 +7,7 @@ import {
 
 describe("soko bot avatar list and top-up schemas", () => {
   it("ignores a topUp query parameter on the read", () => {
-    // Generation bills FAL and writes rows. As a GET it was reachable by a
+    // Generation bills the image model and writes rows. As a GET it was reachable by a
     // cross-site top-level navigation, which carries the session cookie under
     // SameSite=Lax, and was cacheable by intermediaries.
     const parsed = listSokoBotAvatarsQuerySchema.parse({

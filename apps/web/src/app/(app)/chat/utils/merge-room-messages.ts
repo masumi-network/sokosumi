@@ -247,11 +247,28 @@ export function mergeMessagesWithStreamOverlay(
   }
 
   const overlayIds = new Set(streamOverlay.map((message) => message.id));
+  // A failed turn (`pending:` row) matches its saved copy only by client
+  // message id: that row takes the failed mark and keeps its saved details
+  // (quote, mentions). Same text under another id is other history.
+  const failedByTurnId = new Map<string, ChatRoomMessage>();
+  for (const message of streamOverlay) {
+    const turnId = isOutboundLocalMessage(message)
+      ? readClientTurnId(message)
+      : null;
+    if (turnId) {
+      failedByTurnId.set(turnId, message);
+    }
+  }
+  const markedTurnIds = new Set<string>();
   // One hide per overlay user occurrence (prefer latest persisted match).
   // Same text sent twice must not wipe both history rows for one overlay.
   const overlayUserContentRemaining = new Map<string, number>();
   for (const message of streamOverlay) {
-    if (message.sender.type !== "user" || !hasVisibleMessageBody(message)) {
+    if (
+      message.sender.type !== "user" ||
+      !hasVisibleMessageBody(message) ||
+      isOutboundLocalMessage(message)
+    ) {
       continue;
     }
     const content = message.content.trim();
@@ -282,21 +299,41 @@ export function mergeMessagesWithStreamOverlay(
     overlayUserContentRemaining.set(content, remaining - 1);
   }
 
-  const history = persisted.filter((message) => {
+  const history = persisted.flatMap((message) => {
     if (overlayIds.has(message.id)) {
-      return false;
+      return [];
     }
     if (!shouldKeepPersistedMessage(message)) {
-      return false;
+      return [];
     }
     // Core persists the user turn as soon as stream POST starts — drop that
     // duplicate while the stream: user bubble is already in the overlay.
     if (hidePersistedUserIds.has(message.id)) {
-      return false;
+      return [];
     }
-    return true;
+    const turnId = readClientTurnId(message);
+    const failed = turnId ? failedByTurnId.get(turnId) : undefined;
+    if (turnId && failed && !markedTurnIds.has(turnId)) {
+      markedTurnIds.add(turnId);
+      return [
+        {
+          ...message,
+          id: failed.id,
+          metadata: { ...message.metadata, ...failed.metadata },
+        },
+      ];
+    }
+    return [message];
   });
 
-  const orderedOverlay = streamOverlay.filter(shouldRenderInTranscript);
+  const orderedOverlay = streamOverlay.filter((message) => {
+    const turnId = isOutboundLocalMessage(message)
+      ? readClientTurnId(message)
+      : null;
+    return (
+      !(turnId && markedTurnIds.has(turnId)) &&
+      shouldRenderInTranscript(message)
+    );
+  });
   return [...history, ...orderedOverlay];
 }

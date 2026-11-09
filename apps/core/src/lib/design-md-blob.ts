@@ -14,17 +14,35 @@ import { put } from "@vercel/blob";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 
+/**
+ * Stored DESIGN.md texts by URL. A stored file is named by the hash of its
+ * text, so a URL's text never changes. Reading it once keeps CMO's overview
+ * poll from re-downloading it every few seconds, which Vercel's firewall
+ * answers with 403 challenges, and the brand's colours went missing.
+ */
+const designMdCache = new Map<string, string>();
+const DESIGN_MD_CACHE_SIZE = 200;
+
 /** A stored DESIGN.md's text; null when it is not ours or does not load. */
 export async function readDesignMdContent(
   url: string | null,
 ): Promise<string | null> {
   if (!url || !isDesignMdBlobUrl(url)) return null;
+  const cached = designMdCache.get(url);
+  if (cached !== undefined) return cached;
   try {
     const response = await ssrfSafeFetch(url, {
       maxResponseBytes: LIMITS.DESIGN_MD_MAX_SIZE_BYTES,
     });
     if (!response.ok) return null;
-    return await response.text();
+    const content = await response.text();
+    if (designMdCache.size >= DESIGN_MD_CACHE_SIZE) {
+      // Maps keep insertion order: the first key is the oldest.
+      const oldest = designMdCache.keys().next().value;
+      if (oldest !== undefined) designMdCache.delete(oldest);
+    }
+    designMdCache.set(url, content);
+    return content;
   } catch {
     return null;
   }

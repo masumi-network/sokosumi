@@ -13,11 +13,13 @@ pnpm build --filter=@masumi_network/sokosumi --cache=local:w
 node apps/cli/dist/bin/sokosumi.js --help
 ```
 
-Configure the host's command tool with that path (or an installed `sokosumi` on `PATH`). Prefer `--preprod` for engineering Task reads and writes. Mainnet Task writes need an unambiguous operator `yes` first (see the skill).
+Configure the host's command tool with that path (or an installed `sokosumi` on `PATH`).
+
+**This repo's Tasks live on mainnet.** Specs and tickets (`SOK-*` / `SOKD-*`) are on production Core (`https://api.sokosumi.com`). Always **read** them on mainnet — never `--preprod` for `tasks get` / `list` / `links` / `events` / `jobs` against those identifiers. Legacy API keys need an explicit target: pass `--api-url https://api.sokosumi.com`. A mainnet-scoped user API key selects mainnet without that flag. Those read-only tracker fetches are the production-safety exception in `apps/cli/AGENTS.md` (they use production credentials/endpoints but need no fresh `yes`). Mainnet Task **writes** still need an unambiguous operator `yes` first (see the skill). Keep `--preprod` for Coworker provisioning and sandbox Tasks that are not this tracker.
 
 Authenticate with a user API key or OAuth. `SOKOSUMI_API_KEY` takes precedence over `SOKOSUMI_AUTH_TOKEN`; both override saved OAuth credentials. Never print keys or tokens. If auth is missing, stop and ask the operator to set `SOKOSUMI_API_KEY` (cloud secrets) or run `sokosumi auth login` — do **not** fall back to Linear or invent the spec from a PR body when a Task id is known.
 
-Organization context: pass `--organization-slug` on every organization Task call, or set `SOKOSUMI_ORGANIZATION_SLUG`. Discover memberships with `sokosumi --preprod workspaces list --json` and use the returned slug. Ask only when more than one Workspace fits.
+Organization context: pass `--organization-slug` on every organization Task call, or set `SOKOSUMI_ORGANIZATION_SLUG`. Discover memberships with `sokosumi --api-url https://api.sokosumi.com workspaces list --json` (mainnet tracker Workspace) and use the returned slug. Ask only when more than one Workspace fits.
 
 ## Conventions
 
@@ -39,10 +41,10 @@ Branches for a Task MUST start with the lowercased `task.identifier` followed by
 
 ## When a skill says "publish to the issue tracker"
 
-Create a Sokosumi Task in the intended organization Workspace (prefer `--preprod`):
+Create a Sokosumi Task in the intended organization Workspace on **mainnet** (require operator `yes` first — production write):
 
 ```bash
-sokosumi --preprod tasks create \
+sokosumi --api-url https://api.sokosumi.com tasks create \
   --organization-slug WORKSPACE_SLUG \
   --name "Title" \
   --description-file ./spec.md \
@@ -52,15 +54,15 @@ sokosumi --preprod tasks create \
   --json
 ```
 
-`--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json`). Without a project the Task has no short identifier. Confirm the brief and write authorization before creating. Do not invent Tasks during implement work unless the user explicitly asked to file one.
+`--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json` on mainnet). Without a project the Task has no short identifier. Confirm the brief and write authorization before creating. Do not invent Tasks during implement work unless the user explicitly asked to file one.
 
 ## When a skill says "fetch the relevant ticket"
 
 ```bash
-sokosumi --preprod tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
+sokosumi --api-url https://api.sokosumi.com tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 
-`TASK_ID` may be the short identifier (`SOKD-109`) or the UUID. The Spec axis uses `task.name` + `task.description` (and `tasks links` / `tasks events` when the skill needs relations or history). If auth fails, stop and request credentials — do not substitute Linear MCP or a PR body for a known Task id.
+`TASK_ID` may be the short identifier (`SOKD-109`) or the UUID. Always use the mainnet target for this repo's tickets. The Spec axis uses `task.name` + `task.description` (and `tasks links` / `tasks events` when the skill needs relations or history). If auth fails, stop and request credentials — do not fall back to `--preprod`, Linear MCP, or a PR body for a known Task id.
 
 ## Wayfinding operations
 

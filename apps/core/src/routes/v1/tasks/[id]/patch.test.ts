@@ -184,6 +184,7 @@ function createTaskApi(projectId: string | null = null) {
     links: [],
     files: [],
     runAt: null,
+    dueOn: null,
     scheduleId: null,
     selectableStatuses: [],
     participants: [],
@@ -314,6 +315,19 @@ describe("patchTaskRequestSchema", () => {
   it("rejects an unknown priority", () => {
     expect(() => {
       patchTaskRequestSchema.parse({ priority: "HUGE" });
+    }).toThrow();
+  });
+
+  it("accepts dueOn as the only patch field", () => {
+    expect(patchTaskRequestSchema.parse({ dueOn: "2026-11-20" }).dueOn).toBe(
+      "2026-11-20",
+    );
+    expect(patchTaskRequestSchema.parse({ dueOn: null }).dueOn).toBeNull();
+  });
+
+  it("rejects a dueOn with a time", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({ dueOn: "2026-11-20T09:00:00.000Z" });
     }).toThrow();
   });
 
@@ -542,6 +556,75 @@ describe("PATCH /tasks/{id}", () => {
         data: expect.objectContaining({ priority: TaskPriority.URGENT }),
       }),
     );
+  });
+
+  it("stores dueOn as the calendar day it names", async () => {
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dueOn: "2026-11-20" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          dueOn: new Date("2026-11-20T00:00:00.000Z"),
+        }),
+      }),
+    );
+  });
+
+  it("clears dueOn on a running Task, outside the editable statuses", async () => {
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.RUNNING,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+    });
+
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dueOn: null }),
+    });
+
+    expect(response.status).toBe(200);
+    const [{ where, data }] = taskUpdateMock.mock.calls[0];
+    expect(where).toEqual({ id: "tsk_123", archivedAt: null });
+    expect(data.dueOn).toBeNull();
+  });
+
+  it("keeps other fields locked on a running Task even beside dueOn", async () => {
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.RUNNING,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+    });
+
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dueOn: "2026-11-20", name: "Renamed" }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid priority", async () => {

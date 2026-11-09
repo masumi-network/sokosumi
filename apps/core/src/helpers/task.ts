@@ -440,6 +440,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
         ? (task.pendingVendorGrantId ?? null)
         : null,
     runAt: task.runAt ?? null,
+    // A `@db.Date` reads back as UTC midnight, so its ISO day is the stored day.
+    dueOn: task.dueOn ? task.dueOn.toISOString().slice(0, 10) : null,
     scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
     participants: mapTaskParticipants(task),

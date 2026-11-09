@@ -1434,6 +1434,11 @@ describe("social post publisher service", () => {
       1,
       expect.objectContaining({
         where: {
+          NOT: {
+            socialConnection: {
+              is: { composioConnectedAccountId: { startsWith: "eval:" } },
+            },
+          },
           OR: [
             {
               status: "SCHEDULED",
@@ -1795,6 +1800,11 @@ describe("social post publisher service", () => {
         1,
         expect.objectContaining({
           where: {
+            NOT: {
+              socialConnection: {
+                is: { composioConnectedAccountId: { startsWith: "eval:" } },
+              },
+            },
             OR: [
               {
                 status: "SCHEDULED",

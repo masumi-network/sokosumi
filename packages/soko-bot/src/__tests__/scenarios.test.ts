@@ -215,6 +215,37 @@ describe("evaluateScenario", () => {
     expect(check?.actual).toBe("assign_task failed");
   });
 
+  it("does not count a failure the scenario sets up", () => {
+    const scenario = {
+      ...byId("delegate-with-daily-checkin"),
+      expect: {
+        ...byId("delegate-with-daily-checkin").expect,
+        allowFailedTools: ["web_fetch"],
+      },
+    };
+    const allowed = evaluateScenario(
+      scenario,
+      turn({
+        toolCalls: [
+          call("create_task"),
+          { ...call("web_fetch"), status: "FAILED" },
+        ],
+      }),
+    );
+    expect(
+      allowed.checks.find((c) => c.label === "No failed tool calls")?.pass,
+    ).toBe(true);
+    const other = evaluateScenario(
+      scenario,
+      turn({
+        toolCalls: [{ ...call("create_task"), status: "FAILED" }],
+      }),
+    );
+    expect(
+      other.checks.find((c) => c.label === "No failed tool calls")?.pass,
+    ).toBe(false);
+  });
+
   it("says a tool was never called instead of printing the haystack", () => {
     const result = evaluateScenario(
       byId("delegate-with-daily-checkin"),

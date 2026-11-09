@@ -84,6 +84,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   // Admin and Soko Bot routes render `TaskDetailView`, whose client pieces
   // read these task namespaces.
   "App.Tasks.Detail",
+  "App.Tasks.Due",
   "App.Tasks.Filters.statusOptions",
   "App.Tasks.Priority.levels",
   "App.Tasks.RunAt.badge",
@@ -106,6 +107,8 @@ export const SOKO_BOT_MESSAGE_PATHS = [
   ...APP_SHELL_MESSAGE_PATHS,
   "App.SokoBot",
   "App.Projects.SocialPosts.preview",
+  // The console's New schedule form reuses the Task schedule "When" picker.
+  "App.Tasks.Schedules.Dialog.When",
 ] as const;
 
 export const ADMIN_MESSAGE_PATHS = [

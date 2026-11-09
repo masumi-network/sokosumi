@@ -90,7 +90,6 @@ function mapTaskAssignee(
       image: sokoBot.avatarImageUrl,
       kind: "sokoBot",
       avatarSeed: sokoBot.avatarSeed,
-      avatarStyleId: sokoBot.avatarStyleId,
     };
   }
 
@@ -188,6 +187,7 @@ export function mapTaskToTaskWithCoworker(
     createdAt,
     updatedAt,
     runAt,
+    dueOn: task.dueOn,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     participants: task.participants.map(({ user }) => ({

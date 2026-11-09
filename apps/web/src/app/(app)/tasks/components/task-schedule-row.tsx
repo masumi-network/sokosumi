@@ -46,7 +46,6 @@ function toAssigneeView(option: CoworkerOption): TaskAssigneeView {
     slug: option.slug,
     kind: option.kind ?? "coworker",
     avatarSeed: option.avatarSeed,
-    avatarStyleId: option.avatarStyleId,
   };
 }
 

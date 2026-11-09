@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -92,6 +93,7 @@ vi.mock("@/config/env", async (importOriginal) =>
 
 import {
   cmoLearningState,
+  cmoWork,
   describeCmoStep,
   retryCmoOnboarding,
   startCmoOnboarding,
@@ -184,6 +186,59 @@ describe("learning state", () => {
       "out of credits",
     );
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("work", () => {
+  const cuso = (brandBrain: Prisma.JsonValue) => ({
+    sokoBotId: "bot-1",
+    websiteUrl: "https://acme.io",
+    brandBrain,
+  });
+  const turn = {
+    id: "turn-1",
+    status: "COMPLETED",
+    clientTurnId: "cmo:onboarding:bot-1:1",
+    eveSessionId: "sess-1",
+    createdAt: new Date("2026-10-05T10:00:00Z"),
+  };
+
+  it("lists the saved sections' headlines in profile order", async () => {
+    turnFindFirst.mockResolvedValue(turn);
+    const work = await cmoWork(
+      cuso({
+        profile: {
+          customers: { headline: "Ops leads", answer: "Ops leads at SaaS." },
+          company: { headline: "Rocket seller", answer: "Acme sells rockets." },
+        },
+      }),
+    );
+    expect(work?.sections).toEqual([
+      { key: "company", headline: "Rocket seller" },
+      { key: "customers", headline: "Ops leads" },
+    ]);
+    expect(work?.sectionsSaved).toBe(2);
+  });
+
+  it("lists none before any section is saved", async () => {
+    turnFindFirst.mockResolvedValue(turn);
+    const work = await cmoWork(cuso(null));
+    expect(work?.sections).toEqual([]);
+    expect(work?.sectionsSaved).toBe(0);
+  });
+
+  it("falls back to the section answer when no headline was saved", async () => {
+    turnFindFirst.mockResolvedValue(turn);
+    const work = await cmoWork(
+      cuso({
+        profile: {
+          company: { answer: "Acme sells rockets." },
+        },
+      }),
+    );
+    expect(work?.sections).toEqual([
+      { key: "company", headline: "Acme sells rockets." },
+    ]);
   });
 });
 

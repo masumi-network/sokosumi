@@ -54,7 +54,7 @@ export interface ImageCatalog {
 /**
  * Order the rows once, here, so no client holds its own shortlist.
  *
- * The curated five are editorial and their order is the product decision; the
+ * The curated six are editorial and their order is the product decision; the
  * rest are alphabetical, because any other order would be an opinion this
  * catalog has not earned.
  */
@@ -70,6 +70,10 @@ function sortModels(models: ImageModel[]): ImageModel[] {
 /** Overrides, then the price filter, then one stable order. */
 function resolveCatalogModels(fetched: ImageModel[]): ImageModel[] {
   const { models } = excludeUnpriceableModels(applyCatalogOverrides(fetched));
+  // A row written whole in the overrides rides on a crawl. On its own it is
+  // not a catalog, and a crawl that kept nothing must still read as broken.
+  const crawled = new Set(fetched.map((model) => model.generateEndpoint));
+  if (!models.some((model) => crawled.has(model.generateEndpoint))) return [];
   return sortModels(models);
 }
 

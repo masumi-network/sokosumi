@@ -105,6 +105,7 @@ const {
     () => {
       SOKO_BOT_PROACTIVE_PAUSED: boolean;
       SOKO_BOT_ENABLED?: boolean;
+      EXA_API_KEY?: string;
     }
   >(() => ({ SOKO_BOT_PROACTIVE_PAUSED: false })),
   jobFindManyMock: vi.fn(),
@@ -292,6 +293,7 @@ import {
 import {
   SokoBotControlPlane,
   SokoBotNotFoundError,
+  safeEventProjection,
 } from "@/services/soko-bot-control-plane.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000001";
@@ -510,6 +512,56 @@ describe("SokoBotControlPlane lifecycle", () => {
       }
       // Unrelated reads stay either way.
       expect(granted).toContain("list_social_posts");
+    },
+  );
+
+  it.each([
+    { exaKey: "exa-key", offered: true },
+    { exaKey: undefined, offered: false },
+  ])(
+    "offers search_exa to Cuso only with a key: $offered",
+    async ({ exaKey, offered }) => {
+      getEnvMock.mockReturnValue({
+        SOKO_BOT_PROACTIVE_PAUSED: false,
+        EXA_API_KEY: exaKey,
+      });
+      const cuso = adminBot({
+        userId: null,
+        projectId: "project_1",
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        workspace: { organizationId: "org_1" },
+      });
+      botFindFirstMock.mockResolvedValue(cuso);
+      botFindUniqueMock.mockResolvedValue(cuso);
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "cuso-turn",
+        leaseToken: "cuso-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "cuso-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "cuso-client",
+        message: "Research the competition",
+      });
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      expect(granted.includes("search_exa")).toBe(offered);
+      // The rest of Cuso's toolset stays either way.
+      expect(granted).toContain("save_brand_brain");
     },
   );
 
@@ -1482,6 +1534,56 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(botUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("starts a new assistant's day in the creator's timezone, and keeps an existing one's", async () => {
+    botFindFirstMock.mockResolvedValue(null);
+    botCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-00000000bbbb",
+      ingestTimezone: "America/Los_Angeles",
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Fresh",
+      timezone: "America/Los_Angeles",
+    });
+
+    expect(botCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ingestTimezone: "America/Los_Angeles",
+        }),
+      }),
+    );
+
+    botFindFirstMock.mockResolvedValue({
+      id: BOT_ID,
+      archivedAt: null,
+      adminPausedAt: null,
+      status: "IDLE",
+      memoryVersion: 1,
+    });
+    botUpdateMock.mockResolvedValue({
+      id: BOT_ID,
+      ingestTimezone: "Asia/Tokyo",
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Again",
+      timezone: "America/Los_Angeles",
+    });
+
+    expect(botUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          ingestTimezone: expect.anything(),
+        }),
+      }),
+    );
+  });
+
   it("never inserts a shadow coworker when creating a personal assistant", async () => {
     botFindFirstMock.mockResolvedValue(null);
     botCreateMock.mockResolvedValue({
@@ -1620,7 +1722,14 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(botFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          AND: [{ versionId: { in: ["cmo-v1"] } }, {}],
+          AND: [
+            {
+              versionId: {
+                in: expect.arrayContaining(["cmo-v1", "cmo-v1-gpt-oss-20b"]),
+              },
+            },
+            {},
+          ],
         }),
       }),
     );
@@ -2104,6 +2213,41 @@ describe("SokoBotControlPlane lifecycle", () => {
     // Only a person waiting in chat gets the hour.
     expect(data.deadlineAt.getTime() - Date.now()).toBeLessThanOrEqual(
       15 * 60 * 1_000,
+    );
+  });
+
+  it("gives a step a person pressed a button for the hour a person gets", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room-owner" });
+    turnCreateMock.mockResolvedValue({ id: "research-turn", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "research-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "cmo:onboarding:research",
+      message: "Research the business.",
+      source: "EVENT",
+      presetRoute: { route: "DIRECT_RESPONSE", reason: "CMO research" },
+      personStarted: true,
+    });
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data.deadlineAt.getTime() - Date.now()).toBeGreaterThan(
+      55 * 60 * 1_000,
     );
   });
 
@@ -4904,5 +5048,19 @@ describe("reading a turn through the caller's own bot", () => {
         },
       }),
     );
+  });
+});
+
+describe("safeEventProjection", () => {
+  it("never stores half an emoji or a NUL, which Postgres refuses", () => {
+    // The 800-character limit keeps 799: the emoji's first half.
+    const cut = safeEventProjection("message.completed", {
+      message: `${"a".repeat(798)}🍝 and more`,
+    });
+    expect(cut.summary.isWellFormed()).toBe(true);
+    const nul = safeEventProjection("message.completed", {
+      message: "Hiltl\u0000 since 1898",
+    });
+    expect(nul.summary).toBe("Hiltl since 1898");
   });
 });

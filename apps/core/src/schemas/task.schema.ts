@@ -5,7 +5,7 @@ import {
   TaskStatus,
   TaskVisibility,
 } from "@sokosumi/database";
-import { isDesignMdBlobUrl } from "@sokosumi/utils";
+import { calendarDateSchema, isDesignMdBlobUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
@@ -326,6 +326,11 @@ const taskBaseSchema = z.object({
     description:
       "The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.",
     example: "2026-06-24T09:00:00.000Z",
+  }),
+  dueOn: calendarDateSchema.nullable().openapi({
+    description:
+      "The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.",
+    example: "2026-11-20",
   }),
   scheduleId: z.string().uuid().nullable().openapi({
     description:

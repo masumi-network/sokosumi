@@ -43,6 +43,8 @@ export const contactChannelSchema = z
     source: z.enum(CONTACT_CHANNEL_SOURCES).openapi("ContactChannelSource"),
     sourceUrl: z.string().nullable(),
     verified: z.boolean(),
+    /** Audience on this channel when known, e.g. X followers. */
+    followers: z.int().nullable(),
     createdAt: dateTimeSchema,
   })
   .openapi("ContactChannel");
@@ -252,6 +254,39 @@ export const contactOrganizationSchema = z
   })
   .openapi("ContactOrganization");
 
+export const contactMapSchema = z
+  .object({
+    places: z.array(
+      z
+        .object({
+          label: z.string().openapi({ example: "Zurich, Switzerland" }),
+          latitude: z.number(),
+          longitude: z.number(),
+          contacts: z.array(
+            z
+              .object({
+                id: z.uuid(),
+                name: z.string(),
+                kind: contactKindSchema,
+                organization: z.string().nullable(),
+                avatarUrl: z.string().nullable(),
+              })
+              .openapi("ContactMapContact"),
+          ),
+        })
+        .openapi("ContactMapPlace"),
+    ),
+    unplaced: z.int().openapi({
+      description: "Contacts with a location that names no place.",
+    }),
+    pending: z.int().openapi({
+      description:
+        "Contacts whose place is still being looked up; ask again shortly.",
+    }),
+    withoutLocation: z.int(),
+  })
+  .openapi("ContactMap");
+
 export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.uuid().optional(),
   search: z.string().trim().min(1).max(200).optional(),
@@ -274,6 +309,22 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   followUpDue: booleanQuery,
   hasChannel: contactChannelTypeSchema.optional(),
   hasInteractions: booleanQuery,
+  organization: z.string().trim().min(1).max(200).optional().openapi({
+    description: "Organization or company email domain contains this.",
+  }),
+  location: z.string().trim().min(1).max(200).optional(),
+  role: z.string().trim().min(1).max(200).optional(),
+  channelSource: z
+    .enum(CONTACT_CHANNEL_SOURCES)
+    .optional()
+    .openapi({ description: "Has a channel found there, e.g. X followers." }),
+  minInteractions: z.coerce.number().int().min(1).max(100_000).optional(),
+  minFollowers: z.coerce.number().int().min(1).max(1_000_000_000).optional(),
+  query: z.string().trim().min(1).max(300).optional().openapi({
+    description:
+      "Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.",
+  }),
+  mode: z.enum(["both", "words", "meaning"]).optional(),
   archived: booleanQuery,
   sort: z.enum(CONTACT_SORT_FIELDS).default("updatedAt"),
   direction: z.enum(["asc", "desc"]).optional(),
@@ -344,3 +395,69 @@ export const contactWebEnrichmentSchema = z
 export const contactSuggestionIdsSchema = z
   .object({ ids: z.array(z.uuid()).min(1).max(100) })
   .openapi("ContactSuggestionIds");
+
+export const contactCompanySchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    domain: z.string().nullable(),
+    website: z.string().nullable(),
+    description: z.string().nullable(),
+    industry: z.string().nullable(),
+    size: z.string().nullable(),
+    headquarters: z.string().nullable(),
+    linkedinUrl: z.string().nullable(),
+    whyItMatters: z.string().nullable(),
+    enrichedAt: dateTimeSchema.nullable(),
+    version: z.int(),
+    people: z.int(),
+    teammates: z
+      .int()
+      .openapi({ description: "Teammates who know someone there." }),
+    interactions: z.int(),
+    lastContactAt: dateTimeSchema.nullable(),
+    warmth: z.enum(["warm", "cooling", "cold", "none"]).openapi({
+      description:
+        "warm: in touch within 30 days; cooling: within 180; cold: longer; none: never.",
+    }),
+    strongestStage: z.union([contactStageSchema, z.null()]),
+  })
+  .openapi("ContactCompany");
+
+export const contactCompanyDetailSchema = z
+  .object({
+    company: contactCompanySchema,
+    people: z.array(contactSchema),
+    morePeople: z.int(),
+    teammates: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        people: z.int(),
+        lastInteractionAt: dateTimeSchema,
+      }),
+    ),
+    nextSteps: z.array(
+      z.object({
+        contactId: z.uuid(),
+        name: z.string(),
+        nextStep: z.string().nullable(),
+        followUpAt: z.string().nullable(),
+      }),
+    ),
+    recentInteractions: z.array(
+      z.object({
+        id: z.uuid(),
+        contactId: z.uuid(),
+        occurredAt: dateTimeSchema,
+        channel: z.string(),
+        direction: z.string().nullable(),
+        summary: z.string(),
+        user: z.union([
+          z.object({ id: z.string(), name: z.string() }),
+          z.null(),
+        ]),
+      }),
+    ),
+  })
+  .openapi("ContactCompanyDetail");

@@ -1,18 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  ChatDecision,
   ChatTurn,
   ChatTurnEvent,
   SokoBotChatState,
 } from "@/lib/soko-bot/chat-state";
 
 import {
-  hasActiveTurn,
   orbStateForTurn,
   orderedTurns,
-  orphanPendingDecisions,
-  pendingDecisionCount,
   progressChipsForTurn,
   turnKind,
 } from "../timeline";
@@ -59,22 +55,6 @@ function turn(overrides: Partial<ChatTurn> = {}): ChatTurn {
   };
 }
 
-function decision(overrides: Partial<ChatDecision> = {}): ChatDecision {
-  return {
-    id: "d1",
-    turnId: "t1",
-    toolName: "hire_agent",
-    proposal: {},
-    reason: "because",
-    status: "PENDING",
-    expiresAt: "2026-01-02T00:00:00.000Z",
-    resolvedAt: null,
-    resultingEntityId: null,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    ...overrides,
-  };
-}
-
 function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
   return {
     bot: {
@@ -84,8 +64,6 @@ function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
       name: "Atlas",
       avatarSeed: null,
       avatarImageUrl: null,
-      avatarState: "idle",
-      avatar: null,
       versionId: null,
       followWholeBoard: false,
       mailAutoRead: false,
@@ -150,7 +128,7 @@ describe("orbStateForTurn", () => {
 });
 
 describe("state helpers", () => {
-  it("orders turns oldest first and detects active turns", () => {
+  it("orders turns oldest first", () => {
     const s = state({
       turns: [
         turn({ id: "b", createdAt: "2026-01-02T00:00:00.000Z" }),
@@ -162,38 +140,6 @@ describe("state helpers", () => {
       ],
     });
     expect(orderedTurns(s).map((t) => t.id)).toEqual(["a", "b"]);
-    expect(hasActiveTurn(s)).toBe(true);
-  });
-
-  it("counts pending decisions once across bot and turns", () => {
-    const shared = decision({ id: "d1" });
-    const s = state({
-      bot: {
-        ...state().bot,
-        pendingDecisions: [shared, decision({ id: "d2" })],
-      },
-      turns: [
-        turn({
-          decisions: [shared, decision({ id: "d3", status: "ACCEPTED" })],
-        }),
-      ],
-    });
-    expect(pendingDecisionCount(s)).toBe(2);
-  });
-
-  it("surfaces pending decisions whose turn is not in the window", () => {
-    const s = state({
-      bot: {
-        ...state().bot,
-        pendingDecisions: [
-          decision({ id: "owned", turnId: "t1" }),
-          decision({ id: "orphan", turnId: "gone" }),
-          decision({ id: "resolved", turnId: "gone", status: "REJECTED" }),
-        ],
-      },
-      turns: [turn({ id: "t1" })],
-    });
-    expect(orphanPendingDecisions(s).map((d) => d.id)).toEqual(["orphan"]);
   });
 
   it("labels scheduled and retried turns", () => {

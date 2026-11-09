@@ -10,6 +10,8 @@ import { coreClient } from "@/lib/clients/core.client";
 import { agentService } from "@/lib/services/agent.service";
 import { getAgentRatingStats } from "@/lib/types/core-dto";
 
+import { getOwnedAgentJobsCount } from "./jobs/_lib/get-cached-my-jobs";
+
 export default async function AgentDetailPage({
   params,
 }: {
@@ -29,13 +31,14 @@ export default async function AgentDetailPage({
 
   const userId = session?.user.id ?? null;
 
-  // Wave 2: reviews and rating reads share no mutual deps.
-  const [reviewsResponse, canRate, myReview] = await Promise.all([
+  // Wave 2: reviews, rating and own-jobs reads share no mutual deps.
+  const [reviewsResponse, canRate, myReview, myJobsCount] = await Promise.all([
     coreClient.getAgentReviews(agentId),
     userId ? agentService.canUserRateAgent(agentId) : Promise.resolve(false),
     userId
       ? agentService.getUserRatingForAgent(agentId)
       : Promise.resolve(null),
+    userId ? getOwnedAgentJobsCount(agentId) : Promise.resolve(0),
   ]);
   const { ratingDistribution, ratingsWithComments } = mapCoreAgentReviews(
     reviewsResponse.data,
@@ -58,6 +61,7 @@ export default async function AgentDetailPage({
           ratingsWithComments={ratingsWithComments}
           canRate={canRate}
           existingRating={existingRating}
+          myJobsCount={myJobsCount}
           showBackButton={true}
         />
       </div>

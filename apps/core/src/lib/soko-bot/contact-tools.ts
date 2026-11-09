@@ -4,6 +4,17 @@ import {
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { unprocessableEntity } from "@/helpers/error";
+import prisma from "@/lib/db/prisma";
+import {
+  breakDownContacts,
+  matchingIds,
+} from "@/services/contact-breakdown.service";
+import { bulkUpdateContacts } from "@/services/contact-bulk.service";
+import {
+  getCompany,
+  listCompanies,
+  updateCompanyFacts,
+} from "@/services/contact-companies.service";
 import {
   createContactList,
   deleteContactList,
@@ -28,12 +39,16 @@ import {
 } from "@/services/contacts.service";
 
 type Tx = Prisma.TransactionClient;
+type ContactDto = Awaited<ReturnType<typeof listContacts>>["items"][number];
 
 export const CONTACT_READ_CAPABILITIES = [
   "search_contacts",
+  "count_contacts",
   "get_contact",
   "list_contact_lists",
   "find_contact_duplicates",
+  "search_companies",
+  "get_company",
 ] as const satisfies readonly SokoBotCapability[];
 
 export const CONTACT_WRITE_CAPABILITIES = [
@@ -42,6 +57,8 @@ export const CONTACT_WRITE_CAPABILITIES = [
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "update_company",
+  "bulk_update_contacts",
 ] as const satisfies readonly SokoBotCapability[];
 
 type ContactCapability =
@@ -88,11 +105,94 @@ export async function runContactTool(
     });
 
   switch (capability) {
+    case "bulk_update_contacts": {
+      const {
+        change,
+        confirm,
+        query,
+        mode,
+        company,
+        listId,
+        archived,
+        ...filter
+      } = SOKO_BOT_TOOL_INPUT_SCHEMAS.bulk_update_contacts.parse(rawInput);
+      const ids = await matchingIds(actor, {
+        filter,
+        query,
+        mode,
+        company,
+        listId,
+        archived,
+      });
+      if (!confirm) {
+        const sample = await prisma.contact.findMany({
+          where: { id: { in: ids.slice(0, 10) } },
+          select: { name: true, organization: true },
+        });
+        return {
+          matching: ids.length,
+          sample,
+          change,
+          confirmed: false,
+          instruction:
+            "Nothing changed. Check the count and sample against what your owner asked, then call again with confirm true.",
+        };
+      }
+      return write(
+        (tx) => bulkUpdateContacts(tx, actor, ids, change),
+        () => listId ?? actor.workspaceId,
+      );
+    }
+    case "search_companies": {
+      const page = await listCompanies(
+        actor,
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.search_companies.parse(rawInput),
+      );
+      return { companies: page.items, total: page.total };
+    }
+    case "get_company": {
+      const detail = await getCompany(
+        actor,
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.get_company.parse(rawInput).companyId,
+      );
+      return {
+        ...detail,
+        people: detail.people.map((person) =>
+          compactContact(person, new Set()),
+        ),
+      };
+    }
+    case "update_company": {
+      const { companyId, ...input } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.update_company.parse(rawInput);
+      await write(
+        async (tx) => {
+          await updateCompanyFacts(tx, actor, companyId, input);
+          return { companyId, changed: Object.keys(input) };
+        },
+        () => companyId,
+      );
+      return (await getCompany(actor, companyId)).company;
+    }
     case "search_contacts": {
-      const { listId, archived, sort, direction, cursor, limit, ...filter } =
-        SOKO_BOT_TOOL_INPUT_SCHEMAS.search_contacts.parse(rawInput);
+      const {
+        query,
+        mode,
+        company,
+        listId,
+        archived,
+        sort,
+        direction,
+        cursor,
+        limit,
+        fields,
+        ...filter
+      } = SOKO_BOT_TOOL_INPUT_SCHEMAS.search_contacts.parse(rawInput);
       const page = await listContacts(actor, {
         filter,
+        query,
+        mode,
+        company,
         listId,
         archived,
         sort,
@@ -100,11 +200,25 @@ export async function runContactTool(
         cursor,
         limit,
       });
+      const extra = new Set<string>(fields ?? []);
       return {
-        contacts: page.items,
+        contacts: page.items.map((contact) => compactContact(contact, extra)),
         total: page.total,
         nextCursor: page.nextCursor,
       };
+    }
+    case "count_contacts": {
+      const { query, mode, company, listId, by, top, ...filter } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.count_contacts.parse(rawInput);
+      return breakDownContacts(actor, {
+        filter,
+        query,
+        mode,
+        company,
+        listId,
+        by,
+        top,
+      });
     }
     case "get_contact":
       return getContactDetail(
@@ -237,4 +351,43 @@ async function manageContactLists(
         (list) => list.id,
       );
   }
+}
+
+/**
+ * A contact as a search answers it: what tells people apart and reaches
+ * them, plus the `extra` fields asked for. Thousands of full contacts would
+ * flood a turn; get_contact reads one in full.
+ */
+function compactContact(contact: ContactDto, extra: ReadonlySet<string>) {
+  const pick = <K extends keyof ContactDto>(key: K) =>
+    extra.has(key) ? { [key]: contact[key] } : {};
+  return {
+    id: contact.id,
+    name: contact.name,
+    kind: contact.kind,
+    organization: contact.organization,
+    role: contact.role,
+    location: contact.location,
+    stage: contact.stage,
+    replyState: contact.replyState,
+    lastContactAt: contact.lastContactAt,
+    interactionCount: contact.interactionCount,
+    version: contact.version,
+    channels: extra.has("channelDetails")
+      ? contact.channels
+      : contact.channels.map(({ type, value, followers }) =>
+          followers === null ? { type, value } : { type, value, followers },
+        ),
+    lists: contact.lists.map((list) => list.name),
+    ...pick("summary"),
+    ...pick("whyInteresting"),
+    ...pick("nextStep"),
+    ...pick("followUpAt"),
+    ...pick("knownBy"),
+    ...pick("score"),
+    ...pick("customFields"),
+    ...pick("avatarUrl"),
+    ...pick("firstContactAt"),
+    ...pick("createdAt"),
+  };
 }

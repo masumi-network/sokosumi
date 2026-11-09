@@ -2,8 +2,6 @@
   import AppKit
   import SokosumiChat
   import UniformTypeIdentifiers
-#elseif os(iOS)
-  import UIKit
 #endif
 
 /// The one place chat presentation touches the system clipboard; portable models never do.
@@ -13,11 +11,6 @@ enum PlatformPasteboard {
     #if os(macOS)
       NSPasteboard.general.clearContents()
       return NSPasteboard.general.setString(text, forType: .string)
-    #elseif os(iOS)
-      UIPasteboard.general.string = text
-      return true
-    #else
-      return false
     #endif
   }
 

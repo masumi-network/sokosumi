@@ -46,9 +46,12 @@ const duplicatesRoute = withCoworkerContextHeaderParameters(
     path: "/duplicates",
     tags: ["Contacts"],
     description:
-      "Groups of live contacts that share a name (case and spacing ignored): likely the same person, worth a merge.",
+      "Groups of live contacts that share a name (case and spacing ignored): likely the same person, worth a merge. At most `limit` groups (default 50, up to 200).",
     request: {
-      query: z.object({ contactId: z.uuid().optional() }),
+      query: z.object({
+        contactId: z.uuid().optional(),
+        limit: z.coerce.number().int().min(1).max(200).optional(),
+      }),
     },
     responses: {
       200: jsonSuccessResponse(

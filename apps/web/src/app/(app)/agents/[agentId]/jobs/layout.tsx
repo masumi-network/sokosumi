@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-
+import { MarkAgentUnavailable } from "@/app/components/unavailable-agent.client";
 import DefaultLoading from "@/components/default-loading";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
@@ -11,6 +11,7 @@ import { createUnavailableCoreAgent } from "@/lib/types/core-dto";
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
 import { JobsHeaderContext } from "./components/jobs-header-context";
 import { JobsList } from "./components/jobs-list";
+import { JobsListHeader } from "./components/jobs-list-header";
 
 export async function generateMetadata({
   params,
@@ -106,6 +107,13 @@ async function JobLayoutInner({
                 jobsNextCursor={agentJobsPage.nextCursor}
                 userId={session.user.id}
                 agentId={agentId}
+                header={
+                  <JobsListHeader
+                    agent={agent}
+                    total={agentJobsPage.total}
+                    disabled={disabled}
+                  />
+                }
               />
             </div>
 
@@ -119,6 +127,7 @@ async function JobLayoutInner({
           </div>
         </div>
         {modal}
+        {disabled && <MarkAgentUnavailable agentId={agentId} />}
       </div>
     </JobsHeaderContext>
   );

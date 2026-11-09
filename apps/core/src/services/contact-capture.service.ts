@@ -14,7 +14,10 @@ import {
   SOKO_BOT_SLACK_CAPTURE_TOOLS,
   SOKO_BOT_X_CAPTURE_TOOLS,
 } from "@sokosumi/soko-bot";
-import { normalizeContactChannelValue } from "@sokosumi/utils";
+import {
+  CONTACT_LIST_COLORS,
+  normalizeContactChannelValue,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
   type CaptureCandidate,
@@ -44,7 +47,17 @@ import {
   judgeRoleInboxes,
   MIN_PERSON_PROBABILITY,
 } from "@/lib/contacts/capture-judge";
-import { normalizePersonName } from "@/lib/contacts/merge-rules";
+import {
+  contactNameKeys,
+  followerNameKey,
+  isLikelyBot,
+  type MatchContact,
+  matchFollower,
+  ownHost,
+  parseXFollower,
+  X_FOLLOWER_FIELDS,
+  type XFollower,
+} from "@/lib/contacts/x-followers";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import {
@@ -52,22 +65,33 @@ import {
   SokoBotIntegrationError,
 } from "@/services/composio-integration-tools.service";
 import {
+  enrichCompanies,
+  workspacesWithPendingCompanies,
+} from "@/services/contact-companies.service";
+import {
   type EnrichmentStats,
   emptyEnrichmentStats,
   enrichWorkspaceContacts,
   workspacesWithPendingEnrichment,
 } from "@/services/contact-enrichment.service";
+import { ensureManualContactList } from "@/services/contact-lists.service";
 import {
   type ImportanceStats,
   judgeWorkspaceImportance,
   refreshContactFamiliarity,
 } from "@/services/contact-scores.service";
 import {
+  embedStaleContacts,
+  workspacesWithStaleEmbeddings,
+} from "@/services/contact-search.service";
+import {
   addContactChannel,
   type ContactActor,
   captureContactInteraction,
+  enrichContactFields,
   inContactTransaction,
   mergeContacts,
+  upsertContact,
 } from "@/services/contacts.service";
 import {
   type ActiveIntegration,
@@ -122,6 +146,11 @@ export interface CaptureLimits {
   importanceJudgmentsPerWorkspace: number;
   /** Workspaces whose queued contacts are enriched per run. */
   enrichmentWorkspaces: number;
+  /** Search documents embedded per workspace per run. */
+  embeddingsPerWorkspace: number;
+  /** Company websites read per workspace per run, and their model spend. */
+  companiesPerWorkspace: number;
+  companyUsdPerWorkspace: number;
   slackCallsPerRun: number;
   slackHistoryPagesPerConversation: number;
   /** A channel with more members is not a conversation. */
@@ -130,8 +159,9 @@ export interface CaptureLimits {
   /** X allows few calls per 15 minutes, so a run asks little. */
   xCallsPerRun: number;
   xIntervalMs: number;
-  /** Follower and following lists change slowly. */
+  /** Followers change slowly: read from the newest once a day. */
   xFollowsIntervalMs: number;
+  /** Followers pages (1000 each) per run. */
   xFollowPages: number;
   /** Re-read this much before `since`; capture is idempotent. */
   overlapMs: number;
@@ -154,6 +184,9 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   enrichmentUsdPerWorkspace: 0.1,
   importanceJudgmentsPerWorkspace: 40,
   enrichmentWorkspaces: 10,
+  embeddingsPerWorkspace: 1_000,
+  companiesPerWorkspace: 15,
+  companyUsdPerWorkspace: 0.03,
   slackCallsPerRun: 60,
   slackHistoryPagesPerConversation: 5,
   slackSmallChannel: 8,
@@ -176,8 +209,10 @@ interface SourceCursor {
   pageToken: string | null;
   /** Slack's forward pass resumes its conversation walk here. */
   forwardToken?: string | null;
-  /** When X's mutual follows were last matched to contacts. */
+  /** When X followers were last read from the newest. */
   followsAt?: string;
+  /** The followers page still to read; set until all were read. */
+  followersToken?: string | null;
   /** Provider lacks a needed tool: left alone until then. */
   pausedUntil?: string;
 }
@@ -393,7 +428,18 @@ export class ContactCaptureService {
       this.limits.enrichmentWorkspaces,
     );
     const workspaceIds = [
-      ...new Set([...byWorkspace.keys(), ...pendingEnrichment]),
+      ...new Set([
+        ...byWorkspace.keys(),
+        ...pendingEnrichment,
+        ...(await workspacesWithStaleEmbeddings(
+          this.limits.enrichmentWorkspaces,
+        )),
+        ...(this.limits.companiesPerWorkspace > 0
+          ? await workspacesWithPendingCompanies(
+              this.limits.enrichmentWorkspaces,
+            )
+          : []),
+      ]),
     ];
     for (const workspaceId of workspaceIds) {
       if (!input.shouldContinue()) break;
@@ -435,6 +481,8 @@ export class ContactCaptureService {
     const stats = emptyStats();
     const enrichment = emptyEnrichmentStats();
     const importance: ImportanceStats = { judged: 0, failed: 0 };
+    const search = { embedded: 0, costUsd: 0, failed: false };
+    const companies = { looked: 0, filled: 0, costUsd: 0 };
     const budget: WorkspaceBudget = {
       captures: this.limits.capturesPerWorkspace,
       judgeCalls: this.limits.judgeCallsPerWorkspace,
@@ -470,6 +518,36 @@ export class ContactCaptureService {
         stats: importance,
         shouldContinue,
       });
+      // Last, and on their own: catching up never holds capture back.
+      if (shouldContinue())
+        Object.assign(
+          companies,
+          await enrichCompanies(workspaceId, {
+            limit: this.limits.companiesPerWorkspace,
+            usd: this.limits.companyUsdPerWorkspace,
+            shouldContinue,
+          }).catch((error: unknown) => {
+            console.error("Company lookup failed", {
+              workspaceId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+            return companies;
+          }),
+        );
+      if (shouldContinue())
+        Object.assign(
+          search,
+          await embedStaleContacts(workspaceId, {
+            limit: this.limits.embeddingsPerWorkspace,
+            shouldContinue,
+          }).catch((error: unknown) => {
+            console.error("Contact search embedding failed", {
+              workspaceId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+            return { embedded: 0, costUsd: 0, failed: true };
+          }),
+        );
     } catch (error) {
       stats.errors.push(error instanceof Error ? error.message : "unknown");
       console.error("Contact capture failed", {
@@ -501,6 +579,16 @@ export class ContactCaptureService {
           },
         },
         contactImportance: importance,
+        contactCompanies: {
+          looked: companies.looked,
+          filled: companies.filled,
+          costUsd: Math.round(companies.costUsd * 1e6) / 1e6,
+        },
+        contactSearch: {
+          embedded: search.embedded,
+          failed: search.failed,
+          costUsd: Math.round(search.costUsd * 1e6) / 1e6,
+        },
         contactEnrichment: {
           ...enrichment,
           costUsd: Math.round(enrichment.costUsd * 1e6) / 1e6,
@@ -1289,13 +1377,13 @@ export class ContactCaptureService {
   }
 
   // -------------------------------------------------------------------------
-  // X: whom the owner writes with in DMs, and mutual follows on contacts.
+  // X: whom the owner writes with in DMs, and who follows them.
   // -------------------------------------------------------------------------
 
   /**
    * X keeps about 30 days of DMs, so there is no long backfill: every hour
    * the newest pages back to `since` (the first run reads all it has). Once
-   * a day, people who follow the owner back are matched to contacts.
+   * a day, followers become contacts, newest first.
    */
   private async captureX(
     context: RunContext,
@@ -1310,7 +1398,9 @@ export class ContactCaptureService {
     const dmsDue =
       cursor.backfillUntil !== null ||
       now.getTime() - since.getTime() >= this.limits.xIntervalMs;
+    // An unfinished followers walk goes on every run; a new one daily.
     const followsDue =
+      !!cursor.followersToken ||
       !cursor.followsAt ||
       now.getTime() - new Date(cursor.followsAt).getTime() >=
         this.limits.xFollowsIntervalMs;
@@ -1341,9 +1431,7 @@ export class ContactCaptureService {
       await save();
     }
     if (followsDue && budget.calls > 0 && this.canRead(context)) {
-      await this.linkXFollows(context, budget, me);
-      cursor.followsAt = now.toISOString();
-      await save();
+      await this.readXFollowers(context, budget, me, cursor, save);
     }
   }
 
@@ -1404,101 +1492,235 @@ export class ContactCaptureService {
   }
 
   /**
-   * People the owner follows who follow them back get their X handle on the
-   * one contact with the same full name. Nobody new is created: a follow is
-   * not a conversation.
+   * Walks the owner's followers from where the last run stopped, a page at a
+   * time. A page is read again when the run's write budget ends inside it;
+   * followers already on a contact are passed over, so that costs nothing.
    */
-  private async linkXFollows(
+  private async readXFollowers(
     context: RunContext,
     budget: { calls: number },
     me: XUser,
+    cursor: SourceCursor,
+    save: () => Promise<unknown>,
   ): Promise<void> {
-    const read = async (tool: string) => {
-      const users: XUser[] = [];
-      let token: string | null = null;
-      for (let page = 0; page < this.limits.xFollowPages; page += 1) {
-        if (budget.calls <= 0) break;
-        const result = parseXPage(
-          await this.call(context, budget, tool, {
-            id: me.id,
-            max_results: 1000,
-            user_fields: ["name", "username"],
-            ...(token ? { pagination_token: token } : {}),
-          }),
-        );
-        users.push(...result.items.flatMap((raw) => parseXUser(raw) ?? []));
-        token = result.nextToken;
-        if (!token) break;
-      }
-      return users;
+    let index: Promise<Map<string, string[]>> | null = null;
+    // Read on first need, then shared by every page of this run.
+    const names = () => {
+      index ??= personNameIndex(context.actor.workspaceId);
+      return index;
     };
-    const following = await read(SOKO_BOT_X_CAPTURE_TOOLS.following);
-    const followerIds = new Set(
-      (await read(SOKO_BOT_X_CAPTURE_TOOLS.followers)).map((user) => user.id),
-    );
-    const mutual = following.filter(
-      (user) =>
-        followerIds.has(user.id) &&
-        user.name &&
-        normalizePersonName(user.name).includes(" "),
-    );
-    if (mutual.length === 0) return;
-    const { workspaceId } = context.actor;
+    for (let page = 0; page < this.limits.xFollowPages; page += 1) {
+      if (budget.calls <= 0 || !this.canRead(context)) return;
+      const token = cursor.followersToken ?? null;
+      const result = parseXPage(
+        await this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.followers, {
+          id: me.id,
+          max_results: 1000,
+          user_fields: X_FOLLOWER_FIELDS,
+          ...(token ? { pagination_token: token } : {}),
+        }),
+      );
+      const followers = result.items.flatMap(
+        (raw) => parseXFollower(raw) ?? [],
+      );
+      const done = await this.addXFollowers(context, followers, names);
+      await recordXFollowerCounts(context.actor.workspaceId, followers);
+      if (!done) return;
+      cursor.followersToken = result.nextToken;
+      // Only a finished walk waits a day; an unfinished one goes on next run.
+      if (!result.nextToken) cursor.followsAt = context.now.toISOString();
+      await save();
+      if (!result.nextToken) return;
+    }
+  }
+
+  /**
+   * Each follower who looks like a person joins the contact they certainly
+   * are (`matchFollower`), or becomes a new contact in the "X followers"
+   * list. Their bio stands in for the summary, so the model never enriches
+   * them. False when the write budget ran out first.
+   */
+  private async addXFollowers(
+    context: RunContext,
+    followers: readonly XFollower[],
+    names: () => Promise<Map<string, string[]>>,
+  ): Promise<boolean> {
+    const { actor } = context;
+    const handleOf = (follower: XFollower) =>
+      normalizeContactChannelValue("X", follower.username) ?? "";
     const linked = new Set(
       (
         await prisma.contactChannel.findMany({
           where: {
-            workspaceId,
+            workspaceId: actor.workspaceId,
             type: "X",
-            value: { in: mutual.map((user) => user.username.toLowerCase()) },
+            value: { in: followers.map(handleOf) },
           },
           select: { value: true },
         })
       ).map((channel) => channel.value),
     );
-    const open = mutual.filter(
-      (user) => !linked.has(user.username.toLowerCase()),
-    );
-    const contacts = await prisma.contact.findMany({
-      where: {
-        workspaceId,
-        kind: "PERSON",
-        archivedAt: null,
-        mergedIntoId: null,
-        name: {
-          in: open.flatMap((user) => user.name ?? []),
-          mode: "insensitive",
-        },
-        channels: { none: { type: "X" } },
-      },
-      select: { id: true, name: true },
+    const open = followers.filter((follower) => {
+      if (linked.has(handleOf(follower))) return false;
+      if (!isLikelyBot(follower)) return true;
+      context.stats.skipped.bot_user =
+        (context.stats.skipped.bot_user ?? 0) + 1;
+      return false;
     });
-    const byName = new Map<string, string[]>();
-    for (const contact of contacts) {
-      const key = normalizePersonName(contact.name);
-      byName.set(key, [...(byName.get(key) ?? []), contact.id]);
-    }
-    for (const user of open) {
-      const ids = byName.get(normalizePersonName(user.name ?? ""));
-      // Two contacts with that name: no telling which one it is.
-      const contactId = ids?.length === 1 ? ids[0] : undefined;
-      if (!contactId || context.budget.captures <= 0) continue;
+    if (open.length === 0) return true;
+    const index = await names();
+    const bucketOf = (follower: XFollower) =>
+      index.get(followerNameKey(follower.name ?? "") ?? "") ?? [];
+    const ids = [...new Set(open.flatMap(bucketOf))];
+    const byId = new Map<string, MatchContact>();
+    for (let start = 0; start < ids.length; start += 2_000)
+      for (const contact of await prisma.contact.findMany({
+        where: {
+          id: { in: ids.slice(start, start + 2_000) },
+          channels: { none: { type: "X" } },
+        },
+        select: {
+          id: true,
+          name: true,
+          organization: true,
+          location: true,
+          channels: { select: { type: true, value: true } },
+        },
+      }))
+        byId.set(contact.id, contact);
+    // Each follower against everyone sharing their name key, and no one else.
+    const candidates = (follower: XFollower) =>
+      bucketOf(follower).flatMap((id) => byId.get(id) ?? []);
+    const list = await inContactTransaction((tx) =>
+      ensureManualContactList(tx, actor, "X followers", CONTACT_LIST_COLORS[6]),
+    );
+    for (const follower of open) {
+      if (context.budget.captures <= 0 || !context.shouldContinue())
+        return false;
       context.budget.captures -= 1;
+      const profile = `https://x.com/${follower.username}`;
+      const fields = {
+        location: follower.location.slice(0, 200) || undefined,
+        summary: follower.description || undefined,
+      };
+      const match = matchFollower(follower, candidates(follower));
       try {
-        await inContactTransaction((tx) =>
-          addContactChannel(tx, context.actor, contactId, {
-            type: "X",
-            value: user.username,
-            source: "X",
-            sourceUrl: `https://x.com/${user.username}`,
-          }),
-        );
-        context.stats.updated += 1;
+        if (match) {
+          await inContactTransaction(async (tx) => {
+            await addContactChannel(tx, actor, match.contactId, {
+              type: "X",
+              value: follower.username,
+              source: "X",
+              sourceUrl: profile,
+            });
+            await enrichContactFields(
+              tx,
+              actor,
+              match.contactId,
+              fields,
+              { method: "x_profile", sources: [], sourceUrls: [profile] },
+              { markEnriched: false },
+            );
+          });
+          context.stats.updated += 1;
+          continue;
+        }
+        const website = ownHost(follower.website) ? follower.website : null;
+        const create = (withWebsite: boolean) =>
+          inContactTransaction(async (tx) => {
+            const { contact } = await upsertContact(
+              tx,
+              actor,
+              {
+                name: follower.name ?? undefined,
+                stage: "COMMUNITY",
+                avatarUrl: follower.avatarUrl ?? undefined,
+                ...fields,
+                channels: [
+                  { type: "X", value: follower.username, sourceUrl: profile },
+                  ...(withWebsite && website
+                    ? [{ type: "WEBSITE" as const, value: website }]
+                    : []),
+                ],
+                upsert: false,
+              },
+              { defaultChannelSource: "X" },
+            );
+            await tx.contact.update({
+              where: { id: contact.id },
+              data: { enrichedAt: new Date(), classifiedAt: new Date() },
+            });
+            await tx.contactListMember.create({
+              data: {
+                listId: list.id,
+                contactId: contact.id,
+                addedByUserId: actor.userId,
+                addedBySokoBotId: actor.sokoBotId,
+                addedAutomatically: true,
+              },
+            });
+          });
+        // Someone else already has that website: add the person without it.
+        await create(true).catch((error: unknown) => {
+          if (website && isConflict(error)) return create(false);
+          throw error;
+        });
+        context.stats.created += 1;
       } catch (error) {
         if (!isConflict(error)) throw error;
       }
     }
+    return true;
   }
+}
+
+/** Each follower's own audience on their X channel, whoever they are on. */
+async function recordXFollowerCounts(
+  workspaceId: string,
+  followers: readonly XFollower[],
+): Promise<void> {
+  const counted = followers.flatMap((follower) => {
+    const handle = normalizeContactChannelValue("X", follower.username);
+    return handle && follower.followers !== null
+      ? [{ handle, count: follower.followers }]
+      : [];
+  });
+  if (counted.length === 0) return;
+  await prisma.$executeRaw`
+    UPDATE "contact_channel" ch
+    SET "followers" = v.count
+    FROM unnest(${counted.map((c) => c.handle)}::text[], ${counted.map((c) => c.count)}::int[]) AS v(handle, count)
+    WHERE ch."workspaceId" = ${workspaceId}::uuid
+      AND ch."type" = 'X'
+      AND ch."value" = v.handle
+      AND ch."followers" IS DISTINCT FROM v.count
+  `;
+}
+
+/**
+ * The workspace's people by first and last name, built with the same
+ * normalization `matchFollower` uses, so every candidate and tie is seen.
+ */
+async function personNameIndex(
+  workspaceId: string,
+): Promise<Map<string, string[]>> {
+  const people = await prisma.contact.findMany({
+    where: {
+      workspaceId,
+      kind: "PERSON",
+      archivedAt: null,
+      mergedIntoId: null,
+    },
+    select: { id: true, name: true },
+  });
+  const index = new Map<string, string[]>();
+  for (const person of people)
+    for (const key of contactNameKeys(person.name)) {
+      const ids = index.get(key);
+      if (ids) ids.push(person.id);
+      else index.set(key, [person.id]);
+    }
+  return index;
 }
 
 function field(value: unknown, key: string): unknown {

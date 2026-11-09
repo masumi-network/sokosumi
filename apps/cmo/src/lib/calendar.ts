@@ -31,6 +31,12 @@ export const SOCIAL_PROVIDERS = [
   "youtube",
 ] as const;
 
+export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
+
+export function isSocialProvider(channel: string): channel is SocialProvider {
+  return (SOCIAL_PROVIDERS as readonly string[]).includes(channel);
+}
+
 /**
  * Whether Cuso can execute an entry now: it must be on a connected social
  * account. Otherwise it says why it stays in the plan.
@@ -40,9 +46,7 @@ export function entryReadiness(
   connected: readonly string[],
 ): "ready" | "connect" | "soon" {
   if (connected.includes(channel)) return "ready";
-  return (SOCIAL_PROVIDERS as readonly string[]).includes(channel)
-    ? "connect"
-    : "soon";
+  return isSocialProvider(channel) ? "connect" : "soon";
 }
 
 const DAY_MS = 86_400_000;
@@ -107,9 +111,7 @@ export function planRange(calendar: Pick<Entry, "date">[]): string | null {
 /** Social posts a week across the plan, which is what a CMO tier limits. */
 export function socialPostsPerWeek(calendar: Entry[]): number {
   const social = calendar.filter(
-    (entry) =>
-      (SOCIAL_PROVIDERS as readonly string[]).includes(entry.channel) &&
-      entry.status !== "skipped",
+    (entry) => isSocialProvider(entry.channel) && entry.status !== "skipped",
   );
   if (social.length === 0) return 0;
   const dates = social.map((entry) => entry.date).sort();

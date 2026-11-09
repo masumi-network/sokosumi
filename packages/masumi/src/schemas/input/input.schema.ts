@@ -14,7 +14,7 @@ import {
   optionalValidationSchema,
 } from "./validation.schema.js";
 
-export const inputNoneSchema = z.object({
+const inputNoneSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.NONE]),
   name: z.string().min(1),
@@ -27,7 +27,7 @@ export const inputNoneSchema = z.object({
 
 export type InputNoneSchemaType = z.infer<typeof inputNoneSchema>;
 
-export const inputStringSchema = z.object({
+const inputStringSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.STRING]),
   name: z.string().min(1),
@@ -51,7 +51,7 @@ export const inputStringSchema = z.object({
 
 export type InputStringSchemaType = z.infer<typeof inputStringSchema>;
 
-export const inputTextSchema = z.object({
+const inputTextSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.TEXT]),
   name: z.string().min(1),
@@ -76,7 +76,7 @@ export const inputTextSchema = z.object({
 
 export type InputTextSchemaType = z.infer<typeof inputTextSchema>;
 
-export const inputTextareaSchema = z.object({
+const inputTextareaSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.TEXTAREA]),
   name: z.string().min(1),
@@ -99,7 +99,7 @@ export const inputTextareaSchema = z.object({
 
 export type InputTextareaSchemaType = z.infer<typeof inputTextareaSchema>;
 
-export const inputNumberSchema = z.object({
+const inputNumberSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.NUMBER]),
   name: z.string().min(1),
@@ -125,7 +125,7 @@ export const inputNumberSchema = z.object({
 
 export type InputNumberSchemaType = z.infer<typeof inputNumberSchema>;
 
-export const inputBooleanSchema = z.object({
+const inputBooleanSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.BOOLEAN]),
   name: z.string().min(1),
@@ -141,7 +141,7 @@ export const inputBooleanSchema = z.object({
 
 export type InputBooleanSchemaType = z.infer<typeof inputBooleanSchema>;
 
-export const inputEmailSchema = z.object({
+const inputEmailSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.EMAIL]),
   name: z.string().min(1),
@@ -165,7 +165,7 @@ export const inputEmailSchema = z.object({
 
 export type InputEmailSchemaType = z.infer<typeof inputEmailSchema>;
 
-export const inputPasswordSchema = z.object({
+const inputPasswordSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.PASSWORD]),
   name: z.string().min(1),
@@ -187,7 +187,7 @@ export const inputPasswordSchema = z.object({
 
 export type InputPasswordSchemaType = z.infer<typeof inputPasswordSchema>;
 
-export const inputTelSchema = z.object({
+const inputTelSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.TEL]),
   name: z.string().min(1),
@@ -210,7 +210,7 @@ export const inputTelSchema = z.object({
 
 export type InputTelSchemaType = z.infer<typeof inputTelSchema>;
 
-export const inputUrlSchema = z.object({
+const inputUrlSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.URL]),
   name: z.string().min(1),
@@ -234,7 +234,7 @@ export const inputUrlSchema = z.object({
 
 export type InputUrlSchemaType = z.infer<typeof inputUrlSchema>;
 
-export const inputDateSchema = z.object({
+const inputDateSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.DATE]),
   name: z.string().min(1),
@@ -254,7 +254,7 @@ export const inputDateSchema = z.object({
 
 export type InputDateSchemaType = z.infer<typeof inputDateSchema>;
 
-export const inputDatetimeSchema = z.object({
+const inputDatetimeSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.DATETIME]),
   name: z.string().min(1),
@@ -274,7 +274,7 @@ export const inputDatetimeSchema = z.object({
 
 export type InputDatetimeSchemaType = z.infer<typeof inputDatetimeSchema>;
 
-export const inputTimeSchema = z.object({
+const inputTimeSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.TIME]),
   name: z.string().min(1),
@@ -294,7 +294,7 @@ export const inputTimeSchema = z.object({
 
 export type InputTimeSchemaType = z.infer<typeof inputTimeSchema>;
 
-export const inputMonthSchema = z.object({
+const inputMonthSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.MONTH]),
   name: z.string().min(1),
@@ -314,7 +314,7 @@ export const inputMonthSchema = z.object({
 
 export type InputMonthSchemaType = z.infer<typeof inputMonthSchema>;
 
-export const inputWeekSchema = z.object({
+const inputWeekSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.WEEK]),
   name: z.string().min(1),
@@ -334,7 +334,7 @@ export const inputWeekSchema = z.object({
 
 export type InputWeekSchemaType = z.infer<typeof inputWeekSchema>;
 
-export const inputColorSchema = z.object({
+const inputColorSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.COLOR]),
   name: z.string().min(1),
@@ -349,7 +349,7 @@ export const inputColorSchema = z.object({
 
 export type InputColorSchemaType = z.infer<typeof inputColorSchema>;
 
-export const inputRangeSchema = z.object({
+const inputRangeSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.RANGE]),
   name: z.string().min(1),
@@ -375,7 +375,7 @@ export const inputRangeSchema = z.object({
 
 export type InputRangeSchemaType = z.infer<typeof inputRangeSchema>;
 
-export const inputFileSchema = z.object({
+const inputFileSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.FILE]),
   name: z.string().min(1),
@@ -395,7 +395,7 @@ export const inputFileSchema = z.object({
 
 export type InputFileSchemaType = z.infer<typeof inputFileSchema>;
 
-export const inputHiddenSchema = z.object({
+const inputHiddenSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.HIDDEN]),
   name: z.string().min(1),
@@ -410,7 +410,7 @@ export const inputHiddenSchema = z.object({
 
 export type InputHiddenSchemaType = z.infer<typeof inputHiddenSchema>;
 
-export const inputSearchSchema = z.object({
+const inputSearchSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.SEARCH]),
   name: z.string().min(1),
@@ -433,7 +433,7 @@ export const inputSearchSchema = z.object({
 
 export type InputSearchSchemaType = z.infer<typeof inputSearchSchema>;
 
-export const inputCheckboxSchema = z.object({
+const inputCheckboxSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.CHECKBOX]),
   name: z.string().min(1),
@@ -447,7 +447,7 @@ export const inputCheckboxSchema = z.object({
 
 export type InputCheckboxSchemaType = z.infer<typeof inputCheckboxSchema>;
 
-export const inputRadioGroupSchema = z.object({
+const inputRadioGroupSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.RADIO_GROUP]),
   name: z.string().min(1),
@@ -468,7 +468,7 @@ export const inputRadioGroupSchema = z.object({
 
 export type InputRadioGroupSchemaType = z.infer<typeof inputRadioGroupSchema>;
 
-export const inputOptionSchema = z.object({
+const inputOptionSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.OPTION]),
   name: z.string().min(1),
@@ -489,7 +489,7 @@ export const inputOptionSchema = z.object({
 
 export type InputOptionSchemaType = z.infer<typeof inputOptionSchema>;
 
-export const inputMultiselectSchema = z.object({
+const inputMultiselectSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.MULTISELECT]),
   name: z.string().min(1),
@@ -507,7 +507,7 @@ export const inputMultiselectSchema = z.object({
 
 export type InputMultiselectSchemaType = z.infer<typeof inputMultiselectSchema>;
 
-export const inputFieldSchema = inputNoneSchema
+const inputFieldSchema = inputNoneSchema
   .or(inputStringSchema)
   .or(inputTextSchema)
   .or(inputTextareaSchema)
@@ -534,7 +534,7 @@ export const inputFieldSchema = inputNoneSchema
 
 export type InputFieldSchemaType = z.infer<typeof inputFieldSchema>;
 
-export const inputFieldsSchema = z.array(inputFieldSchema).refine(
+const inputFieldsSchema = z.array(inputFieldSchema).refine(
   (data) => {
     const ids = data.map((input) => input.id);
     return new Set(ids).size === ids.length;
@@ -549,7 +549,7 @@ export const inputDataSchema = z.object({
   input_data: inputFieldsSchema,
 });
 
-export const inputGroupSchema = z
+const inputGroupSchema = z
   .object({
     id: z.string().min(1),
     title: z.string().min(1),

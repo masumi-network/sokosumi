@@ -5,7 +5,7 @@
   justify-content: center;
   gap: 32px;
   padding: 32px 16px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -33,16 +33,15 @@
   width: 248px;
   height: 500px;
   overflow: hidden;
-  border: 8px solid var(--foreground);
+  border: 1px solid var(--line);
   border-radius: 40px;
   background: var(--background);
-  box-shadow: var(--shadow-lg);
 }
 
 /* A proposed channel: a lighter phone, dashed, marked optional. */
 .pf-item.optional .pf-phone {
   border-style: dashed;
-  border-color: var(--border-strong);
+  border-color: var(--line);
   box-shadow: none;
 }
 
@@ -146,7 +145,7 @@
   place-items: center;
   color: color-mix(in srgb, var(--brand, var(--foreground)) 45%, var(--clear));
   aspect-ratio: 1.91;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--brand-soft, var(--surface));
 }
 
@@ -225,7 +224,7 @@
   gap: 8px;
   margin-left: 12px;
   padding-left: 12px;
-  border-left: 2px solid var(--border);
+  border-left: 1px solid var(--line);
 }
 
 .mw-link {
@@ -234,7 +233,7 @@
   padding-bottom: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
 }
 
 .mw-link .mw-img {
@@ -251,7 +250,7 @@
   gap: 10px;
   aspect-ratio: 1;
   padding: 20px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--brand, var(--foreground));
 }
 
@@ -271,7 +270,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
 }
 
@@ -283,7 +282,7 @@
   display: block;
   width: 45%;
   height: 26px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--brand, var(--foreground));
 }
 

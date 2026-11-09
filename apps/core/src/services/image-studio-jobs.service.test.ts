@@ -476,8 +476,11 @@ describe("image studio job submission", () => {
     });
     blobHeadMock.mockResolvedValue({
       url: "https://store.public.blob.vercel-storage.com/drive/w/dashboard.jpg",
+      size: 1,
     });
-    ssrfSafeFetchMock
+    // Our own blob store, read without the SSRF guard its bot check refuses.
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(
         new Response(new Uint8Array([1]), {
@@ -489,7 +492,9 @@ describe("image studio job submission", () => {
 
     await createImageJob({ ...BASE_INPUT, referenceFileIds: ["file-1"] });
 
-    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    fetchMock.mockRestore();
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.objectContaining({
@@ -520,8 +525,9 @@ describe("image studio job submission", () => {
     });
     blobHeadMock.mockResolvedValue({
       url: "https://store.public.blob.vercel-storage.com/drive/w/leggings.jpg",
+      size: 2,
     });
-    ssrfSafeFetchMock.mockResolvedValue(
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(new Uint8Array([1, 2]), {
         headers: { "content-type": "image/jpeg" },
       }),
@@ -555,6 +561,7 @@ describe("image studio job submission", () => {
         }),
       }),
     );
+    fetchMock.mockRestore();
   });
 
   it("sends reference bytes to the provider's storage, not one of our URLs", async () => {
@@ -613,8 +620,9 @@ describe("image studio job submission", () => {
   });
 
   it("sends Design and Memory to fal and keeps the stored prompt as the brief", async () => {
+    // Own URL: readDesignMdContent caches by URL across the test process.
     const designMdUrl =
-      "https://abc123.public.blob.vercel-storage.com/design-md/hash.md";
+      "https://abc123.public.blob.vercel-storage.com/design-md/jobs-brand.md";
     projectFindUniqueMock.mockResolvedValue({
       designMdUrl,
       contextMd: "We never use serif.",
@@ -643,8 +651,9 @@ describe("image studio job submission", () => {
 
   it("still sends the brief when Design cannot be read", async () => {
     projectFindUniqueMock.mockResolvedValue({
+      // A file no earlier test read: read files are cached by URL.
       designMdUrl:
-        "https://abc123.public.blob.vercel-storage.com/design-md/hash.md",
+        "https://abc123.public.blob.vercel-storage.com/design-md/unread-jobs.md",
       contextMd: null,
     });
     ssrfSafeFetchMock.mockRejectedValue(new Error("blocked"));

@@ -25,7 +25,10 @@ const ERROR_MESSAGES = new Map([
     CMO_SIGN_IN_ERROR.unavailable,
     "Sokosumi is not reachable right now. Try again in a minute.",
   ],
-  [CMO_SIGN_IN_ERROR.signedOut, "You were signed out. Sign in again."],
+  [
+    CMO_SIGN_IN_ERROR.signedOut,
+    "Your session ended. Sign in to pick up where you left off.",
+  ],
 ]);
 
 function errorMessage(error: string): string {
@@ -34,14 +37,18 @@ function errorMessage(error: string): string {
 
 /** Why sign in stopped, and one way back in. */
 export function SignInProblem({ error, signIn }: SignInProblemProps) {
+  // An ended session is not a failed sign in: it only asks to sign in again.
+  const signedOut = error === CMO_SIGN_IN_ERROR.signedOut;
   return (
     <main className="hero">
       <div className="hero-copy">
-        <h1>Sign in did not finish.</h1>
+        <h1>
+          {signedOut ? "You were signed out." : "Sign in did not finish."}
+        </h1>
         <p role="alert">{errorMessage(error)}</p>
         <form className="actions">
           <SubmitButton className="button" formAction={signIn}>
-            Try again
+            {signedOut ? "Sign in" : "Try again"}
           </SubmitButton>
         </form>
       </div>

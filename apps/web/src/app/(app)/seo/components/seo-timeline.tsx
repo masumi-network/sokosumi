@@ -225,7 +225,7 @@ export function SeoTimeline({
                     className={cn(
                       "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
                       failed
-                        ? "bg-destructive/10 text-destructive"
+                        ? "bg-quinary text-semantic-destructive"
                         : "bg-muted text-muted-foreground",
                     )}
                   >

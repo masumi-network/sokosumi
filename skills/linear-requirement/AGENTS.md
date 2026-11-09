@@ -6,7 +6,7 @@
 
 1. Load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/) (`SKILL.md`).
 2. Follow [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md) to create or update a Task (`tasks create` / `tasks update` with `--description-file` for the requirement body).
-3. Prefer `--preprod`. Confirm the brief and write authorization before creating.
+3. Tracker Tasks for this repo live on **mainnet** — read with `--api-url https://api.sokosumi.com` (never `--preprod` for `tasks get`). Confirm the brief and write authorization before creating on mainnet.
 
 ## Runtime notes
 

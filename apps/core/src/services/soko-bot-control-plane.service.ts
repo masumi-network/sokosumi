@@ -230,6 +230,8 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
+  /** IANA timezone for a new bot's day; an existing bot keeps its own. */
+  timezone?: string;
 }
 
 /**
@@ -435,12 +437,14 @@ function safeEventText(
   limit = EVENT_TEXT_LIMIT,
 ): string | null {
   if (typeof value !== "string") return null;
-  const trimmed = value.trim();
+  const trimmed = value.replaceAll("\u0000", "").trim();
   if (!trimmed) return null;
   const scrubbed = redactSokoBotSensitiveText(trimmed);
-  return scrubbed.length > limit
-    ? `${scrubbed.slice(0, limit - 1)}…`
-    : scrubbed;
+  // A cut inside an emoji leaves half of it; Postgres refused that and the
+  // turn never settled ("invalid input syntax for type json").
+  return (
+    scrubbed.length > limit ? `${scrubbed.slice(0, limit - 1)}…` : scrubbed
+  ).toWellFormed();
 }
 
 function safeEventJson(
@@ -477,7 +481,10 @@ export function summarizeContextPacket(packet: unknown) {
   };
 }
 
-function safeEventProjection(type: string, data: Record<string, unknown>) {
+export function safeEventProjection(
+  type: string,
+  data: Record<string, unknown>,
+) {
   if (type === "reasoning.completed") {
     // A provider reasoning summary; the chat shows it as the bot's Thought,
     // so it keeps more than a one-line event summary.
@@ -1268,14 +1275,7 @@ export class SokoBotControlPlane {
             },
           });
         }
-        if (input.avatarId) {
-          // Recorded for the daily keep cap, never refused by it: creating a bot
-          // must not fail because of a limit on how often looks are kept.
-          await claimAvatar(updated.id, input.avatarId, {
-            tx,
-            keptBy: input.userId,
-          });
-        }
+        if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
 
@@ -1290,6 +1290,7 @@ export class SokoBotControlPlane {
           // what each bot actually runs, and an older bot keeps its version
           // when the default moves on.
           versionId: defaultVersionId,
+          ingestTimezone: input.timezone,
           avatarSeed: input.avatarSeed,
           personalityTone: input.personalityTone,
           personalityDetail: input.personalityDetail,
@@ -1307,12 +1308,7 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      if (input.avatarId) {
-        await claimAvatar(bot.id, input.avatarId, {
-          tx,
-          keptBy: input.userId,
-        });
-      }
+      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
     const { ensureSystemSchedules } = await import(
@@ -1793,8 +1789,13 @@ export class SokoBotControlPlane {
     const message = input.message.trim();
     const clientTurnId = input.clientTurnId.trim();
     const source = input.source ?? "CHAT";
-    if (!message || message.length > 20_000) {
-      throw new SokoBotValidationError("Message must be 1-20,000 characters");
+    // A person types a chat message; Core writes the rest, and a CMO
+    // production brief carries a month of pieces and their writing skills.
+    const limit = source === "CHAT" ? 20_000 : 100_000;
+    if (!message || message.length > limit) {
+      throw new SokoBotValidationError(
+        `Message must be 1-${limit.toLocaleString("en")} characters`,
+      );
     }
     if (!clientTurnId || clientTurnId.length > 120) {
       throw new SokoBotValidationError("Invalid client turn id");
@@ -2255,13 +2256,15 @@ export class SokoBotControlPlane {
           : routeCapabilities) as readonly SokoBotCapability[],
     ).filter(
       (capability) =>
-        !isSokoBotNewsletterCapability(capability) || newsletterAvailable,
+        (!isSokoBotNewsletterCapability(capability) || newsletterAvailable) &&
+        // Without a key `search_exa` refuses on every call; offer web_search only.
+        (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(
       Date.now() +
         (input.background
           ? BACKGROUND_RUN_DEADLINE_MS
-          : personAsked
+          : personAsked || input.personStarted
             ? PERSON_TURN_DEADLINE_MS
             : TURN_DEADLINE_MS),
     );

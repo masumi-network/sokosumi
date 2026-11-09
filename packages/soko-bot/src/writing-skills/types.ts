@@ -9,6 +9,8 @@ export interface WritingRule {
   formats?: readonly string[];
   /** It counts characters or items: Core checks it in code, never the evaluator, which cannot count. */
   counted?: boolean;
+  /** The evaluator's brand-voice question already covers it. */
+  voice?: boolean;
 }
 
 /**

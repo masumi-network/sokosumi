@@ -9,14 +9,13 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useFormatter } from "next-intl";
+import { useFormatter, useNow } from "next-intl";
 import type { RoomMemberReadState } from "@/app/chat/hooks/use-room-read-receipts";
 import { AuroraOrb } from "@/components/aurora-orb";
 import {
   LiveMemberPresenceDot,
   LiveMemberPresenceText,
 } from "@/components/chat/live-member-presence-dot";
-import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
-import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { groupRosterMembers } from "./group-roster-members";
@@ -110,10 +108,6 @@ function RosterMemberAvatar({
           alt=""
           className="ring-border size-8 ring-1"
         />
-      ) : participant.kind === "sokoBot" &&
-        participant.image &&
-        isCraftedStyle(participant.avatarStyleId) ? (
-        <AvatarFace src={participant.image} crafted className="size-8" />
       ) : (
         <Avatar className="size-8">
           <AvatarImage src={participant.image ?? undefined} alt="" />
@@ -154,7 +148,8 @@ function RosterMemberReadState({
   labels: RoomRosterPanelLabels;
 }) {
   const format = useFormatter();
-  const relative = format.relativeTime(readState.lastReadAt);
+  const now = useNow({ updateInterval: 60_000 });
+  const relative = format.relativeTime(readState.lastReadAt, now);
 
   return (
     <span

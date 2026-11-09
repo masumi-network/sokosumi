@@ -1507,7 +1507,7 @@ describe("SEO workspace integration", () => {
       "Your page passes the last check, but Google rarely shows it yet",
     );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Google search on this page: 2 clicks, 35 impressions · Jan 1\W+2, 2026 · Open Traffic$/,
+      /^Google search on this page: 2 clicks, 35 impressions · Jan 1\W+2, 2026 · Open traffic$/,
     );
     unmount();
     // Without clicks the line would read as zero clicks; it stays away.

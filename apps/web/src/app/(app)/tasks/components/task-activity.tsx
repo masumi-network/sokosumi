@@ -45,7 +45,6 @@ import {
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
-import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { SourcesGrid } from "@/components/sources/sources-grid";
 import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -59,7 +58,6 @@ import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,
 } from "@/lib/constants/channel-icons";
-import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import {
@@ -516,7 +514,7 @@ export function TaskActivitySection({
                   })
                 : (actorInfo?.name ?? actorLabel);
             const actorImage = actorInfo?.image ?? null;
-            // Only when the bot has no mascot of its own: a claimed image is
+            // Only when the bot has no Soko Bot avatar of its own: a claimed image is
             // its face in chat and the sidebar, and an orb here made the same
             // assistant look like two different ones.
             const showAssistantOrb =
@@ -665,15 +663,6 @@ export function TaskActivitySection({
                       size={24}
                       className="size-6 shrink-0 self-start"
                       alt={actorName}
-                    />
-                  ) : actorImage &&
-                    actorKind === "sokoBot" &&
-                    isCraftedStyle(actorInfo?.avatarStyleId) ? (
-                    <AvatarFace
-                      src={actorImage}
-                      crafted
-                      alt={actorName}
-                      className="size-6 self-start"
                     />
                   ) : (
                     <Avatar className="size-6 shrink-0 self-start">

@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getAgentJobsMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: class CoreApiRequestError extends Error {
+    status?: number;
+    constructor(message: string, options?: { status?: number }) {
+      super(message);
+      this.status = options?.status;
+    }
+  },
   coreClient: {
     getAgentJobs: (...args: unknown[]) => getAgentJobsMock(...args),
   },
@@ -23,6 +30,7 @@ describe("getCachedMyJobs", () => {
       meta: {
         pagination: {
           nextCursor: "cursor-2",
+          total: 42,
         },
       },
     });
@@ -40,6 +48,7 @@ describe("getCachedMyJobs", () => {
       "job-middle",
     ]);
     expect(page.nextCursor).toBe("cursor-2");
+    expect(page.total).toBe(42);
   });
 
   it("returns an empty list when the first page is empty", async () => {
@@ -89,5 +98,63 @@ describe("getOwnedAgentJobsPage", () => {
       "job-older",
     ]);
     expect(page.nextCursor).toBeNull();
+  });
+});
+
+describe("getOwnedAgentJobsCount", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("asks Core for one owned job and returns the total it counts", async () => {
+    getAgentJobsMock.mockResolvedValueOnce({
+      data: [{ id: "job-newest" }],
+      meta: { pagination: { nextCursor: "job-newest", total: 3 } },
+    });
+
+    const { getOwnedAgentJobsCount } = await import("./get-cached-my-jobs");
+
+    await expect(getOwnedAgentJobsCount("agent-1")).resolves.toBe(3);
+    expect(getAgentJobsMock).toHaveBeenCalledWith("agent-1", {
+      limit: 1,
+      scope: "owned",
+    });
+  });
+
+  it("returns 0 when the viewer has no jobs with the agent", async () => {
+    getAgentJobsMock.mockResolvedValueOnce({
+      data: [],
+      meta: { pagination: { nextCursor: null, total: 0 } },
+    });
+
+    const { getOwnedAgentJobsCount } = await import("./get-cached-my-jobs");
+
+    await expect(getOwnedAgentJobsCount("agent-1")).resolves.toBe(0);
+  });
+
+  it.each([401, 403, 404])(
+    "returns 0 when Core refuses the list with %i",
+    async (status) => {
+      const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+      getAgentJobsMock.mockRejectedValueOnce(
+        new CoreApiRequestError("refused", { status }),
+      );
+
+      const { getOwnedAgentJobsCount } = await import("./get-cached-my-jobs");
+
+      await expect(getOwnedAgentJobsCount("agent-1")).resolves.toBe(0);
+    },
+  );
+
+  it("rethrows other Core failures", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    getAgentJobsMock.mockRejectedValueOnce(
+      new CoreApiRequestError("down", { status: 500 }),
+    );
+
+    const { getOwnedAgentJobsCount } = await import("./get-cached-my-jobs");
+
+    await expect(getOwnedAgentJobsCount("agent-1")).rejects.toThrow("down");
   });
 });

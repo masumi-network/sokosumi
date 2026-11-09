@@ -39,7 +39,7 @@ Vocabulary is in `GLOSSARY.md`. The decision and the rejected alternatives are i
 25. As a reader, I want a row to stay while its room is open, with its mark cleared, so that the row I am reading does not vanish under my cursor.
 26. As a reader, I want a read row to leave once I move on, so that the sidebar goes back to being quiet.
 27. As a reader, I want a row's menu to offer Mute and Mark as unread, so that I can deal with a noisy room from where I see it.
-28. As a reader, I want no Pin on a row, so that I am not offered something that would seem to do nothing here.
+<!-- 28 removed: ADR-0062 says Elsewhere rows offer Pin. -->
 29. As someone sent a link to a room I belong to in another workspace, I want it to open as a Room visit, so that a link works wherever I am.
 30. As someone sent a link to a room I do not belong to, I want the same unavailable result as today, so that visits widen nothing.
 31. As a reader, I want clicking a chat notification for another workspace's room to open a Room visit, so that reading a chat never switches workspace.
@@ -60,7 +60,7 @@ Vocabulary is in `GLOSSARY.md`. The decision and the rejected alternatives are i
 - **Core: one new read.** A versioned, session-user route under the chat rooms API lists the reader's unread rooms in their other workspaces, as the sidebar's room DTO with its unread and mention counts and its Organization's name. It answers the whole list, mentions first and then newest, because Catch up needs all of it. It is human-only; coworker and Soko Bot credentials get nothing.
 - **What qualifies.** The rooms the reader is a member of, not archived, not muted, not shown in the active workspace's sidebar and not shown in every workspace, with something unread by the existing room unread rule. Reuse the existing unread and mention count helpers. The rule that decides what the active workspace lists stays the one source; this read is its complement.
 - **Who may see it.** Existing room access already checks the reader's membership of the room and its Organization. No new access rule.
-- **Web: row selection is one pure function.** Given the ordered list it answers the rows and the overflow count: at most five, every room naming the reader included even past five. Rows are real room rows on their second line, as a guest room's host line is, without Pin.
+- **Web: row selection is one pure function.** Given the ordered list it answers the rows and the overflow count: at most five, every room naming the reader included even past five. Rows are real room rows on their second line, as a guest room's host line is.
 - **What names the reader.** A room with an unread mention count above zero. `@all` counts, because a mention notification does not say which kind it was. A Direct of two counts every message toward that count, so it also passes the cap, though it draws the number and not the `@` pill, as it does today.
 - **Live updates.** No polling. Every new message already sends each member a rooms-changed event on their personal control channel in any workspace, and the realtime token already covers all their rooms. The list refetches on that event, coalesced so a busy room does not cost one request per message.
 - **Room visit.** The room page stops redirecting away from a room outside the active workspace. Its member list and the reader's role come from the room's Organization. The room's realtime channel is attached as for any open room.
