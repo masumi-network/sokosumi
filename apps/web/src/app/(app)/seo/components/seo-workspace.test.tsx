@@ -343,6 +343,20 @@ describe("SEO workspace integration", () => {
     expect(screen.getByLabelText("Activity from")).toBe(from);
   });
 
+  it("puts the filters under the tabs so the tab row stays put", () => {
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    const tabs = screen.getByRole("tablist");
+    const dates = screen.getByRole("button", { name: "Filter by date" });
+    expect(
+      tabs.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("leaves the Primary page badge off a lone page", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(

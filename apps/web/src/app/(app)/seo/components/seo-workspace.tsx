@@ -191,7 +191,12 @@ export function SeoWorkspace({
           ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
+              {/* The trigger replaces the button's data-slot, so the phone height is set here. */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="max-sm:min-h-10 max-sm:min-w-10"
+              >
                 <MoreHorizontal className="size-4" />
                 <span className="max-sm:sr-only">{t("manage")}</span>
               </Button>
@@ -251,56 +256,6 @@ export function SeoWorkspace({
           </DropdownMenu>
         </div>
       </div>
-      {foldFilters ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="md:hidden"
-          aria-expanded={filtersOpen}
-          aria-controls="seo-scope-filters"
-          onClick={() => setFiltersOpen((open) => !open)}
-        >
-          {t("scopeFilters")}
-          {model.filters.channel ? (
-            <span className="text-muted-foreground">
-              {t(
-                model.filters.channel === "organic"
-                  ? "statistics.channelOrganic"
-                  : "statistics.channelAll",
-              )}
-            </span>
-          ) : null}
-          <ChevronDown
-            className={cn(
-              "size-4 transition-transform",
-              filtersOpen && "rotate-180",
-            )}
-            aria-hidden
-          />
-        </Button>
-      ) : null}
-      {showFilters ? (
-        <div
-          id="seo-scope-filters"
-          className={cn(
-            "space-y-3 md:block",
-            filtersOpen || !foldFilters ? "block" : "hidden",
-          )}
-        >
-          <SeoScopeBar model={model} dateFields={dateFields} />
-          {editScope ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={unavailable}
-              onClick={() => model.setDialog("edit_scope")}
-            >
-              <Settings2 className="size-4" />
-              {t("editScope")}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
       {!unavailable && model.data.history.limited ? (
         <p role="status" className="text-muted-foreground text-sm">
           {t("historyLimited", { limit: model.data.history.limit })}
@@ -363,6 +318,57 @@ export function SeoWorkspace({
             ))}
           </TabsList>
         </div>
+        {/* Filters sit under the tabs, so the tab row stays put when a tab has none. */}
+        {foldFilters ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="md:hidden"
+            aria-expanded={filtersOpen}
+            aria-controls="seo-scope-filters"
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            {t("scopeFilters")}
+            {model.filters.channel ? (
+              <span className="text-muted-foreground">
+                {t(
+                  model.filters.channel === "organic"
+                    ? "statistics.channelOrganic"
+                    : "statistics.channelAll",
+                )}
+              </span>
+            ) : null}
+            <ChevronDown
+              className={cn(
+                "size-4 transition-transform",
+                filtersOpen && "rotate-180",
+              )}
+              aria-hidden
+            />
+          </Button>
+        ) : null}
+        {showFilters ? (
+          <div
+            id="seo-scope-filters"
+            className={cn(
+              "space-y-3 md:block",
+              filtersOpen || !foldFilters ? "block" : "hidden",
+            )}
+          >
+            <SeoScopeBar model={model} dateFields={dateFields} />
+            {editScope ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={unavailable}
+                onClick={() => model.setDialog("edit_scope")}
+              >
+                <Settings2 className="size-4" />
+                {t("editScope")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         {unavailable ? (
           model.result.isError ? (
             <SeoEmpty title={t("errorTitle")} body={t("errorBody")} />
