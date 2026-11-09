@@ -11089,7 +11089,8 @@
         },
         "lastCheckOn": "Last check",
         "askHow": "Ask the agent",
-        "traffic": "Google search: shown {impressions, plural, one {# time} other {# times}}, {clicks, plural, one {# click} other {# clicks}}"
+        "traffic": "Google search: shown {impressions, plural, one {# time} other {# times}}, {clicks, plural, one {# click} other {# clicks}}",
+        "askShort": "Ask agent"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

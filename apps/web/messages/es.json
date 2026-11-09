@@ -11089,7 +11089,8 @@
         },
         "lastCheckOn": "Última comprobación",
         "askHow": "Preguntar al agente",
-        "traffic": "En Google: {impressions, plural, one {# impresión} other {# impresiones}}, {clicks, plural, one {# clic} other {# clics}}"
+        "traffic": "En Google: {impressions, plural, one {# impresión} other {# impresiones}}, {clicks, plural, one {# clic} other {# clics}}",
+        "askShort": "Preguntar"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",

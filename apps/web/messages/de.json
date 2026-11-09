@@ -11089,7 +11089,8 @@
         },
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Agent fragen",
-        "traffic": "Google-Suche: {impressions, plural, one {# Mal} other {# Mal}} gezeigt, {clicks, plural, one {# Klick} other {# Klicks}}"
+        "traffic": "Google-Suche: {impressions, plural, one {# Mal} other {# Mal}} gezeigt, {clicks, plural, one {# Klick} other {# Klicks}}",
+        "askShort": "Agent fragen"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",

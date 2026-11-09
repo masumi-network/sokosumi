@@ -132,7 +132,8 @@ export function SeoWorkspace({
       model.filters.tab === "actions",
   );
   return (
-    <div className="space-y-6">
+    // Phone tap targets are at least 40 px tall.
+    <div className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <Link
@@ -154,10 +155,12 @@ export function SeoWorkspace({
               variant="outline"
               size="sm"
               onClick={() => model.openChat()}
+              aria-label={t("agent.ask")}
             >
               <MessageSquare className="size-4" />
-              {/* The phone shows the chat icon alone, so the three header buttons share one row. */}
-              <span className="max-sm:sr-only">{t("agent.ask")}</span>
+              {/* A short label on the phone keeps the three header buttons on one row. */}
+              <span className="sm:hidden">{t("agent.askShort")}</span>
+              <span className="max-sm:hidden">{t("agent.ask")}</span>
             </Button>
           ) : null}
           {model.data.availableActions.canRequestAnalysis && !startCard ? (
@@ -336,7 +339,7 @@ export function SeoWorkspace({
                 value={tab}
                 className={cn(
                   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-                  "max-sm:flex-1 max-sm:px-2",
+                  "max-sm:min-h-9 max-sm:flex-1 max-sm:px-1.5",
                 )}
               >
                 {t(`tabs.${tab}`)}
