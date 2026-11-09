@@ -111,9 +111,9 @@ export const sokoBotService = {
   },
 
   /**
-   * Generates missing mascots before answering, so only the creation picker
+   * Generates missing avatars before answering, so only the creation picker
    * calls it: the sidebar must never wait on image generation. It writes rows
-   * and bills FAL, so Core exposes it as a POST.
+   * and bills the image model, so Core exposes it as a POST.
    */
   async topUpAvatars(
     take: number,

@@ -514,7 +514,7 @@ export function TaskActivitySection({
                   })
                 : (actorInfo?.name ?? actorLabel);
             const actorImage = actorInfo?.image ?? null;
-            // Only when the bot has no mascot of its own: a claimed image is
+            // Only when the bot has no Soko Bot avatar of its own: a claimed image is
             // its face in chat and the sidebar, and an orb here made the same
             // assistant look like two different ones.
             const showAssistantOrb =

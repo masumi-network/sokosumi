@@ -1,21 +1,16 @@
 import sharp from "sharp";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  avatarCountMock,
-  avatarCreateMock,
-  avatarDeleteManyMock,
-  avatarFindManyMock,
-  avatarUpdateMock,
-  generateTextMock,
-  getEnvMock,
-  putMock,
-} = vi.hoisted(() => ({
-  avatarCountMock: vi.fn(),
-  avatarCreateMock: vi.fn(),
-  avatarDeleteManyMock: vi.fn(),
-  avatarFindManyMock: vi.fn(),
-  avatarUpdateMock: vi.fn(),
+/**
+ * What the pool does that the avatar routes cannot easily show: how a failed
+ * or raced run settles, and what the hourly cap counts. The database is the
+ * in-memory store, the image model and blob store are replaced.
+ */
+
+const { store, generateTextMock, getEnvMock, putMock } = vi.hoisted(() => ({
+  store: {} as ReturnType<
+    typeof import("@/test-fixtures/soko-bot-avatar-store").createSokoBotAvatarStore
+  >,
   generateTextMock: vi.fn(),
   getEnvMock: vi.fn(),
   putMock: vi.fn(),
@@ -28,62 +23,19 @@ vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   generateText: generateTextMock,
 }));
-vi.mock("@/services/soko-bot-availability.service", () => ({
-  getSokoBotAvailability: async () => ({
-    disabled: false,
-    disabledAt: null,
-    disabledReason: null,
-  }),
-}));
-const { avatarFindUniqueMock, avatarUpdateManyMock, sokoBotUpdateMock } =
-  vi.hoisted(() => ({
-    avatarFindUniqueMock: vi.fn(),
-    avatarUpdateManyMock: vi.fn(),
-    sokoBotUpdateMock: vi.fn(),
-  }));
-
-const { prismaMock } = vi.hoisted(() => ({ prismaMock: {} as never }));
-
-vi.mock("@/lib/db/prisma", () => {
-  const client = {
-    sokoBotAvatar: {
-      count: avatarCountMock,
-      findMany: avatarFindManyMock,
-      findUnique: avatarFindUniqueMock,
-      create: avatarCreateMock,
-      update: avatarUpdateMock,
-      updateMany: avatarUpdateManyMock,
-      deleteMany: avatarDeleteManyMock,
-    },
-    sokoBot: { update: sokoBotUpdateMock },
-    $transaction: (run: (tx: unknown) => unknown) => run(client),
-  };
-  Object.assign(prismaMock, client);
-  return { default: client };
+vi.mock("@/lib/db/prisma", async () => {
+  const { createSokoBotAvatarStore } = await import(
+    "@/test-fixtures/soko-bot-avatar-store"
+  );
+  Object.assign(store, createSokoBotAvatarStore());
+  return { default: store.client };
 });
-
-// Runs the callback against the same client. The point the tests assert is
-// that reserving goes through this helper at all: counting the allowance and
-// inserting the reservations have to be one atomic step, and this is the
-// repo's Serializable wrapper.
-const { serializableTransactionMock } = vi.hoisted(() => ({
-  serializableTransactionMock: vi.fn(),
-}));
-// Spread the real module so `CONCURRENCY_CONFLICT_KIND` stays the value the
-// service actually compares against; only the wrapper itself is replaced.
-vi.mock("@/lib/db/transaction", async () => ({
-  ...(await vi.importActual<typeof import("@/lib/db/transaction")>(
-    "@/lib/db/transaction",
-  )),
-  serializableTransaction: serializableTransactionMock,
-}));
 
 import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import {
-  AVATAR_MODEL,
   claimAvatar,
   generateAvatars,
   listAvailableAvatars,
@@ -107,42 +59,54 @@ function billed() {
 }
 
 const ENV = { AI_GATEWAY_API_KEY: "gw-test", BLOB_READ_WRITE_TOKEN: "token" };
+const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+
+function minutesAgo(minutes: number): Date {
+  return new Date(Date.now() - minutes * MINUTE_MS);
+}
+
+function raceLost() {
+  return new HTTPException(409, {
+    message: "Another avatar top-up is running. Try again.",
+    cause: { kind: CONCURRENCY_CONFLICT_KIND },
+  });
+}
+
+/** Rows a user drew, already claimed so they do not stock the pool. */
+function seedDrawnBy(userId: string, count: number, createdAt = new Date()) {
+  for (let i = 0; i < count; i += 1) {
+    store.seed({
+      requestedByUserId: userId,
+      claimedBySokoBotId: `${userId}-bot-${createdAt.getTime()}-${i}`,
+      createdAt,
+    });
+  }
+}
+
+beforeEach(() => {
+  store.reset();
+  vi.clearAllMocks();
+  getEnvMock.mockReturnValue(ENV);
+  generateTextMock.mockResolvedValue(imageAnswer());
+  putMock.mockImplementation(async (pathname: string) => ({
+    url: `https://blob.test/${pathname}`,
+  }));
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("Soko Bot avatar pool", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getEnvMock.mockReturnValue(ENV);
-    avatarFindManyMock.mockResolvedValue([]);
-    avatarUpdateManyMock.mockResolvedValue({ count: 0 });
-    // Reserving a draw returns the row it claimed.
-    avatarCreateMock.mockResolvedValue({ id: "reserved-1" });
-    avatarDeleteManyMock.mockResolvedValue({ count: 0 });
-    generateTextMock.mockResolvedValue(imageAnswer());
-    putMock.mockImplementation(async (pathname: string) => ({
-      url: `https://blob.test/${pathname}`,
-    }));
-    serializableTransactionMock.mockImplementation(
-      async (run: (tx: unknown) => unknown) => await run(prismaMock),
-    );
-  });
-
-  it("does nothing without a gateway key or blob store, so the pool just stays empty", async () => {
+  it("serves the pool and buys nothing without a gateway key or blob store", async () => {
     getEnvMock.mockReturnValue({});
-    avatarCountMock.mockResolvedValue(0);
+    const stocked = store.seed();
 
-    await expect(topUpAvailableAvatars(6)).resolves.toEqual([]);
-    expect(avatarCountMock).not.toHaveBeenCalled();
+    const avatars = await topUpAvailableAvatars(6);
+
+    expect(avatars.map((one) => one.id)).toEqual([stocked.id]);
     expect(billed()).toBe(0);
-  });
-
-  it("never generates for a plain read, so a page render cannot stall on the image model", async () => {
-    avatarCountMock.mockResolvedValue(0);
-
-    await listAvailableAvatars(12);
-
-    expect(avatarCountMock).not.toHaveBeenCalled();
-    expect(billed()).toBe(0);
-    expect(avatarFindManyMock).toHaveBeenCalledTimes(1);
   });
 
   it("buys one image, not six, when storing them is broken", async () => {
@@ -150,125 +114,104 @@ describe("Soko Bot avatar pool", () => {
     // broken blob token the pool never fills, so an ungated run would buy six
     // on every top-up while writing nothing louder than a warning.
     putMock.mockRejectedValue(new Error("blob token rejected"));
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    try {
-      await expect(generateAvatars(6)).resolves.toBe(0);
-    } finally {
-      error.mockRestore();
-    }
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(generateAvatars(6)).resolves.toBe(0);
 
     expect(billed()).toBe(1);
   });
 
-  it("draws with the Gateway image model and the original prompt, and stores a WebP", async () => {
-    await generateAvatars(1);
+  it("hands back the slots it never spent on, and keeps the one it may have paid for", async () => {
+    generateTextMock.mockRejectedValue(new Error("gateway is down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const [call] = generateTextMock.mock.calls[0] ?? [];
-    expect(call.model.modelId).toBe("google/gemini-3.1-flash-image");
-    expect(call.prompt).toMatch(
-      /^Create one complete full-bleed 1:1 square image\./,
+    await expect(generateAvatars(3)).resolves.toBe(0);
+
+    // The probe's row stays: the image model may already have billed for it,
+    // and the cap should see it. It is still reserved, so nobody is offered it.
+    expect(store.avatars).toHaveLength(1);
+    expect(store.avatars[0]?.reservedAt).toBeInstanceOf(Date);
+    await expect(listAvailableAvatars(6)).resolves.toEqual([]);
+  });
+
+  it("survives a release that fails instead of raising a 500", async () => {
+    vi.spyOn(store.client.sokoBotAvatar, "deleteMany").mockRejectedValue(
+      new Error("pool exhausted"),
     );
-    expect(call.prompt).toContain("cute, endearing owl character");
-    // The first draw of an empty pool: owl, seed 1.
-    expect(putMock).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /^soko-bots\/avatars\/original\/owl-1-[0-9a-f]{12}\.webp$/,
-      ),
-      expect.anything(),
-      // The upload is the one step of a fill with no natural time limit.
-      // Unbounded, it can outlive the sweep cutoff and lose its reservation.
-      expect.objectContaining({
-        contentType: "image/webp",
-        abortSignal: expect.any(AbortSignal),
-      }),
-    );
-    expect(avatarCreateMock.mock.calls[0]?.[0].data).toMatchObject({
-      subject: "owl",
-      seed: 1,
-      model: AVATAR_MODEL,
+    generateTextMock.mockRejectedValue(new Error("gateway is down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(generateAvatars(2)).resolves.toBe(0);
+  });
+
+  it("reports how many images it actually added", async () => {
+    // Probe succeeds, then one of the two remaining fills fails.
+    putMock
+      .mockImplementationOnce(async (pathname: string) => ({
+        url: `https://blob.test/${pathname}`,
+      }))
+      .mockRejectedValueOnce(new Error("blob rejected"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(generateAvatars(3)).resolves.toBe(2);
+    await expect(listAvailableAvatars(6)).resolves.toHaveLength(2);
+  });
+
+  it("holds the draw before it buys the image, and never buys inside the transaction", async () => {
+    // A row written only after the paid call lets concurrent requests all
+    // read the same count and all pass the cap. A paid call inside the
+    // transaction would hold it open on the image model.
+    let insideTransaction = false;
+    const transaction = store.client.$transaction;
+    vi.spyOn(store.client, "$transaction").mockImplementation(async (run) => {
+      insideTransaction = true;
+      try {
+        return await transaction(run);
+      } finally {
+        insideTransaction = false;
+      }
     });
-  });
-
-  it("fills a short pool when the caller asks to top up", async () => {
-    avatarCountMock.mockResolvedValue(0);
-
-    await topUpAvailableAvatars(6);
-
-    expect(avatarCountMock).toHaveBeenCalled();
-    expect(billed()).toBe(6);
-  });
-
-  it("ignores excludeIds when deciding whether to generate", async () => {
-    // A caller can list the pool through the GET and hand the ids straight
-    // back. Counting through that filter drove `available` to zero and bought
-    // images for a pool that needed nothing.
-    avatarCountMock.mockResolvedValue(24);
-
-    await topUpAvailableAvatars(6, {
-      excludeIds: ["a", "b", "c", "d", "e", "f"],
+    let seenWhileBuying: { reserved: number; offered: number } | undefined;
+    generateTextMock.mockImplementation(async () => {
+      expect(insideTransaction).toBe(false);
+      seenWhileBuying = {
+        reserved: store.avatars.filter((row) => row.reservedAt).length,
+        offered: (await listAvailableAvatars(6)).length,
+      };
+      return imageAnswer();
     });
 
-    // The point of this test: no `id: { notIn: ... }` reached the count.
-    expect(avatarCountMock.mock.calls[0][0].where).not.toHaveProperty("id");
-    expect(billed()).toBe(0);
-  });
+    const avatars = await topUpAvailableAvatars(1, {
+      requestedByUserId: "user-1",
+    });
 
-  it("stamps generated rows with the user who asked for them", async () => {
-    // The per-user cap counts these rows. A user-triggered run that writes a
-    // null here is spend charged to nobody, so the cap never sees it.
-    avatarCountMock.mockResolvedValue(0);
-
-    await topUpAvailableAvatars(1, { requestedByUserId: "user-1" });
-
-    expect(avatarCreateMock).toHaveBeenCalled();
-    for (const call of avatarCreateMock.mock.calls) {
-      expect(call[0].data.requestedByUserId).toBe("user-1");
-    }
-  });
-
-  it("refuses to generate once the user is over the hourly cap", async () => {
-    avatarCountMock
-      // The unclaimed pool: short, so generation would otherwise run.
-      .mockResolvedValueOnce(0)
-      // What this user already caused in the window.
-      .mockResolvedValueOnce(LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR);
-
-    await expect(
-      topUpAvailableAvatars(6, { requestedByUserId: "user-1" }),
-    ).rejects.toMatchObject({ status: 429 });
-
-    expect(avatarCreateMock).not.toHaveBeenCalled();
-    expect(billed()).toBe(0);
+    // While the image was bought its row existed, held and not offered.
+    expect(seenWhileBuying).toEqual({ reserved: 1, offered: 0 });
+    // Once stored, the same row is published with its image.
+    expect(avatars).toHaveLength(1);
+    expect(store.avatars).toHaveLength(1);
+    expect(store.avatars[0]?.reservedAt).toBeNull();
+    expect(store.avatars[0]?.imageUrl).toBe(avatars[0]?.imageUrl);
   });
 
   it("serves the pool when a concurrent top-up wins the race", async () => {
     // A lost serialization race surfaces as a retryable 409. It says nothing
     // about the rows already in the pool, so answering with an error would
     // blank a picker that had avatars to show.
-    avatarCountMock.mockResolvedValue(0);
-    avatarFindManyMock.mockResolvedValue([
-      { id: "a", imageUrl: "https://blob.test/a.png", subject: "owl" },
-    ]);
-    serializableTransactionMock.mockRejectedValue(
-      new HTTPException(409, {
-        message: "Another avatar top-up is running. Try again.",
-        cause: { kind: CONCURRENCY_CONFLICT_KIND },
-      }),
-    );
+    const stocked = store.seed();
+    vi.spyOn(store.client, "$transaction").mockRejectedValue(raceLost());
 
-    await expect(
-      topUpAvailableAvatars(6, { requestedByUserId: "user-1" }),
-    ).resolves.toHaveLength(1);
+    const avatars = await topUpAvailableAvatars(6, {
+      requestedByUserId: "user-1",
+    });
+
+    expect(avatars.map((one) => one.id)).toEqual([stocked.id]);
   });
 
   it("still reports the race when the pool has nothing to fall back on", async () => {
-    avatarCountMock.mockResolvedValue(0);
-    avatarFindManyMock.mockResolvedValue([]);
-    const conflictError = new HTTPException(409, {
-      message: "Another avatar top-up is running. Try again.",
-      cause: { kind: CONCURRENCY_CONFLICT_KIND },
-    });
-    serializableTransactionMock.mockRejectedValue(conflictError);
+    const conflictError = raceLost();
+    vi.spyOn(store.client, "$transaction").mockRejectedValue(conflictError);
 
     await expect(
       topUpAvailableAvatars(6, { requestedByUserId: "user-1" }),
@@ -276,341 +219,120 @@ describe("Soko Bot avatar pool", () => {
   });
 
   it("does not swallow a genuine fault as if it were a lost race", async () => {
-    avatarCountMock.mockResolvedValue(0);
-    avatarFindManyMock.mockResolvedValue([
-      { id: "a", imageUrl: "https://blob.test/a.png", subject: "owl" },
-    ]);
+    store.seed();
     const fault = new Error("prisma is down");
-    serializableTransactionMock.mockRejectedValue(fault);
+    vi.spyOn(store.client, "$transaction").mockRejectedValue(fault);
 
     await expect(
       topUpAvailableAvatars(6, { requestedByUserId: "user-1" }),
     ).rejects.toBe(fault);
   });
 
-  it("sweeps dead reservations when it tops up, the only place that does", async () => {
-    // There is no cron. Without this the row of a run that died holds its
-    // draw and the user's allowance for ever.
-    const now = new Date("2026-09-11T12:00:00.000Z");
-    vi.useFakeTimers();
-    vi.setSystemTime(now);
-    try {
-      avatarCountMock.mockResolvedValue(0);
-
-      await topUpAvailableAvatars(6, { requestedByUserId: "user-1" });
-
-      expect(avatarDeleteManyMock).toHaveBeenCalledWith({
-        where: {
-          reservedAt: { not: null },
-          // Aged off `createdAt`, the same column the cap reads, so the two
-          // windows cancel and sweeping never returns allowance early.
-          createdAt: { lt: new Date("2026-09-11T11:00:00.000Z") },
-        },
-      });
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("survives a release that fails instead of raising a 500", async () => {
-    avatarCountMock.mockResolvedValue(0);
-    avatarCreateMock
-      .mockResolvedValueOnce({ id: "reserved-1" })
-      .mockResolvedValueOnce({ id: "reserved-2" });
-    avatarDeleteManyMock.mockRejectedValue(new Error("pool exhausted"));
-    generateTextMock.mockRejectedValue(new Error("gateway is down"));
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      await expect(generateAvatars(2)).resolves.toBe(0);
-    } finally {
-      error.mockRestore();
-      warn.mockRestore();
-    }
-  });
-
   it("still serves the pool to a capped user rather than only a 429", async () => {
-    avatarCountMock
-      .mockResolvedValueOnce(2)
-      .mockResolvedValueOnce(LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR);
-    avatarFindManyMock.mockResolvedValue([
-      { id: "a", imageUrl: "https://blob.test/a.png", subject: "owl" },
-      { id: "b", imageUrl: "https://blob.test/b.png", subject: "fox" },
-    ]);
+    seedDrawnBy("user-1", LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR);
+    store.seed();
+    store.seed();
 
     await expect(
       topUpAvailableAvatars(6, { requestedByUserId: "user-1" }),
     ).resolves.toHaveLength(2);
-
     expect(billed()).toBe(0);
   });
 
   it("counts exactly the last hour, and only that user's rows", async () => {
-    // Pin the window length. An all-time count would lock a user out for
-    // ever; a 1 ms window would make the cap unreachable.
-    const now = new Date("2026-09-11T12:00:00.000Z");
-    vi.useFakeTimers();
-    vi.setSystemTime(now);
-    try {
-      avatarCountMock.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
-
-      await topUpAvailableAvatars(1, { requestedByUserId: "user-1" });
-
-      const [where] = avatarCountMock.mock.calls[1] ?? [];
-      expect(where.where).toEqual({
-        requestedByUserId: "user-1",
-        createdAt: { gte: new Date("2026-09-11T11:00:00.000Z") },
-      });
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("shrinks the batch to the remaining allowance instead of overshooting", async () => {
-    // A plain "are you under the cap" check passes a user sitting at 23 and
-    // then generates a full batch of 6, finishing at 29 against a cap of 24.
-    avatarCountMock
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - 1);
+    // An all-time count would lock a user out for ever; a 1 ms window would
+    // make the cap unreachable.
+    const cap = LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR;
+    seedDrawnBy("user-1", cap - 2, minutesAgo(59));
+    seedDrawnBy("user-1", 5, minutesAgo(61));
+    seedDrawnBy("user-2", 10);
 
     await topUpAvailableAvatars(6, { requestedByUserId: "user-1" });
 
-    expect(avatarCreateMock).toHaveBeenCalledTimes(1);
-    expect(billed()).toBe(1);
-  });
-
-  it("never consults the cap while the pool is full", async () => {
-    avatarCountMock.mockResolvedValue(6);
-    avatarFindManyMock.mockResolvedValue([
-      { id: "a", imageUrl: "https://blob.test/a.png", subject: "owl" },
-      { id: "b", imageUrl: "https://blob.test/b.png", subject: "fox" },
-    ]);
-
-    await expect(
-      topUpAvailableAvatars(6, { requestedByUserId: "user-1" }),
-    ).resolves.toHaveLength(2);
-
-    expect(billed()).toBe(0);
-    // One count only: the pool. A second would be the allowance count.
-    expect(avatarCountMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("claims the draw before it buys the image", async () => {
-    // A row written only after the paid call lets concurrent requests all
-    // read the same count and all pass the cap.
-    const now = new Date("2026-09-11T12:00:00.000Z");
-    vi.useFakeTimers();
-    vi.setSystemTime(now);
-    try {
-      avatarCountMock.mockResolvedValue(0);
-
-      await topUpAvailableAvatars(1, { requestedByUserId: "user-1" });
-    } finally {
-      vi.useRealTimers();
-    }
-
-    expect(avatarCreateMock.mock.invocationCallOrder[0]).toBeLessThan(
-      generateTextMock.mock.invocationCallOrder[0] ?? 0,
-    );
-    expect(avatarCreateMock.mock.calls[0][0].data.reservedAt).toEqual(now);
-    // The image lands on the row it already claimed, and clearing reservedAt
-    // is what publishes it. The write names only columns that stay.
-    expect(avatarUpdateMock).toHaveBeenCalledWith({
-      where: { id: "reserved-1" },
-      data: { imageUrl: expect.any(String), reservedAt: null },
-      select: { id: true },
-    });
-  });
-
-  it("counts the allowance and claims the slots in one atomic step", async () => {
-    // Sampled when the transaction callback returns: the paid call must run
-    // only after it closed, or the transaction waits on the image model.
-    let billedWhenTxClosed = -1;
-    serializableTransactionMock.mockImplementation(
-      async (run: (tx: unknown) => unknown) => {
-        const result = await run(prismaMock);
-        billedWhenTxClosed = billed();
-        return result;
-      },
-    );
-    avatarCountMock.mockResolvedValue(0);
-
-    await generateAvatars(2, "user-1");
-
-    expect(serializableTransactionMock).toHaveBeenCalledTimes(1);
-    expect(avatarCreateMock).toHaveBeenCalledTimes(2);
-    expect(billedWhenTxClosed).toBe(0);
     expect(billed()).toBe(2);
   });
 
-  it("hands back the slots it never spent on", async () => {
-    avatarCountMock.mockResolvedValue(0);
-    avatarCreateMock
-      .mockResolvedValueOnce({ id: "reserved-1" })
-      .mockResolvedValueOnce({ id: "reserved-2" })
-      .mockResolvedValueOnce({ id: "reserved-3" });
-    generateTextMock.mockRejectedValue(new Error("gateway is down"));
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    try {
-      await expect(generateAvatars(3)).resolves.toBe(0);
-    } finally {
-      error.mockRestore();
-    }
-
-    expect(avatarDeleteManyMock).toHaveBeenCalledWith({
-      // The probe's row stays: the image model may already have billed for it.
-      where: { id: { in: ["reserved-2", "reserved-3"] } },
+  it("sweeps dead reservations when it tops up, the only place that does", async () => {
+    // There is no cron. Without this the row of a run that died holds its
+    // draw and the user's allowance for ever. Aged off `createdAt`, the same
+    // column the cap reads, so sweeping never returns allowance early.
+    const dead = store.seed({
+      imageUrl: "",
+      reservedAt: new Date(Date.now() - 2 * HOUR_MS),
+      createdAt: new Date(Date.now() - 2 * HOUR_MS),
     });
-  });
-
-  it("reports how many images it actually added", async () => {
-    avatarCountMock.mockResolvedValue(0);
-    avatarCreateMock
-      .mockResolvedValueOnce({ id: "reserved-1" })
-      .mockResolvedValueOnce({ id: "reserved-2" })
-      .mockResolvedValueOnce({ id: "reserved-3" });
-    // Probe succeeds, then one of the two remaining fills fails.
-    avatarUpdateMock
-      .mockResolvedValueOnce({})
-      .mockRejectedValueOnce(new Error("blob rejected"))
-      .mockResolvedValueOnce({});
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      await expect(generateAvatars(3)).resolves.toBe(2);
-    } finally {
-      warn.mockRestore();
-    }
-  });
-
-  it("offers only original-style avatars, and only finished, unclaimed ones", async () => {
-    await listAvailableAvatars(6);
-
-    expect(avatarFindManyMock.mock.calls[0]?.[0].where).toEqual({
-      claimedBySokoBotId: null,
-      reservedAt: null,
-      NOT: { background: { contains: ":" } },
+    const inFlight = store.seed({
+      imageUrl: "",
+      reservedAt: minutesAgo(30),
+      createdAt: minutesAgo(30),
     });
-  });
-  it("never counts or generates on a plain read", async () => {
-    // The read is a GET. A GET that bills is reachable cross-site on a
-    // top-level navigation, because the session cookie is SameSite=Lax.
-    avatarCountMock.mockResolvedValue(0);
 
-    await listAvailableAvatars(6);
+    await topUpAvailableAvatars(1, { requestedByUserId: "user-1" });
 
-    expect(avatarCountMock).not.toHaveBeenCalled();
+    const ids = store.avatars.map((row) => row.id);
+    expect(ids).not.toContain(dead.id);
+    expect(ids).toContain(inFlight.id);
   });
 });
 
 describe("claiming a Soko Bot avatar", () => {
-  const originalAvatar = {
-    id: "avatar-1",
-    imageUrl: "https://blob.test/frog-1.webp",
-    claimedBySokoBotId: null,
-    reservedAt: null,
-    background: "gently muted sage green",
-  };
+  const BOT_ID = "bot-1";
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    getEnvMock.mockReturnValue(ENV);
-    avatarUpdateManyMock.mockResolvedValue({ count: 1 });
-    serializableTransactionMock.mockImplementation(
-      async (run: (tx: unknown) => unknown) => await run(prismaMock),
-    );
+    store.bots.set(BOT_ID, { avatarImageUrl: null });
   });
 
   it("gives the bot the avatar's picture and returns its previous one to the pool", async () => {
-    avatarFindUniqueMock.mockResolvedValue(originalAvatar);
+    const previous = store.seed({ claimedBySokoBotId: BOT_ID });
+    const picked = store.seed({ imageUrl: "https://blob.test/frog-1.webp" });
 
-    await expect(claimAvatar("bot-1", "avatar-1")).resolves.toBe(
+    await expect(claimAvatar(BOT_ID, picked.id)).resolves.toBe(
       "https://blob.test/frog-1.webp",
     );
 
-    expect(avatarUpdateManyMock).toHaveBeenCalledWith({
-      where: { claimedBySokoBotId: "bot-1", id: { not: "avatar-1" } },
-      data: { claimedBySokoBotId: null, claimedAt: null },
-    });
-    expect(sokoBotUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "bot-1" },
-        data: { avatarImageUrl: "https://blob.test/frog-1.webp" },
-      }),
+    expect(store.bots.get(BOT_ID)?.avatarImageUrl).toBe(
+      "https://blob.test/frog-1.webp",
     );
+    const offered = await listAvailableAvatars(6);
+    expect(offered.map((one) => one.id)).toEqual([previous.id]);
   });
 
-  it("reads only columns that predate the crafted style, so it survives their removal", async () => {
-    avatarFindUniqueMock.mockResolvedValue(originalAvatar);
+  it("works inside the caller's transaction when bot creation passes one", async () => {
+    const picked = store.seed();
+    // Opening a transaction of its own would fail here.
+    vi.spyOn(store.client, "$transaction").mockRejectedValue(
+      new Error("nested transaction"),
+    );
 
-    await claimAvatar("bot-1", "avatar-1");
+    await claimAvatar(BOT_ID, picked.id, store.client as never);
 
-    expect(
-      Object.keys(avatarFindUniqueMock.mock.calls[0]?.[0].select ?? {}),
-    ).toEqual([
-      "id",
-      "imageUrl",
-      "claimedBySokoBotId",
-      "reservedAt",
-      "background",
-    ]);
-  });
-
-  it("runs inside the caller's transaction when bot creation passes one", async () => {
-    avatarFindUniqueMock.mockResolvedValue(originalAvatar);
-
-    await claimAvatar("bot-1", "avatar-1", prismaMock);
-
-    expect(serializableTransactionMock).not.toHaveBeenCalled();
-    expect(sokoBotUpdateMock).toHaveBeenCalled();
-  });
-
-  it("refuses to hand a bot an avatar whose image is still in flight", async () => {
-    avatarFindUniqueMock.mockResolvedValue({
-      ...originalAvatar,
-      imageUrl: "",
-      reservedAt: new Date(),
-    });
-
-    await expect(claimAvatar("bot-1", "avatar-1")).rejects.toMatchObject({
-      status: 404,
-    });
-
-    expect(avatarUpdateManyMock).not.toHaveBeenCalled();
-    expect(sokoBotUpdateMock).not.toHaveBeenCalled();
+    expect(store.bots.get(BOT_ID)?.avatarImageUrl).toBe(picked.imageUrl);
   });
 
   it("will not hand out a crafted-style look", async () => {
-    avatarFindUniqueMock.mockResolvedValue({
-      ...originalAvatar,
-      background: "crafted-desk:none",
-    });
+    const crafted = store.seed({ background: "crafted-desk:none" });
 
-    await expect(claimAvatar("bot-1", "avatar-1")).rejects.toMatchObject({
+    await expect(claimAvatar(BOT_ID, crafted.id)).rejects.toMatchObject({
       status: 404,
     });
-    expect(sokoBotUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("refuses an avatar another bot already holds", async () => {
-    avatarFindUniqueMock.mockResolvedValue({
-      ...originalAvatar,
-      claimedBySokoBotId: "bot-2",
-    });
-
-    await expect(claimAvatar("bot-1", "avatar-1")).rejects.toMatchObject({
-      status: 422,
-    });
+    expect(store.bots.get(BOT_ID)?.avatarImageUrl).toBeNull();
   });
 
   it("refuses when another bot takes it first", async () => {
-    avatarFindUniqueMock.mockResolvedValue(originalAvatar);
-    avatarUpdateManyMock
-      .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 0 });
+    // Another bot's claim lands between the read and the write.
+    const picked = store.seed({ claimedBySokoBotId: "bot-2" });
+    const findUnique = store.client.sokoBotAvatar.findUnique;
+    vi.spyOn(store.client.sokoBotAvatar, "findUnique").mockImplementationOnce(
+      async (args) => ({
+        ...(await findUnique(args)),
+        claimedBySokoBotId: null,
+      }),
+    );
 
-    await expect(claimAvatar("bot-1", "avatar-1")).rejects.toMatchObject({
+    await expect(claimAvatar(BOT_ID, picked.id)).rejects.toMatchObject({
       status: 422,
     });
-    expect(sokoBotUpdateMock).not.toHaveBeenCalled();
+    expect(store.bots.get(BOT_ID)?.avatarImageUrl).toBeNull();
+    expect(store.avatars[0]?.claimedBySokoBotId).toBe("bot-2");
   });
 });

@@ -19,9 +19,9 @@ export const sokoBotSummarySchema = z
     avatarSeed: z.string().nullable().openapi({
       example: "orb:jewel-sky:user_123",
     }),
-    /** A claimed mascot. When set it is the bot's face; the orb is the fallback. */
+    /** A claimed Soko Bot avatar. When set it is the bot's face; the orb is the fallback. */
     avatarImageUrl: z.string().nullable().openapi({
-      example: "https://blob.example/mascot.png",
+      example: "https://blob.example/avatar.png",
     }),
     owner: z.union([userSummarySchema, z.null()]),
   })
@@ -314,7 +314,7 @@ export const sokoBotSchema = z
     legacyMessages: z.array(sokoBotLegacyMessageSchema).optional(),
     pendingDecisions: z.array(sokoBotPendingDecisionSchema).optional(),
     schedules: z.array(sokoBotScheduleSchema).optional(),
-    /** Picked mascot image; null → generative orb. */
+    /** Picked Soko Bot avatar image; null → generative orb. */
     avatarImageUrl: z.string().nullable().optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),

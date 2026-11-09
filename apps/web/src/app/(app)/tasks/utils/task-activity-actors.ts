@@ -252,7 +252,7 @@ export function buildTaskActivityActors(
 function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
   return {
     name: sokoBot.name ?? "Assistant",
-    // A claimed mascot is the bot's face everywhere else; the orb is only the
+    // A claimed Soko Bot avatar is the bot's face everywhere else; the orb is only the
     // fallback for a bot that has not picked one.
     image: sokoBot.avatarImageUrl
       ? resolveIpfsOrHttpUrl(sokoBot.avatarImageUrl)

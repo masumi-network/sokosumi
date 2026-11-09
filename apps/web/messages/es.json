@@ -6410,7 +6410,7 @@
         },
         "Avatar": {
           "title": "Avatar",
-          "description": "Dale a este bot una mascota del grupo compartido, como lo haría su dueño.",
+          "description": "Dale a este bot un avatar del grupo compartido, como lo haría su dueño.",
           "apply": "Asignar avatar",
           "done": "Avatar actualizado.",
           "error": "No se pudo asignar el avatar."
@@ -9705,7 +9705,7 @@
       },
       "Avatar": {
         "title": "Imagen",
-        "description": "Una mascota única de la colección. Dos asistentes nunca comparten la misma.",
+        "description": "Una imagen única de la colección. Dos asistentes nunca comparten la misma.",
         "save": "Usar esta imagen",
         "saved": "Imagen actualizada.",
         "saveError": "No se pudo actualizar la imagen.",

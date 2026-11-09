@@ -63,9 +63,9 @@ export const LIMITS = {
   ORGANIZATION_INVITATION_LIMIT: 100,
 
   /**
-   * Maximum Soko Bot mascot images one user may cause to be generated per hour.
-   * Each image is a paid FAL call, so this bounds what one account can spend.
-   * Four full top-up pages, which is well past what picking one mascot needs.
+   * Maximum Soko Bot avatar images one user may cause to be generated per hour.
+   * Each image is a paid image-model call, so this bounds what one account can spend.
+   * Four full top-up pages, which is well past what picking one avatar needs.
    */
   SOKO_BOT_AVATAR_GENERATION_PER_HOUR: 24,
 

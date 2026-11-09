@@ -23,7 +23,7 @@ import {
 } from "@/lib/db/transaction";
 
 /**
- * Mascot avatar pool for Soko Bots. Images follow the "IP as logo" recipe
+ * Soko Bot avatar pool. Images follow the "IP as logo" recipe
  * (one cute character from a few rounded shapes, two character colours, one
  * solid background, emerging from a lower corner) and are drawn once per
  * unique (subject, background, seed). A bot claims exactly one; the pool is
@@ -31,7 +31,7 @@ import {
  */
 
 /** The AI Gateway image model that draws the pool. */
-export const AVATAR_MODEL = "google/gemini-3.1-flash-image";
+const AVATAR_MODEL = "google/gemini-3.1-flash-image";
 const GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TOP_UP_PER_CALL = 6;
 const GENERATION_WINDOW_MS = 60 * 60 * 1000;
@@ -160,7 +160,7 @@ const BACKGROUNDS: readonly AvatarBackground[] = [
   { name: "gently muted periwinkle", hex: "#8C93D9" },
 ] as const;
 
-export function buildAvatarPrompt(input: {
+function buildAvatarPrompt(input: {
   subject: AvatarSubject;
   background: AvatarBackground;
   corner: "lower-left" | "lower-right";
@@ -180,7 +180,7 @@ export function buildAvatarPrompt(input: {
 }
 
 /** Deterministic draw plan: never repeats a (subject, background, seed) triple. */
-export async function nextAvatarDraws(
+async function nextAvatarDraws(
   count: number,
   client: Prisma.TransactionClient | typeof prisma = prisma,
 ) {
@@ -285,10 +285,10 @@ interface AvatarReservation {
 }
 
 /** Thrown when the caller has no hourly allowance left. Nothing is billed. */
-export class AvatarGenerationCappedError extends Error {}
+class AvatarGenerationCappedError extends Error {}
 
 /** Whether the pool can draw at all: it needs the Gateway and a blob store. */
-export function canDraw(): boolean {
+function canDraw(): boolean {
   const env = getEnv();
   return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
 }
@@ -510,9 +510,27 @@ async function sweepStaleReservations(now: Date = new Date()): Promise<void> {
 /** The 429 for a caller who has spent their hourly allowance. */
 function avatarGenerationCapped() {
   return tooManyRequests(
-    `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} mascot images per hour. Try again later.`,
+    `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} Soko Bot avatars per hour. Try again later.`,
     { kind: "avatar_generation_rate_limited" },
   );
+}
+
+/**
+ * Only the original style is offered. A crafted row's background is
+ * `<style>:<accessories>`, and an original one never holds a colon. This
+ * reads a column that stays, so it keeps working while the crafted
+ * columns are dropped. The filter and the predicate below both come from
+ * this marker.
+ */
+const CRAFTED_BACKGROUND_MARKER = ":";
+
+const notCraftedFilter = {
+  NOT: { background: { contains: CRAFTED_BACKGROUND_MARKER } },
+};
+
+/** True when the row is a crafted look; its background is `<style>:<accessories>`. */
+function isCraftedRow(background: string): boolean {
+  return background.includes(CRAFTED_BACKGROUND_MARKER);
 }
 
 function unclaimedAvatarFilter(excludeIds?: string[]) {
@@ -521,11 +539,8 @@ function unclaimedAvatarFilter(excludeIds?: string[]) {
     // A reserved row has no image yet. Counting it as available would let the
     // pool look full while every slot in it is still in flight.
     reservedAt: null,
-    // Only the original style is offered. A crafted row's background is
-    // `<style>:<accessories>`, and an original one never holds a colon. This
-    // reads a column that stays, so it keeps working while the crafted
-    // columns are dropped.
-    NOT: { background: { contains: ":" } },
+    // Only the original style is offered (see `CRAFTED_BACKGROUND_MARKER`).
+    ...notCraftedFilter,
     ...(excludeIds?.length ? { id: { notIn: excludeIds } } : {}),
   };
 }
@@ -558,12 +573,14 @@ export async function topUpAvailableAvatars(
   options: { excludeIds?: string[]; requestedByUserId?: string } = {},
 ): Promise<AvailableAvatar[]> {
   if (canDraw()) {
-    // Count the real pool, not the caller's filtered view of it. Counting
-    // through `excludeIds` let a caller list the pool, hand the ids straight
-    // back, and drive the count to zero, so generation ran on a pool that
-    // needed nothing. Each image is billed, so that is spend on demand.
+    // Count what the caller has not seen yet. "Show others" hands back every
+    // id it has shown, so counting the whole pool found it full and never drew
+    // anything new. Handing ids back does let a caller drive the count to
+    // zero, and each image is billed, so that is spend on demand: what bounds
+    // it is `MAX_TOP_UP_PER_CALL` and the per-user hourly cap in
+    // `reserveDraws`.
     const available = await prisma.sokoBotAvatar.count({
-      where: unclaimedAvatarFilter(),
+      where: unclaimedAvatarFilter(options.excludeIds),
     });
     if (available < take) {
       // The only sweeper. A reservation whose run died would otherwise hold
@@ -588,11 +605,6 @@ export async function topUpAvailableAvatars(
     }
   }
   return await listAvailableAvatars(take, options);
-}
-
-/** True when the row is a crafted look; its background is `<style>:<accessories>`. */
-function isCraftedRow(background: string): boolean {
-  return background.includes(":");
 }
 
 /**

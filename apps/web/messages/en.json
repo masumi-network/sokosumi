@@ -6446,7 +6446,7 @@
         },
         "Avatar": {
           "title": "Avatar",
-          "description": "Give this bot a mascot from the shared pool, as its owner would.",
+          "description": "Give this bot an avatar from the shared pool, as its owner would.",
           "apply": "Set avatar",
           "done": "Avatar updated.",
           "error": "Could not set the avatar."
@@ -9705,7 +9705,7 @@
       },
       "Avatar": {
         "title": "Picture",
-        "description": "A unique mascot from the collection. No two assistants share one.",
+        "description": "A unique picture from the collection. No two assistants share one.",
         "save": "Use this picture",
         "saved": "Picture updated.",
         "saveError": "Could not update the picture.",
