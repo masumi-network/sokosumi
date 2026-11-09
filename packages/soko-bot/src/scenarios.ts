@@ -75,6 +75,11 @@ export interface SokoBotScenario {
     anyTools?: string[];
     /** None of these may be called. */
     forbiddenTools?: string[];
+    /**
+     * Tools whose failure the scenario sets up (a site that does not load),
+     * so a failed call to one is not counted against the bot.
+     */
+    allowFailedTools?: string[];
     /** Minimum number of tasks/jobs the turn touched. */
     minDelegations?: number;
     /** Nothing may be delegated. */
@@ -743,6 +748,133 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "who-does-research",
+    title: "Finds the right teammate from the team",
+    intent:
+      "Looks the team up instead of guessing, and names the person who does research.",
+    prompt:
+      "Who on my team handles research, and who writes? Just tell me, don't assign anything.",
+    rubric:
+      "The bot called find_coworkers and answered from what it returned: Hannah Weber does research and Alex Kim writes, or it says plainly whom it could not place. It names nobody the tool did not return and creates or assigns nothing.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "CLARIFY"],
+      tools: ["find_coworkers"],
+      forbiddenTools: ["create_task", "assign_task", "hire_agent"],
+      noDelegations: true,
+      answerMatches: "Hannah",
+    },
+  },
+  {
+    id: "check-back-later",
+    title: "Checks back on its own, once",
+    intent:
+      '"Look again in ten minutes" becomes one wait_for check, not a recurring schedule or a promise.',
+    prompt:
+      "The x402 news research task should get picked up soon. Look again in ten minutes whether it moved and tell me.",
+    rubric:
+      "The bot set one follow-up check with wait_for (about ten minutes, on the x402 research Task) and told the owner it will look again. A recurring schedule, a background run that polls, or promising to check without a wait_for result is wrong.",
+    expect: {
+      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["wait_for"],
+      forbiddenTools: ["create_schedule", "start_background_run", "hire_agent"],
+      noEmptyPromise: true,
+    },
+  },
+  {
+    id: "archive-dropped-task",
+    title: "Archives the Task the owner dropped",
+    intent:
+      "Finds the named Task on the board and archives it, instead of creating or editing something else.",
+    prompt:
+      "We don't need the x402 news research anymore, please archive that task.",
+    rubric:
+      "The bot found the x402 news research Task with list_tasks (or its context) and archived exactly that one with archive_task, then said which Task it archived. Archiving another Task, creating a new one, or claiming an archive without a successful archive_task result fails. If no such Task exists, saying so plainly is correct.",
+    expect: {
+      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["archive_task"],
+      forbiddenTools: ["create_task", "hire_agent", "assign_task"],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "remember-standing-rule",
+    title: "Keeps a standing rule the owner gives",
+    intent:
+      'A rule for later ("from now on") goes into memory, and the bot says so plainly.',
+    prompt:
+      "From now on, write every Task you give Hannah in German, she prefers that. Remember it.",
+    rubric:
+      "The rule (Tasks for Hannah are written in German) ends up in memory, through update_memory or Core's own saving of a stated preference, and the bot confirms it in one or two lines in the owner's language. It creates no Task and no schedule. The next scenario asks for the rule back.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      forbiddenTools: ["create_task", "create_schedule", "hire_agent"],
+      noDelegations: true,
+    },
+  },
+  {
+    id: "recall-standing-rule",
+    title: "Recalls the rule it was given",
+    intent:
+      "Answers from its memory what the owner decided earlier, without writing anything.",
+    prompt: "What did I tell you about Tasks for Hannah?",
+    rubric:
+      "The bot answers from its memory that Tasks for Hannah are written in German. It writes nothing: no memory change, no Task. Saying it does not know, when the rule is in its memory, fails; inventing other rules fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "CLARIFY", "DELEGATE_TASK"],
+      forbiddenTools: ["create_task", "update_memory", "hire_agent"],
+      noDelegations: true,
+      answerMatches: "German|Deutsch",
+    },
+  },
+  {
+    id: "contacts-add-and-find",
+    title: "Adds a contact and finds the people at a company",
+    intent:
+      "Saves the person to Contacts and answers who the owner knows at the company from Contacts.",
+    prompt:
+      "Add Ryan Patel to my contacts: partner at Acme Ventures, ryan.patel@acme-ventures.example. Then tell me who I know at Acme Ventures.",
+    rubric:
+      "The bot saved Ryan Patel with upsert_contact (name, the email, Acme Ventures as company, partner as title) and then answered from search_contacts (or the saved result) who the owner knows at Acme Ventures. It creates no Task and does not send anything. Claiming the contact was saved without a successful upsert_contact result fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["upsert_contact"],
+      forbiddenTools: ["create_task", "hire_agent", "send_email_draft"],
+      noDelegations: true,
+      answerMatches: "Ryan",
+    },
+  },
+  {
+    id: "contacts-search",
+    title: "Answers from Contacts, not from memory",
+    intent:
+      "Searches Contacts for the people at a company before answering, and invents nobody.",
+    prompt: "Do we know anyone at Acme Ventures? Who and what do they do?",
+    rubric:
+      "The bot called search_contacts (or count_contacts) and answered from its results: Ryan Patel, partner, if he was saved, or plainly that nobody was found. Naming people no tool returned fails. It changes nothing.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "CLARIFY"],
+      anyTools: ["search_contacts", "count_contacts", "get_contact"],
+      forbiddenTools: ["upsert_contact", "create_task", "hire_agent"],
+      noDelegations: true,
+    },
+  },
+  {
+    id: "table-from-chat",
+    title: "Turns what it knows into a table",
+    intent:
+      "Builds a real Drive table with columns and rows, and links it, instead of pasting a Markdown table.",
+    prompt:
+      "Make me a table of the three EU agent marketplaces Hannah found (Sokosumi, Agent.ai EU hub, Relevance Marketplace) with columns name, city, pricing model and price.",
+    rubric:
+      "The bot created a Drive table with create_table, with its rows given there or with write_table_rows: three rows (Sokosumi Berlin per-task credits; Agent.ai EU hub Paris free listing with 20% revenue share; Relevance Marketplace Amsterdam EUR 49/month) under the four columns, from Hannah's findings in its Tasks or memory, saying where a value is unknown rather than inventing it. It links the table. A Markdown table in chat instead of a Drive table is weak; claiming a table exists without a successful create_table fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["create_table"],
+      forbiddenTools: ["create_task", "hire_agent"],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "social-x-post",
     title: "Draft an X post",
     intent:
@@ -782,6 +914,28 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
         "hire_agent",
       ],
       noInventedIds: true,
+    },
+  },
+  {
+    id: "social-drafts-rundown",
+    title: "Lists the drafted posts from Social",
+    intent:
+      "Reads the Project's social posts before saying what is drafted, and changes nothing.",
+    prompt:
+      "Which social posts do we have drafted for the Sokosumi Marketing project?",
+    rubric:
+      "The bot called list_social_posts for the Sokosumi Marketing Project and listed what it returned (or said there are none), with network and first line of each. It schedules, publishes and edits nothing. Naming posts no tool returned fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["list_social_posts"],
+      forbiddenTools: [
+        "publish_social_post",
+        "schedule_social_post",
+        "update_social_post",
+        "create_social_post",
+        "hire_agent",
+      ],
+      noDelegations: true,
     },
   },
   {
@@ -845,8 +999,9 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "The site does not load, so what Acme sells, to whom and the offer stay unknown. Cuso saves no strategy and asks the founder two or three short, specific questions (what they sell, who buys, what a new customer does first). Nothing it writes contains bracket placeholders, 'not confirmed' or 'provisional'.",
     expect: {
-      routes: ["MANAGE_WORK"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY"],
       forbiddenTools: ["save_strategy"],
+      allowFailedTools: ["web_fetch", "web_search"],
       asksQuestion: true,
       answerAvoids: CMO_PLACEHOLDER_PATTERN,
     },
@@ -863,6 +1018,35 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
       answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|in today's fast-paced|game[- ]changer|#\\w+\\s+#\\w+\\s+#\\w+`,
+    },
+  },
+  {
+    id: "cmo-no-invented-numbers",
+    title: "Writes without numbers the brand never gave",
+    intent:
+      "Asked for a results post, Cuso writes it from the Brand Brain and invents no percentages, multiples or customer counts.",
+    prompt:
+      "Write a LinkedIn post about how much faster our customers get set up with us than with the alternatives.",
+    rubric:
+      "One finished post in the brand's voice that makes the point without inventing figures: no percentage, multiple, time saved or customer count that the Brand Brain does not give. If the Brand Brain has such a figure it may use it. Asking the founder for a real number is also good. Filler and template gaps fail.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
+      answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|\\b\\d+(?:[.,]\\d+)?\\s?(?:%|percent|x\\b|×)|\\b\\d{2,}\\s+(?:customers|teams|companies)`,
+    },
+  },
+  {
+    id: "cmo-change-request",
+    title: "Changes the plan the way the founder asked",
+    intent:
+      "A founder's change to the month updates the saved plan, only where asked, and says what changed.",
+    prompt:
+      "Let's post on LinkedIn only once a week this month. Change the plan.",
+    rubric:
+      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole plan, or saying it changed without a successful save_strategy, fails. If no plan exists yet, saying so is correct.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
     },
   },
 ];
@@ -954,7 +1138,11 @@ export function evaluateScenario(
     pass: turn.status === "COMPLETED",
     actual: turn.status,
   });
-  const failedTools = turn.toolCalls.filter((call) => call.status === "FAILED");
+  const failedTools = turn.toolCalls.filter(
+    (call) =>
+      call.status === "FAILED" &&
+      !expect.allowFailedTools?.includes(call.capability),
+  );
   checks.push({
     label: "No failed tool calls",
     pass: failedTools.length === 0,

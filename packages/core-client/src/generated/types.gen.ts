@@ -1641,6 +1641,181 @@ export type CreateFreeCreditGrant = {
     referenceNote: string | null;
 };
 
+export type EvalCaseDefinition = {
+    id: string;
+    suite: EvalSuite;
+    area: string;
+    title: string;
+    intent: string;
+    kind: string;
+    requires: string | null;
+};
+
+export const EvalSuite = { SOKO_BOT: 'soko-bot', CMO: 'cmo' } as const;
+
+export type EvalSuite = typeof EvalSuite[keyof typeof EvalSuite];
+
+export type EvalRunListItem = EvalRun & {
+    scores: {
+        [key: string]: {
+            passed: number;
+            scored: number;
+            failed: number;
+            errors: number;
+            skipped: number;
+            open: number;
+            passRate: number | null;
+        };
+    };
+    costUsd: number;
+};
+
+export type EvalRun = {
+    id: string;
+    createdAt: Date;
+    startedAt: Date | null;
+    finishedAt: Date | null;
+    trigger: 'DAILY' | 'MANUAL';
+    status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'CANCELLED';
+    suites: Array<string>;
+    caseIds: Array<string>;
+    repeats: number;
+    commitSha: string | null;
+    commitMessage: string | null;
+    prNumber: number | null;
+    environment: string;
+    label: string | null;
+    startedByUserId: string | null;
+    models: {
+        [key: string]: string | null;
+    };
+};
+
+export type CreateEvalRunBody = {
+    suites?: Array<EvalSuite>;
+    caseIds?: Array<string>;
+    repeats?: number;
+    label?: string;
+    sokoBotVersionId?: string;
+    cusoVersionId?: string;
+    commitSha?: string;
+    commitMessage?: string;
+};
+
+export type EvalRunReport = {
+    run: EvalRun;
+    baseline: {
+        id: string;
+        createdAt: Date;
+        prNumber: number | null;
+        commitSha: string | null;
+    } | null;
+    history: Array<{
+        id: string;
+        createdAt: Date;
+        prNumber: number | null;
+        commitSha: string | null;
+    }>;
+    summary: {
+        counts: {
+            regressed?: number;
+            fixed?: number;
+            flaky?: number;
+            failing?: number;
+            passing?: number;
+            error?: number;
+            pending?: number;
+            skipped?: number;
+        };
+        passed: number;
+        scored: number;
+        open: number;
+        costUsd: number;
+    };
+    cases: Array<EvalCaseReport>;
+};
+
+export type EvalCaseReport = {
+    caseId: string;
+    suite: string;
+    area: string;
+    title: string;
+    intent: string;
+    outcome: EvalOutcome;
+    states: Array<EvalResultStatus>;
+    passRate: number | null;
+    baselinePassRate: number | null;
+    history: Array<number | null>;
+    results: Array<EvalResult>;
+};
+
+export const EvalOutcome = {
+    REGRESSED: 'regressed',
+    FIXED: 'fixed',
+    FLAKY: 'flaky',
+    FAILING: 'failing',
+    PASSING: 'passing',
+    ERROR: 'error',
+    PENDING: 'pending',
+    SKIPPED: 'skipped'
+} as const;
+
+export type EvalOutcome = typeof EvalOutcome[keyof typeof EvalOutcome];
+
+export const EvalResultStatus = {
+    PENDING: 'PENDING',
+    RUNNING: 'RUNNING',
+    PASSED: 'PASSED',
+    FAILED: 'FAILED',
+    ERROR: 'ERROR',
+    SKIPPED: 'SKIPPED'
+} as const;
+
+export type EvalResultStatus = typeof EvalResultStatus[keyof typeof EvalResultStatus];
+
+export type EvalResult = {
+    id: string;
+    caseId: string;
+    repeat: number;
+    status: EvalResultStatus;
+    startedAt: Date | null;
+    finishedAt: Date | null;
+    turnId: string | null;
+    checks: Array<EvalCheck>;
+    judge: {
+        [key: string]: unknown;
+    } | null;
+    judgeModel: string | null;
+    output: {
+        [key: string]: unknown;
+    };
+    error: string | null;
+    costUsd: number | null;
+    durationMs: number | null;
+};
+
+export type EvalCheck = {
+    label: string;
+    pass: boolean;
+    actual: string;
+};
+
+export type EvalCaseBaseline = {
+    run: {
+        id: string;
+        createdAt: Date;
+        prNumber: number | null;
+        commitSha: string | null;
+    } | null;
+    results: Array<EvalResult>;
+};
+
+export type EvalTick = {
+    runId: string | null;
+    completed: boolean;
+    busy: boolean;
+};
+
 export type AdminTaskListItem = {
     id: string;
     name: string;
@@ -3695,6 +3870,64 @@ export type CreateChatRoomFileUploadSessionRequest = {
      * File size in bytes
      */
     size: number;
+};
+
+export type ChatSavedMessageListItem = {
+    messageId: string;
+    savedAt: Date;
+    message: {
+        id: string;
+        roomId: string;
+        parentMessageId: string | null;
+        content: string;
+        resultPreviews?: Array<ChatResultDescriptor>;
+        createdAt: Date;
+        deletedAt: Date | null;
+        editedAt: Date | null;
+        /**
+         * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+         */
+        pinnedAt: Date | null;
+        sender: ChatRoomMessageSender;
+        mentions: Array<ChatRoomMessageMention>;
+        reactions: Array<ChatRoomMessageReaction>;
+        threadReplyCount: number;
+        /**
+         * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+         */
+        threadUnreadReplyCount?: number;
+        threadLastReplyAt: Date | null;
+        /**
+         * Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.
+         */
+        threadRepliers?: Array<ChatRoomMessageSender>;
+        metadata: {
+            [key: string]: unknown;
+        } | null;
+        quote: ChatRoomMessageQuote;
+        membership: ChatRoomMessageMembership;
+        groupNameChange: ChatRoomMessageGroupNameChange;
+        /**
+         * Link preview cards scraped from message URLs (absent while pending).
+         */
+        unfurls: Array<ChatRoomMessageUnfurl> | null;
+        /**
+         * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
+         */
+        skills?: Array<ChatRoomMessageSkill>;
+        /**
+         * Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.
+         */
+        signal?: ChatMessageSignal | null;
+    };
+};
+
+export type ChatSavedMessageMutation = {
+    messageId: string;
+    /**
+     * Whether the message is now on the reader's Saved list.
+     */
+    saved: boolean;
 };
 
 export type ChatSignalListItem = {
@@ -18771,6 +19004,496 @@ export type CreateAdminFreeCreditGrantResponses = {
 
 export type CreateAdminFreeCreditGrantResponse = CreateAdminFreeCreditGrantResponses[keyof CreateAdminFreeCreditGrantResponses];
 
+export type ListAdminEvalCasesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/evals/cases';
+};
+
+export type ListAdminEvalCasesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminEvalCasesError = ListAdminEvalCasesErrors[keyof ListAdminEvalCasesErrors];
+
+export type ListAdminEvalCasesResponses = {
+    /**
+     * Every eval case, in the order a run runs them
+     */
+    200: {
+        data: Array<EvalCaseDefinition>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminEvalCasesResponse = ListAdminEvalCasesResponses[keyof ListAdminEvalCasesResponses];
+
+export type ListAdminEvalRunsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+    };
+    url: '/admin/evals/runs';
+};
+
+export type ListAdminEvalRunsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminEvalRunsError = ListAdminEvalRunsErrors[keyof ListAdminEvalRunsErrors];
+
+export type ListAdminEvalRunsResponses = {
+    /**
+     * Eval runs with their scores per suite, newest first
+     */
+    200: {
+        data: Array<EvalRunListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminEvalRunsResponse = ListAdminEvalRunsResponses[keyof ListAdminEvalRunsResponses];
+
+export type CreateAdminEvalRunData = {
+    body: CreateEvalRunBody;
+    path?: never;
+    query?: never;
+    url: '/admin/evals/runs';
+};
+
+export type CreateAdminEvalRunErrors = {
+    /**
+     * Unknown case, suite or version
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid body
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminEvalRunError = CreateAdminEvalRunErrors[keyof CreateAdminEvalRunErrors];
+
+export type CreateAdminEvalRunResponses = {
+    /**
+     * The run, queued behind any run still in progress
+     */
+    201: {
+        data: EvalRun;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminEvalRunResponse = CreateAdminEvalRunResponses[keyof CreateAdminEvalRunResponses];
+
+export type GetAdminEvalRunData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/evals/runs/{id}';
+};
+
+export type GetAdminEvalRunErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminEvalRunError = GetAdminEvalRunErrors[keyof GetAdminEvalRunErrors];
+
+export type GetAdminEvalRunResponses = {
+    /**
+     * Every case of the run against the daily runs on main before it
+     */
+    200: {
+        data: EvalRunReport;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminEvalRunResponse = GetAdminEvalRunResponses[keyof GetAdminEvalRunResponses];
+
+export type CancelAdminEvalRunData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/evals/runs/{id}/cancel';
+};
+
+export type CancelAdminEvalRunErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CancelAdminEvalRunError = CancelAdminEvalRunErrors[keyof CancelAdminEvalRunErrors];
+
+export type CancelAdminEvalRunResponses = {
+    /**
+     * The run, cancelled; cases not yet finished are skipped
+     */
+    200: {
+        data: EvalRun;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CancelAdminEvalRunResponse = CancelAdminEvalRunResponses[keyof CancelAdminEvalRunResponses];
+
+export type GetAdminEvalCaseBaselineData = {
+    body?: never;
+    path: {
+        id: string;
+        caseId: string;
+    };
+    query?: never;
+    url: '/admin/evals/runs/{id}/cases/{caseId}/baseline';
+};
+
+export type GetAdminEvalCaseBaselineErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminEvalCaseBaselineError = GetAdminEvalCaseBaselineErrors[keyof GetAdminEvalCaseBaselineErrors];
+
+export type GetAdminEvalCaseBaselineResponses = {
+    /**
+     * The case in the daily run on main before this run, to compare outputs
+     */
+    200: {
+        data: EvalCaseBaseline;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminEvalCaseBaselineResponse = GetAdminEvalCaseBaselineResponses[keyof GetAdminEvalCaseBaselineResponses];
+
+export type TickAdminEvalRunsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/evals/tick';
+};
+
+export type TickAdminEvalRunsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TickAdminEvalRunsError = TickAdminEvalRunsErrors[keyof TickAdminEvalRunsErrors];
+
+export type TickAdminEvalRunsResponses = {
+    /**
+     * One step of the running eval run, for a Core without the minute cron
+     */
+    200: {
+        data: EvalTick;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TickAdminEvalRunsResponse = TickAdminEvalRunsResponses[keyof TickAdminEvalRunsResponses];
+
 export type ListAdminTasksData = {
     body?: never;
     path?: never;
@@ -29678,6 +30401,331 @@ export type PostChatsRoomsByIdFilesResponses = {
 };
 
 export type PostChatsRoomsByIdFilesResponse = PostChatsRoomsByIdFilesResponses[keyof PostChatsRoomsByIdFilesResponses];
+
+export type GetChatsSavedMessagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * `nextCursor` from the previous page. It names a position, not a row, so removing that save does not lose the rest of the list.
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/saved-messages';
+};
+
+export type GetChatsSavedMessagesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSavedMessagesError = GetChatsSavedMessagesErrors[keyof GetChatsSavedMessagesErrors];
+
+export type GetChatsSavedMessagesResponses = {
+    /**
+     * Saved messages retrieved
+     */
+    200: {
+        data: Array<ChatSavedMessageListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSavedMessagesResponse = GetChatsSavedMessagesResponses[keyof GetChatsSavedMessagesResponses];
+
+export type DeleteChatsSavedMessagesByMessageIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/saved-messages/{messageId}';
+};
+
+export type DeleteChatsSavedMessagesByMessageIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsSavedMessagesByMessageIdError = DeleteChatsSavedMessagesByMessageIdErrors[keyof DeleteChatsSavedMessagesByMessageIdErrors];
+
+export type DeleteChatsSavedMessagesByMessageIdResponses = {
+    /**
+     * Unsaved
+     */
+    200: {
+        data: ChatSavedMessageMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsSavedMessagesByMessageIdResponse = DeleteChatsSavedMessagesByMessageIdResponses[keyof DeleteChatsSavedMessagesByMessageIdResponses];
+
+export type PutChatsSavedMessagesByMessageIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/saved-messages/{messageId}';
+};
+
+export type PutChatsSavedMessagesByMessageIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsSavedMessagesByMessageIdError = PutChatsSavedMessagesByMessageIdErrors[keyof PutChatsSavedMessagesByMessageIdErrors];
+
+export type PutChatsSavedMessagesByMessageIdResponses = {
+    /**
+     * Saved
+     */
+    200: {
+        data: ChatSavedMessageMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsSavedMessagesByMessageIdResponse = PutChatsSavedMessagesByMessageIdResponses[keyof PutChatsSavedMessagesByMessageIdResponses];
 
 export type GetChatsSignalsNeedsYouData = {
     body?: never;

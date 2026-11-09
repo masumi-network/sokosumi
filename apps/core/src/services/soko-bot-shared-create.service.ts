@@ -1,6 +1,6 @@
 import { Prisma } from "@sokosumi/database";
 import {
-  CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   createEmptySokoBotMemory,
   renderSokoBotMemory,
 } from "@sokosumi/soko-bot";
@@ -143,7 +143,9 @@ export async function createSharedSokoBot(
       // Project row written above makes a second create wait for this one
       // and then see its bot.
       const sameVersionBot =
-        input.projectId && input.versionId === CMO_SOKO_BOT_VERSION_ID
+        input.projectId &&
+        input.versionId &&
+        CMO_SOKO_BOT_VERSION_IDS.includes(input.versionId)
           ? await tx.sokoBot.findFirst({
               where: {
                 projectId: input.projectId,
