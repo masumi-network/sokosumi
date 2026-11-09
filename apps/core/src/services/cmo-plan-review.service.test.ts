@@ -175,6 +175,48 @@ describe("cmoPlanProblems", () => {
       ).join("\n"),
     ).not.toMatch(/comparison page/);
   });
+
+  it("names titles, facts and phrases the calendar repeats", () => {
+    const titled = (id: string, date: string, title: string) => ({
+      ...entry(id, "instagram", "image post"),
+      date,
+      title,
+    });
+    const problems = cmoPlanProblems(
+      plan({
+        calendar: [
+          titled("a", "2026-11-03", "Swiss-made chocolate, in gift form"),
+          titled("b", "2026-11-19", "Swiss made chocolate in gift form"),
+          titled("c", "2026-11-04", "Cooking since 1898"),
+          titled("d", "2026-11-05", "1898: where it began"),
+          titled("e", "2026-11-06", "Four generations since 1898"),
+          titled("f", "2026-11-07", "Meet the F40 JAMIE bag"),
+          titled("g", "2026-11-08", "Repair your F40 JAMIE bag"),
+          titled("h", "2026-11-09", "Pack the F40 JAMIE bag"),
+        ],
+      }),
+    ).join("\n");
+    expect(problems).toMatch(
+      /2 calendar entries share a title \(2026-11-03, 2026-11-19\)/,
+    );
+    expect(problems).toMatch(/"1898" is in 3 calendar titles/);
+    expect(problems).toMatch(/"f40" is in 3 calendar titles/);
+  });
+
+  it("lets a calendar whose titles each say something new pass", () => {
+    const titles = [
+      "How to pick a gift",
+      "Pralines for a host",
+      "Why fresh matters",
+    ];
+    const calendar = titles.map((title, index) => ({
+      ...entry(String(index), "instagram", "image post"),
+      title,
+    }));
+    expect(cmoPlanProblems(plan({ calendar })).join("\n")).not.toMatch(
+      /share a title|calendar titles/,
+    );
+  });
 });
 
 describe("the funnel strategy", () => {
