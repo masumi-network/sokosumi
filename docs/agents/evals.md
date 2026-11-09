@@ -31,7 +31,7 @@ sokosumi evals list                                    # recent runs and scores
 
 `--preprod` or `--api-url` picks the deployment, as for every CLI command. Runs queue: the lanes run one run at a time. The admin page (Admin → Evals) shows the trend per PR, each run's cases worst first, and each case's checks, judge verdict, answer and tools beside the daily run before it.
 
-In development, run the few cases your change touches with `--repeats 1` while you iterate, then the whole suite with three repeats before you open the PR.
+The daily run runs each case once. A run you start runs once too unless you ask for `--repeats 2` or `3`. In development, run the few cases your change touches while you iterate, then the suite your change touches with three repeats before you open the PR. A case that regressed in the daily run on one repeat may be chance: run it with three repeats before chasing it.
 
 ## How a run works
 

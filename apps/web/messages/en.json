@@ -6879,7 +6879,7 @@
           "sokoBot": "Soko Bot",
           "cmo": "CMO",
           "repeats": "Repeats",
-          "repeatsHint": "Each repeat runs in its own lane, side by side. Three tells chance from a real change.",
+          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",

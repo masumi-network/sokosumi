@@ -82,6 +82,7 @@ vi.mock("./eval-case-runner", async (importOriginal) => {
 import prisma from "@/lib/db/prisma";
 import {
   cancelEvalRun,
+  createDailyEvalRun,
   createEvalRun,
   getEvalRunReport,
   listEvalRuns,
@@ -135,6 +136,18 @@ describe.skipIf(!enabled)("eval runs", () => {
       "2:inbox-summary=PENDING",
       "2:chat-post=PENDING",
     ]);
+  });
+
+  it("runs the daily run once a day, one repeat; a started run defaults to one too", async () => {
+    const daily = await createDailyEvalRun();
+    expect(daily?.repeats).toBe(1);
+    expect(daily?.trigger).toBe("DAILY");
+    expect(await createDailyEvalRun()).toBeNull();
+    const manual = await createEvalRun({
+      trigger: "MANUAL",
+      caseIds: ["ambiguous-request"],
+    });
+    expect(manual.repeats).toBe(1);
   });
 
   it("refuses unknown cases, bad repeats and unknown versions", async () => {

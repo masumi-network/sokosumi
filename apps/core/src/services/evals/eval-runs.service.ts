@@ -78,7 +78,9 @@ export async function createEvalRun(input: CreateEvalRunInput) {
         ),
       ]
     : (input.suites ?? [...EVAL_SUITES]);
-  const repeats = input.repeats ?? EVAL_LANE_COUNT;
+  // One repeat unless asked: more repeats tell chance from a real change,
+  // at that many times the cost.
+  const repeats = input.repeats ?? 1;
   if (!Number.isInteger(repeats) || repeats < 1 || repeats > EVAL_LANE_COUNT)
     throw new EvalRunError(`Repeats must be 1 to ${EVAL_LANE_COUNT}`);
   const cases = selectEvalCases({ suites, caseIds });
@@ -128,7 +130,10 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   });
 }
 
-/** The daily run, once per UTC day: a second cron call the same day does nothing. */
+/**
+ * The daily run, once per UTC day and one repeat: a second cron call the
+ * same day does nothing. More repeats are for runs someone starts.
+ */
 export async function createDailyEvalRun() {
   const dayStart = new Date();
   dayStart.setUTCHours(0, 0, 0, 0);
@@ -137,7 +142,7 @@ export async function createDailyEvalRun() {
     select: { id: true },
   });
   if (today) return null;
-  return createEvalRun({ trigger: "DAILY", label: "Daily" });
+  return createEvalRun({ trigger: "DAILY", label: "Daily", repeats: 1 });
 }
 
 const runModelsSchema = (value: unknown) => {
