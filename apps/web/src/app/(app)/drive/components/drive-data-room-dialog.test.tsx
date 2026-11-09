@@ -23,6 +23,14 @@ const room = {
   id: "room-1",
   folderPath: "Series A",
   storage: "private" as const,
+  token: "tok",
+  title: null,
+  logoFileId: null,
+  allowedDomains: [],
+  expiresAt: null,
+  allowDownload: false,
+  watermark: true,
+  notifyOnFirstVisit: true,
   createdAt: "2026-11-09T00:00:00.000Z",
 };
 

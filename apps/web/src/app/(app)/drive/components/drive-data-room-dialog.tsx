@@ -2,6 +2,7 @@
 
 import type { DataRoom } from "@sokosumi/core-client";
 import { LockKeyhole } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -95,17 +96,25 @@ export function DriveDataRoomDialog({
           </DialogHeader>
 
           {room ? (
-            isRoot && room.storage !== "moving_out" ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="justify-self-start"
-                disabled={busy}
-                onClick={() => setConfirmClose(true)}
-              >
-                {t("close")}
-              </Button>
-            ) : null
+            <div className="flex flex-wrap gap-2">
+              {room.storage !== "moving_out" ? (
+                <Button asChild>
+                  <Link href={`/drive/data-rooms/${room.id}`}>
+                    {t("manage")}
+                  </Link>
+                </Button>
+              ) : null}
+              {isRoot && room.storage !== "moving_out" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setConfirmClose(true)}
+                >
+                  {t("close")}
+                </Button>
+              ) : null}
+            </div>
           ) : (
             <Button
               type="button"

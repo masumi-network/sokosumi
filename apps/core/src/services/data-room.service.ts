@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import {
   type DataRoom,
   DataRoomStorage,
@@ -152,6 +153,7 @@ export async function createDataRoom(input: {
         ownerId: store.ownerId,
         folderPath,
         createdByUserId: input.userId,
+        token: randomBytes(24).toString("base64url"),
       },
     });
   });

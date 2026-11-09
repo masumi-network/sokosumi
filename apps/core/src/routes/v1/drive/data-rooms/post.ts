@@ -17,6 +17,7 @@ import {
   createDataRoom,
   moveDataRoomFiles,
 } from "@/services/data-room.service";
+import { backfillDriveStore } from "@/services/file-backfill.service";
 
 /** How long the request keeps moving files after it answers. */
 const MOVE_AFTER_RESPONSE_MS = 60_000;
@@ -64,13 +65,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userId: store.actor.userId,
     });
     // A small folder is private within the minute; the cron finishes the rest.
+    // Viewers see the room through the catalog, so files it has not adopted
+    // yet are adopted now.
     const deadline = Date.now() + MOVE_AFTER_RESPONSE_MS;
     waitUntil(
-      moveDataRoomFiles({ shouldContinue: () => Date.now() < deadline }).catch(
-        (error: unknown) =>
-          console.warn("[data-rooms] moving after create failed", {
-            error: error instanceof Error ? error.message : "unknown",
-          }),
+      Promise.all([
+        backfillDriveStore(store),
+        moveDataRoomFiles({ shouldContinue: () => Date.now() < deadline }),
+      ]).catch((error: unknown) =>
+        console.warn("[data-rooms] work after create failed", {
+          error: error instanceof Error ? error.message : "unknown",
+        }),
       ),
     );
     return created(c, dataRoomSchema.parse(toDataRoomDto(room)));

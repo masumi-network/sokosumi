@@ -6,6 +6,11 @@ export {
   renderVerificationEmail,
 } from "./auth.js";
 export { renderLowBalanceEmail } from "./billing.js";
+export {
+  renderDataRoomCodeEmail,
+  renderDataRoomFirstVisitEmail,
+  renderDataRoomInvitationEmail,
+} from "./data-room.js";
 export { renderJobFailureNotificationEmail } from "./jobs.js";
 export {
   renderNewsletterConfirmationEmail,
