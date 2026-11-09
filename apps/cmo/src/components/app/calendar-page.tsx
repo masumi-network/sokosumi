@@ -4,7 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { Check, Clock, Play } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel, formatDay, planWeeks } from "../../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../../lib/channels";
 import { ChannelIcon } from "../channel-icon";
@@ -14,12 +14,12 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 type Media = CmoOverview["media"][number];
 
-const STATUS: Record<Entry["status"], { label: string; tone: string }> = {
-  idea: { label: "Planned", tone: "" },
-  draft: { label: "Written", tone: "accent" },
-  scheduled: { label: "Scheduled", tone: "accent" },
-  published: { label: "Published", tone: "ok" },
-  skipped: { label: "Skipped", tone: "" },
+const STATUS: Record<Entry["status"], { label: string; emphasis: boolean }> = {
+  idea: { label: "Planned", emphasis: false },
+  draft: { label: "Written", emphasis: true },
+  scheduled: { label: "Scheduled", emphasis: true },
+  published: { label: "Published", emphasis: true },
+  skipped: { label: "Skipped", emphasis: false },
 };
 
 function samePillar(named: string | undefined, pillar: string): boolean {
@@ -86,7 +86,7 @@ export function CalendarPage({
     return (
       <div className="empty">
         <span className="shape" aria-hidden="true" />
-        <span>Cuso is still writing the strategy.</span>
+        <span>{AGENT_NAME} is still writing the strategy.</span>
       </div>
     );
   }
@@ -102,7 +102,7 @@ export function CalendarPage({
 
   return (
     <div className="cal">
-      <div className="cal-head">
+      <div className="card cal-head">
         <p className="note num">
           {live.length} pieces this month · {written} written · {scheduled}{" "}
           scheduled
@@ -184,6 +184,7 @@ export function CalendarPage({
                   <PieceCard
                     entry={entry}
                     media={mediaFor(entry)}
+                    open={entry.id === openId}
                     onOpen={() => setOpenId(entry.id)}
                   />
                 </li>
@@ -224,10 +225,12 @@ export function CalendarPage({
 function PieceCard({
   entry,
   media,
+  open,
   onOpen,
 }: {
   entry: Entry;
   media?: Media;
+  open: boolean;
   onOpen: () => void;
 }) {
   const status = STATUS[entry.status];
@@ -239,7 +242,11 @@ function PieceCard({
     formatHasImage(entry.channel, entry.format) ||
     formatHasVideo(entry.channel, entry.format);
   return (
-    <button type="button" className="cal-card" onClick={onOpen}>
+    <button
+      type="button"
+      className={open ? "cal-card card-focus" : "cal-card"}
+      onClick={onOpen}
+    >
       {visual ? (
         <span className="cal-thumb">
           {picture ? (
@@ -279,7 +286,7 @@ function PieceCard({
         {excerpt(entry) ? (
           <span className="cal-excerpt">{excerpt(entry)}</span>
         ) : null}
-        <span className={`tag ${status.tone}`}>
+        <span className={status.emphasis ? "tag emphasis" : "tag"}>
           {entry.status === "published" ? (
             <Check size={11} aria-hidden="true" />
           ) : null}

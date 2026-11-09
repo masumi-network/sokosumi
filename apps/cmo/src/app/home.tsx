@@ -40,6 +40,8 @@ import {
   sendMessage,
   setAdBudget,
   setAdCampaignStatus,
+  skipBrandQuestions,
+  skippedSteps,
   startOver,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
@@ -163,8 +165,8 @@ export async function Home({ searchParams, view }: HomeProps) {
       <OnboardingFlow
         overview={overview}
         messages={await loadMessages().catch(() => [])}
-        name={session.user.name}
-        initialStep={step}
+        initialStep={step === "results" ? "results" : undefined}
+        skipped={await skippedSteps(overview.projectId)}
         actions={{
           loadState,
           sendMessage,
@@ -177,8 +179,8 @@ export async function Home({ searchParams, view }: HomeProps) {
           answerBrandQuestion,
           answerPlanQuestion,
           applyPlanAnswers,
+          skipBrandQuestions,
           finishAccounts,
-          addMailingList,
           connectChannel: connectSetupChannel,
           connectMeasurement,
           connectAds,
@@ -207,6 +209,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         saveBrandBrain,
         pauseEntry,
         connectChannel,
+        addMailingList,
         connectMeasurement,
         connectAds,
         launchAd,

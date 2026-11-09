@@ -44,7 +44,7 @@ import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-
+import { AGENT_NAME } from "../lib/agent";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
@@ -62,7 +62,8 @@ async function requireCore() {
   return core;
 }
 
-async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
+/** What this person skipped in hiring, to route its steps. */
+export async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
   const cookie = (await cookies()).get(skippedStepsCookie(projectId));
   return readSkippedSteps(cookie?.value);
 }
@@ -107,7 +108,7 @@ async function skipStep(step: SkippedStep): Promise<CmoOverview> {
 
 async function requireOverview(): Promise<CmoOverview> {
   const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
+  if (!overview) throw new Error(`${AGENT_NAME} is not hired yet`);
   return overview;
 }
 
@@ -332,7 +333,7 @@ export async function loadState(): Promise<{
   if (response?.status === 404) return { overview: null, messages: [] };
   // Any other failure is not "not hired": showing the hire flow would offer
   // a second business.
-  if (!data) throw new Error("Could not load Cuso");
+  if (!data) throw new Error(`Could not load ${AGENT_NAME}`);
   return {
     overview: await withSkipped(data.data),
     messages: await messagesFor(core, data.data),
@@ -344,7 +345,7 @@ export async function sendMessage(content: string): Promise<void> {
   if (!text) return;
   const core = await requireCore();
   const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
+  if (!overview) throw new Error(`${AGENT_NAME} is not hired yet`);
   const { error } = await postChatsRoomsByIdMessages({
     client: core.client,
     headers: chatHeaders(core, overview),
@@ -408,6 +409,14 @@ export async function finishAccounts(): Promise<never> {
 }
 
 /**
+ * The founder chose to leave Cuso's questions about the brand for later; they
+ * stay reachable from the Brand step. Kept in CMO's cookie like the accounts.
+ */
+export async function skipBrandQuestions(): Promise<CmoOverview> {
+  return skipStep("questions");
+}
+
+/**
  * Archives the Cuso this person works with and opens the hiring form, to hire
  * him for another website. A refusal (not an owner or admin) comes back as text.
  */
@@ -449,7 +458,9 @@ export async function addMailingList(
   text: string,
 ): Promise<{ overview: CmoOverview | null; error: string | null }> {
   const overview = await loadOverview();
-  if (!overview) return { overview: null, error: "Cuso is not hired yet" };
+  if (!overview) {
+    return { overview: null, error: `${AGENT_NAME} is not hired yet` };
+  }
   const options = await inCusoWorkspace(overview);
   const listId = await newsletterListId(options);
   if (!listId) return { overview: null, error: "Could not add the list" };
