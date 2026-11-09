@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 
 import {
   excludeIdsForAvatarRefresh,
-  nextSeenAvatarIds,
+  fillAvatarRow,
+  nextSeenAvatars,
 } from "./avatar-picker-exclusions";
 
 const PAGE_SIZE = 6;
@@ -33,66 +34,82 @@ interface AvatarPickerProps {
   onChange: (avatar: SokoBotAvatar | null) => void;
   /** The bot's current picture, shown as an always-available option. */
   currentImageUrl?: string | null;
+  /** True while a set loads and nothing can be picked; hold saving meanwhile. */
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 function AvatarPickerSet({
   value,
   onChange,
   currentImageUrl,
+  onLoadingChange,
 }: AvatarPickerProps) {
   const t = useTranslations("App.SokoBot.Avatar");
   const [avatars, setAvatars] = useState<SokoBotAvatar[]>([]);
-  const [seen, setSeen] = useState<string[]>([]);
+  const [seen, setSeen] = useState<SokoBotAvatar[]>([]);
   const [isPending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
   // The current picture takes one tile, so the set shrinks by one and the
   // tiles still fill whole rows (six wide, or two rows of three).
   const take = currentImageUrl ? PAGE_SIZE - 1 : PAGE_SIZE;
 
+  const loading = isPending || !loaded;
+
   function load(excludeIds: string[]) {
+    onLoadingChange?.(true);
     startTransition(async () => {
-      const requestedExcludeIds = excludeIdsForAvatarRefresh(excludeIds);
-      const result = await topUpSokoBotAvatarsAction({
-        input: { take, excludeIds: requestedExcludeIds },
-      });
-      if (!result.ok) {
-        toast.error(
-          result.error.code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
-            ? t("rateLimited")
-            : t("loadError"),
-        );
-        // Stop the skeletons. Hitting the hourly cap is an expected answer,
-        // not a pending one, and tiles that pulse for ever under the toast
-        // read as "still loading".
-        setLoaded(true);
-        return;
+      try {
+        await loadSet(excludeIds);
+      } finally {
+        onLoadingChange?.(false);
       }
-      // The pool is finite; when a fresh set comes back short, start over.
-      const wrappedAround =
-        result.value.length === 0 && requestedExcludeIds.length > 0;
-      const next = wrappedAround
-        ? await topUpSokoBotAvatarsAction({
-            input: { take, excludeIds: [] },
-          }).then((r) => (r.ok ? r.value : []))
-        : result.value;
-      setAvatars(next);
-      // A new bot starts with a picture; picking another stays one click.
-      // The pick must stay on screen: after "show others" a pick from the
-      // old set is gone, so fall back to the current picture or the first.
-      const pickOnScreen =
-        value === null
-          ? Boolean(currentImageUrl)
-          : next.some((avatar) => avatar.id === value);
-      if (!pickOnScreen) onChange(currentImageUrl ? null : (next[0] ?? null));
-      setSeen((prev) =>
-        nextSeenAvatarIds(
-          prev,
-          next.map((avatar) => avatar.id),
-          wrappedAround ? [] : requestedExcludeIds,
-        ),
-      );
-      setLoaded(true);
     });
+  }
+
+  async function loadSet(excludeIds: string[]) {
+    const requestedExcludeIds = excludeIdsForAvatarRefresh(excludeIds);
+    const result = await topUpSokoBotAvatarsAction({
+      input: { take, excludeIds: requestedExcludeIds },
+    });
+    if (!result.ok) {
+      toast.error(
+        result.error.code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
+          ? t("rateLimited")
+          : t("loadError"),
+      );
+      // Stop the skeletons. Hitting the hourly cap is an expected answer,
+      // not a pending one, and tiles that pulse for ever under the toast
+      // read as "still loading".
+      setLoaded(true);
+      return;
+    }
+    // The pool is finite; when a fresh set comes back short, start over.
+    const wrappedAround =
+      result.value.length === 0 && requestedExcludeIds.length > 0;
+    // A short one has its rest still being drawn; fill the row from those
+    // seen before so it stays full.
+    const fresh = wrappedAround
+      ? await topUpSokoBotAvatarsAction({
+          input: { take, excludeIds: [] },
+        }).then((r) => (r.ok ? r.value : []))
+      : result.value;
+    const next =
+      wrappedAround || requestedExcludeIds.length === 0
+        ? fresh
+        : fillAvatarRow(fresh, seen, take);
+    setAvatars(next);
+    // A new bot starts with a picture; picking another stays one click.
+    // The pick must stay on screen: after "show others" a pick from the
+    // old set may be gone, so fall back to the current picture or the first.
+    const pickOnScreen =
+      value === null
+        ? Boolean(currentImageUrl)
+        : next.some((avatar) => avatar.id === value);
+    if (!pickOnScreen) onChange(currentImageUrl ? null : (next[0] ?? null));
+    setSeen((prev) =>
+      nextSeenAvatars(prev, fresh, wrappedAround ? [] : requestedExcludeIds),
+    );
+    setLoaded(true);
   }
 
   useEffect(() => {
@@ -105,10 +122,10 @@ function AvatarPickerSet({
       <div
         role="group"
         aria-label={t("pictures")}
-        aria-busy={isPending || !loaded}
+        aria-busy={loading}
         className="grid grid-cols-3 gap-3 sm:grid-cols-6"
       >
-        {currentImageUrl ? (
+        {currentImageUrl && !loading ? (
           <AvatarTile
             imageUrl={currentImageUrl}
             label={t("current")}
@@ -116,7 +133,7 @@ function AvatarPickerSet({
             onClick={() => onChange(null)}
           />
         ) : null}
-        {avatars.map((avatar) => (
+        {(loading ? [] : avatars).map((avatar) => (
           <AvatarTile
             key={avatar.id}
             imageUrl={avatar.imageUrl}
@@ -125,13 +142,18 @@ function AvatarPickerSet({
             onClick={() => onChange(avatar)}
           />
         ))}
-        {!loaded
-          ? Array.from({ length: take }, (_, i) => (
-              <div
-                key={i}
-                className="bg-muted aspect-square animate-pulse rounded-xl"
-              />
-            ))
+        {/* A refresh replaces the whole row, current picture included, so
+            nothing old can be picked while the new set is on its way. */}
+        {loading
+          ? Array.from(
+              { length: currentImageUrl ? take + 1 : take },
+              (_, i) => (
+                <div
+                  key={i}
+                  className="bg-muted aspect-square animate-pulse rounded-xl"
+                />
+              ),
+            )
           : null}
       </div>
       <div className="flex items-center justify-between gap-3">
@@ -144,7 +166,7 @@ function AvatarPickerSet({
           // asked for shows (and announces) this button as busy.
           loading={isPending && loaded}
           disabled={!loaded}
-          onClick={() => load(seen)}
+          onClick={() => load(seen.map((avatar) => avatar.id))}
         >
           <RefreshCw aria-hidden className="size-3.5" />
           {t("showOthers")}

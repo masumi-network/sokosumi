@@ -160,11 +160,17 @@ export function createSokoBotAvatarStore() {
     },
   };
 
+  // Transactions run one at a time: the strictest serializable schedule, so a
+  // check-then-write inside one (the hourly cap) holds under concurrent calls
+  // the way Postgres' Serializable isolation makes it hold.
+  let transactions: Promise<unknown> = Promise.resolve();
   const client = {
     sokoBotAvatar,
     sokoBot,
     async $transaction<T>(run: (tx: unknown) => Promise<T>) {
-      return await run(client);
+      const turn = transactions.then(() => run(client));
+      transactions = turn.catch(() => undefined);
+      return await turn;
     },
   };
 

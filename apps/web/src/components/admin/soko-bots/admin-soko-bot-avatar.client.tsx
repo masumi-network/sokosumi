@@ -21,6 +21,7 @@ export function AdminSokoBotAvatar({
   const t = useTranslations("App.Admin.SokoBots.Avatar");
   const router = useRouter();
   const [picked, setPicked] = useState<SokoBotAvatar | null>(null);
+  const [loadingAvatars, setLoadingAvatars] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function apply() {
@@ -49,8 +50,13 @@ export function AdminSokoBotAvatar({
         value={picked?.id ?? null}
         onChange={setPicked}
         currentImageUrl={currentImageUrl}
+        onLoadingChange={setLoadingAvatars}
       />
-      <Button size="sm" disabled={!picked || isPending} onClick={apply}>
+      <Button
+        size="sm"
+        disabled={!picked || isPending || loadingAvatars}
+        onClick={apply}
+      >
         {t("apply")}
       </Button>
     </section>
