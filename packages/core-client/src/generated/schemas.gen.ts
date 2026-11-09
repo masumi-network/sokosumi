@@ -38907,6 +38907,9 @@ export const StudioProductSchema = {
                 'null'
             ],
             maxLength: 2048
+        },
+        photo: {
+            $ref: '#/components/schemas/StudioProductPhoto'
         }
     },
     required: [
@@ -38916,6 +38919,25 @@ export const StudioProductSchema = {
         'price',
         'url',
         'imageUrl'
+    ]
+} as const;
+
+export const StudioProductPhotoSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255
+        }
+    },
+    required: [
+        'id',
+        'name'
     ]
 } as const;
 
@@ -38932,25 +38954,6 @@ export const StudioProductImportSchema = {
     },
     required: [
         'products'
-    ]
-} as const;
-
-export const StudioProductPhotoSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 160
-        }
-    },
-    required: [
-        'id',
-        'name'
     ]
 } as const;
 

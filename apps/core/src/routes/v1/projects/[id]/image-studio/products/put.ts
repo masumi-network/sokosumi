@@ -9,6 +9,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.schema";
@@ -47,7 +48,9 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
-    const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
+    const { workspaceId, organizationId } = requireWorkspaceContext(
+      c.var.workspaceContext,
+    );
     const { id: projectId } = c.req.valid("param");
     const { products, revision } = c.req.valid("json");
     const updated = await serializableTransaction(async (tx) => {
@@ -57,6 +60,36 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         select: { id: true },
       });
       if (!project) return { count: 0 };
+
+      const linkedPhotos = products.flatMap(({ photo }) =>
+        photo ? [photo.id] : [],
+      );
+      if (linkedPhotos.length) {
+        const stored = revision
+          ? await tx.projectStudioProductCatalog.findUnique({
+              where: { projectId, revision },
+              select: { products: true, revision: true },
+            })
+          : null;
+        if (revision && !stored) return { count: 0 };
+        const existing = new Set(
+          stored
+            ? studioProductCatalogSchema
+                .parse(stored)
+                .products.map(({ photo }) => photo?.id)
+            : [],
+        );
+        await requireStudioReferenceFiles(
+          {
+            workspaceId,
+            actor: { kind: "interactive", organizationId, userId },
+            resourceIds: [...new Set(linkedPhotos)].filter(
+              (id) => !existing.has(id),
+            ),
+          },
+          tx,
+        );
+      }
 
       if (revision === 0) {
         return tx.projectStudioProductCatalog.createMany({

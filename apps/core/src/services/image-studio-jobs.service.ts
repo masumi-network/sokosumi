@@ -60,6 +60,7 @@ import {
   uploadReference,
 } from "@/lib/image-studio/fal-client";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
+import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import {
   applyStudioBrandPrompt,
   loadStudioBrand,
@@ -77,7 +78,6 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
-import { loadLiveResources } from "@/services/file-search.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
@@ -315,7 +315,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     }
 
     if (input.referenceFileActor && input.referenceFileIds?.length) {
-      const files = await loadLiveResources(
+      await requireStudioReferenceFiles(
         {
           workspaceId: input.workspaceId,
           actor: input.referenceFileActor,
@@ -323,18 +323,6 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         },
         tx,
       );
-      for (const id of input.referenceFileIds) {
-        const file = files.find((candidate) => candidate.id === id);
-        if (
-          file?.sourceKind !== FileSourceKind.DRIVE_UPLOAD ||
-          !file.mimeType?.startsWith("image/")
-        ) {
-          throw notFound("A reference image was not found in your Files.");
-        }
-        if ((file.sizeBytes ?? 0) > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES) {
-          throw unprocessableEntity("A reference image is too large to send.");
-        }
-      }
     }
 
     const inFlight = await tx.projectImageJob.count({

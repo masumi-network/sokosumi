@@ -29,6 +29,7 @@ import {
 } from "@/lib/actions/image-studio/product-catalog";
 
 import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
+import { StudioProductPhotoControl } from "./studio-product-photo";
 
 const MAX_PRODUCTS = 20;
 
@@ -60,7 +61,8 @@ export function StudioProductCatalogDialog({
   const [transitionPending, startTransition] = useTransition();
   const batchPreparation = useRef<AbortController | null>(null);
   const [preparingBatch, setPreparingBatch] = useState(false);
-  const pending = transitionPending || preparingBatch;
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const pending = transitionPending || preparingBatch || uploadingPhoto;
   const [batchCopies, setBatchCopies] = useState<Record<string, number>>({});
   const [includePhotos, setIncludePhotos] = useState(true);
   const products = catalog?.products ?? [];
@@ -103,7 +105,7 @@ export function StudioProductCatalogDialog({
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (transitionPending) return;
+    if (transitionPending || uploadingPhoto) return;
     if (!nextOpen) {
       batchPreparation.current?.abort();
       batchPreparation.current = null;
@@ -197,8 +199,8 @@ export function StudioProductCatalogDialog({
       onUseProduct(product, photo);
     }
 
-    if (!withPhoto || !product.imageUrl) {
-      use(null);
+    if (!withPhoto || product.photo || !product.imageUrl) {
+      use(withPhoto ? (product.photo ?? null) : null);
       return;
     }
 
@@ -228,8 +230,8 @@ export function StudioProductCatalogDialog({
     try {
       const entries: StudioBatchProduct[] = [];
       for (const { product, copies } of batchSelection) {
-        let photo: StudioProductPhoto | null = null;
-        if (includePhotos && product.imageUrl) {
+        let photo = includePhotos ? (product.photo ?? null) : null;
+        if (includePhotos && !photo && product.imageUrl) {
           try {
             photo = await attachStudioCatalogPhoto({
               projectId,
@@ -388,21 +390,39 @@ export function StudioProductCatalogDialog({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="studio-product-image">
-                      {t("imageUrl")}
-                    </Label>
-                    <Input
-                      id="studio-product-image"
-                      inputMode="url"
-                      maxLength={2048}
-                      value={selected.imageUrl ?? ""}
-                      onChange={(event) =>
-                        handleChange({
-                          imageUrl: event.currentTarget.value || null,
-                        })
+                    <StudioProductPhotoControl
+                      onPhotoChange={(photo) =>
+                        handleChange(
+                          photo
+                            ? { photo, imageUrl: null }
+                            : { photo: undefined },
+                        )
                       }
+                      onUploadingChange={setUploadingPhoto}
+                      photo={selected.photo ?? null}
+                      uploading={uploadingPhoto}
                     />
-                    {selected.imageUrl && isValidHttpUrl(selected.imageUrl) ? (
+                    {!selected.photo ? (
+                      <>
+                        <Label htmlFor="studio-product-image">
+                          {t("imageUrl")}
+                        </Label>
+                        <Input
+                          id="studio-product-image"
+                          inputMode="url"
+                          maxLength={2048}
+                          value={selected.imageUrl ?? ""}
+                          onChange={(event) =>
+                            handleChange({
+                              imageUrl: event.currentTarget.value || null,
+                            })
+                          }
+                        />
+                      </>
+                    ) : null}
+                    {!selected.photo &&
+                    selected.imageUrl &&
+                    isValidHttpUrl(selected.imageUrl) ? (
                       <a
                         className="text-foreground text-xs underline underline-offset-2"
                         href={selected.imageUrl}
@@ -430,7 +450,7 @@ export function StudioProductCatalogDialog({
                     >
                       {t("use")}
                     </Button>
-                    {selected.imageUrl ? (
+                    {selected.photo || selected.imageUrl ? (
                       <Button
                         disabled={!canUseProduct || !selected.name.trim()}
                         onClick={() => handleUse(selected, false)}
@@ -529,7 +549,9 @@ export function StudioProductCatalogDialog({
                       </li>
                     ))}
                   </ul>
-                  {batchSelection.some(({ product }) => product.imageUrl) ? (
+                  {batchSelection.some(
+                    ({ product }) => product.photo || product.imageUrl,
+                  ) ? (
                     <label className="flex items-center gap-2 text-xs">
                       <input
                         checked={includePhotos}
@@ -594,7 +616,7 @@ export function StudioProductCatalogDialog({
         ) : null}
         <DialogFooter>
           <Button
-            disabled={transitionPending}
+            disabled={transitionPending || uploadingPhoto}
             onClick={() => handleOpenChange(false)}
             type="button"
             variant="outline"

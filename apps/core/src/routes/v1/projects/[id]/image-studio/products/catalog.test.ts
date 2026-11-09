@@ -1,8 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { FileSourceKind } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EnvVariables } from "@/lib/hono";
+import type { StudioProduct } from "@/schemas/studio-product.schema";
 
 const { allowProject, createMany, updateMany, downloadPhoto, writePhoto } =
   vi.hoisted(() => ({
@@ -13,6 +15,15 @@ const { allowProject, createMany, updateMany, downloadPhoto, writePhoto } =
     writePhoto: vi.fn(),
   }));
 
+const { findCatalog, loadResources } = vi.hoisted(() => ({
+  findCatalog: vi.fn(),
+  loadResources: vi.fn(),
+}));
+
+vi.mock("@/services/file-search.service", () => ({
+  loadLiveResources: loadResources,
+}));
+
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: allowProject,
 }));
@@ -21,7 +32,11 @@ vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: (run: (tx: unknown) => unknown) =>
     run({
       project: { findUnique: async () => ({ id: PROJECT_ID }) },
-      projectStudioProductCatalog: { createMany, updateMany },
+      projectStudioProductCatalog: {
+        createMany,
+        updateMany,
+        findUnique: findCatalog,
+      },
     }),
 }));
 
@@ -37,6 +52,15 @@ import mountPhoto from "./photo/post";
 import mount from "./put";
 
 const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+const PRODUCT_WITH_PHOTO: StudioProduct = {
+  id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  name: "Vase",
+  description: "",
+  price: "",
+  imageUrl: null,
+  url: null,
+  photo: { id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", name: "vase.png" },
+};
 
 function createApp() {
   const app = new OpenAPIHono<EnvVariables>();
@@ -61,11 +85,11 @@ function createApp() {
   return app;
 }
 
-function save(revision: number) {
+function save(revision: number, products: StudioProduct[] = []) {
   return createApp().request(`/${PROJECT_ID}/image-studio/products`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ products: [], revision }),
+    body: JSON.stringify({ products, revision }),
   });
 }
 
@@ -100,6 +124,49 @@ describe("Studio catalog writes", () => {
       where: { projectId: PROJECT_ID, revision: 3 },
       data: { products: [], revision: { increment: 1 } },
     });
+  });
+
+  it("saves a photo reference only when it is a visible workspace image", async () => {
+    const photo = PRODUCT_WITH_PHOTO.photo!;
+    loadResources.mockResolvedValueOnce([]);
+    expect((await save(0, [PRODUCT_WITH_PHOTO])).status).toBe(404);
+    expect(createMany).not.toHaveBeenCalled();
+
+    loadResources.mockResolvedValueOnce([
+      {
+        id: photo.id,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        mimeType: "image/png",
+        sizeBytes: 20,
+      },
+    ]);
+    createMany.mockResolvedValueOnce({ count: 1 });
+
+    const response = await save(0, [PRODUCT_WITH_PHOTO]);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { products: [PRODUCT_WITH_PHOTO], revision: 1 },
+    });
+    expect(loadResources).toHaveBeenLastCalledWith(
+      {
+        workspaceId: "workspace-a",
+        actor: { kind: "interactive", organizationId: null, userId: "user-a" },
+        resourceIds: [photo.id],
+      },
+      expect.any(Object),
+    );
+  });
+
+  it("allows edits to other fields when an existing photo is no longer readable", async () => {
+    findCatalog.mockResolvedValueOnce({
+      revision: 3,
+      products: [PRODUCT_WITH_PHOTO],
+    });
+    updateMany.mockResolvedValueOnce({ count: 1 });
+    expect(
+      (await save(3, [{ ...PRODUCT_WITH_PHOTO, price: "20.00" }])).status,
+    ).toBe(200);
+    expect(loadResources).not.toHaveBeenCalled();
   });
 });
 

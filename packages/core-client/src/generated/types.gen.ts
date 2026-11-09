@@ -10364,15 +10364,16 @@ export type StudioProduct = {
     price: string;
     url: string | null;
     imageUrl: string | null;
-};
-
-export type StudioProductImport = {
-    products: Array<StudioProduct>;
+    photo?: StudioProductPhoto;
 };
 
 export type StudioProductPhoto = {
     id: string;
     name: string;
+};
+
+export type StudioProductImport = {
+    products: Array<StudioProduct>;
 };
 
 export type CreateProjectVideoJobRequest = {
