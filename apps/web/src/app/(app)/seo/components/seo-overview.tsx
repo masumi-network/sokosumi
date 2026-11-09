@@ -21,6 +21,15 @@ import {
 import { SeoTimeline } from "./seo-timeline";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+// The page check names raw-HTML rows "Raw HTML: <rule>"; the source line under "Check details" already says so.
+const RAW_HTML_PREFIX = "Raw HTML: ";
+
+function checkName(title: string) {
+  return title.startsWith(RAW_HTML_PREFIX)
+    ? title.slice(RAW_HTML_PREFIX.length)
+    : title;
+}
+
 export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const { data } = model;
@@ -30,6 +39,9 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
   const offTimeline = data.observations.filter(
     (observation) => !onTimeline.has(observation.id),
   );
+  const flagged = overview.diagnostics.filter(
+    (finding) => finding.severity !== "measure",
+  ).length;
   return (
     <div className="space-y-5">
       <SeoAgentHome model={model} />
@@ -120,6 +132,12 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
             <h2 className="inline text-sm font-semibold">
               {t("overview.diagnostics")}
             </h2>
+            {flagged ? (
+              <span className="text-muted-foreground text-sm">
+                {" "}
+                · {t("overview.flaggedCount", { count: flagged })}
+              </span>
+            ) : null}
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
             {offTimeline.map((observation) => (
@@ -150,10 +168,12 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
             ))}
             {overview.diagnostics.map((finding) => (
               <article key={finding.id} className="space-y-3">
-                <div className="flex flex-wrap items-start gap-2">
-                  <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
-                  <h3 className="text-sm font-medium">{finding.title}</h3>
-                </div>
+                {/* Notes and test-level rows are rules the check flagged; a measurement just reports a value. */}
+                <h3 className="text-sm font-medium">
+                  {finding.severity !== "measure"
+                    ? t("overview.flagged", { rule: checkName(finding.title) })
+                    : checkName(finding.title)}
+                </h3>
                 <SeoPageLink url={finding.pageUrl} />
                 {/* The first evidence line shows inline; rule references stay one tap away. */}
                 {finding.evidence.length ? (

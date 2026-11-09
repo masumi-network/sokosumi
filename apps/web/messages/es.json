@@ -10569,7 +10569,6 @@
       "period": "Periodo",
       "coverage": "Cobertura",
       "openTask": "Abrir tarea",
-      "openEvidence": "Abrir evidencia",
       "close": "Cerrar",
       "cancel": "Cancelar",
       "save": "Guardar",
@@ -10656,7 +10655,9 @@
         "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
         "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
         "pickTile": "Elige un número de arriba para verlo en el gráfico.",
-        "tooFewToCompare": "Muy pocas impresiones para comparar semanas: {current} del {period}, {previous} la semana anterior."
+        "tooFewToCompare": "Muy pocas impresiones para comparar semanas: {current} del {period}, {previous} la semana anterior.",
+        "flagged": "Señalado: {rule}",
+        "flaggedCount": "{count, plural, one {# señalado} other {# señalados}}"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10894,10 +10895,7 @@
       "severity": {
         "critical": "Crítica",
         "major": "Importante",
-        "minor": "Menor",
-        "note": "Vale la pena revisarlo",
-        "test": "Prueba",
-        "measure": "Medición"
+        "minor": "Menor"
       },
       "priority": {
         "low": "Baja",

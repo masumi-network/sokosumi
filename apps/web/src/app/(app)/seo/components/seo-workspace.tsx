@@ -301,7 +301,8 @@ export function SeoWorkspace({
           <TabsList
             className={cn(
               SEGMENTED_TABS_LIST_CLASS_NAME,
-              "w-max max-sm:min-w-full",
+              // Phone triggers are taller than the default list; a fixed list height would clip their focus ring.
+              "w-max max-sm:h-auto max-sm:min-w-full",
             )}
           >
             {tabs.map((tab) => (

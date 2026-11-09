@@ -213,7 +213,7 @@ export function SeoSource({
       href={`/tasks/${encodeURIComponent(observation.sourceTaskId)}`}
       className="text-xs underline underline-offset-4"
     >
-      {t("openEvidence")}
+      {t("timeline.viewResults")}
     </Link>
   ) : null;
 }

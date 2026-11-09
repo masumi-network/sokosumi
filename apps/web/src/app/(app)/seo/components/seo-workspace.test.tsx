@@ -316,17 +316,54 @@ describe("SEO workspace integration", () => {
       sourceRef: "html:title",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
+    workspace.findings.push({
+      id: "meta-keywords",
+      observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "meta-keywords",
+      title: "Raw HTML: No meta keywords",
+      severity: "note",
+      evidence: ['meta keywords in head: "battery"'],
+      sourceRef: "html:head",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    // A test-level row is a flagged rule too, though its name reads as a claim.
+    workspace.findings.push({
+      id: "ai-bots",
+      observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "AC-22",
+      title: "Raw HTML: AI search bots may fetch the page",
+      severity: "test",
+      evidence: ["robots.txt blocks GPTBot"],
+      sourceRef: "robots",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
+    // The folded section says whether opening it pays off.
+    expect(screen.getByText(/· 2 flagged$/)).toBeInTheDocument();
     await user.click(
       screen.getByRole("heading", {
         name: "Title, description and other page details",
       }),
     );
     expect(screen.getByText("title 56 characters")).toBeVisible();
+    // The rule name reads as the flagged rule, not as a claim about the page.
+    expect(
+      screen.getByRole("heading", { name: "Flagged: No meta keywords" }),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Title length" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "Flagged: AI search bots may fetch the page",
+      }),
+    ).toBeVisible();
     const reference = screen.getByText(
       "vendor tools: Ahrefs under 70 (N1-246)",
     );
@@ -335,7 +372,7 @@ describe("SEO workspace integration", () => {
     expect(reference).toBeVisible();
   });
 
-  it("leaves the date filter off the Competitors tab unless dates are set", () => {
+  it("leaves the date filter off Competitors and a 1-page Pages tab unless dates are set", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
@@ -345,8 +382,23 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
     unmount();
     // A set date filter still shows, so it can be cleared.
-    renderWorkspace(workspace, "?tab=competitors&from=2026-01-01");
+    const set = renderWorkspace(workspace, "?tab=competitors&from=2026-01-01");
     expect(screen.getByLabelText("Activity from")).toBeVisible();
+    set.unmount();
+    const onePage = renderWorkspace(workspace, "?tab=pages");
+    expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
+    onePage.unmount();
+    // With more pages, the Pages tab compares them over the chosen dates.
+    const two = seoTestWorkspace();
+    two.pages.push({ ...two.pages[0], id: crypto.randomUUID(), label: "Blog" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(two)),
+    );
+    renderWorkspace(two, "?tab=pages");
+    expect(
+      screen.getByRole("button", { name: "Filter by date" }),
+    ).toBeVisible();
   });
 
   it("folds empty date fields opened on another tab when Competitors opens", async () => {

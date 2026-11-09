@@ -38,7 +38,11 @@ export function seoScopeControls({
       Boolean(filters.channel) ||
       data.metrics.some((metric) => metric.source === "ga4"),
     // Competitors are a saved list; a date filter there changes nothing anyone looks for.
-    dates: filters.tab !== "competitors" || Boolean(filters.from || filters.to),
+    // A 1-page Audit gets its dated view on Overview; its Pages tab is just the page and its last check.
+    dates:
+      (filters.tab !== "competitors" &&
+        !(filters.tab === "pages" && data.pages.length <= 1)) ||
+      Boolean(filters.from || filters.to),
   };
 }
 
@@ -50,7 +54,7 @@ export function useSeoDateFields({
   filters: SeoWorkspaceModel["filters"];
   dates: boolean;
 }) {
-  // The tab the fields were opened on: fields opened elsewhere fold on Competitors,
+  // The tab the fields were opened on: fields opened elsewhere fold where dates are hidden,
   // but fields in use there stay while a date is cleared mid-edit.
   const [openedOn, setOpenedOn] = useState<{ tab: typeof filters.tab } | null>(
     filters.from || filters.to ? { tab: filters.tab } : null,
