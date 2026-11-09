@@ -241,6 +241,14 @@ export function notSnoozedWhere(
   return { AND: [snoozeClause(false, now)] };
 }
 
+/** Whether the reader has snoozed this row past `now`. */
+export function isSnoozed(
+  row: { snoozedUntil: Date | null },
+  now: Date = new Date(),
+): boolean {
+  return row.snoozedUntil !== null && row.snoozedUntil > now;
+}
+
 function snoozeClause(
   snoozed: boolean,
   now: Date,

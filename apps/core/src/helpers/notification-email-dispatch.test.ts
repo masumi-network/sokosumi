@@ -479,6 +479,60 @@ describe("dispatchNotificationEmail", () => {
     expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
   });
 
+  it("sends nothing for a row the reader has snoozed", async () => {
+    notificationFindUniqueMock.mockResolvedValue({
+      isRead: false,
+      snoozedUntil: new Date(NOW.getTime() + 60 * 60 * 1000),
+    });
+
+    await dispatch(finished());
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing for a row snoozed while it waited its turn", async () => {
+    notificationFindUniqueMock
+      .mockResolvedValueOnce({ isRead: false, snoozedUntil: null })
+      .mockResolvedValueOnce({
+        isRead: false,
+        snoozedUntil: new Date(NOW.getTime() + 60 * 60 * 1000),
+      });
+
+    await dispatch(finished());
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("takes a scheduled email back when the row is snoozed while Resend takes it", async () => {
+    hasAppInFrontMock.mockResolvedValue(true);
+    let snoozed = false;
+    sendEmailMock.mockImplementation(async () => {
+      // The reader snoozes while the email is with Resend.
+      snoozed = true;
+      return { id: "email_1" };
+    });
+    notificationUpdateManyMock.mockImplementation(
+      async ({ where }: { where: { AND?: unknown } }) => ({
+        count: snoozed && where.AND !== undefined ? 0 : 1,
+      }),
+    );
+
+    await dispatch(finished());
+
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: NOW } }],
+            },
+          ],
+        }),
+      }),
+    );
+    expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
+  });
+
   it("leaves an email that already left alone when the row went read", async () => {
     notificationUpdateManyMock.mockResolvedValue({ count: 0 });
 

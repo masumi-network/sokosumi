@@ -72,9 +72,50 @@ describe("NotificationSnoozeControl", () => {
       expect(toastSuccessMock).toHaveBeenCalledWith(
         "snoozedToast",
         expect.objectContaining({
-          action: expect.objectContaining({ label: "undo" }),
+          action: expect.objectContaining({ label: "unsnoozeTooltip" }),
         }),
       );
+    });
+  });
+
+  async function snoozeThenTakeToastAction() {
+    const user = userEvent.setup();
+    render(
+      <NotificationSnoozeControl
+        notification={item({ isRead: true, readAt: new Date() })}
+        notificationMessage="Done"
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "snooze" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /snoozePreset.hour/ }),
+    );
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+    const [, options] = toastSuccessMock.mock.calls[0] as [
+      string,
+      { action: { onClick: () => void } },
+    ];
+    options.action.onClick();
+  }
+
+  it("unsnoozes from the toast, and says it unsnoozed rather than undid", async () => {
+    await snoozeThenTakeToastAction();
+
+    expect(snoozeMock).toHaveBeenLastCalledWith("notif-1", null);
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenLastCalledWith("unsnoozed");
+    });
+  });
+
+  it("says so when the toast's unsnooze fails", async () => {
+    snoozeMock
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("offline"));
+
+    await snoozeThenTakeToastAction();
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("unsnoozeError");
     });
   });
 

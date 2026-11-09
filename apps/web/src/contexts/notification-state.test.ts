@@ -1109,3 +1109,87 @@ describe("notificationReducer mentions count reconciliation", () => {
     expect(afterFetch.mentionsCount).toBe(0);
   });
 });
+
+describe("notificationReducer with snoozed rows", () => {
+  // Four active unread rows, counted by Core, and one snoozed unread row on
+  // the Snoozed list, which no count holds.
+  const snoozed = createNotification({
+    id: "snoozed",
+    snoozedUntil: new Date(Date.now() + 60 * 60 * 1000),
+  });
+  const state = {
+    notifications: [snoozed],
+    unreadCount: 4,
+    needsActionCount: 0,
+    mentionsCount: 0,
+  };
+
+  it("keeps the badge when a snoozed row is read and put back", () => {
+    const read = notificationReducer(state, {
+      type: "mark_read_optimistic",
+      id: "snoozed",
+    });
+    expect(read.unreadCount).toBe(4);
+    expect(read.notifications[0]?.isRead).toBe(true);
+
+    const confirmed = notificationReducer(read, {
+      type: "mark_read_success",
+      id: "snoozed",
+      updated: { ...snoozed, isRead: true, readAt: new Date() },
+    });
+    expect(confirmed.unreadCount).toBe(4);
+
+    const unread = notificationReducer(confirmed, {
+      type: "mark_unread_optimistic",
+      id: "snoozed",
+    });
+    expect(unread.unreadCount).toBe(4);
+  });
+
+  it("keeps the badge when a snoozed row is unsnoozed off the list", () => {
+    const after = notificationReducer(state, { type: "remove", id: "snoozed" });
+
+    expect(after.notifications).toEqual([]);
+    expect(after.unreadCount).toBe(4);
+  });
+
+  it("leaves a snoozed row unread on Mark all read, as Core does", () => {
+    const active = createNotification({ id: "active" });
+    const after = notificationReducer(
+      { ...state, notifications: [active, snoozed] },
+      { type: "mark_all_read" },
+    );
+
+    expect(after.notifications.find((n) => n.id === "active")?.isRead).toBe(
+      true,
+    );
+    expect(after.notifications.find((n) => n.id === "snoozed")?.isRead).toBe(
+      false,
+    );
+    expect(after.unreadCount).toBe(0);
+  });
+
+  it("still counts a row whose snooze is over", () => {
+    const back = createNotification({
+      id: "back",
+      snoozedUntil: new Date(Date.now() - 60_000),
+    });
+    const after = notificationReducer(
+      { ...state, notifications: [back] },
+      { type: "mark_read_optimistic", id: "back" },
+    );
+
+    expect(after.unreadCount).toBe(3);
+  });
+
+  it("does not count a realtime read of a snoozed row, and keeps its snooze", () => {
+    const after = notificationReducer(state, {
+      type: "realtime",
+      created: false,
+      notification: { ...snoozed, isRead: true, snoozedUntil: undefined },
+    });
+
+    expect(after.unreadCount).toBe(4);
+    expect(after.notifications[0]?.snoozedUntil).toEqual(snoozed.snoozedUntil);
+  });
+});

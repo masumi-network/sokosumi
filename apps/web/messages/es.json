@@ -829,7 +829,6 @@
       },
       "snoozedToast": "Pospuesta hasta {when}",
       "snoozedUntil": "Vuelve {when}",
-      "undo": "Deshacer",
       "unsnooze": "Dejar de posponer notificación: {message}",
       "unsnoozeTooltip": "Traer de vuelta ahora",
       "unsnoozed": "De vuelta en tus notificaciones",

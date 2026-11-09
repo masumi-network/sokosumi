@@ -116,8 +116,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     // The reader has seen it and said when: an email about it now is noise.
+    // Read off the written row, so an email persisted after the lookup above
+    // is cancelled too; one persisted after the write sees the snooze and
+    // cancels itself.
     if (snoozedUntil) {
-      waitUntil(cancelNotificationEmails([notification]));
+      waitUntil(cancelNotificationEmails([updated]));
     }
 
     return ok(c, notificationItemSchema.parse(mapNotificationToItem(updated)));

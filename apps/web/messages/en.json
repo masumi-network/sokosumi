@@ -845,7 +845,6 @@
       },
       "snoozedToast": "Snoozed until {when}",
       "snoozedUntil": "Back {when}",
-      "undo": "Undo",
       "unsnooze": "Unsnooze notification: {message}",
       "unsnoozeTooltip": "Unsnooze",
       "unsnoozed": "Back in your notifications",

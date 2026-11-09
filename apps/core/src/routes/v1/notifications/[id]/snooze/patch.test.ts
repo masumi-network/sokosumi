@@ -148,17 +148,24 @@ describe("PATCH /notifications/{id}/snooze", () => {
     expect(notificationUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("cancels an email still waiting for the row", async () => {
-    const waiting = row({
+  it("cancels an email persisted between the lookup and the snooze", async () => {
+    const persisted = {
       emailId: "email_1",
       emailScheduledAt: new Date("2026-06-16T16:00:00.000Z"),
-    });
-    notificationFindFirstMock.mockResolvedValue(waiting);
+    };
+    // The lookup sees no email; dispatch writes one before the snooze lands.
+    notificationFindFirstMock.mockResolvedValue(row());
+    notificationUpdateMock.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) =>
+        row({ ...persisted, ...data }),
+    );
 
     await patchSnooze({ until: TOMORROW });
     await Promise.all(waitUntilPromises);
 
-    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith([waiting]);
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "notif_123", ...persisted }),
+    ]);
   });
 
   it("unsnoozes with null and leaves the read state alone", async () => {

@@ -1773,6 +1773,67 @@ describe("Notification Center snooze", () => {
     expect(screen.queryByText("later")).toBeNull();
   });
 
+  it("keeps the active unread count when a snoozed row is read, put back or unsnoozed", async () => {
+    // Four active unread rows Core counts, and one snoozed unread row.
+    const later = row("later", {
+      isRead: false,
+      readAt: null,
+      snoozedUntil: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 4, needsAction: 0, mentions: 0 },
+    });
+    window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, "snoozed");
+    getNotificationsMock.mockResolvedValue(page([later]));
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...later, isRead: true, readAt: new Date() },
+    });
+    patchNotificationUnreadMock.mockResolvedValue({ data: later });
+
+    await renderPage();
+    const user = userEvent.setup();
+    expect(screen.getByRole("tab", { name: "filterUnread 4" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "markRead: later" }));
+    await settle();
+    expect(screen.getByRole("tab", { name: "filterUnread 4" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "markUnread: later" }));
+    await settle();
+    expect(screen.getByRole("tab", { name: "filterUnread 4" })).toBeTruthy();
+
+    patchNotificationSnoozeMock.mockReturnValue(new Promise(() => {}));
+    await user.click(screen.getByRole("button", { name: "unsnooze: later" }));
+    await settle();
+    expect(screen.queryByText("later")).toBeNull();
+    expect(screen.getByRole("tab", { name: "filterUnread 4" })).toBeTruthy();
+  });
+
+  it("leaves a snoozed row unread on Mark all read, as Core does", async () => {
+    const later = row("later", {
+      isRead: false,
+      readAt: null,
+      snoozedUntil: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 4, needsAction: 0, mentions: 0 },
+    });
+    window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, "snoozed");
+    getNotificationsMock.mockResolvedValue(page([later]));
+    patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 4 } });
+
+    await renderPage();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "markAllRead" }));
+    await settle();
+
+    expect(patchNotificationsReadAllMock).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "markRead: later" }),
+    ).toBeTruthy();
+  });
+
   it("offers no snooze on a chat row", async () => {
     getNotificationsMock.mockResolvedValue(
       page([

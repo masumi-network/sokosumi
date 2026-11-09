@@ -829,7 +829,6 @@
       },
       "snoozedToast": "Zurückgestellt bis {when}",
       "snoozedUntil": "Zurück {when}",
-      "undo": "Rückgängig",
       "unsnooze": "Benachrichtigung zurückholen: {message}",
       "unsnoozeTooltip": "Jetzt zurückholen",
       "unsnoozed": "Wieder in deinen Benachrichtigungen",

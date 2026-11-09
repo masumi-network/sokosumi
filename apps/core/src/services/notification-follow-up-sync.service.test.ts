@@ -17,6 +17,7 @@ const {
   threadReadStateFindUniqueMock,
   createNotificationMock,
   notificationFindManyMock,
+  notificationFindFirstMock,
   notificationUpdateManyMock,
   notificationCountMock,
   publishClearedNotificationsMock,
@@ -31,6 +32,7 @@ const {
   threadReadStateFindUniqueMock: vi.fn(),
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
+  notificationFindFirstMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   notificationCountMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
@@ -52,6 +54,7 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomThreadReadState: { findUnique: threadReadStateFindUniqueMock },
     notification: {
       findMany: notificationFindManyMock,
+      findFirst: notificationFindFirstMock,
       updateMany: notificationUpdateManyMock,
       count: notificationCountMock,
       deleteMany: notificationDeleteManyMock,
@@ -316,6 +319,8 @@ function seed(stored: readonly StoredNotification[]) {
         messageKey: { in: string[] };
         OR: AfterClause[];
         AND: { OR: { snoozedUntil: null | { lte: Date } }[] }[];
+        id: { in: string[] };
+        snoozedUntil: { gt: Date };
       }>;
       orderBy?: OrderByClause[];
       take?: number;
@@ -340,6 +345,10 @@ function seed(stored: readonly StoredNotification[]) {
             withinRange(one.createdAt, where.createdAt) &&
             (where.OR === undefined ||
               where.OR.some((clause) => isAfter(one, clause))) &&
+            (where.id === undefined || where.id.in.includes(one.id)) &&
+            (where.snoozedUntil === undefined ||
+              (one.snoozedUntil != null &&
+                one.snoozedUntil > where.snoozedUntil.gt)) &&
             (where.AND ?? []).every((clause) =>
               clause.OR.some(({ snoozedUntil }) =>
                 snoozedUntil === null
@@ -375,6 +384,10 @@ describe("NotificationFollowUpSyncService", () => {
       },
     );
     threadReadStateFindUniqueMock.mockResolvedValue(null);
+    // The source is still due when the reminder is written.
+    notificationFindFirstMock.mockImplementation(
+      async ({ where }: { where: { id: string } }) => ({ id: where.id }),
+    );
     seed([]);
     resolveDeliveryMock.mockResolvedValue({
       inApp: true,
@@ -859,6 +872,58 @@ describe("NotificationFollowUpSyncService", () => {
 
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
+    expect(written).toEqual([]);
+  });
+
+  it("writes no reminder for a source snoozed after its page was read", async () => {
+    seed([row()]);
+    // The reader snoozes between the page read and the write.
+    notificationFindFirstMock.mockResolvedValue(null);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({
+      now,
+    });
+
+    expect(result.sent).toBe(0);
+    expect(written).toEqual([]);
+    expect(notificationFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "notification-1",
+        isRead: false,
+        AND: [{ OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }] }],
+      },
+      select: { id: true },
+    });
+  });
+
+  it("takes back a reminder whose source is snoozed before its email leaves", async () => {
+    const source = row({
+      kind: NotificationKind.TASK,
+      referenceId: "task-1",
+      messageKey: "Notifications.Task.inputRequired",
+      messageParams: { coworkerName: "Ada", taskName: "Invoice run" },
+      metadata: null,
+    });
+    seed([source]);
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: true,
+      osBanner: false,
+      email: true,
+    });
+    // The reader snoozes the source while its reminder email is being built.
+    userFindUniqueMock.mockImplementation(async () => {
+      source.snoozedUntil = new Date(now.getTime() + 60 * 60 * 1000);
+      return { email: "reader@example.com", name: "Sandro" };
+    });
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    // Written, then taken back rather than mailed.
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(sendEmailsMock).not.toHaveBeenCalled();
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith([
+      followUpId("task-1"),
+    ]);
     expect(written).toEqual([]);
   });
 

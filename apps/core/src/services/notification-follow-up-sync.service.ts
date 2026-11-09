@@ -339,6 +339,8 @@ function toFollowUpInput(
  */
 interface PendingFollowUpEmail {
   notificationId: string;
+  /** The row being reminded about, asked again before the email leaves. */
+  sourceId: string;
   email: SendEmailInput;
   chatMessage?: { id: string; roomId: string };
 }
@@ -370,6 +372,7 @@ async function recordFollowUpEmails(
 
 async function flushFollowUpEmails(
   pending: PendingFollowUpEmail[],
+  now: Date,
 ): Promise<{ accepted: number; dropped: number }> {
   if (pending.length === 0) {
     return { accepted: 0, dropped: 0 };
@@ -384,6 +387,22 @@ async function flushFollowUpEmails(
     let droppedIds: string[] = [];
 
     try {
+      // A source snoozed since its page was read says "not now": its
+      // reminder is taken back like one whose message went away.
+      const snoozed = await prisma.notification.findMany({
+        where: {
+          id: { in: chunk.map((item) => item.sourceId) },
+          snoozedUntil: { gt: now },
+        },
+        select: { id: true },
+      });
+      if (snoozed.length > 0) {
+        const snoozedSet = new Set(snoozed.map((source) => source.id));
+        droppedIds = chunk
+          .filter((item) => snoozedSet.has(item.sourceId))
+          .map((item) => item.notificationId);
+        chunk = chunk.filter((item) => !snoozedSet.has(item.sourceId));
+      }
       const chatMessages = chunk.flatMap((item) =>
         item.chatMessage ? [item.chatMessage] : [],
       );
@@ -402,8 +421,9 @@ async function flushFollowUpEmails(
             liveRooms.get(item.chatMessage.id) !== item.chatMessage.roomId,
         );
         if (droppedItems.length > 0) {
-          droppedIds = droppedItems.map((item) => item.notificationId);
-          const droppedSet = new Set(droppedIds);
+          const gone = droppedItems.map((item) => item.notificationId);
+          droppedIds = [...droppedIds, ...gone];
+          const droppedSet = new Set(gone);
           chunk = chunk.filter((item) => !droppedSet.has(item.notificationId));
         }
       }
@@ -647,6 +667,16 @@ export async function sendFollowUps(
           continue;
         }
 
+        // Asked again at the write: the reader may have snoozed the source
+        // since this page was read.
+        const stillDue = await prisma.notification.findFirst({
+          where: { id: source.id, isRead: false, ...notSnoozedWhere(now) },
+          select: { id: true },
+        });
+        if (!stillDue) {
+          continue;
+        }
+
         // Nowhere to put it and nobody to mail it. Email counts here, or the
         // reminder row's email cell would be a switch that controls nothing
         // for a reader who turned the two cells beside it off (SOK-916).
@@ -701,6 +731,7 @@ export async function sendFollowUps(
         if (email) {
           pendingEmails.push({
             notificationId: notification.id,
+            sourceId: source.id,
             email,
             ...(input.kind === NotificationKind.CHAT &&
             typeof messageId === "string"
@@ -721,7 +752,7 @@ export async function sendFollowUps(
     // Per page rather than once at the end, so a run the deadline cuts short
     // still sends what it has already written reminders for. The rows in the
     // page are done with either way: the notifications are committed.
-    const flushed = await flushFollowUpEmails(pendingEmails);
+    const flushed = await flushFollowUpEmails(pendingEmails, now);
     emailed += flushed.accepted;
     // Written and then taken back: not reminders this run sent.
     sent -= flushed.dropped;

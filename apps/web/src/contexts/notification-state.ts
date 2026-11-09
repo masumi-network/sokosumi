@@ -161,6 +161,17 @@ export type NotificationAction =
   | { type: "remove"; id: string }
   | { type: "reset_list" };
 
+/**
+ * Whether the reader snoozed this row and its time has not come. Core leaves
+ * such a row out of every count, so nothing done to it here moves one.
+ */
+export function isSnoozed(notification: NotificationItem): boolean {
+  return (
+    notification.snoozedUntil != null &&
+    notification.snoozedUntil.getTime() > Date.now()
+  );
+}
+
 export function notificationReducer(
   state: NotificationState,
   action: NotificationAction,
@@ -266,6 +277,21 @@ export function notificationReducer(
         (notification) => notification.id === convertedNotification.id,
       );
 
+      if (existing && isSnoozed(existing)) {
+        // A realtime row does not carry its snooze, and is not counted.
+        return {
+          ...state,
+          notifications: state.notifications.map((notification) =>
+            notification.id === existing.id
+              ? {
+                  ...convertedNotification,
+                  snoozedUntil: existing.snoozedUntil,
+                }
+              : notification,
+          ),
+        };
+      }
+
       if (existing) {
         const wasUnread = !existing.isRead;
         const isUnread = !convertedNotification.isRead;
@@ -344,14 +370,19 @@ export function notificationReducer(
       }
 
       const readAt = new Date();
+      const notifications = state.notifications.map((notification) =>
+        notification.id === action.id
+          ? { ...notification, isRead: true, readAt }
+          : notification,
+      );
+
+      if (isSnoozed(existing)) {
+        return { ...state, notifications };
+      }
 
       return {
         ...state,
-        notifications: state.notifications.map((notification) =>
-          notification.id === action.id
-            ? { ...notification, isRead: true, readAt }
-            : notification,
-        ),
+        notifications,
         unreadCount: Math.max(0, state.unreadCount - 1),
         mentionsCount: Math.max(
           0,
@@ -368,13 +399,19 @@ export function notificationReducer(
         return state;
       }
 
+      const notifications = state.notifications.map((notification) =>
+        notification.id === action.id
+          ? { ...notification, isRead: false, readAt: null }
+          : notification,
+      );
+
+      if (isSnoozed(existing)) {
+        return { ...state, notifications };
+      }
+
       return {
         ...state,
-        notifications: state.notifications.map((notification) =>
-          notification.id === action.id
-            ? { ...notification, isRead: false, readAt: null }
-            : notification,
-        ),
+        notifications,
         unreadCount: state.unreadCount + 1,
         mentionsCount: state.mentionsCount + mentionsDelta(existing, 1),
       };
@@ -391,8 +428,9 @@ export function notificationReducer(
       );
 
       // The optimistic pass already counted it. Only a row this list did not
-      // hold as read still owes the badge a count.
-      const shouldIncrementUnread = existing ? existing.isRead : false;
+      // hold as read still owes the badge a count. A snoozed row owes none.
+      const shouldIncrementUnread =
+        existing && !isSnoozed(existing) ? existing.isRead : false;
 
       return {
         ...state,
@@ -419,7 +457,9 @@ export function notificationReducer(
       const existing = state.notifications.find(
         (notification) => notification.id === action.id,
       );
-      const shouldDecrementUnread = existing ? !existing.isRead : true;
+      const shouldDecrementUnread = existing
+        ? !existing.isRead && !isSnoozed(existing)
+        : !isSnoozed(action.updated);
 
       return {
         ...state,
@@ -446,6 +486,16 @@ export function notificationReducer(
 
       if (!existing) {
         return state;
+      }
+
+      // Unsnoozing takes a row off the Snoozed list that no count held.
+      if (isSnoozed(existing)) {
+        return {
+          ...state,
+          notifications: state.notifications.filter(
+            (notification) => notification.id !== action.id,
+          ),
+        };
       }
 
       // A grant or access request answered in place leaves the feed. The
@@ -479,8 +529,9 @@ export function notificationReducer(
 
       return {
         ...state,
+        // Core's read-all leaves snoozed rows alone, so they stay unread.
         notifications: state.notifications.map((notification) =>
-          notification.isRead
+          notification.isRead || isSnoozed(notification)
             ? notification
             : { ...notification, isRead: true, readAt },
         ),

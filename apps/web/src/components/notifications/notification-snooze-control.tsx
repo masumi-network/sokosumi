@@ -51,8 +51,9 @@ export function NotificationSnoozeControl({
         toast.success(
           t("snoozedToast", { when: format.dateTime(until, "dateTime") }),
           {
+            // Unsnooze, not Undo: the row stays unread, as snoozing made it.
             action: {
-              label: t("undo"),
+              label: t("unsnoozeTooltip"),
               onClick: () => apply(null),
             },
           },

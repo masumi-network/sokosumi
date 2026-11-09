@@ -28,6 +28,7 @@ import {
   notificationEmailDelayMs,
   roomUnreadCountOf,
 } from "@/helpers/notification-email";
+import { isSnoozed, notSnoozedWhere } from "@/helpers/notification-feed";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { hasAppInFront } from "@/lib/ably/channel-occupancy";
 import prisma from "@/lib/db/prisma";
@@ -322,7 +323,8 @@ async function dispatchNotificationEmailRevision(
 
     const row = await committedRow(notification.id);
 
-    if (!row || row.isRead) {
+    // A snoozed row is one the reader said "not now" to.
+    if (!row || row.isRead || isSnoozed(row)) {
       return;
     }
     let source: NotificationEmailSource = "message";
@@ -407,7 +409,7 @@ async function dispatchNotificationEmailRevision(
         where: { id: notification.id },
       });
 
-      if (!live || live.isRead) {
+      if (!live || live.isRead || isSnoozed(live)) {
         return false;
       }
       if (
@@ -499,6 +501,11 @@ async function dispatchNotificationEmailRevision(
         where: {
           id: notification.id,
           isRead: false,
+          // Snoozed while it was handed over: count 0 cancels it below.
+          // Chat rows cannot be snoozed.
+          ...(replaceable && notification.kind !== NotificationKind.CHAT
+            ? notSnoozedWhere()
+            : {}),
           ...(replaceable && notification.kind === NotificationKind.CHAT
             ? {
                 messageParams: notification.messageParams,
