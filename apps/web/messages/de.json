@@ -7244,7 +7244,7 @@
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
         "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert",
         "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
-        "tagDirectMessagesDescription": "Wenn eingeschaltet, werden Direktnachrichten zwischen Personen automatisch gelesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
+        "tagDirectMessagesDescription": "Wenn eingeschaltet, lesen wir deine Direktnachrichten, um Fragen und Entscheidungen für dich hervorzuheben. Wir lesen eine Direktnachricht nur, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
         "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
         "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
         "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
-        "aiNote": "Tags werden automatisch gesetzt und können falsch sein. Zum Korrigieren öffne die Nachricht und nutze ihren Tag-Button.",
+        "aiNote": "Wir taggen deine Nachrichten für dich und liegen dabei manchmal falsch. Um ein Tag zu korrigieren, öffne die Nachricht und klicke auf das Tag-Symbol.",
         "removeTag": "Tag entfernen: {tag}",
         "taskMade": "Task erstellt",
         "loopClosed": "Erledigt",
@@ -9020,7 +9020,7 @@
           "title": "Entscheidungen",
           "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
           "loadOlder": "Ältere laden",
-          "note": "Automatisch gesammelt. Entferne eine falsche an ihrer Nachricht."
+          "note": "Diese finden wir für dich. Ist eine falsch, öffne ihre Nachricht und entferne das Tag."
         },
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
@@ -10584,10 +10584,10 @@
         "medium": "Etwas wichtig",
         "low": "Weniger wichtig",
         "minimal": "Nicht wichtig",
-        "auto": "Automatisch entscheiden",
+        "auto": "Sokosumi entscheiden lassen",
         "change": "Ändern, wie wichtig die Person für dich ist",
-        "byJev": "Automatisch gesetzt",
-        "byJevBecause": "Automatisch gesetzt ({reason})",
+        "byJev": "Von Sokosumi gesetzt",
+        "byJevBecause": "Von Sokosumi gesetzt ({reason})",
         "byYou": "Von dir gesetzt",
         "byBot": "Von deinem Soko Bot gesetzt",
         "notYet": "Noch nicht eingeschätzt",

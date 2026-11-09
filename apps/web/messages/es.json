@@ -7244,7 +7244,7 @@
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
         "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
         "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
-        "tagDirectMessagesDescription": "Si está activado, los mensajes directos entre personas se leen automáticamente para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesDescription": "Si está activado, leemos tus mensajes directos para destacar preguntas y decisiones para ti. Solo leemos un mensaje directo si todas las personas en él lo activaron. Los canales siempre se ordenan.",
         "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
         "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
-        "aiNote": "Las etiquetas se asignan automáticamente y pueden ser incorrectas. Para corregir una, abre el mensaje y usa el botón de etiquetas del mensaje.",
+        "aiNote": "Etiquetamos tus mensajes por ti y a veces nos equivocamos. Para corregir una etiqueta, abre el mensaje y haz clic en el icono de etiqueta.",
         "removeTag": "Quitar etiqueta: {tag}",
         "taskMade": "Tarea creada",
         "loopClosed": "Hecho",
@@ -9020,7 +9020,7 @@
           "title": "Decisiones",
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
-          "note": "Reunidas automáticamente. Quita una incorrecta desde su mensaje."
+          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y quita la etiqueta."
         },
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",
@@ -10584,10 +10584,10 @@
         "medium": "Algo importante",
         "low": "Poco importante",
         "minimal": "Sin importancia",
-        "auto": "Decidir automáticamente",
+        "auto": "Que decida Sokosumi",
         "change": "Cambiar lo importante que es para ti",
-        "byJev": "Definido automáticamente",
-        "byJevBecause": "Definido automáticamente ({reason})",
+        "byJev": "Definido por Sokosumi",
+        "byJevBecause": "Definido por Sokosumi ({reason})",
         "byYou": "Definido por ti",
         "byBot": "Definido por tu Soko Bot",
         "notYet": "Aún sin valorar",

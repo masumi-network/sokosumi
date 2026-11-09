@@ -7280,7 +7280,7 @@
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
         "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
         "tagDirectMessagesTitle": "Sort my direct messages",
-        "tagDirectMessagesDescription": "When on, Directs between people are read automatically to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
+        "tagDirectMessagesDescription": "When on, we read your Directs to point out questions and decisions for you. We only read a Direct when everyone in it has turned this on. Channels are always sorted.",
         "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
         "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
-        "aiNote": "Tags are set automatically and can be wrong. To fix one, open the message and use its tag button.",
+        "aiNote": "We tag your messages for you, and sometimes we get it wrong. To fix a tag, open the message and click the tag icon.",
         "removeTag": "Remove tag: {tag}",
         "taskMade": "Task made",
         "loopClosed": "Done",
@@ -9020,7 +9020,7 @@
           "title": "Decisions",
           "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
           "loadOlder": "Load older",
-          "note": "Collected automatically. Remove a wrong one from its message."
+          "note": "We find these for you. If one is wrong, open its message and remove the tag."
         },
         "CatchUpTabs": {
           "label": "Catch up sections",
@@ -10584,10 +10584,10 @@
         "medium": "Somewhat important",
         "low": "Not very important",
         "minimal": "Not important",
-        "auto": "Decide automatically",
+        "auto": "Let Sokosumi decide",
         "change": "Change how important they are to you",
-        "byJev": "Set automatically",
-        "byJevBecause": "Set automatically ({reason})",
+        "byJev": "Set by Sokosumi",
+        "byJevBecause": "Set by Sokosumi ({reason})",
         "byYou": "Set by you",
         "byBot": "Set by your Soko Bot",
         "notYet": "Not judged yet",
