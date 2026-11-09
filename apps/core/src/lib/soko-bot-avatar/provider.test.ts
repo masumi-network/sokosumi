@@ -146,7 +146,7 @@ describe("avatar provider", () => {
       ).rejects.toBeInstanceOf(ImageTimeoutError);
     });
 
-    it("edits on the given model instead, which is how a stall gets a second route", async () => {
+    it("edits on the given model instead, which is how a stall gets its retry", async () => {
       generateTextMock.mockResolvedValue({
         files: [{ mediaType: "image/png", uint8Array: new Uint8Array([1]) }],
       });

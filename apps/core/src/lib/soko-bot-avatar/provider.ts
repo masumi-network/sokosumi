@@ -30,7 +30,7 @@ export const AVATAR_VIDEO_MODEL = "bytedance/seedance-v1.5-pro";
 /**
  * How long one image edit may take. An edit usually answers in under ten
  * seconds, but about one in five stalls upstream for minutes. Someone waiting
- * in the studio gets a short first try and one try on the other route; the cron
+ * in the studio gets a short first try and one retry with a longer limit; the cron
  * has nobody waiting, and its row's attempt counter is the retry.
  */
 export const IMAGE_TIMEOUT_STUDIO_MS = 25_000;

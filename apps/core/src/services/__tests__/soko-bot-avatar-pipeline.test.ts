@@ -2631,7 +2631,7 @@ describe("one of a kind", () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
-    it("tries the other route once when the first stalls, and the draft succeeds", async () => {
+    it("retries once when the first try stalls, and the draft succeeds", async () => {
       providerMock.editImage.mockRejectedValueOnce(
         new ImageTimeoutError("slow"),
       );

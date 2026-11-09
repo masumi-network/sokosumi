@@ -328,7 +328,7 @@ export async function createAvatarDraft(input: {
       reference,
       target: style.backgroundTarget("idle"),
       timeoutMs: IMAGE_TIMEOUT_STUDIO_MS,
-      // Both routes timing out is what answers `avatar_draw_timed_out`.
+      // Both tries timing out is what answers `avatar_draw_timed_out`.
       fallback: {
         model: AVATAR_IMAGE_FALLBACK_MODEL,
         timeoutMs: IMAGE_TIMEOUT_STUDIO_FALLBACK_MS,

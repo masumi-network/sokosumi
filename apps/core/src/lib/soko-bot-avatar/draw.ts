@@ -223,7 +223,7 @@ export async function drawStill(
     /** See `IMAGE_TIMEOUT_STUDIO_MS` and `IMAGE_TIMEOUT_RENDER_MS`. */
     timeoutMs: number;
     /**
-     * One more try on another route, only when the first times out (not when it
+     * One more try, only when the first times out (not when it
      * is refused or fails). For someone waiting; the cron retries by row.
      */
     fallback?: { model: string; timeoutMs: number };
@@ -242,7 +242,7 @@ export async function drawStill(
   const edited = await edit({ timeoutMs: input.timeoutMs }).catch(
     (error: unknown) => {
       if (!(error instanceof ImageTimeoutError) || !input.fallback) throw error;
-      console.warn("Soko Bot avatar image fell back to a second route", {
+      console.warn("Soko Bot avatar image timed out and was retried", {
         kind: "avatar_image_fallback",
         primaryModel: AVATAR_IMAGE_MODEL,
         elapsedMs: Date.now() - started,
