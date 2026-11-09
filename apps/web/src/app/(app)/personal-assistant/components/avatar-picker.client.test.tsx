@@ -132,6 +132,53 @@ describe("AvatarPicker", () => {
     }
   });
 
+  it("fills one row with the current picture and five others", async () => {
+    topUpMock.mockResolvedValue({
+      ok: true,
+      value: avatars("a", "b", "c", "d", "e"),
+    });
+    render(<Harness currentImageUrl="https://example.com/mine.webp" />);
+
+    expect(await screen.findByRole("button", { name: "e" })).toBeTruthy();
+    expect(topUpMock).toHaveBeenCalledWith({
+      input: { take: 5, excludeIds: [] },
+    });
+    expect(
+      screen
+        .getByRole("group", { name: "Pictures" })
+        .querySelectorAll("button"),
+    ).toHaveLength(6);
+  });
+
+  it("shows a saved pick once, as the current picture, with a fresh set beside it", async () => {
+    topUpMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("a", "b", "c", "d", "e"),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("f", "g", "h", "i", "j"),
+      });
+    const view = render(
+      <Harness currentImageUrl="https://example.com/mine.webp" />,
+    );
+    expect(await screen.findByRole("button", { name: "b" })).toBeTruthy();
+
+    // Saving "b" makes it the bot's picture.
+    view.rerender(<Harness currentImageUrl="https://example.com/b.webp" />);
+
+    expect(await screen.findByRole("button", { name: "j" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "b" })).toBeNull();
+    const tiles = screen
+      .getByRole("group", { name: "Pictures" })
+      .querySelectorAll("img");
+    expect(
+      [...tiles].filter((img) => img.src === "https://example.com/b.webp"),
+    ).toHaveLength(1);
+    expect(tiles).toHaveLength(6);
+  });
+
   it("shows six others on Show others, never the ones already seen", async () => {
     const user = userEvent.setup();
     topUpMock
