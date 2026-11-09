@@ -43,6 +43,7 @@ import type {
   GetChatsRoomsChannelSlugAvailabilityData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
+  GetChatsSavedMessagesData,
   GetChatsSignalsRoomsByIdDecisionsData,
   GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
@@ -198,6 +199,7 @@ import {
   deleteChatsRoomsByIdSokoBotsBySokoBotId as coreDeleteChatsRoomsByIdSokoBotsBySokoBotId,
   deleteChatsRoomsByIdStar as coreDeleteChatsRoomsByIdStar,
   deleteChatsRoomsByIdThreadsByParentMessageIdMute as coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute,
+  deleteChatsSavedMessagesByMessageId as coreDeleteChatsSavedMessagesByMessageId,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
@@ -252,6 +254,7 @@ import {
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
+  getChatsSavedMessages as coreGetChatsSavedMessages,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
@@ -524,6 +527,7 @@ import {
   postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
   putChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as corePutChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
   putChatsRoomsStarred as corePutChatsRoomsStarred,
+  putChatsSavedMessagesByMessageId as corePutChatsSavedMessagesByMessageId,
   putChatsSignalsMessagesByMessageIdCorrections as corePutChatsSignalsMessagesByMessageIdCorrections,
   putChatsSignalsMessagesByMessageIdLoop as corePutChatsSignalsMessagesByMessageIdLoop,
   putJobsByIdShare as corePutJobsByIdShare,
@@ -1703,6 +1707,38 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch pinned messages",
+    );
+  }
+
+  async function getChatSavedMessages(
+    query?: GetChatsSavedMessagesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSavedMessages({ client, query, cache: "no-store" }),
+      "Failed to fetch saved messages",
+    );
+  }
+
+  async function saveChatMessage(messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutChatsSavedMessagesByMessageId({ client, path: { messageId } }),
+      "Failed to save message",
+    );
+  }
+
+  async function unsaveChatMessage(messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsSavedMessagesByMessageId({
+          client,
+          path: { messageId },
+        }),
+      "Failed to remove saved message",
     );
   }
 
@@ -6722,6 +6758,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     unpinChatRoom,
     reorderPinnedChatRooms,
     getChatRoomPinnedMessages,
+    getChatSavedMessages,
+    saveChatMessage,
+    unsaveChatMessage,
     getChatCatchUpSummary,
     getChatRoomCatchUp,
     getChatRoomDecisions,

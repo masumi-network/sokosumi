@@ -32,6 +32,10 @@ overrides:
   # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again. pnpm audit reported
   # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj, and GHSA-2883-xcg3-v3hh. 4.3.2 is
   # still the latest 4.x (`v4-legacy`).
+  # 2026-11-09 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again via
+  # @hey-api/json-schema-ref-parser@1.4.4. pnpm audit reported the same three
+  # GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm `latest` is 5.5.0.
   "js-yaml@<4.3.2": "4.3.2"
   # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c: dropped.
   # GHSA-w293-vg96-wgc3 (CVE-2026-84961) is patched in 7.29.1 and 8.10.2; 6.x is
@@ -48,11 +52,19 @@ overrides:
   # undici@7.30.2 (patched), and undici@8.12.3 (still vulnerable). pnpm audit
   # had not indexed the new GHSAs. The 8.x pin is required. No 7.x pin: the
   # fresh resolve already selects 7.30.2, and the lockfile is updated to match.
+  # 2026-11-09 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins, pnpm 12.18.0) landed undici@6.29.1, undici@7.30.2, and undici@8.12.3.
+  # 8.12.4 and 7.30.2 are still the newest releases. The v8.12.4 notes still
+  # name 8.12.2 and 8.12.3 for CVE-2026-116592 / GHSA-mqg3-3v4r-cm32 and the
+  # five related fixes; the v7.30.2 notes name 7.30.1. pnpm audit still does
+  # not index those GHSAs (OSV has no undici entries for 8.12.3 or 7.30.1).
+  # The 8.x pin stays. No 7.x pin.
   "undici@>=8.12.2 <8.12.4": "8.12.4"
   # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-04 re-resolve without an
   # override still lands only esbuild@0.28.2 (patched; 0.28.2 is still latest).
   # 2026-11-05 re-resolve landed the same esbuild@0.28.2.
   # 2026-11-06 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
+  # 2026-11-09 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
   # rendering PDF pages to images. Files extraction reads the **text layer
