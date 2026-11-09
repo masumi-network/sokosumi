@@ -4100,7 +4100,13 @@
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
       "previewAd": "Vista previa del anuncio",
-      "previewAdDescription": "Comprueba el recorte de la imagen en distintas ubicaciones. El archivo original se conserva.",
+      "previewAdDescription": "Previsualiza un anuncio en el feed de Instagram o Facebook, o como reel vertical.",
+      "previewPlatform": "Plataforma de vista previa",
+      "PreviewPlatforms": {
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "reels": "Reels"
+      },
       "previewSponsored": "Patrocinado",
       "downloadAdsZip": "Descargar ZIP",
       "archiveImageLimit": "Selecciona hasta {count} imágenes por archivo ZIP.",

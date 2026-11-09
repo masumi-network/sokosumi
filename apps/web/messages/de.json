@@ -4100,7 +4100,13 @@
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
       "previewAd": "Anzeige ansehen",
-      "previewAdDescription": "Prüfe den Bildausschnitt für verschiedene Platzierungen. Die Originaldatei bleibt erhalten.",
+      "previewAdDescription": "Sieh dir eine Anzeige im Instagram- oder Facebook-Feed oder als vertikales Reel an.",
+      "previewPlatform": "Plattform für die Vorschau",
+      "PreviewPlatforms": {
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "reels": "Reels"
+      },
       "previewSponsored": "Gesponsert",
       "downloadAdsZip": "ZIP herunterladen",
       "archiveImageLimit": "Wähle bis zu {count} Bilder pro ZIP-Datei.",

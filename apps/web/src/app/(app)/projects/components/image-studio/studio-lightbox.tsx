@@ -193,6 +193,7 @@ export function StudioLightbox({
                 <StudioAdPreview
                   asset={single}
                   caption={caption}
+                  key={single.id}
                   labels={labels}
                 />
               )}

@@ -4100,7 +4100,13 @@
       "reusePrompt": "Reuse prompt",
       "download": "Download",
       "previewAd": "Preview ad",
-      "previewAdDescription": "See how this image crops in different placements. The original file stays intact.",
+      "previewAdDescription": "Preview an Instagram or Facebook feed ad, or a vertical Reel.",
+      "previewPlatform": "Preview platform",
+      "PreviewPlatforms": {
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "reels": "Reels"
+      },
       "previewSponsored": "Sponsored",
       "downloadAdsZip": "Download ZIP",
       "archiveImageLimit": "Select up to {count} images per ZIP.",
