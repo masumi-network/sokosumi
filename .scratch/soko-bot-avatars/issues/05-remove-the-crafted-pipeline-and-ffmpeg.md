@@ -4,12 +4,12 @@
 
 **Blocked by:** 04: One still picture everywhere
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The crafted style, drawing, media and provider code, and the studio and render services are gone
-- [ ] The render cron and the crafted avatar asset bundle are gone from Core's Vercel config
-- [ ] `ffmpeg-static` is gone from Core's dependencies, the workspace build permissions and the lockfile
-- [ ] Core's Vercel install command no longer sets `FFMPEG_BIN`, CI's setup no longer fetches ffmpeg, and the CI checks asserting either are removed
-- [ ] The crafted avatar env vars are gone from Core's config and its example env
-- [ ] The Soko Bot deployment doc no longer describes crafted avatars
-- [ ] `pnpm typecheck`, `pnpm test` and `pnpm build` pass
+- [x] The crafted style, drawing, media and provider code, and the studio and render services are gone
+- [x] The render cron and the crafted avatar asset bundle are gone from Core's Vercel config
+- [x] `ffmpeg-static` is gone from Core's dependencies, the workspace build permissions and the lockfile
+- [x] Core's Vercel install command no longer sets `FFMPEG_BIN`, CI's setup no longer fetches ffmpeg, and the CI checks asserting either are removed
+- [x] The crafted avatar env vars are gone from Core's config and its example env
+- [x] The Soko Bot deployment doc no longer describes crafted avatars
+- [x] `pnpm typecheck`, `pnpm test` and `pnpm build` pass
