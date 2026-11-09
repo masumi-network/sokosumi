@@ -63,16 +63,23 @@ function mergeUnreadCount(
   serverCount: number,
 ): number {
   const fetchedIds = new Set(fetched.map((notification) => notification.id));
+  // Snoozed rows are listed but never counted, as Core counts them.
   const pendingUnread = current.filter(
-    (notification) => !fetchedIds.has(notification.id) && !notification.isRead,
+    (notification) =>
+      !fetchedIds.has(notification.id) &&
+      !notification.isRead &&
+      !isSnoozed(notification),
   ).length;
   const currentById = new Map(
     current.map((notification) => [notification.id, notification]),
   );
-  const fetchedUnread = fetched.filter(
-    (notification) =>
-      !(currentById.get(notification.id) ?? notification).isRead,
-  ).length;
+  const fetchedUnread = fetched.filter((notification) => {
+    const effective = currentById.get(notification.id) ?? notification;
+    // A realtime copy carries no snooze, so either copy can say it is snoozed.
+    return (
+      !effective.isRead && !isSnoozed(effective) && !isSnoozed(notification)
+    );
+  }).length;
   const localKnownUnread = fetchedUnread + pendingUnread;
 
   return Math.max(serverCount, localKnownUnread);

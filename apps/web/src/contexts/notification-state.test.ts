@@ -1,6 +1,9 @@
 import type { NotificationItem } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { notificationReducer } from "@/contexts/notification-state";
+import {
+  type NotificationState,
+  notificationReducer,
+} from "@/contexts/notification-state";
 
 function createNotification(
   overrides: Partial<NotificationItem> = {},
@@ -1191,5 +1194,78 @@ describe("notificationReducer with snoozed rows", () => {
 
     expect(after.unreadCount).toBe(4);
     expect(after.notifications[0]?.snoozedUntil).toEqual(snoozed.snoozedUntil);
+  });
+});
+
+describe("notificationReducer fetch with snoozed rows", () => {
+  const empty: NotificationState = {
+    notifications: [],
+    unreadCount: 0,
+    needsActionCount: 0,
+    mentionsCount: 0,
+  };
+  const snoozedRows = Array.from({ length: 5 }, (_, index) =>
+    createNotification({
+      id: `snoozed-${index}`,
+      createdAt: new Date(Date.UTC(2026, 5, 18, 9, index)),
+      snoozedUntil: new Date(Date.now() + 60 * 60 * 1000),
+    }),
+  );
+
+  function fetchSnoozed(
+    state: NotificationState,
+    fetched: NotificationItem[],
+    serverUnreadCount: number,
+    realtimeIds: ReadonlySet<string> = new Set(),
+  ) {
+    return notificationReducer(state, {
+      type: "fetch_success",
+      fetched,
+      serverUnreadCount,
+      serverNeedsActionCount: 0,
+      serverMentionsCount: 0,
+      realtimeIds,
+      hasMore: false,
+      view: "snoozed",
+    });
+  }
+
+  it("lists a snoozed unread row without counting it when nothing active is unread", () => {
+    const after = fetchSnoozed(empty, snoozedRows.slice(0, 1), 0);
+
+    expect(after.unreadCount).toBe(0);
+    expect(after.notifications.map((n) => n.id)).toEqual(["snoozed-0"]);
+  });
+
+  it("takes Core's active count when snoozed rows outnumber active ones", () => {
+    const after = fetchSnoozed(empty, snoozedRows, 2);
+
+    expect(after.unreadCount).toBe(2);
+    expect(after.notifications).toHaveLength(5);
+  });
+
+  it("does not count a snoozed row a broadcast touched during the fetch", () => {
+    // The broadcast copy carries no snooze; the fetched copy does.
+    const broadcast = { ...snoozedRows[0]!, snoozedUntil: undefined };
+    const after = fetchSnoozed(
+      { ...empty, notifications: [broadcast] },
+      snoozedRows,
+      0,
+      new Set([broadcast.id]),
+    );
+
+    expect(after.unreadCount).toBe(0);
+    expect(after.notifications).toHaveLength(5);
+  });
+
+  it("does not count a snoozed row held but not in the page", () => {
+    const after = fetchSnoozed(
+      { ...empty, notifications: [snoozedRows[4]!] },
+      snoozedRows.slice(0, 4),
+      1,
+      new Set([snoozedRows[4]!.id]),
+    );
+
+    expect(after.unreadCount).toBe(1);
   });
 });

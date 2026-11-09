@@ -1809,6 +1809,58 @@ describe("Notification Center snooze", () => {
     expect(screen.getByRole("tab", { name: "filterUnread 4" })).toBeTruthy();
   });
 
+  it.each([
+    [0, "filterUnread"],
+    [2, "filterUnread 2"],
+  ])(
+    "shows Core's %i active unread over five snoozed rows, through a read broadcast and refetch",
+    async (activeUnread, unreadTab) => {
+      const snoozedRows = Array.from({ length: 5 }, (_, index) =>
+        row(`later-${index}`, {
+          isRead: false,
+          readAt: null,
+          createdAt: new Date(Date.UTC(2026, 5, 18, 9, index)),
+          snoozedUntil: new Date(Date.now() + 60 * 60 * 1000),
+        }),
+      );
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: activeUnread, needsAction: 0, mentions: 0 },
+      });
+      window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, "snoozed");
+      getNotificationsMock.mockResolvedValue(page(snoozedRows));
+
+      await renderPage();
+
+      expect(screen.getAllByText(/^later-/)).toHaveLength(5);
+      expect(screen.getByRole("tab", { name: unreadTab })).toBeTruthy();
+
+      // Another tab reads one: the broadcast carries no snooze and refetches.
+      const read = snoozedRows[0]!;
+      getNotificationsMock.mockResolvedValue(
+        page([{ ...read, isRead: true }, ...snoozedRows.slice(1)]),
+      );
+      const fetchesBefore = getNotificationsMock.mock.calls.length;
+      await act(async () => {
+        deliverRealtime({
+          ...read,
+          snoozedUntil: undefined,
+          isRead: true,
+          readAt: "2026-06-18T10:00:00.000Z",
+          createdAt: read.createdAt.toISOString(),
+          inApp: true,
+          osBanner: false,
+          created: false,
+        } as unknown as NotificationEventData);
+      });
+      await settle();
+
+      expect(getNotificationsMock.mock.calls.length).toBeGreaterThan(
+        fetchesBefore,
+      );
+      expect(screen.getByRole("tab", { name: unreadTab })).toBeTruthy();
+    },
+  );
+
   it("leaves a snoozed row unread on Mark all read, as Core does", async () => {
     const later = row("later", {
       isRead: false,
