@@ -36,6 +36,12 @@ const AVATAR_MODEL = "google/gemini-3.1-flash-image";
 const GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TOP_UP_PER_CALL = 6;
 const GENERATION_WINDOW_MS = 60 * 60 * 1000;
+/**
+ * How long a reservation can still be in flight: one image, then one upload,
+ * each under `GENERATION_TIMEOUT_MS`. Younger reservations are a run that may
+ * still finish; a background draw waits for it rather than buying more.
+ */
+const IN_FLIGHT_MS = 2 * GENERATION_TIMEOUT_MS;
 
 interface AvatarSubject {
   subject: string;
@@ -305,12 +311,26 @@ function canDraw(): boolean {
  *
  * Nothing here touches the network. The images are bought after this returns,
  * so the transaction never waits on the image model.
+ *
+ * With `skipWhileInFlight`, nothing is reserved while one of the caller's own
+ * runs is still in flight. Checked in the same Serializable step, so two
+ * background draws racing each other cannot both see none.
  */
 async function reserveDraws(
   count: number,
   requestedByUserId: string,
+  { skipWhileInFlight = false }: { skipWhileInFlight?: boolean } = {},
 ): Promise<AvatarReservation[]> {
   return await serializableTransaction(async (tx) => {
+    if (skipWhileInFlight) {
+      const inFlight = await tx.sokoBotAvatar.count({
+        where: {
+          requestedByUserId,
+          reservedAt: { gte: new Date(Date.now() - IN_FLIGHT_MS) },
+        },
+      });
+      if (inFlight > 0) return [];
+    }
     const draws = await nextAvatarDraws(count, tx);
     if (draws.length === 0) return [];
 
@@ -429,14 +449,18 @@ function isRecoverableGenerationFailure(error: unknown): boolean {
  *
  * @param requestedByUserId The user whose top-up caused this run. The per-user
  * generation cap counts these rows, so every run is charged to someone.
+ * @param options.skipWhileInFlight Draw nothing while one of this user's runs
+ * is still in flight (see `reserveDraws`).
  */
 export async function generateAvatars(
   count: number,
   requestedByUserId: string,
+  options: { skipWhileInFlight?: boolean } = {},
 ): Promise<number> {
   const reservations = await reserveDraws(
     Math.min(count, MAX_TOP_UP_PER_CALL),
     requestedByUserId,
+    options,
   );
   if (reservations.length === 0) return 0;
 
@@ -555,35 +579,63 @@ export async function listAvailableAvatars(
 }
 
 /**
+ * Sweep, then draw. Both top-up paths draw through here, and nothing else
+ * calls `sweepStaleReservations`, so this is the only sweeper: a reservation
+ * whose run died would otherwise hold its draw and the user's allowance for
+ * ever.
+ *
+ * A spent allowance or a lost race is an expected answer, not a fault: it is
+ * returned, not thrown, and each caller decides what it means. Anything else
+ * throws.
+ */
+async function sweepAndDraw(
+  count: number,
+  requestedByUserId: string,
+  options: { skipWhileInFlight?: boolean } = {},
+): Promise<{ skipped: unknown } | null> {
+  await sweepStaleReservations();
+  try {
+    await generateAvatars(count, requestedByUserId, options);
+    return null;
+  } catch (error) {
+    if (!isRecoverableGenerationFailure(error)) throw error;
+    return { skipped: error };
+  }
+}
+
+/**
  * Draw a refresh's shortfall after its response, kept alive past it on Vercel.
  *
  * Never throws: the caller was already answered with what the pool held. A
  * spent allowance or a lost race is expected and only noted; anything else is
  * a fault worth an error log. Concurrent draws stay under the hourly cap
  * because `reserveDraws` counts and reserves in one Serializable step.
+ *
+ * A refresh answers at once, so quick "show others" clicks would each start a
+ * draw and spend the hour's allowance before the first one lands. While one of
+ * the user's draws is still in flight, a new one buys nothing; that draw's
+ * avatars fill the next refresh.
  */
 function drawShortfallInBackground(
   count: number,
   requestedByUserId: string,
 ): void {
   waitUntil(
-    (async () => {
-      // The only sweeper, as on the waiting path below.
-      await sweepStaleReservations();
-      await generateAvatars(count, requestedByUserId);
-    })().catch((error: unknown) => {
-      if (isRecoverableGenerationFailure(error)) {
+    sweepAndDraw(count, requestedByUserId, { skipWhileInFlight: true }).then(
+      (result) => {
+        if (!result) return;
         console.warn("Soko Bot avatar background draw skipped", {
+          count,
+          error: errorText(result.skipped),
+        });
+      },
+      (error: unknown) => {
+        console.error("Soko Bot avatar background draw failed", {
           count,
           error: errorText(error),
         });
-        return;
-      }
-      console.error("Soko Bot avatar background draw failed", {
-        count,
-        error: errorText(error),
-      });
-    }),
+      },
+    ),
   );
 }
 
@@ -619,21 +671,20 @@ export async function topUpAvailableAvatars(
     if (available < take && options.excludeIds?.length) {
       drawShortfallInBackground(take - available, options.requestedByUserId);
     } else if (available < take) {
-      // The only sweeper. A reservation whose run died would otherwise hold
-      // its draw and the user's allowance for ever.
-      await sweepStaleReservations();
-      try {
-        await generateAvatars(take - available, options.requestedByUserId);
-      } catch (error) {
-        if (!isRecoverableGenerationFailure(error)) throw error;
+      // `sweepAndDraw` sweeps first, as every draw does.
+      const result = await sweepAndDraw(
+        take - available,
+        options.requestedByUserId,
+      );
+      if (result) {
         // Neither a spent allowance nor a lost race says anything about what
         // the pool already holds, and reads are free. Serve what is there and
         // surface the failure only when that turns out to be nothing.
         const fallback = await listAvailableAvatars(take, options);
         if (fallback.length > 0) return fallback;
-        throw error instanceof AvatarGenerationCappedError
+        throw result.skipped instanceof AvatarGenerationCappedError
           ? avatarGenerationCapped()
-          : error;
+          : result.skipped;
       }
     }
   }
