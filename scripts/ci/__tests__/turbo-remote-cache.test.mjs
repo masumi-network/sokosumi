@@ -448,7 +448,7 @@ describe("Vercel web turbo build command", () => {
     );
     assert.equal(
       core.installCommand,
-      "pnpm install --frozen-lockfile --filter @sokosumi/core...",
+      "FFMPEG_BIN=/bin/sh pnpm install --frozen-lockfile --filter @sokosumi/core...",
     );
   });
 
