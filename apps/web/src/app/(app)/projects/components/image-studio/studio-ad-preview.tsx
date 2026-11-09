@@ -164,13 +164,13 @@ export function StudioAdPreview({
             <>
               <div
                 aria-hidden
-                className="bg-background/90 absolute right-2 bottom-20 flex flex-col gap-3 rounded-md p-2"
+                className="bg-background absolute right-2 bottom-20 flex flex-col gap-3 rounded-md p-2"
               >
                 <Heart className="size-4" />
                 <MessageCircle className="size-4" />
                 <Send className="size-4" />
               </div>
-              <div className="bg-background/90 absolute inset-x-0 bottom-0 space-y-1 px-3 py-2">
+              <div className="bg-background absolute inset-x-0 bottom-0 space-y-1 px-3 py-2">
                 {attribution}
                 {displayCaption ? (
                   <p className="line-clamp-2 text-xs break-words">
