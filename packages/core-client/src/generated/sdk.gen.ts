@@ -2809,7 +2809,7 @@ export const getImageStudioState = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Read newsletter availability for the current workspace. Newsletters are available only in workspaces of the beta (utxo) organization.
+ * Read newsletter availability for the current workspace. Newsletters are available to enabled workspaces.
  */
 export const getNewsletterAvailability = <ThrowOnError extends boolean = false>(options?: Options<GetNewsletterAvailabilityData, ThrowOnError>): RequestResult<GetNewsletterAvailabilityResponses, GetNewsletterAvailabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetNewsletterAvailabilityResponses, GetNewsletterAvailabilityErrors, ThrowOnError>({
     responseTransformer: getNewsletterAvailabilityResponseTransformer,
@@ -3893,7 +3893,7 @@ export const getProjectsByIdNeedsAttention = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Get the Project's newsletter settings. Returns 404 if no newsletter exists or the Project's workspace is outside the beta (utxo) organization.
+ * Get the Project's newsletter settings. Returns 404 if no newsletter exists or the Project's workspace is not enabled for newsletters.
  */
 export const getProjectsByIdNewsletter = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdNewsletterData, ThrowOnError>): RequestResult<GetProjectsByIdNewsletterResponses, GetProjectsByIdNewsletterErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdNewsletterResponses, GetProjectsByIdNewsletterErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdNewsletterResponseTransformer,
@@ -3915,7 +3915,7 @@ export const putProjectsByIdNewsletter = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Newsletter activity for a project in the utxo workspace, in an inclusive UTC date range (default: last 30 days; maximum: 366). Sends use sentAt; events use occurredAt, including activity on older issues. Opens, clicks, unsubscribes, bounces and complaints count distinct subscribers across the period; daily and issue counts deduplicate within each group, so they need not sum to the period's unique counts. Delivered counts distinct sends. Rates are fractions using delivered as denominator, falling back to sent when no deliveries are recorded (zero if both are zero). Delayed events can make activity-period rates exceed 1. Growth combines retained confirmation and opt-out events with subscriber activation/departure timestamps, excludes unconfirmed opt-outs, includes a pre-range baseline, and subtracts permanent bounces as well as unsubscribes. Unsubscribes include manual changes; per-issue attribution is null. The issue table uses cursor pagination, ordered by sentAt then id descending. activeSubscribers is the current count.
+ * Newsletter activity for a project in a workspace with newsletters enabled, in an inclusive UTC date range (default: last 30 days; maximum: 366). Sends use sentAt; events use occurredAt, including activity on older issues. Opens, clicks, unsubscribes, bounces and complaints count distinct subscribers across the period; daily and issue counts deduplicate within each group, so they need not sum to the period's unique counts. Delivered counts distinct sends. Rates are fractions using delivered as denominator, falling back to sent when no deliveries are recorded (zero if both are zero). Delayed events can make activity-period rates exceed 1. Growth combines retained confirmation and opt-out events with subscriber activation/departure timestamps, excludes unconfirmed opt-outs, includes a pre-range baseline, and subtracts permanent bounces as well as unsubscribes. Unsubscribes include manual changes; per-issue attribution is null. The issue table uses cursor pagination, ordered by sentAt then id descending. activeSubscribers is the current count.
  */
 export const getProjectsByIdNewsletterAnalytics = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdNewsletterAnalyticsData, ThrowOnError>): RequestResult<GetProjectsByIdNewsletterAnalyticsResponses, GetProjectsByIdNewsletterAnalyticsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdNewsletterAnalyticsResponses, GetProjectsByIdNewsletterAnalyticsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdNewsletterAnalyticsResponseTransformer,
@@ -3924,7 +3924,7 @@ export const getProjectsByIdNewsletterAnalytics = <ThrowOnError extends boolean 
 });
 
 /**
- * Lifetime analytics for one newsletter issue in the utxo workspace. Unsubscribes are null because unsubscribe links do not identify an issue. Engagement counts distinct subscribers; deliveries count distinct sends. Rates are fractions using delivered sends, falling back to sent when delivered is zero (zero if both are zero). activeSubscribers is the newsletter's current count. Top links are the 20 most clicked URLs, each deduplicated per subscriber, ordered by uniqueClicks then URL.
+ * Lifetime analytics for one newsletter issue. Unsubscribes are null because unsubscribe links do not identify an issue. Engagement counts distinct subscribers; deliveries count distinct sends. Rates are fractions using delivered sends, falling back to sent when delivered is zero (zero if both are zero). activeSubscribers is the newsletter's current count. Top links are the 20 most clicked URLs, each deduplicated per subscriber, ordered by uniqueClicks then URL.
  */
 export const getProjectsByIdNewsletterIssuesByIssueIdAnalytics = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdNewsletterIssuesByIssueIdAnalyticsData, ThrowOnError>): RequestResult<GetProjectsByIdNewsletterIssuesByIssueIdAnalyticsResponses, GetProjectsByIdNewsletterIssuesByIssueIdAnalyticsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdNewsletterIssuesByIssueIdAnalyticsResponses, GetProjectsByIdNewsletterIssuesByIssueIdAnalyticsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdNewsletterIssuesByIssueIdAnalyticsResponseTransformer,
