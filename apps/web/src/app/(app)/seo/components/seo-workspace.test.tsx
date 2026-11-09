@@ -254,7 +254,7 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace, "?tab=health");
-    const measurement = screen.getByText("Title length measured");
+    const measurement = screen.getByText("Title length measured:");
     expect(measurement).not.toBeVisible();
     expect(measurement.closest("details")).not.toHaveAttribute("open");
     await user.click(screen.getByRole("tab", { name: "Agent" }));
@@ -355,20 +355,21 @@ describe("SEO workspace integration", () => {
         name: "Title, description and other page details",
       }),
     );
-    expect(screen.getByText("title 56 characters")).toBeVisible();
+    // A measurement is one line; its value drops the words its name says.
+    expect(screen.getByText("Title length:")).toBeVisible();
+    expect(screen.getByText("56 characters")).toBeVisible();
     // Notes sit under their own heading, so a rule name does not read as a claim about the page.
-    expect(screen.getByRole("heading", { name: "Notes (2)" })).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "No meta keywords" }),
+      screen.getByRole("heading", {
+        name: "Notes (2) · not counted as issues",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Rule: No meta keywords" }),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Title length" })).toBeVisible();
-    // Notes sit under a "no issues" verdict; the section says why.
-    expect(screen.getByText(/Notes are not issues/)).toBeVisible();
     // A 1-page Audit does not repeat its URL on every row.
-    const details = screen
-      .getByRole("heading", { name: "Title length" })
-      .closest("details");
+    const details = screen.getByText("Title length:").closest("details");
     if (!details) throw new Error("Page details missing");
     expect(
       within(details)
@@ -388,7 +389,7 @@ describe("SEO workspace integration", () => {
     expect(details.querySelectorAll("time")).toHaveLength(3);
     expect(
       screen.getByRole("heading", {
-        name: "AI search bots may fetch the page",
+        name: "Rule: AI search bots may fetch the page",
       }),
     ).toBeVisible();
     // References fold once for all rows, each named by its row.
@@ -474,9 +475,7 @@ describe("SEO workspace integration", () => {
         name: "Title, description and other page details",
       }),
     );
-    const details = screen
-      .getByRole("heading", { name: "Title length" })
-      .closest("details");
+    const details = screen.getByText("Title length:").closest("details");
     if (!details) throw new Error("Page details missing");
     expect(
       within(details)
@@ -771,9 +770,31 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(one)),
     );
     const single = renderWorkspace(one, "tab=health");
-    expect(screen.getByText("Not checked yet")).toBeVisible();
+    // With one page the Timeline lists its checks; the page card does not repeat the last one.
+    const onlyPage = screen
+      .getByRole("heading", { name: "Pages" })
+      .closest("section");
+    if (!onlyPage) throw new Error("Pages card missing");
+    expect(within(onlyPage).queryByText("Last check")).toBeNull();
     expect(screen.queryByText("Search clicks")).toBeNull();
     single.unmount();
+
+    // A date filter keeps the page's own line: the Timeline does not say "in these dates".
+    const filtered = seoTestWorkspace();
+    filtered.scope.from = "2026-01-01";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(filtered)),
+    );
+    const dated = renderWorkspace(filtered, "tab=health&from=2026-01-01");
+    const datedPage = screen
+      .getByRole("heading", { name: "Pages" })
+      .closest("section");
+    if (!datedPage) throw new Error("Pages card missing");
+    expect(
+      within(datedPage).getByText("No check in these dates"),
+    ).toBeVisible();
+    dated.unmount();
 
     const two = seoTestWorkspace();
     two.metrics = [clicks];
@@ -1005,13 +1026,11 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText("Not enough days to compare")).toBeNull();
     // Search Console is Google search only; the subtitle does not repeat it.
     expect(screen.queryByText(/Organic search/)).toBeNull();
-    expect(
-      screen.getAllByText(/^Too few impressions to compare weeks/),
-    ).toHaveLength(1);
+    expect(screen.getAllByText(/Too few to compare weeks\.$/)).toHaveLength(1);
     // Both weeks are small: no tile compares, and the one note keeps both counts.
     expect(
       screen.getByText(
-        /^Too few impressions to compare weeks: 14 in Jan 8\W+14, 7 the week before\.$/,
+        /^14 impressions in Jan 8\W+14, 7 the week before\. Too few to compare weeks\.$/,
       ),
     ).toBeVisible();
     expect(screen.queryByText(/better|worse/)).toBeNull();
@@ -1115,9 +1134,10 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText("0")).toBeVisible();
     expect(screen.getByText("Active users")).toBeVisible();
     expect(screen.getAllByText("Not available").length).toBeGreaterThan(0);
-    // The totals come first on Traffic; the search queries carry their own note.
-    await user.click(screen.getAllByText("About this data")[0]);
+    // One fold on Traffic; without search queries it does not explain them.
+    await user.click(screen.getByText("About this data"));
     expect(screen.getByText(/Europe\/Berlin/)).toBeVisible();
+    expect(screen.queryByText(/not search volume/)).toBeNull();
     await waitFor(() => expect(fetch).toHaveBeenCalled());
   });
 
@@ -1671,7 +1691,7 @@ describe("SEO workspace integration", () => {
       renderWorkspace(workspace, "", true);
       // An editor still learns the schedule is off, without a button that cannot work.
       expect(screen.getByTestId("seo-automation")).toHaveTextContent(
-        "Off. This workspace cannot schedule checks.",
+        "Scheduled checks are off in this workspace.",
       );
       expect(
         screen.queryByRole("button", { name: "Let the agent check weekly" }),

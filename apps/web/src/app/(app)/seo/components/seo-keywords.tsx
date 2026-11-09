@@ -161,6 +161,12 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                     ? keywordTrend(queries, row.keyword)
                     : ({ state: "absent" } as const);
                   const trendId = `seo-keyword-trend-${row.id}`;
+                  // Without a rank or a listed average, the position cell says "no impressions"; the line under the keyword would repeat it.
+                  const cellSaysEmpty =
+                    trend.state === "empty" &&
+                    row.positionStatus === "unavailable" &&
+                    Boolean(queries) &&
+                    !average?.averagePosition;
                   return (
                     <Fragment key={row.id}>
                       <TableRow>
@@ -188,7 +194,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                             </p>
                           ) : null}
                           <SeoKeywordTrendToggle
-                            trend={trend}
+                            trend={cellSaysEmpty ? { state: "absent" } : trend}
                             open={trendOpen === row.id}
                             controls={trendId}
                             onToggle={() =>
@@ -277,11 +283,14 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                             // Absent from the listed rows is not zero: Google hides rare searches.
                             <>
                               <p>
-                                {queries.truncated
-                                  ? t("keywords.notInKeptRows", {
-                                      count: queries.rowLimit,
-                                    })
-                                  : t("keywords.notListed")}
+                                {/* The daily read asks for this keyword alone: no rows means no impressions. */}
+                                {cellSaysEmpty
+                                  ? t("keywords.trendEmpty")
+                                  : queries.truncated
+                                    ? t("keywords.notInKeptRows", {
+                                        count: queries.rowLimit,
+                                      })
+                                    : t("keywords.notListed")}
                               </p>
                               <p className="text-muted-foreground text-xs">
                                 <SeoPeriod

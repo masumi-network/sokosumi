@@ -64,7 +64,9 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
               const parent = model.data.pages.find(
                 (candidate) => candidate.id === page.relatedToPageId,
               );
-              const summary = summaries.get(page.id);
+              // With one page the Timeline lists its checks; a date filter keeps "No check in these dates".
+              const summary =
+                choosable || datesFiltered ? summaries.get(page.id) : undefined;
               const totals =
                 // A 1-page Audit shows these totals on Overview already.
                 model.data.pages.length > 1 &&

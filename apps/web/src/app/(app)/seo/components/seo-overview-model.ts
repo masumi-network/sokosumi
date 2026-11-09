@@ -126,3 +126,21 @@ export function seoPageSummaries(workspace: ProjectSeoWorkspace) {
   }
   return summaries;
 }
+
+/**
+ * A measurement's value without the leading words its name already says:
+ * "Title length" with "title 56 characters" gives "56 characters".
+ * At least one word stays; text that does not start with the name stays whole.
+ */
+export function measureValue(name: string, evidence: string) {
+  const nameWords = name.trim().toLowerCase().split(/\s+/);
+  const words = evidence.trim().split(/\s+/);
+  let shared = 0;
+  while (
+    shared < words.length - 1 &&
+    shared < nameWords.length &&
+    words[shared].toLowerCase() === nameWords[shared]
+  )
+    shared++;
+  return shared ? words.slice(shared).join(" ") : evidence;
+}

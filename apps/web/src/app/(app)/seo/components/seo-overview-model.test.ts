@@ -1,6 +1,10 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoOverviewModel, seoPageSummaries } from "./seo-overview-model";
+import {
+  measureValue,
+  seoOverviewModel,
+  seoPageSummaries,
+} from "./seo-overview-model";
 import { SEO_TEST_PAGE, seoTestWorkspace } from "./seo-test-fixture";
 
 function finding(
@@ -255,5 +259,25 @@ describe("seoPageSummaries", () => {
     expect(
       seoPageSummaries({ ...cut, history: base.history }).get(SEO_TEST_PAGE),
     ).toEqual({ issues: 0, checkedAt: null, checkId: null, incomplete: false });
+  });
+});
+
+describe("measureValue", () => {
+  it("drops the words the measurement's name already says", () => {
+    expect(measureValue("Title length", "title 56 characters")).toBe(
+      "56 characters",
+    );
+    expect(
+      measureValue(
+        "Meta description length",
+        "meta description 163 characters",
+      ),
+    ).toBe("163 characters");
+  });
+
+  it("keeps text that does not start with the name, and never empties it", () => {
+    expect(measureValue("Title length", "56 characters")).toBe("56 characters");
+    expect(measureValue("Title", "title")).toBe("title");
+    expect(measureValue("H1 count", "h1: 2")).toBe("h1: 2");
   });
 });

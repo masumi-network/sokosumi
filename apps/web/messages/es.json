@@ -10655,13 +10655,14 @@
         "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
         "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
         "pickTile": "Elige un número de arriba para verlo en el gráfico.",
-        "tooFewToCompare": "Muy pocas impresiones para comparar semanas: {current} del {period}, {previous} la semana anterior.",
+        "tooFewToCompare": "{current, plural, one {# impresión} other {# impresiones}} del {period}, {previous} la semana anterior. Muy pocas para comparar semanas.",
         "noteCount": "{count, plural, one {# nota} other {# notas}}",
-        "notesAreNotIssues": "Las notas no son problemas. Cada una señala algo que, según la comprobación, vale la pena mirar.",
         "fromCheck": "De la comprobación del <date></date>",
         "pageMeasurements": "Mediciones",
         "pageNotes": "Notas ({count})",
-        "references": "{count, plural, one {# referencia técnica} other {# referencias técnicas}}"
+        "references": "{count, plural, one {# referencia técnica} other {# referencias técnicas}}",
+        "noteRule": "Regla: {name}",
+        "notesNotCounted": "no cuentan como problemas"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10694,7 +10695,7 @@
         "notListed": "No figura en la lista de Search Console",
         "notInKeptRows": "No está entre las primeras {count} filas guardadas",
         "trendShow": "Posiciones diarias",
-        "trendEmpty": "Sin impresiones de Search Console en este periodo",
+        "trendEmpty": "Sin impresiones de Search Console",
         "trendNotRequested": "No se leyó en la última sincronización. Hasta 25 palabras clave seguidas reciben posiciones diarias.",
         "trendLabel": "Posición media de «{keyword}»",
         "trendNoImpressions": "Sin impresiones"
@@ -10936,7 +10937,7 @@
         "manage": "Gestionar plan de tareas",
         "offBody": "Desactivadas. El agente puede comprobar estas páginas cada semana y guardar cada resultado aquí. Nada se ejecuta hasta que lo programes.",
         "agentWeekly": "Que el agente compruebe cada semana",
-        "offUnavailable": "Desactivadas. Este espacio de trabajo no puede programar comprobaciones."
+        "offUnavailable": "Las comprobaciones programadas están desactivadas en este espacio de trabajo."
       },
       "pageChange": {
         "title": "Registrar un cambio",
@@ -10963,7 +10964,7 @@
       },
       "chat": {
         "title": "Preguntar al agente SEO",
-        "description": "Pregunta sobre las páginas y los resultados de esta auditoría. Revisa las acciones propuestas antes de confirmarlas.",
+        "description": "Pregunta sobre las páginas y los resultados de esta auditoría. El agente propone acciones; tú apruebas cada una.",
         "empty": "¿Qué te gustaría mejorar?",
         "emptyBody": "Pregunta sobre problemas de páginas, posiciones de palabras clave o tráfico.",
         "question": "Tu pregunta",
@@ -11019,7 +11020,7 @@
       "openAllPages": "Abrir todas las páginas",
       "queries": {
         "title": "Consultas de Search Console",
-        "help": "Búsquedas de Google que mostraron estas páginas, según Search Console. Las impresiones cuentan cuántas veces se mostró una página, no el volumen de búsqueda. La posición es la media del periodo.",
+        "help": "Consultas de Search Console: las búsquedas de Google que mostraron estas páginas. Las impresiones cuentan cuántas veces se mostró una página, no el volumen de búsqueda. La posición es la media del periodo.",
         "lastSynced": "Última sincronización",
         "truncated": "Solo se guardan las primeras {count} filas por clics",
         "notLoaded": "Aún no hay consultas guardadas",

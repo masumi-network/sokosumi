@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -56,9 +57,11 @@ const FLAGGED_STATUSES = new Set([
 export function SeoTimeline({
   workspace,
   onRetry,
+  actions,
 }: {
   workspace: ProjectSeoWorkspace;
   onRetry?: () => void;
+  actions?: ReactNode;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -170,7 +173,7 @@ export function SeoTimeline({
       ),
     ).size > 1;
   return (
-    <SeoSection title={t("timeline.title")}>
+    <SeoSection title={t("timeline.title")} actions={actions}>
       {nodes.length === 0 ? (
         <SeoEmpty title={t("timeline.empty")} body={t("timeline.emptyBody")} />
       ) : (

@@ -9,7 +9,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { seoOverviewModel } from "./seo-overview-model";
+import { measureValue, seoOverviewModel } from "./seo-overview-model";
 import { SeoPages } from "./seo-pages";
 import {
   SeoDate,
@@ -43,17 +43,34 @@ function PageDetail({
   /** Rows from several checks keep their own date and record. */
   dated: boolean;
 }) {
+  const t = useTranslations("App.Seo");
+  const name = checkName(finding.title);
+  const first = finding.evidence[0];
+  const measure = finding.severity === "measure";
   return (
     <li className="space-y-1">
-      <h4 className="text-sm font-medium">{checkName(finding.title)}</h4>
+      {measure ? (
+        // A measurement is one line; its value drops the words its name already says.
+        <p className="text-sm break-words">
+          <span className="font-medium">{name}:</span>{" "}
+          <span className="text-muted-foreground">
+            {first ? measureValue(name, first) : t("none")}
+          </span>
+        </p>
+      ) : (
+        <>
+          {/* A note's name is the rule it checks, e.g. "No meta keywords", not what the page has. */}
+          <h4 className="text-sm font-medium">
+            {t("overview.noteRule", { name })}
+          </h4>
+          {first ? (
+            <p className="text-muted-foreground text-sm break-words">{first}</p>
+          ) : null}
+        </>
+      )}
       {/* With one page there is nothing to tell apart, unless the row is for a page removed since. */}
       {data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url ? (
         <SeoPageLink url={finding.pageUrl} />
-      ) : null}
-      {finding.evidence.length ? (
-        <p className="text-muted-foreground text-sm break-words">
-          {finding.evidence[0]}
-        </p>
       ) : null}
       {dated ? (
         <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
@@ -105,17 +122,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   );
   return (
     <div className="space-y-5">
-      {data.availableActions.canRequestAnalysis ? (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!data.scope.pageIds.length}
-          onClick={() => model.setDialog("analysis")}
-        >
-          <Play className="size-4" />
-          {t("runAnalysis")}
-        </Button>
-      ) : null}
       {overview.issues.length ? (
         <SeoSection title={t("overview.findings")}>
           {overview.issues.map((finding) => (
@@ -186,6 +192,20 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
       ) : null}
       <SeoTimeline
         workspace={data}
+        // Like Sync now and Add a page: the card's own action sits in its header.
+        actions={
+          data.availableActions.canRequestAnalysis ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!data.scope.pageIds.length}
+              onClick={() => model.setDialog("analysis")}
+            >
+              <Play className="size-4" />
+              {t("runAnalysis")}
+            </Button>
+          ) : undefined
+        }
         onRetry={
           data.availableActions.canRequestAnalysis
             ? () => model.setDialog("analysis")
@@ -265,13 +285,16 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
             ) : null}
             {notes.length ? (
               <section className="space-y-2">
-                <h3 className="text-sm font-semibold">
-                  {t("overview.pageNotes", { count: notes.length })}
-                </h3>
                 {/* Notes do not count toward the verdict; say so where they are listed. */}
-                <p className="text-muted-foreground text-sm">
-                  {t("overview.notesAreNotIssues")}
-                </p>
+                <h3 className="text-sm">
+                  <span className="font-semibold">
+                    {t("overview.pageNotes", { count: notes.length })}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {t("overview.notesNotCounted")}
+                  </span>
+                </h3>
                 <ul className="space-y-3">
                   {notes.map((finding) => (
                     <PageDetail

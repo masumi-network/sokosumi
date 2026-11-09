@@ -10655,13 +10655,14 @@
         "reportDelay": "Google reports search data a few days late.",
         "tooFewToCompareRates": "Too few impressions to compare weeks for {which, select, ctr {click-through rate} position {average position} other {click-through rate and average position}}.",
         "pickTile": "Select a number above to chart it.",
-        "tooFewToCompare": "Too few impressions to compare weeks: {current} in {period}, {previous} the week before.",
+        "tooFewToCompare": "{current, plural, one {# impression} other {# impressions}} in {period}, {previous} the week before. Too few to compare weeks.",
         "noteCount": "{count, plural, one {# note} other {# notes}}",
-        "notesAreNotIssues": "Notes are not issues. Each one points to something the check thinks is worth a look.",
         "fromCheck": "From the check on <date></date>",
         "pageMeasurements": "Measurements",
         "pageNotes": "Notes ({count})",
-        "references": "{count, plural, one {# technical reference} other {# technical references}}"
+        "references": "{count, plural, one {# technical reference} other {# technical references}}",
+        "noteRule": "Rule: {name}",
+        "notesNotCounted": "not counted as issues"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -10694,7 +10695,7 @@
         "notListed": "Not in Search Console's list",
         "notInKeptRows": "Not in the first {count} rows kept",
         "trendShow": "Daily positions",
-        "trendEmpty": "No Search Console impressions in this period",
+        "trendEmpty": "No Search Console impressions",
         "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
         "trendLabel": "Average position for “{keyword}”",
         "trendNoImpressions": "No impressions"
@@ -10936,7 +10937,7 @@
         "manage": "Manage task schedule",
         "offBody": "Off. The agent can check these pages every week and save each result here. Nothing runs until you schedule it.",
         "agentWeekly": "Let the agent check weekly",
-        "offUnavailable": "Off. This workspace cannot schedule checks."
+        "offUnavailable": "Scheduled checks are off in this workspace."
       },
       "pageChange": {
         "title": "Record a change",
@@ -10963,7 +10964,7 @@
       },
       "chat": {
         "title": "Ask the SEO agent",
-        "description": "Ask about this audit's pages and results. Review suggested actions before you submit them.",
+        "description": "Ask about this audit's pages and results. The agent suggests actions; you approve each one.",
         "empty": "What would you like to improve?",
         "emptyBody": "Ask about page issues, keyword positions or traffic.",
         "question": "Your question",
@@ -11019,7 +11020,7 @@
       "openAllPages": "Open all pages",
       "queries": {
         "title": "Search Console queries",
-        "help": "Google searches that showed these pages, from Search Console. Impressions count how often a page was shown, not search volume. Position is the average for the period.",
+        "help": "Search Console queries: the Google searches that showed these pages. Impressions count how often a page was shown, not search volume. Position is the average for the period.",
         "lastSynced": "Last synced",
         "truncated": "Only the first {count} rows by clicks are kept",
         "notLoaded": "No query rows saved yet",

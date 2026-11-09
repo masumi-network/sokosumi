@@ -416,6 +416,50 @@ describe("Search Console queries", () => {
     ).toBeVisible();
   });
 
+  it("says once that a tracked keyword had no impressions in the daily read", () => {
+    const workspace = searchQueryWorkspace();
+    if (!workspace.searchQueries) throw new Error("fixture");
+    workspace.searchQueries.keywordSeries = {
+      rowLimit: 10_000,
+      truncated: false,
+      keywords: [
+        { keyword: "stablecoin yield", points: [] },
+        { keyword: "stablecoin rate", points: [] },
+      ],
+    };
+    workspace.keywords.push({
+      ...workspace.keywords[0],
+      id: "later-keyword",
+      keyword: "stablecoin yield",
+    });
+    // A ranked keyword keeps its rank in the cell; the line under it says the daily read was empty.
+    workspace.keywords.push({
+      ...workspace.keywords[0],
+      id: "ranked-keyword",
+      keyword: "stablecoin rate",
+      positionStatus: "ranked",
+      position: 4,
+    });
+    // Not among the listed queries, so the daily read is the only word on it.
+    renderWorkspace(workspace);
+    const table = screen
+      .getByRole("columnheader", { name: "Keyword" })
+      .closest("table");
+    const row = within(table!).getByText("stablecoin yield").closest("tr");
+    expect(
+      within(row!).getAllByText("No Search Console impressions"),
+    ).toHaveLength(1);
+    expect(within(row!).queryByText("Not in Search Console's list")).toBeNull();
+    expect(
+      within(row!).queryByRole("button", { name: "Daily positions" }),
+    ).toBeNull();
+    const ranked = within(table!).getByText("stablecoin rate").closest("tr");
+    expect(within(ranked!).getByText("4")).toBeVisible();
+    expect(
+      within(ranked!).getAllByText("No Search Console impressions"),
+    ).toHaveLength(1);
+  });
+
   it("names the impressions Google listed under no query", () => {
     renderWorkspace(searchQueryWorkspace());
     expect(

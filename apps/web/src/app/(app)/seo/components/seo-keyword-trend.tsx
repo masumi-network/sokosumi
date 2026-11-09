@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { SeoKeywordTrend } from "./seo-search-model";
 import { SeoTrendChart } from "./seo-trend-chart";
 
-/** Under a tracked keyword: the toggle for its daily positions, or why there are none yet. */
+/** Under a tracked keyword: the toggle for its daily positions, or why there are none. */
 export function SeoKeywordTrendToggle({
   trend,
   open,

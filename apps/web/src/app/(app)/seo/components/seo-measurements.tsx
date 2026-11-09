@@ -287,7 +287,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
             <p className="text-muted-foreground -mt-3 text-xs">
               {t("overview.tooFewToCompare", {
                 period: windowLabel(compared.current),
-                current: format.number(weekImpressions.current ?? 0),
+                // A raw number: the message picks the plural and formats it.
+                current: weekImpressions.current ?? 0,
                 previous: format.number(weekImpressions.previous ?? 0),
               })}
             </p>
@@ -347,6 +348,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                 {active.source === "search_console" ? (
                   <p>{t("overview.reportDelay")}</p>
                 ) : null}
+                {/* The queries card has no fold of its own; this one explains it, whichever source is shown. */}
+                {workspace.searchQueries ? <p>{t("queries.help")}</p> : null}
                 <p>
                   {t("statistics.property")}: <bdi>{active.propertyId}</bdi>
                 </p>
