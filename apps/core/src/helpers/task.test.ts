@@ -249,7 +249,6 @@ describe("mapTaskEventActor", () => {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       avatarSeed: "orb:jewel-sky:user_123",
-      avatar: { styleId: "crafted-desk" },
       userId: defaultTaskUser.id,
       user: defaultTaskUser,
     };
@@ -265,7 +264,6 @@ describe("mapTaskEventActor", () => {
         id: sokoBot.id,
         name: sokoBot.name,
         avatarSeed: sokoBot.avatarSeed,
-        avatarStyleId: "crafted-desk",
         owner: defaultTaskUser,
       },
     });
@@ -317,7 +315,6 @@ describe("mapTaskEventActor", () => {
         id: sokoBot.id,
         name: sokoBot.name,
         avatarSeed: sokoBot.avatarSeed,
-        avatarStyleId: null,
         owner: defaultTaskUser,
       },
     });
@@ -348,7 +345,6 @@ describe("mapTaskEventActor", () => {
         id: sokoBot.id,
         name: sokoBot.name,
         avatarSeed: sokoBot.avatarSeed,
-        avatarStyleId: null,
         owner: defaultTaskUser,
       },
     });

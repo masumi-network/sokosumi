@@ -1,16 +1,12 @@
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { calls, claimAvatarMock, transactionMock, workspaceFindUniqueMock } =
-  vi.hoisted(() => ({
-    calls: [] as string[],
-    claimAvatarMock: vi.fn(),
-    transactionMock: vi.fn(),
-    workspaceFindUniqueMock: vi.fn(),
-  }));
+import { createSokoBotAvatarStore } from "@/test-fixtures/soko-bot-avatar-store";
 
-vi.mock("@/services/soko-bot-avatar.service", () => ({
-  claimAvatar: claimAvatarMock,
+const { calls, transactionMock, workspaceFindUniqueMock } = vi.hoisted(() => ({
+  calls: [] as string[],
+  transactionMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -31,6 +27,9 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
 import { createSharedSokoBot } from "./soko-bot-shared-create.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
+
+// Avatars live only on the transaction: a claim made outside it finds nothing.
+const avatars = createSokoBotAvatarStore();
 
 function recordingTx(
   members: string[],
@@ -58,6 +57,7 @@ function recordingTx(
       create: record("sokoBot.create", { id: BOT_ID }),
       update: record("sokoBot.update", { id: BOT_ID, sharedRoomId: "room" }),
     },
+    sokoBotAvatar: avatars.client.sokoBotAvatar,
     sokoBotMemoryRevision: { create: record("memoryRevision.create", {}) },
     chatRoom: { create: record("chatRoom.create", { id: "room" }) },
   };
@@ -67,6 +67,7 @@ describe("createSharedSokoBot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     calls.length = 0;
+    avatars.reset();
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
   });
 
@@ -101,7 +102,8 @@ describe("createSharedSokoBot", () => {
     ]);
   });
 
-  it("records who kept the avatar it creates the bot with, without enforcing the keep cap", async () => {
+  it("claims the avatar it creates the bot with, in the same transaction", async () => {
+    avatars.seed({ id: "avatar-1" });
     const tx = recordingTx(["caller"]);
     transactionMock.mockImplementation(async (run) => await run(tx));
 
@@ -113,10 +115,7 @@ describe("createSharedSokoBot", () => {
       avatarId: "avatar-1",
     });
 
-    expect(claimAvatarMock).toHaveBeenCalledWith(BOT_ID, "avatar-1", {
-      tx,
-      keptBy: "caller",
-    });
+    expect(avatars.avatars[0]?.claimedBySokoBotId).toBe(BOT_ID);
   });
 
   it("refuses a workspace without an organization before any transaction", async () => {

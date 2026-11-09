@@ -5,7 +5,6 @@ import { useMemo, useRef, useState } from "react";
 
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
-import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Command,
@@ -20,7 +19,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 
@@ -87,21 +85,6 @@ function AssigneeAvatar({
         size={size === "trigger" ? 36 : 24}
         className={avatarClass}
         alt={option.name}
-      />
-    );
-  }
-
-  if (
-    option.kind === "sokoBot" &&
-    option.image &&
-    isCraftedStyle(option.avatarStyleId)
-  ) {
-    return (
-      <AvatarFace
-        src={option.image}
-        crafted
-        alt={option.name}
-        className={avatarClass}
       />
     );
   }

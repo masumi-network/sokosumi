@@ -218,7 +218,7 @@ const setAvatarSchema = z.object({
   avatarId: z.string().uuid(),
 });
 
-/** Gives another user's bot a mascot from the shared pool. */
+/** Gives another user's bot a Soko Bot avatar from the shared pool. */
 export const setAdminSokoBotAvatarAction = withSession<
   DeleteBotParams,
   ActionResultDto<{ avatarImageUrl: string }, ActionError>

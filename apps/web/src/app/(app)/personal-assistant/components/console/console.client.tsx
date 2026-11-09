@@ -1,13 +1,12 @@
 "use client";
 
-import {
-  type SokoBotAvatar,
-  type SokoBotDailyStats,
-  type SokoBotInstalledSkill,
-  type SokoBotIntegrations,
-  SokoBotStatus,
-  type SokoBotUsage,
-  type SokoBotVersion,
+import type {
+  SokoBotAvatar,
+  SokoBotDailyStats,
+  SokoBotInstalledSkill,
+  SokoBotIntegrations,
+  SokoBotUsage,
+  SokoBotVersion,
 } from "@sokosumi/core-client";
 import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 import { MessageSquare, ShieldCheck } from "lucide-react";
@@ -27,13 +26,16 @@ import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import Markdown from "@/components/markdown";
-import {
-  AvatarStateLine,
-  AvatarStatePill,
-  useAvatarStateCopy,
-} from "@/components/soko-bot/avatar-state";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -41,12 +43,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
-import { avatarSources } from "@/lib/soko-bot/avatar";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
-import {
-  sokoBotAvatarStudioRoute,
-  sokoBotConsoleRoute,
-} from "@/lib/soko-bot/constants";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
 import type { BotAdAccount } from "@/lib/soko-bot/load-bot-ad-accounts";
 import { cn } from "@/lib/utils";
@@ -228,7 +226,6 @@ export function SokoBotConsole({
 }: SokoBotConsoleProps) {
   const consoleRoute = sokoBotConsoleRoute(botId);
   const t = useTranslations("App.SokoBot");
-  const { alt: stateAlt } = useAvatarStateCopy();
   const adsBlock = ads ? (
     <AdAccountsSection accounts={ads.accounts} botProjectId={ads.projectId} />
   ) : null;
@@ -250,11 +247,18 @@ export function SokoBotConsole({
   }, [integrationOutcome, router, t, consoleRoute]);
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
-  // Same seed Core hands chat participants, so console and room match.
+  // Same seed Core hands chat participants, so console and room match. Not
+  // `botFaceSeed`: that derives a `defaultOrbSeed`, and Core's fallback is the
+  // raw `orb:` id, so the two would draw different orbs for the same bot.
   const seed = bot.avatarSeed ?? `orb:${bot.userId ?? bot.id}`;
   const [isOpeningChat, startOpeningChat] = useTransition();
   const [pickedAvatar, setPickedAvatar] = useState<SokoBotAvatar | null>(null);
+  // The picker mounts loading its first set; start there so saving is held.
+  const [loadingAvatars, setLoadingAvatars] = useState(true);
   const [isSavingAvatar, startSavingAvatar] = useTransition();
+  const [editingPicture, setEditingPicture] = useState(false);
+  // A shared bot's `botId` is set; the personal bot's is not.
+  const ownsBot = !botId;
   function saveAvatar() {
     if (!pickedAvatar) return;
     const avatarId = pickedAvatar.id;
@@ -266,6 +270,7 @@ export function SokoBotConsole({
       }
       toast.success(t("Avatar.saved"));
       setPickedAvatar(null);
+      setEditingPicture(false);
       await refresh();
       router.refresh();
     });
@@ -291,47 +296,68 @@ export function SokoBotConsole({
     });
   }
 
-  const stateSources = avatarSources(
-    bot.avatar,
-    bot.avatarState,
-    bot.avatarImageUrl,
-  );
-
   return (
     <SokoBotTargetContext.Provider value={botId}>
       <AssistantSeedContext.Provider value={seed}>
-        <AssistantImageContext.Provider
-          value={
-            bot.avatarImageUrl
-              ? {
-                  url: bot.avatarImageUrl,
-                  crafted: stateSources.crafted,
-                  alt: stateAlt(botName, bot.avatarState),
-                  stateStill: stateSources.still ?? bot.avatarImageUrl,
-                  stateLoop: stateSources.loop,
-                }
-              : null
-          }
-        >
+        <AssistantImageContext.Provider value={bot.avatarImageUrl}>
           <div className="w-full space-y-6 py-2">
             <header className="flex flex-col items-center gap-4 py-6 text-center">
               <BotProfileAvatar
                 name={botName}
                 seed={seed}
                 imageUrl={bot.avatarImageUrl}
-                avatar={bot.avatar}
-                state={bot.avatarState}
-                editHref={canManage ? sokoBotAvatarStudioRoute(botId) : null}
+                // Only the owner changes their own bot's picture here; shared
+                // bots get theirs from admin.
+                onEdit={
+                  ownsBot
+                    ? () => {
+                        // Each opening mounts a picker loading a fresh set.
+                        setLoadingAvatars(true);
+                        setEditingPicture(true);
+                      }
+                    : null
+                }
               />
+              {ownsBot ? (
+                <Dialog
+                  open={editingPicture}
+                  onOpenChange={(open) => {
+                    setEditingPicture(open);
+                    if (!open) setPickedAvatar(null);
+                  }}
+                >
+                  <DialogContent className="sm:max-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle>{t("Avatar.title")}</DialogTitle>
+                      <DialogDescription>
+                        {t("Avatar.description")}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <AvatarPicker
+                      value={pickedAvatar?.id ?? null}
+                      onChange={setPickedAvatar}
+                      currentImageUrl={bot.avatarImageUrl}
+                      onLoadingChange={setLoadingAvatars}
+                    />
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        disabled={!pickedAvatar || loadingAvatars}
+                        loading={isSavingAvatar}
+                        onClick={saveAvatar}
+                      >
+                        {t("Avatar.save")}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              ) : null}
               <div className="flex flex-col items-center gap-2">
                 <div className="flex flex-wrap items-center justify-center gap-2.5">
                   <h1 className="text-foreground truncate text-3xl font-light tracking-tight">
                     {botName}
                   </h1>
-                  <AvatarStatePill state={bot.avatarState} />
-                  {bot.status === SokoBotStatus.ERROR ? (
-                    <SokoBotStatusBadge status={bot.status} />
-                  ) : null}
+                  <SokoBotStatusBadge status={bot.status} />
                   {version ? (
                     <span
                       className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs tabular-nums"
@@ -355,15 +381,19 @@ export function SokoBotConsole({
                 <p className="text-muted-foreground max-w-xl text-sm text-pretty">
                   {t("Console.tagline")}
                 </p>
-                <p
-                  className="text-muted-foreground text-xs"
-                  suppressHydrationWarning
-                >
-                  <AvatarStateLine
-                    state={bot.avatarState}
-                    lastActivityAt={bot.lastActivityAt}
-                  />
-                </p>
+                {bot.lastActivityAt ? (
+                  <p
+                    className="text-muted-foreground text-xs tabular-nums"
+                    suppressHydrationWarning
+                  >
+                    {t("Console.lastActivity", {
+                      time: format.relativeTime(
+                        new Date(bot.lastActivityAt),
+                        new Date(),
+                      ),
+                    })}
+                  </p>
+                ) : null}
               </div>
               <div className="flex w-full flex-wrap items-center justify-center gap-2">
                 <div className="flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 sm:flex-none">
@@ -546,32 +576,6 @@ export function SokoBotConsole({
                     <HowItWorks />
                   </HolderPanel>
                 </HolderSection>
-                {botId ? null : (
-                  <HolderSection
-                    title={t("Avatar.title")}
-                    description={t("Avatar.description")}
-                    aside={
-                      pickedAvatar ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          loading={isSavingAvatar}
-                          onClick={saveAvatar}
-                        >
-                          {t("Avatar.save")}
-                        </Button>
-                      ) : null
-                    }
-                  >
-                    <HolderPanel>
-                      <AvatarPicker
-                        value={pickedAvatar?.id ?? null}
-                        onChange={setPickedAvatar}
-                        currentImageUrl={bot.avatarImageUrl}
-                      />
-                    </HolderPanel>
-                  </HolderSection>
-                )}
               </div>
             ) : (
               <div className="space-y-10">

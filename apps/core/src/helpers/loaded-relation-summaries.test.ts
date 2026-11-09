@@ -52,9 +52,7 @@ describe("sokoBotSummaryFromLoadedRelation", () => {
     name: "Atlas",
     avatarSeed: null,
     avatarImageUrl: null,
-    avatar: null,
   };
-  const { avatar: _avatar, ...summary } = { ...bot, avatarStyleId: null };
 
   it("maps a personal bot with its owner", () => {
     expect(
@@ -64,26 +62,9 @@ describe("sokoBotSummaryFromLoadedRelation", () => {
         user: { id: "user_1", name: "Ana", image: null },
       }),
     ).toEqual({
-      ...summary,
+      ...bot,
       owner: { id: "user_1", name: "Ana", image: null },
     });
-  });
-
-  it("names the style of the bot's claimed avatar, and none when it has none", () => {
-    const crafted = sokoBotSummaryFromLoadedRelation("Task tsk_1", BOT_ID, {
-      ...bot,
-      avatar: { styleId: "crafted-desk" },
-      userId: null,
-      user: null,
-    });
-    const bare = sokoBotSummaryFromLoadedRelation("Task tsk_1", BOT_ID, {
-      ...bot,
-      userId: null,
-      user: null,
-    });
-
-    expect(crafted?.avatarStyleId).toBe("crafted-desk");
-    expect(bare?.avatarStyleId).toBeNull();
   });
 
   it("still throws when a personal bot's owner was not loaded", () => {
@@ -103,6 +84,6 @@ describe("sokoBotSummaryFromLoadedRelation", () => {
         userId: null,
         user: null,
       }),
-    ).toEqual({ ...summary, owner: null });
+    ).toEqual({ ...bot, owner: null });
   });
 });

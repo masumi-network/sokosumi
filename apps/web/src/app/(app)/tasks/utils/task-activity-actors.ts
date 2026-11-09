@@ -12,7 +12,6 @@ export interface TaskActivityActorInfo {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
-  avatarStyleId?: string | null;
   /** Present for sokoBot actors — format with i18n at render. */
   ownerName?: string;
 }
@@ -35,7 +34,6 @@ type SokoBotActorSummary = {
   name: string | null;
   avatarSeed?: string | null;
   avatarImageUrl?: string | null;
-  avatarStyleId?: string | null;
   /** Null for a shared bot: it has no owner. */
   owner: {
     id: string;
@@ -254,7 +252,7 @@ export function buildTaskActivityActors(
 function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
   return {
     name: sokoBot.name ?? "Assistant",
-    // A claimed mascot is the bot's face everywhere else; the orb is only the
+    // A claimed Soko Bot avatar is the bot's face everywhere else; the orb is only the
     // fallback for a bot that has not picked one.
     image: sokoBot.avatarImageUrl
       ? resolveIpfsOrHttpUrl(sokoBot.avatarImageUrl)
@@ -265,7 +263,6 @@ function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
     avatarSeed: sokoBot.avatarImageUrl
       ? null
       : (sokoBot.avatarSeed ?? defaultSokoBotOrbSeed(sokoBot)),
-    avatarStyleId: sokoBot.avatarStyleId,
     ownerName: sokoBot.owner?.name,
   };
 }

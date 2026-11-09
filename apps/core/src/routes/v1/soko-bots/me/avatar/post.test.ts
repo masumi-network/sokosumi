@@ -2,8 +2,10 @@ import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { claimAvatarMock, getStateMock } = vi.hoisted(() => ({
-  claimAvatarMock: vi.fn(),
+const { store, getStateMock } = vi.hoisted(() => ({
+  store: {} as ReturnType<
+    typeof import("@/test-fixtures/soko-bot-avatar-store").createSokoBotAvatarStore
+  >,
   getStateMock: vi.fn(),
 }));
 
@@ -59,13 +61,13 @@ vi.mock("@/services/soko-bot-availability.service", () => ({
   setSokoBotDisabled: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({ default: {} }));
-
-vi.mock("@/services/soko-bot-avatar.service", () => ({
-  claimAvatar: claimAvatarMock,
-  listAvailableAvatars: vi.fn(),
-  topUpAvailableAvatars: vi.fn(),
-}));
+vi.mock("@/lib/db/prisma", async () => {
+  const { createSokoBotAvatarStore } = await import(
+    "@/test-fixtures/soko-bot-avatar-store"
+  );
+  Object.assign(store, createSokoBotAvatarStore());
+  return { default: store.client };
+});
 
 vi.mock("@/services/soko-bot-state.service", () => ({
   getSokoBotState: getStateMock,
@@ -73,7 +75,6 @@ vi.mock("@/services/soko-bot-state.service", () => ({
   listSharedSokoBots: vi.fn(),
 }));
 
-import { tooManyRequests } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
 
@@ -115,15 +116,21 @@ function claim() {
   });
 }
 
+const BOT_ID = "01960001-0001-7001-8001-000000000099";
+
 describe("POST /me/avatar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getStateMock.mockResolvedValue({
-      id: "01960001-0001-7001-8001-000000000099",
+    store.reset();
+    // The bot as the state read sees it, with whatever avatar the claim wrote.
+    getStateMock.mockImplementation(async () => ({
+      id: BOT_ID,
       userId: USER_ID,
       workspaceId: WORKSPACE_ID,
       name: "Mine",
       avatarSeed: null,
+      avatarImageUrl:
+        (store.bots.get(BOT_ID)?.avatarImageUrl as string | undefined) ?? null,
       personalityTone: null,
       personalityDetail: null,
       personalityStyle: null,
@@ -140,28 +147,48 @@ describe("POST /me/avatar", () => {
       memoryRevisions: [],
       createdAt: NOW,
       updatedAt: NOW,
-    });
-    claimAvatarMock.mockResolvedValue("https://blob.test/look.webp");
+    }));
   });
 
-  it("claims for the caller and spends their daily keep allowance", async () => {
+  it("gives the bot the picked avatar and shows its picture", async () => {
+    store.seed({ id: AVATAR_ID, imageUrl: "https://blob.test/owl-1.png" });
+
     const response = await claim();
 
     expect(response.status).toBe(200);
-    expect(claimAvatarMock).toHaveBeenCalledWith(
-      "01960001-0001-7001-8001-000000000099",
-      AVATAR_ID,
-      { keptBy: USER_ID, enforceKeepCap: true },
+    expect((await response.json()).data.avatarImageUrl).toBe(
+      "https://blob.test/owl-1.png",
     );
+    expect(store.avatars[0]?.claimedBySokoBotId).toBe(BOT_ID);
   });
 
-  it("says 429 when the daily keep allowance is spent", async () => {
-    claimAvatarMock.mockRejectedValue(
-      tooManyRequests("You can keep at most 5 new looks per day.", {
-        kind: "avatar_keep_rate_limited",
-      }),
-    );
+  it("puts the previous avatar back in the pool when the bot changes it", async () => {
+    const previous = store.seed({
+      imageUrl: "https://blob.test/fox-1.png",
+      claimedBySokoBotId: BOT_ID,
+      claimedAt: NOW,
+    });
+    store.bots.set(BOT_ID, { avatarImageUrl: previous.imageUrl });
+    store.seed({ id: AVATAR_ID, imageUrl: "https://blob.test/owl-1.png" });
 
-    expect((await claim()).status).toBe(429);
+    const response = await claim();
+
+    expect((await response.json()).data.avatarImageUrl).toBe(
+      "https://blob.test/owl-1.png",
+    );
+    expect(previous.claimedBySokoBotId).toBeNull();
+  });
+
+  it("refuses an avatar another bot already holds", async () => {
+    store.seed({ id: AVATAR_ID, claimedBySokoBotId: "other-bot" });
+
+    expect((await claim()).status).toBe(422);
+    expect(store.bots.has(BOT_ID)).toBe(false);
+  });
+
+  it("refuses an avatar whose picture is still being drawn", async () => {
+    store.seed({ id: AVATAR_ID, imageUrl: "", reservedAt: NOW });
+
+    expect((await claim()).status).toBe(404);
   });
 });
