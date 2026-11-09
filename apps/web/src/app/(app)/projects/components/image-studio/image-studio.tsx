@@ -1,6 +1,10 @@
 "use client";
 
-import type { CreateProjectVideoJobRequest } from "@sokosumi/core-client";
+import type {
+  CreateProjectVideoJobRequest,
+  StudioProduct,
+  StudioProductPhoto,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   AlertTriangle,
@@ -64,6 +68,7 @@ import { StudioComposer } from "./studio-composer";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
+import { StudioProductCatalogDialog } from "./studio-product-catalog";
 import { StudioTemplateCarousel } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
@@ -81,7 +86,6 @@ import {
   type StudioCatalog,
   type StudioJob,
   type StudioLabels,
-  type StudioProductPhoto,
   type StudioState,
   type StudioTarget,
 } from "./types";
@@ -135,6 +139,7 @@ export function ImageStudio({
   labels,
   projectId,
   projectScopePrompt,
+  websiteUrl,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -154,6 +159,7 @@ export function ImageStudio({
    */
   projectId: string | null;
   projectScopePrompt?: React.ReactNode;
+  websiteUrl?: string | null;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -180,6 +186,8 @@ export function ImageStudio({
     initialSelectedAssetId ? { mode: "single" } : null,
   );
   const [prompt, setPrompt] = useState("");
+  const productDetailsRef = useRef<string | null>(null);
+  const catalogPhotoRef = useRef<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [productPhoto, setProductPhoto] = useState<StudioProductPhoto | null>(
     null,
@@ -479,13 +487,49 @@ export function ImageStudio({
     setTemplateUndo(
       (current) => current ?? (prompt.trim() ? { prompt, target } : null),
     );
-    setPrompt(template.prompt);
+    const details = productDetailsRef.current;
+    setPrompt(
+      details && prompt.endsWith(details)
+        ? `${template.prompt}\n\n${details}`
+        : template.prompt,
+    );
     setTarget((current) => ({
       ...current,
       placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
     promptRef.current?.focus();
+  }
+
+  function useProduct(
+    product: StudioProduct,
+    photo: StudioProductPhoto | null,
+  ) {
+    const previousPhotoId = catalogPhotoRef.current;
+    catalogPhotoRef.current = photo?.id ?? null;
+    setProductPhoto(
+      (current) => photo ?? (current?.id === previousPhotoId ? null : current),
+    );
+    const details = [
+      `Feature one product: ${product.name.trim()}.`,
+      product.description.trim(),
+      product.price.trim() ? `Approved price: ${product.price.trim()}.` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    setMode("image");
+    setHasNewerSettings(true);
+    setTemplateUndo(null);
+    const previousDetails = productDetailsRef.current;
+    productDetailsRef.current = details;
+    setPrompt((current) => {
+      const rest =
+        previousDetails && current.endsWith(previousDetails)
+          ? current.slice(0, -previousDetails.length).trim()
+          : current.trim();
+      return [rest, details].filter(Boolean).join("\n\n");
+    });
+    requestAnimationFrame(() => promptRef.current?.focus());
   }
 
   /** Put an image's brief and frame back in the composer, ready to edit. */
@@ -827,11 +871,21 @@ export function ImageStudio({
       )}
     >
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
-      {brandAction && !showsNothing ? (
+      {activeProjectId ? (
         <div
-          className={cn("flex justify-end pt-2", STUDIO_COMPOSER_GUTTER_CLASS)}
+          className={cn(
+            "flex flex-wrap justify-end gap-2 pt-2",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
         >
           {brandAction}
+          <StudioProductCatalogDialog
+            key={activeProjectId}
+            canUseProduct={!uploadingPhoto}
+            onUseProduct={useProduct}
+            projectId={activeProjectId}
+            websiteUrl={websiteUrl}
+          />
         </div>
       ) : null}
 
@@ -858,7 +912,7 @@ export function ImageStudio({
             <StudioTemplateCarousel
               labels={labels}
               onApplyTemplate={applyTemplate}
-              projectAction={brandAction ?? projectScopePrompt}
+              projectAction={projectScopePrompt}
             />
           ) : (
             <StudioGallery

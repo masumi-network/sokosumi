@@ -1,10 +1,11 @@
+import type { StudioProductPhoto } from "@sokosumi/core-client";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { MAX_BATCH, StudioComposer } from "./studio-composer";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import type { StudioCatalog, StudioProductPhoto, StudioTarget } from "./types";
+import type { StudioCatalog, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
 
 const { uploadPhoto } = vi.hoisted(() => ({ uploadPhoto: vi.fn() }));

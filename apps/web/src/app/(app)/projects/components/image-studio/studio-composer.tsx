@@ -1,5 +1,6 @@
 "use client";
 
+import type { StudioProductPhoto } from "@sokosumi/core-client";
 import { Check, ChevronDown, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
@@ -38,7 +39,6 @@ import {
   type StudioCatalog,
   type StudioLabels,
   type StudioModel,
-  type StudioProductPhoto,
   type StudioSettings,
   type StudioTarget,
 } from "./types";

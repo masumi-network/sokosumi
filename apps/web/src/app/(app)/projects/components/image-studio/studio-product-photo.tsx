@@ -1,3 +1,4 @@
+import type { StudioProductPhoto } from "@sokosumi/core-client";
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { ImagePlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -11,8 +12,6 @@ import {
   isDriveFileUploadDuplicate,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
-
-import type { StudioProductPhoto } from "./types";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_PHOTO_MIB = 12;

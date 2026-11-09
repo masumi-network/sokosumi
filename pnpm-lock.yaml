@@ -382,6 +382,9 @@ importers:
       hono:
         specifier: 4.13.17
         version: 4.13.17
+      htmlparser2:
+        specifier: 12.0.0
+        version: 12.0.0
       ioredis:
         specifier: 6.0.0
         version: 6.0.0(supports-color@8.1.1)
