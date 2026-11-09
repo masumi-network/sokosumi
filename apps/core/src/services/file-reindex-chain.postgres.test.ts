@@ -17,9 +17,15 @@ import {
   vi,
 } from "vitest";
 
-const { headMock } = vi.hoisted(() => ({ headMock: vi.fn() }));
+const { headMock, readMock } = vi.hoisted(() => ({
+  headMock: vi.fn(),
+  readMock: vi.fn(),
+}));
 
-vi.mock("@vercel/blob", () => ({ head: headMock }));
+vi.mock("@/lib/drive-blob", () => ({
+  driveHead: headMock,
+  driveRead: readMock,
+}));
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
@@ -200,13 +206,13 @@ describe.skipIf(!enabled)("a retry re-labels, not just re-extracts", () => {
       url: "https://blob.example/chain.txt",
       size: TEXT.length,
     });
-    // A fresh Response per call. `mockResolvedValue` hands back the same
-    // object every time, and a Response body can only be read once — so
-    // the second extraction in a test got an already-consumed body and
+    // A fresh stream per call. `mockResolvedValue` hands back the same
+    // object every time, and a stream can only be read once — so the
+    // second extraction in a test got an already-consumed body and
     // failed, which looked exactly like the propagation being broken.
-    vi.spyOn(globalThis, "fetch").mockImplementation(
-      async () => new Response(new TextEncoder().encode(TEXT)),
-    );
+    readMock.mockReset().mockImplementation(async () => ({
+      stream: new Response(new TextEncoder().encode(TEXT)).body,
+    }));
   });
 
   it("queues a suggestion at the retry's generation", async () => {
