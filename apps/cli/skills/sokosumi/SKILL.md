@@ -143,11 +143,17 @@ The planning drafts contain no payment implementation. Do not infer payment capa
 
 [VERIFIED: `apps/cli/src/cli/index.ts`, `apps/cli/src/api/http-client.ts`; Core `apps/core/src/middleware/organization.ts`] Human Task commands use the Workspace slug. Keep it on every organization Task call. Core checks membership and Task permissions. The flag preserves the selected network. Without it, OAuth uses the personal Workspace; browser Workspace selection does not change that context.
 
+[CORRECTION, REPORTED: operator direction, 2026-11-06] This repository's issue-tracker Tasks (identifiers such as `SOK-12` / `SOKD-125`, including specs for `/code-review`, `/implement`, `/to-spec`) live on **mainnet** (`https://api.sokosumi.com`). Read them on mainnet only. Do **not** pass `--preprod` for `tasks get`, `tasks list`, `tasks links`, `tasks events`, or `tasks jobs` against those tickets. Legacy API keys need an explicit target: pass `--api-url https://api.sokosumi.com`. A mainnet-scoped user API key selects mainnet without that flag. Keep `--preprod` for Coworker provisioning, private Workspace setup, admin onboarding, runtime, and Tasks that are deliberately not part of this repo's tracker.
+
 ```bash
+# Tracker Task reads — mainnet
+sokosumi --api-url https://api.sokosumi.com tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
+sokosumi --api-url https://api.sokosumi.com tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
+sokosumi --api-url https://api.sokosumi.com tasks jobs TASK_ID --organization-slug WORKSPACE_SLUG --json
+sokosumi --api-url https://api.sokosumi.com tasks links TASK_ID --organization-slug WORKSPACE_SLUG --json
+
+# Non-tracker / sandbox Task writes stay on Preprod unless the operator says otherwise
 sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id COWORKER_ID --name "Task title" --description "Approved Task brief" --status READY --json
-sokosumi --preprod tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
-sokosumi --preprod tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
-sokosumi --preprod tasks jobs TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi --preprod tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --comment "TEXT" --json
 ```
 
@@ -157,24 +163,30 @@ sokosumi --preprod tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --co
 
 [VERIFIED: `apps/cli/src/cli/commands/tasks.ts`; Core `apps/core/src/helpers/task-link.ts`; Web `restoreParentLinks` in `apps/web/src/lib/actions/task/action.ts`] A team can run its issue tracker on Tasks: one Task per ticket, a parent Task per feature, and status events as progress. Every `tasks` command accepts a UUID or a short identifier such as `SOK-12`; the CLI resolves identifiers through Core before writing.
 
-Prefer `--preprod` for Task-tracking writes. Mainnet (production) Task create, update, link, unlink, relink, comment, and archive are production API writes: stop and get an unambiguous operator `yes` first, listing the exact command, target environment, intended effect, rollback, verification, and exclusions. Stored credentials and Workspace membership are not that approval.
+[CORRECTION, REPORTED: operator direction, 2026-11-06] Specs and tickets for this repository are on **mainnet**. Always fetch them with a mainnet target (`--api-url https://api.sokosumi.com` for legacy keys). Never substitute a Preprod Task, Linear, or a PR body when a mainnet Task id is known.
+
+Read-only mainnet tracker fetches (`tasks get` / `list` / `links` / `events` / `jobs`, and `workspaces list` only to resolve the tracker Workspace) are the production-safety exception in `apps/cli/AGENTS.md`: they use production credentials and endpoints but do not need a fresh operator `yes`. Mainnet Task create, update, link, unlink, relink, comment, and archive remain production API **writes**: stop and get an unambiguous operator `yes` first, listing the exact command, target environment, intended effect, rollback, verification, and exclusions. Stored credentials and Workspace membership are not that approval. Use `--preprod` only when the operator explicitly wants a sandbox Task outside the production tracker.
 
 ```bash
-sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --name "Title" --description-file ./spec.md --priority MEDIUM --project-id PROJECT_ID --assignee-user-id USER_ID --json
-sokosumi --preprod tasks update SOK-12 --organization-slug WORKSPACE_SLUG --description-file ./spec.md --json
-sokosumi --preprod tasks comment SOK-12 --organization-slug WORKSPACE_SLUG --status RUNNING --comment "Implementing on branch NAME" --json
-sokosumi --preprod tasks link SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
-sokosumi --preprod tasks link SOK-14 --organization-slug WORKSPACE_SLUG --relation blocked_by --to SOK-13 --json
-sokosumi --preprod tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
-sokosumi --preprod tasks relink SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
-sokosumi --preprod tasks unlink SOK-14 --organization-slug WORKSPACE_SLUG --to SOK-13 --json
-sokosumi --preprod tasks list --organization-slug WORKSPACE_SLUG --project-id PROJECT_ID --status READY --sort priority --limit 50 --json
-sokosumi --preprod tasks archive SOK-15 --organization-slug WORKSPACE_SLUG --json
+# Reads (mainnet tracker — allowed without a fresh yes; see apps/cli/AGENTS.md)
+sokosumi --api-url https://api.sokosumi.com tasks get SOK-12 --organization-slug WORKSPACE_SLUG --json
+sokosumi --api-url https://api.sokosumi.com tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
+sokosumi --api-url https://api.sokosumi.com tasks list --organization-slug WORKSPACE_SLUG --project-id PROJECT_ID --status READY --sort priority --limit 50 --json
+
+# Writes (mainnet tracker — require operator yes first)
+sokosumi --api-url https://api.sokosumi.com tasks create --organization-slug WORKSPACE_SLUG --name "Title" --description-file ./spec.md --priority MEDIUM --project-id PROJECT_ID --assignee-user-id USER_ID --json
+sokosumi --api-url https://api.sokosumi.com tasks update SOK-12 --organization-slug WORKSPACE_SLUG --description-file ./spec.md --json
+sokosumi --api-url https://api.sokosumi.com tasks comment SOK-12 --organization-slug WORKSPACE_SLUG --status RUNNING --comment "Implementing on branch NAME" --json
+sokosumi --api-url https://api.sokosumi.com tasks link SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
+sokosumi --api-url https://api.sokosumi.com tasks link SOK-14 --organization-slug WORKSPACE_SLUG --relation blocked_by --to SOK-13 --json
+sokosumi --api-url https://api.sokosumi.com tasks relink SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
+sokosumi --api-url https://api.sokosumi.com tasks unlink SOK-14 --organization-slug WORKSPACE_SLUG --to SOK-13 --json
+sokosumi --api-url https://api.sokosumi.com tasks archive SOK-15 --organization-slug WORKSPACE_SLUG --json
 ```
 
 - The returned `task.identifier` is the ticket name; use it in branches and PR descriptions. Only a Task in a project gets one (the project's prefix plus a number); without `--project-id` it is `null`, so use the UUID.
 - `--assignee-user-id` takes `user.id` from `auth whoami --json`. A Task has one assignee: a person or a Coworker (`--coworker-id`). `tasks update --unassign` removes it; `--clear-project` removes the project.
-- `--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json`).
+- `--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json` on mainnet).
 - `--relation` describes TASK_ID relative to `--to`: `child --to SOK-12` makes TASK_ID a sub-task of SOK-12, and `blocked_by --to SOK-13` makes TASK_ID wait on SOK-13. Also `parent`, `blocks`, `related`, `duplicate`. Check the result with `tasks links`; Web shows a `child` link's peer as the parent.
 - Fix a wrong link with `tasks relink`. It deletes the link and creates the new one, because Core cannot reverse a link in place. If creation fails, the error prints the command that restores the old link.
 - `tasks list` reads every page unless `--limit` is set. `--sort updatedAt` or `--sort priority` always needs `--limit` (Core's cursor can skip or duplicate while the list drains). Filter by `--project-id`, `--assignee-user-id`, `--coworker-id`, `--status`, or `--search`.
