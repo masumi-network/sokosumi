@@ -66,7 +66,11 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const owner = seoWorkspaceOwner(initialData);
   const [chatOpen, setChatOpen] = useState(false);
   // A question another tab prepared; the chat shows it for the user to review and send.
-  const [chatDraft, setChatDraft] = useState<string | null>(null);
+  // send: the owner already chose this request ("Draft a fix"); otherwise it waits in the input.
+  const [chatDraft, setChatDraft] = useState<{
+    text: string;
+    send: boolean;
+  } | null>(null);
   const [filters, setFilters] = useQueryStates({
     tab: parseAsSeoTab.withDefault("agent"),
     pageId: parseAsString,
@@ -253,8 +257,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       setPending(false);
     }
   }
-  function openChat(draft?: string) {
-    if (draft) setChatDraft(draft);
+  function openChat(draft?: string, send = false) {
+    if (draft) setChatDraft({ text: draft, send });
     setChatOpen(true);
   }
   const data = result.data ?? initialData;

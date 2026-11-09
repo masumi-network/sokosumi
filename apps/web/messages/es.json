@@ -10677,7 +10677,8 @@
         "positionHint": "1 es el primer resultado",
         "noteFound": "Encontrado: {found}",
         "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
-        "noteRuleName": "Regla: «{name}»"
+        "noteRuleName": "Regla: «{name}»",
+        "suggestion": "Sugerencia:"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -11000,7 +11001,7 @@
         "showEarlier": "{count, plural, one {Mostrar # pregunta anterior} other {Mostrar # preguntas anteriores}}",
         "showMore": "Mostrar la pregunta completa",
         "showLess": "Mostrar menos",
-        "loadingHistory": "Cargando la conversación"
+        "loadingHistory": "Cargando el chat"
       },
       "connections": {
         "connect": "Conectar {provider}",
@@ -11120,7 +11121,7 @@
         "askShort": "Preguntar",
         "openTraffic": "Abrir tráfico",
         "draftFix": "Preparar un arreglo",
-        "suggestions": "{count, plural, one {# sugerencia, no un error.} other {# sugerencias, no errores.}}"
+        "suggestions": "{count, plural, one {# sugerencia, no es un error.} other {# sugerencias, no son errores.}}"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",

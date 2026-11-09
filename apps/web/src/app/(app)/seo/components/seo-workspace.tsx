@@ -158,7 +158,7 @@ export function SeoWorkspace({
           ) : null}
           {/* One page in view: its URL says more than a count. */}
           {scopePage ? (
-            <SeoPageLink url={scopePage.url} label={scopePage.label} />
+            <SeoPageLink url={scopePage.url} />
           ) : (
             <p className="text-muted-foreground text-sm">
               {t("pages.count", { count: model.data.scope.pageIds.length })}

@@ -46,6 +46,7 @@ function PageDetail({
   data,
   dated,
   showGuidance,
+  suggested,
   onAsk,
 }: {
   finding: Diagnostic;
@@ -54,8 +55,10 @@ function PageDetail({
   dated: boolean;
   /** The same rule on several pages carries the same guidance; the first row shows it. */
   showGuidance: boolean;
-  /** Opens the agent chat with a question about this note; absent without a chat. */
-  onAsk?: (question: string) => void;
+  /** A measurement the Agent tab counts as a suggestion; it alone offers "Draft a fix". */
+  suggested: boolean;
+  /** Opens the agent chat: a note's question as a draft, a fix request sent; absent without a chat. */
+  onAsk?: (question: string, send: boolean) => void;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -107,7 +110,7 @@ function PageDetail({
   }, [foldable, fullValue, detail]);
   const toggle = foldable && clamped;
   // A note can always be asked about; a measurement only when some tool range leaves it out.
-  const ask = measure ? (fit?.outside.length ? onAsk : undefined) : onAsk;
+  const ask = measure ? (suggested ? onAsk : undefined) : onAsk;
   return (
     <li className="space-y-1">
       {measure ? (
@@ -121,6 +124,7 @@ function PageDetail({
             // Google sets no limit for these; the tools' ranges say whether a value stands out.
             <span>
               {" · "}
+              {suggested ? `${t("overview.suggestion")} ` : null}
               {fit.outside.length
                 ? t("overview.outsideToolRanges", {
                     outside: fit.outside.length,
@@ -212,6 +216,7 @@ function PageDetail({
                           url: finding.pageUrl,
                         })
                       : t("overview.askAboutNote", { name }),
+                  measure,
                 )
               }
             >
@@ -270,8 +275,12 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
     (finding) => finding.severity !== "measure",
   );
   const flagged = notes.length;
-  // The Agent tab counts the same suggestions.
-  const suggestions = measuresOutsideToolRanges(overview.diagnostics).length;
+  // The Agent tab's suggestions: the newest check's values outside a tool range.
+  const suggestionList = measuresOutsideToolRanges(overview.diagnostics);
+  const suggestions = suggestionList.length;
+  const suggestedRows = new Set(
+    suggestionList.flatMap((suggestion) => suggestion.findingIds),
+  );
   const references = pageDetailReferences(
     overview.diagnostics.map((finding) => ({
       name: checkName(finding.title),
@@ -292,8 +301,9 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
       .flatMap((finding) => pageDetailGuidance(finding.evidence)),
   );
   // A question about a note goes to the agent's chat as a draft; the owner sends it.
+  // A fix request is sent, as on the Agent tab; the agent only proposes an action.
   const askAgent = data.auditId
-    ? (question: string) => model.openChat(question)
+    ? (question: string, send: boolean) => model.openChat(question, send)
     : undefined;
   return (
     <div className="space-y-5">
@@ -455,6 +465,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       data={data}
                       dated={!oneCheck}
                       showGuidance={guidanceRows.has(finding.id)}
+                      suggested={suggestedRows.has(finding.id)}
                       onAsk={askAgent}
                     />
                   ))}
@@ -481,6 +492,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       data={data}
                       dated={!oneCheck}
                       showGuidance={guidanceRows.has(finding.id)}
+                      suggested={false}
                       onAsk={askAgent}
                     />
                   ))}

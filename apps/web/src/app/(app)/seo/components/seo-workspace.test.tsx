@@ -371,11 +371,42 @@ describe("SEO workspace integration", () => {
       sourceRef: "robots",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
+    // An older check measured a title outside the range; the newest check is in range,
+    // so that row is no suggestion and offers no fix.
+    workspace.findings.push({
+      id: "measured-title-older",
+      observationId: "check-title-older",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Raw HTML: Title length",
+      severity: "measure",
+      evidence: [
+        "title 75 characters",
+        "vendor tools: Ahrefs under 70 (N1-246)",
+        "Source: raw HTML; the rendered DOM was not requested.",
+      ],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-01T12:00:00Z"),
+    });
+    const asked: string[] = [];
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) =>
-        Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
-      ),
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (!url.endsWith("/chat")) return Response.json(workspace);
+        if (init?.method !== "POST") return Response.json({ turns: [] });
+        const question = JSON.parse(String(init.body)).question;
+        asked.push(question);
+        return Response.json({
+          id: crypto.randomUUID(),
+          question,
+          response: "Draft",
+          status: "completed",
+          actions: [],
+          scope: { pageIds: workspace.scope.pageIds },
+          createdAt: new Date().toISOString(),
+        });
+      }),
     );
     // happy-dom has no layout: the long note's clamp cuts its text here.
     vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(120);
@@ -425,7 +456,7 @@ describe("SEO workspace integration", () => {
     );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/From the check on/)).toBeNull();
-    expect(details.querySelectorAll("time")).toHaveLength(4);
+    expect(details.querySelectorAll("time")).toHaveLength(5);
     expect(
       screen.getByRole("heading", {
         name: "Found: robots.txt blocks GPTBot",
@@ -438,7 +469,13 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     // Each page's value says where it sits against the tools' ranges.
     expect(screen.getByText(/within the tool range/)).toBeVisible();
-    expect(screen.getByText(/outside the tool range \(Ahrefs\)/)).toBeVisible();
+    // Only the newest check's value outside a range is a suggestion; the older one is history.
+    expect(
+      screen.getAllByText(/outside the tool range \(Ahrefs\)/),
+    ).toHaveLength(2);
+    expect(
+      screen.getByText(/Suggestion: outside the tool range \(Ahrefs\)/),
+    ).toBeVisible();
     // A long note value starts folded and opens in place.
     const showAll = screen.getByRole("button", { name: "Show all" });
     expect(showAll).toHaveAttribute("aria-expanded", "false");
@@ -481,18 +518,22 @@ describe("SEO workspace integration", () => {
     );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    // A measurement's request is the Agent tab's; the unsent draft keeps the earlier question.
+    // A fix request is the Agent tab's and is sent; the unsent note question stays a draft.
     await user.click(
       screen.getByRole("button", {
         name: "Draft a fix",
         description: "Title length: https://example.com/old",
       }),
     );
-    const question = within(await screen.findByRole("dialog")).getByLabelText(
-      "Your question",
-    ) as HTMLTextAreaElement;
-    expect(question.value).toMatch(
-      /\n\nThe check measured “Title length” on https:\/\/example\.com\/old as 80 characters, outside the range of Ahrefs\. Draft a change and suggest it as an action I can approve\.$/,
+    await waitFor(() =>
+      expect(asked).toEqual([
+        "The check measured “Title length” on https://example.com/old as 80 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.",
+      ]),
+    );
+    expect(
+      within(await screen.findByRole("dialog")).getByLabelText("Your question"),
+    ).toHaveValue(
+      "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?",
     );
   });
 
@@ -701,7 +742,11 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=health");
-    expect(screen.getByText("https://example.com/")).toBeVisible();
+    const pages = screen
+      .getByRole("heading", { name: "Pages" })
+      .closest("section");
+    if (!pages) throw new Error("Pages card missing");
+    expect(within(pages).getByText("https://example.com/")).toBeVisible();
     expect(screen.queryByText("Primary page")).toBeNull();
   });
 
@@ -922,8 +967,12 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(bare)),
     );
     const plain = renderWorkspace(bare, "tab=health");
+    const header = screen.getByRole("link", {
+      name: "All audits",
+    }).parentElement;
+    if (!header) throw new Error("Header missing");
     expect(
-      screen.getAllByRole("link", { name: bare.pages[0].url })[0],
+      within(header).getByRole("link", { name: bare.pages[0].url }),
     ).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Pages" })).toBeNull();
     expect(screen.queryByText("1 page")).toBeNull();
@@ -955,11 +1004,30 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(two)),
     );
-    renderWorkspace(two, "tab=health");
+    const both = renderWorkspace(two, "tab=health");
     // Two pages in view: the header counts them.
     expect(screen.getByText("2 pages")).toBeVisible();
     // Totals for two pages belong to neither page.
     expect(screen.queryByText("Search clicks")).toBeNull();
+    both.unmount();
+    // One page of two in view: the header names that page by its URL, not its name.
+    const narrowed = {
+      ...two,
+      scope: { ...two.scope, pageIds: [two.pages[1].id] },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(narrowed)),
+    );
+    renderWorkspace(narrowed, `tab=health&pageId=${two.pages[1].id}`);
+    const narrowHeader = screen.getByRole("link", {
+      name: "All audits",
+    }).parentElement;
+    if (!narrowHeader) throw new Error("Header missing");
+    expect(
+      within(narrowHeader).getByRole("link", { name: two.pages[1].url }),
+    ).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "Pages" })[0]).toBeVisible();
   });
 
   it("opens the chat with a comparison question for a competitor and sends nothing", async () => {
@@ -2410,7 +2478,7 @@ describe("SEO workspace integration", () => {
     const view = renderWorkspace(workspace, "", false, 60_000);
     expect(screen.getByText(messages.App.Seo.agent.title)).toBeVisible();
     // The chat waits for the session; its loader names what loads.
-    expect(screen.getByText("Loading the conversation")).toBeVisible();
+    expect(screen.getByText("Loading the chat")).toBeVisible();
     viewer.userId = "owner";
     view.refreshViewer();
     expect(screen.getByText(messages.App.Seo.agent.title)).toBeVisible();

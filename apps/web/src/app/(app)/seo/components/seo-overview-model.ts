@@ -285,20 +285,40 @@ export function noteFinding(line: string) {
 export function measuresOutsideToolRanges(diagnostics: readonly Finding[]) {
   // Two checks can measure one rule on one page; rows come newest first, so only the newest
   // check counts. Its desktop and mobile rows can differ; either one outside a range is a step.
+  // findingIds lists every row the suggestion covers, so rows and counts agree.
   const newest = new Map<string, string>();
-  const stepped = new Set<string>();
-  return diagnostics.flatMap((finding) => {
+  const found = new Map<
+    string,
+    {
+      name: string;
+      value: string;
+      tools: string[];
+      pageUrl: string;
+      observationId: string;
+      findingIds: string[];
+    }
+  >();
+  for (const finding of diagnostics) {
     const first = finding.evidence[0];
-    if (finding.severity !== "measure" || first === undefined) return [];
+    if (finding.severity !== "measure" || first === undefined) continue;
     const name = checkName(finding.title);
     const key = JSON.stringify([name, finding.pageUrl]);
     if (!newest.has(key)) newest.set(key, finding.observationId);
-    if (newest.get(key) !== finding.observationId || stepped.has(key))
-      return [];
+    if (newest.get(key) !== finding.observationId) continue;
     const value = measureValue(name, first);
     const fit = toolRangeFit(value, pageDetailGuidance(finding.evidence));
-    if (!fit?.outside.length) return [];
-    stepped.add(key);
-    return [{ name, value, tools: fit.outside, pageUrl: finding.pageUrl }];
-  });
+    if (!fit?.outside.length) continue;
+    const known = found.get(key);
+    if (known) known.findingIds.push(finding.id);
+    else
+      found.set(key, {
+        name,
+        value,
+        tools: fit.outside,
+        pageUrl: finding.pageUrl,
+        observationId: finding.observationId,
+        findingIds: [finding.id],
+      });
+  }
+  return [...found.values()];
 }

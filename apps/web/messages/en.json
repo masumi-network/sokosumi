@@ -10677,7 +10677,8 @@
         "positionHint": "1 is the top result",
         "noteFound": "Found: {found}",
         "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}",
-        "noteRuleName": "Rule: “{name}”"
+        "noteRuleName": "Rule: “{name}”",
+        "suggestion": "Suggestion:"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -11000,7 +11001,7 @@
         "showEarlier": "{count, plural, one {Show # earlier question} other {Show # earlier questions}}",
         "showMore": "Show full question",
         "showLess": "Show less",
-        "loadingHistory": "Loading the conversation"
+        "loadingHistory": "Loading the chat"
       },
       "connections": {
         "connect": "Connect {provider}",

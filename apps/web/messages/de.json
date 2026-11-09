@@ -10677,7 +10677,8 @@
         "positionHint": "1 ist das oberste Ergebnis",
         "noteFound": "Gefunden: {found}",
         "suggestionCount": "{count, plural, one {# Vorschlag} other {# Vorschläge}}",
-        "noteRuleName": "Regel: „{name}“"
+        "noteRuleName": "Regel: „{name}“",
+        "suggestion": "Vorschlag:"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -11000,7 +11001,7 @@
         "showEarlier": "{count, plural, one {# frühere Frage anzeigen} other {# frühere Fragen anzeigen}}",
         "showMore": "Ganze Frage zeigen",
         "showLess": "Weniger zeigen",
-        "loadingHistory": "Unterhaltung wird geladen"
+        "loadingHistory": "Chat wird geladen"
       },
       "connections": {
         "connect": "{provider} verbinden",

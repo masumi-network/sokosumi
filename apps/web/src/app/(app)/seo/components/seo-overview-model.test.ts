@@ -1,6 +1,7 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
+  measuresOutsideToolRanges,
   measureValue,
   noteFinding,
   pageDetailGuidance,
@@ -439,5 +440,43 @@ describe("note finding", () => {
       found: "robots.txt blocks GPTBot",
       detail: undefined,
     });
+  });
+});
+
+describe("measures outside tool ranges", () => {
+  it("groups one check's device rows into one suggestion that names every row", () => {
+    const row = (id: string, observationId: string, characters: number) =>
+      ({
+        id,
+        observationId,
+        pageUrl: "https://example.com/",
+        device: "desktop",
+        rowId: "description-length",
+        title: "Raw HTML: Meta description length",
+        severity: "measure",
+        evidence: [
+          `meta description ${characters} characters`,
+          "vendor tools: Ahrefs under 160 (N1-247)",
+        ],
+        sourceRef: "html",
+        observedAt: new Date("2026-01-03T12:00:00Z"),
+      }) as ProjectSeoWorkspace["findings"][number];
+    // Rows come newest first; both devices of the newest check are outside the range.
+    expect(
+      measuresOutsideToolRanges([
+        row("desktop", "new", 163),
+        { ...row("mobile", "new", 170), device: "mobile" },
+        row("older", "old", 180),
+      ]),
+    ).toEqual([
+      {
+        name: "Meta description length",
+        value: "163 characters",
+        tools: ["Ahrefs"],
+        pageUrl: "https://example.com/",
+        observationId: "new",
+        findingIds: ["desktop", "mobile"],
+      },
+    ]);
   });
 });

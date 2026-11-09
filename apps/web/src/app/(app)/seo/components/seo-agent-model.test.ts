@@ -228,10 +228,40 @@ describe("SEO agent brief", () => {
     workspace.searchQueries = {
       rows: [],
     } as unknown as ProjectSeoWorkspace["searchQueries"];
+    workspace.observations = [
+      {
+        id: "check",
+        kind: "page_check",
+        source: "seo_coworker",
+        observedAt: synced,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop", "mobile"],
+        rulebookVersion: "html-v1",
+        artifactHash: "checked-html",
+        issues: 0,
+        coverage: { checked: 24, skipped: 0, failed: 0 },
+      },
+    ] as ProjectSeoWorkspace["observations"];
     const brief = seoAgentBrief(workspace, synced);
     const steps = brief.steps;
-    // Only the value outside a range becomes a step; the verdict counts it once.
+    // Only the value outside a range becomes a step; the last check counts it once.
     expect(brief.suggestions).toBe(1);
+    // A newer check that did not measure it: the step stays, the last-check line does not count it.
+    workspace.observations = [
+      { ...workspace.observations[0], id: "newer-check" },
+      ...workspace.observations,
+    ];
+    expect(seoAgentBrief(workspace, synced).suggestions).toBe(0);
+    expect(
+      seoAgentBrief(workspace, synced).steps.filter(
+        (step) => step.kind === "measure",
+      ),
+    ).toHaveLength(1);
+    workspace.observations = workspace.observations.slice(1);
     expect(steps.filter((step) => step.kind === "measure")).toEqual([
       {
         kind: "measure",

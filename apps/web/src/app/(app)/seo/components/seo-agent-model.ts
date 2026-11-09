@@ -81,8 +81,11 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   if (unseen) steps.push({ kind: "keyword", keyword: unseen.keyword });
   // A value outside the tools' ranges is a suggestion, not an error: it follows the search work.
   const suggestions = measuresOutsideToolRanges(overview.diagnostics);
-  for (const measure of suggestions.slice(0, SEO_AGENT_ACTION_LIMIT))
-    steps.push({ kind: "measure", ...measure });
+  for (const { name, value, tools, pageUrl } of suggestions.slice(
+    0,
+    SEO_AGENT_ACTION_LIMIT,
+  ))
+    steps.push({ kind: "measure", name, value, tools, pageUrl });
   if (workspace.availableActions.canEdit && workspace.pages.length === 1)
     steps.push({ kind: "pages" });
   if (refresh && (staleSearch || !workspace.searchQueries))
@@ -114,7 +117,12 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
         }
       : null,
     issues: overview.issues.length,
-    suggestions: suggestions.length,
+    // The last-check line counts only what that check found.
+    suggestions: lastCheck
+      ? suggestions.filter(
+          (suggestion) => suggestion.observationId === lastCheck.id,
+        ).length
+      : 0,
     emptyState: overview.emptyState,
     fixes: fixes.length,
     opportunities: opportunities.length,
