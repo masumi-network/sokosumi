@@ -1210,6 +1210,54 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText(/: 140 · week before: 140$/)).toBeVisible();
   });
 
+  it("marks a recorded page change on the traffic chart and names it", () => {
+    const workspace = seoTestWorkspace();
+    const days = Array.from({ length: 14 }, (_, day) =>
+      new Date(Date.UTC(2026, 9, day + 1)).toISOString().slice(0, 10),
+    );
+    workspace.metrics = [
+      {
+        id: "sync:clicks",
+        key: "clicks",
+        label: "",
+        unit: "count",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        value: 14,
+        from: days[0],
+        to: days[13],
+        timeZone: "UTC",
+        observedAt: new Date(),
+        coverage: "complete",
+        notes: [],
+        points: days.map((date) => ({ date, value: 1 })),
+      },
+    ];
+    workspace.timeline = [
+      {
+        id: "page-change:1",
+        kind: "page_change",
+        title: "New title",
+        at: new Date("2026-10-05T09:00:00Z"),
+        pageIds: [],
+        observationId: null,
+        taskId: null,
+        status: "recorded",
+        detail: "",
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=traffic");
+    expect(screen.getAllByTestId("seo-trend-change")).toHaveLength(1);
+    expect(
+      screen.getByText("Recorded change on Oct 5: New title"),
+    ).toBeVisible();
+  });
+
   it("says whether Google indexes the page in view and names another canonical", () => {
     const workspace = seoTestWorkspace();
     const url = workspace.pages[0].url;

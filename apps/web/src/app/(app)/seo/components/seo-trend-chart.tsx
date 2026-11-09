@@ -13,6 +13,8 @@ interface SeoTrendChartProps {
   formatValue: (value: number) => string;
   /** Text for a day without a measurement. */
   unavailable: string;
+  /** Recorded page changes, drawn as dashed lines on their day. */
+  markers?: { date: string; label: string }[];
 }
 
 /** Share of a day band a bar fills; the rest is the gap between bars. */
@@ -30,6 +32,7 @@ export function SeoTrendChart({
   label,
   formatValue,
   unavailable,
+  markers,
 }: SeoTrendChartProps) {
   const t = useTranslations("App.Seo.overview");
   const format = useFormatter();
@@ -37,7 +40,7 @@ export function SeoTrendChart({
   const [active, setActive] = useState<number | null>(null);
   const [announced, setAnnounced] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
-  const model = seoTrendModel(points, unit);
+  const model = seoTrendModel(points, unit, markers);
   const last = points.length - 1;
   const day = (date: string) =>
     format.dateTime(new Date(`${date}T12:00:00Z`), {
@@ -47,9 +50,13 @@ export function SeoTrendChart({
     });
   const value = (point: { value: number | null }) =>
     point.value === null ? unavailable : formatValue(point.value);
+  const changeOn = (date: string) =>
+    model.changes.find((change) => change.date === date)?.labels;
   const readout = (index: number | null) => {
     const point = index === null ? undefined : model.points[index];
-    return point ? `${day(point.date)} · ${value(point)}` : null;
+    if (!point) return null;
+    const changed = changeOn(point.date);
+    return `${day(point.date)} · ${value(point)}${changed ? ` · ${format.list(changed)}` : ""}`;
   };
   const path = (indices: number[]) =>
     indices
@@ -122,6 +129,9 @@ export function SeoTrendChart({
               <span className="text-foreground font-semibold tabular-nums">
                 {value(focus)}
               </span>
+              {changeOn(focus.date)
+                ? ` · ${format.list(changeOn(focus.date) ?? [])}`
+                : null}
             </>
           ) : null}
         </p>
@@ -205,6 +215,19 @@ export function SeoTrendChart({
                   vectorEffect="non-scaling-stroke"
                 />
               ))}
+              {model.changes.map((change) => (
+                <line
+                  key={`change:${change.date}`}
+                  data-testid="seo-trend-change"
+                  className="stroke-foreground"
+                  vectorEffect="non-scaling-stroke"
+                  strokeDasharray="3 3"
+                  x1={change.x}
+                  x2={change.x}
+                  y1={0}
+                  y2={100}
+                />
+              ))}
               {focus && !model.bars ? (
                 <line
                   className="stroke-muted-foreground"
@@ -256,6 +279,25 @@ export function SeoTrendChart({
           </div>
         </div>
       </div>
+      {/* The marked days in words, so the lines need no pointer to read. */}
+      {model.changes.length ? (
+        <ul className="text-muted-foreground space-y-0.5 text-xs">
+          {model.changes.map((change) => (
+            <li key={change.date} className="flex gap-2">
+              <span
+                aria-hidden
+                className="border-foreground mt-1.5 h-0 w-3 shrink-0 border-t border-dashed"
+              />
+              <span>
+                {t("changeMarker", {
+                  day: day(change.date),
+                  changes: format.list(change.labels),
+                })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {model.inverted ? (
         <figcaption className="text-muted-foreground text-xs">
           {t("positionAxis")}

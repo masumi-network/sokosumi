@@ -8,6 +8,7 @@ import {
   invalidSeoStatisticsPeriod,
   latestSeoMeasurements,
   savedSeoStatistics,
+  seoChangeMarkers,
   seoCoverageIsNews,
   seoDefaultMetric,
   seoQueryPeriod,
@@ -162,5 +163,33 @@ describe("seoDefaultMetric", () => {
     expect(seoDefaultMetric([clicks, impressions]).id).toBe("clicks");
     const ratio = metric({ id: "ctr", unit: "ratio" });
     expect(seoDefaultMetric([ratio]).id).toBe("ctr");
+  });
+});
+
+describe("seoChangeMarkers", () => {
+  const item = (kind: "page_change" | "check", at: string, title: string) => ({
+    id: title,
+    kind,
+    title,
+    at: new Date(at),
+    pageIds: [],
+    observationId: null,
+    taskId: null,
+    status: "recorded",
+    detail: "",
+  });
+
+  it("marks recorded page changes on their day in the metric's time zone", () => {
+    const timeline = [
+      item("page_change", "2026-10-05T03:00:00Z", "New title"),
+      item("check", "2026-10-05T03:00:00Z", "Check finished"),
+    ];
+    // 03:00 UTC is still the evening before in California.
+    expect(seoChangeMarkers(timeline, "America/Los_Angeles")).toEqual([
+      { date: "2026-10-04", label: "New title" },
+    ]);
+    expect(seoChangeMarkers(timeline, "not_determined")).toEqual([
+      { date: "2026-10-05", label: "New title" },
+    ]);
   });
 });

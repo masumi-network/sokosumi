@@ -1,4 +1,7 @@
-import type { ProjectSeoMetric } from "@sokosumi/core-client";
+import type {
+  ProjectSeoMetric,
+  ProjectSeoWorkspace,
+} from "@sokosumi/core-client";
 import { seoStatisticsLostData } from "@sokosumi/utils";
 
 export const SEO_STATISTICS_PERIODS = [7, 28, 90] as const;
@@ -150,4 +153,28 @@ export function seoSearchTraffic(metrics: ProjectSeoMetric[]) {
         clicks,
         period: { from: search[0].from, to: reported.to },
       };
+}
+
+/**
+ * Recorded page changes as chart markers, each on its day in the metric's time
+ * zone, so a change lands on the same day as the measurements around it.
+ */
+export function seoChangeMarkers(
+  timeline: ProjectSeoWorkspace["timeline"],
+  timeZone: string,
+) {
+  const isoDay = { year: "numeric", month: "2-digit", day: "2-digit" } as const;
+  let day: Intl.DateTimeFormat;
+  try {
+    day = new Intl.DateTimeFormat("en-CA", { ...isoDay, timeZone });
+  } catch {
+    // A zone the browser does not know: UTC days, never a dropped marker.
+    day = new Intl.DateTimeFormat("en-CA", { ...isoDay, timeZone: "UTC" });
+  }
+  return timeline
+    .filter((item) => item.kind === "page_change")
+    .map((item) => ({
+      date: day.format(new Date(item.at)),
+      label: item.title,
+    }));
 }

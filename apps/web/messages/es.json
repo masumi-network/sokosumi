@@ -10682,7 +10682,8 @@
         "periodCompare": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous} ({change})",
         "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
         "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
-        "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio"
+        "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
+        "changeMarker": "Cambio registrado el {day}: {changes}"
       },
       "keywords": {
         "title": "Palabras clave seguidas",

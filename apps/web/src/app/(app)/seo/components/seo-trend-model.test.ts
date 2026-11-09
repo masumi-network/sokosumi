@@ -94,3 +94,30 @@ describe("seoTrendModel", () => {
       expect(value - ticks[index]).toBeGreaterThanOrEqual(0.001 - 1e-12);
   });
 });
+
+describe("change markers", () => {
+  const days = ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-05"].map(
+    (date) => ({ date, value: 1 }),
+  );
+
+  it("puts a change on its calendar day, merges one day's changes and drops days outside", () => {
+    const model = seoTrendModel(days, "position", [
+      { date: "2026-10-03", label: "New title" },
+      { date: "2026-10-03", label: "New description" },
+      { date: "2026-10-04", label: "Moved page" },
+      { date: "2026-09-30", label: "Before the chart" },
+    ]);
+    expect(model.changes).toEqual([
+      { date: "2026-10-03", labels: ["New title", "New description"], x: 50 },
+      // A day without a measurement still has its place on the calendar.
+      { date: "2026-10-04", labels: ["Moved page"], x: 75 },
+    ]);
+  });
+
+  it("centres a change in its day band for bars", () => {
+    const model = seoTrendModel(days, "count", [
+      { date: "2026-10-01", label: "Launch" },
+    ]);
+    expect(model.changes[0].x).toBe(10);
+  });
+});

@@ -10682,7 +10682,8 @@
         "periodCompare": "Previous {days, plural, one {day} other {# days}}: {previous} ({change})",
         "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
         "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
-        "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change"
+        "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
+        "changeMarker": "Recorded change on {day}: {changes}"
       },
       "keywords": {
         "title": "Tracked keywords",
