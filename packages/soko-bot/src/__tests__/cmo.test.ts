@@ -447,3 +447,18 @@ describe("CMO scenarios", () => {
     expect(result.checks.filter((check) => !check.pass)).toEqual([]);
   });
 });
+
+describe("Brand Brain research", () => {
+  it("looks for the brand's own story, prices on shop pages, and keeps sister brands out of competitors", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-brand-brain");
+    expect(skill?.content).toContain("What it is famous for");
+    expect(skill?.content).toContain("open one before you give up");
+    expect(skill?.content).toContain(
+      "(a sister brand), a supplier and a partner are never competitors",
+    );
+    expect(skill?.content).toContain(
+      "never a page title or a product name alone",
+    );
+  });
+});
