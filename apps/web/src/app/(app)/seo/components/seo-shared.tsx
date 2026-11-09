@@ -86,9 +86,11 @@ export function SeoEmpty({
 function seoUrlBreaks(url: string) {
   const parts: string[] = [];
   let current = "";
-  for (const char of url) {
+  const chars = [...url];
+  for (const [index, char] of chars.entries()) {
     current += char;
-    if (char === "/" || char === ".") {
+    // No break inside "//".
+    if (char === "." || (char === "/" && chars[index + 1] !== "/")) {
       parts.push(current);
       current = "";
     }

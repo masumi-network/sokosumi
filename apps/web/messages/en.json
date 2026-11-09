@@ -10701,7 +10701,7 @@
         "backlinks": "Backlinks",
         "domains": "Referring domains",
         "excluded": "This candidate cannot be confirmed.",
-        "help": "Pages that compete with yours for the same searches. “Compare with my page” asks the agent in the chat and changes nothing.",
+        "help": "Pages that compete with yours for the same searches. “Compare with my page” writes a question for the agent in the chat. Nothing is sent or changed until you send it.",
         "yourPage": "Your page",
         "compare": "Compare with my page",
         "compareDraft": "Compare my page with {url}. What does it do better for the same searches, and what should I change first?"

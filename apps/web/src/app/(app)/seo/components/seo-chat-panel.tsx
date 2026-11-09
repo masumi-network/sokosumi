@@ -154,6 +154,7 @@ export function SeoChatThread({
   inputId,
   className,
   latestOnly = false,
+  compactPrompts = false,
 }: {
   model: SeoWorkspaceModel;
   chat: Chat;
@@ -161,6 +162,8 @@ export function SeoChatThread({
   className?: string;
   /** Show only this visit's exchanges until the reader asks for earlier ones. */
   latestOnly?: boolean;
+  /** Below md, show only the first suggested prompt, so an inline chat does not push the page down. */
+  compactPrompts?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const [showAll, setShowAll] = useState(!latestOnly);
@@ -277,10 +280,9 @@ export function SeoChatThread({
               size="sm"
               variant="outline"
               // A long prompt wraps inside the panel instead of running past it on a phone.
-              // A phone keeps the first prompt, so the chat does not push Performance a screen down.
               className={cn(
                 "h-auto max-w-full py-1.5 text-start whitespace-normal",
-                index > 0 && "max-md:hidden",
+                compactPrompts && index > 0 && "max-md:hidden",
               )}
               disabled={chat.busy}
               onClick={() => {

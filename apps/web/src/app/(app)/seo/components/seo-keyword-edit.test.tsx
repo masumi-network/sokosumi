@@ -203,6 +203,34 @@ describe("Saved keyword edits", () => {
     },
   );
 
+  it("keeps the Priority column while a search leaves one row", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    // Enough keywords for the search field; one of them has another priority.
+    for (const index of Array.from({ length: 10 }, (_, i) => i))
+      workspace.keywords.push({
+        ...workspace.keywords[0],
+        id: `keyword-${index}`,
+        keyword: `Topic ${index}`,
+        priority: index === 0 ? "high" : "medium",
+      });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    await user.type(
+      screen.getByPlaceholderText("Filter queries and keywords"),
+      "Stablecoins",
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Topic 1")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("columnheader", { name: "Priority" }),
+    ).toBeInTheDocument();
+  });
+
   it("edits a saved keyword target and priority with the version shown when editing began", async () => {
     const user = userEvent.setup();
     const { workspace, pricingPage } = savedKeywordWorkspace();

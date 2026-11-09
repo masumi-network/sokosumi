@@ -242,9 +242,14 @@ describe("SEO timeline recovery", () => {
     ]);
     // The folded row names the days it spans, and each check says what it covered.
     expect(within(clean).getByText(/^Nov 2\W+4, 2026$/)).toBeVisible();
+    // The newest check's line names its time, like the earlier ones.
     expect(
       within(clean).getByText(
-        "Rule checks: 24 checked, 0 not checked, 0 unavailable",
+        (_, element) =>
+          element?.tagName === "P" &&
+          /^Nov 4, 2026.* · Rule checks: 24 checked, 0 not checked, 0 unavailable$/.test(
+            element.textContent ?? "",
+          ),
       ),
     ).toBeInTheDocument();
     expect(

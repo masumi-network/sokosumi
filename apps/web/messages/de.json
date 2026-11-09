@@ -10701,7 +10701,7 @@
         "backlinks": "Backlinks",
         "domains": "Verweisende Domains",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
-        "help": "Seiten, die mit deiner Seite um dieselben Suchen konkurrieren. „Mit meiner Seite vergleichen“ fragt den Agenten im Chat und ändert nichts.",
+        "help": "Seiten, die mit deiner Seite um dieselben Suchen konkurrieren. „Mit meiner Seite vergleichen“ schreibt eine Frage an den Agenten in den Chat. Nichts wird gesendet oder geändert, bis du sie sendest.",
         "yourPage": "Deine Seite",
         "compare": "Mit meiner Seite vergleichen",
         "compareDraft": "Vergleiche meine Seite mit {url}. Was macht sie bei denselben Suchanfragen besser, und was sollte ich zuerst ändern?"

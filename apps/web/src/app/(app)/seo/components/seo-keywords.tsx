@@ -42,8 +42,9 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
     intent: rows.some((row) => row.intent !== null),
     observed: rows.some((row) => row.observedAt !== null),
     source: rows.some((row) => row.observationId || row.source !== "saved"),
-    // The same priority on every row tells nothing; the edit dialog still sets it.
-    priority: new Set(rows.map((row) => row.priority)).size > 1,
+    // The same priority on every keyword tells nothing; the edit dialog still sets it.
+    // All keywords decide, so a search does not hide the column.
+    priority: new Set(model.data.keywords.map((row) => row.priority)).size > 1,
   };
   const hidden = [
     shown.volume ? null : t("keywords.volume"),

@@ -10701,7 +10701,7 @@
         "backlinks": "Enlaces entrantes",
         "domains": "Dominios de referencia",
         "excluded": "No se puede confirmar este candidato.",
-        "help": "Páginas que compiten con la tuya por las mismas búsquedas. «Comparar con mi página» pregunta al agente en el chat y no cambia nada.",
+        "help": "Páginas que compiten con la tuya por las mismas búsquedas. «Comparar con mi página» escribe una pregunta para el agente en el chat. No se envía ni cambia nada hasta que la envíes.",
         "yourPage": "Tu página",
         "compare": "Comparar con mi página",
         "compareDraft": "Compara mi página con {url}. ¿Qué hace mejor para las mismas búsquedas y qué debería cambiar primero?"

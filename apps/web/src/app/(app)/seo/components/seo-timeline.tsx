@@ -236,7 +236,7 @@ export function SeoTimeline({
                       <span className="text-muted-foreground text-xs">
                         {earlier.length ? (
                           // Folded checks name the days they span; one day keeps one date.
-                          <time dateTime={new Date(at).toISOString()}>
+                          <>
                             {format.dateTimeRange(
                               Math.min(
                                 ...earlier.map((check) =>
@@ -246,7 +246,7 @@ export function SeoTimeline({
                               new Date(at),
                               { dateStyle: "medium" },
                             )}
-                          </time>
+                          </>
                         ) : (
                           <SeoDate value={at} />
                         )}
@@ -304,7 +304,16 @@ export function SeoTimeline({
                             </p>
                           )}
                           {observation ? (
-                            <p>{coverageText(observation.coverage)}</p>
+                            <p>
+                              {/* A folded range hides the newest check's time; its line names it like the earlier ones. */}
+                              {earlier.length ? (
+                                <>
+                                  <SeoDate value={at} />
+                                  {" · "}
+                                </>
+                              ) : null}
+                              {coverageText(observation.coverage)}
+                            </p>
                           ) : null}
                           {observation ? (
                             <p>
@@ -317,8 +326,6 @@ export function SeoTimeline({
                               })}
                             </p>
                           ) : null}
-                          {/* The range hides the newest check's time; Details names it first. */}
-                          {earlier.length ? <SeoDate value={at} /> : null}
                           {earlier.map((check) => (
                             <p key={check.event.id}>
                               <SeoDate value={check.at} />

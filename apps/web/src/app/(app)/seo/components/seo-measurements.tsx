@@ -39,7 +39,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     visible.find((metric) => metric.id === chosenMetric) ??
     seoDefaultMetric(visible);
   const compared = seoWeekOverWeek(visible);
-  // Google reports a few days late; the period names the days that have data, for every shown metric.
+  // Google reports a few days late, so the period ends on the last reported day. It starts where the
+  // read starts, because Google leaves quiet days out; the agent card and search queries do the same.
   const reported = seoReportedPeriod(visible);
   const canSync = workspace.availableActions.canSyncMetrics;
   function label(metric: ProjectSeoMetric) {
@@ -140,11 +141,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         active ? (
           <>
             {t(`statistics.${active.source}`)} ·{" "}
-            <SeoPeriod
-              from={reported?.from ?? active.from}
-              to={reported?.to ?? active.to}
-            />{" "}
-            ·{" "}
+            <SeoPeriod from={active.from} to={reported?.to ?? active.to} /> ·{" "}
             {t(
               active.channel === "organic"
                 ? "statistics.channelOrganic"
@@ -212,7 +209,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   {/* A rate or an average says how many impressions it rests on. */}
                   {(metric.key === "ctr" || metric.key === "position") &&
                   totalImpressions !== null &&
-                  metric.value !== null ? (
+                  metric.value !== null &&
+                  metric.coverage !== "unavailable" ? (
                     <span className="text-muted-foreground text-xs font-normal">
                       {t("overview.basedOn", { count: totalImpressions })}
                     </span>

@@ -159,6 +159,7 @@ function AgentConversation({
         chat={chat}
         inputId={SEO_AGENT_INPUT_ID}
         latestOnly
+        compactPrompts
         className="max-h-[40rem] flex-1"
       />
     </div>
