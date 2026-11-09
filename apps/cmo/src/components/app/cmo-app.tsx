@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChartLine,
   type LucideIcon,
+  Mail,
   MessageSquare,
   PanelRight,
   Settings,
@@ -30,6 +31,7 @@ import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
+import { NewsletterPage } from "../newsletter-page";
 import { ThemeToggle } from "../theme-toggle";
 import { CalendarPage } from "./calendar-page";
 import {
@@ -73,6 +75,7 @@ const VIEWS = [
   ["chat", "Cuso", MessageSquare],
   ["strategy", "Strategy", Target],
   ["calendar", "Calendar", CalendarDays],
+  ["newsletter", "Newsletter", Mail],
   ["results", "Results", ChartLine],
   ["brain", "Brand Brain", Brain],
   ["channels", "Channels", Share2],
@@ -537,6 +540,15 @@ export function CmoApp({
                     setOverview(await actions.approveStrategy(versionId))
                   }
                 />
+              ) : view === "newsletter" ? (
+                <NewsletterPage
+                  key={overview.projectId}
+                  overview={overview}
+                  webOrigin={webOriginOf(overview)}
+                  draft={() =>
+                    compose("Draft a newsletter issue for this project.")
+                  }
+                />
               ) : view === "results" ? (
                 <ResultsPage
                   overview={overview}
@@ -563,6 +575,7 @@ export function CmoApp({
                 <ChannelsPage
                   overview={overview}
                   compose={compose}
+                  openNewsletter={() => go("newsletter")}
                   connect={actions.connectChannel}
                   connectAds={actions.connectAds}
                   connectFailed={connectFailed}

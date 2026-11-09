@@ -486,6 +486,7 @@ describe("pages", () => {
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
+        openNewsletter={() => {}}
       />,
     );
     expect(html).toContain("@acme");
@@ -499,6 +500,7 @@ describe("pages", () => {
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
+        openNewsletter={() => {}}
       />,
     );
     expect(html).toContain("Ad accounts");

@@ -47,7 +47,7 @@ import { redirect } from "next/navigation";
 
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
-import { coreForCurrentUser } from "../lib/core";
+import { errorText } from "../lib/error-text";
 import {
   readSkippedSteps,
   SKIPPED_STEPS_MAX_AGE,
@@ -55,12 +55,7 @@ import {
   skippedStepsCookie,
   withSkippedSteps,
 } from "../lib/skipped-steps";
-
-async function requireCore() {
-  const core = await coreForCurrentUser();
-  if (!core) throw new Error("Not signed in to Sokosumi");
-  return core;
-}
+import { inCusoWorkspace, requireCore } from "../lib/workspace-options";
 
 async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
   const cookie = (await cookies()).get(skippedStepsCookie(projectId));
@@ -354,12 +349,6 @@ export async function sendMessage(content: string): Promise<void> {
   if (error) throw new Error("Could not send the message");
 }
 
-function errorText(error: unknown, fallback: string): string {
-  return error && typeof error === "object" && "message" in error
-    ? String((error as { message: unknown }).message)
-    : fallback;
-}
-
 /**
  * Asks Cuso for the strategy, or for a change to it. Returns the overview
  * with his new work running, or why it could not start.
@@ -476,25 +465,6 @@ async function callbackUrl(path = "/connect/callback"): Promise<string> {
     requestHeaders.get("x-forwarded-proto") ??
     (host?.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}${path}`;
-}
-
-/**
- * Request options in Cuso's workspace for the standard routes, which find an
- * organization's Project and contacts only with its slug header.
- */
-async function inCusoWorkspace(
-  overview: Pick<CmoOverview, "organizationSlug">,
-) {
-  const core = await requireCore();
-  return {
-    ...core,
-    headers: {
-      ...core.headers,
-      ...(overview.organizationSlug
-        ? { "x-organization-slug": overview.organizationSlug }
-        : {}),
-    },
-  };
 }
 
 /**

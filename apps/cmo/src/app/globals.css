@@ -3811,3 +3811,10 @@ a.rv-dot {
 .sheet-steps .note {
   white-space: nowrap;
 }
+
+.newsletter-preview {
+  width: 100%;
+  min-height: 480px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}

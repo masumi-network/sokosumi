@@ -3981,7 +3981,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdSubmit = <ThrowOnError ext
 });
 
 /**
- * Approve a newsletter issue using its current revision. Requires a human interactive session.
+ * Approve a newsletter issue using its current revision. Requires a human browser session or first-party OAuth token.
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdApproveData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdApproveResponses, PostProjectsByIdNewsletterIssuesByIssueIdApproveErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdApproveResponses, PostProjectsByIdNewsletterIssuesByIssueIdApproveErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdApproveResponseTransformer,
@@ -3994,7 +3994,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdApprove = <ThrowOnError ex
 });
 
 /**
- * Schedule a newsletter issue using its current revision. Requires a human interactive session.
+ * Schedule a newsletter issue using its current revision. Requires a human browser session or first-party OAuth token.
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdSchedule = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdScheduleData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdScheduleResponses, PostProjectsByIdNewsletterIssuesByIssueIdScheduleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdScheduleResponses, PostProjectsByIdNewsletterIssuesByIssueIdScheduleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdScheduleResponseTransformer,
@@ -4020,7 +4020,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdSendNow = <ThrowOnError ex
 });
 
 /**
- * Cancel a newsletter issue using its current revision. Requires a human interactive session.
+ * Cancel a newsletter issue using its current revision. Requires a human browser session or first-party OAuth token.
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdCancelData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses, PostProjectsByIdNewsletterIssuesByIssueIdCancelErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses, PostProjectsByIdNewsletterIssuesByIssueIdCancelErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdCancelResponseTransformer,

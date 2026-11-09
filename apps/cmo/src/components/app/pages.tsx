@@ -157,10 +157,7 @@ export type ConnectChannel = (
   provider: Provider,
 ) => Promise<{ url: string | null; error: string | null }>;
 
-const COMING_SOON = [
-  ["Website / SEO", "Articles"],
-  ["Newsletter", "Email"],
-] as const;
+const COMING_SOON = [["Website / SEO", "Articles"]] as const;
 
 const AD_PROVIDERS = [
   ["google_ads", "Google Ads"],
@@ -171,10 +168,12 @@ export function ChannelsPage({
   overview,
   connect,
   connectAds,
+  openNewsletter,
   connectFailed = false,
 }: PageProps & {
   connect: ConnectChannel;
   connectAds: AdActions["connectAds"];
+  openNewsletter: () => void;
   connectFailed?: boolean;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
@@ -277,6 +276,19 @@ export function ChannelsPage({
             </li>
           ))}
         </ul>
+      </section>
+      <section className="panel">
+        <h3>Email</h3>
+        <div className="crow">
+          <b className="grow">Newsletter</b>
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={openNewsletter}
+          >
+            Open Newsletter
+          </button>
+        </div>
       </section>
       <section className="panel">
         <h3>Coming soon</h3>
