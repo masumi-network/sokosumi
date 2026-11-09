@@ -2,6 +2,7 @@
 
 import {
   getContactLists,
+  getContacts,
   getNewsletterAvailability,
   getProjectsByIdNewsletter,
   getProjectsByIdNewsletterIssues,
@@ -77,20 +78,51 @@ export async function loadNewsletter(projectId: string) {
 
 export async function subscribeNewsletterContacts(
   projectId: string,
-  listId: string,
+  selection: { source: "list" | "contact"; id: string },
   consent: string,
 ) {
   if (consent !== "CONFIRMED" && consent !== "ASK") {
     return { error: "Choose how to confirm consent." };
   }
+  const { source, id } = selection;
+  if (!id || (source !== "list" && source !== "contact")) {
+    return { error: "Choose a contact or a list." };
+  }
   const options = await newsletterProject(projectId);
   const { data, error } =
     await postProjectsByIdNewsletterSubscribersFromContacts({
       ...options,
-      body: { listIds: [listId], consent },
+      body: {
+        ...(source === "list" ? { listIds: [id] } : { contactIds: [id] }),
+        consent,
+      },
     });
   if (!data) return { error: errorText(error, "Could not add subscribers.") };
   return { result: data.data };
+}
+
+export async function searchNewsletterContacts(
+  projectId: string,
+  query: string,
+) {
+  const search = query.trim();
+  if (!search) return [];
+  const { path: _, ...options } = await newsletterProject(projectId);
+  const { data } = await getContacts({
+    ...options,
+    query: { search, sort: "name", direction: "asc", limit: 20 },
+  });
+  if (!data) throw new Error("Could not search contacts");
+
+  return data.data.map(({ id, name, channels }) => ({
+    id,
+    name,
+    email:
+      channels.find((channel) => channel.type === "EMAIL" && channel.isPrimary)
+        ?.value ??
+      channels.find((channel) => channel.type === "EMAIL")?.value ??
+      null,
+  }));
 }
 
 interface CalendarDraftCursors {

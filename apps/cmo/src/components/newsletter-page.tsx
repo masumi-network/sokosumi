@@ -8,6 +8,7 @@ import {
   loadNewsletter,
   prepareCalendarIssue,
   previewNewsletterIssue,
+  searchNewsletterContacts,
   subscribeNewsletterContacts,
 } from "../app/newsletter-actions";
 import { businessDisplayName } from "./business-mark";
@@ -27,6 +28,7 @@ const STATUS = {
 
 type Newsletter = Awaited<ReturnType<typeof loadNewsletter>>;
 type Preview = Awaited<ReturnType<typeof previewNewsletterIssue>>;
+type ContactMatches = Awaited<ReturnType<typeof searchNewsletterContacts>>;
 
 export interface NewsletterCalendarDraft {
   entryId: string;
@@ -58,7 +60,10 @@ export function NewsletterPage({
   const [opening, startOpening] = useTransition();
   const [message, setMessage] = useState("");
   const [contactError, setContactError] = useState<string | null>(null);
-  const [listId, setListId] = useState("");
+  const [audience, setAudience] = useState("");
+  const [query, setQuery] = useState("");
+  const [matches, setMatches] = useState<ContactMatches | null>(null);
+  const [searchError, setSearchError] = useState(false);
   const previewButton = useRef<HTMLButtonElement>(null);
 
   const reload = useCallback(async () => {
@@ -74,6 +79,19 @@ export function NewsletterPage({
     void reload();
   }, [reload]);
 
+  async function searchContacts(formData: FormData) {
+    const search = formData.get("query");
+    if (typeof search !== "string" || !search.trim()) return;
+    setAudience("");
+    setMatches(null);
+    setSearchError(false);
+    try {
+      setMatches(await searchNewsletterContacts(projectId, search));
+    } catch {
+      setSearchError(true);
+    }
+  }
+
   async function subscribe(formData: FormData) {
     setMessage("");
     setContactError(null);
@@ -82,10 +100,15 @@ export function NewsletterPage({
       setContactError("Choose how to confirm consent.");
       return;
     }
+    const [source, id] = audience.split(":");
+    if (!id || (source !== "list" && source !== "contact")) {
+      setContactError("Choose a contact or a list.");
+      return;
+    }
     try {
       const { error, result } = await subscribeNewsletterContacts(
         projectId,
-        listId,
+        { source, id },
         consent,
       );
       if (error || !result) {
@@ -103,6 +126,7 @@ export function NewsletterPage({
       setMessage(
         `${added - pendingConfirmation} added, ${pendingConfirmation} awaiting confirmation, ${alreadySubscribed} already on the newsletter. ${skippedNoEmail + skippedUnsubscribed + skippedBounced} skipped due to a missing email, an unsubscribe or a bounce.`,
       );
+      setAudience("");
     } catch {
       setContactError(
         "Could not finish adding subscribers. Some contacts may have been added.",
@@ -247,28 +271,62 @@ export function NewsletterPage({
           awaiting confirmation
         </p>
         <p className="note">
-          Add an existing Contacts list. Contacts who unsubscribed or bounced
-          stay off the mailing list.
+          Add a contact or a list from this workspace. Contacts who unsubscribed
+          or bounced stay off the mailing list.
         </p>
-        {newsletter.lists.length ? (
+        <form className="fields" action={searchContacts}>
+          <FormField
+            id="newsletter-contact-search"
+            name="query"
+            label="Find a contact by name or email"
+            type="search"
+            maxLength={200}
+            required
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <div>
+            <SubmitButton className={BUTTON}>Search contacts</SubmitButton>
+          </div>
+        </form>
+        {searchError ? (
+          <p role="alert">Could not search contacts. Try again.</p>
+        ) : null}
+        {matches?.length === 0 ? (
+          <p role="status">No matching contacts.</p>
+        ) : null}
+        {newsletter.lists.length || matches?.length ? (
           <form className="fields" action={subscribe}>
             <div className="field">
-              <label htmlFor="newsletter-contact-list">Contacts list</label>
+              <label htmlFor="newsletter-audience">Who to add</label>
               <select
-                id="newsletter-contact-list"
+                id="newsletter-audience"
                 required
-                value={listId}
-                onChange={(event) => setListId(event.target.value)}
+                value={audience}
+                onChange={(event) => setAudience(event.target.value)}
               >
-                <option value="">Choose a list</option>
-                {newsletter.lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name} ({list.count})
-                  </option>
-                ))}
+                <option value="">Choose a contact or list</option>
+                {newsletter.lists.length ? (
+                  <optgroup label="Contacts lists">
+                    {newsletter.lists.map((list) => (
+                      <option key={list.id} value={`list:${list.id}`}>
+                        {list.name} ({list.count})
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {matches?.length ? (
+                  <optgroup label="Matching contacts">
+                    {matches.map(({ id, name, email }) => (
+                      <option key={id} value={`contact:${id}`}>
+                        {name} · {email ?? "No email"}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
             </div>
-            <fieldset>
+            <fieldset key={audience}>
               <legend>Newsletter consent</legend>
               <div>
                 <label>
@@ -278,7 +336,7 @@ export function NewsletterPage({
                     name="consent"
                     value="CONFIRMED"
                   />{" "}
-                  Everyone on this list has agreed to receive this newsletter.
+                  Everyone selected has agreed to receive this newsletter.
                 </label>
               </div>
               <div>
@@ -293,12 +351,7 @@ export function NewsletterPage({
               <SubmitButton className={BUTTON}>Add from Contacts</SubmitButton>
             </div>
           </form>
-        ) : (
-          <p>
-            No contact lists yet. Create a list in your workspace’s Contacts in
-            Sokosumi.
-          </p>
-        )}
+        ) : null}
         {message ? <p role="status">{message}</p> : null}
       </section>
 

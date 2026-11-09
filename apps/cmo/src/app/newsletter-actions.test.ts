@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadOverview = vi.fn();
+const getContacts = vi.fn();
 const getNewsletterAvailability = vi.fn();
 const getProjectsByIdNewsletter = vi.fn();
 const getProjectsByIdNewsletterIssues = vi.fn();
@@ -17,6 +18,7 @@ vi.mock("../lib/core", () => ({
   }),
 }));
 vi.mock("@sokosumi/core-client", () => ({
+  getContacts,
   getNewsletterAvailability,
   getProjectsByIdNewsletter,
   getProjectsByIdNewsletterIssues,
@@ -32,6 +34,7 @@ const {
   loadCalendarDrafts,
   loadNewsletter,
   previewNewsletterIssue,
+  searchNewsletterContacts,
   subscribeNewsletterContacts,
 } = await import("./newsletter-actions");
 
@@ -97,19 +100,31 @@ describe("CMO newsletter", () => {
     });
 
     expect(
-      await subscribeNewsletterContacts("project-1", "list-1", ""),
+      await subscribeNewsletterContacts(
+        "project-1",
+        { source: "list", id: "list-1" },
+        "",
+      ),
     ).toEqual({
       error: "Choose how to confirm consent.",
     });
     await expect(
-      subscribeNewsletterContacts("stale-project", "list-1", "CONFIRMED"),
+      subscribeNewsletterContacts(
+        "stale-project",
+        { source: "list", id: "list-1" },
+        "CONFIRMED",
+      ),
     ).rejects.toThrow("active business");
     expect(
       postProjectsByIdNewsletterSubscribersFromContacts,
     ).not.toHaveBeenCalled();
 
     expect(
-      await subscribeNewsletterContacts("project-1", "list-1", "ASK"),
+      await subscribeNewsletterContacts(
+        "project-1",
+        { source: "list", id: "list-1" },
+        "ASK",
+      ),
     ).toEqual({ result });
     expect(
       postProjectsByIdNewsletterSubscribersFromContacts,
@@ -117,6 +132,59 @@ describe("CMO newsletter", () => {
       expect.objectContaining({
         ...project,
         body: { listIds: ["list-1"], consent: "ASK" },
+      }),
+    );
+  });
+
+  it("finds an individual in the active workspace and subscribes only that contact", async () => {
+    getContacts.mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: "contact-1",
+            name: "Pilot Reader",
+            channels: [
+              {
+                type: "EMAIL",
+                value: "secondary@example.test",
+                isPrimary: false,
+              },
+              { type: "EMAIL", value: "pilot@example.test", isPrimary: true },
+            ],
+          },
+        ],
+      },
+    });
+    await expect(
+      searchNewsletterContacts("stale-project", "Pilot"),
+    ).rejects.toThrow("active business");
+    expect(getContacts).not.toHaveBeenCalled();
+    expect(await searchNewsletterContacts("project-1", " Pilot ")).toEqual([
+      { id: "contact-1", name: "Pilot Reader", email: "pilot@example.test" },
+    ]);
+    expect(getContacts).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        headers: project.headers,
+        query: { search: "Pilot", sort: "name", direction: "asc", limit: 20 },
+      }),
+    );
+    const result = { added: 1, pendingConfirmation: 0 };
+    postProjectsByIdNewsletterSubscribersFromContacts.mockResolvedValue({
+      data: { data: result },
+    });
+    await expect(
+      subscribeNewsletterContacts(
+        "project-1",
+        { source: "contact", id: "contact-1" },
+        "CONFIRMED",
+      ),
+    ).resolves.toEqual({ result });
+    expect(
+      postProjectsByIdNewsletterSubscribersFromContacts,
+    ).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        ...project,
+        body: { contactIds: ["contact-1"], consent: "CONFIRMED" },
       }),
     );
   });
