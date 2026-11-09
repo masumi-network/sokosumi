@@ -4,9 +4,6 @@ import type {
   SokoBotAvatarState,
   SokoBotAvatarView,
 } from "@sokosumi/core-client";
-import { Pencil } from "lucide-react";
-import Link from "next/link";
-import { useTranslations } from "next-intl";
 
 import { AuroraOrb } from "@/components/aurora-orb";
 import { AvatarLoop } from "@/components/soko-bot/avatar-loop";
@@ -22,8 +19,6 @@ interface BotProfileAvatarProps {
   imageUrl: string | null;
   avatar: SokoBotAvatarView | null;
   state: SokoBotAvatarState;
-  /** The studio; null when the viewer cannot change this avatar. */
-  editHref: string | null;
 }
 
 export function BotProfileAvatar({
@@ -32,9 +27,7 @@ export function BotProfileAvatar({
   imageUrl,
   avatar,
   state,
-  editHref,
 }: BotProfileAvatarProps) {
-  const t = useTranslations("App.SokoBot.Avatar");
   const { alt } = useAvatarStateCopy();
   const [playing, stop] = usePlayOnce(state, true);
   const sources = avatarSources(avatar, state, imageUrl);
@@ -55,15 +48,6 @@ export function BotProfileAvatar({
           <AuroraOrb seed={seed} size={368} alt={name} className="size-full" />
         )}
       </div>
-      {editHref ? (
-        <Link
-          href={editHref}
-          aria-label={t("edit")}
-          className="bg-background border-border hover:bg-accent focus-visible:ring-ring absolute right-0.5 bottom-0.5 flex size-10 items-center justify-center rounded-full border outline-none focus-visible:ring-2"
-        >
-          <Pencil aria-hidden className="size-4" />
-        </Link>
-      ) : null}
     </div>
   );
 }

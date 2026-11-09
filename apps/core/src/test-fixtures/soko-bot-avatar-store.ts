@@ -141,6 +141,15 @@ export function createSokoBotAvatarStore() {
   };
 
   const sokoBot = {
+    async findUnique(args: {
+      where: Where & { id: string };
+      select?: Record<string, boolean>;
+    }) {
+      const bot = bots.get(args.where.id);
+      if (!bot) return null;
+      const row = { ...bot, id: args.where.id };
+      return matchesWhere(row, args.where) ? project(row, args.select) : null;
+    },
     async update(args: {
       where: { id: string };
       data: Record<string, unknown>;

@@ -9733,7 +9733,6 @@
         "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
         "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal.",
-        "edit": "Bild bearbeiten",
         "Studio": {
           "metadata": "Bild-Studio",
           "back": "Zurück zu {name}",

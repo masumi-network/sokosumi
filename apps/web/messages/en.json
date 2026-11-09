@@ -9733,7 +9733,6 @@
         "pictures": "Pictures",
         "loadError": "Could not load pictures.",
         "rateLimited": "Too many new pictures requested. Try again later.",
-        "edit": "Edit avatar",
         "Studio": {
           "metadata": "Avatar studio",
           "back": "Back to {name}",

@@ -1,5 +1,11 @@
 import type { SokoBotAvatarView } from "@sokosumi/core-client";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { useContext } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,8 +44,9 @@ vi.mock("sonner", () => ({
 vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: (...a: unknown[]) => ensureRoomMock(...a),
 }));
+const claimAvatarMock = vi.fn();
 vi.mock("@/lib/actions/soko-bot/action", () => ({
-  claimSokoBotAvatarAction: vi.fn(),
+  claimSokoBotAvatarAction: (...a: unknown[]) => claimAvatarMock(...a),
 }));
 vi.mock("../chat/use-soko-bot-state", () => ({
   useSokoBotState: (...a: unknown[]) => useStateMock(...a),
@@ -67,7 +74,21 @@ vi.mock("../skills-section.client", () => ({
   SkillsSection: () => <span data-testid="skills" />,
 }));
 vi.mock("../avatar-picker.client", () => ({
-  AvatarPicker: () => <span data-testid="avatar" />,
+  AvatarPicker: ({
+    onChange,
+  }: {
+    onChange: (avatar: { id: string; imageUrl: string }) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="avatar"
+      onClick={() =>
+        onChange({ id: "avatar-7", imageUrl: "https://blob/avatar-7.png" })
+      }
+    >
+      pick avatar-7
+    </button>
+  ),
 }));
 vi.mock("../schedule-form.client", () => ({
   ScheduleForm: () => <TargetProbe name="schedule" />,
@@ -202,6 +223,16 @@ describe("SokoBotConsole", () => {
     expect(screen.getByTestId("avatar")).toBeInTheDocument();
     expect(screen.getByTestId("archive")).toHaveTextContent("own");
     expect(screen.getByText("Settings.archiveDescription")).toBeInTheDocument();
+  });
+
+  it("changes the own bot's avatar to the one picked in the console", async () => {
+    claimAvatarMock.mockResolvedValue({ ok: true });
+    renderConsole({ botId: null, sharedRoomId: null });
+    fireEvent.click(screen.getByRole("button", { name: "pick avatar-7" }));
+    fireEvent.click(screen.getByRole("button", { name: "Avatar.save" }));
+    await waitFor(() =>
+      expect(claimAvatarMock).toHaveBeenCalledWith({ avatarId: "avatar-7" }),
+    );
   });
 
   it("opens a shared bot's room instead of a direct room", () => {
@@ -413,24 +444,11 @@ describe("SokoBotConsole header portrait", () => {
     ).toBeNull();
   });
 
-  it("links the Edit avatar badge to the studio for someone who can manage the bot", () => {
+  it("offers no way to the avatar studio, own bot or shared", () => {
     renderConsole({ canManage: true });
-    expect(screen.getByRole("link", { name: "edit" })).toHaveAttribute(
-      "href",
-      `/soko-bots/${BOT_ID}/avatar`,
-    );
-  });
-
-  it("links the studio of one's own bot under the assistant route", () => {
+    expect(screen.queryByRole("link", { name: "edit" })).toBeNull();
+    cleanup();
     renderConsole({ botId: null, sharedRoomId: null });
-    expect(screen.getByRole("link", { name: "edit" })).toHaveAttribute(
-      "href",
-      "/personal-assistant/avatar",
-    );
-  });
-
-  it("hides the Edit avatar badge from a member who cannot manage the bot", () => {
-    renderConsole({ canManage: false });
     expect(screen.queryByRole("link", { name: "edit" })).toBeNull();
   });
 });

@@ -9733,7 +9733,6 @@
         "pictures": "Imágenes",
         "loadError": "No se pudieron cargar las imágenes.",
         "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde.",
-        "edit": "Editar imagen",
         "Studio": {
           "metadata": "Estudio de imagen",
           "back": "Volver a {name}",

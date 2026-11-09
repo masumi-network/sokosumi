@@ -43,10 +43,7 @@ import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import { avatarSources } from "@/lib/soko-bot/avatar";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
-import {
-  sokoBotAvatarStudioRoute,
-  sokoBotConsoleRoute,
-} from "@/lib/soko-bot/constants";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
 import type { BotAdAccount } from "@/lib/soko-bot/load-bot-ad-accounts";
 import { cn } from "@/lib/utils";
@@ -320,7 +317,6 @@ export function SokoBotConsole({
                 imageUrl={bot.avatarImageUrl}
                 avatar={bot.avatar}
                 state={bot.avatarState}
-                editHref={canManage ? sokoBotAvatarStudioRoute(botId) : null}
               />
               <div className="flex flex-col items-center gap-2">
                 <div className="flex flex-wrap items-center justify-center gap-2.5">
