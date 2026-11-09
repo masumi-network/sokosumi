@@ -2,7 +2,8 @@ export const SOKO_BOT_AVATAR_BLOB_DIR = "soko-bots/avatars";
 export const SOKO_BOT_AVATAR_LEGACY_BLOB_DIR = "soko-bot-avatars";
 /**
  * Original-style avatars the top-up draws. Their own prefix keeps them apart
- * from the crafted `.webp` files directly under `soko-bots/avatars/`, which
+ * from the crafted-style avatars' `.webp` files directly under
+ * `soko-bots/avatars/`, which
  * `scripts/delete-crafted-style-soko-bot-avatar-blobs.mts` deletes.
  */
 export const SOKO_BOT_AVATAR_ORIGINAL_BLOB_DIR = `${SOKO_BOT_AVATAR_BLOB_DIR}/original`;
@@ -14,12 +15,15 @@ export function buildOriginalSokoBotAvatarBlobPathname(
   return `${SOKO_BOT_AVATAR_ORIGINAL_BLOB_DIR}/${key}-${sha256Hex.slice(0, 12)}.webp`;
 }
 
-/** Where the crafted pipeline kept its own ffmpeg build (ADR 0064 removed it). */
+/**
+ * Where the crafted-style avatar pipeline kept its own ffmpeg build (ADR 0064
+ * removed it).
+ */
 export const SOKO_BOT_AVATAR_FFMPEG_BLOB_DIR = "vendor/ffmpeg-static";
 
 /**
- * A blob the crafted style left behind: a still (`.webp`) or loop (`.mp4`)
- * directly under `soko-bots/avatars/`, or the vendored ffmpeg copy
+ * A blob crafted-style avatars left behind: a still (`.webp`) or loop
+ * (`.mp4`) directly under `soko-bots/avatars/`, or the vendored ffmpeg copy
  * (`vendor/ffmpeg-static/<version>/ffmpeg-<build>.gz`).
  * Never a `.png` (original-style avatars) and never a subfolder such as
  * `soko-bots/avatars/original/`.

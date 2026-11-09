@@ -63,7 +63,7 @@ describe("soko-bot avatar blob path", () => {
 });
 
 describe("crafted-style avatar blob cleanup selection", () => {
-  it("selects crafted stills and loops directly under soko-bots/avatars/", () => {
+  it("selects crafted-style avatar stills and loops directly under soko-bots/avatars/", () => {
     for (const pathname of [
       `soko-bots/avatars/owl-3-${HASH12}.webp`,
       `soko-bots/avatars/draft-0190a1b2-${HASH12}.webp`,
