@@ -260,9 +260,17 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
             </p>
           ) : null}
           <div className="space-y-3">
-            <p className="text-sm font-medium">
-              {t("overview.perDay", { metric: label(active) })}
-            </p>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <p className="text-sm font-medium">
+                {t("overview.perDay", { metric: label(active) })}
+              </p>
+              {/* The tiles are the chart's switch; say so, since they read as plain numbers. */}
+              {visible.length > 1 ? (
+                <p className="text-muted-foreground text-xs">
+                  {t("overview.pickTile")}
+                </p>
+              ) : null}
+            </div>
             {active.points.length ? (
               <SeoTrendChart
                 key={active.id}

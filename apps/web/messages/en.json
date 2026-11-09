@@ -10655,7 +10655,8 @@
         "weekWorse": "{period}: {current} · week before: {previous}, worse",
         "reportDelay": "Google reports search data a few days late.",
         "basedOn": "From {count, plural, one {# impression} other {# impressions}}",
-        "tooFewToCompareRates": "Too few impressions to compare weeks for click-through rate and average position."
+        "tooFewToCompareRates": "Too few impressions to compare weeks for click-through rate and average position.",
+        "pickTile": "Select a number above to chart it."
       },
       "keywords": {
         "title": "Tracked keywords",
