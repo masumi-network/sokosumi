@@ -179,6 +179,30 @@ describe("Saved keyword edits", () => {
     expect(viewers).toEqual([]);
   });
 
+  it.each([
+    ["medium", false],
+    ["high", true],
+  ] as const)(
+    "shows the Priority column only when the rows differ (second row %s)",
+    (priority, shown) => {
+      const { workspace } = savedKeywordWorkspace();
+      workspace.keywords.push({
+        ...workspace.keywords[0],
+        id: "second-keyword",
+        keyword: "Payments",
+        priority,
+      });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace);
+      expect(
+        screen.queryByRole("columnheader", { name: "Priority" }) !== null,
+      ).toBe(shown);
+    },
+  );
+
   it("edits a saved keyword target and priority with the version shown when editing began", async () => {
     const user = userEvent.setup();
     const { workspace, pricingPage } = savedKeywordWorkspace();

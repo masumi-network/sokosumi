@@ -42,6 +42,8 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
     intent: rows.some((row) => row.intent !== null),
     observed: rows.some((row) => row.observedAt !== null),
     source: rows.some((row) => row.observationId || row.source !== "saved"),
+    // The same priority on every row tells nothing; the edit dialog still sets it.
+    priority: new Set(rows.map((row) => row.priority)).size > 1,
   };
   const hidden = [
     shown.volume ? null : t("keywords.volume"),
@@ -102,7 +104,9 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                   {shown.intent ? (
                     <TableHead>{t("keywords.intent")}</TableHead>
                   ) : null}
-                  <TableHead>{t("keywords.priority")}</TableHead>
+                  {shown.priority ? (
+                    <TableHead>{t("keywords.priority")}</TableHead>
+                  ) : null}
                   {shown.observed ? (
                     <TableHead>{t("observed")}</TableHead>
                   ) : null}
@@ -240,9 +244,11 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                           {row.intent ?? t("none")}
                         </TableCell>
                       ) : null}
-                      <TableCell data-label={t("keywords.priority")}>
-                        {t(`priority.${row.priority}`)}
-                      </TableCell>
+                      {shown.priority ? (
+                        <TableCell data-label={t("keywords.priority")}>
+                          {t(`priority.${row.priority}`)}
+                        </TableCell>
+                      ) : null}
                       {shown.observed ? (
                         <TableCell data-label={t("observed")}>
                           <SeoDate value={row.observedAt} />
