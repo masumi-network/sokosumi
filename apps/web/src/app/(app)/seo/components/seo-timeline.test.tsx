@@ -267,6 +267,63 @@ describe("SEO timeline recovery", () => {
     expect(within(issues).getByText("3 issues found")).toBeVisible();
   });
 
+  it("leaves out an empty device list and names an earlier check's own optional count", () => {
+    const workspace = seoTestWorkspace();
+    const check = (id: string, day: number, notRequested: number) => ({
+      id,
+      kind: "page_check",
+      source: "agent",
+      observedAt: new Date(`2026-11-0${day}T10:00:00Z`),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 0,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: [],
+      rulebookVersion: "test-rules",
+      artifactHash: id,
+      issues: 0,
+      coverage: {
+        checked: 12,
+        skipped: 0,
+        failed: 0,
+        modules: { notRequested, failed: 0 },
+      },
+    });
+    workspace.observations = [check("older", 2, 3), check("newer", 3, 0)];
+    workspace.timeline = workspace.observations.map((observation) => ({
+      id: observation.id,
+      kind: "check",
+      title: "SEO check results imported",
+      status: "completed",
+      detail: "",
+      at: observation.observedAt,
+      pageIds: observation.pageIds,
+      taskId: null,
+      observationId: observation.id,
+    }));
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("12 rules checked · 1 page")).toBeVisible();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          /^Nov 2, 2026.* · 12 rules checked · 3 optional checks not requested$/.test(
+            element.textContent ?? "",
+          ),
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("keeps clean checks for another market as their own rows", () => {
     const workspace = seoTestWorkspace();
     const check = (id: string, day: number, countryCode: string) => ({

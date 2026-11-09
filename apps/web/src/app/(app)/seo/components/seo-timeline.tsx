@@ -262,12 +262,13 @@ export function SeoTimeline({
                           checked: observation.coverage.checked,
                         })}
                         {/* Devices tell rows with another rule count apart. */}
-                        {" · "}
-                        {format.list(
-                          observation.devices.map((device) =>
-                            t(`analysis.${device}`),
-                          ),
-                        )}
+                        {observation.devices.length
+                          ? ` · ${format.list(
+                              observation.devices.map((device) =>
+                                t(`analysis.${device}`),
+                              ),
+                            )}`
+                          : ""}
                         {" · "}
                         {t("pages.count", {
                           count: observation.pageIds.length,
@@ -341,6 +342,14 @@ export function SeoTimeline({
                               <SeoDate value={check.at} />
                               {check.observation
                                 ? ` · ${coverageText(check.observation.coverage)}`
+                                : ""}
+                              {/* Folding ignores optional checks; name a count that differs from the newest. */}
+                              {check.observation?.coverage.modules
+                                ?.notRequested &&
+                              check.observation.coverage.modules
+                                .notRequested !==
+                                observation?.coverage.modules?.notRequested
+                                ? ` · ${t("timeline.optionalNotRequested", { count: check.observation.coverage.modules.notRequested })}`
                                 : ""}
                               {check.event.taskId ? (
                                 <>
