@@ -18,6 +18,7 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
+      "didntGetIt": "Didn't get it?",
       "rateLimited": "Too many tries in a row. Wait a minute, then try again.",
       "notSent": "We could not send a code. Try again."
     },
@@ -604,6 +605,7 @@
           "back": "Back",
           "next": "Continue",
           "skip": "Skip",
+          "skipForNow": "Skip for now",
           "finishSetup": "Finish setup",
           "finish": "Go to workspace"
         },
@@ -625,7 +627,7 @@
           "found": "We found this on {domain}. Not right? Upload your own.",
           "foundNoDomain": "We found this on your website. Not right? Upload your own.",
           "notFound": "We couldn't find a logo on your website. Upload one, or skip for now.",
-          "upload": "Upload a logo",
+          "dropzone": "Drop your logo here, or choose a file",
           "replace": "Replace logo",
           "remove": "Remove",
           "uploadHint": "PNG, JPG, or SVG. Up to 2 MB.",
@@ -1903,7 +1905,8 @@
           "resumeReady": "Back to Ready",
           "markComplete": "Mark complete",
           "repeat": "Repeat",
-          "repeatError": "Couldn't open the schedule form. Try again."
+          "repeatError": "Couldn't open the schedule form. Try again.",
+          "duplicate": "Duplicate as draft"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2038,7 +2041,8 @@
         "createAnother": "Create another task",
         "close": "Close",
         "privateLabel": "Private",
-        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker."
+        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker.",
+        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate."
       },
       "EditTask": {
         "title": "Edit task",
@@ -5422,6 +5426,10 @@
           "designSystem": {
             "title": "Design system",
             "description": "Masumi Family brand and UI rules, rendered with our real components."
+          },
+          "evals": {
+            "title": "Evals",
+            "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
           }
         }
       },
@@ -6221,7 +6229,7 @@
           "realRunsByVersion": "Real usage by version",
           "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days. Real turns are no longer judged, so only earlier scores appear."
         },
-        "labLink": "Behaviour lab",
+        "evalsLink": "Evals",
         "evaluationsLink": "Model evaluations",
         "versionsLink": "Versions",
         "Versions": {
@@ -6800,6 +6808,99 @@
           "doneBody": "The first one goes out Thursday at 09:00, your time zone.",
           "doneAction": "Open calendar"
         }
+      },
+      "Evals": {
+        "title": "Evals",
+        "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
+        "noHistory": "No daily runs yet",
+        "historyLabel": "Pass rate in the last {count} daily runs",
+        "noDailyRuns": "No daily run has finished yet.",
+        "trendBarTitle": "{rate} passed ({passed} of {scored})",
+        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "wasRate": "was {rate}",
+        "noCasesMatch": "No case matches this filter.",
+        "runTitle": "{trigger} run, {when}",
+        "comparedWith": "Compared with the daily run of {when}",
+        "noBaseline": "No daily run before this one to compare with.",
+        "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
+        "passedOf": "{passed} of {scored} passed",
+        "suiteFilter": "Suite",
+        "outcomeFilter": "Cases",
+        "allSuites": "All",
+        "allCases": "All cases",
+        "onlyChanges": "Only what needs a look",
+        "cancelRun": "Stop run",
+        "cancelError": "The run could not be stopped.",
+        "backToRun": "Back to the run",
+        "Suite": {
+          "soko-bot": "Soko Bot",
+          "cmo": "CMO"
+        },
+        "Runs": {
+          "title": "Runs",
+          "when": "When",
+          "run": "Run",
+          "pr": "PR",
+          "versions": "Versions",
+          "cost": "Cost"
+        },
+        "Trigger": {
+          "DAILY": "Daily",
+          "MANUAL": "Manual"
+        },
+        "Status": {
+          "QUEUED": "Queued",
+          "RUNNING": "Running",
+          "COMPLETED": "Done",
+          "CANCELLED": "Stopped"
+        },
+        "Outcome": {
+          "regressed": "Regressed",
+          "error": "Error",
+          "failing": "Failing",
+          "flaky": "Flaky",
+          "fixed": "Fixed",
+          "passing": "Passing",
+          "pending": "Waiting",
+          "skipped": "Skipped"
+        },
+        "State": {
+          "PENDING": "Waiting",
+          "RUNNING": "Running",
+          "PASSED": "Passed",
+          "FAILED": "Failed",
+          "ERROR": "Could not run",
+          "SKIPPED": "Skipped"
+        },
+        "RunDialog": {
+          "open": "Run evals",
+          "title": "Run evals",
+          "description": "Runs on this deployment. If a run is in progress, this one waits until it is done.",
+          "suites": "Suites",
+          "all": "Both",
+          "sokoBot": "Soko Bot",
+          "cmo": "CMO",
+          "repeats": "Repeats",
+          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "cases": "Only these cases",
+          "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
+          "casesHint": "Leave empty to run every case of the suites.",
+          "cancel": "Cancel",
+          "start": "Start run",
+          "error": "The run could not be started."
+        },
+        "Case": {
+          "judge": "Judge: {verdict}",
+          "seconds": "{seconds} s",
+          "passed": "Passed",
+          "failed": "Failed",
+          "answer": "Answer",
+          "tools": "Tools, in order",
+          "toolFailed": "failed",
+          "thisRun": "This run, repeat {repeat}",
+          "before": "Daily run of {when}"
+        },
+        "labLink": "Try one scenario on your own bot"
       }
     },
     "Billing": {
@@ -8511,6 +8612,23 @@
         "pinError": "Could not pin message.",
         "unpinError": "Could not unpin message."
       },
+      "SavedMessages": {
+        "save": "Save for later",
+        "saved": "Saved for later",
+        "view": "View saved",
+        "saveError": "Could not save the message.",
+        "removeError": "Could not remove the message from Saved.",
+        "error": "Could not load saved messages.",
+        "title": "Saved",
+        "description": "Messages you saved for later. Only you see this list.",
+        "empty": "Nothing saved yet",
+        "emptyHint": "Open a message's actions and choose Save for later to keep it here.",
+        "remove": "Remove from saved",
+        "removed": "Removed from saved",
+        "loadOlder": "Load older",
+        "untitled": "Message without text",
+        "savedAgo": "Saved {time}"
+      },
       "Quote": {
         "action": "Quote",
         "dismiss": "Remove quote",
@@ -8914,7 +9032,8 @@
         "CatchUpTabs": {
           "label": "Catch up sections",
           "overview": "Overview",
-          "threads": "Threads"
+          "threads": "Threads",
+          "saved": "Saved"
         },
         "Briefing": {
           "welcomeBack": "Welcome back",

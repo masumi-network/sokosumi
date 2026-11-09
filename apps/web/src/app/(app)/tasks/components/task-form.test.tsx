@@ -389,6 +389,7 @@ const baseLabels = {
   uploadingFiles: "Uploading {count} files",
   privateLabel: "Private",
   privateDescription: "Only you can see this.",
+  privateOtherPeopleHint: "Private tasks cannot go to other people.",
 };
 
 const coworkerOptions = [
@@ -702,6 +703,243 @@ describe("TaskForm", () => {
 
     expect(createTaskMock).toHaveBeenCalledTimes(1);
     expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("name");
+  });
+
+  describe("copy of a Task", () => {
+    const bob = mockCoworkerOption({
+      id: "user-2",
+      slug: "bob@example.com",
+      name: "Bob",
+      kind: "user",
+    });
+
+    function renderCopy(initialValues: Record<string, unknown>) {
+      render(
+        <TaskForm
+          mode="create"
+          showCancel={false}
+          labels={baseLabels}
+          coworkerOptions={[...coworkerOptions, bob]}
+          projectOptions={projectOptions}
+          initialValues={{
+            copyOfTaskId: "source-task",
+            name: "Weekly report",
+            description: "Summarise the week",
+            visibility: "PUBLIC",
+            status: TaskStatus.DRAFT,
+            ...initialValues,
+          }}
+          onSuccess={vi.fn()}
+        />,
+      );
+    }
+
+    beforeEach(() => {
+      vi.mocked(createTask)
+        .mockReset()
+        .mockResolvedValue(createTaskSuccess("task-2", "Weekly"));
+    });
+
+    it("creates a reviewed private Draft and drops a project the viewer cannot pick", async () => {
+      const user = userEvent.setup();
+      renderCopy({
+        assigneeId: "coworker-2",
+        projectId: "closed-project",
+        visibility: "PRIVATE",
+      });
+
+      const nameInput = screen.getByLabelText("Task name");
+      expect(nameInput).toHaveValue("Weekly report");
+      expect(
+        screen.getByRole("combobox", { name: "Project" }),
+      ).toHaveTextContent("No project");
+      await user.clear(nameInput);
+      // An empty name would make Core name the copy with a model call.
+      expect(
+        screen.getByRole("button", { name: "Create Task" }),
+      ).toBeDisabled();
+      await user.type(nameInput, "Weekly report, March");
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          copyOfTaskId: "source-task",
+          name: "Weekly report, March",
+          description: "Summarise the week",
+          assigneeId: "coworker-2",
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+          projectId: null,
+          status: TaskStatus.DRAFT,
+          visibility: "PRIVATE",
+        }),
+      );
+      expect(vi.mocked(createTask).mock.calls[0]?.[0]).not.toHaveProperty(
+        "runAt",
+      );
+    });
+
+    it.each([
+      {
+        kind: "coworker",
+        initial: { assigneeId: "gone-coworker" },
+        sent: {
+          assigneeId: "gone-coworker",
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+        },
+      },
+      {
+        kind: "Soko Bot",
+        initial: { assigneeSokoBotId: "gone-bot" },
+        sent: {
+          assigneeId: null,
+          assigneeSokoBotId: "gone-bot",
+          assigneeUserId: null,
+        },
+      },
+      {
+        kind: "person",
+        initial: { assigneeUserId: "gone-user" },
+        sent: {
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assigneeUserId: "gone-user",
+        },
+      },
+    ])(
+      "keeps a missing $kind assignee's kind and shows it as unavailable",
+      async ({ initial, sent }) => {
+        const user = userEvent.setup();
+        renderCopy(initial);
+
+        expect(
+          screen.getByRole("combobox", { name: /^Coworker/ }),
+        ).toHaveTextContent("Unavailable assignee");
+        await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+        expect(createTask).toHaveBeenCalledWith(
+          expect.objectContaining({ ...sent, status: TaskStatus.DRAFT }),
+        );
+      },
+    );
+
+    it.each([
+      { pick: "Elena", sent: { assigneeId: "coworker-2" } },
+      { pick: "Unassigned", sent: { assigneeId: null } },
+    ])(
+      "repairs a missing assignee with $pick and stays a Draft",
+      async ({ pick, sent }) => {
+        const user = userEvent.setup();
+        renderCopy({ assigneeSokoBotId: "gone-bot" });
+
+        await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+        await user.click(screen.getByRole("option", { name: pick }));
+        await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+        expect(createTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ...sent,
+            assigneeSokoBotId: null,
+            assigneeUserId: null,
+            status: TaskStatus.DRAFT,
+          }),
+        );
+      },
+    );
+
+    it("keeps an unassigned source unassigned and public", async () => {
+      const user = userEvent.setup();
+      renderCopy({});
+
+      expect(
+        screen.getByRole("combobox", { name: /^Coworker/ }),
+      ).toHaveTextContent("Unassigned");
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+          status: TaskStatus.DRAFT,
+        }),
+      );
+      expect(vi.mocked(createTask).mock.calls[0]?.[0]).not.toHaveProperty(
+        "visibility",
+      );
+    });
+
+    it("never publishes a private copy by picking another person", async () => {
+      const user = userEvent.setup();
+      renderCopy({ assigneeId: "coworker-2", visibility: "PRIVATE" });
+
+      expect(
+        screen.getByText("Private tasks cannot go to other people."),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+      expect(screen.getByRole("option", { name: "Bob" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      await user.click(screen.getByRole("option", { name: "Bob" }));
+      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assigneeId: "coworker-2",
+          assigneeUserId: null,
+          visibility: "PRIVATE",
+        }),
+      );
+    });
+
+    it("assigns another person only after Private is turned off", async () => {
+      const user = userEvent.setup();
+      renderCopy({ assigneeId: "coworker-2", visibility: "PRIVATE" });
+
+      await user.click(screen.getByLabelText("Private"));
+      await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+      await user.click(screen.getByRole("option", { name: "Bob" }));
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ assigneeUserId: "user-2" }),
+      );
+      expect(vi.mocked(createTask).mock.calls[0]?.[0]).not.toHaveProperty(
+        "visibility",
+      );
+    });
+
+    it("still asks for Private when a private copy starts with another person", async () => {
+      const user = userEvent.setup();
+      renderCopy({ assigneeUserId: "user-2", visibility: "PRIVATE" });
+
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      // Core refuses a private Task for a teammate; it is never sent public.
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assigneeUserId: "user-2",
+          visibility: "PRIVATE",
+        }),
+      );
+    });
+
+    it("asks for no tag suggestions", async () => {
+      vi.useFakeTimers();
+      const suggest = vi.fn<typeof fetch>();
+      vi.stubGlobal("fetch", suggest);
+      try {
+        renderCopy({ assigneeId: "coworker-2" });
+        await act(() => vi.advanceTimersByTimeAsync(15_000));
+        expect(suggest).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+      }
+    });
   });
 
   it("shows the footer status pill defaulting to Draft on create", () => {

@@ -47,7 +47,7 @@
       "source": "resend/resend-skills",
       "sourceType": "github",
       "skillPath": "skills/resend/SKILL.md",
-      "computedHash": "e12ac96a3c05509aabf1b03f40a3112e710e1bda060161b6495f851b7ac18f34"
+      "computedHash": "9c9db13edaf8fde3661a492395d03ea90b7ba64da79472c972e9ff53a0d48556"
     },
     "two-factor-authentication-best-practices": {
       "source": "better-auth/skills",
