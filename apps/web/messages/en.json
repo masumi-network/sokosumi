@@ -7280,7 +7280,7 @@
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
         "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
         "tagDirectMessagesTitle": "Sort my direct messages",
-        "tagDirectMessagesDescription": "When on, we read your Directs to point out questions and decisions for you. We only read a Direct when everyone in it has turned this on. Channels are always sorted.",
+        "tagDirectMessagesDescription": "When on, we read your Directs to point out questions and decisions for you. We only read a Direct when everyone in it has turned this on. We always do this in channels.",
         "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
         "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
-        "aiNote": "We tag your messages for you, and sometimes we get it wrong. To fix a tag, open the message and click the tag icon.",
+        "aiNote": "We tag your messages for you, and sometimes we get it wrong. To fix a tag, open the message, point at it, and click the tag icon.",
         "removeTag": "Remove tag: {tag}",
         "taskMade": "Task made",
         "loopClosed": "Done",
@@ -9020,7 +9020,7 @@
           "title": "Decisions",
           "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
           "loadOlder": "Load older",
-          "note": "We find these for you. If one is wrong, open its message and remove the tag."
+          "note": "We find these for you. If one is wrong, open its message and click the × on the tag."
         },
         "CatchUpTabs": {
           "label": "Catch up sections",

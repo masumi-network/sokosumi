@@ -7244,7 +7244,7 @@
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
         "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
         "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
-        "tagDirectMessagesDescription": "Si está activado, leemos tus mensajes directos para destacar preguntas y decisiones para ti. Solo leemos un mensaje directo si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesDescription": "Si está activado, leemos tus mensajes directos para destacar preguntas y decisiones para ti. Solo leemos un mensaje directo si todas las personas en él lo han activado. En los canales lo hacemos siempre.",
         "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
         "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
-        "aiNote": "Etiquetamos tus mensajes por ti y a veces nos equivocamos. Para corregir una etiqueta, abre el mensaje y haz clic en el icono de etiqueta.",
+        "aiNote": "Etiquetamos tus mensajes por ti y a veces nos equivocamos. Para corregir una etiqueta, abre el mensaje, pasa el cursor por encima y haz clic en el icono de etiqueta.",
         "removeTag": "Quitar etiqueta: {tag}",
         "taskMade": "Tarea creada",
         "loopClosed": "Hecho",
@@ -9020,7 +9020,7 @@
           "title": "Decisiones",
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
-          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y quita la etiqueta."
+          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta."
         },
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",

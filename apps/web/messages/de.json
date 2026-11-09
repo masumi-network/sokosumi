@@ -7244,7 +7244,7 @@
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
         "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert",
         "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
-        "tagDirectMessagesDescription": "Wenn eingeschaltet, lesen wir deine Direktnachrichten, um Fragen und Entscheidungen für dich hervorzuheben. Wir lesen eine Direktnachricht nur, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
+        "tagDirectMessagesDescription": "Wenn eingeschaltet, lesen wir deine Direktnachrichten, um Fragen und Entscheidungen für dich hervorzuheben. Wir lesen eine Direktnachricht nur, wenn alle darin das eingeschaltet haben. In Channels machen wir das immer.",
         "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
         "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
         "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
-        "aiNote": "Wir taggen deine Nachrichten für dich und liegen dabei manchmal falsch. Um ein Tag zu korrigieren, öffne die Nachricht und klicke auf das Tag-Symbol.",
+        "aiNote": "Wir taggen deine Nachrichten für dich und liegen dabei manchmal falsch. Um ein Tag zu korrigieren, öffne die Nachricht, zeige mit der Maus darauf und klicke auf das Tag-Symbol.",
         "removeTag": "Tag entfernen: {tag}",
         "taskMade": "Task erstellt",
         "loopClosed": "Erledigt",
@@ -9020,7 +9020,7 @@
           "title": "Entscheidungen",
           "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
           "loadOlder": "Ältere laden",
-          "note": "Diese finden wir für dich. Ist eine falsch, öffne ihre Nachricht und entferne das Tag."
+          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke beim Tag auf das ×."
         },
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
