@@ -370,6 +370,16 @@ export function StudioComposer({
   const references = referenceAssets;
 
   const overSelectionLimit = selectedModels.length > modelLimit;
+  const modelsThatFit =
+    hasProductBatch && overSelectionLimit && !tooManyReferences
+      ? selectedModels
+          .filter((model) =>
+            placementRatios.every((ratio) =>
+              model.aspectRatios.includes(ratio),
+            ),
+          )
+          .slice(0, modelLimit)
+      : [];
 
   // The summary, price and submitted requests all read this same plan.
   const plan = useMemo(() => {
@@ -595,9 +605,26 @@ export function StudioComposer({
               </p>
             ) : null}
             {overSelectionLimit ? (
-              <p className="text-destructive px-4 pb-2 text-xs" role="alert">
-                {selectionLimitReason}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 px-4 pb-2">
+                <p className="text-destructive text-xs" role="alert">
+                  {selectionLimitReason}
+                </p>
+                {modelsThatFit.length ? (
+                  <Button
+                    onClick={() =>
+                      onTargetChange((current) => ({
+                        ...current,
+                        modelIds: modelsThatFit.map(({ id }) => id),
+                      }))
+                    }
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {t("fitBatchModels", { count: modelsThatFit.length })}
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             {tooManyReferences ? (
               <p className="text-destructive px-4 pb-2 text-xs" role="alert">

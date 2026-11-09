@@ -4085,6 +4085,7 @@
       "tooManyReferences": "Verwende bis zu {count} Referenzbilder pro Anzeige.",
       "ProductCatalog": {
         "reviewImportedProducts": "Importierte Produkte prüfen",
+        "addImportedToBatch": "{count, plural, one {# importiertes Produkt zum Batch hinzufügen} other {# importierte Produkte zum Batch hinzufügen}}",
         "catalogFull": "Der Katalog ist voll. Entferne ein Produkt, bevor du ein weiteres hinzufügst.",
         "title": "Produkte",
         "description": "Importiere oder ergänze bis zu {count} Produkte. Prüfe die Angaben, bevor du sie in einer Anzeige verwendest.",
@@ -4129,6 +4130,7 @@
         "batchPhotoError": "Das Foto für {name} konnte nicht angehängt werden. Aktualisiere die Foto-URL oder deaktiviere „Produktfotos verwenden“."
       },
       "productBatchLimit": "Reduziere Produkte, Kopien, Platzierungen oder Modelle, um das Limit von {count} Bildern einzuhalten.",
+      "fitBatchModels": "{count, plural, one {# kompatibles Modell behalten} other {# kompatible Modelle behalten}}",
       "batchProductCount": "{count, plural, one {# Produkt im Stapel} other {# Produkte im Stapel}}",
       "clearProductBatch": "Produktstapel leeren",
       "copiesFromProducts": "Lege die Anzahl der Kopien je Produkt unter „Produkte“ fest.",

@@ -1,3 +1,4 @@
+import { MAX_STUDIO_BATCH_IMAGES } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -264,6 +265,57 @@ describe("Studio product catalog", () => {
       name: "Vase",
       imageUrl: vase.imageUrl,
     });
+  });
+
+  it("stages imported products in the available batch slots without changing existing copies", async () => {
+    const existing = {
+      id: "vase",
+      name: "Vase",
+      description: "",
+      price: "",
+      url: null,
+      imageUrl: null,
+    };
+    const first = { ...existing, id: "mug", name: "Mug" };
+    const second = { ...existing, id: "plate", name: "Plate" };
+    loadCatalog.mockResolvedValueOnce({ revision: 1, products: [existing] });
+    const onUseBatch = vi.fn();
+    render(
+      <StudioProductCatalogDialog
+        projectId="project-a"
+        websiteProducts={[existing, first, second]}
+        onUseProduct={vi.fn()}
+        onUseBatch={onUseBatch}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "reviewImportedProducts" }),
+    );
+    const product = await screen.findByRole("combobox", { name: "product" });
+    await waitFor(() => expect(product).toBeEnabled());
+    fireEvent.change(product, { target: { value: existing.id } });
+    fireEvent.click(screen.getByRole("button", { name: "addToBatch" }));
+    const copies = MAX_STUDIO_BATCH_IMAGES - 1;
+    fireEvent.change(screen.getByRole("combobox", { name: "copiesFor" }), {
+      target: { value: String(copies) },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "addImportedToBatch" }));
+    const batch = screen.getByRole("region", { name: "batchTitle" });
+    expect(within(batch).getByText(first.name)).toBeInTheDocument();
+    expect(within(batch).queryByText(second.name)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "addImportedToBatch" }),
+    ).toBeNull();
+    expect(onUseBatch).not.toHaveBeenCalled();
+    expect(saveCatalog).not.toHaveBeenCalled();
+
+    fireEvent.click(within(batch).getByRole("button", { name: "useBatch" }));
+    expect(onUseBatch).toHaveBeenCalledExactlyOnceWith([
+      { product: existing, photo: null, copies },
+      { product: first, photo: null, copies: 1 },
+    ]);
   });
 
   it("discards a batch if the dialog is closed during photo preparation", async () => {

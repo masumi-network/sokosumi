@@ -349,28 +349,54 @@ describe("an honest generation plan", () => {
     ).toEqual([prompt, prompt]);
   });
 
-  it("blocks an oversized product batch until the chosen models fit", () => {
+  it("fits an oversized product batch by keeping selected models and leaving placements and copies intact", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    const incompatible = {
+      ...TEST_CATALOG.models[0],
+      aspectRatios: ["1:1"],
+    };
     render(
       <Harness
         batchProducts={BATCH_PRODUCTS}
+        catalog={{
+          ...LARGE_CATALOG,
+          models: [incompatible, ...LARGE_CATALOG.models.slice(0, 2)],
+        }}
         initial={{
-          modelIds: ["many-0", "many-1", "many-2"],
+          modelIds: [incompatible.id, "many-0", "many-1"],
           settings: SETTINGS,
           placementRatios: ["1:1", "9:16"],
         }}
         onGenerate={onGenerate}
       />,
     );
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      'productBatchLimit:{"count":12}',
-    );
+    expect(
+      screen.getByText('productBatchLimit:{"count":12}', {
+        selector: '[role="alert"]',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("unsupportedPlacements")).toBeInTheDocument();
     generate();
     expect(onGenerate).not.toHaveBeenCalled();
 
-    fireEvent.click(modelEntry("Many 2"));
+    fireEvent.click(
+      screen.getByRole("button", { name: 'fitBatchModels:{"count":2}' }),
+    );
+    expect(onGenerate).not.toHaveBeenCalled();
+    expect(modelEntry(incompatible.label)).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
     generate();
-    expect(onGenerate.mock.calls[0][0]).toHaveLength(MAX_BATCH);
+    const requests = onGenerate.mock.calls[0][0];
+    expect(requests).toHaveLength(MAX_BATCH);
+    expect(new Set(requests.map(({ modelId }) => modelId))).toEqual(
+      new Set(["many-0", "many-1"]),
+    );
+    expect(requests.map(({ settings }) => settings.aspectRatio)).toEqual(
+      Array.from({ length: 3 }, () => ["1:1", "1:1", "9:16", "9:16"]).flat(),
+    );
   });
 
   it("selects only models that fit and buys every checked model", () => {

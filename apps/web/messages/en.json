@@ -4085,6 +4085,7 @@
       "tooManyReferences": "Use up to {count} reference images per ad.",
       "ProductCatalog": {
         "reviewImportedProducts": "Review imported products",
+        "addImportedToBatch": "{count, plural, one {Add # imported product to batch} other {Add # imported products to batch}}",
         "catalogFull": "The catalog is full. Remove a product before adding another.",
         "title": "Products",
         "description": "Import or add up to {count} products. Review the details before using them in an ad.",
@@ -4129,6 +4130,7 @@
         "batchPhotoError": "Could not attach the photo for {name}. Update the photo URL or clear Include product photos."
       },
       "productBatchLimit": "Reduce products, copies, placements, or models to fit the {count}-image limit.",
+      "fitBatchModels": "{count, plural, one {Keep # compatible model} other {Keep # compatible models}}",
       "batchProductCount": "{count, plural, one {# product in batch} other {# products in batch}}",
       "clearProductBatch": "Clear product batch",
       "copiesFromProducts": "Set copies for each product in Products.",

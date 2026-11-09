@@ -297,6 +297,12 @@ describe("starting from a template", () => {
       url: "https://ceramics.example/mug",
       imageUrl: null,
     };
+    const secondProduct = {
+      ...product,
+      id: "vase",
+      name: "Clay vase",
+      url: "https://ceramics.example/vase",
+    };
     mocks.prepareWebsiteDraft.mockResolvedValueOnce({
       brandCopy: {
         summary: "A ceramics studio",
@@ -304,7 +310,7 @@ describe("starting from a template", () => {
         tone: "Relaxed",
         audience: ["Ceramics collectors"],
       },
-      products: [product],
+      products: [product, secondProduct],
     });
     mocks.loadBrandKit.mockResolvedValueOnce({
       logo: null,
@@ -319,7 +325,7 @@ describe("starting from a template", () => {
     mocks.loadProducts.mockResolvedValueOnce({ revision: 4, products: [] });
     mocks.saveProducts.mockResolvedValueOnce({
       revision: 5,
-      products: [product],
+      products: [product, secondProduct],
     });
     mount("https://ceramics.example");
     fireEvent.click(screen.getByRole("button", { name: "prepare" }));
@@ -329,6 +335,7 @@ describe("starting from a template", () => {
     expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
     });
+    await waitFor(() => expect(brandReview).toBeEnabled());
     fireEvent.click(brandReview);
     expect(
       await screen.findByText("BrandKit.websiteCopyAdded"),
@@ -359,9 +366,18 @@ describe("starting from a template", () => {
     await waitFor(() =>
       expect(mocks.saveProducts).toHaveBeenCalledExactlyOnceWith({
         projectId: "p",
-        catalog: { revision: 4, products: [product] },
+        catalog: { revision: 4, products: [product, secondProduct] },
       }),
     );
+    const stage = await screen.findByRole("button", {
+      name: "addImportedToBatch",
+    });
+    await waitFor(() => expect(stage).toBeEnabled());
+    fireEvent.click(stage);
+    fireEvent.click(screen.getByRole("button", { name: "useBatch" }));
+    expect(screen.getByText("Travel mug")).toBeInTheDocument();
+    expect(screen.getByText("Clay vase")).toBeInTheDocument();
+    expect(mocks.saveProducts).toHaveBeenCalledTimes(1);
   });
 
   it("puts website voice and audience suggestions into empty draft fields for review", async () => {
