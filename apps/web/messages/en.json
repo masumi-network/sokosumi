@@ -10653,9 +10653,9 @@
         "weekCompare": "{period}: {current} · week before: {previous}",
         "weekBetter": "{period}: {current} · week before: {previous}, better",
         "weekWorse": "{period}: {current} · week before: {previous}, worse",
-        "tooFewToCompare": "Too few impressions to compare weeks",
         "reportDelay": "Google reports search data a few days late.",
-        "basedOn": "From {count, plural, one {# impression} other {# impressions}}"
+        "basedOn": "From {count, plural, one {# impression} other {# impressions}}",
+        "tooFewToCompareRates": "Too few impressions to compare weeks for click-through rate and average position."
       },
       "keywords": {
         "title": "Tracked keywords",

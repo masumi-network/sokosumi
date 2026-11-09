@@ -10653,9 +10653,9 @@
         "weekCompare": "{period}: {current} · Woche davor: {previous}",
         "weekBetter": "{period}: {current} · Woche davor: {previous}, besser",
         "weekWorse": "{period}: {current} · Woche davor: {previous}, schlechter",
-        "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich",
         "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung.",
-        "basedOn": "Basierend auf {count, plural, one {# Impression} other {# Impressionen}}"
+        "basedOn": "Basierend auf {count, plural, one {# Impression} other {# Impressionen}}",
+        "tooFewToCompareRates": "Zu wenige Impressionen für einen Wochenvergleich von Klickrate und durchschnittlicher Position."
       },
       "keywords": {
         "title": "Verfolgte Keywords",

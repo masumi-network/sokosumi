@@ -759,8 +759,15 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
+    // One note under the tiles, not one per tile.
+    expect(screen.queryByText("Not enough days to compare")).toBeNull();
     expect(
-      screen.getByText("Too few impressions to compare weeks"),
+      screen.getAllByText(/^Too few impressions to compare weeks/),
+    ).toHaveLength(1);
+    expect(
+      screen.getByText(
+        "Too few impressions to compare weeks for click-through rate and average position.",
+      ),
     ).toBeVisible();
     expect(screen.queryByText(/better|worse/)).toBeNull();
     // A count is a fact at any size; it keeps its numbers.

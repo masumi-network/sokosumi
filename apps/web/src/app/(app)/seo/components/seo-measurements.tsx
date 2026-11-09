@@ -74,6 +74,12 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   const enoughImpressions =
     (weekImpressions?.current ?? 0) >= SEO_MIN_COMPARE_IMPRESSIONS &&
     (weekImpressions?.previous ?? 0) >= SEO_MIN_COMPARE_IMPRESSIONS;
+  // Both weeks measured but too small: one note under the tiles says so for the rate and the position.
+  const tooFew =
+    weekImpressions?.current != null &&
+    weekImpressions.previous != null &&
+    !enoughImpressions;
+  const isRate = (key: string) => key === "ctr" || key === "position";
   /** The last 7 days against the 7 before, with both values shown. A lower position is better. */
   function change(
     key: string,
@@ -81,17 +87,9 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     unit: ProjectSeoMetric["unit"],
   ) {
     if (week.current === null || week.previous === null) return null;
-    if ((key === "ctr" || key === "position") && !enoughImpressions)
-      // Unmeasured impressions are not "too few"; the comparison is just missing.
-      return {
-        text: t(
-          weekImpressions?.current == null || weekImpressions.previous == null
-            ? "overview.noComparison"
-            : "overview.tooFewToCompare",
-        ),
-        Icon: null,
-        muted: true,
-      };
+    // Unmeasured impressions are not "too few"; the comparison is just missing.
+    if (isRate(key) && !enoughImpressions)
+      return { text: t("overview.noComparison"), Icon: null, muted: true };
     // Judge the change between the values as shown: equal shown values are no change.
     const scale = 10 ** (unit === "count" ? 0 : unit === "ratio" ? 3 : 1);
     const shown = (value: number) => Math.round(value * scale) / scale;
@@ -179,7 +177,10 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         <div className={cn(HOLDER_ITEM_CLASS, "space-y-5 p-4 sm:p-5")}>
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {visible.map((metric) => {
-              const week = compared?.values[metric.key] ?? null;
+              const week =
+                tooFew && isRate(metric.key)
+                  ? null
+                  : (compared?.values[metric.key] ?? null);
               const moved = week ? change(metric.key, week, metric.unit) : null;
               return (
                 <Button
@@ -247,6 +248,14 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               );
             })}
           </div>
+          {tooFew &&
+          visible.some(
+            (metric) => isRate(metric.key) && compared?.values[metric.key],
+          ) ? (
+            <p className="text-muted-foreground -mt-3 text-xs">
+              {t("overview.tooFewToCompareRates")}
+            </p>
+          ) : null}
           <div className="space-y-3">
             <p className="text-sm font-medium">
               {t("overview.perDay", { metric: label(active) })}
