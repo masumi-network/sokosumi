@@ -179,7 +179,7 @@ export function SeoTrendChart({
                       <line
                         key={point.date}
                         data-testid="seo-trend-bar"
-                        className="stroke-muted-foreground"
+                        className="stroke-chart-5"
                         vectorEffect="non-scaling-stroke"
                         strokeWidth={2}
                         x1={point.x - barWidth / 2}
