@@ -121,7 +121,7 @@ describe("CreateOrganizationWizard", () => {
     await user.type(screen.getByLabelText("Details.urlLabel"), "acme.com");
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await screen.findByText("Logo.title");
-    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
 
     const link = screen.getByRole("textbox", { name: "Invite.linkLabel" });
@@ -167,7 +167,7 @@ describe("CreateOrganizationWizard", () => {
       websiteUrl: "https://acme.com/",
     });
 
-    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
 
     const link = await screen.findByRole("textbox", {
@@ -205,7 +205,7 @@ describe("CreateOrganizationWizard", () => {
     await waitFor(() => {
       expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
-    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
 
     expect(screen.queryByText("Brand.tooltip")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Brand.title" }));
@@ -241,7 +241,7 @@ describe("CreateOrganizationWizard", () => {
     await waitFor(() => {
       expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
-    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
 
     brandGeneration.status = "completed";
     act(() => {
@@ -285,7 +285,9 @@ describe("CreateOrganizationWizard", () => {
       });
 
       if (method === "Finish") {
-        await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+        await user.click(
+          screen.getByRole("button", { name: /Nav.skipForNow/i }),
+        );
         await user.click(
           screen.getByRole("button", { name: /Nav.finishSetup/i }),
         );
@@ -341,7 +343,7 @@ describe("CreateOrganizationWizard", () => {
     await waitFor(() => {
       expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
-    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
     await user.click(screen.getByRole("button", { name: /Nav.finish/i }));
 
@@ -402,10 +404,45 @@ describe("CreateOrganizationWizard", () => {
     });
 
     expect(screen.getByText("Logo.title")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    // No logo: one drop target, no empty tile offering to replace nothing.
+    expect(
+      await screen.findByRole("button", { name: "Logo.dropzone" }),
+    ).toHaveAccessibleDescription("Logo.uploadHint");
+    expect(
+      screen.queryByRole("button", { name: /Logo.replace/ }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
     expect(screen.getByText("Brand.title")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
     expect(screen.getByText("Invite.title")).toBeTruthy();
+  });
+
+  it("offers to replace a found logo and continues instead of skipping", async () => {
+    resolveOrganizationSiteIconMock.mockResolvedValue({
+      ok: true,
+      value: { url: "https://acme.com/icon.png" },
+    });
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    expect(
+      await screen.findAllByRole("button", { name: "Logo.replace" }),
+    ).not.toHaveLength(0);
+    expect(
+      screen.queryByRole("button", { name: "Logo.dropzone" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    expect(screen.getByText("Brand.title")).toBeTruthy();
   });
 
   it.each([
