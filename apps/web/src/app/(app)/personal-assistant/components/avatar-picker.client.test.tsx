@@ -87,7 +87,10 @@ describe("AvatarPicker", () => {
     const user = userEvent.setup();
     topUpMock
       .mockResolvedValueOnce({ ok: true, value: avatars("frog", "owl") })
-      .mockResolvedValueOnce({ ok: true, value: avatars("otter", "hedgehog") });
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("otter", "hedgehog", "c", "d", "e", "f"),
+      });
     render(<Harness />);
 
     await waitFor(() => expect(pressed("frog")).toBe("true"));
@@ -102,7 +105,10 @@ describe("AvatarPicker", () => {
     const user = userEvent.setup();
     topUpMock
       .mockResolvedValueOnce({ ok: true, value: avatars("frog", "owl") })
-      .mockResolvedValueOnce({ ok: true, value: avatars("otter", "hedgehog") });
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("otter", "hedgehog", "c", "d", "e"),
+      });
     render(<Harness currentImageUrl="https://example.com/mine.webp" />);
 
     const owl = await screen.findByRole("button", { name: "owl" });
@@ -203,6 +209,73 @@ describe("AvatarPicker", () => {
         excludeIds: expect.arrayContaining(["a", "b", "c", "d", "e", "f"]),
       },
     });
+  });
+
+  it("fills a short refresh with avatars seen before, most recent first", async () => {
+    const user = userEvent.setup();
+    topUpMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("a", "b", "c", "d", "e", "f"),
+      })
+      .mockResolvedValueOnce({ ok: true, value: avatars("g", "h") });
+    renderPicker();
+    await screen.findByRole("button", { name: "a" });
+
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+
+    expect(await screen.findByRole("button", { name: "h" })).toBeTruthy();
+    const names = [
+      ...screen
+        .getByRole("group", { name: "Pictures" })
+        .querySelectorAll("button"),
+    ].map((tile) => tile.getAttribute("aria-label"));
+    expect(names).toEqual(["g", "h", "f", "e", "d", "c"]);
+  });
+
+  it("shows only skeletons, and nothing to pick, while others load", async () => {
+    const user = userEvent.setup();
+    const onLoadingChange = vi.fn();
+    let resolveRefresh: (value: unknown) => void = () => {};
+    topUpMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("a", "b", "c", "d", "e"),
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+      );
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <AvatarPicker
+          value={null}
+          onChange={vi.fn()}
+          currentImageUrl="https://example.com/mine.webp"
+          onLoadingChange={onLoadingChange}
+        />
+      </NextIntlClientProvider>,
+    );
+    await screen.findByRole("button", { name: "a" });
+    expect(onLoadingChange).toHaveBeenLastCalledWith(false);
+
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+
+    const group = screen.getByRole("group", { name: "Pictures" });
+    expect(group).toHaveAttribute("aria-busy", "true");
+    expect(group.querySelectorAll("button")).toHaveLength(0);
+    expect(group.querySelectorAll(".animate-pulse")).toHaveLength(6);
+    expect(onLoadingChange).toHaveBeenLastCalledWith(true);
+
+    await act(async () =>
+      resolveRefresh({ ok: true, value: avatars("f", "g", "h", "i", "j") }),
+    );
+
+    expect(group).toHaveAttribute("aria-busy", "false");
+    expect(group.querySelectorAll("button")).toHaveLength(6);
+    expect(screen.getByRole("button", { name: "j" })).toBeTruthy();
+    expect(onLoadingChange).toHaveBeenLastCalledWith(false);
   });
 
   it("shows the pictures as loading while new ones are drawn", async () => {

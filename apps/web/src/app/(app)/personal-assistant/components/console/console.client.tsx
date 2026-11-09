@@ -251,6 +251,7 @@ export function SokoBotConsole({
   const seed = bot.avatarSeed ?? `orb:${bot.userId ?? bot.id}`;
   const [isOpeningChat, startOpeningChat] = useTransition();
   const [pickedAvatar, setPickedAvatar] = useState<SokoBotAvatar | null>(null);
+  const [loadingAvatars, setLoadingAvatars] = useState(false);
   const [isSavingAvatar, startSavingAvatar] = useTransition();
   const [editingPicture, setEditingPicture] = useState(false);
   function saveAvatar() {
@@ -323,11 +324,12 @@ export function SokoBotConsole({
                       value={pickedAvatar?.id ?? null}
                       onChange={setPickedAvatar}
                       currentImageUrl={bot.avatarImageUrl}
+                      onLoadingChange={setLoadingAvatars}
                     />
                     <DialogFooter>
                       <Button
                         type="button"
-                        disabled={!pickedAvatar}
+                        disabled={!pickedAvatar || loadingAvatars}
                         loading={isSavingAvatar}
                         onClick={saveAvatar}
                       >

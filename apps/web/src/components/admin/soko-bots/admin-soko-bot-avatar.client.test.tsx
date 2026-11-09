@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminSokoBotAvatar } from "./admin-soko-bot-avatar.client";
@@ -57,11 +63,18 @@ describe("AdminSokoBotAvatar", () => {
     topUpAvatarsMock.mockResolvedValue({ ok: true, value: [OWL, FOX] });
   });
 
-  it("offers nothing to apply until the pool has loaded", () => {
-    topUpAvatarsMock.mockReturnValue(new Promise(() => {}));
+  it("offers nothing to apply until the pool has loaded", async () => {
+    let resolvePool: (value: unknown) => void = () => {};
+    topUpAvatarsMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePool = resolve;
+      }),
+    );
     render(<AdminSokoBotAvatar sokoBotId={BOT_ID} currentImageUrl={null} />);
 
     expect(screen.getByRole("button", { name: "apply" })).toBeDisabled();
+    // A transition left pending would hold back the next tests' updates.
+    await act(async () => resolvePool({ ok: true, value: [] }));
   });
 
   it("sets the picked avatar on the bot and shows it", async () => {
