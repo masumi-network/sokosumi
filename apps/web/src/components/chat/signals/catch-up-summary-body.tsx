@@ -80,6 +80,7 @@ export function CatchUpSummaryBody({
 }: CatchUpSummaryBodyProps) {
   const t = useTranslations("App.Channels.Signals");
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const idPrefix = useId();
   const sectionId = (section: SectionKey) => `${idPrefix}-${section}`;
   const shown = new Set(
@@ -106,7 +107,7 @@ export function CatchUpSummaryBody({
         {summary.generatedAt ? (
           <p className="text-muted-foreground text-xs">
             {t("writtenByAi", {
-              time: format.relativeTime(new Date(summary.generatedAt)),
+              time: format.relativeTime(new Date(summary.generatedAt), now),
             })}
           </p>
         ) : null}
@@ -178,6 +179,7 @@ function CatchUpItemRow({
 }) {
   const t = useTranslations("App.Channels.Signals");
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const body = (
     <>
       <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
@@ -186,7 +188,7 @@ function CatchUpItemRow({
         </span>
         <span aria-hidden>·</span>
         <time dateTime={item.createdAt.toISOString()} className="shrink-0">
-          {format.relativeTime(item.createdAt)}
+          {format.relativeTime(item.createdAt, now)}
         </time>
         {item.dueAt ? <DueLabel dueAt={item.dueAt} /> : null}
       </span>

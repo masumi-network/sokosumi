@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskStatus } from "@sokosumi/core-client";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -35,6 +36,18 @@ export interface RunAtPrefill {
   timezone: string;
 }
 
+/** What a copy of an existing Task carries beyond prompt and project. Its
+ *  assignee keeps its kind, and none stays none. A copy always starts as a
+ *  Draft, so nothing runs before review. */
+export interface NewTaskCopyPrefill {
+  taskId: string;
+  name: string;
+  visibility: "PUBLIC" | "PRIVATE";
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+  assigneeUserId: string | null;
+}
+
 interface CreateTaskModalContextType {
   open: boolean;
   assigneeOverrideId: string | null;
@@ -42,6 +55,7 @@ interface CreateTaskModalContextType {
   projectOverrideId: string | null | undefined;
   promptOverride: string | null;
   runAtOverride: RunAtPrefill | null;
+  copyOverride: NewTaskCopyPrefill | null;
   formInstanceKey: number;
   handleOpen: () => void;
   /** Open the modal with an assignee preselected (and optionally a prefilled
@@ -63,6 +77,7 @@ const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   projectOverrideId: null,
   promptOverride: null,
   runAtOverride: null,
+  copyOverride: null,
   formInstanceKey: 0,
   handleOpen: () => {},
   handleOpenWith: () => {},
@@ -83,6 +98,7 @@ interface CreateTaskModalProviderProps {
   initialAssigneeId?: string | null;
   initialProjectId?: string | null;
   initialPrompt?: string | null;
+  initialCopy?: NewTaskCopyPrefill | null;
   onTaskCreated?: (taskId: string) => void;
 }
 
@@ -93,6 +109,7 @@ export function CreateTaskModalProvider({
   initialAssigneeId = null,
   initialProjectId = null,
   initialPrompt = null,
+  initialCopy = null,
   onTaskCreated,
 }: CreateTaskModalProviderProps) {
   const [open, setOpen] = useState(initialOpen);
@@ -113,6 +130,9 @@ export function CreateTaskModalProvider({
     initialOpen && initialPrompt ? initialPrompt : null,
   );
   const [runAtOverride, setRunAtOverride] = useState<RunAtPrefill | null>(null);
+  const [copyOverride, setCopyOverride] = useState<NewTaskCopyPrefill | null>(
+    () => (initialOpen ? initialCopy : null),
+  );
   const [formInstanceKey, setFormInstanceKey] = useState(0);
 
   const handleOpen = useCallback(() => {
@@ -120,6 +140,7 @@ export function CreateTaskModalProvider({
     setProjectOverrideId(initialProjectId || null);
     setPromptOverride(null);
     setRunAtOverride(null);
+    setCopyOverride(null);
     setFormInstanceKey((key) => key + 1);
     setOpen(true);
   }, [initialProjectId]);
@@ -130,6 +151,7 @@ export function CreateTaskModalProvider({
       setProjectOverrideId(initialProjectId || null);
       setPromptOverride(prompt ?? null);
       setRunAtOverride(null);
+      setCopyOverride(null);
       setFormInstanceKey((key) => key + 1);
       setOpen(true);
     },
@@ -146,6 +168,7 @@ export function CreateTaskModalProvider({
       );
       setPromptOverride(null);
       setRunAtOverride(defaults.runAt ?? null);
+      setCopyOverride(null);
       setFormInstanceKey((key) => key + 1);
       setOpen(true);
     },
@@ -159,6 +182,7 @@ export function CreateTaskModalProvider({
 
   const clearPromptOverride = useCallback(() => {
     setPromptOverride(null);
+    setCopyOverride(null);
   }, []);
 
   return (
@@ -169,6 +193,7 @@ export function CreateTaskModalProvider({
         projectOverrideId,
         promptOverride,
         runAtOverride,
+        copyOverride,
         formInstanceKey,
         handleOpen,
         handleOpenWith,
@@ -234,6 +259,7 @@ export function CreateTaskModal({
     projectOverrideId,
     promptOverride,
     runAtOverride,
+    copyOverride,
     formInstanceKey,
     clearPromptOverride,
     onTaskCreated,
@@ -411,6 +437,7 @@ export function CreateTaskModal({
             createAnother: t("createAnother"),
             privateLabel: t("privateLabel"),
             privateDescription: t("privateDescription"),
+            privateOtherPeopleHint: t("privateOtherPeopleHint"),
           }}
           coworkerOptions={coworkerOptions}
           projectOptions={resolvedProjectOptions}
@@ -420,6 +447,17 @@ export function CreateTaskModal({
           initialValues={{
             ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
             ...(promptOverride ? { description: promptOverride } : {}),
+            ...(copyOverride
+              ? {
+                  copyOfTaskId: copyOverride.taskId,
+                  name: copyOverride.name,
+                  visibility: copyOverride.visibility,
+                  status: TaskStatus.DRAFT,
+                  assigneeId: copyOverride.assigneeId,
+                  assigneeSokoBotId: copyOverride.assigneeSokoBotId,
+                  assigneeUserId: copyOverride.assigneeUserId,
+                }
+              : {}),
             projectId: selectedProjectId,
             runAt: runAtPrefillToIso(runAtOverride),
           }}

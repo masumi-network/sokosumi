@@ -39,6 +39,8 @@ import {
 
 interface CreateTaskParameters extends AuthenticatedRequest {
   tagSuggestionReceipt?: string;
+  /** A copy takes this Task's tags in Core instead of being classified. */
+  copyOfTaskId?: string;
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -371,6 +373,7 @@ function resolveAssigneeWrite(
 
 async function createTaskFromDescription(input: {
   tagSuggestionReceipt?: string;
+  copyOfTaskId?: string;
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -406,6 +409,7 @@ async function createTaskFromDescription(input: {
     ...(input.tagSuggestionReceipt
       ? { tagSuggestionReceipt: input.tagSuggestionReceipt }
       : {}),
+    ...(input.copyOfTaskId ? { copyOfTaskId: input.copyOfTaskId } : {}),
     description: trimmedDescription,
     ...assigneeWrite,
     projectId: normalizedProjectId ?? null,
@@ -538,6 +542,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
     name,
     tagSuggestionReceipt,
+    copyOfTaskId,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -554,6 +559,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         ...(name ? { name } : {}),
         description,
         tagSuggestionReceipt,
+        copyOfTaskId,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,

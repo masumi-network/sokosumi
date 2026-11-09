@@ -1902,7 +1902,8 @@
           "resumeReady": "Volver a Lista",
           "markComplete": "Marcar como completada",
           "repeat": "Repetir",
-          "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo."
+          "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo.",
+          "duplicate": "Duplicar como borrador"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2038,7 +2039,8 @@
         "createAnother": "Crear otra tarea",
         "close": "Cerrar",
         "privateLabel": "Privada",
-        "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado."
+        "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado.",
+        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero."
       },
       "EditTask": {
         "title": "Editar Task",
@@ -8278,6 +8280,7 @@
       "headerDirect": "Mensaje directo",
       "headerSelfDirect": "Solo tú",
       "headerVisitSwitch": "Cambiar a {workspace}",
+      "headerMore": "Más opciones del chat",
       "participantOverflowCount": "{count} participantes más",
       "chats": "Chats",
       "directMessages": "Mensajes directos",

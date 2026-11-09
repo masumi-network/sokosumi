@@ -1903,7 +1903,8 @@
           "resumeReady": "Back to Ready",
           "markComplete": "Mark complete",
           "repeat": "Repeat",
-          "repeatError": "Couldn't open the schedule form. Try again."
+          "repeatError": "Couldn't open the schedule form. Try again.",
+          "duplicate": "Duplicate as draft"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2038,7 +2039,8 @@
         "createAnother": "Create another task",
         "close": "Close",
         "privateLabel": "Private",
-        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker."
+        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker.",
+        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate."
       },
       "EditTask": {
         "title": "Edit task",
@@ -8278,6 +8280,7 @@
       "headerDirect": "Direct message",
       "headerSelfDirect": "Only you",
       "headerVisitSwitch": "Switch to {workspace}",
+      "headerMore": "More chat options",
       "participantOverflowCount": "{count} more participants",
       "chats": "Chats",
       "directMessages": "Direct messages",
