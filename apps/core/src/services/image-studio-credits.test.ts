@@ -150,6 +150,7 @@ function pngBytes(width: number, height: number): Uint8Array {
 }
 
 const BASE_INPUT = {
+  modelId: "gemini-flash",
   projectId: "project-1",
   workspaceId: "workspace-1",
   userId: "user-1",
