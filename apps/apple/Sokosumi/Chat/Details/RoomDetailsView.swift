@@ -226,8 +226,8 @@ struct RoomDetailsView: View {
     }
   }
 
-  /// Remove sits in the row's context menu on macOS and iOS, and in a trailing swipe on iOS. A row Core would refuse
-  /// gets neither, so it never opens an empty menu.
+  /// Remove sits in the row's context menu. A row Core would refuse
+  /// gets no menu, so it never opens an empty one.
   @ViewBuilder
   private func managedRow(_ member: RoomRosterMember) -> some View {
     if permissions.canRemove(member.id, in: room, currentUserId: workspaces.currentUserId) {
