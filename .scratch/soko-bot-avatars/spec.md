@@ -49,6 +49,8 @@ New Sokosumi brand colours for the original style are a separate, later spec, de
 - **Data deletion, last.** After a release that no longer reads it: delete crafted-style avatar rows, drop the render table and its enums, and drop the columns and unique index #6710 added to `soko_bot_avatar` (including the trait key). Delete crafted stills and loops and the vendored ffmpeg copy from Blob with a one-off script a person runs with the store's token.
 - **Docs.** The glossary entry "Soko Bot avatar" and ADR 0064 ship with the first PR. The Soko Bot deployment doc drops the crafted steps.
 
+- **WebP for new original-style avatars (07).** The top-up stores newly drawn avatars as WebP under `soko-bots/avatars/original/`, encoded with `sharp`. Avatars in use keep their PNG.
+
 ## Testing Decisions
 
 - A good test drives the public seam and checks what a user or client sees: which avatars are offered, what a claim changes, what the API returns. It never asserts internal calls.
@@ -68,4 +70,4 @@ New Sokosumi brand colours for the original style are a separate, later spec, de
 
 - Before any work starts, Andreas tells Francis (author of #6710) and Patrick (#6956). #6956 is not merged.
 - Related: SOKD-122 (the crafted style).
-- Tickets: `issues/01`–`06`. 01–05 land together on the integration branch (one PR). 06 is built in the same run on its own branch stacked on the integration branch (a second draft PR), and is merged only after 01–05 run in production.
+- Tickets: `issues/01`–`07`. 01–05 and 07 land together on the integration branch (one PR). 06 is built in the same run on its own branch stacked on the integration branch (a second draft PR), and is merged only after 01–05 run in production.
