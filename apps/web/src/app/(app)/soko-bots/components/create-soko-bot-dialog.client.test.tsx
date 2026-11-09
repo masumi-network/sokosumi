@@ -62,9 +62,10 @@ describe("CreateSokoBotDialog", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "trigger" }));
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "noProjectsLink" }),
-    ).toHaveAttribute("href", "/projects");
+    const link = screen.getByRole("link", { name: "noProjectsLink" });
+    expect(link).toHaveAttribute("href", "/projects");
+    fireEvent.click(link);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("offers a personal bot only to a member without one", () => {

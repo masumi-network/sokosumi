@@ -168,7 +168,12 @@ export function CreateSokoBotDialog({
             // An empty picker is a dead end: say where projects come from.
             <p className="text-muted-foreground text-sm">
               {t("noProjects")}{" "}
-              <Link href="/projects" className="text-foreground underline">
+              <Link
+                href="/projects"
+                className="text-foreground underline"
+                // The dialog's state outlives the page; closed, it stays closed on return.
+                onClick={() => setOpen(false)}
+              >
                 {t("noProjectsLink")}
               </Link>
             </p>
