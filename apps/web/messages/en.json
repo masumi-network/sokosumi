@@ -8948,7 +8948,7 @@
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
         "aiNote": "We tag your messages for you, and sometimes we get it wrong. To fix a tag, open the message, point at it, and click the tag icon.",
         "removeTag": "Remove tag: {tag}",
-        "taskMade": "Task made",
+        "taskMade": "Task created",
         "loopClosed": "Done",
         "makeTask": "Make a task",
         "handOff": "Hand off",
@@ -8957,8 +8957,8 @@
         "noCoworkerFits": "No Coworker fits this yet.",
         "createTask": "Create a task",
         "editTags": "Edit tags",
-        "editTagsTitle": "What this message is",
-        "editTagsNote": "Your correction applies for everyone in the room.",
+        "editTagsTitle": "Tags for this message",
+        "editTagsNote": "Everyone in the room sees your change.",
         "taskDue": "Due {date}",
         "taskSource": "From the chat:",
         "taskFrom": "{name} wrote:",
@@ -8983,7 +8983,7 @@
           "blockers": "Blockers",
           "decisions": "Decisions",
           "announcements": "Announcements",
-          "openLoops": "Open loops",
+          "openLoops": "Still open",
           "highlights": "Highlights"
         },
         "Chips": {
@@ -10355,7 +10355,7 @@
         "save": "Save",
         "create": "Create list",
         "smart": "Keep it filled from the current filters",
-        "smartHint": "A smart list: whoever matches these filters is on it, now and later."
+        "smartHint": "Anyone who matches these filters is on this list, including people added later."
       },
       "addDialog": {
         "title": "Add contact",
@@ -10553,7 +10553,7 @@
         "waitingSince": "Since {date}, no answer yet",
         "heardFrom": "Last heard from them {when}",
         "automatic": "Automatic",
-        "classifier": "Automatic classification",
+        "classifier": "Sokosumi",
         "enrich": "Enrich",
         "enrichHint": "Look them up on the web and fill empty fields · 1 credit",
         "enriched": "Filled {fields} from the web · 1 credit",
@@ -10590,7 +10590,7 @@
         "byJevBecause": "Set by Sokosumi ({reason})",
         "byYou": "Set by you",
         "byBot": "Set by your Soko Bot",
-        "notYet": "Not judged yet",
+        "notYet": "Not set yet",
         "familiarityHint": "From your own emails and meetings with them",
         "reasons": {
           "decides": "decision maker",

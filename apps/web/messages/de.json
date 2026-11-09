@@ -8957,8 +8957,8 @@
         "noCoworkerFits": "Noch passt kein Coworker dazu.",
         "createTask": "Task erstellen",
         "editTags": "Tags bearbeiten",
-        "editTagsTitle": "Was diese Nachricht ist",
-        "editTagsNote": "Deine Korrektur gilt für alle im Raum.",
+        "editTagsTitle": "Tags dieser Nachricht",
+        "editTagsNote": "Alle im Raum sehen deine Änderung.",
         "taskDue": "Fällig {date}",
         "taskSource": "Aus dem Chat:",
         "taskFrom": "{name} schrieb:",
@@ -10355,7 +10355,7 @@
         "save": "Speichern",
         "create": "Liste erstellen",
         "smart": "Mit den aktuellen Filtern füllen",
-        "smartHint": "Eine intelligente Liste: Wer zu diesen Filtern passt, steht darauf, jetzt und später."
+        "smartHint": "Alle, die zu diesen Filtern passen, stehen auf dieser Liste, auch Personen, die später dazukommen."
       },
       "addDialog": {
         "title": "Kontakt hinzufügen",
@@ -10553,7 +10553,7 @@
         "waitingSince": "Seit {date} noch keine Antwort",
         "heardFrom": "Zuletzt von ihnen gehört: {when}",
         "automatic": "Automatisch",
-        "classifier": "Automatische Einordnung",
+        "classifier": "Sokosumi",
         "enrich": "Anreichern",
         "enrichHint": "Im Web nachschlagen und leere Felder füllen · 1 Credit",
         "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
@@ -10590,7 +10590,7 @@
         "byJevBecause": "Von Sokosumi gesetzt ({reason})",
         "byYou": "Von dir gesetzt",
         "byBot": "Von deinem Soko Bot gesetzt",
-        "notYet": "Noch nicht eingeschätzt",
+        "notYet": "Noch nicht gesetzt",
         "familiarityHint": "Aus deinen eigenen E-Mails und Meetings mit der Person",
         "reasons": {
           "decides": "entscheidet mit",
