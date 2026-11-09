@@ -74,8 +74,16 @@ export async function cmoWorkingStrategy(
   );
 }
 
-function tomorrow(now: Date = new Date()): string {
-  return new Date(now.getTime() + 86_400_000).toISOString().slice(0, 10);
+const DAY_MS = 86_400_000;
+
+/** The four weeks a new plan covers: tomorrow through 27 days later. */
+export function planWindow(now: Date = new Date()): {
+  start: string;
+  end: string;
+} {
+  const day = (offset: number) =>
+    new Date(now.getTime() + offset * DAY_MS).toISOString().slice(0, 10);
+  return { start: day(1), end: day(28) };
 }
 
 /**
@@ -150,6 +158,7 @@ export async function requestCmoStrategy(input: {
   const siteLanguage = input.note
     ? null
     : await detectSiteLanguage(cuso.websiteUrl);
+  const span = planWindow();
   return startCmoTurn(cuso, input.userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
     message: brandCorrections(brain)
@@ -162,7 +171,8 @@ export async function requestCmoStrategy(input: {
               "Save with save_strategy: part plan for changes to the strategy (send the whole plan with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
             ]
           : [
-              `Write ${cuso.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
+              `Write ${cuso.businessName}'s marketing strategy for the four weeks from ${span.start} to ${span.end}. No calendar entry after ${span.end}.`,
+              ...seasonLines(span),
               `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
               ...(siteLanguage
@@ -184,6 +194,17 @@ export async function requestCmoStrategy(input: {
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
   });
+}
+
+/**
+ * Plans once ignored the season (no Christmas for a restaurant, no Black
+ * Friday for a shop in November) and repeated one fact a dozen times.
+ */
+function seasonLines(span: { start: string; end: string }): string[] {
+  return [
+    `Before the calendar, list the dates between ${span.start} and ${span.end} that matter to this business's buyers where they live (the Brand Brain's headquarters and markets) and in its trade: public holidays, shopping days (Black Friday, Cyber Monday), seasons and gift moments (Advent, Christmas, Valentine's Day, back to school), and its industry's events. Build pieces and campaigns around the ones its buyers act on, starting a week or two before, and name the date in each such entry's why. Never invent a discount for one: a sale only when the Brand Brain shows one, otherwise suggest it under improvements. On a holiday the business is closed or its buyers are away, post only about that day, or not at all.`,
+    "Vary the calendar: every entry carries its own message, and one fact, number or story (a founding year, a price, a product name) appears in at most two entries of the month.",
+  ];
 }
 
 /**

@@ -9,6 +9,7 @@ import { loadNewTaskWizardOptions } from "@/app/tasks/actions";
 import {
   CreateTaskModal,
   CreateTaskModalProvider,
+  type NewTaskCopyPrefill,
   useCreateTaskModal,
 } from "@/app/tasks/components/create-task-modal";
 
@@ -28,6 +29,7 @@ interface NewTaskWizardProps {
   /** Prefilled description, for a task made from somewhere else. */
   initialPrompt?: string | null;
   initialAssigneeId?: string | null;
+  initialCopy?: NewTaskCopyPrefill | null;
   onTaskCreated?: (taskId: string) => void;
   /** Runs when the modal closes (dismiss, load error, or success). */
   onClose?: () => void;
@@ -44,6 +46,7 @@ export function NewTaskWizard({
   defaultProjectId = null,
   initialPrompt = null,
   initialAssigneeId = null,
+  initialCopy = null,
   onTaskCreated,
   onClose,
 }: NewTaskWizardProps) {
@@ -53,6 +56,7 @@ export function NewTaskWizard({
       initialProjectId={defaultProjectId}
       initialPrompt={initialPrompt}
       initialAssigneeId={initialAssigneeId}
+      initialCopy={initialCopy}
       onTaskCreated={onTaskCreated}
       onClose={onClose}
     >

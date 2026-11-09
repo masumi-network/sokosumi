@@ -8,6 +8,7 @@ import {
   useContext,
   useState,
 } from "react";
+import type { NewTaskCopyPrefill } from "@/app/tasks/components/create-task-modal";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 // The wizard pulls in the whole task form, so it ships as its own chunk that
@@ -35,6 +36,8 @@ export interface NewTaskWizardOptions {
   projectId?: string | null;
   prompt?: string | null;
   assigneeId?: string | null;
+  /** Further prefill for a copy of an existing Task ("Duplicate"). */
+  copy?: NewTaskCopyPrefill;
   onTaskCreated?: (taskId: string) => void;
 }
 
@@ -94,6 +97,7 @@ export function NewTaskWizardProvider({
           defaultProjectId={options.projectId ?? null}
           initialPrompt={options.prompt ?? null}
           initialAssigneeId={options.assigneeId ?? null}
+          initialCopy={options.copy ?? null}
           onTaskCreated={options.onTaskCreated}
           onClose={closeNewTaskWizard}
         />

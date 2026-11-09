@@ -229,6 +229,7 @@ export async function startCmoTurn(
     // EVENT delivers the answer to Cuso's shared room.
     source: "EVENT",
     presetRoute: input.route,
+    personStarted: true,
   });
   return { turnId: started.turnId };
 }

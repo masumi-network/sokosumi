@@ -242,7 +242,10 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
-vi.mock("@/lib/soko-bot/voiceover", () => ({ speakVoiceover: speakMock }));
+vi.mock("@/lib/soko-bot/voiceover", () => ({
+  speakVoiceover: speakMock,
+  VoiceoverRefusedError: class VoiceoverRefusedError extends Error {},
+}));
 vi.mock("@/lib/blob-upload-grant", () => ({
   createBlobUploadGrant: uploadGrantMock,
 }));
@@ -662,6 +665,7 @@ import {
   MAX_CHAT_CHAIN_DEPTH,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
+import { VoiceoverRefusedError } from "@/lib/soko-bot/voiceover";
 import {
   isSokoBotDecisionTargetAllowed,
   personAssignee,
@@ -9685,17 +9689,28 @@ describe("Drive file tools", () => {
         });
       });
 
-      it("says plainly when the voice service fails", async () => {
+      it("marks a refused voice-over as not sent", async () => {
         speakMock.mockRejectedValue(
-          new Error("The voice service answered 500"),
+          new VoiceoverRefusedError("The voice service answered 500"),
         );
-        await expect(
-          service["generateVoiceover"](voiced as never, {
-            text: "Hi.",
-            filename: "a.mp3",
-          }),
-        ).rejects.toThrow("answered 500");
+        const refused = service["generateVoiceover"](voiced as never, {
+          text: "Hi.",
+          filename: "a.mp3",
+        });
+        await expect(refused).rejects.toThrow("answered 500");
+        await expect(refused).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
         expect(files.put).not.toHaveBeenCalled();
+      });
+
+      it("does not mark a voice-over lost after it was made as not sent", async () => {
+        speakMock.mockRejectedValue(new Error("download failed"));
+        const failed = service["generateVoiceover"](voiced as never, {
+          text: "Hi.",
+          filename: "a.mp3",
+        });
+        await expect(failed).rejects.toBeInstanceOf(
+          SokoBotRuntimeValidationError,
+        );
       });
     });
 
