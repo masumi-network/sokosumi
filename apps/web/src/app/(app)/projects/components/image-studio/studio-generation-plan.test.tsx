@@ -147,6 +147,43 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
+  it("uses the selected creative direction without changing the written brief", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+    const box = screen.getByRole("textbox", {
+      name: TEST_LABELS.promptPlaceholder,
+    });
+    const spotlight = screen.getByRole("button", {
+      name: "CreativeDirections.spotlight",
+    });
+    fireEvent.click(spotlight);
+    expect(spotlight).toHaveAttribute("aria-pressed", "true");
+    expect(box).toHaveValue("A campaign image");
+    generate();
+    expect(onGenerate.mock.calls[0][0][0].prompt).toContain(
+      "A campaign image\n\nCreative direction: Make the product the visual focal point.",
+    );
+
+    fireEvent.change(box, { target: { value: "" } });
+    generate();
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(box, { target: { value: "A campaign image" } });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "CreativeDirections.auto",
+      }),
+    );
+    generate();
+    expect(onGenerate.mock.calls[1][0][0].prompt).toBe("A campaign image");
+  });
+
   it("uploads a product photo to the active workspace and sends it to every placement", async () => {
     const pendingUpload = Promise.withResolvers<{ resourceId: string }>();
     uploadPhoto.mockReturnValueOnce(pendingUpload.promise);
@@ -206,6 +243,11 @@ describe("an honest generation plan", () => {
     expect(
       screen.getByText('placementPlanCredits:{"count":6,"credits":24}'),
     ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "CreativeDirections.explainer",
+      }),
+    );
     generate();
 
     const requests = onGenerate.mock.calls[0][0];
@@ -235,6 +277,9 @@ describe("an honest generation plan", () => {
       const isVase = request.referenceFileIds?.[0] === "vase-file";
       expect(request.prompt).toContain(isVase ? "Vase" : "Mug");
       expect(request.prompt).not.toContain(isVase ? "Mug" : "Vase");
+      expect(request.prompt).toContain(
+        "Creative direction: Illustrate how the product works",
+      );
     }
   });
 

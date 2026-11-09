@@ -4129,6 +4129,14 @@
       "aspectRatio": "Format",
       "adPlacements": "Anzeigenplatzierungen",
       "placementHelp": "Wähle eine oder mehrere Platzierungen oder unten ein einzelnes eigenes Seitenverhältnis.",
+      "creativeDirection": "Kreative Ausrichtung",
+      "CreativeDirections": {
+        "auto": "Automatisch",
+        "spotlight": "Produktfokus",
+        "lifestyle": "Lifestyle",
+        "editorial": "Editorial",
+        "explainer": "Erklärmotiv"
+      },
       "Placements": {
         "squareFeed": "Quadratischer Feed",
         "portraitFeed": "Hochformat-Feed",

@@ -33,6 +33,10 @@ import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,
 } from "./studio-classes";
+import {
+  STUDIO_CREATIVE_DIRECTIONS,
+  type StudioCreativeDirection,
+} from "./studio-creative-directions";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import { StudioProductPhotoControl } from "./studio-product-photo";
 import { StudioTemplateMenu } from "./studio-template-picker";
@@ -211,15 +215,24 @@ export function StudioComposer({
     (sum, entry) => sum + entry.copies,
     0,
   );
+  const creativeDirection = target.creativeDirection;
+  const guidance = STUDIO_CREATIVE_DIRECTIONS.find(
+    ({ id }) => id === creativeDirection,
+  )?.guidance;
+  const brief = prompt.trim();
+  const directionSuffix = guidance ? `\n\nCreative direction: ${guidance}` : "";
+  const directedBrief = brief ? brief + directionSuffix : "";
   const batchPrompts = useMemo(
     () =>
-      batchProducts.map(({ product }) =>
-        [prompt.trim(), productBrief(product)].filter(Boolean).join("\n\n"),
+      batchProducts.map(
+        ({ product }) =>
+          [brief, productBrief(product)].filter(Boolean).join("\n\n") +
+          directionSuffix,
       ),
-    [batchProducts, prompt],
+    [batchProducts, brief, directionSuffix],
   );
   const promptLength = Math.max(
-    prompt.trim().length,
+    directedBrief.length,
     ...batchPrompts.map((value) => value.length),
   );
   const promptTooLong = promptLength > MAX_PROMPT_LENGTH;
@@ -306,6 +319,10 @@ export function StudioComposer({
       settings: update(current.settings),
     }));
 
+  function setCreativeDirection(direction?: StudioCreativeDirection) {
+    onTargetChange((current) => ({ ...current, creativeDirection: direction }));
+  }
+
   /**
    * The options every chosen model can honour.
    *
@@ -370,7 +387,7 @@ export function StudioComposer({
           photo,
           prompt: batchPrompts[index],
         }))
-      : [{ copies: each, photo: productPhoto ?? null, prompt: prompt.trim() }];
+      : [{ copies: each, photo: productPhoto ?? null, prompt: directedBrief }];
     const legs = overSelectionLimit
       ? []
       : entries.flatMap((entry) =>
@@ -387,12 +404,12 @@ export function StudioComposer({
     batchProducts,
     batchPrompts,
     copies,
+    directedBrief,
     hasProductBatch,
     overSelectionLimit,
     placementRatios,
     productCopies,
     productPhoto,
-    prompt,
     selectedModels,
     settings,
     tooManyReferences,
@@ -503,6 +520,7 @@ export function StudioComposer({
   );
   const mixedSettings = new Set(plannedSettings).size > 1;
   const optionSummary = [
+    creativeDirection ? t(`CreativeDirections.${creativeDirection}`) : null,
     frameCount > 1 || unsupportedPlacements
       ? t("placementCount", { count: frameCount })
       : mixedSettings
@@ -859,6 +877,27 @@ export function StudioComposer({
                 align="start"
                 className="app-scrollbar max-h-[min(32rem,var(--radix-popover-content-available-height))] w-80 max-w-[calc(100vw-2rem)] space-y-3 overflow-y-auto overscroll-contain"
               >
+                <Row label={t("creativeDirection")}>
+                  <button
+                    aria-pressed={creativeDirection === undefined}
+                    className={chipClass(creativeDirection === undefined)}
+                    onClick={() => setCreativeDirection()}
+                    type="button"
+                  >
+                    {t("CreativeDirections.auto")}
+                  </button>
+                  {STUDIO_CREATIVE_DIRECTIONS.map(({ id }) => (
+                    <button
+                      aria-pressed={creativeDirection === id}
+                      className={chipClass(creativeDirection === id)}
+                      key={id}
+                      onClick={() => setCreativeDirection(id)}
+                      type="button"
+                    >
+                      {t(`CreativeDirections.${id}`)}
+                    </button>
+                  ))}
+                </Row>
                 {/* Every row below reads its options from the chosen models, so
                 with none chosen they are all empty. Saying so beats three
                 labelled rows with nothing in them. */}

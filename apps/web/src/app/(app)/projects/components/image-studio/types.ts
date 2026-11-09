@@ -6,6 +6,7 @@ import type {
   ProjectImageStudioState,
 } from "@sokosumi/core-client";
 import { extensionForEntityImageMime } from "@sokosumi/utils";
+import type { StudioCreativeDirection } from "./studio-creative-directions";
 import type { StudioTemplateId } from "./studio-templates";
 
 export const MAX_STUDIO_REFERENCES = 4;
@@ -170,6 +171,7 @@ export function assetContentUrl(
  * statement about the work.
  */
 export interface StudioTarget {
+  creativeDirection?: StudioCreativeDirection;
   modelIds: string[];
   placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;

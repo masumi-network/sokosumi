@@ -4129,6 +4129,14 @@
       "aspectRatio": "Frame",
       "adPlacements": "Ad placements",
       "placementHelp": "Choose one or more ad placements, or pick a single custom frame below.",
+      "creativeDirection": "Creative direction",
+      "CreativeDirections": {
+        "auto": "Automatic",
+        "spotlight": "Product spotlight",
+        "lifestyle": "Lifestyle",
+        "editorial": "Editorial",
+        "explainer": "Explainer"
+      },
       "Placements": {
         "squareFeed": "Square feed",
         "portraitFeed": "Portrait feed",

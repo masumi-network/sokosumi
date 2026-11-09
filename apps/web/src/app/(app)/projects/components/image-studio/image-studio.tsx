@@ -554,6 +554,7 @@ export function ImageStudio({
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
+      creativeDirection: undefined,
       placementRatios: undefined,
       settings: { ...current.settings, ...settingsOf(asset), seed: null },
     }));
@@ -1120,6 +1121,7 @@ export function ImageStudio({
             setPrompt("");
             setTarget((current) => ({
               ...current,
+              creativeDirection: undefined,
               placementRatios: undefined,
               settings: { ...settingsOf(asset), seed: null },
             }));

@@ -4129,6 +4129,14 @@
       "aspectRatio": "Encuadre",
       "adPlacements": "Ubicaciones de anuncios",
       "placementHelp": "Elige una o más ubicaciones o selecciona abajo una sola proporción personalizada.",
+      "creativeDirection": "Dirección creativa",
+      "CreativeDirections": {
+        "auto": "Automática",
+        "spotlight": "Producto destacado",
+        "lifestyle": "Estilo de vida",
+        "editorial": "Editorial",
+        "explainer": "Anuncio explicativo"
+      },
       "Placements": {
         "squareFeed": "Feed cuadrado",
         "portraitFeed": "Feed vertical",
