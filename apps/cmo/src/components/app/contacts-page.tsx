@@ -78,7 +78,7 @@ export function ContactsPage({ projectId }: { projectId: string }) {
 
   return (
     <div className="page-body">
-      <section className="panel">
+      <section className="card">
         <h3>Add a contact</h3>
         <form className="fields" action={create}>
           <FormField
@@ -108,7 +108,7 @@ export function ContactsPage({ projectId }: { projectId: string }) {
         </p>
       </section>
 
-      <section className="panel">
+      <section className="card">
         <h3>Workspace contacts</h3>
         <form className="fields" action={() => refresh(search.trim())}>
           <FormField

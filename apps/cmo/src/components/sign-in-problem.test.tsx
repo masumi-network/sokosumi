@@ -81,9 +81,13 @@ describe("sign-in problem page", () => {
   });
 
   it("says the person was signed out when CMO ended the session", () => {
-    expect(alertFor("signed_out")).toContain(
-      '<p role="alert">You were signed out. Sign in again.</p>',
+    const html = alertFor("signed_out");
+    expect(html).toContain("<h1>You were signed out.</h1>");
+    expect(html).toContain(
+      '<p role="alert">Your session ended. Sign in to pick up where you left off.</p>',
     );
+    expect(html).toMatch(/<button[^>]*>(?:(?!<\/button>).)*Sign in/);
+    expect(html).not.toContain("did not finish");
   });
 
   it.each(["unable_to_get_user_info", "constructor"])(

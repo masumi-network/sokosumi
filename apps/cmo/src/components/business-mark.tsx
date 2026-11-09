@@ -1,11 +1,29 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-function saturation(hex: string): number {
+function channels(hex: string): [number, number, number] {
   const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) =>
     Number.parseInt(hex.slice(at, at + 2), 16),
   );
+  return [r, g, b];
+}
+
+function saturation(hex: string): number {
+  const [r, g, b] = channels(hex);
   const max = Math.max(r, g, b);
   return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+}
+
+/**
+ * White or black, whichever reads better on the brand colour: their contrast
+ * is equal where the colour's relative luminance is about 0.18.
+ */
+function letterColor(hex: string): string {
+  const [r, g, b] = channels(hex).map((value) => {
+    const c = value / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 0.18 ? "var(--mark-black)" : "var(--mark-white)";
 }
 
 /** The brand's colours, the most vivid first: dark navies read as text, not brand. */
@@ -35,11 +53,11 @@ export function BusinessMark({
   wide?: boolean;
 }) {
   const logo = overview.projectLogo ?? overview.brandVisual?.logoUrl;
-  const accent = vividColors(overview.brandVisual?.colors ?? [])[0];
+  const brandColor = vividColors(overview.brandVisual?.colors ?? [])[0];
   if (logo) {
     return (
       <img
-        className="ob-mark"
+        className="business-mark"
         src={logo}
         alt=""
         width={size}
@@ -59,11 +77,13 @@ export function BusinessMark({
   }
   return (
     <span
-      className="ob-mark ob-mark-letter"
+      className="business-mark business-mark-letter"
       style={{
         width: size,
         height: size,
-        ...(accent ? { background: accent, color: "var(--mark-white)" } : {}),
+        ...(brandColor
+          ? { background: brandColor, color: letterColor(brandColor) }
+          : {}),
       }}
       aria-hidden="true"
     >

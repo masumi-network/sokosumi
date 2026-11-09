@@ -3,6 +3,7 @@
 import type { CmoAdCampaigns, CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AGENT_NAME } from "../lib/agent";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 type AdAccounts = CmoAdCampaigns["accounts"];
@@ -44,12 +45,10 @@ export function ConnectAdsButton({
   provider,
   from,
   connectAds,
-  quiet = true,
 }: {
   provider: AdProvider;
   from: "onboarding" | "app";
   connectAds: AdActions["connectAds"];
-  quiet?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +56,7 @@ export function ConnectAdsButton({
     <span className="ads-actions">
       <button
         type="button"
-        className={quiet ? "ob-button ob-button-quiet" : "ob-button"}
+        className="button button-secondary button-small"
         disabled={pending}
         onClick={async () => {
           setPending(true);
@@ -79,12 +78,12 @@ export function ConnectAdsButton({
         }}
       >
         {pending ? (
-          <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+          <Loader2 size={14} className="spin" aria-hidden="true" />
         ) : null}
         Connect
       </button>
       {error ? (
-        <span className="ob-note" role="alert">
+        <span className="note" role="alert">
           {error}
         </span>
       ) : null}
@@ -133,7 +132,7 @@ export function SearchAdControl({
 
   return (
     <div className="ads-panel">
-      <p className="ob-label">Search ad</p>
+      <p className="label">Search ad</p>
       <p className="note">Keywords: {ad.keywords.join(", ")}</p>
       <p className="note">Headlines: {ad.headlines.join(" · ")}</p>
       <p className="note">Sends people to {ad.finalUrl}</p>
@@ -146,7 +145,7 @@ export function SearchAdControl({
           <span className="note">Launched in Google Ads.</span>
           <button
             type="button"
-            className="ob-button ob-button-quiet"
+            className="button button-ghost button-small"
             disabled={pending}
             onClick={() => {
               const launched = entry.adCampaign;
@@ -160,7 +159,7 @@ export function SearchAdControl({
           </button>
           <button
             type="button"
-            className="ob-button ob-button-quiet"
+            className="button button-ghost button-small"
             disabled={pending}
             onClick={() => void run(() => actions.launchAd(entry.id))}
           >
@@ -171,12 +170,12 @@ export function SearchAdControl({
         <div className="ads-actions">
           <button
             type="button"
-            className="ob-button"
+            className="button button-secondary button-small"
             disabled={pending}
             onClick={() => void run(() => actions.launchAd(entry.id))}
           >
             {pending ? (
-              <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+              <Loader2 size={14} className="spin" aria-hidden="true" />
             ) : null}
             Launch ad
           </button>
@@ -186,7 +185,7 @@ export function SearchAdControl({
         </div>
       )}
       {error ? (
-        <p className="ob-note" role="alert">
+        <p className="note" role="alert">
           {error}
         </p>
       ) : null}
@@ -234,7 +233,7 @@ export function AdsPanel({
   }, [connected, loadAdCampaigns]);
 
   return (
-    <section className="panel">
+    <section className="card">
       <h3>Ads</h3>
       {!connected ? (
         <p className="muted">
@@ -247,7 +246,8 @@ export function AdsPanel({
           (account) => account.campaigns.length === 0,
         ) ? (
         <p className="muted">
-          No campaigns yet. Launch one of Cuso's search ads from Strategy.
+          No campaigns yet. Launch one of {AGENT_NAME}'s search ads from
+          Strategy.
         </p>
       ) : (
         <ul className="list">

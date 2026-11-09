@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const startCmoOnboarding = vi.fn();
 const getCmoOverview = vi.fn();
-const postProjectsByIdSocialConnectionsInitiate = vi.fn();
-const postProjectsByIdSocialConnectionsFinalize = vi.fn();
 const getContactLists = vi.fn();
 const getContacts = vi.fn();
 const postContacts = vi.fn();
 const postContactLists = vi.fn();
 const postContactListsByIdImport = vi.fn();
+const postProjectsByIdSocialConnectionsInitiate = vi.fn();
+const postProjectsByIdSocialConnectionsFinalize = vi.fn();
 const startCmoOver = vi.fn();
 const revalidatePath = vi.fn();
 const redirect = vi.fn((to: string) => {
@@ -42,13 +42,13 @@ vi.mock("../lib/core", () => ({
 vi.mock("@sokosumi/core-client", () => ({
   startCmoOnboarding,
   getCmoOverview,
-  postProjectsByIdSocialConnectionsInitiate,
-  postProjectsByIdSocialConnectionsFinalize,
   getContactLists,
   getContacts,
   postContacts,
   postContactLists,
   postContactListsByIdImport,
+  postProjectsByIdSocialConnectionsInitiate,
+  postProjectsByIdSocialConnectionsFinalize,
   startCmoOver,
 }));
 
@@ -62,6 +62,8 @@ const {
   loadContacts,
   loadOverview,
   onboard,
+  skipBrandQuestions,
+  skippedSteps,
   startOver,
 } = await import("./cmo-actions");
 
@@ -283,6 +285,28 @@ describe("skipped hiring steps", () => {
       expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 24 * 365 }),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("skipped brand questions", () => {
+  beforeEach(() => {
+    getCmoOverview.mockResolvedValue({
+      data: { data: { projectId: "project-1", onboardingStep: "brandBrain" } },
+      response: { status: 200 },
+    });
+  });
+
+  it("keeps the skip in the cookie beside the accounts, without moving Core's step", async () => {
+    cookieJar.set("cmo-skipped-project-1", "accounts");
+    const overview = await skipBrandQuestions();
+    expect(overview.onboardingStep).toBe("brandBrain");
+    expect(setCookie).toHaveBeenCalledWith(
+      "cmo-skipped-project-1",
+      "accounts,questions",
+      expect.objectContaining({ httpOnly: true }),
+    );
+    cookieJar.set("cmo-skipped-project-1", "accounts,questions");
+    expect(await skippedSteps("project-1")).toEqual(["accounts", "questions"]);
   });
 });
 
