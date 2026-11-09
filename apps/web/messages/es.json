@@ -8983,7 +8983,7 @@
           "blockers": "Bloqueos",
           "decisions": "Decisiones",
           "announcements": "Anuncios",
-          "openLoops": "Pendientes",
+          "openLoops": "Aún pendiente",
           "highlights": "Destacados"
         },
         "Chips": {
@@ -10355,7 +10355,7 @@
         "save": "Guardar",
         "create": "Crear lista",
         "smart": "Llenarla con los filtros actuales",
-        "smartHint": "Todas las personas que coincidan con estos filtros están en esta lista, también las que se añadan después."
+        "smartHint": "Todas las personas que coincidan con estos filtros están en esta lista. La lista se actualiza sola."
       },
       "addDialog": {
         "title": "Añadir contacto",

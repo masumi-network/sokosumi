@@ -10355,7 +10355,7 @@
         "save": "Save",
         "create": "Create list",
         "smart": "Keep it filled from the current filters",
-        "smartHint": "Anyone who matches these filters is on this list, including people added later."
+        "smartHint": "Anyone who matches these filters is on this list. The list updates by itself."
       },
       "addDialog": {
         "title": "Add contact",

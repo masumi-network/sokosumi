@@ -8983,7 +8983,7 @@
           "blockers": "Blocker",
           "decisions": "Entscheidungen",
           "announcements": "Ankündigungen",
-          "openLoops": "Offene Punkte",
+          "openLoops": "Noch offen",
           "highlights": "Wichtiges"
         },
         "Chips": {
@@ -10355,7 +10355,7 @@
         "save": "Speichern",
         "create": "Liste erstellen",
         "smart": "Mit den aktuellen Filtern füllen",
-        "smartHint": "Alle, die zu diesen Filtern passen, stehen auf dieser Liste, auch Personen, die später dazukommen."
+        "smartHint": "Alle, die zu diesen Filtern passen, stehen auf dieser Liste. Die Liste aktualisiert sich von selbst."
       },
       "addDialog": {
         "title": "Kontakt hinzufügen",
