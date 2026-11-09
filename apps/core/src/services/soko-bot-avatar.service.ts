@@ -31,7 +31,7 @@ import {
  */
 
 /** The AI Gateway image model that draws the pool. */
-export const AVATAR_MODEL = "google/gemini-3.1-flash-image";
+const AVATAR_MODEL = "google/gemini-3.1-flash-image";
 const GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TOP_UP_PER_CALL = 6;
 const GENERATION_WINDOW_MS = 60 * 60 * 1000;
@@ -160,7 +160,7 @@ const BACKGROUNDS: readonly AvatarBackground[] = [
   { name: "gently muted periwinkle", hex: "#8C93D9" },
 ] as const;
 
-export function buildAvatarPrompt(input: {
+function buildAvatarPrompt(input: {
   subject: AvatarSubject;
   background: AvatarBackground;
   corner: "lower-left" | "lower-right";
@@ -180,7 +180,7 @@ export function buildAvatarPrompt(input: {
 }
 
 /** Deterministic draw plan: never repeats a (subject, background, seed) triple. */
-export async function nextAvatarDraws(
+async function nextAvatarDraws(
   count: number,
   client: Prisma.TransactionClient | typeof prisma = prisma,
 ) {
@@ -285,10 +285,10 @@ interface AvatarReservation {
 }
 
 /** Thrown when the caller has no hourly allowance left. Nothing is billed. */
-export class AvatarGenerationCappedError extends Error {}
+class AvatarGenerationCappedError extends Error {}
 
 /** Whether the pool can draw at all: it needs the Gateway and a blob store. */
-export function canDraw(): boolean {
+function canDraw(): boolean {
   const env = getEnv();
   return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
 }
@@ -515,17 +515,32 @@ function avatarGenerationCapped() {
   );
 }
 
+/**
+ * Only the original style is offered. A crafted row's background is
+ * `<style>:<accessories>`, and an original one never holds a colon. This
+ * reads a column that stays, so it keeps working while the crafted
+ * columns are dropped. The filter and the predicate below both come from
+ * this marker.
+ */
+const CRAFTED_BACKGROUND_MARKER = ":";
+
+const notCraftedFilter = {
+  NOT: { background: { contains: CRAFTED_BACKGROUND_MARKER } },
+};
+
+/** True when the row is a crafted look; its background is `<style>:<accessories>`. */
+function isCraftedRow(background: string): boolean {
+  return background.includes(CRAFTED_BACKGROUND_MARKER);
+}
+
 function unclaimedAvatarFilter(excludeIds?: string[]) {
   return {
     claimedBySokoBotId: null,
     // A reserved row has no image yet. Counting it as available would let the
     // pool look full while every slot in it is still in flight.
     reservedAt: null,
-    // Only the original style is offered. A crafted row's background is
-    // `<style>:<accessories>`, and an original one never holds a colon. This
-    // reads a column that stays, so it keeps working while the crafted
-    // columns are dropped.
-    NOT: { background: { contains: ":" } },
+    // Only the original style is offered (see `CRAFTED_BACKGROUND_MARKER`).
+    ...notCraftedFilter,
     ...(excludeIds?.length ? { id: { notIn: excludeIds } } : {}),
   };
 }
@@ -590,11 +605,6 @@ export async function topUpAvailableAvatars(
     }
   }
   return await listAvailableAvatars(take, options);
-}
-
-/** True when the row is a crafted look; its background is `<style>:<accessories>`. */
-function isCraftedRow(background: string): boolean {
-  return background.includes(":");
 }
 
 /**
