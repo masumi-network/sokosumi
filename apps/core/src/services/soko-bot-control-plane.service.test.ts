@@ -293,6 +293,7 @@ import {
 import {
   SokoBotControlPlane,
   SokoBotNotFoundError,
+  safeEventProjection,
 } from "@/services/soko-bot-control-plane.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000001";
@@ -4990,5 +4991,19 @@ describe("reading a turn through the caller's own bot", () => {
         },
       }),
     );
+  });
+});
+
+describe("safeEventProjection", () => {
+  it("never stores half an emoji or a NUL, which Postgres refuses", () => {
+    // The 800-character limit keeps 799: the emoji's first half.
+    const cut = safeEventProjection("message.completed", {
+      message: `${"a".repeat(798)}🍝 and more`,
+    });
+    expect(cut.summary.isWellFormed()).toBe(true);
+    const nul = safeEventProjection("message.completed", {
+      message: "Hiltl\u0000 since 1898",
+    });
+    expect(nul.summary).toBe("Hiltl since 1898");
   });
 });
