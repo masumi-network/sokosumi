@@ -183,7 +183,11 @@ import {
 } from "@/lib/files/extraction";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import { requireProjectAccess } from "@/lib/image-studio/access";
-import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
+import {
+  getImageCatalog,
+  imageModel,
+  resolveImageSettings,
+} from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import {
   creditsPerImage,
@@ -1216,6 +1220,24 @@ async function findHireableAgents(query: string | undefined) {
     availableAgents: rows.length,
     note: `No available Agent fits "${query}" among the ${rows.length} listed. Tell the owner that none fits rather than hiring one that does something else. \`closest\` are the nearest listings: they do related work, not this; name them only as that, and offer another way to get it done, such as doing it yourself or a Task for a Coworker.`,
   };
+}
+
+/**
+ * The image model a bot asked for, or the studio's default. An unknown id
+ * names the shortlist, so the bot can pick again in the same turn.
+ */
+function botImageModel(id: string | undefined) {
+  try {
+    return imageModel(id);
+  } catch {
+    const shortlist = getImageCatalog()
+      .models.filter((model) => model.curatedRank !== null)
+      .map((model) => `${model.id} (${model.label})`)
+      .join(", ");
+    throw new SokoBotRuntimeValidationError(
+      `There is no image model "${id}". Leave model out for the default, or use one of ${shortlist}.`,
+    );
+  }
 }
 
 export class SokoBotRuntimeService {
@@ -2510,7 +2532,7 @@ export class SokoBotRuntimeService {
       input.referenceFileIds ?? [],
     );
     await ensureImageCatalogFresh();
-    const model = imageModel();
+    const model = botImageModel(input.model);
     const settings: ImageJobSettings = {
       ...DEFAULT_SETTINGS,
       // Every network takes a JPEG; Instagram takes nothing else.
@@ -2625,6 +2647,7 @@ export class SokoBotRuntimeService {
       jobId: job.id,
       projectId: input.projectId,
       status: job.status,
+      model: model.id,
       credits,
       studioUrl,
       note:
