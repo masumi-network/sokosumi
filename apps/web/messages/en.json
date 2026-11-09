@@ -10683,7 +10683,8 @@
         "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
         "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
-        "changeMarker": "Recorded change on {day}: {changes}"
+        "changeMarker": "Recorded change on {day}: {changes}",
+        "points": "{value} pts"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -11159,7 +11160,7 @@
         "google": "Google says: “{words}”",
         "lastCrawl": "Last crawl:",
         "otherCanonical": "Google chose another canonical page:",
-        "unanswered": "{count, plural, one {Google gave no answer for # page in view.} other {Google gave no answer for # pages in view.}}"
+        "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"
       }
     }
   },

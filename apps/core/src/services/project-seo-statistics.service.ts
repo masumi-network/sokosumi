@@ -41,6 +41,7 @@ import {
   normalizeGscStatistics,
   previousSeoPeriod,
   type SeoNativeTool,
+  searchConsoleSettledEnd,
   unwrapNativeStatistics,
   withinSearchConsoleRetention,
 } from "@/lib/seo/native-statistics";
@@ -326,9 +327,12 @@ export async function syncProjectSeoStatistics(
       .filter((point) => point.value !== null)
       .map((point) => point.date);
     if (!reported.length) throw new Error("No reported day to compare");
+    const last = reported.reduce((a, b) => (a > b ? a : b));
     const window = previousSeoPeriod(
       query.from,
-      reported.reduce((a, b) => (a > b ? a : b)),
+      input.provider === "search_console"
+        ? searchConsoleSettledEnd(query.to, last)
+        : last,
     );
     // Search Console keeps about 16 months; an older window would be partly empty.
     if (

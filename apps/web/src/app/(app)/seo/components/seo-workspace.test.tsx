@@ -1315,7 +1315,7 @@ describe("SEO workspace integration", () => {
       within(section).getByRole("link", { name: "https://example.com/other" }),
     ).toBeVisible();
     expect(
-      within(section).getByText(/Google gave no answer for 1 page in view\./),
+      within(section).getByText(/No index status yet for 1 page in view\./),
     ).toBeVisible();
   });
 
@@ -1444,7 +1444,7 @@ describe("SEO workspace integration", () => {
     // A lower position is better, so the words say it, not a sign.
     expect(screen.getByText("Previous 14 days: 6.1, better now")).toBeVisible();
     // A rate change carries its sign.
-    expect(screen.getByText("Previous 14 days: 2.1% (+0.4%)")).toBeVisible();
+    expect(screen.getByText("Previous 14 days: 2.1% (+0.4 pts)")).toBeVisible();
   });
 
   it("puts the Google search totals under the agent verdict only when both counts exist", () => {

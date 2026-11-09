@@ -412,7 +412,7 @@ describe("Search Console query rows", () => {
   it("stores no earlier-window value when that read fails, and keeps the totals", async () => {
     const current = gsc({ rows: [] });
     state.answer = (slug, args) => {
-      if (args.start_date === "2025-12-31")
+      if (args.end_date === "2025-12-31")
         return { successful: false, error: "quota" };
       return current(slug, args);
     };
@@ -425,6 +425,33 @@ describe("Search Console query rows", () => {
     };
     expect(payload.metrics[0].value).toBe(1);
     expect(payload.metrics.every((metric) => !metric.previous)).toBe(true);
+  });
+
+  it("keeps the earlier window as long as the settled period when the page goes quiet", async () => {
+    // Google settled Jan 2, but the page had rows only on Jan 1.
+    state.answer = gsc({ rows: [] });
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      metrics: Array<{ previous?: { from: string; to: string } }>;
+    };
+    expect(payload.metrics[0].previous).toMatchObject({
+      from: "2025-12-30",
+      to: "2025-12-31",
+    });
+  });
+
+  it("ends the earlier window on the last reported day while Google still processes", async () => {
+    // On Jan 4 Google has settled only Jan 1, the last reported day.
+    vi.setSystemTime(new Date("2026-01-04T12:00:00Z"));
+    state.answer = gsc({ rows: [] });
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      metrics: Array<{ previous?: { from: string; to: string } }>;
+    };
+    expect(payload.metrics[0].previous).toMatchObject({
+      from: "2025-12-31",
+      to: "2025-12-31",
+    });
   });
 
   it("skips the earlier window when Search Console no longer keeps it", async () => {
@@ -445,7 +472,7 @@ describe("Search Console query rows", () => {
   it("gives no earlier position or rate when the earlier window had no impressions", async () => {
     const current = gsc({ rows: [] });
     state.answer = (slug, args) =>
-      args.start_date === "2025-12-31"
+      args.end_date === "2025-12-31"
         ? {
             rows: [
               { keys: [], clicks: 0, impressions: 0, ctr: 0, position: 0 },

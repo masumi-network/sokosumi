@@ -268,6 +268,24 @@ export function withinSearchConsoleRetention(from: string, now = new Date()) {
   );
 }
 
+/** Search Console's final data trails today by about 3 days. */
+export const GSC_FINAL_LAG_DAYS = 3;
+/**
+ * The last day of the period Google has settled. A quiet page has no rows on
+ * its last days, so its last row is not the processing lag.
+ */
+export function searchConsoleSettledEnd(
+  to: string,
+  lastReported: string,
+  now = new Date(),
+) {
+  const settled = new Date(now.getTime() - GSC_FINAL_LAG_DAYS * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+  const end = settled < to ? settled : to;
+  return lastReported > end ? lastReported : end;
+}
+
 export function withinPeriod(
   date: string,
   query: NativeStatisticsQuery,

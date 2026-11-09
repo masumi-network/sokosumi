@@ -150,7 +150,16 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     const values = {
       days: before.days,
       previous: measuredValue(before.previous, metric.unit),
-      change: measuredValue(delta, metric.unit, "exceptZero"),
+      // A rate change is in percentage points: 2% to 3% is +1 point, not +1%.
+      change:
+        metric.unit === "ratio"
+          ? t("overview.points", {
+              value: format.number(delta * 100, {
+                maximumFractionDigits: 1,
+                signDisplay: "exceptZero",
+              }),
+            })
+          : measuredValue(delta, metric.unit, "exceptZero"),
     };
     if (delta === 0) return t("overview.periodSame", values);
     if (metric.unit === "position")

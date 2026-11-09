@@ -10683,7 +10683,8 @@
         "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
         "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
         "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
-        "changeMarker": "Cambio registrado el {day}: {changes}"
+        "changeMarker": "Cambio registrado el {day}: {changes}",
+        "points": "{value} p. p."
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -11159,7 +11160,7 @@
         "google": "Google indica: «{words}»",
         "lastCrawl": "Último rastreo:",
         "otherCanonical": "Google eligió otra página canónica:",
-        "unanswered": "{count, plural, one {Google no respondió para # página de la vista.} other {Google no respondió para # páginas de la vista.}}"
+        "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"
       }
     }
   },
