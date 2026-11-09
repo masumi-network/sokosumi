@@ -1615,6 +1615,50 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText(messages.App.Seo.loading)).toBeNull();
   });
 
+  it("loads the Overview chat history when returning to an Audit with fresh cached data", async () => {
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const turns = [
+      {
+        id: crypto.randomUUID(),
+        question: "Earlier visit question",
+        response: "Earlier answer",
+        status: "completed",
+        actions: [],
+        scope: { pageIds: workspace.scope.pageIds },
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.endsWith("/chat") ? { sharing: "personal", turns } : workspace,
+        ),
+      ),
+    );
+    // A first visit on another tab caches the Audit without reading the chat.
+    const first = renderWorkspace(workspace, "?tab=keywords", false, 60_000);
+    await screen.findByRole("tab", { name: "Keywords", selected: true });
+    first.unmount();
+    render(
+      <QueryClientProvider client={first.client}>
+        <NextIntlClientProvider
+          locale="en"
+          timeZone="UTC"
+          formats={createFormats()}
+          messages={messages}
+        >
+          <NuqsTestingAdapter searchParams="" hasMemory>
+            <SeoWorkspace workspace={workspace} />
+          </NuqsTestingAdapter>
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Show 1 earlier question" }),
+    ).toBeVisible();
+  });
+
   it("keeps an answer asked in the chat sheet on another tab visible on the Overview", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };

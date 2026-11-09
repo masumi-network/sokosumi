@@ -107,8 +107,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       identity === initialIdentity.current
         ? initialData
         : undefined,
-    // Server data is stale on arrival, so the mount read runs: chat history waits for it.
-    initialDataUpdatedAt: 0,
+    // Chat history waits for a read after mount; fresh server or cached data would skip it.
+    refetchOnMount: "always",
     enabled: !invalidDates && !!session?.user.id,
     refetchOnWindowFocus: false,
     refetchInterval: (state) =>
