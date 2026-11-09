@@ -298,6 +298,43 @@ describe("SEO workspace integration", () => {
     expect(evidence).toBeVisible();
   });
 
+  it("shows a page measurement's value and folds its rule references", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "measured-title",
+      observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Raw HTML: Title length",
+      severity: "measure",
+      evidence: [
+        "title 56 characters",
+        "vendor tools: Ahrefs under 70 (N1-246)",
+      ],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Title, description and other page details",
+      }),
+    );
+    expect(screen.getByText("title 56 characters")).toBeVisible();
+    const reference = screen.getByText(
+      "vendor tools: Ahrefs under 70 (N1-246)",
+    );
+    expect(reference).not.toBeVisible();
+    await user.click(screen.getByText("Check details"));
+    expect(reference).toBeVisible();
+  });
+
   it("leaves the date filter off the Competitors tab unless dates are set", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
@@ -519,6 +556,12 @@ describe("SEO workspace integration", () => {
 
   it("shows search totals on a page only while the saved statistics cover that page alone", () => {
     const workspace = seoTestWorkspace();
+    // A second page; the saved statistics still cover only the first.
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      label: "Blog",
+    });
     const clicks = {
       id: "sync:clicks",
       key: "clicks",
@@ -552,9 +595,19 @@ describe("SEO workspace integration", () => {
     // The same rate the Performance tiles show, as a percent.
     expect(within(row).getByText("5.7%")).toBeVisible();
     expect(within(row).getByText("Not checked yet")).toBeVisible();
-    // One page has nothing to switch to.
-    expect(within(row).queryByRole("button", { name: "View page" })).toBeNull();
     unmount();
+
+    // A 1-page Audit shows these totals on Overview; the Pages tab does not repeat them.
+    const one = seoTestWorkspace();
+    one.metrics = [clicks];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(one)),
+    );
+    const single = renderWorkspace(one, "tab=pages");
+    expect(screen.getByText("Not checked yet")).toBeVisible();
+    expect(screen.queryByText("Search clicks")).toBeNull();
+    single.unmount();
 
     const two = seoTestWorkspace();
     two.metrics = [clicks];

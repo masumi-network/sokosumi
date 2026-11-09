@@ -188,7 +188,15 @@ export function SeoChatThread({
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
       <div
-        className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4"
+        // A thread folded to its "earlier questions" link needs no full padding.
+        className={cn(
+          "min-h-0 flex-1 space-y-5 overflow-y-auto p-4",
+          earlier &&
+            !turns.length &&
+            !chat.sending &&
+            !chat.history.isError &&
+            "py-1",
+        )}
         aria-live="polite"
         aria-busy={chat.busy}
       >
@@ -213,8 +221,9 @@ export function SeoChatThread({
         ) : null}
         {earlier ? (
           <Button
-            variant="ghost"
+            variant="link"
             size="sm"
+            className="px-0"
             onClick={() => {
               revealed.current = true;
               setShowAll(true);

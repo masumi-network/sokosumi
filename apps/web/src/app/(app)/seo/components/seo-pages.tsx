@@ -178,7 +178,10 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
               );
               const summary = summaries.get(page.id);
               const totals =
-                scopePages.length === 1 && scopePages[0] === page.id
+                // A 1-page Audit shows these totals on Overview already.
+                model.data.pages.length > 1 &&
+                scopePages.length === 1 &&
+                scopePages[0] === page.id
                   ? PAGE_TOTALS.flatMap((key) => {
                       const metric = search.find((item) => item.key === key);
                       // An unavailable read is not a measurement, as on the Performance card.

@@ -10895,7 +10895,7 @@
         "critical": "Critical",
         "major": "Major",
         "minor": "Minor",
-        "note": "Note",
+        "note": "Worth a look",
         "test": "Test",
         "measure": "Measurement"
       },
@@ -11070,7 +11070,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "keyword": "“{keyword}” is not among the searches Google lists for {pages, plural, one {this page} other {these pages}}. The agent drafts a plan; you approve each change.",
+          "keyword": "Google lists no search for exactly “{keyword}” for {pages, plural, one {this page} other {these pages}} yet. The agent drafts a plan to rank for it; you approve each change.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches."
         },
         "prompts": {

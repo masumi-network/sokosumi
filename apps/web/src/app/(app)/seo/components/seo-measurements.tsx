@@ -298,67 +298,70 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               })}
             </p>
           ) : null}
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <p className="text-sm font-medium">
-                {t("overview.perDay", { metric: label(active) })}
-              </p>
-              {/* The tiles are the chart's switch; say so, since they read as plain numbers. */}
-              {visible.length > 1 ? (
-                <p className="text-muted-foreground text-xs">
-                  {t("overview.pickTile")}
+          {/* The chart and its two disclosures read as one block. */}
+          <div>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <p className="text-sm font-medium">
+                  {t("overview.perDay", { metric: label(active) })}
                 </p>
+                {/* The tiles are the chart's switch; say so, since they read as plain numbers. */}
+                {visible.length > 1 ? (
+                  <p className="text-muted-foreground text-xs">
+                    {t("overview.pickTile")}
+                  </p>
+                ) : null}
+              </div>
+              {seoCoverageIsNews(active) ? (
+                <SeoState>{t(`coverageStatus.${active.coverage}`)}</SeoState>
               ) : null}
+              {active.points.length ? (
+                <SeoTrendChart
+                  key={active.id}
+                  label={label(active)}
+                  points={active.points}
+                  unit={active.unit}
+                  unavailable={t("none")}
+                  formatValue={(point) => measuredValue(point, active.unit)}
+                />
+              ) : (
+                <p className="text-muted-foreground py-6 text-sm">
+                  {t("overview.noDailyTrend")}
+                </p>
+              )}
             </div>
-            {active.points.length ? (
-              <SeoTrendChart
-                key={active.id}
-                label={label(active)}
-                points={active.points}
-                unit={active.unit}
-                unavailable={t("none")}
-                formatValue={(point) => measuredValue(point, active.unit)}
-              />
-            ) : (
-              <p className="text-muted-foreground py-6 text-sm">
-                {t("overview.noDailyTrend")}
-              </p>
-            )}
-          </div>
-          {seoCoverageIsNews(active) ? (
-            <SeoState>{t(`coverageStatus.${active.coverage}`)}</SeoState>
-          ) : null}
-          <details className="text-muted-foreground text-xs">
-            <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-3 focus-visible:ring-2 focus-visible:outline-none">
-              {t("overview.measurementDetails")}
-            </summary>
-            <div className="space-y-2 pt-2">
-              {compared ? (
+            <details className="text-muted-foreground text-xs">
+              <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-3 focus-visible:ring-2 focus-visible:outline-none">
+                {t("overview.measurementDetails")}
+              </summary>
+              <div className="space-y-2 pt-2">
+                {compared ? (
+                  <p>
+                    {t("overview.windowDays", {
+                      current: windowLabel(compared.current),
+                      previous: windowLabel(compared.previous),
+                    })}
+                  </p>
+                ) : null}
+                {/* Explains why the chart ends days before the sync. */}
+                {active.source === "search_console" ? (
+                  <p>{t("overview.reportDelay")}</p>
+                ) : null}
                 <p>
-                  {t("overview.windowDays", {
-                    current: windowLabel(compared.current),
-                    previous: windowLabel(compared.previous),
-                  })}
+                  {t("statistics.property")}: <bdi>{active.propertyId}</bdi>
                 </p>
-              ) : null}
-              {/* Explains why the chart ends days before the sync. */}
-              {active.source === "search_console" ? (
-                <p>{t("overview.reportDelay")}</p>
-              ) : null}
-              <p>
-                {t("statistics.property")}: <bdi>{active.propertyId}</bdi>
-              </p>
-              <p>{t("overview.timeZone", { timeZone: active.timeZone })}</p>
-              {active.notes.map((note, index) => (
-                <p
-                  key={`${index}:${note}`}
-                  className="whitespace-pre-wrap break-words"
-                >
-                  {note}
-                </p>
-              ))}
-            </div>
-          </details>
+                <p>{t("overview.timeZone", { timeZone: active.timeZone })}</p>
+                {active.notes.map((note, index) => (
+                  <p
+                    key={`${index}:${note}`}
+                    className="whitespace-pre-wrap break-words"
+                  >
+                    {note}
+                  </p>
+                ))}
+              </div>
+            </details>
+          </div>
         </div>
       ) : (
         <div className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4 sm:p-5")}>

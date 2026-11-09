@@ -155,13 +155,29 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
                   <h3 className="text-sm font-medium">{finding.title}</h3>
                 </div>
                 <SeoPageLink url={finding.pageUrl} />
-                <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
-                  {finding.evidence.map((evidence, index) => (
-                    <li key={`${index}:${evidence}`} className="break-words">
-                      {evidence}
-                    </li>
-                  ))}
-                </ul>
+                {/* The first evidence line shows inline; rule references stay one tap away. */}
+                {finding.evidence.length ? (
+                  <p className="text-muted-foreground text-sm break-words">
+                    {finding.evidence[0]}
+                  </p>
+                ) : null}
+                {finding.evidence.length > 1 ? (
+                  <details className="text-muted-foreground text-sm">
+                    <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
+                      {t("overview.checkDetails")}
+                    </summary>
+                    <ul className="list-inside list-disc space-y-1 pt-1">
+                      {finding.evidence.slice(1).map((evidence, index) => (
+                        <li
+                          key={`${index}:${evidence}`}
+                          className="break-words"
+                        >
+                          {evidence}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
                 <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
                   <SeoDate value={finding.observedAt} />
                   <SeoSource
