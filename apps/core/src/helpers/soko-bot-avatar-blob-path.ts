@@ -7,14 +7,6 @@ export const SOKO_BOT_AVATAR_LEGACY_BLOB_DIR = "soko-bot-avatars";
  */
 export const SOKO_BOT_AVATAR_ORIGINAL_BLOB_DIR = `${SOKO_BOT_AVATAR_BLOB_DIR}/original`;
 
-export function buildSokoBotAvatarBlobPathname(
-  key: string,
-  sha256Hex: string,
-  extension: "png" | "webp" | "mp4",
-): string {
-  return `${SOKO_BOT_AVATAR_BLOB_DIR}/${key}-${sha256Hex.slice(0, 12)}.${extension}`;
-}
-
 export function buildOriginalSokoBotAvatarBlobPathname(
   key: string,
   sha256Hex: string,
