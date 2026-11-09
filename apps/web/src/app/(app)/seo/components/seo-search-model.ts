@@ -10,13 +10,22 @@ type QueryRow = Omit<
 const IMPRESSIONS_METRIC = "impressions";
 
 /**
- * Impressions Google counted for the pages but listed under no query.
+ * Impressions Google counted for the pages but listed under no query, or
+ * under no row of a country or device split from the same sync.
  * Null when the total and the rows cannot be proved to come from one sync,
  * when the rows were cut at the row limit, or when the numbers disagree.
  */
-export function hiddenImpressions(workspace: ProjectSeoWorkspace) {
+export function hiddenImpressions(
+  workspace: ProjectSeoWorkspace,
+  pick: (
+    queries: NonNullable<ProjectSeoWorkspace["searchQueries"]>,
+  ) => { truncated: boolean; rows: { impressions: number }[] } | undefined = (
+    queries,
+  ) => queries,
+) {
   const queries = workspace.searchQueries;
-  if (!queries || queries.truncated) return null;
+  const part = queries && pick(queries);
+  if (!queries || !part || part.truncated) return null;
   const total = latestSeoMeasurements(workspace.metrics).find(
     (metric) =>
       metric.source === "search_console" && metric.key === IMPRESSIONS_METRIC,
@@ -31,7 +40,7 @@ export function hiddenImpressions(workspace: ProjectSeoWorkspace) {
       new Date(queries.observedAt).getTime()
   )
     return null;
-  const listed = queries.rows.reduce((sum, row) => sum + row.impressions, 0);
+  const listed = part.rows.reduce((sum, row) => sum + row.impressions, 0);
   const hidden = total.value - listed;
   return hidden < 0 ? null : { total: total.value, listed, hidden };
 }

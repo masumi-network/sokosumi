@@ -11145,7 +11145,11 @@
           "tablet": "Tablet"
         },
         "more": "{count, plural, one {# weiteres Land} other {# weitere Länder}} mit weniger Klicks.",
-        "truncated": "Nur die ersten {count} Zeilen nach Klicks wurden gelesen. Es kann mehr geben."
+        "truncated": "Nur die ersten {count} Zeilen nach Klicks wurden gelesen. Es kann mehr geben.",
+        "unlisted": {
+          "country": "Google nennt ein Land nur für {listed, number} von {total, number} Impressionen.",
+          "device": "Google nennt ein Gerät nur für {listed, number} von {total, number} Impressionen."
+        }
       },
       "index": {
         "title": "Google-Index",

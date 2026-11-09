@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { hiddenImpressions } from "./seo-search-model";
 import { SEO_STACKED_TABLE_CLASS, SeoPeriod, SeoSection } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -35,6 +36,18 @@ export function SeoBreakdown({ model }: { model: SeoWorkspaceModel }) {
       : key.length === 2
         ? (regions.of(key) ?? key)
         : key;
+  // Google can leave impressions out of a split; say how many rows cover.
+  const unlisted = (dimension: "country" | "device") => {
+    const hidden = hiddenImpressions(model.data, (queries) =>
+      dimension === "country" ? queries.countries : queries.devices,
+    );
+    return hidden?.hidden
+      ? t(`breakdown.unlisted.${dimension}`, {
+          listed: hidden.listed,
+          total: hidden.total,
+        })
+      : null;
+  };
   return (
     <SeoSection
       title={t("breakdown.title")}
@@ -52,6 +65,7 @@ export function SeoBreakdown({ model }: { model: SeoWorkspaceModel }) {
             rows={countries.rows}
             name={country}
             truncated={countries.truncated}
+            unlisted={unlisted("country")}
           />
         ) : null}
         {devices?.rows.length ? (
@@ -64,6 +78,7 @@ export function SeoBreakdown({ model }: { model: SeoWorkspaceModel }) {
                 : key
             }
             truncated={devices.truncated}
+            unlisted={unlisted("device")}
           />
         ) : null}
       </div>
@@ -76,11 +91,13 @@ function BreakdownTable({
   rows,
   name,
   truncated,
+  unlisted,
 }: {
   heading: string;
   rows: ProjectSeoSearchBreakdown["rows"];
   name: (key: string) => string;
   truncated: boolean;
+  unlisted: string | null;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -142,11 +159,12 @@ function BreakdownTable({
           ))}
         </TableBody>
       </Table>
-      {more > 0 || truncated ? (
+      {more > 0 || truncated || unlisted ? (
         <p className="text-muted-foreground px-3 py-2 text-xs">
           {[
             more > 0 ? t("breakdown.more", { count: more }) : null,
             truncated ? t("breakdown.truncated", { count: rows.length }) : null,
+            unlisted,
           ]
             .filter(Boolean)
             .join(" ")}
