@@ -323,7 +323,7 @@ export function SeoWorkspace({
           <Button
             variant="outline"
             size="sm"
-            className="md:hidden"
+            className="self-start md:hidden"
             aria-expanded={filtersOpen}
             aria-controls="seo-scope-filters"
             onClick={() => setFiltersOpen((open) => !open)}

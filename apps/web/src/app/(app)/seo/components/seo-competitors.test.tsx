@@ -146,6 +146,39 @@ describe("SEO competitor baselines", () => {
     },
   );
 
+  it("leaves the actions cell empty when a row has no button", () => {
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canEdit = false;
+    workspace.auditId = null;
+    workspace.competitors = [
+      {
+        id: "read-only-competitor",
+        url: "https://competitor.example/",
+        role: "competitor",
+        confirmed: true,
+        source: "saved",
+        rank: null,
+        backlinks: null,
+        referringDomains: null,
+        observedAt: null,
+        observationId: null,
+        version: 1,
+        canConfirm: true,
+        exclusionReason: null,
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    const row = screen
+      .getByRole("link", { name: "https://competitor.example/" })
+      .closest("tr");
+    // An empty cell is hidden on a phone; a wrapper would add a blank row.
+    expect(row?.lastElementChild).toBeEmptyDOMElement();
+  });
+
   it("says why a lone competitor is listed", () => {
     const workspace = seoTestWorkspace();
     workspace.competitors = [

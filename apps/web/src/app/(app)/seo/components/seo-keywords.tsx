@@ -278,7 +278,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                       ) : null}
                       <TableCell>
                         {model.data.availableActions.canEdit ? (
-                          <div className="flex flex-wrap justify-end gap-2">
+                          <div className="flex flex-wrap justify-end gap-2 max-sm:justify-start">
                             {row.version > 0 ? (
                               <Button
                                 variant="outline"

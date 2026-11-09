@@ -122,102 +122,113 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="min-w-56 whitespace-normal">
-                    <SeoPageLink url={row.url} />
-                    {/* Without paid metrics, the state is what says why a row is listed. */}
-                    <div className="mt-1">
-                      <SeoState>{t(state(row))}</SeoState>
-                    </div>
-                    {row.exclusionReason ? (
-                      <p className="text-muted-foreground mt-2 text-sm">
-                        {row.exclusionReason}
-                      </p>
+              {rows.map((row) => {
+                const compare =
+                  row.role === "competitor" && Boolean(model.data.auditId);
+                const toggle =
+                  model.data.availableActions.canEdit &&
+                  row.role === "competitor" &&
+                  (row.canConfirm || row.confirmed);
+                return (
+                  <TableRow key={row.id}>
+                    <TableCell className="min-w-56 whitespace-normal">
+                      <SeoPageLink url={row.url} />
+                      {/* Without paid metrics, the state is what says why a row is listed. */}
+                      <div className="mt-1">
+                        <SeoState>{t(state(row))}</SeoState>
+                      </div>
+                      {row.exclusionReason ? (
+                        <p className="text-muted-foreground mt-2 text-sm">
+                          {row.exclusionReason}
+                        </p>
+                      ) : null}
+                    </TableCell>
+                    {shown.rank ? (
+                      <TableCell
+                        className="text-right tabular-nums"
+                        data-label={t("competitors.rank")}
+                      >
+                        {number(row.rank)}
+                      </TableCell>
                     ) : null}
-                  </TableCell>
-                  {shown.rank ? (
-                    <TableCell
-                      className="text-right tabular-nums"
-                      data-label={t("competitors.rank")}
-                    >
-                      {number(row.rank)}
-                    </TableCell>
-                  ) : null}
-                  {shown.backlinks ? (
-                    <TableCell
-                      className="text-right tabular-nums"
-                      data-label={t("competitors.backlinks")}
-                    >
-                      {number(row.backlinks)}
-                    </TableCell>
-                  ) : null}
-                  {shown.domains ? (
-                    <TableCell
-                      className="text-right tabular-nums"
-                      data-label={t("competitors.domains")}
-                    >
-                      {number(row.referringDomains)}
-                    </TableCell>
-                  ) : null}
-                  {shown.observed ? (
-                    <TableCell data-label={t("observed")}>
-                      <SeoDate value={row.observedAt} />
-                    </TableCell>
-                  ) : null}
-                  {shown.source ? (
-                    <TableCell data-label={t("source")}>
-                      <span className="text-muted-foreground text-sm">
-                        {row.source}
-                      </span>
-                      {row.observationId ? (
-                        <div>
-                          <SeoSource
-                            workspace={model.data}
-                            observationId={row.observationId}
-                          />
+                    {shown.backlinks ? (
+                      <TableCell
+                        className="text-right tabular-nums"
+                        data-label={t("competitors.backlinks")}
+                      >
+                        {number(row.backlinks)}
+                      </TableCell>
+                    ) : null}
+                    {shown.domains ? (
+                      <TableCell
+                        className="text-right tabular-nums"
+                        data-label={t("competitors.domains")}
+                      >
+                        {number(row.referringDomains)}
+                      </TableCell>
+                    ) : null}
+                    {shown.observed ? (
+                      <TableCell data-label={t("observed")}>
+                        <SeoDate value={row.observedAt} />
+                      </TableCell>
+                    ) : null}
+                    {shown.source ? (
+                      <TableCell data-label={t("source")}>
+                        <span className="text-muted-foreground text-sm">
+                          {row.source}
+                        </span>
+                        {row.observationId ? (
+                          <div>
+                            <SeoSource
+                              workspace={model.data}
+                              observationId={row.observationId}
+                            />
+                          </div>
+                        ) : null}
+                      </TableCell>
+                    ) : null}
+                    <TableCell className="text-right">
+                      {/* No buttons, no wrapper: an empty cell takes no row on a phone. */}
+                      {compare || toggle ? (
+                        <div className="flex flex-wrap justify-end gap-2 max-sm:justify-start">
+                          {compare ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                model.openChat(
+                                  t("competitors.compareDraft", {
+                                    url: row.url,
+                                  }),
+                                )
+                              }
+                            >
+                              {t("competitors.compare")}
+                            </Button>
+                          ) : null}
+                          {toggle ? (
+                            <Button
+                              // Removing is the rare choice; it stays quieter than Compare.
+                              variant={row.confirmed ? "ghost" : "outline"}
+                              size="sm"
+                              disabled={model.pending}
+                              onClick={() => {
+                                void model.toggleCompetitor(row);
+                              }}
+                            >
+                              {t(
+                                row.confirmed
+                                  ? "competitors.unconfirm"
+                                  : "competitors.confirm",
+                              )}
+                            </Button>
+                          ) : null}
                         </div>
                       ) : null}
                     </TableCell>
-                  ) : null}
-                  <TableCell className="text-right">
-                    <div className="flex flex-wrap justify-end gap-2 max-sm:justify-start">
-                      {row.role === "competitor" && model.data.auditId ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            model.openChat(
-                              t("competitors.compareDraft", { url: row.url }),
-                            )
-                          }
-                        >
-                          {t("competitors.compare")}
-                        </Button>
-                      ) : null}
-                      {model.data.availableActions.canEdit &&
-                      row.role === "competitor" &&
-                      (row.canConfirm || row.confirmed) ? (
-                        <Button
-                          // Removing is the rare choice; it stays quieter than Compare.
-                          variant={row.confirmed ? "ghost" : "outline"}
-                          size="sm"
-                          disabled={model.pending}
-                          onClick={() => {
-                            void model.toggleCompetitor(row);
-                          }}
-                        >
-                          {t(
-                            row.confirmed
-                              ? "competitors.unconfirm"
-                              : "competitors.confirm",
-                          )}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
           {hidden.length && !paidOff ? (
