@@ -9711,6 +9711,7 @@
         "title": "Picture",
         "description": "A unique picture from the collection. No two assistants share one.",
         "save": "Use this picture",
+        "edit": "Change picture",
         "saved": "Picture updated.",
         "saveError": "Could not update the picture.",
         "current": "Current picture",

@@ -21,27 +21,38 @@ const PAGE_SIZE = 6;
  * Six unclaimed Soko Bot avatars at a time, "show others" for a fresh set. Each one is
  * unique across all bots: the pool hands an avatar to exactly one bot.
  */
-export function AvatarPicker({
-  value,
-  onChange,
-  currentImageUrl,
-}: {
+export function AvatarPicker(props: AvatarPickerProps) {
+  // A saved pick becomes the current picture. Remount on that change so the
+  // saved avatar leaves the offered set and a fresh set fills the row again.
+  return <AvatarPickerSet key={props.currentImageUrl ?? ""} {...props} />;
+}
+
+interface AvatarPickerProps {
   value: string | null;
   onChange: (avatar: SokoBotAvatar | null) => void;
   /** The bot's current picture, shown as an always-available option. */
   currentImageUrl?: string | null;
-}) {
+}
+
+function AvatarPickerSet({
+  value,
+  onChange,
+  currentImageUrl,
+}: AvatarPickerProps) {
   const t = useTranslations("App.SokoBot.Avatar");
   const [avatars, setAvatars] = useState<SokoBotAvatar[]>([]);
   const [seen, setSeen] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
+  // The current picture takes one tile, so the set shrinks by one and the
+  // tiles still fill whole rows (six wide, or two rows of three).
+  const take = currentImageUrl ? PAGE_SIZE - 1 : PAGE_SIZE;
 
   function load(excludeIds: string[]) {
     startTransition(async () => {
       const requestedExcludeIds = excludeIdsForAvatarRefresh(excludeIds);
       const result = await topUpSokoBotAvatarsAction({
-        input: { take: PAGE_SIZE, excludeIds: requestedExcludeIds },
+        input: { take, excludeIds: requestedExcludeIds },
       });
       if (!result.ok) {
         toast.error(
@@ -60,7 +71,7 @@ export function AvatarPicker({
         result.value.length === 0 && requestedExcludeIds.length > 0;
       const next = wrappedAround
         ? await topUpSokoBotAvatarsAction({
-            input: { take: PAGE_SIZE, excludeIds: [] },
+            input: { take, excludeIds: [] },
           }).then((r) => (r.ok ? r.value : []))
         : result.value;
       setAvatars(next);
@@ -114,7 +125,7 @@ export function AvatarPicker({
           />
         ))}
         {!loaded
-          ? Array.from({ length: PAGE_SIZE }, (_, i) => (
+          ? Array.from({ length: take }, (_, i) => (
               <div
                 key={i}
                 className="bg-muted aspect-square animate-pulse rounded-xl"

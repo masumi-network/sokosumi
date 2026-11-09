@@ -237,7 +237,7 @@ describe("SokoBotConsole", () => {
   it("keeps skills, avatar and the own-bot target on the caller's own bot", () => {
     renderConsole({ botId: null, sharedRoomId: null });
     expect(screen.getByTestId("skills")).toBeInTheDocument();
-    expect(screen.getByTestId("avatar")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "edit" })).toBeInTheDocument();
     expect(screen.getByTestId("archive")).toHaveTextContent("own");
     expect(screen.getByText("Settings.archiveDescription")).toBeInTheDocument();
   });
@@ -245,11 +245,13 @@ describe("SokoBotConsole", () => {
   it("changes the own bot's avatar to the one picked in the console", async () => {
     claimAvatarMock.mockResolvedValue({ ok: true });
     renderConsole({ botId: null, sharedRoomId: null });
+    fireEvent.click(screen.getByRole("button", { name: "edit" }));
     fireEvent.click(screen.getByRole("button", { name: "pick avatar-7" }));
     fireEvent.click(screen.getByRole("button", { name: "Avatar.save" }));
     await waitFor(() =>
       expect(claimAvatarMock).toHaveBeenCalledWith({ avatarId: "avatar-7" }),
     );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("opens a shared bot's room instead of a direct room", () => {
@@ -364,11 +366,15 @@ describe("SokoBotConsole header portrait", () => {
     expect(screen.getByText("Console.lastActivity(now)")).toBeInTheDocument();
   });
 
-  it("offers no way to the avatar studio, own bot or shared", () => {
-    renderConsole({ canManage: true });
+  it("edits only the own bot's picture, from its avatar, never in a studio", () => {
+    renderConsole({ botId: null, sharedRoomId: null });
+    expect(screen.queryByTestId("avatar")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "edit" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("avatar")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "edit" })).toBeNull();
     cleanup();
-    renderConsole({ botId: null, sharedRoomId: null });
-    expect(screen.queryByRole("link", { name: "edit" })).toBeNull();
+    renderConsole({ canManage: true });
+    expect(screen.queryByRole("button", { name: "edit" })).toBeNull();
   });
 });

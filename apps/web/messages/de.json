@@ -9711,6 +9711,7 @@
         "title": "Bild",
         "description": "Ein einzigartiges Bild aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
         "save": "Dieses Bild verwenden",
+        "edit": "Bild ändern",
         "saved": "Bild aktualisiert.",
         "saveError": "Das Bild konnte nicht aktualisiert werden.",
         "current": "Aktuelles Bild",

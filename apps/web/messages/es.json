@@ -9711,6 +9711,7 @@
         "title": "Imagen",
         "description": "Una imagen única de la colección. Dos asistentes nunca comparten la misma.",
         "save": "Usar esta imagen",
+        "edit": "Cambiar imagen",
         "saved": "Imagen actualizada.",
         "saveError": "No se pudo actualizar la imagen.",
         "current": "Imagen actual",
