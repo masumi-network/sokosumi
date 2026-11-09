@@ -11,4 +11,4 @@
 - [ ] A forward migration deletes crafted-style avatar rows
 - [ ] It drops the render table and its enums, and the columns and unique index #6710 added to `soko_bot_avatar` (including the trait key)
 - [ ] Verified on a throwaway Postgres on top of 03's migration; CI's migration checks pass
-- [ ] A one-off script lists and deletes crafted stills, loops and the vendored ffmpeg copy from Blob; a person runs it with the store's token, after a dry run that prints what it would delete
+- [ ] A one-off script lists and deletes crafted stills, loops and the vendored ffmpeg copy from Blob; a person runs it with the store's token, after a dry run that prints what it would delete; it never touches `soko-bots/avatars/original/` (07's WebP avatars) or any `.png`
