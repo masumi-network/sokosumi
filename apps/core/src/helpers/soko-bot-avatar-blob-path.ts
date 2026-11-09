@@ -3,8 +3,8 @@ export const SOKO_BOT_AVATAR_LEGACY_BLOB_DIR = "soko-bot-avatars";
 /**
  * Original-style avatars the top-up draws. Their own prefix keeps them apart
  * from the crafted-style avatars' `.webp` files directly under
- * `soko-bots/avatars/`, which
- * `scripts/delete-crafted-style-soko-bot-avatar-blobs.mts` deletes.
+ * `soko-bots/avatars/`, which a one-off script deletes:
+ * `scripts/delete-crafted-style-soko-bot-avatar-blobs.mts`.
  */
 export const SOKO_BOT_AVATAR_ORIGINAL_BLOB_DIR = `${SOKO_BOT_AVATAR_BLOB_DIR}/original`;
 
