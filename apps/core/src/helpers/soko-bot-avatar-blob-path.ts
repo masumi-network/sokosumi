@@ -3,7 +3,7 @@ export const SOKO_BOT_AVATAR_LEGACY_BLOB_DIR = "soko-bot-avatars";
 /**
  * Original-style avatars the top-up draws. Their own prefix keeps them apart
  * from the crafted `.webp` files directly under `soko-bots/avatars/`, which
- * `scripts/delete-crafted-soko-bot-avatar-blobs.mts` deletes.
+ * `scripts/delete-crafted-style-soko-bot-avatar-blobs.mts` deletes.
  */
 export const SOKO_BOT_AVATAR_ORIGINAL_BLOB_DIR = `${SOKO_BOT_AVATAR_BLOB_DIR}/original`;
 
@@ -19,12 +19,21 @@ export const SOKO_BOT_AVATAR_FFMPEG_BLOB_DIR = "vendor/ffmpeg-static";
 
 /**
  * A blob the crafted style left behind: a still (`.webp`) or loop (`.mp4`)
- * directly under `soko-bots/avatars/`, or the vendored ffmpeg copy.
+ * directly under `soko-bots/avatars/`, or the vendored ffmpeg copy
+ * (`vendor/ffmpeg-static/<version>/ffmpeg-<build>.gz`).
  * Never a `.png` (original-style avatars) and never a subfolder such as
  * `soko-bots/avatars/original/`.
+ * Exists only for `scripts/delete-crafted-style-soko-bot-avatar-blobs.mts`
+ * (here so it can be unit-tested); delete it with that one-off script.
  */
-export function isCraftedSokoBotAvatarBlobPathname(pathname: string): boolean {
-  if (pathname.startsWith(`${SOKO_BOT_AVATAR_FFMPEG_BLOB_DIR}/`)) return true;
+export function isCraftedStyleAvatarBlobPathname(pathname: string): boolean {
+  if (pathname.endsWith(".png")) return false;
+  const ffmpegPrefix = `${SOKO_BOT_AVATAR_FFMPEG_BLOB_DIR}/`;
+  if (pathname.startsWith(ffmpegPrefix)) {
+    return /^[^/]+\/ffmpeg-[^/]+\.gz$/.test(
+      pathname.slice(ffmpegPrefix.length),
+    );
+  }
   const prefix = `${SOKO_BOT_AVATAR_BLOB_DIR}/`;
   if (!pathname.startsWith(prefix)) return false;
   const name = pathname.slice(prefix.length);
