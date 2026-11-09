@@ -334,19 +334,24 @@ npm i -s remotion@4 @remotion/cli@4 react@19 react-dom@19 playwright
 sudo npx -y playwright install-deps chromium >/dev/null && npx playwright install chromium >/dev/null
 sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg >/dev/null
 \`\`\`
-That takes about a minute. Keep the video folder: in a chat turn node_modules stays for next time, while the apt and Playwright system packages are set up again each turn. The owner's own pictures (logo, product photos) come from Files with workspace_import_file into video/public/.
+That takes about a minute. Then collect the business's own pictures, the more the better (aim for one per sentence): its product, food, place, team and customers, from its site's product, menu, gallery and about pages (save every image wider than 800 pixels, and the og:image), and its logo from the site header (svg or png). For a feature or integration, screenshot where it happens: the product screen, its docs or its announcement page. Never draw a logo or use a placeholder; leave it out when you cannot get the real one. Keep the video folder: in a chat turn node_modules stays for next time, while the apt and Playwright system packages are set up again each turn. The owner's own pictures (logo, product photos) come from Files with workspace_import_file into video/public/.
 
 ## 3. The voice-over
 Write the narration in the brand's voice: one idea per sentence, 75 to 150 words for 30 to 60 seconds. Hook in the first sentence, the call to action last. generate_voiceover with workspacePath "video/public/voice.mp3"; its sentences say when each starts.
 
 ## 4. Scenes in Remotion
-One scene per sentence, as long as that sentence plus half a second; a final card with the call to action and the address. Use the brand's colours and type from the Brand Brain, few words on screen, big and readable on a phone. Screenshots sit in a framed card with a slow zoom or pan to the part that matters. 30 fps. Size it for where it goes: 1080x1920 for Reels, Shorts and TikTok; 1080x1080 for a feed; 1920x1080 for YouTube and LinkedIn. Put the audio in the composition with <Audio src={staticFile("voice.mp3")} />.
+Every scene shows one of those real pictures and moves; only the last card is words on a plain background. One scene per sentence, as long as that sentence plus half a second; a final card with the call to action and the address. Use the brand's colours and type from the Brand Brain, few words on screen, big and readable on a phone. Pictures fill the frame and screenshots sit in a framed card, each with a slow zoom or pan to the part that matters; a long sentence gets two pictures, and scenes change with a short crossfade or slide. 30 fps. Size it for where it goes: 1080x1920 for Reels, Shorts and TikTok; 1080x1080 for a feed; 1920x1080 for YouTube and LinkedIn. Put the audio in the composition with <Audio src={staticFile("voice.mp3")} />.
 
 ## 5. Render and check
-\`npx remotion render src/index.ts Launch out/launch.mp4 --crf 23\` takes about 30 seconds for a minute on your machine; a long one goes in a background run. Then \`ffprobe\` the length and pull three frames with ffmpeg to check they are not blank. Keep it under 50 MB with \`-movflags +faststart\`.
+\`npx remotion render src/index.ts Launch out/launch.mp4 --crf 23\` takes about 30 seconds for a minute on your machine; a long one goes in a background run. Then make it as loud as the feed, which most voices are not:
+\`\`\`bash
+ffmpeg -y -i out/launch.mp4 -c:v copy -af loudnorm=I=-14:TP=-1.5:LRA=11 -c:a aac -b:a 192k -movflags +faststart out/final.mp4
+ffmpeg -i out/final.mp4 -af ebur128 -f null - 2>&1 | grep -E "^\\s+I:" | tail -1
+\`\`\`
+The second line must say between -16 and -12 LUFS. Then \`ffprobe\` the length and pull three frames with ffmpeg: each must show a real picture, not blank and not a text slide. Keep it under 50 MB.
 
 ## 6. Deliver
-upload_file with workspacePath "video/out/launch.mp4" and a clear filename, then create_social_post with that fileId as the video, the post text and scheduledAt when the owner gave a time, all in one call. Show its preview card: the owner approves it. Say what you made, how long it is and where it goes.
+upload_file with workspacePath "video/out/final.mp4" and a clear filename, then create_social_post with that fileId as the video, the post text and scheduledAt when the owner gave a time, all in one call. Show its preview card: the owner approves it. Say what you made, how long it is and where it goes.
 
 Make one, get the owner's yes on the style, and only then make more in the same style.`,
   },
