@@ -1252,7 +1252,7 @@ export function TaskForm({
                   placeholder={labels.namePlaceholder}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground"
+                  className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                 />
               ) : null}
 
