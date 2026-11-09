@@ -24,7 +24,7 @@ export function createSokoBotAvatarClient(getClient: GetCoreClient) {
     return executeCoreOperation(
       getClient,
       (client) => coreTopUpSokoBotAvatars({ client, body }),
-      "Failed to fetch Soko Bot avatars",
+      "Failed to top up Soko Bot avatars",
     );
   }
 
