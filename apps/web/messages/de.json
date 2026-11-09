@@ -18,6 +18,7 @@
       "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
       "resend": "Neuen Code senden",
       "resendIn": "Neuer Code in {seconds} s",
+      "didntGetIt": "Nicht angekommen?",
       "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut.",
       "notSent": "Wir konnten keinen Code senden. Versuche es erneut."
     },
@@ -588,6 +589,7 @@
           "back": "Zurück",
           "next": "Weiter",
           "skip": "Überspringen",
+          "skipForNow": "Vorerst überspringen",
           "finishSetup": "Einrichtung abschließen",
           "finish": "Zum Workspace"
         },
@@ -609,7 +611,7 @@
           "found": "Das haben wir auf {domain} gefunden. Passt nicht? Lade dein eigenes hoch.",
           "foundNoDomain": "Das haben wir auf deiner Website gefunden. Passt nicht? Lade dein eigenes hoch.",
           "notFound": "Auf deiner Website wurde kein Logo gefunden. Lade eines hoch oder überspringe diesen Schritt.",
-          "upload": "Logo hochladen",
+          "dropzone": "Logo hier ablegen oder Datei auswählen",
           "replace": "Logo ersetzen",
           "remove": "Entfernen",
           "uploadHint": "PNG, JPG oder SVG. Bis 2 MB.",
