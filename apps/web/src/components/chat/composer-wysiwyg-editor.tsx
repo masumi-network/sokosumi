@@ -1420,7 +1420,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning
-        aria-label={ariaLabel}
+        // The placeholder is CSS-only, so it names the textbox when no label is passed.
+        aria-label={ariaLabel || placeholder || undefined}
         aria-disabled={disabled || undefined}
         onInput={handleInput}
         onPaste={handlePaste}

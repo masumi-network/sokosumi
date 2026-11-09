@@ -1242,6 +1242,24 @@ describe("draft task tag actions", () => {
       );
     },
   );
+
+  it("forwards a copy's source Task so Core takes its tags", async () => {
+    taskServiceMock.createTask.mockReset().mockResolvedValue(buildTask());
+    const { createTask } = await import("./action");
+    await createTask({
+      name: "Weekly report",
+      description: "Summarise the week",
+      assigneeId: null,
+      status: TaskStatus.DRAFT,
+      copyOfTaskId: "source-task",
+    });
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Weekly report",
+        copyOfTaskId: "source-task",
+      }),
+    );
+  });
 });
 
 describe("setTaskPriority", () => {

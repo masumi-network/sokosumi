@@ -509,6 +509,7 @@
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",
         "emptyJobs": "Noch keine Jobs. Beauftrage diesen Coworker, um zu starten.",
+        "noMatches": "Keine Jobs passen zu deiner Suche.",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
@@ -1901,7 +1902,8 @@
           "resumeReady": "Zurück zu Bereit",
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
-          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut."
+          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2037,7 +2039,8 @@
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
         "privateLabel": "Privat",
-        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker."
+        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker.",
+        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen."
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -7895,10 +7898,14 @@
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "Header": {
           "back": "Zurück zu Agents",
-          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
+          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
+          "backToAgent": "Zurück zu {name}",
+          "yourJobs": "Deine Jobs",
+          "yourJobsCount": "Deine Jobs · {count}"
         },
         "Modal": {
-          "back": "Zurück"
+          "back": "Zurück",
+          "title": "Job-Details"
         },
         "Footer": {
           "termsAndConditions": "Allgemeine Geschäftsbedingungen",
@@ -8273,6 +8280,7 @@
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
       "headerVisitSwitch": "Zu {workspace} wechseln",
+      "headerMore": "Weitere Chat-Optionen",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",
