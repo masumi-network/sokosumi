@@ -589,10 +589,19 @@ function describeRead(capability: string, value: unknown): string[] {
 }
 
 /** Whether `later` repeats every field `earlier` set, with the same value. */
+/**
+ * What a file's name is chosen by. A voice-over refused because its filename
+ * was taken, then made again under a new name, read "Not confirmed: made
+ * voice-over." beneath the finished video.
+ */
+const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
+
 function inputCovers(later: unknown, earlier: unknown): boolean {
   if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
   return Object.entries(earlier).every(
-    ([key, value]) => JSON.stringify(later[key]) === JSON.stringify(value),
+    ([key, value]) =>
+      FILE_NAMING_KEYS.has(key) ||
+      JSON.stringify(later[key]) === JSON.stringify(value),
   );
 }
 
