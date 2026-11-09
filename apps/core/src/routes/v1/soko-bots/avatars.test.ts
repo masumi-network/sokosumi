@@ -8,12 +8,14 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
  * beside the route: what a user is offered, and what a top-up draws.
  */
 
-const { store, generateTextMock, putMock } = vi.hoisted(() => ({
+const { store, generateTextMock, putMock, deferred } = vi.hoisted(() => ({
   store: {} as ReturnType<
     typeof import("@/test-fixtures/soko-bot-avatar-store").createSokoBotAvatarStore
   >,
   generateTextMock: vi.fn(),
   putMock: vi.fn(),
+  /** Work Core kept alive past the response. */
+  deferred: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/lib/db/prisma", async () => {
@@ -30,6 +32,17 @@ vi.mock("ai", async (importOriginal) => ({
 }));
 
 vi.mock("@vercel/blob", () => ({ put: putMock }));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    deferred.push(promise);
+  },
+}));
+
+/** Let the work deferred past the response finish. */
+async function runDeferred() {
+  while (deferred.length > 0) await deferred.shift();
+}
 
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
@@ -151,6 +164,7 @@ describe("Soko Bot avatar picker", () => {
   beforeEach(() => {
     store.reset();
     vi.clearAllMocks();
+    deferred.length = 0;
     generateTextMock.mockImplementation(async () => ({
       files: [{ mediaType: "image/png", uint8Array: drawnPng }],
     }));
@@ -258,27 +272,84 @@ describe("Soko Bot avatar picker", () => {
       expect(generateTextMock).not.toHaveBeenCalled();
     });
 
-    it("draws new avatars when the user has seen the whole pool", async () => {
+    it("answers a refresh at once with what is unseen and draws the rest after", async () => {
+      const seen = Array.from({ length: 4 }, () => store.seed().id);
+      const unseen = [store.seed().id, store.seed().id];
+      // The image model is slow; the answer must not wait for it.
+      let release: () => void = () => {};
+      const drawing = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      generateTextMock.mockImplementation(async () => {
+        await drawing;
+        return { files: [{ mediaType: "image/png", uint8Array: drawnPng }] };
+      });
+
+      const { status, avatars } = await topUp(6, seen);
+
+      expect(status).toBe(200);
+      expect(avatars?.map((one) => one.id).sort()).toEqual([...unseen].sort());
+
+      release();
+      await runDeferred();
+      expect(generateTextMock).toHaveBeenCalledTimes(4);
+      const after = await topUp(6, seen);
+      expect(after.avatars).toHaveLength(6);
+      expect(after.avatars?.some((one) => seen.includes(one.id))).toBe(false);
+    });
+
+    it("answers a refresh of a fully seen pool with nothing, and draws a set after", async () => {
       const seen = Array.from({ length: 6 }, () => store.seed().id);
 
       const { status, avatars } = await topUp(6, seen);
 
       expect(status).toBe(200);
+      expect(avatars).toEqual([]);
+      await runDeferred();
       expect(generateTextMock).toHaveBeenCalledTimes(6);
-      expect(avatars).toHaveLength(6);
-      expect(avatars?.some((one) => seen.includes(one.id))).toBe(false);
+      expect((await topUp(6, seen)).avatars).toHaveLength(6);
     });
 
-    it("draws only the unseen avatars the pool is short of", async () => {
-      const seen = Array.from({ length: 4 }, () => store.seed().id);
-      store.seed();
+    it("logs a background draw that fails instead of failing the refresh", async () => {
+      const seen = [store.seed().id];
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      generateTextMock.mockRejectedValue(new Error("gateway down"));
+
+      const { status, avatars } = await topUp(6, seen);
+
+      expect(status).toBe(200);
+      expect(avatars).toEqual([]);
+      await expect(runDeferred()).resolves.toBeUndefined();
+      expect(error).toHaveBeenCalled();
+      error.mockRestore();
+    });
+
+    it("keeps concurrent background draws under the hourly cap", async () => {
+      // Two left of the allowance, and three refreshes each short of six.
+      for (
+        let i = 0;
+        i < LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - 2;
+        i += 1
+      ) {
+        store.seed({ requestedByUserId: USER_ID, claimedBySokoBotId: `b${i}` });
+      }
+      const seen = [store.seed().id];
+
+      await Promise.all([topUp(6, seen), topUp(6, seen), topUp(6, seen)]);
+      await runDeferred();
+
+      expect(generateTextMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("waits for a first open to be drawn when the pool is short", async () => {
       store.seed();
 
-      const { avatars } = await topUp(6, seen);
+      const { status, avatars } = await topUp(6);
 
-      expect(generateTextMock).toHaveBeenCalledTimes(4);
+      expect(status).toBe(200);
       expect(avatars).toHaveLength(6);
-      expect(avatars?.some((one) => seen.includes(one.id))).toBe(false);
+      expect(generateTextMock).toHaveBeenCalledTimes(5);
+      expect(deferred).toHaveLength(0);
     });
 
     it("draws only what is left of the user's hourly allowance", async () => {

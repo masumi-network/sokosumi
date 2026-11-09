@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 
 import { put } from "@vercel/blob";
+import { waitUntil } from "@vercel/functions";
 import { createGateway, generateText } from "ai";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
@@ -554,13 +555,52 @@ export async function listAvailableAvatars(
 }
 
 /**
+ * Draw a refresh's shortfall after its response, kept alive past it on Vercel.
+ *
+ * Never throws: the caller was already answered with what the pool held. A
+ * spent allowance or a lost race is expected and only noted; anything else is
+ * a fault worth an error log. Concurrent draws stay under the hourly cap
+ * because `reserveDraws` counts and reserves in one Serializable step.
+ */
+function drawShortfallInBackground(
+  count: number,
+  requestedByUserId: string,
+): void {
+  waitUntil(
+    (async () => {
+      // The only sweeper, as on the waiting path below.
+      await sweepStaleReservations();
+      await generateAvatars(count, requestedByUserId);
+    })().catch((error: unknown) => {
+      if (isRecoverableGenerationFailure(error)) {
+        console.warn("Soko Bot avatar background draw skipped", {
+          count,
+          error: errorText(error),
+        });
+        return;
+      }
+      console.error("Soko Bot avatar background draw failed", {
+        count,
+        error: errorText(error),
+      });
+    }),
+  );
+}
+
+/**
  * Fill a short pool, then read it back. There is no cron: the picker asks to
  * fill the pool when it opens, so new avatars are drawn only when someone is
  * about to pick one.
  *
- * This spends image budget and writes rows, so it belongs behind a POST. The
- * caller here is waiting on purpose; decorative reads use
- * `listAvailableAvatars` so a page render never waits on image generation.
+ * Only a first open (nothing excluded) waits for the drawing: it has nothing
+ * else to show. A "show others" refresh gets the unseen avatars there are at
+ * once, and its shortfall is drawn after the response, ready for the next
+ * refresh. Drawing takes up to a minute, and Web queues server actions per
+ * session, so a refresh that waited would also hold back "Use this picture".
+ *
+ * This spends image budget and writes rows, so it belongs behind a POST.
+ * Decorative reads use `listAvailableAvatars` so a page render never waits on
+ * image generation.
  */
 export async function topUpAvailableAvatars(
   take: number,
@@ -576,7 +616,9 @@ export async function topUpAvailableAvatars(
     const available = await prisma.sokoBotAvatar.count({
       where: unclaimedAvatarFilter(options.excludeIds),
     });
-    if (available < take) {
+    if (available < take && options.excludeIds?.length) {
+      drawShortfallInBackground(take - available, options.requestedByUserId);
+    } else if (available < take) {
       // The only sweeper. A reservation whose run died would otherwise hold
       // its draw and the user's allowance for ever.
       await sweepStaleReservations();
