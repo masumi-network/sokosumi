@@ -2590,8 +2590,8 @@ model SokoBotAvatar {
   claimedBySokoBot   SokoBot?  @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
   claimedAt          DateTime?
 
-  /// The user whose top-up caused this image. Null for rows the pool cron made,
-  /// which no user asked for. Read by the per-user generation cap.
+  /// The user whose top-up caused this image. Null for rows the removed pool
+  /// cron made, which no user asked for. Read by the per-user generation cap.
   requestedByUserId String?
   requestedBy       User?   @relation("SokoBotAvatarRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
