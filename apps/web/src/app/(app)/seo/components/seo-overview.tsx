@@ -60,8 +60,8 @@ function PageDetail({
   suggested: boolean;
   /** The suggestion's first row offers "Draft a fix"; its other device rows do not repeat it. */
   offersFix: boolean;
-  /** Opens the agent chat: a note's question as a draft, a fix request sent; absent without a chat. */
-  onAsk?: (question: string, send: boolean) => void;
+  /** Opens the agent chat with this row's question or fix request as a draft; absent without a chat. */
+  onAsk?: (question: string) => void;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -219,7 +219,6 @@ function PageDetail({
                           url: finding.pageUrl,
                         })
                       : t("overview.askAboutNote", { name }),
-                  measure,
                 )
               }
             >
@@ -307,10 +306,9 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
       .filter((finding) => guidanceRows.has(finding.id))
       .flatMap((finding) => pageDetailGuidance(finding.evidence)),
   );
-  // A question about a note goes to the agent's chat as a draft; the owner sends it.
-  // A fix request is sent, as on the Agent tab; the agent only proposes an action.
+  // A question or fix request goes to the agent's chat as a draft; the owner sends it.
   const askAgent = data.auditId
-    ? (question: string, send: boolean) => model.openChat(question, send)
+    ? (question: string) => model.openChat(question)
     : undefined;
   return (
     <div className="space-y-5">

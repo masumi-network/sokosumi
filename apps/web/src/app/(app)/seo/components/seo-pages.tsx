@@ -50,6 +50,8 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   const [only] = model.data.pages;
   if (
     model.data.pages.length === 1 &&
+    // The header names the page only while it is the one in view.
+    scopePages[0] === only.id &&
     only.relationship === "primary" &&
     (!only.label || only.label === only.url) &&
     !datesFiltered

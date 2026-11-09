@@ -518,28 +518,24 @@ describe("SEO workspace integration", () => {
     );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    // A fix request is the Agent tab's and is sent; the unsent note question stays a draft.
+    // A fix request is the Agent tab's, as a draft; the unsent note question stays above it.
     await user.click(
       screen.getByRole("button", {
         name: "Draft a fix",
         description: "Title length: https://example.com/old",
       }),
     );
-    await waitFor(() =>
-      expect(asked).toEqual([
-        "The check measured “Title length” on https://example.com/old as 80 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.",
-      ]),
+    const question = within(await screen.findByRole("dialog")).getByLabelText(
+      "Your question",
+    ) as HTMLTextAreaElement;
+    expect(question.value).toBe(
+      "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?\n\nThe check measured “Title length” on https://example.com/old as 80 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.",
     );
-    expect(
-      within(await screen.findByRole("dialog")).getByLabelText("Your question"),
-    ).toHaveValue(
-      "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?",
-    );
-    // One click, one request.
-    expect(asked).toHaveLength(1);
+    // Nothing is sent until the owner sends it.
+    expect(asked).toEqual([]);
   });
 
-  it("sends a Site health fix request only once the chat shows no running turn", async () => {
+  it("offers one fix per suggestion and drafts it in the chat", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const measured = (device: "desktop" | "mobile", characters: number) => ({
@@ -560,13 +556,11 @@ describe("SEO workspace integration", () => {
     workspace.findings.push(measured("desktop", 163), measured("mobile", 170));
     const prompt = `The check measured “Meta description length” on ${workspace.pages[0].url} as 163 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.`;
     const asked: string[] = [];
-    let history: () => Promise<Response> = async () =>
-      Response.json({ turns: [] });
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (!url.endsWith("/chat")) return Response.json(workspace);
-        if (init?.method !== "POST") return history();
+        if (init?.method !== "POST") return Response.json({ turns: [] });
         const question = JSON.parse(String(init.body)).question;
         asked.push(question);
         return Response.json({
@@ -580,72 +574,14 @@ describe("SEO workspace integration", () => {
         });
       }),
     );
-    // History still loading: the request waits for it, then goes once.
-    let loaded: (response: Response) => void = () => undefined;
-    history = () =>
-      new Promise<Response>((resolve) => {
-        loaded = resolve;
-      });
-    const view = renderWorkspace(workspace, "?tab=health");
+    renderWorkspace(workspace, "?tab=health");
     // Both device rows are the one suggestion; only its first row offers the fix.
     expect(await screen.findAllByText(/Suggestion: outside/)).toHaveLength(2);
     const fixes = screen.getAllByRole("button", { name: "Draft a fix" });
     expect(fixes).toHaveLength(1);
     await user.click(fixes[0]);
-    await screen.findByRole("dialog");
-    expect(asked).toEqual([]);
-    loaded(Response.json({ turns: [] }));
-    await waitFor(() => expect(asked).toEqual([prompt]));
-    view.unmount();
-
-    // Closed before the history loads: the request waits in the input, not out of sight.
-    asked.length = 0;
-    history = () =>
-      new Promise<Response>((resolve) => {
-        loaded = resolve;
-      });
-    const closed = renderWorkspace(workspace, "?tab=health");
-    await user.click(
-      (await screen.findAllByRole("button", { name: "Draft a fix" }))[0],
-    );
-    await screen.findByRole("dialog");
-    await user.keyboard("{Escape}");
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    loaded(Response.json({ turns: [] }));
-    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
-    const reopened = await screen.findByRole("dialog");
-    await waitFor(() =>
-      expect(within(reopened).getByLabelText("Your question")).toHaveValue(
-        prompt,
-      ),
-    );
-    expect(asked).toEqual([]);
-    closed.unmount();
-
-    // A turn already running: the request becomes a draft in the input, not a second turn.
-    asked.length = 0;
-    history = async () =>
-      Response.json({
-        turns: [
-          {
-            id: crypto.randomUUID(),
-            question: "Earlier question",
-            response: null,
-            status: "running",
-            actions: [],
-            scope: { pageIds: workspace.scope.pageIds },
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      });
-    renderWorkspace(workspace, "?tab=health");
-    await user.click(
-      (await screen.findAllByRole("button", { name: "Draft a fix" }))[0],
-    );
     const sheet = await screen.findByRole("dialog");
-    await waitFor(() =>
-      expect(within(sheet).getByLabelText("Your question")).toHaveValue(prompt),
-    );
+    expect(within(sheet).getByLabelText("Your question")).toHaveValue(prompt);
     expect(asked).toEqual([]);
   });
 
@@ -1089,6 +1025,15 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByRole("heading", { name: "Pages" })).toBeNull();
     expect(screen.queryByText("1 page")).toBeNull();
     plain.unmount();
+    // Without that page in view the header cannot name it, so the card stays.
+    const empty = { ...bare, scope: { ...bare.scope, pageIds: [] } };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(empty)),
+    );
+    const unscoped = renderWorkspace(empty, "tab=health");
+    expect(screen.getByRole("heading", { name: "Pages" })).toBeVisible();
+    unscoped.unmount();
 
     // A date filter keeps the page's own line: the Timeline does not say "in these dates".
     const filtered = seoTestWorkspace();

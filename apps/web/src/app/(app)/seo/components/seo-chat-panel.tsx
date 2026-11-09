@@ -353,36 +353,16 @@ function SeoChatSheet({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const chat = useSeoChat(model);
   const { chatDraft, setChatDraft } = model;
-  const { setQuestion, sending, busy, send, viewerId, history } = chat;
-  const { chatOpen } = model;
+  const { setQuestion, sending } = chat;
   // A send in flight clears the input when it lands; the draft waits for it and keeps
-  // any unsent text the user typed. A request the owner chose ("Draft a fix") is sent,
-  // as on the Agent tab, once the open chat's history shows no running turn; a busy or
-  // closed chat gets it as a draft instead, so it never waits out of sight.
+  // any unsent text the user typed.
   useEffect(() => {
     if (!chatDraft || sending) return;
-    if (chatDraft.send && chatOpen && history.isPending) return;
-    if (chatDraft.send && viewerId && history.isSuccess && !busy)
-      void send(chatDraft.text);
-    else
-      setQuestion((typed) =>
-        typed.trim()
-          ? `${typed.trimEnd()}\n\n${chatDraft.text}`
-          : chatDraft.text,
-      );
+    setQuestion((typed) =>
+      typed.trim() ? `${typed.trimEnd()}\n\n${chatDraft}` : chatDraft,
+    );
     setChatDraft(null);
-  }, [
-    chatDraft,
-    sending,
-    chatOpen,
-    history.isPending,
-    history.isSuccess,
-    busy,
-    send,
-    viewerId,
-    setChatDraft,
-    setQuestion,
-  ]);
+  }, [chatDraft, sending, setChatDraft, setQuestion]);
   return (
     <Sheet open={model.chatOpen} onOpenChange={model.setChatOpen}>
       <SheetContent className="w-full gap-0 sm:max-w-xl">
