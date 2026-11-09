@@ -8946,7 +8946,7 @@
         "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
         "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
-        "aiNote": "Jev sortiert Nachrichten danach, was sie von dir wollen. Jev kann sich irren, daher wird nichts ausgeblendet: Korrigiere ein Tag an jeder Nachricht mit einem Klick.",
+        "aiNote": "Tags werden automatisch gesetzt und können falsch sein. Korrigiere ein Tag über „Tags bearbeiten“ an der Nachricht.",
         "removeTag": "Tag entfernen: {tag}",
         "taskMade": "Task erstellt",
         "loopClosed": "Erledigt",

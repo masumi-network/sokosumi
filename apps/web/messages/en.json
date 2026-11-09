@@ -8946,7 +8946,7 @@
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
-        "aiNote": "Jev sorts messages by what they ask of you. It can be wrong, so nothing is hidden: correct a tag on any message with one click.",
+        "aiNote": "Tags are set automatically and can be wrong. Fix one with Edit tags on its message.",
         "removeTag": "Remove tag: {tag}",
         "taskMade": "Task made",
         "loopClosed": "Done",
