@@ -4021,6 +4021,9 @@
     "Studio": {
       "back": "Zurück zum Projekt",
       "updated": "Aktualisiert",
+      "startFromWebsite": "Mit einer Website starten",
+      "brandKit": "Marken-Kit",
+      "brandKitNewTab": "Marken-Kit des Projekts in einem neuen Tab öffnen",
       "emptyTitle": "Erstelle deine erste Anzeige",
       "emptyBody": "Wähle eine Vorlage und ergänze die Details oder schreibe dein eigenes Anzeigenbriefing.",
       "promptPlaceholder": "Beschreibe die Anzeige, die du erstellen möchtest…",

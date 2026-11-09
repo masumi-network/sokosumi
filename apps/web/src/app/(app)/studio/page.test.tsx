@@ -155,7 +155,7 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).not.toHaveBeenCalled();
     expect(openScopeCreateMock).not.toHaveBeenCalled();
     const button = screen.getByRole("button", {
-      name: "App.ProjectScope.create",
+      name: "App.Studio.startFromWebsite",
     });
     fireEvent.click(button);
     expect(openProjectScopeMock).toHaveBeenCalledWith({
@@ -164,6 +164,21 @@ describe("StudioPage", () => {
       onSelect: undefined,
     });
     expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
+  });
+
+  it("opens the website setup wizard even when the workspace already has projects", async () => {
+    const { default: StudioPage } = await import("./page");
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(
+      screen.getByRole("button", { name: "App.ProjectScope.selectProject" }),
+    ).toBeInTheDocument();
+    const setup = screen.getByRole("button", {
+      name: "App.Studio.startFromWebsite",
+    });
+    fireEvent.click(setup);
+
+    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(setup);
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {

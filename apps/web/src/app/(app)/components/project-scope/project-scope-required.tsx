@@ -48,6 +48,7 @@ export function ProjectScopeRequired({
   autoOpen = false,
   body,
   children,
+  createActionLabel,
   onSelect,
   testId,
   title,
@@ -62,6 +63,8 @@ export function ProjectScopeRequired({
   body: string;
   /** The page's backdrop; a plain project tile when it has none. */
   children?: React.ReactNode;
+  /** Offers project creation as an explicit second entry point. */
+  createActionLabel?: string;
   onSelect?: ProjectScopeRequest["onSelect"];
   testId?: string;
   title?: string;
@@ -83,14 +86,14 @@ export function ProjectScopeRequired({
     }
   });
 
-  function handleSelectProject(event: React.MouseEvent<HTMLButtonElement>) {
+  function handleProjectAction(opener: HTMLButtonElement, create: boolean) {
     cancelRequest.current = openProjectScope({
       required: true,
       reason: body,
       onSelect,
     });
-    if (shouldCreateProject) {
-      openScopeCreate(event.currentTarget);
+    if (create) {
+      openScopeCreate(opener);
     }
   }
 
@@ -101,7 +104,7 @@ export function ProjectScopeRequired({
       aria-labelledby={variant === "prompt" && title ? headingId : undefined}
       className={
         variant === "action"
-          ? "flex justify-center"
+          ? "flex flex-wrap justify-center gap-2"
           : "flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
       }
       data-testid={testId}
@@ -137,11 +140,24 @@ export function ProjectScopeRequired({
         <Button
           className={variant === "prompt" ? "mt-6" : undefined}
           data-testid="project-scope-select-button"
-          onClick={handleSelectProject}
+          onClick={(event) =>
+            handleProjectAction(event.currentTarget, shouldCreateProject)
+          }
           type="button"
           variant="primary"
         >
-          {shouldCreateProject ? t("create") : t("selectProject")}
+          {shouldCreateProject
+            ? (createActionLabel ?? t("create"))
+            : t("selectProject")}
+        </Button>
+      ) : null}
+      {createActionLabel && !shouldAutoOpen && !isPending && hasProjects ? (
+        <Button
+          onClick={(event) => handleProjectAction(event.currentTarget, true)}
+          type="button"
+          variant="outline"
+        >
+          {createActionLabel}
         </Button>
       ) : null}
     </Wrapper>

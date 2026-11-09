@@ -4021,6 +4021,9 @@
     "Studio": {
       "back": "Volver al proyecto",
       "updated": "Actualizado",
+      "startFromWebsite": "Empezar desde un sitio web",
+      "brandKit": "Kit de marca",
+      "brandKitNewTab": "Abrir el kit de marca del proyecto en una pestaña nueva",
       "emptyTitle": "Crea tu primer anuncio",
       "emptyBody": "Elige una plantilla y completa los detalles, o escribe tu propio briefing.",
       "promptPlaceholder": "Describe el anuncio que quieres crear…",

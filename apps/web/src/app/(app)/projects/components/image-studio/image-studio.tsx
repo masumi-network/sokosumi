@@ -2,7 +2,14 @@
 
 import type { CreateProjectVideoJobRequest } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { AlertTriangle, Columns2, Download, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Columns2,
+  Download,
+  ExternalLink,
+  X,
+} from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -771,6 +778,20 @@ export function ImageStudio({
       />
     );
 
+  const brandAction = activeProjectId ? (
+    <Button asChild size="sm" variant="outline">
+      <Link
+        aria-label={t("brandKitNewTab")}
+        href={`/projects/${encodeURIComponent(activeProjectId)}/design-md`}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {t("brandKit")}
+        <ExternalLink aria-hidden />
+      </Link>
+    </Button>
+  ) : null;
+
   return (
     <div
       className={cn(
@@ -781,6 +802,13 @@ export function ImageStudio({
       )}
     >
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
+      {brandAction && !showsNothing ? (
+        <div
+          className={cn("flex justify-end pt-2", STUDIO_COMPOSER_GUTTER_CLASS)}
+        >
+          {brandAction}
+        </div>
+      ) : null}
 
       <div className="app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]">
         <div
@@ -805,7 +833,7 @@ export function ImageStudio({
             <StudioTemplateCarousel
               labels={labels}
               onApplyTemplate={applyTemplate}
-              projectAction={projectScopePrompt}
+              projectAction={brandAction ?? projectScopePrompt}
             />
           ) : (
             <StudioGallery
