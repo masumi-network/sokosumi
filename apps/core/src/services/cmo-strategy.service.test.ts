@@ -183,6 +183,27 @@ describe("requestCmoStrategy", () => {
     );
   });
 
+  it("plans four dated weeks around the season, with no week five", async () => {
+    vi.useFakeTimers({
+      now: new Date("2026-11-08T12:00:00Z"),
+      toFake: ["Date"],
+    });
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ userId: "user-1" });
+    vi.useRealTimers();
+
+    const message = JSON.stringify(startTurn.mock.lastCall);
+    expect(message).toContain(
+      "for the four weeks from 2026-11-09 to 2026-12-06. No calendar entry after 2026-12-06.",
+    );
+    expect(message).toContain(
+      "list the dates between 2026-11-09 and 2026-12-06",
+    );
+    expect(message).toContain("Never invent a discount");
+  });
+
   it("asks for no correction once every no is in the Brand Brain", async () => {
     cusoFind.mockResolvedValue(cuso);
     startTurn.mockResolvedValue({ turnId: "turn-9" });
