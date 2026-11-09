@@ -160,9 +160,17 @@ describe("tracked keyword daily rows", () => {
     const chosen = groups[0].keywords;
     expect(chosen).toHaveLength(25);
     expect(chosen.slice(0, 3)).toEqual(["kw 29", "kw 00", "kw 01"]);
-    expect(leftOut).toEqual(["kw 24", "kw 25", "kw 26", "kw 27", "kw 28"]);
+    expect(leftOut).toEqual([
+      "kw 24 (US)",
+      "kw 25 (US)",
+      "kw 26 (US)",
+      "kw 27 (US)",
+      "kw 28 (US)",
+    ]);
     const note = keywordSeriesLeftOutNote(leftOut);
-    expect(note).toContain('"kw 24", "kw 25", "kw 26", "kw 27", "kw 28".');
+    expect(note).toContain(
+      '"kw 24 (US)", "kw 25 (US)", "kw 26 (US)", "kw 27 (US)", "kw 28 (US)".',
+    );
     expect(note).not.toMatch(/[–—]/);
   });
 
@@ -187,7 +195,8 @@ describe("tracked keyword daily rows", () => {
       { countryCode: "AT", keywords: ["battery"] },
       { countryCode: "FR", keywords: ["cable"] },
     ]);
-    expect(leftOut).toEqual(["plug", "charger"]);
+    // One keyword in two countries is two names, each with its country.
+    expect(leftOut).toEqual(["plug (XX)", "charger (CH)"]);
   });
 
   it("keeps a set of long keywords within the filter expression limit", () => {

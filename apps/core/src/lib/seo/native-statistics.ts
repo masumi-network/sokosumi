@@ -259,6 +259,15 @@ export function previousSeoPeriod(from: string, to: string) {
   return { from: date(-days), to: date(-1) };
 }
 
+/** Search Console keeps about 16 months of data; this stays inside it. */
+export const GSC_RETENTION_DAYS = 480;
+export function withinSearchConsoleRetention(from: string, now = new Date()) {
+  return (
+    Date.parse(`${from}T00:00:00Z`) >=
+    now.getTime() - GSC_RETENTION_DAYS * DAY_MS
+  );
+}
+
 export function withinPeriod(
   date: string,
   query: NativeStatisticsQuery,

@@ -20,6 +20,14 @@ const inspectionSchema = z.object({
   }),
 });
 
+const CANONICAL_LIMIT = 2048;
+/** A canonical is shown as a link, so only a readable http(s) address is kept. */
+function canonical(value: string | undefined): string | null {
+  if (!value || value.length > CANONICAL_LIMIT || !URL.canParse(value))
+    return null;
+  return ["http:", "https:"].includes(new URL(value).protocol) ? value : null;
+}
+
 /** One page per call; the page must sit under the property. */
 export function gscInspectionArguments(
   propertyId: string,
@@ -30,7 +38,8 @@ export function gscInspectionArguments(
 
 /**
  * Validates one URL Inspection answer. A missing index result or an unknown
- * verdict refuses it. Google omits fields it has no value for; they stay null.
+ * verdict refuses it. Google omits fields it has no value for; they stay null,
+ * and so does a canonical that is not an http(s) address.
  */
 export function normalizeGscInspection(
   pageUrl: string,
@@ -44,7 +53,7 @@ export function normalizeGscInspection(
     coverageState: result.coverageState ?? null,
     robotsTxtState: result.robotsTxtState ?? null,
     lastCrawlTime: result.lastCrawlTime ?? null,
-    googleCanonical: result.googleCanonical ?? null,
-    userCanonical: result.userCanonical ?? null,
+    googleCanonical: canonical(result.googleCanonical),
+    userCanonical: canonical(result.userCanonical),
   });
 }

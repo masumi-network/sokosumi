@@ -10104,9 +10104,9 @@ export type ProjectSeoSearchBreakdown = {
 };
 
 export type ProjectSeoIndexStatus = {
-    observationId: string;
-    observedAt: Date;
-    pages: Array<ProjectSeoIndexedPage>;
+    pages: Array<ProjectSeoIndexedPage & {
+        checkedAt: Date;
+    }>;
 };
 
 export type ProjectSeoIndexedPage = {

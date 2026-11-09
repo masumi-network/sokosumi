@@ -11149,7 +11149,7 @@
       "index": {
         "title": "Google-Index",
         "help": "Ob Google jede Seite im Suchindex führt, laut URL-Prüfung in der Search Console.",
-        "checked": "Geprüft",
+        "checked": "geprüft",
         "state": {
           "indexed": "Indexiert",
           "warnings": "Indexiert, mit Warnungen",
@@ -11158,7 +11158,8 @@
         },
         "google": "Google meldet: „{words}“",
         "lastCrawl": "Letzter Crawl:",
-        "otherCanonical": "Google hat eine andere kanonische Seite gewählt:"
+        "otherCanonical": "Google hat eine andere kanonische Seite gewählt:",
+        "unanswered": "{count, plural, one {Google hat für # Seite in der Ansicht nicht geantwortet.} other {Google hat für # Seiten in der Ansicht nicht geantwortet.}}"
       }
     }
   },

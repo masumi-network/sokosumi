@@ -18,6 +18,7 @@ import {
   nativeSeoMetricsSchema,
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
+  type SeoIndexedPage,
   type SeoWorkspaceQuery,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
@@ -171,6 +172,7 @@ export function projectSeoProjection(
   );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
   const searchSources: SearchEvidenceSource[] = [];
+  const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
     if (row.kind === "page_change") {
@@ -194,6 +196,9 @@ export function projectSeoProjection(
       if (!parsed.success || !row.ownerId)
         throw internalServerError("Stored analytics evidence is not readable");
       const data = parsed.data;
+      // A verdict belongs to one page, so any sync that inspected a selected page counts.
+      if (data.indexedPages)
+        indexSources.push({ at: row.observedAt, pages: data.indexedPages });
       // Distinct-user totals cannot be sliced or added from an incompatible page group.
       if (
         data.pageUrls.length !== selectedUrls.size ||
@@ -565,7 +570,7 @@ export function projectSeoProjection(
     actions,
     metrics,
     searchQueries: search.searchQueries,
-    indexStatus: search.indexStatus,
+    indexStatus: newestIndexStatus(indexSources, selectedUrls),
     metricsStatus: !metrics.length
       ? "unavailable"
       : metrics.some((metric) => metric.coverage !== "complete")
@@ -597,4 +602,19 @@ export function projectSeoProjection(
         editable && input.privateMetricsAllowed && scope.pageIds.length > 0,
     },
   });
+}
+
+/** The newest verdict per selected page; observations arrive newest first. */
+function newestIndexStatus(
+  sources: Array<{ at: Date; pages: SeoIndexedPage[] }>,
+  selectedUrls: Set<string>,
+): ProjectSeoWorkspace["indexStatus"] {
+  const pages = new Map<string, SeoIndexedPage & { checkedAt: string }>();
+  for (const source of sources)
+    for (const page of source.pages) {
+      const url = normalizeSeoUrl(page.pageUrl);
+      if (selectedUrls.has(url) && !pages.has(url))
+        pages.set(url, { ...page, checkedAt: source.at.toISOString() });
+    }
+  return pages.size ? { pages: [...pages.values()] } : null;
 }

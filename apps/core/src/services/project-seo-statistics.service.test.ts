@@ -4,7 +4,7 @@ import {
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   seoStatisticsLostData,
 } from "@sokosumi/utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => {
   const projectId = "11111111-1111-4111-8111-111111111111";
@@ -214,7 +214,13 @@ function answer(slug: string, args: Record<string, unknown>) {
     : ga4(Array.isArray(args.dimensions) && args.dimensions.length > 0);
   return { successful: true, data: JSON.stringify(data) };
 }
+afterEach(() => {
+  vi.useRealTimers();
+});
 beforeEach(() => {
+  // Search Console retention is judged from today; the fixtures sit in January 2026.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-01-20T12:00:00Z"));
   state.member = true;
   state.closing = false;
   state.pageUrl = "https://example.test/a";
@@ -240,18 +246,18 @@ describe("native statistics collection boundary", () => {
       source: "ga4",
       pageIds: [state.pageId],
     });
-    // Totals, days, and the totals of the 2 days before.
+    // Totals, days, and the totals before. Google reported only Jan 1, so the earlier window is 1 day.
     expect(state.reads).toHaveLength(4);
     expect(state.reads[1].args.limit).toBe(400);
     expect(state.reads.map((read) => read.args.dateRanges).at(-1)).toEqual([
-      { startDate: "2025-12-30", endDate: "2025-12-31" },
+      { startDate: "2025-12-31", endDate: "2025-12-31" },
     ]);
     const payload = state.observations[0].payload as {
       metrics: Array<{ key: string; previous?: unknown }>;
     };
     expect(payload.metrics[0]).toMatchObject({
       key: "page_views",
-      previous: { from: "2025-12-30", to: "2025-12-31", value: 6 },
+      previous: { from: "2025-12-31", to: "2025-12-31", value: 6 },
     });
   });
   it("rejects a changed page-group version before any toolkit read", async () => {
@@ -406,7 +412,7 @@ describe("Search Console query rows", () => {
   it("stores no earlier-window value when that read fails, and keeps the totals", async () => {
     const current = gsc({ rows: [] });
     state.answer = (slug, args) => {
-      if (args.start_date === "2025-12-30")
+      if (args.start_date === "2025-12-31")
         return { successful: false, error: "quota" };
       return current(slug, args);
     };
@@ -421,10 +427,25 @@ describe("Search Console query rows", () => {
     expect(payload.metrics.every((metric) => !metric.previous)).toBe(true);
   });
 
+  it("skips the earlier window when Search Console no longer keeps it", async () => {
+    // More than 480 days later, the window before the period is past retention.
+    vi.setSystemTime(new Date("2027-06-01T12:00:00Z"));
+    state.answer = gsc({ rows: [] });
+    await syncProjectSeoStatistics(actor, gscInput);
+    expect(
+      state.reads.some((read) => read.args.end_date === "2025-12-31"),
+    ).toBe(false);
+    const payload = state.observations[0].payload as {
+      metrics: Array<{ value: number | null; previous?: unknown }>;
+    };
+    expect(payload.metrics[0].value).toBe(1);
+    expect(payload.metrics.every((metric) => !metric.previous)).toBe(true);
+  });
+
   it("gives no earlier position or rate when the earlier window had no impressions", async () => {
     const current = gsc({ rows: [] });
     state.answer = (slug, args) =>
-      args.start_date === "2025-12-30"
+      args.start_date === "2025-12-31"
         ? {
             rows: [
               { keys: [], clicks: 0, impressions: 0, ctr: 0, position: 0 },
@@ -492,6 +513,7 @@ describe("Search Console query rows", () => {
     });
     expect(workspace.indexStatus?.pages).toEqual([
       {
+        checkedAt: expect.any(String),
         pageUrl: state.pageUrl,
         verdict: "PASS",
         coverageState: "Submitted and indexed",

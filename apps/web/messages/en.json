@@ -11149,7 +11149,7 @@
       "index": {
         "title": "Google index",
         "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
-        "checked": "Checked",
+        "checked": "checked",
         "state": {
           "indexed": "Indexed",
           "warnings": "Indexed, with warnings",
@@ -11158,7 +11158,8 @@
         },
         "google": "Google says: “{words}”",
         "lastCrawl": "Last crawl:",
-        "otherCanonical": "Google chose another canonical page:"
+        "otherCanonical": "Google chose another canonical page:",
+        "unanswered": "{count, plural, one {Google gave no answer for # page in view.} other {Google gave no answer for # pages in view.}}"
       }
     }
   },

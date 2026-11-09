@@ -11,6 +11,7 @@ import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_MIN_COMPARE_IMPRESSIONS,
   seoPeriodChange,
+  seoShownValue,
   seoWeekOverWeek,
 } from "./seo-performance-model";
 import { SeoDate, SeoPeriod, SeoSection, SeoState } from "./seo-shared";
@@ -58,7 +59,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     signDisplay: "auto" | "exceptZero" = "auto",
   ) {
     return unit === "ratio"
-      ? format.number(value, { style: "percent", maximumFractionDigits: 1 })
+      ? format.number(value, {
+          style: "percent",
+          maximumFractionDigits: 1,
+          signDisplay,
+        })
       : format.number(value, {
           // Position always shows one decimal, so 1.0 and 3.8 read alike.
           minimumFractionDigits: unit === "position" ? 1 : 0,
@@ -140,9 +145,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   function periodChange(metric: ProjectSeoMetric) {
     const before = periodChanges.get(metric.id);
     if (!before || metric.value === null) return null;
-    const scale =
-      10 ** (metric.unit === "count" ? 0 : metric.unit === "ratio" ? 3 : 1);
-    const shown = (value: number) => Math.round(value * scale) / scale;
+    const shown = (value: number) => seoShownValue(value, metric.unit);
     const delta = shown(shown(metric.value) - shown(before.previous));
     const values = {
       days: before.days,

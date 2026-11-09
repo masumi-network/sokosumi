@@ -215,19 +215,21 @@ export function SeoTrendChart({
                   vectorEffect="non-scaling-stroke"
                 />
               ))}
-              {model.changes.map((change) => (
-                <line
-                  key={`change:${change.date}`}
-                  data-testid="seo-trend-change"
-                  className="stroke-foreground"
-                  vectorEffect="non-scaling-stroke"
-                  strokeDasharray="3 3"
-                  x1={change.x}
-                  x2={change.x}
-                  y1={0}
-                  y2={100}
-                />
-              ))}
+              {model.changes.map((change) =>
+                change.x === null ? null : (
+                  <line
+                    key={`change:${change.date}`}
+                    data-testid="seo-trend-change"
+                    className="stroke-foreground"
+                    vectorEffect="non-scaling-stroke"
+                    strokeDasharray="3 3"
+                    x1={change.x}
+                    x2={change.x}
+                    y1={0}
+                    y2={100}
+                  />
+                ),
+              )}
               {focus && !model.bars ? (
                 <line
                   className="stroke-muted-foreground"

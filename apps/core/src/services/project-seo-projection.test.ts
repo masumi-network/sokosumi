@@ -535,6 +535,59 @@ describe("stored SEO workspace projections", () => {
     ]);
   });
 
+  it("shows the newest index verdict per selected page from any sync that inspected it", () => {
+    const input = fixture();
+    const other = "https://other.example.test/";
+    const verdict = (pageUrl: string, value: "PASS" | "FAIL") => ({
+      pageUrl,
+      verdict: value,
+      coverageState: null,
+      robotsTxtState: null,
+      lastCrawlTime: null,
+      googleCanonical: null,
+      userCanonical: null,
+    });
+    const base = searchObservation(input, "2026-11-01T12:00:00Z");
+    // An older sync of a wider page group inspected this page and another one.
+    const wide = {
+      ...base,
+      pageIds: [...input.scope.pageIds, randomUUID()],
+      payload: {
+        ...base.payload,
+        pageUrls: [SEO_TEST_PAGE, other],
+        indexedPages: [verdict(SEO_TEST_PAGE, "PASS"), verdict(other, "PASS")],
+      },
+    };
+    const silent = searchObservation(input, "2026-11-02T12:00:00Z");
+    input.observations = [silent, wide];
+    expect(projectSeoProjection(input).indexStatus).toEqual({
+      pages: [
+        {
+          ...verdict(SEO_TEST_PAGE, "PASS"),
+          checkedAt: "2026-11-01T12:00:00.000Z",
+        },
+      ],
+    });
+    const newest = searchObservation(input, "2026-11-03T12:00:00Z");
+    input.observations = [
+      {
+        ...newest,
+        payload: {
+          ...newest.payload,
+          indexedPages: [verdict(SEO_TEST_PAGE, "FAIL")],
+        },
+      },
+      silent,
+      wide,
+    ];
+    expect(projectSeoProjection(input).indexStatus?.pages).toEqual([
+      expect.objectContaining({
+        verdict: "FAIL",
+        checkedAt: "2026-11-03T12:00:00.000Z",
+      }),
+    ]);
+  });
+
   it("keeps a Task linked from an observation outside the selected scope", () => {
     const input = fixture();
     const current = searchObservation(input, "2026-11-03T12:00:00Z");

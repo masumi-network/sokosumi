@@ -174,3 +174,22 @@ export function seoPeriodChange(metrics: ProjectSeoMetric[]) {
   }
   return changes;
 }
+
+/** Decimals the tiles show: whole counts, one-decimal positions and percents. */
+const SHOWN_DIGITS = { count: 0, ratio: 1, seconds: 1, position: 1 } as const;
+
+/**
+ * A value rounded exactly as the tiles format it. Intl rounds the shortest
+ * decimal form, unlike Math.round on a scaled value or toFixed, so the change
+ * between two shown values is taken from the formatter itself.
+ */
+export function seoShownValue(value: number, unit: ProjectSeoMetric["unit"]) {
+  const digits = SHOWN_DIGITS[unit];
+  const text = new Intl.NumberFormat("en", {
+    style: unit === "ratio" ? "percent" : "decimal",
+    maximumFractionDigits: digits,
+    useGrouping: false,
+  }).format(value);
+  const shown = Number(text.replace("%", ""));
+  return unit === "ratio" ? shown / 100 : shown;
+}

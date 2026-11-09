@@ -38052,26 +38052,33 @@ export const ProjectSeoSearchBreakdownSchema = {
 export const ProjectSeoIndexStatusSchema = {
     type: 'object',
     properties: {
-        observationId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        observedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
         pages: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/ProjectSeoIndexedPage'
+                allOf: [
+                    {
+                        $ref: '#/components/schemas/ProjectSeoIndexedPage'
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            checkedAt: {
+                                type: 'string',
+                                format: 'date-time',
+                                example: '2021-01-01T00:00:00.000Z'
+                            }
+                        },
+                        required: [
+                            'checkedAt'
+                        ],
+                        additionalProperties: false
+                    }
+                ]
             },
             maxItems: 10
         }
     },
     required: [
-        'observationId',
-        'observedAt',
         'pages'
     ]
 } as const;

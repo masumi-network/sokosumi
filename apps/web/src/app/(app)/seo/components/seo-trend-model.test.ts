@@ -100,17 +100,20 @@ describe("change markers", () => {
     (date) => ({ date, value: 1 }),
   );
 
-  it("puts a change on its calendar day, merges one day's changes and drops days outside", () => {
+  it("puts a change on its calendar day, merges one day's changes and drops days before the chart", () => {
     const model = seoTrendModel(days, "position", [
       { date: "2026-10-03", label: "New title" },
       { date: "2026-10-03", label: "New description" },
       { date: "2026-10-04", label: "Moved page" },
       { date: "2026-09-30", label: "Before the chart" },
+      { date: "2026-10-07", label: "After the last reported day" },
     ]);
     expect(model.changes).toEqual([
       { date: "2026-10-03", labels: ["New title", "New description"], x: 50 },
       // A day without a measurement still has its place on the calendar.
       { date: "2026-10-04", labels: ["Moved page"], x: 75 },
+      // Google has not reported this day yet: named, not plotted.
+      { date: "2026-10-07", labels: ["After the last reported day"], x: null },
     ]);
   });
 

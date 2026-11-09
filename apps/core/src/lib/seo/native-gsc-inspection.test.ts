@@ -43,6 +43,18 @@ describe("normalizeGscInspection", () => {
     ).toThrow();
   });
 
+  it("keeps a canonical only when it is an http(s) address", () => {
+    const answer = (googleCanonical: string) =>
+      normalizeGscInspection(page, {
+        inspectionResult: {
+          indexStatusResult: { verdict: "PASS", googleCanonical },
+        },
+      }).googleCanonical;
+    expect(answer("javascript:alert(1)")).toBeNull();
+    expect(answer(`https://example.test/${"a".repeat(2100)}`)).toBeNull();
+    expect(answer("https://example.test/b")).toBe("https://example.test/b");
+  });
+
   it("asks about one page under the property", () => {
     expect(gscInspectionArguments("sc-domain:example.test", page)).toEqual({
       site_url: "sc-domain:example.test",

@@ -11149,7 +11149,7 @@
       "index": {
         "title": "Índice de Google",
         "help": "Si Google mantiene cada página en su índice de búsqueda, según la inspección de URL de Search Console.",
-        "checked": "Comprobado",
+        "checked": "comprobado",
         "state": {
           "indexed": "Indexada",
           "warnings": "Indexada, con advertencias",
@@ -11158,7 +11158,8 @@
         },
         "google": "Google indica: «{words}»",
         "lastCrawl": "Último rastreo:",
-        "otherCanonical": "Google eligió otra página canónica:"
+        "otherCanonical": "Google eligió otra página canónica:",
+        "unanswered": "{count, plural, one {Google no respondió para # página de la vista.} other {Google no respondió para # páginas de la vista.}}"
       }
     }
   },

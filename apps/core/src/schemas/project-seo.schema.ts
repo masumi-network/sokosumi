@@ -473,9 +473,10 @@ export const seoIndexedPageSchema = z
   .openapi("ProjectSeoIndexedPage");
 export const seoIndexStatusSchema = z
   .object({
-    observationId: seoIdSchema,
-    observedAt: dateTimeSchema,
-    pages: z.array(seoIndexedPageSchema).max(SEO_MAX_PAGES),
+    /** The newest verdict per selected page, each with the time its sync ran. */
+    pages: z
+      .array(seoIndexedPageSchema.extend({ checkedAt: dateTimeSchema }))
+      .max(SEO_MAX_PAGES),
   })
   .openapi("ProjectSeoIndexStatus");
 export const seoSearchQueriesSchema = z

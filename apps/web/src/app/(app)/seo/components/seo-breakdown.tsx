@@ -144,9 +144,12 @@ function BreakdownTable({
       </Table>
       {more > 0 || truncated ? (
         <p className="text-muted-foreground px-3 py-2 text-xs">
-          {truncated
-            ? t("breakdown.truncated", { count: rows.length })
-            : t("breakdown.more", { count: more })}
+          {[
+            more > 0 ? t("breakdown.more", { count: more }) : null,
+            truncated ? t("breakdown.truncated", { count: rows.length }) : null,
+          ]
+            .filter(Boolean)
+            .join(" ")}
         </p>
       ) : null}
     </div>

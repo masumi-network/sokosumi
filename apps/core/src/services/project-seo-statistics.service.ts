@@ -42,6 +42,7 @@ import {
   previousSeoPeriod,
   type SeoNativeTool,
   unwrapNativeStatistics,
+  withinSearchConsoleRetention,
 } from "@/lib/seo/native-statistics";
 import { SEO_MAX_PAGES, type SeoActor } from "@/schemas/project-seo.schema";
 import {
@@ -314,21 +315,39 @@ export async function syncProjectSeoStatistics(
     );
     return payload;
   };
-  // Totals over the equal window before the period, read the same way, so a change compares like with like.
-  const previousQuery: NativeStatisticsQuery = {
-    ...query,
-    ...previousSeoPeriod(query.from, query.to),
-  };
-  const collectPrevious = async () =>
-    normalize(
-      previousQuery,
+  // The daily read is shared: the earlier window needs its last reported day.
+  const dailyRead = collect(true);
+  // Totals over the equal window before the reported days, read the same way. Google reports a
+  // few days late, so the current total covers [from, last reported day]; the earlier window
+  // has as many days, so a reporting delay never reads as a drop.
+  const collectPrevious = async () => {
+    const reported = normalize(query, null, await dailyRead, "")
+      .metrics.flatMap((metric) => metric.points)
+      .filter((point) => point.value !== null)
+      .map((point) => point.date);
+    if (!reported.length) throw new Error("No reported day to compare");
+    const window = previousSeoPeriod(
+      query.from,
+      reported.reduce((a, b) => (a > b ? a : b)),
+    );
+    // Search Console keeps about 16 months; an older window would be partly empty.
+    if (
+      input.provider === "search_console" &&
+      !withinSearchConsoleRetention(window.from)
+    )
+      throw new Error("The earlier window is past Search Console retention");
+    const earlier = { ...query, ...window };
+    const totals = normalize(
+      earlier,
       unwrapNativeStatistics(
-        await read(integration, tool, build(previousQuery, false)),
+        await read(integration, tool, build(earlier, false)),
         expected,
       ),
       null,
       new Date().toISOString(),
     );
+    return { window, totals };
+  };
   const collectQueries = async (): Promise<NativeSearchQueries | null> =>
     input.provider === "search_console"
       ? normalizeGscQueries(
@@ -418,7 +437,7 @@ export async function syncProjectSeoStatistics(
     indexed,
   ] = await Promise.allSettled([
     collect(false),
-    collect(true),
+    dailyRead,
     collectQueries(),
     collectKeywordSeries(),
     collectPrevious(),
@@ -441,13 +460,12 @@ export async function syncProjectSeoStatistics(
   // A failed earlier window leaves the change unknown; it never reads as zero.
   if (previous.status === "fulfilled" && period.status === "fulfilled")
     for (const metric of metrics.metrics) {
-      const before = previous.value.metrics.find(
+      const before = previous.value.totals.metrics.find(
         (candidate) => candidate.key === metric.key,
       );
       if (before)
         metric.previous = {
-          from: previousQuery.from,
-          to: previousQuery.to,
+          ...previous.value.window,
           value: before.value,
         };
     }

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   seoPeriodChange,
   seoRarelyShown,
+  seoShownValue,
   seoWeekOverWeek,
 } from "./seo-performance-model";
 
@@ -150,5 +151,15 @@ describe("seoPeriodChange", () => {
       totals("sessions", "count", null, 4),
     ]);
     expect(changes.size).toBe(0);
+  });
+});
+
+describe("seoShownValue", () => {
+  it("rounds as the formatter shows the value", () => {
+    // toFixed gives 1.4 here, and Math.round(x * 10) / 10 gives 3.9 below.
+    expect(seoShownValue(1.45, "position")).toBe(1.5);
+    expect(seoShownValue(3.8499999999999996, "position")).toBe(3.8);
+    expect(seoShownValue(1234.5, "count")).toBe(1235);
+    expect(seoShownValue(0.02449, "ratio")).toBeCloseTo(0.024, 10);
   });
 });

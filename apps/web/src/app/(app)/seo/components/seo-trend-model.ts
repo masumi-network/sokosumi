@@ -77,7 +77,8 @@ export function seoTrendModel(
   const marked = new Map<number, { date: string; labels: string[] }>();
   for (const marker of markers) {
     const day = dayNumber(marker.date);
-    if (!points.length || day < first || day > first + span) continue;
+    // A change after the last reported day is still named; it just has no place on the plot.
+    if (!points.length || day < first) continue;
     const known = marked.get(day);
     if (known) known.labels.push(marker.label);
     else marked.set(day, { date: marker.date, labels: [marker.label] });
@@ -86,11 +87,14 @@ export function seoTrendModel(
     .sort(([a], [b]) => a - b)
     .map(([day, change]) => ({
       ...change,
-      x: bars
-        ? (day - first + 0.5) * band
-        : span > 0
-          ? ((day - first) / span) * 100
-          : 50,
+      x:
+        day > first + span
+          ? null
+          : bars
+            ? (day - first + 0.5) * band
+            : span > 0
+              ? ((day - first) / span) * 100
+              : 50,
     }));
   const runs: number[][] = [];
   plotted.forEach((point, index) => {

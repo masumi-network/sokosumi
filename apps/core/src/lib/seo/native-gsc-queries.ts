@@ -185,7 +185,7 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
       group.push(key);
       groups.set(countryCode, group);
       chosen++;
-    } else leftOut.push(key);
+    } else leftOut.push(`${key} (${countryCode})`);
   }
   return {
     groups: [...groups].map(([countryCode, chosenKeys]) => ({
@@ -198,7 +198,7 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
 
 /** Names the keywords a sync did not request, as many as fit in one note. */
 export function keywordSeriesLeftOutNote(leftOut: string[]): string {
-  let note = `Daily positions are read for at most ${SEO_KEYWORD_SERIES_MAX_KEYWORDS} tracked keywords in ${SEO_KEYWORD_SERIES_MAX_COUNTRIES} countries per sync. Not read this time: `;
+  let note = `Daily positions are read for at most ${SEO_KEYWORD_SERIES_MAX_KEYWORDS} tracked keywords in ${SEO_KEYWORD_SERIES_MAX_COUNTRIES} countries Search Console can filter by, per sync. Not read this time: `;
   for (const [index, keyword] of leftOut.entries()) {
     const name = `${index ? ", " : ""}"${keyword}"`;
     const more = ` and ${leftOut.length - index} more.`;

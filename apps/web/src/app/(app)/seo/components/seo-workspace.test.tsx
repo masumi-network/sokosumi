@@ -1261,9 +1261,16 @@ describe("SEO workspace integration", () => {
   it("says whether Google indexes the page in view and names another canonical", () => {
     const workspace = seoTestWorkspace();
     const url = workspace.pages[0].url;
+    // A second page in view that no sync could inspect.
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: "7b0c4f5e-1d2a-4c3b-9e8f-000000000002",
+      url: `${url}blog`,
+      relationship: "related",
+    });
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    const checkedAt = new Date("2026-11-01T10:00:00Z");
     workspace.indexStatus = {
-      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
-      observedAt: new Date("2026-11-01T10:00:00Z"),
       pages: [
         {
           pageUrl: url,
@@ -1273,6 +1280,7 @@ describe("SEO workspace integration", () => {
           lastCrawlTime: new Date("2026-10-30T08:15:00Z"),
           googleCanonical: "https://example.com/other",
           userCanonical: null,
+          checkedAt,
         },
         // A page outside the scope stays out of view.
         {
@@ -1283,6 +1291,7 @@ describe("SEO workspace integration", () => {
           lastCrawlTime: null,
           googleCanonical: null,
           userCanonical: null,
+          checkedAt,
         },
       ],
     };
@@ -1304,6 +1313,9 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     expect(
       within(section).getByRole("link", { name: "https://example.com/other" }),
+    ).toBeVisible();
+    expect(
+      within(section).getByText(/Google gave no answer for 1 page in view\./),
     ).toBeVisible();
   });
 
@@ -1413,6 +1425,14 @@ describe("SEO workspace integration", () => {
         value: 4.2,
         previous: before(6.1),
       },
+      {
+        ...base,
+        id: "s:ctr",
+        key: "ctr",
+        unit: "ratio",
+        value: 0.025,
+        previous: before(0.021),
+      },
     ];
     vi.stubGlobal(
       "fetch",
@@ -1423,6 +1443,8 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText("Previous 14 days: 900, no change")).toBeVisible();
     // A lower position is better, so the words say it, not a sign.
     expect(screen.getByText("Previous 14 days: 6.1, better now")).toBeVisible();
+    // A rate change carries its sign.
+    expect(screen.getByText("Previous 14 days: 2.1% (+0.4%)")).toBeVisible();
   });
 
   it("puts the Google search totals under the agent verdict only when both counts exist", () => {

@@ -4033,7 +4033,6 @@ const projectSeoIndexedPageSchemaResponseTransformer = (data: any) => {
 };
 
 const projectSeoIndexStatusSchemaResponseTransformer = (data: any) => {
-    data.observedAt = new Date(data.observedAt);
     data.pages = data.pages.map((item: any) => projectSeoIndexedPageSchemaResponseTransformer(item));
     return data;
 };

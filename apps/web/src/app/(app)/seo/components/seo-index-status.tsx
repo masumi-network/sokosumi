@@ -44,14 +44,18 @@ export function SeoIndexStatus({ model }: { model: SeoWorkspaceModel }) {
       .map((page) => page.url),
   );
   const pages = status?.pages.filter((page) => inView.has(page.pageUrl)) ?? [];
-  if (!status || !pages.length) return null;
+  if (!pages.length) return null;
+  // Pages in view that no sync could inspect are counted, never dropped silently.
+  const unanswered = inView.size - pages.length;
   return (
     <SeoSection
       title={t("index.title")}
       description={
         <>
-          {t("index.help")} · {t("index.checked")}{" "}
-          <SeoDate value={status.observedAt} />
+          {t("index.help")}
+          {unanswered > 0
+            ? ` ${t("index.unanswered", { count: unanswered })}`
+            : null}
         </>
       }
     >
@@ -72,14 +76,15 @@ export function SeoIndexStatus({ model }: { model: SeoWorkspaceModel }) {
                 />
                 {t(`index.state.${state}`)}
               </p>
-              {pages.length > 1 ? <SeoPageLink url={page.pageUrl} /> : null}
+              {inView.size > 1 ? <SeoPageLink url={page.pageUrl} /> : null}
               {page.coverageState ? (
                 <p className="text-muted-foreground text-sm">
                   {t("index.google", { words: page.coverageState })}
                 </p>
               ) : null}
               <p className="text-muted-foreground text-sm">
-                {t("index.lastCrawl")} <SeoDate value={page.lastCrawlTime} />
+                {t("index.lastCrawl")} <SeoDate value={page.lastCrawlTime} /> ·{" "}
+                {t("index.checked")} <SeoDate value={page.checkedAt} />
               </p>
               {canonical ? (
                 <p className="text-sm">
