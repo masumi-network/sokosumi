@@ -45,6 +45,16 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
         to: seoReportedPeriod(search)?.to ?? search[0].to,
       }
     : null;
+  // A lone primary page is the header's URL; the card would only repeat it.
+  // "Add a page" stays in Manage SEO and the Agent's steps.
+  const [only] = model.data.pages;
+  if (
+    model.data.pages.length === 1 &&
+    only.relationship === "primary" &&
+    (!only.label || only.label === only.url) &&
+    !datesFiltered
+  )
+    return null;
   return (
     <div className={cn("grid gap-6", choosable && "xl:grid-cols-2")}>
       <SeoSection

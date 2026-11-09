@@ -914,8 +914,24 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText("Search clicks")).toBeNull();
     single.unmount();
 
+    // A lone page without its own name is the header's URL; the Pages card would only repeat it.
+    const bare = seoTestWorkspace();
+    bare.pages[0].label = bare.pages[0].url;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(bare)),
+    );
+    const plain = renderWorkspace(bare, "tab=health");
+    expect(
+      screen.getAllByRole("link", { name: bare.pages[0].url })[0],
+    ).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Pages" })).toBeNull();
+    expect(screen.queryByText("1 page")).toBeNull();
+    plain.unmount();
+
     // A date filter keeps the page's own line: the Timeline does not say "in these dates".
     const filtered = seoTestWorkspace();
+    filtered.pages[0].label = filtered.pages[0].url;
     filtered.scope.from = "2026-01-01";
     vi.stubGlobal(
       "fetch",
@@ -940,6 +956,8 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(two)),
     );
     renderWorkspace(two, "tab=health");
+    // Two pages in view: the header counts them.
+    expect(screen.getByText("2 pages")).toBeVisible();
     // Totals for two pages belong to neither page.
     expect(screen.queryByText("Search clicks")).toBeNull();
   });

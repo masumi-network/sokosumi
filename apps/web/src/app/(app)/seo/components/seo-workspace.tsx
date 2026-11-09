@@ -52,7 +52,7 @@ import {
   seoScopeControls,
   useSeoDateFields,
 } from "./seo-scope-bar";
-import { SeoEmpty } from "./seo-shared";
+import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoTraffic } from "./seo-traffic";
 import { useSeoWorkspace } from "./use-seo-workspace";
@@ -138,6 +138,10 @@ export function SeoWorkspace({
       model.data.actions.length > 0 ||
       model.filters.tab === "actions",
   );
+  const scopePage =
+    model.data.scope.pageIds.length === 1
+      ? model.data.pages.find((page) => page.id === model.data.scope.pageIds[0])
+      : undefined;
   return (
     // Phone buttons and fields are at least 40 px tall; the tab row keeps its 36 px bar.
     <div className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
@@ -152,9 +156,14 @@ export function SeoWorkspace({
           {model.data.auditName ? (
             <h2 className="text-xl font-semibold">{model.data.auditName}</h2>
           ) : null}
-          <p className="text-muted-foreground text-sm">
-            {t("pages.count", { count: model.data.scope.pageIds.length })}
-          </p>
+          {/* One page in view: its URL says more than a count. */}
+          {scopePage ? (
+            <SeoPageLink url={scopePage.url} label={scopePage.label} />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("pages.count", { count: model.data.scope.pageIds.length })}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {model.data.auditId && model.filters.tab !== "agent" ? (
