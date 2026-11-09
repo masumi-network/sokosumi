@@ -44677,6 +44677,11 @@ export const CreateSokoBotRequestSchema = {
             ],
             minimum: 0,
             maximum: 100
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
         }
     },
     required: [
@@ -46048,6 +46053,11 @@ export const CreateScopedSokoBotRequestSchema = {
             minimum: 0,
             maximum: 100
         },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        },
         scope: {
             $ref: '#/components/schemas/SokoBotScope'
         },
@@ -46057,11 +46067,6 @@ export const CreateScopedSokoBotRequestSchema = {
                 'null'
             ],
             format: 'uuid'
-        },
-        timezone: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 64
         }
     },
     required: [

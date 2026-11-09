@@ -11498,6 +11498,7 @@ export type CreateSokoBotRequest = {
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
+    timezone?: string;
 };
 
 export type StartSokoBotTurnResponse = {
@@ -11808,9 +11809,9 @@ export type CreateScopedSokoBotRequest = {
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
+    timezone?: string;
     scope: SokoBotScope;
     projectId?: string | null;
-    timezone?: string;
 };
 
 export const SokoBotScope = {

@@ -1533,6 +1533,56 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(botUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("starts a new assistant's day in the creator's timezone, and keeps an existing one's", async () => {
+    botFindFirstMock.mockResolvedValue(null);
+    botCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-00000000bbbb",
+      ingestTimezone: "America/Los_Angeles",
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Fresh",
+      timezone: "America/Los_Angeles",
+    });
+
+    expect(botCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ingestTimezone: "America/Los_Angeles",
+        }),
+      }),
+    );
+
+    botFindFirstMock.mockResolvedValue({
+      id: BOT_ID,
+      archivedAt: null,
+      adminPausedAt: null,
+      status: "IDLE",
+      memoryVersion: 1,
+    });
+    botUpdateMock.mockResolvedValue({
+      id: BOT_ID,
+      ingestTimezone: "Asia/Tokyo",
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Again",
+      timezone: "America/Los_Angeles",
+    });
+
+    expect(botUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          ingestTimezone: expect.anything(),
+        }),
+      }),
+    );
+  });
+
   it("never inserts a shadow coworker when creating a personal assistant", async () => {
     botFindFirstMock.mockResolvedValue(null);
     botCreateMock.mockResolvedValue({

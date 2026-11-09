@@ -51,6 +51,8 @@ import {
 const createSokoBotSchema = z.object({
   name: z.string().trim().min(1).max(80),
   avatarId: z.string().uuid().nullable().optional(),
+  /** The creator's browser timezone; Core sets it on a new bot only. */
+  timezone: z.string().min(1).max(64).optional(),
 });
 
 const avatarListSchema = z.object({

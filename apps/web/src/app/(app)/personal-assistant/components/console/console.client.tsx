@@ -455,9 +455,17 @@ export function SokoBotConsole({
                             )}
                           </span>
                         </p>
-                        <Markdown className="app-scrollbar prose prose-sm dark:prose-invert max-h-96 max-w-none overflow-y-auto text-sm">
-                          {bot.memory.markdown}
-                        </Markdown>
+                        {/* Focusable, so keyboard users can scroll a long memory. */}
+                        <div
+                          role="region"
+                          aria-label={t("Memory.title")}
+                          tabIndex={0}
+                          className="app-scrollbar focus-visible:ring-ring max-h-96 overflow-y-auto rounded-sm outline-none focus-visible:ring-2"
+                        >
+                          <Markdown className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                            {bot.memory.markdown}
+                          </Markdown>
+                        </div>
                       </div>
                     ) : (
                       <p className="text-muted-foreground text-sm">

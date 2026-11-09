@@ -23,6 +23,16 @@ export const createSokoBotRequestSchema = z
     personalityTone: z.number().int().min(0).max(100).nullable().optional(),
     personalityDetail: z.number().int().min(0).max(100).nullable().optional(),
     personalityStyle: z.number().int().min(0).max(100).nullable().optional(),
+    /**
+     * IANA timezone for the bot's day, usually the creator's browser
+     * timezone. Set on a new bot only; reactivation keeps the bot's own.
+     */
+    timezone: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine(isValidTimezone, "Unknown timezone")
+      .optional(),
   })
   .strict()
   .openapi("CreateSokoBotRequest");
@@ -32,16 +42,6 @@ export const createScopedSokoBotRequestSchema = createSokoBotRequestSchema
     scope: sokoBotScopeSchema,
     /** Required for `project`, refused otherwise. */
     projectId: z.string().uuid().nullable().optional(),
-    /**
-     * IANA timezone for a project or workspace bot's day, usually the
-     * creator's browser timezone. A personal bot ignores it.
-     */
-    timezone: z
-      .string()
-      .min(1)
-      .max(64)
-      .refine(isValidTimezone, "Unknown timezone")
-      .optional(),
   })
   .strict()
   .refine((body) => (body.scope === "project") === Boolean(body.projectId), {

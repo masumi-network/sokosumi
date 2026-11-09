@@ -230,6 +230,8 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
+  /** IANA timezone for a new bot's day; an existing bot keeps its own. */
+  timezone?: string;
 }
 
 /**
@@ -1290,6 +1292,7 @@ export class SokoBotControlPlane {
           // what each bot actually runs, and an older bot keeps its version
           // when the default moves on.
           versionId: defaultVersionId,
+          ingestTimezone: input.timezone,
           avatarSeed: input.avatarSeed,
           personalityTone: input.personalityTone,
           personalityDetail: input.personalityDetail,
