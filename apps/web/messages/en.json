@@ -10656,8 +10656,9 @@
         "tooFewToCompareRates": "Too few impressions to compare weeks for {which, select, ctr {click-through rate} position {average position} other {click-through rate and average position}}.",
         "pickTile": "Select a number above to chart it.",
         "tooFewToCompare": "Too few impressions to compare weeks: {current} in {period}, {previous} the week before.",
-        "flagged": "Flagged: {rule}",
-        "flaggedCount": "{count} flagged"
+        "ruleNote": "Note on the rule “{rule}”",
+        "noteCount": "{count, plural, one {# note} other {# notes}}",
+        "notesAreNotIssues": "Notes are not issues. Each one points to something the check thinks is worth a look."
       },
       "keywords": {
         "title": "Tracked keywords",

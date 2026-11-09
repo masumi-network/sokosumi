@@ -332,7 +332,7 @@ describe("SEO workspace integration", () => {
     workspace.findings.push({
       id: "ai-bots",
       observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
-      pageUrl: workspace.pages[0].url,
+      pageUrl: "https://example.com/old",
       device: "desktop",
       rowId: "AC-22",
       title: "Raw HTML: AI search bots may fetch the page",
@@ -347,7 +347,7 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     // The folded section says whether opening it pays off.
-    expect(screen.getByText(/· 2 flagged$/)).toBeInTheDocument();
+    expect(screen.getByText(/· 2 notes$/)).toBeInTheDocument();
     await user.click(
       screen.getByRole("heading", {
         name: "Title, description and other page details",
@@ -356,12 +356,34 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText("title 56 characters")).toBeVisible();
     // The rule name reads as the flagged rule, not as a claim about the page.
     expect(
-      screen.getByRole("heading", { name: "Flagged: No meta keywords" }),
+      screen.getByRole("heading", {
+        name: "Note on the rule “No meta keywords”",
+      }),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Title length" })).toBeVisible();
+    // Notes sit under a "no issues" verdict; the section says why.
+    expect(screen.getByText(/Notes are not issues/)).toBeVisible();
+    // A 1-page Audit does not repeat its URL on every row.
+    const details = screen
+      .getByRole("heading", { name: "Title length" })
+      .closest("details");
+    if (!details) throw new Error("Page details missing");
+    expect(
+      within(details)
+        .queryAllByRole("link")
+        .filter((link) => link.getAttribute("href") === workspace.pages[0].url),
+    ).toHaveLength(0);
+    // A row for a page removed since keeps its URL, so it is not read as this page's.
+    expect(
+      within(details)
+        .getAllByRole("link")
+        .some(
+          (link) => link.getAttribute("href") === "https://example.com/old",
+        ),
+    ).toBe(true);
     expect(
       screen.getByRole("heading", {
-        name: "Flagged: AI search bots may fetch the page",
+        name: "Note on the rule “AI search bots may fetch the page”",
       }),
     ).toBeVisible();
     const reference = screen.getByText(
@@ -370,6 +392,48 @@ describe("SEO workspace integration", () => {
     expect(reference).not.toBeVisible();
     await user.click(screen.getByText("Check details"));
     expect(reference).toBeVisible();
+  });
+
+  it("names each page-detail row's page on a multi-page Audit", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/blog",
+      label: "Blog",
+    });
+    workspace.findings.push({
+      id: "measured-title",
+      observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Raw HTML: Title length",
+      severity: "measure",
+      evidence: ["title 56 characters"],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Title, description and other page details",
+      }),
+    );
+    const details = screen
+      .getByRole("heading", { name: "Title length" })
+      .closest("details");
+    if (!details) throw new Error("Page details missing");
+    expect(
+      within(details)
+        .getAllByRole("link")
+        .some((link) => link.getAttribute("href") === workspace.pages[0].url),
+    ).toBe(true);
   });
 
   it("leaves the date filter off Competitors and a 1-page Pages tab unless dates are set", () => {

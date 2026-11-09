@@ -133,13 +133,19 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
               {t("overview.diagnostics")}
             </h2>
             {flagged ? (
-              <span className="text-muted-foreground text-sm">
+              <span className="text-muted-foreground text-sm whitespace-nowrap">
                 {" "}
-                · {t("overview.flaggedCount", { count: flagged })}
+                · {t("overview.noteCount", { count: flagged })}
               </span>
             ) : null}
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
+            {/* Notes do not count toward the verdict above; say so where they are listed. */}
+            {flagged ? (
+              <p className="text-muted-foreground text-sm">
+                {t("overview.notesAreNotIssues")}
+              </p>
+            ) : null}
             {offTimeline.map((observation) => (
               <div
                 key={observation.id}
@@ -168,13 +174,17 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
             ))}
             {overview.diagnostics.map((finding) => (
               <article key={finding.id} className="space-y-3">
-                {/* Notes and test-level rows are rules the check flagged; a measurement just reports a value. */}
+                {/* Notes and test-level rows name the rule the check flagged, which reads as a claim on its own; a measurement just reports a value. */}
                 <h3 className="text-sm font-medium">
                   {finding.severity !== "measure"
-                    ? t("overview.flagged", { rule: checkName(finding.title) })
+                    ? t("overview.ruleNote", { rule: checkName(finding.title) })
                     : checkName(finding.title)}
                 </h3>
-                <SeoPageLink url={finding.pageUrl} />
+                {/* With one page there is nothing to tell apart, unless the row is for a page removed since. */}
+                {data.pages.length > 1 ||
+                finding.pageUrl !== data.pages[0]?.url ? (
+                  <SeoPageLink url={finding.pageUrl} />
+                ) : null}
                 {/* The first evidence line shows inline; rule references stay one tap away. */}
                 {finding.evidence.length ? (
                   <p className="text-muted-foreground text-sm break-words">

@@ -10656,8 +10656,9 @@
         "tooFewToCompareRates": "Zu wenige Impressionen für einen Wochenvergleich {which, select, ctr {der Klickrate} position {der durchschnittlichen Position} other {von Klickrate und durchschnittlicher Position}}.",
         "pickTile": "Wähle oben eine Zahl, um sie im Diagramm zu zeigen.",
         "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich: {current} im Zeitraum {period}, {previous} in der Woche davor.",
-        "flagged": "Markiert: {rule}",
-        "flaggedCount": "{count} markiert"
+        "ruleNote": "Hinweis zur Regel „{rule}“",
+        "noteCount": "{count, plural, one {# Hinweis} other {# Hinweise}}",
+        "notesAreNotIssues": "Hinweise sind keine Probleme. Jeder zeigt auf etwas, das laut Prüfung einen Blick wert ist."
       },
       "keywords": {
         "title": "Verfolgte Keywords",

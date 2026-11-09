@@ -10656,8 +10656,9 @@
         "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
         "pickTile": "Elige un número de arriba para verlo en el gráfico.",
         "tooFewToCompare": "Muy pocas impresiones para comparar semanas: {current} del {period}, {previous} la semana anterior.",
-        "flagged": "Señalado: {rule}",
-        "flaggedCount": "{count, plural, one {# señalado} other {# señalados}}"
+        "ruleNote": "Nota sobre la regla “{rule}”",
+        "noteCount": "{count, plural, one {# nota} other {# notas}}",
+        "notesAreNotIssues": "Las notas no son problemas. Cada una señala algo que, según la comprobación, vale la pena mirar."
       },
       "keywords": {
         "title": "Palabras clave seguidas",
