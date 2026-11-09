@@ -4,10 +4,10 @@
 
 **Blocked by:** 01: Pick an original-style avatar at onboarding
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The console opens the picker for the owner's bot; picking replaces the bot's avatar everywhere
-- [ ] Admin opens the same picker for any bot and sets its avatar
-- [ ] The previous avatar goes back to the pool when a new one is picked
-- [ ] No console or admin control leads to the avatar studio
-- [ ] Component tests cover changing the avatar from the console and from admin
+- [x] The console opens the picker for the owner's bot; picking replaces the bot's avatar everywhere
+- [x] Admin opens the same picker for any bot and sets its avatar
+- [x] The previous avatar goes back to the pool when a new one is picked
+- [x] No console or admin control leads to the avatar studio
+- [x] Component tests cover changing the avatar from the console and from admin
