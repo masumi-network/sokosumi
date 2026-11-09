@@ -10658,7 +10658,8 @@
         "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich: {current} im Zeitraum {period}, {previous} in der Woche davor.",
         "ruleNote": "Hinweis zur Regel „{rule}“",
         "noteCount": "{count, plural, one {# Hinweis} other {# Hinweise}}",
-        "notesAreNotIssues": "Hinweise sind keine Probleme. Jeder zeigt auf etwas, das laut Prüfung einen Blick wert ist."
+        "notesAreNotIssues": "Hinweise sind keine Probleme. Jeder zeigt auf etwas, das laut Prüfung einen Blick wert ist.",
+        "fromCheck": "Aus der Prüfung vom <date></date>"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -10797,7 +10798,8 @@
         "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}",
         "viewResults": "Ergebnisse ansehen",
         "checkSummaryEach": "je {checked, plural, one {# Test} other {# Tests}}",
-        "device": "{device, select, mobile {Mobil} desktop {Desktop} other {{device}}}"
+        "device": "{device, select, mobile {Mobil} desktop {Desktop} other {{device}}}",
+        "viewEachResult": "{count, plural, one {Ergebnisse ansehen} other {Ergebnisse der # Prüfungen ansehen}}"
       },
       "analysis": {
         "title": "Prüfung starten",

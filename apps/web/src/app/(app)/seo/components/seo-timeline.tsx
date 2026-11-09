@@ -329,7 +329,12 @@ export function SeoTimeline({
                       ) : (
                         <details className="text-muted-foreground">
                           <summary className="cursor-pointer py-3 underline-offset-4 hover:underline">
-                            {t("timeline.sourceDetails")}
+                            {/* Folded checks open to each check's results; say that, like the single-check link does. */}
+                            {observation
+                              ? t("timeline.viewEachResult", {
+                                  count: earlier.length + 1,
+                                })
+                              : t("timeline.sourceDetails")}
                           </summary>
                           <div className="space-y-2 pt-2">
                             {observation ? (

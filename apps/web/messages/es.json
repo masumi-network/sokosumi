@@ -10658,7 +10658,8 @@
         "tooFewToCompare": "Muy pocas impresiones para comparar semanas: {current} del {period}, {previous} la semana anterior.",
         "ruleNote": "Nota sobre la regla “{rule}”",
         "noteCount": "{count, plural, one {# nota} other {# notas}}",
-        "notesAreNotIssues": "Las notas no son problemas. Cada una señala algo que, según la comprobación, vale la pena mirar."
+        "notesAreNotIssues": "Las notas no son problemas. Cada una señala algo que, según la comprobación, vale la pena mirar.",
+        "fromCheck": "De la comprobación del <date></date>"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10797,7 +10798,8 @@
         "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
         "viewResults": "Ver resultados",
         "checkSummaryEach": "{checked, plural, one {# prueba} other {# pruebas}} cada una",
-        "device": "{device, select, mobile {móvil} desktop {ordenador} other {{device}}}"
+        "device": "{device, select, mobile {móvil} desktop {ordenador} other {{device}}}",
+        "viewEachResult": "{count, plural, one {Ver resultados} other {Ver resultados de las # comprobaciones}}"
       },
       "analysis": {
         "title": "Iniciar comprobación",

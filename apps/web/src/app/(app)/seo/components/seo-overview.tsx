@@ -39,6 +39,19 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
   const offTimeline = data.observations.filter(
     (observation) => !onTimeline.has(observation.id),
   );
+  // Rows from one check share its date and record; say them once above the rows.
+  const oneCheck =
+    !offTimeline.length &&
+    new Set(overview.diagnostics.map((finding) => finding.observationId))
+      .size === 1
+      ? overview.diagnostics[0]
+      : undefined;
+  // The check's own time; its rows may carry later times per device.
+  const oneCheckAt = oneCheck
+    ? (data.observations.find(
+        (observation) => observation.id === oneCheck.observationId,
+      )?.observedAt ?? oneCheck.observedAt)
+    : null;
   const flagged = overview.diagnostics.filter(
     (finding) => finding.severity !== "measure",
   ).length;
@@ -146,6 +159,19 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
                 {t("overview.notesAreNotIssues")}
               </p>
             ) : null}
+            {oneCheck ? (
+              <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                <span>
+                  {t.rich("overview.fromCheck", {
+                    date: () => <SeoDate value={oneCheckAt} />,
+                  })}
+                </span>
+                <SeoSource
+                  observationId={oneCheck.observationId}
+                  workspace={data}
+                />
+              </div>
+            ) : null}
             {offTimeline.map((observation) => (
               <div
                 key={observation.id}
@@ -208,13 +234,15 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
                     </ul>
                   </details>
                 ) : null}
-                <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
-                  <SeoDate value={finding.observedAt} />
-                  <SeoSource
-                    observationId={finding.observationId}
-                    workspace={data}
-                  />
-                </div>
+                {oneCheck ? null : (
+                  <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
+                    <SeoDate value={finding.observedAt} />
+                    <SeoSource
+                      observationId={finding.observationId}
+                      workspace={data}
+                    />
+                  </div>
+                )}
               </article>
             ))}
           </div>

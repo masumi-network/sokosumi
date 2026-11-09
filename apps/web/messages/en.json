@@ -10658,7 +10658,8 @@
         "tooFewToCompare": "Too few impressions to compare weeks: {current} in {period}, {previous} the week before.",
         "ruleNote": "Note on the rule “{rule}”",
         "noteCount": "{count, plural, one {# note} other {# notes}}",
-        "notesAreNotIssues": "Notes are not issues. Each one points to something the check thinks is worth a look."
+        "notesAreNotIssues": "Notes are not issues. Each one points to something the check thinks is worth a look.",
+        "fromCheck": "From the check on <date></date>"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -10797,7 +10798,8 @@
         "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}",
         "viewResults": "View results",
         "checkSummaryEach": "{checked, plural, one {# test} other {# tests}} each",
-        "device": "{device, select, mobile {mobile} desktop {desktop} other {{device}}}"
+        "device": "{device, select, mobile {mobile} desktop {desktop} other {{device}}}",
+        "viewEachResult": "{count, plural, one {View results} other {View results of # checks}}"
       },
       "analysis": {
         "title": "Run a check",

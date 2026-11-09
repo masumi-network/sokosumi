@@ -303,7 +303,7 @@ describe("SEO workspace integration", () => {
     const workspace = seoTestWorkspace();
     workspace.findings.push({
       id: "measured-title",
-      observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
+      observationId: "check-title",
       pageUrl: workspace.pages[0].url,
       device: "desktop",
       rowId: "title-length",
@@ -318,7 +318,7 @@ describe("SEO workspace integration", () => {
     });
     workspace.findings.push({
       id: "meta-keywords",
-      observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
+      observationId: "check-keywords",
       pageUrl: workspace.pages[0].url,
       device: "desktop",
       rowId: "meta-keywords",
@@ -331,7 +331,7 @@ describe("SEO workspace integration", () => {
     // A test-level row is a flagged rule too, though its name reads as a claim.
     workspace.findings.push({
       id: "ai-bots",
-      observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
+      observationId: "check-bots",
       pageUrl: "https://example.com/old",
       device: "desktop",
       rowId: "AC-22",
@@ -381,6 +381,9 @@ describe("SEO workspace integration", () => {
           (link) => link.getAttribute("href") === "https://example.com/old",
         ),
     ).toBe(true);
+    // Rows from different checks keep their own date.
+    expect(within(details).queryByText(/From the check on/)).toBeNull();
+    expect(details.querySelectorAll("time")).toHaveLength(3);
     expect(
       screen.getByRole("heading", {
         name: "Note on the rule “AI search bots may fetch the page”",
@@ -403,18 +406,60 @@ describe("SEO workspace integration", () => {
       url: "https://example.com/blog",
       label: "Blog",
     });
-    workspace.findings.push({
-      id: "measured-title",
-      observationId: workspace.observations[0]?.id ?? crypto.randomUUID(),
-      pageUrl: workspace.pages[0].url,
-      device: "desktop",
-      rowId: "title-length",
-      title: "Raw HTML: Title length",
-      severity: "measure",
-      evidence: ["title 56 characters"],
-      sourceRef: "html:title",
+    const observation = {
+      id: "one-check",
+      kind: "page_check" as const,
+      source: "seo_coworker" as const,
       observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.pages.map((page) => page.id),
+      scopeVersion: 2,
+      sourceTaskId: "one-check-task",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const, "mobile" as const],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 4, skipped: 0, failed: 0 },
+    };
+    workspace.observations.push(observation);
+    workspace.timeline.push({
+      id: "one-check-event",
+      kind: "check",
+      title: "SEO check results imported",
+      status: "completed",
+      detail: "",
+      at: observation.observedAt,
+      pageIds: observation.pageIds,
+      taskId: observation.sourceTaskId,
+      observationId: observation.id,
     });
+    workspace.findings.push(
+      {
+        id: "measured-title",
+        observationId: observation.id,
+        pageUrl: workspace.pages[0].url,
+        device: "desktop",
+        rowId: "title-length",
+        title: "Raw HTML: Title length",
+        severity: "measure",
+        evidence: ["title 56 characters"],
+        sourceRef: "html:title",
+        observedAt: new Date("2026-01-03T12:05:00Z"),
+      },
+      {
+        id: "measured-description",
+        observationId: observation.id,
+        pageUrl: workspace.pages[1].url,
+        device: "mobile",
+        rowId: "description-length",
+        title: "Raw HTML: Meta description length",
+        severity: "measure",
+        evidence: ["meta description 120 characters"],
+        sourceRef: "html:description",
+        observedAt: new Date("2026-01-03T12:05:00Z"),
+      },
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -434,6 +479,16 @@ describe("SEO workspace integration", () => {
         .getAllByRole("link")
         .some((link) => link.getAttribute("href") === workspace.pages[0].url),
     ).toBe(true);
+    // One check behind every row: its time and record show once, above the rows.
+    expect(within(details).getByText(/From the check on/)).toBeInTheDocument();
+    const times = details.querySelectorAll("time");
+    expect(times).toHaveLength(1);
+    expect(times[0].getAttribute("datetime")).toBe("2026-01-03T12:00:00.000Z");
+    expect(
+      within(details)
+        .getAllByRole("link", { name: "View results" })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual(["/tasks/one-check-task"]);
   });
 
   it("leaves the date filter off Competitors and a 1-page Pages tab unless dates are set", () => {
