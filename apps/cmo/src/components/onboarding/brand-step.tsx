@@ -35,14 +35,9 @@ import { BusinessMark } from "../business-mark";
 import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
-import {
-  type Answer,
-  QuestionCard,
-  SidePanel,
-  Tile,
-  useAnswers,
-} from "./parts";
+import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
+import { SidePanel, Tile } from "./tiles";
 
 /** Brand colours the site card shows, at most. */
 const MAX_COLORS = 5;

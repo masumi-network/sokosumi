@@ -65,8 +65,12 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
   const alternatives = strategy.alternatives ?? [];
   const [comparing, setComparing] = useState(false);
   const { barrier } = strategy;
+  // Masumi chrome for the plan; the founder's brand colours stay off this
+  // panel (they used to tint the whole `.bb` via brandStyle — Brand Brain
+  // leftover). Phone mockups below still take brandStyle so posts look like
+  // theirs.
   return (
-    <div className="bb" style={brandStyle(overview)}>
+    <div className="bb">
       {stages.length > 0 ? (
         <Section title="Three moves" wide>
           {stages.some((stage) => (stage.plays ?? []).length > 0) ? (
@@ -169,7 +173,9 @@ function Everything({ overview, strategy }: PlanPanelProps) {
       ) : null}
       {strategy.calendar.length > 0 ? (
         <Section title="Where it shows up" wide>
-          <PhoneFeeds overview={overview} strategy={strategy} />
+          <div style={brandStyle(overview)}>
+            <PhoneFeeds overview={overview} strategy={strategy} />
+          </div>
         </Section>
       ) : null}
       {improvements.length > 0 ? (
@@ -383,7 +389,7 @@ export function ResultsPanel({
   const rules = measurement?.rules ?? [];
   const tracking = measurement?.tracking ?? [];
   return (
-    <div className="bb" style={brandStyle(overview)}>
+    <div className="bb">
       <Section title="The outcome that matters">
         <p className="bb-big">{outcomeLine(strategy)}</p>
         {objective?.target ? (

@@ -15,17 +15,11 @@ import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import {
-  type Answer,
-  AssumptionChip,
   Checklist,
-  GoalBlock,
-  NoteField,
   PLANNING_PHASES,
-  RetryButton,
-  useAnswers,
   useElapsed,
   workChecklist,
-} from "./parts";
+} from "./checklist";
 import {
   type ConnectMeasurement,
   MonthPanel,
@@ -34,8 +28,16 @@ import {
   ResultsPanel,
   TABS,
 } from "./plan-tabs";
+import {
+  type Answer,
+  AssumptionChip,
+  NoteField,
+  RetryButton,
+  useAnswers,
+} from "./questions";
 import { Refusal } from "./refusal";
 import { type PlanPhase, planUnfitted } from "./step";
+import { GoalBlock } from "./tiles";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];

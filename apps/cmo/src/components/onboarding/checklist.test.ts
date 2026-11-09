@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { elapsedLabel, workChecklist } from "./parts";
+import { elapsedLabel, workChecklist } from "./checklist";
 
 const PHASES = [
   { kinds: ["other"], label: "Your channels" },

@@ -3,7 +3,7 @@ import { AGENT_NAME } from "../../../lib/agent";
 import type { CusoMessage } from "../../../lib/chat-messages";
 import { VIEW_PATHS, type View } from "../../../lib/views";
 import { cmoOverview, cmoStrategyVersion } from "../../../test-fixtures/cmo";
-import { richBrain, richPlan } from "../onboarding/fixtures";
+import { richBrain, richPlan } from "../../../test-fixtures/onboarding";
 
 export const VIEWS = Object.keys(VIEW_PATHS) as View[];
 

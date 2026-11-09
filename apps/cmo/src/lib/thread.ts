@@ -110,6 +110,14 @@ export type CusoState =
   | "waiting-channel"
   | "running";
 
+/** How Cuso looks: the pose of his avatar for that state. */
+export type CusoPose =
+  | "reading"
+  | "thinking"
+  | "needs-you"
+  | "reporting"
+  | "done";
+
 /** Each state in a word, for the chat header and Cuso's status card. */
 const CUSO_STATE_LABEL: Record<CusoState, string> = {
   stopped: "Stopped",
@@ -122,6 +130,23 @@ const CUSO_STATE_LABEL: Record<CusoState, string> = {
   "waiting-channel": "Waiting for a channel",
   running: "Running",
 };
+
+/**
+ * The pose each state shows. A state that waits on the owner (or stopped)
+ * needs him; "running" has no pose of its own, see `cusoPose`.
+ */
+const STATE_POSE: Record<Exclude<CusoState, "running">, CusoPose> = {
+  stopped: "needs-you",
+  learning: "reading",
+  "needs-answers": "needs-you",
+  paused: "needs-you",
+  working: "thinking",
+  planning: "thinking",
+  "waiting-approval": "needs-you",
+  "waiting-channel": "needs-you",
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function cusoState(overview: CmoOverview): CusoState {
   if (overview.learning === "failed") return "stopped";
@@ -140,4 +165,27 @@ export function cusoState(overview: CmoOverview): CusoState {
 /** Cuso's state in a word, for the chat header. */
 export function cusoStatus(overview: CmoOverview): string {
   return CUSO_STATE_LABEL[cusoState(overview)];
+}
+
+/**
+ * Running is steady: thinking while the month is made, reading while
+ * research runs, reporting for a day after a report is filed, else done.
+ */
+export function cusoPose(
+  overview: CmoOverview,
+  now: Date = new Date(),
+): CusoPose {
+  const state = cusoState(overview);
+  if (state !== "running") return STATE_POSE[state];
+  if (overview.work?.kind === "research") return "reading";
+  if (
+    overview.production.state === "running" ||
+    overview.work?.status === "running"
+  ) {
+    return "thinking";
+  }
+  const filed = overview.updates.some(
+    (update) => now.getTime() - new Date(update.at).getTime() < DAY_MS,
+  );
+  return filed ? "reporting" : "done";
 }

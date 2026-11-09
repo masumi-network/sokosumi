@@ -1,6 +1,8 @@
+import type { CusoPose } from "../lib/thread";
 import { CusoClip } from "./cuso-clip";
 
-export type Pose = "reading" | "thinking" | "needs-you" | "reporting" | "done";
+/** How Cuso looks on an avatar; same poses as `cusoPose`. */
+export type Pose = CusoPose;
 
 /** How long the avatar rests on its still between two plays. */
 export const AVATAR_REPLAY_MS = 30_000;

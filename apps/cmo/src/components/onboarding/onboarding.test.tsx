@@ -22,10 +22,10 @@ import {
   optionalChannels,
   strategySocialChannels,
 } from "./launch-step";
-import { StepMarkers } from "./parts";
 import { PlanStep, planTabAfterKey } from "./plan-step";
 import { SiteStep } from "./site-step";
 import { onboardingStep, type SitePhase } from "./step";
+import { StepMarkers } from "./step-markers";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Brain = NonNullable<CmoOverview["brandBrain"]>;
