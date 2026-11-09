@@ -9,12 +9,19 @@ import {
   resolveUserUploadContentType,
   STUDIO_LOGO_MIME_TYPES,
 } from "@sokosumi/utils";
-import { ExternalLink, Globe, ImagePlus, Palette } from "lucide-react";
+import {
+  ExternalLink,
+  Globe,
+  ImagePlus,
+  Palette,
+  WandSparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { DesignMdGenerateDialog } from "@/components/design-md/design-md-generate-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -48,18 +55,18 @@ function lines(value: string): string[] {
 
 export function StudioBrandKitDialog({
   disabled,
-  hasWebsite = false,
   onLogoChange,
   onWebsiteCopyReviewed,
   projectId,
   websiteCopy,
+  websiteUrl,
 }: {
   disabled?: boolean;
-  hasWebsite?: boolean;
   onLogoChange: (logo: string | null) => void;
   onWebsiteCopyReviewed?: () => void;
   projectId: string;
   websiteCopy?: StudioWebsiteCopy | null;
+  websiteUrl?: string | null;
 }) {
   const t = useTranslations("App.Studio");
   const [open, setOpen] = useState(false);
@@ -71,6 +78,7 @@ export function StudioBrandKitDialog({
     approvedLines: "",
   });
   const [dirty, setDirty] = useState(false);
+  const [websiteStyleSaved, setWebsiteStyleSaved] = useState(false);
   const [message, setMessage] = useState<
     "saved" | "loadError" | "saveError" | "conflict" | null
   >(null);
@@ -106,6 +114,7 @@ export function StudioBrandKitDialog({
       setMessage(null);
       setLogoMessage(null);
       setWebsiteMessage(null);
+      setWebsiteStyleSaved(false);
       try {
         const next = await getStudioBrandKit({ projectId });
         setKit(next);
@@ -268,7 +277,7 @@ export function StudioBrandKitDialog({
           <DialogTitle>{t("brandKit")}</DialogTitle>
           <DialogDescription>{t("BrandKit.description")}</DialogDescription>
         </DialogHeader>
-        {kit && hasWebsite ? (
+        {kit && websiteUrl ? (
           <div className="space-y-2">
             <Button
               disabled={pending}
@@ -350,6 +359,40 @@ export function StudioBrandKitDialog({
                 <p className="text-muted-foreground text-sm break-words">
                   {kit.fonts.join(" · ")}
                 </p>
+              ) : null}
+              {websiteUrl ? (
+                <div className="space-y-2">
+                  <DesignMdGenerateDialog
+                    owner={{ type: "project", projectId }}
+                    websiteUrl={websiteUrl}
+                    trigger={
+                      <Button size="sm" type="button" variant="outline">
+                        <WandSparkles aria-hidden />
+                        {t("BrandKit.extractWebsiteStyle")}
+                      </Button>
+                    }
+                    onGenerated={({ look }) => {
+                      if (!look) return;
+                      setKit(
+                        (current) =>
+                          current && {
+                            ...current,
+                            colors: look.colors,
+                            fonts: look.fonts,
+                          },
+                      );
+                      setWebsiteStyleSaved(true);
+                    }}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    {t("BrandKit.websiteStyleHelp")}
+                  </p>
+                  {websiteStyleSaved ? (
+                    <p role="status" className="text-muted-foreground text-sm">
+                      {t("BrandKit.websiteStyleSaved")}
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
             <div className="space-y-1.5">

@@ -234,5 +234,18 @@ function clipBrandText(value: string | null | undefined): string | null {
 }
 
 async function readDesignMd(url: string | null): Promise<string | null> {
-  return clipBrandText(await readDesignMdContent(url));
+  const content = (await readDesignMdContent(url))?.trim();
+  if (!content || content.length <= BRAND_BLOCK_MAX_CHARS) {
+    return content || null;
+  }
+  const { colors, fonts } = designMdBrandLook(content);
+  return clipBrandText(
+    [
+      colors.length ? `Brand colors: ${colors.join(", ")}` : "",
+      fonts.length ? `Brand fonts: ${fonts.join(", ")}` : "",
+      content,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
 }

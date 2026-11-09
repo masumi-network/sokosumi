@@ -82,13 +82,13 @@ export function StudioWebsiteTools({
       ) : null}
       <StudioBrandKitDialog
         disabled={pending}
-        hasWebsite={Boolean(websiteUrl)}
         onLogoChange={onLogoChange}
         onWebsiteCopyReviewed={() =>
           setDraft((current) => current && { ...current, brandCopy: null })
         }
         projectId={projectId}
         websiteCopy={draft?.brandCopy}
+        websiteUrl={websiteUrl}
       />
       <StudioProductCatalogDialog
         canUseProduct={canUseProduct}

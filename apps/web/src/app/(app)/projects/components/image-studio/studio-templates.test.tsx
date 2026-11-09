@@ -45,6 +45,7 @@ const mocks = vi.hoisted(() => ({
   saveBrandCopy: vi.fn(),
   uploadLogo: vi.fn(),
   loadWebsiteCopy: vi.fn(),
+  startDesignMdGeneration: vi.fn(),
   prepareWebsiteDraft: vi.fn(),
   loadProducts: vi.fn(),
   saveProducts: vi.fn(),
@@ -56,6 +57,12 @@ vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   prepareStudioWebsiteDraft: mocks.prepareWebsiteDraft,
   saveStudioBrandCopy: mocks.saveBrandCopy,
   uploadStudioProjectLogo: mocks.uploadLogo,
+}));
+
+vi.mock("@/lib/actions/design-md/action", () => ({
+  startDesignMdGeneration: mocks.startDesignMdGeneration,
+  pollDesignMdGeneration: vi.fn(),
+  finalizeDesignMdGeneration: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/product-catalog", () => ({
@@ -160,6 +167,59 @@ describe("starting from a template", () => {
         audience: ["Home cooks"],
         approvedLines: ["Made from reclaimed clay.", "Fired in Prague."],
       },
+    });
+  });
+
+  it("extracts the project website's visual style without resetting the copy draft", async () => {
+    mocks.saveBrandCopy.mockClear();
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: ["#a33421"],
+      fonts: ["Inter"],
+      summary: "A ceramics studio",
+      tone: "Direct",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    mocks.startDesignMdGeneration.mockResolvedValueOnce({
+      ok: true,
+      value: {
+        kind: "completed",
+        data: {
+          url: "https://blob.example/design.md",
+          extractionId: null,
+          previewUrl: null,
+          look: {
+            colors: ["#285e45"],
+            fonts: ["Georgia"],
+            tone: "Friendly",
+          },
+        },
+      },
+    });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const tone = await screen.findByLabelText("BrandKit.tone");
+    fireEvent.change(tone, { target: { value: "Clear and warm" } });
+    const extract = screen.getByRole("button", {
+      name: "BrandKit.extractWebsiteStyle",
+    });
+    fireEvent.click(extract);
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
+    expect(mocks.startDesignMdGeneration).not.toHaveBeenCalled();
+
+    fireEvent.click(extract);
+    fireEvent.click(screen.getByRole("button", { name: "confirmGenerate" }));
+    expect(await screen.findByText("#285e45")).toBeInTheDocument();
+    expect(screen.getByText("Georgia")).toBeInTheDocument();
+    expect(screen.queryByText("#a33421")).toBeNull();
+    expect(tone).toHaveValue("Clear and warm");
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+    expect(mocks.startDesignMdGeneration).toHaveBeenCalledExactlyOnceWith({
+      force: false,
+      owner: { type: "project", projectId: "p" },
+      url: "https://ceramics.example",
     });
   });
 

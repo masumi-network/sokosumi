@@ -344,6 +344,25 @@ describe("loadStudioBrand", () => {
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
   });
 
+  it("includes colors and fonts from the end of a long project design guide", async () => {
+    projectFindUniqueMock.mockResolvedValue({
+      designMdUrl:
+        "https://abc123.public.blob.vercel-storage.com/design-md/long-style.md",
+      contextMd: null,
+    });
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response(
+        `# Brand\n${"Introduction. ".repeat(160)}\ncolors:\n  primary: "#a33421"\ntypography:\n  heading:\n    fontFamily: "Inter"`,
+      ),
+    );
+
+    const brand = await loadStudioBrand("project-1");
+    expect(brand.designMd).toHaveLength(1600);
+    const prompt = applyStudioBrandPrompt("Launch ad", brand);
+    expect(prompt).toContain("Brand colors: #a33421\nBrand fonts: Inter");
+    expect(prompt).toMatch(/Brief:\nLaunch ad$/);
+  });
+
   it("fails open when the project or Design cannot be read", async () => {
     projectFindUniqueMock.mockRejectedValue(new Error("db down"));
     await expect(loadStudioBrand("project-1")).resolves.toEqual({
