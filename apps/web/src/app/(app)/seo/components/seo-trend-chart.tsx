@@ -3,7 +3,6 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
-import { cn } from "@/lib/utils";
 import { seoTrendModel } from "./seo-trend-model";
 
 interface SeoTrendChartProps {
@@ -170,7 +169,7 @@ export function SeoTrendChart({
                       <line
                         key={point.date}
                         data-testid="seo-trend-bar"
-                        className="stroke-chart-1/50"
+                        className="stroke-chart-5/50"
                         vectorEffect="non-scaling-stroke"
                         strokeWidth={2}
                         x1={point.x - barWidth / 2}
@@ -182,10 +181,10 @@ export function SeoTrendChart({
                       <rect
                         key={point.date}
                         data-testid="seo-trend-bar"
-                        className={cn(
-                          "fill-chart-1",
-                          active !== null && active !== index && "opacity-50",
-                        )}
+                        // Neutral marks keep the data quiet next to the agent's actions; the hovered day lifts to full contrast.
+                        className={
+                          active === index ? "fill-foreground" : "fill-chart-5"
+                        }
                         x={point.x - barWidth / 2}
                         width={barWidth}
                         y={point.y}
@@ -197,7 +196,7 @@ export function SeoTrendChart({
               {(model.bars ? [] : model.lines).map((run) => (
                 <polyline
                   key={`line:${run[0]}`}
-                  className="stroke-chart-1"
+                  className="stroke-chart-5"
                   fill="none"
                   points={path(run)}
                   strokeLinecap="round"
@@ -225,7 +224,7 @@ export function SeoTrendChart({
                   key={point.date}
                   aria-hidden
                   data-testid="seo-trend-dot"
-                  className="bg-chart-1 ring-background pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2"
+                  className="bg-foreground ring-background pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2"
                   style={{ left: `${point.x}%`, top: `${point.y}%` }}
                 />
               ) : null,
