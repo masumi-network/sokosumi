@@ -51,7 +51,8 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
                   <SeoDate
                     value={monitor.nextRunAt}
                     timeZone={monitor.timeZone}
-                  />
+                  />{" "}
+                  ({monitor.timeZone})
                 </span>
               </span>
               <Link
@@ -70,7 +71,7 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
           disabled={!scope.pageIds.length}
           onClick={() => model.setDialog("monitor")}
         >
-          {t("monitor.weekly")}
+          {t("monitor.agentWeekly")}
         </Button>
       )}
     </div>

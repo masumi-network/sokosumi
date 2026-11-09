@@ -30,7 +30,8 @@ export function SeoKeywordTrendToggle({
     <button
       type="button"
       aria-expanded={open}
-      aria-controls={controls}
+      // The chart row exists only while open.
+      aria-controls={open ? controls : undefined}
       onClick={onToggle}
       className="focus-visible:ring-ring mt-1 inline-flex items-center gap-1 rounded-sm py-1 text-xs underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
     >

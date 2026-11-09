@@ -405,10 +405,8 @@ describe("Search Console queries", () => {
       keyword: "usdt",
     });
     renderWorkspace(workspace);
-    // A keyword tracked after the sync says when its days arrive.
-    expect(
-      screen.getByText("Daily positions start with the next sync"),
-    ).toBeVisible();
+    // A keyword the last sync did not read says so.
+    expect(screen.getByText(/^Not read in the last sync\./)).toBeVisible();
     const toggle = screen.getByRole("button", { name: "Daily positions" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     await user.click(toggle);

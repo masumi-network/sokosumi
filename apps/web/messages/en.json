@@ -10695,7 +10695,7 @@
         "notInKeptRows": "Not in the first {count} rows kept",
         "trendShow": "Daily positions",
         "trendEmpty": "No Search Console impressions in this period",
-        "trendNotRequested": "Daily positions start with the next sync",
+        "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
         "trendLabel": "Average position for “{keyword}”",
         "trendNoImpressions": "No impressions"
       },
@@ -10927,14 +10927,15 @@
         "description": "Repeat a focused check for a fixed number of runs. Review the market, pages and per-run budget before saving.",
         "cadence": "Frequency",
         "daily": "Daily at 09:00",
-        "weekly": "Let the agent check weekly",
+        "weekly": "Mondays at 09:00",
         "runs": "Number of runs",
         "timeZone": "Time zone",
         "cap": "Up to {runs} runs and {calls} data requests in total. Model and runtime charges can also apply.",
         "created": "SEO monitoring scheduled",
         "next": "Next run",
         "manage": "Manage task schedule",
-        "offBody": "Off. The agent can check these pages every week and save each result here. Nothing runs until you schedule it."
+        "offBody": "Off. The agent can check these pages every week and save each result here. Nothing runs until you schedule it.",
+        "agentWeekly": "Let the agent check weekly"
       },
       "pageChange": {
         "title": "Record a change",

@@ -10695,7 +10695,7 @@
         "notInKeptRows": "No está entre las primeras {count} filas guardadas",
         "trendShow": "Posiciones diarias",
         "trendEmpty": "Sin impresiones de Search Console en este periodo",
-        "trendNotRequested": "Las posiciones diarias empiezan con la próxima sincronización",
+        "trendNotRequested": "No se leyó en la última sincronización. Hasta 25 palabras clave seguidas reciben posiciones diarias.",
         "trendLabel": "Posición media de «{keyword}»",
         "trendNoImpressions": "Sin impresiones"
       },
@@ -10927,14 +10927,15 @@
         "description": "Repite una revisión concreta durante un número fijo de ejecuciones. Revisa el mercado, las páginas y el presupuesto por ejecución antes de guardar.",
         "cadence": "Frecuencia",
         "daily": "Cada día a las 09:00",
-        "weekly": "Que el agente compruebe cada semana",
+        "weekly": "Los lunes a las 09:00",
         "runs": "Número de ejecuciones",
         "timeZone": "Zona horaria",
         "cap": "Hasta {runs} ejecuciones y {calls} solicitudes de datos en total. También pueden aplicarse cargos de modelo y ejecución.",
         "created": "Seguimiento SEO programado",
         "next": "Próxima ejecución",
         "manage": "Gestionar plan de tareas",
-        "offBody": "Desactivadas. El agente puede comprobar estas páginas cada semana y guardar cada resultado aquí. Nada se ejecuta hasta que lo programes."
+        "offBody": "Desactivadas. El agente puede comprobar estas páginas cada semana y guardar cada resultado aquí. Nada se ejecuta hasta que lo programes.",
+        "agentWeekly": "Que el agente compruebe cada semana"
       },
       "pageChange": {
         "title": "Registrar un cambio",

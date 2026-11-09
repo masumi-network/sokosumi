@@ -1586,6 +1586,10 @@ describe("SEO workspace integration", () => {
       screen.getByRole("button", { name: "Let the agent check weekly" }),
     );
     const dialog = screen.getByRole("dialog");
+    // The agent's offer opens on the weekly slot, named by its day and time.
+    expect(
+      within(dialog).getByRole("combobox", { name: "Frequency" }),
+    ).toHaveTextContent("Mondays at 09:00");
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );

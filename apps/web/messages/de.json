@@ -10695,7 +10695,7 @@
         "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen",
         "trendShow": "Tägliche Positionen",
         "trendEmpty": "Keine Search-Console-Impressionen in diesem Zeitraum",
-        "trendNotRequested": "Tägliche Positionen beginnen mit der nächsten Synchronisierung",
+        "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 25 verfolgte Keywords erhalten tägliche Positionen.",
         "trendLabel": "Durchschnittliche Position für „{keyword}“",
         "trendNoImpressions": "Keine Impressionen"
       },
@@ -10927,14 +10927,15 @@
         "description": "Wiederhole eine gezielte Prüfung für eine feste Anzahl von Durchläufen. Prüfe Markt, Seiten und Budget pro Durchlauf vor dem Speichern.",
         "cadence": "Häufigkeit",
         "daily": "Täglich um 09:00",
-        "weekly": "Agent wöchentlich prüfen lassen",
+        "weekly": "Montags um 09:00",
         "runs": "Anzahl der Durchläufe",
         "timeZone": "Zeitzone",
         "cap": "Bis zu {runs} Durchläufe und insgesamt {calls} Datenanfragen. Modell- und Laufzeitkosten können ebenfalls anfallen.",
         "created": "SEO-Monitoring geplant",
         "next": "Nächster Durchlauf",
         "manage": "Aufgabenplan verwalten",
-        "offBody": "Aus. Der Agent kann diese Seiten jede Woche prüfen und jedes Ergebnis hier speichern. Nichts läuft, bevor du es planst."
+        "offBody": "Aus. Der Agent kann diese Seiten jede Woche prüfen und jedes Ergebnis hier speichern. Nichts läuft, bevor du es planst.",
+        "agentWeekly": "Agent wöchentlich prüfen lassen"
       },
       "pageChange": {
         "title": "Änderung vermerken",

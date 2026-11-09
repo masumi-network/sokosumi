@@ -21,8 +21,8 @@ const BAR_FILL = 0.7;
 /**
  * One daily metric on one axis: bars for counts, a line for rates and positions,
  * a hairline grid, and a readout that snaps to the nearest day from the pointer
- * or the arrow keys. Every value is also in the table below it, so the hover
- * layer never gates a number.
+ * or the arrow keys. Callers that need every value readable without the pointer
+ * add a table, as the traffic tiles do.
  */
 export function SeoTrendChart({
   points,
