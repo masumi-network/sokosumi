@@ -12,6 +12,7 @@ import {
   Settings,
   Share2,
   Target,
+  Users,
 } from "lucide-react";
 import {
   useCallback,
@@ -40,6 +41,7 @@ import {
   StrategyCard,
   UpdateCard,
 } from "./cards";
+import { ContactsPage } from "./contacts-page";
 import {
   BrandBrainPage,
   ChannelsPage,
@@ -76,6 +78,7 @@ const VIEWS = [
   ["results", "Results", ChartLine],
   ["brain", "Brand Brain", Brain],
   ["channels", "Channels", Share2],
+  ["contacts", "Contacts", Users],
   ["settings", "Settings", Settings],
 ] as const satisfies readonly (readonly [string, string, LucideIcon])[];
 
@@ -558,6 +561,11 @@ export function CmoApp({
                     await actions.sendMessage(text);
                     await refresh();
                   }}
+                />
+              ) : view === "contacts" ? (
+                <ContactsPage
+                  key={overview.projectId}
+                  projectId={overview.projectId}
                 />
               ) : view === "channels" ? (
                 <ChannelsPage

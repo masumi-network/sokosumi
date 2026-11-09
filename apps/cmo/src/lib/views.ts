@@ -4,6 +4,7 @@ export const VIEW_PATHS = {
   strategy: "/strategy",
   calendar: "/calendar",
   results: "/results",
+  contacts: "/contacts",
   brain: "/brand-brain",
   channels: "/channels",
   settings: "/settings",
