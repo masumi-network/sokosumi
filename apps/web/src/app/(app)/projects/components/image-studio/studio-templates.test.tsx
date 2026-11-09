@@ -270,7 +270,9 @@ describe("starting from a template", () => {
     );
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "BrandKit.save" }));
+    const save = screen.getByRole("button", { name: "BrandKit.save" });
+    await waitFor(() => expect(save).toBeEnabled());
+    fireEvent.click(save);
     await screen.findByText("BrandKit.saved");
     expect(mocks.saveBrandCopy).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
