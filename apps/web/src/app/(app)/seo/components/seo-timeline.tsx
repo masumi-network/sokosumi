@@ -344,12 +344,12 @@ export function SeoTimeline({
                                 ? ` · ${coverageText(check.observation.coverage)}`
                                 : ""}
                               {/* Folding ignores optional checks; name a count that differs from the newest. */}
-                              {check.observation?.coverage.modules
-                                ?.notRequested &&
-                              check.observation.coverage.modules
-                                .notRequested !==
-                                observation?.coverage.modules?.notRequested
-                                ? ` · ${t("timeline.optionalNotRequested", { count: check.observation.coverage.modules.notRequested })}`
+                              {check.observation &&
+                              (check.observation.coverage.modules
+                                ?.notRequested ?? 0) !==
+                                (observation?.coverage.modules?.notRequested ??
+                                  0)
+                                ? ` · ${t("timeline.optionalNotRequested", { count: check.observation.coverage.modules?.notRequested ?? 0 })}`
                                 : ""}
                               {check.event.taskId ? (
                                 <>

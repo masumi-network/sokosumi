@@ -290,7 +290,11 @@ describe("SEO timeline recovery", () => {
         modules: { notRequested, failed: 0 },
       },
     });
-    workspace.observations = [check("older", 2, 3), check("newer", 3, 0)];
+    workspace.observations = [
+      check("older", 2, 0),
+      check("newer", 3, 3),
+      check("newest", 4, 3),
+    ];
     workspace.timeline = workspace.observations.map((observation) => ({
       id: observation.id,
       kind: "check",
@@ -317,9 +321,17 @@ describe("SEO timeline recovery", () => {
       screen.getByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov 2, 2026.* · 12 rules checked · 3 optional checks not requested$/.test(
+          /^Nov 2, 2026.* · 12 rules checked · all optional checks requested$/.test(
             element.textContent ?? "",
           ),
+      ),
+    ).toBeInTheDocument();
+    // The same count as the newest check is not repeated.
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          /^Nov 3, 2026.* · 12 rules checked$/.test(element.textContent ?? ""),
       ),
     ).toBeInTheDocument();
   });

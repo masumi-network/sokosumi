@@ -10795,7 +10795,7 @@
         "rulesSkipped": "{count} sin comprobar",
         "rulesUnavailable": "{count, plural, one {# no disponible} other {# no disponibles}}",
         "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
-        "optionalNotRequested": "{count, plural, one {# comprobación opcional no solicitada} other {# comprobaciones opcionales no solicitadas}}"
+        "optionalNotRequested": "{count, plural, =0 {todas las comprobaciones opcionales solicitadas} one {# comprobación opcional no solicitada} other {# comprobaciones opcionales no solicitadas}}"
       },
       "analysis": {
         "title": "Iniciar comprobación",

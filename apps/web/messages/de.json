@@ -10795,7 +10795,7 @@
         "rulesSkipped": "{count} nicht geprüft",
         "rulesUnavailable": "{count} nicht verfügbar",
         "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}",
-        "optionalNotRequested": "{count, plural, one {# optionale Prüfung nicht angefordert} other {# optionale Prüfungen nicht angefordert}}"
+        "optionalNotRequested": "{count, plural, =0 {alle optionalen Prüfungen angefordert} one {# optionale Prüfung nicht angefordert} other {# optionale Prüfungen nicht angefordert}}"
       },
       "analysis": {
         "title": "Prüfung starten",
