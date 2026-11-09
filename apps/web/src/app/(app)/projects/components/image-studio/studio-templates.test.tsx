@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { STUDIO_TEMPLATES } from "./studio-templates";
+import { requestStudioWebsiteDraftOnOpen } from "./studio-website-intent";
 import type { StudioAsset } from "./types";
 
 /**
@@ -285,6 +286,46 @@ describe("starting from a template", () => {
         ],
       },
     });
+  });
+
+  it("automatically prepares only the newly created project once and leaves suggestions for review", async () => {
+    mocks.prepareWebsiteDraft.mockClear();
+    const prepare = Promise.withResolvers();
+    mocks.prepareWebsiteDraft.mockReturnValueOnce(prepare.promise);
+    requestStudioWebsiteDraftOnOpen("p");
+
+    const studio = mount("https://ceramics.example");
+    expect(await screen.findByText("preparing")).toBeInTheDocument();
+    expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+    });
+    await act(async () =>
+      prepare.resolve({
+        brandCopy: { summary: "A ceramics studio", lines: [] },
+        products: [
+          {
+            id: "mug",
+            name: "Travel mug",
+            description: "",
+            price: "",
+            url: null,
+            imageUrl: null,
+          },
+        ],
+      }),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "WebsiteDraft.reviewCopy" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "reviewImportedProducts" }),
+    ).toBeInTheDocument();
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+    expect(mocks.saveProducts).not.toHaveBeenCalled();
+    studio.unmount();
+    mount("https://ceramics.example");
+    expect(mocks.prepareWebsiteDraft).toHaveBeenCalledTimes(1);
   });
 
   it("prepares website copy and products together for independent review", async () => {

@@ -4025,6 +4025,7 @@
       "brandKit": "Brand kit",
       "brandKitNewTab": "Open project design in a new tab",
       "WebsiteDraft": {
+        "preparing": "Preparing brand and product suggestions from the website…",
         "prepare": "Prepare from website",
         "reviewCopy": "Review brand copy",
         "ready": "Website suggestions are ready to review.",
