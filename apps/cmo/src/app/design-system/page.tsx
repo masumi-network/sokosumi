@@ -3,6 +3,7 @@ import "./design-system.css";
 
 import { AVATAR_REPLAY_MS } from "../../components/cuso";
 import { CusoClip } from "../../components/cuso-clip";
+import { Logo } from "../../components/logo";
 import { StatusDisc } from "../../components/status";
 import { AGENT_NAME } from "../../lib/agent";
 import { previewOnly } from "./fixture-frame";
@@ -58,6 +59,8 @@ const SWATCHES: Swatch[] = [
   { name: "Peach", token: "--peach" },
   { name: "Done", token: "--ok" },
   { name: "Needs an answer", token: "--warn" },
+  { name: "Cuso stage", token: "--stage" },
+  { name: "Modal scrim", token: "--scrim" },
 ];
 
 /** The two steps the onboarding screens already style. */
@@ -123,6 +126,15 @@ function Board({ scheme }: BoardProps) {
             <li key={rule}>{rule}</li>
           ))}
         </ol>
+      </Section>
+
+      <Section title="Logo">
+        <p className="ds-logo">
+          <Logo />
+        </p>
+        <p className="ds-t-small ds-muted">
+          16px high in a header, drawn in the text colour.
+        </p>
       </Section>
 
       <Section title="Colour">
@@ -222,6 +234,35 @@ function Board({ scheme }: BoardProps) {
               A card sits on a panel, never straight on the page.
             </p>
           </div>
+        </div>
+      </Section>
+
+      <Section title="Checklist">
+        <ul className="ds-checklist">
+          <li className="ds-check done">
+            <span className="ds-check-box" aria-hidden="true">
+              ✓
+            </span>
+            <span className="ds-t-small">Read your homepage</span>
+          </li>
+          <li className="ds-check working">
+            <span className="ds-check-box" aria-hidden="true">
+              ·
+            </span>
+            <span className="ds-t-small">Compare competitors</span>
+          </li>
+          <li className="ds-check">
+            <span className="ds-check-box" aria-hidden="true" />
+            <span className="ds-t-small">Draft your first month</span>
+          </li>
+        </ul>
+      </Section>
+
+      <Section title="Skeleton">
+        <div className="ds-skeleton" aria-hidden="true">
+          <span className="ds-skel-bar" />
+          <span className="ds-skel-bar short" />
+          <span className="ds-skel-bar" />
         </div>
       </Section>
 

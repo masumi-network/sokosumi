@@ -534,8 +534,10 @@ a.button {
 }
 
 /* Status is a glyph disc, not a wash: the tags stay neutral and the
-   foreground tone marks the finished ones. */
-.tag.strong {
+   foreground tone marks the finished or live ones. */
+.tag.emphasis,
+.tag.ok,
+.tag.warn {
   color: var(--foreground);
 }
 
@@ -2649,7 +2651,7 @@ button.cuso-status {
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -2683,7 +2685,7 @@ button.cuso-status {
 .bb-bar {
   position: relative;
   height: 6px;
-  border-radius: var(--radius-mark);
+  border-radius: var(--radius-control);
   background: var(--surface);
 }
 
@@ -2692,7 +2694,7 @@ button.cuso-status {
   top: 0;
   bottom: 0;
   left: 0;
-  border-radius: var(--radius-mark);
+  border-radius: var(--radius-control);
   background: var(--brand);
   transform-origin: left;
 }
@@ -2767,7 +2769,7 @@ button.cuso-status {
 
 .cw-images {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--brand-soft);
   font-size: 0.75rem;
   font-weight: 500;
@@ -2901,7 +2903,7 @@ button.cuso-status {
   height: 4px;
   margin-top: 8px;
   overflow: hidden;
-  border-radius: var(--radius-mark);
+  border-radius: var(--radius-control);
   background: var(--border);
 }
 
@@ -2979,7 +2981,7 @@ button.cuso-status {
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-mark);
   background: var(--background);
   color: var(--muted);
   font: inherit;

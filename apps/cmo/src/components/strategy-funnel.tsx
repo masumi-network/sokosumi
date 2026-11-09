@@ -27,7 +27,6 @@ export function Funnel({ stages }: { stages: Stage[] }) {
           style={
             {
               "--fn-width": `${100 - index * (48 / Math.max(stages.length - 1, 1))}%`,
-              "--fn-tint": `${88 - index * 18}%`,
             } as CSSProperties
           }
         >

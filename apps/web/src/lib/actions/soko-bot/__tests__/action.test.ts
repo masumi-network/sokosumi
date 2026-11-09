@@ -28,6 +28,7 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
         archive: vi.fn(),
         reactivate: vi.fn(),
         resetMemory: vi.fn(),
+        rename: vi.fn(),
       },
       revalidatePathMock: vi.fn(),
       MockCoreApiRequestError,
@@ -78,6 +79,7 @@ import {
   discardSokoBotAvatarDraftsAction,
   reactivateSokoBotAction,
   regenerateSokoBotAvatarStateAction,
+  renameSokoBotAction,
   resetSokoBotMemoryAction,
   resolveSokoBotDecisionAction,
   startSokoBotTurnAction,
@@ -362,6 +364,42 @@ describe("soko-bot actions", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
       expect(serviceMock.resetMemory).not.toHaveBeenCalled();
+    });
+
+    it("renames a shared bot with the trimmed name and refreshes its pages", async () => {
+      serviceMock.rename.mockResolvedValue({ id: BOT_ID, name: "Atlas" });
+      const result = await renameSokoBotAction({
+        name: "  Atlas  ",
+        botId: BOT_ID,
+      });
+      expect(result.ok).toBe(true);
+      expect(serviceMock.rename).toHaveBeenCalledWith("Atlas", BOT_ID);
+      expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOTS_ROUTE);
+    });
+
+    it("renames the caller's own bot without a botId", async () => {
+      serviceMock.rename.mockResolvedValue({ id: BOT_ID, name: "Atlas" });
+      await renameSokoBotAction({ name: "Atlas" });
+      expect(serviceMock.rename).toHaveBeenCalledWith("Atlas", undefined);
+      expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOT_ROUTE);
+    });
+
+    it.each([
+      ["a blank name", "   "],
+      ["a name over 80 characters", "x".repeat(81)],
+      ["no name", undefined],
+    ])("refuses %s before calling Core", async (_label, name) => {
+      const result = await renameSokoBotAction({ name });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+      expect(serviceMock.rename).not.toHaveBeenCalled();
+    });
+
+    it("returns Core's refusal to rename", async () => {
+      serviceMock.rename.mockRejectedValue(new Error("Forbidden"));
+      const result = await renameSokoBotAction({ name: "X", botId: BOT_ID });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.message).toBe("Forbidden");
     });
 
     it("passes botId through to a schedule", async () => {

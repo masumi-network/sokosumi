@@ -292,7 +292,7 @@ export function StrategyCard({
             {overview.viewerCanApprove ? (
               <button
                 type="button"
-                className="button button-secondary button-small"
+                className="button button-small"
                 disabled={pending}
                 onClick={() => startTransition(actions.approve)}
               >
@@ -467,7 +467,7 @@ export function UpdateCard({
             <ul className={update.revertedAt ? "list reverted" : "list"}>
               {(update.changes ?? []).map((change) => (
                 <li key={change} className="li">
-                  <span className="tag strong">
+                  <span className="tag emphasis">
                     {update.revertedAt ? "Reverted" : "Changed"}
                   </span>
                   <span className="grow">{change}</span>

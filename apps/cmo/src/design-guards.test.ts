@@ -109,8 +109,15 @@ describe("colours", () => {
       .map(({ line, index }) => `${STYLESHEET}:${index + 1}: ${line.trim()}`);
 
     const inSource = findLines(SOURCE, COLOUR_LITERAL);
+    // Component stylesheets too: a wash in strategy-*.css is still a literal.
+    const inCss = findLines(
+      STYLED.filter(
+        (file) => file.rel.endsWith(".css") && file.rel !== STYLESHEET,
+      ),
+      COLOUR_LITERAL,
+    );
 
-    expect([...outsideRoot, ...inSource]).toEqual([]);
+    expect([...outsideRoot, ...inSource, ...inCss]).toEqual([]);
   });
 });
 
@@ -197,7 +204,7 @@ const BLUR = /\bblur\(|backdrop-filter|\bbackdropFilter/;
 const RADIUS_DECLARATION =
   /\b(?:border(?:-[a-z]+)*-radius|border(?:[A-Z][a-z]+)*Radius)\s*:\s*["'`]?([^;"'`}]*)/;
 const RADIUS_OK =
-  /^(?:var\(--radius-(?:mark|control|card|panel)\)|999px|50%|0|inherit)$/;
+  /^(?:var\(--radius-(?:mark|control|card|panel)\)|50%|0|inherit)$/;
 const IRIS_TEXT =
   /(?<![\w-])(?:color|stroke|text-decoration-color|border[\w-]*|outline[\w-]*|borderColor|outlineColor)\s*:[^;]*var\(--primary(?:-hover)?\)/;
 const SIGNAL_TEXT = /(?<![\w-])(?:color|stroke)\s*:[^;]*var\(--(?:ok|warn)\)/;
@@ -341,7 +348,8 @@ describe("visual system", () => {
       expect(badRadius("  border-top-left-radius: 4px;")).toBe(true);
       expect(badRadius('borderRadius: "12px"')).toBe(true);
       expect(badRadius("  border-radius: var(--radius-card);")).toBe(false);
-      expect(badRadius("  border-radius: 999px;")).toBe(false);
+      expect(badRadius("  border-radius: 999px;")).toBe(true);
+      expect(badRadius("  border-radius: 50%;")).toBe(false);
       expect(
         badRadius(
           "  border-radius: 0 0 var(--radius-card) var(--radius-card);",

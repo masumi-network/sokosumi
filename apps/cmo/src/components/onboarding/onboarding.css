@@ -654,7 +654,7 @@ body:has(.ob) .site-header {
 .ob-live {
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--muted);
 }
 
