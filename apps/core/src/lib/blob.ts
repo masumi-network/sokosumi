@@ -86,7 +86,8 @@ export async function createUserFileUploadSession(
     grantInput.allowedContentTypes = file.allowedContentTypes;
   }
 
-  return createBlobUploadGrant(grantInput);
+  const grant = await createBlobUploadGrant(grantInput);
+  return { ...grant, access: USER_UPLOAD_ACCESS };
 }
 
 /**

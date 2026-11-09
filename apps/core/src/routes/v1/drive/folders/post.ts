@@ -6,9 +6,8 @@ import {
   buildUserDriveFolderPrefix,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
-import { BlobError, BlobNotFoundError, head, list, put } from "@vercel/blob";
+import { BlobError } from "@vercel/blob";
 
-import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
   requireOrganizationDriveFileUploadAccess,
@@ -23,6 +22,7 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { driveExists, driveHasAny, drivePut } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -71,12 +71,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
 
-    const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
-
     const folderPath = normalizeDriveFolderPath(body.folderPath);
     if (!folderPath) {
       throw badRequest("Folder path cannot be empty");
@@ -107,39 +101,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    const existingBlobs = await list({
-      prefix,
-      token,
-      limit: 1,
-    });
-
-    if (existingBlobs.blobs.length > 0) {
+    if (await driveHasAny(prefix)) {
       throw conflict("Folder already exists");
     }
 
-    const filePathname = prefix.slice(0, -1);
-    try {
-      await head(filePathname, { token });
+    if (await driveExists(prefix.slice(0, -1))) {
       throw conflict("A file with that name already exists");
-    } catch (error) {
-      if (error instanceof BlobNotFoundError) {
-      } else if (
-        error &&
-        typeof error === "object" &&
-        "kind" in error &&
-        error.kind === "conflict"
-      ) {
-        throw error;
-      } else {
-        throw error;
-      }
     }
 
     // Write the marker (one-byte blob; @vercel/blob requires non-empty body)
     try {
-      await put(markerPathname, " ", {
-        token,
-        access: "public",
+      await drivePut(markerPathname, " ", {
         addRandomSuffix: false,
         contentType: "application/octet-stream",
       });

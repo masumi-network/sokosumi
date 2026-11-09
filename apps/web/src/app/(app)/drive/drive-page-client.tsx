@@ -25,6 +25,7 @@ import {
   Folders,
   Link2,
   ListFilter,
+  LockKeyhole,
   MoreHorizontal,
   Pencil,
   Search,
@@ -54,10 +55,15 @@ import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
 import {
+  DriveDataRoomDialog,
+  type DriveDataRoomFolder,
+} from "@/app/drive/components/drive-data-room-dialog";
+import {
   DriveFilePreview,
   DriveItemCard,
   DriveItemName,
   driveItemActivation,
+  forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
@@ -128,6 +134,7 @@ import {
   serializeFilesViewModeCookie,
 } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
+import { dataRoomOf, fetchDataRooms } from "@/lib/utils/data-room.client";
 import {
   driveStoreForActiveWorkspace,
   driveWorkspaceRootLabel,
@@ -181,16 +188,6 @@ function driveNavParams(params: URLSearchParams): URLSearchParams {
   next.delete("archived");
   next.delete("tags");
   return next;
-}
-
-function appendDownloadParam(url: string): string {
-  try {
-    const parsed = new URL(url);
-    parsed.searchParams.set("download", "1");
-    return parsed.toString();
-  } catch {
-    return url;
-  }
 }
 
 type ExploreItem =
@@ -308,6 +305,8 @@ function DrivePageWorkspace({
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shareItem, setShareItem] = useState<DriveShareItem | null>(null);
+  const [dataRoomFolder, setDataRoomFolder] =
+    useState<DriveDataRoomFolder | null>(null);
   const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
   /**
    * Which folder is narrowing the catalog, if any.
@@ -487,6 +486,12 @@ function DrivePageWorkspace({
         : { scope: "me" },
     [allFilesOrganizationId],
   );
+
+  const dataRoomsQuery = useQuery({
+    queryKey: ["drive", "data-rooms", allFilesStore],
+    queryFn: () => fetchDataRooms(allFilesStore),
+    enabled: isWorkspaceView,
+  });
 
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
@@ -1004,7 +1009,7 @@ function DrivePageWorkspace({
 
   function handleDownload(fileUrl: string, fileName: string) {
     const link = document.createElement("a");
-    link.href = appendDownloadParam(fileUrl);
+    link.href = forcedDownloadUrl(fileUrl);
     link.download = fileName;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
@@ -1553,28 +1558,50 @@ function DrivePageWorkspace({
    * no folder to act on.
    */
   const facetFolderItem: DriveItem | null = facetFolder
-    ? { type: "folder", name: facetFolder, path: facetFolder }
+    ? { type: "folder", name: facetFolder, path: facetFolder, dataRoom: false }
     : null;
   const folderName = facetFolder.split("/").at(-1) ?? facetFolder;
+  const facetFolderRoom = dataRoomOf(dataRoomsQuery.data ?? [], facetFolder);
   const folderActions = facetFolderItem ? (
     <>
       <Button
         type="button"
         size="sm"
-        variant="ghost"
+        variant={facetFolderRoom ? "secondary" : "ghost"}
         className="gap-1.5"
-        data-testid="files-share-folder"
-        aria-label={t("shareFolderAction", { name: folderName })}
+        data-testid="files-data-room-folder"
+        aria-label={t("dataRoomFolderAction", { name: folderName })}
         onClick={() =>
-          setShareItem({
-            target: { kind: "folder", folderPath: facetFolder },
+          setDataRoomFolder({
+            path: facetFolder,
             name: folderName,
+            room: facetFolderRoom,
           })
         }
       >
-        <Link2 className="size-4" aria-hidden />
-        <span className="hidden @lg:inline">{t("shareAction")}</span>
+        <LockKeyhole className="size-4" aria-hidden />
+        <span className="hidden @lg:inline">{t("dataRoomAction")}</span>
       </Button>
+      {/* A room's files are reached by invitation, never by link. */}
+      {facetFolderRoom ? null : (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="gap-1.5"
+          data-testid="files-share-folder"
+          aria-label={t("shareFolderAction", { name: folderName })}
+          onClick={() =>
+            setShareItem({
+              target: { kind: "folder", folderPath: facetFolder },
+              name: folderName,
+            })
+          }
+        >
+          <Link2 className="size-4" aria-hidden />
+          <span className="hidden @lg:inline">{t("shareAction")}</span>
+        </Button>
+      )}
       <Button
         type="button"
         size="sm"
@@ -2272,6 +2299,15 @@ function DrivePageWorkspace({
         onOpenChange={(open) => {
           if (!open) setShareItem(null);
         }}
+      />
+
+      <DriveDataRoomDialog
+        store={allFilesStore}
+        folder={dataRoomFolder}
+        onOpenChange={(open) => {
+          if (!open) setDataRoomFolder(null);
+        }}
+        onChanged={() => void dataRoomsQuery.refetch()}
       />
 
       {!isTasksView && isWorkspaceView && (

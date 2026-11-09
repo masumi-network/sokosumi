@@ -194,6 +194,7 @@ model Workspace {
   fileLineages       FileLineage[]
   fileCollections    FileCollection[]
   driveShares        DriveShare[]
+  dataRooms          DataRoom[]
   fileAdmissions     FileAuthorizationAdmission[]
   fileResultWindows  FileResultWindow[]
 

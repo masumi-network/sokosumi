@@ -9124,6 +9124,8 @@
       "moveNewFolderPlaceholder": "Or type a new folder name",
       "shareAction": "Share",
       "shareFolderAction": "Share “{name}”",
+      "dataRoomAction": "Data room",
+      "dataRoomFolderAction": "Data room for {name}",
       "moveDialogTitle": "Move {itemName}",
       "moveDialogDescription": "Select the destination folder",
       "moveHere": "Move here",
@@ -9349,6 +9351,25 @@
         "revoked": "Link turned off",
         "loadFailed": "Could not load the link",
         "saveFailed": "Could not save the link"
+      },
+      "DataRoom": {
+        "makeTitle": "Make “{name}” a data room",
+        "makeDescription": "Its files move to private storage, so only people you let in can open them. Links to this folder, or to anything in it, stop working.",
+        "make": "Make data room",
+        "made": "Data room on. Its files are moving to private storage.",
+        "roomTitle": "Data room “{name}”",
+        "insideRoom": "This folder is inside the data room “{room}”.",
+        "storage": {
+          "moving_in": "Its files are moving to private storage. You can keep working with them meanwhile.",
+          "private": "Every file is in private storage. Nobody can open them from outside Sokosumi.",
+          "moving_out": "Closing. Its files are moving back to ordinary storage."
+        },
+        "close": "Close data room",
+        "closeTitle": "Close the data room “{name}”?",
+        "closeDescription": "Its files move back to ordinary storage, where anyone with a file's address can open it.",
+        "closed": "Data room closed. Its files are moving back.",
+        "cancel": "Cancel",
+        "saveFailed": "Could not save the data room"
       }
     },
     "SokoBot": {

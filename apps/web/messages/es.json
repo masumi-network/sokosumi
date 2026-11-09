@@ -9124,6 +9124,8 @@
       "moveNewFolderPlaceholder": "O escribe el nombre de una carpeta nueva",
       "shareAction": "Compartir",
       "shareFolderAction": "Compartir “{name}”",
+      "dataRoomAction": "Sala de datos",
+      "dataRoomFolderAction": "Sala de datos de {name}",
       "moveDialogTitle": "Mover {itemName}",
       "moveDialogDescription": "Selecciona la carpeta de destino",
       "moveHere": "Mover aquí",
@@ -9349,6 +9351,25 @@
         "revoked": "Enlace desactivado",
         "loadFailed": "No se pudo cargar el enlace",
         "saveFailed": "No se pudo guardar el enlace"
+      },
+      "DataRoom": {
+        "makeTitle": "Convertir “{name}” en una sala de datos",
+        "makeDescription": "Sus archivos pasan a un almacenamiento privado y solo las personas que invites pueden abrirlos. Los enlaces a esta carpeta, o a cualquier cosa dentro, dejan de funcionar.",
+        "make": "Crear sala de datos",
+        "made": "Sala de datos activa. Sus archivos están pasando al almacenamiento privado.",
+        "roomTitle": "Sala de datos “{name}”",
+        "insideRoom": "Esta carpeta está dentro de la sala de datos “{room}”.",
+        "storage": {
+          "moving_in": "Sus archivos están pasando al almacenamiento privado. Mientras tanto puedes seguir trabajando con ellos.",
+          "private": "Todos los archivos están en el almacenamiento privado. Nadie puede abrirlos desde fuera de Sokosumi.",
+          "moving_out": "Cerrando. Sus archivos vuelven al almacenamiento normal."
+        },
+        "close": "Cerrar sala de datos",
+        "closeTitle": "¿Cerrar la sala de datos “{name}”?",
+        "closeDescription": "Sus archivos vuelven al almacenamiento normal, donde cualquiera con la dirección de un archivo puede abrirlo.",
+        "closed": "Sala de datos cerrada. Sus archivos están volviendo.",
+        "cancel": "Cancelar",
+        "saveFailed": "No se pudo guardar la sala de datos"
       }
     },
     "SokoBot": {

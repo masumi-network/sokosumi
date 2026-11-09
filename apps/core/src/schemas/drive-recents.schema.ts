@@ -48,6 +48,11 @@ const driveRecentsDriveFileItemSchema = z
       description:
         "Tags on this file, automatic or confirmed. Labels a person removed are never listed.",
     }),
+    dataRoom: z.boolean().openapi({
+      example: false,
+      description:
+        "In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.",
+    }),
   })
   .openapi("DriveRecentsDriveFileItem");
 

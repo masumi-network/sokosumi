@@ -3,9 +3,9 @@ import {
   buildOrganizationDriveFilePathnameWithFolder,
   buildUserDriveFilePathnameWithFolder,
 } from "@sokosumi/utils";
-import { put } from "@vercel/blob";
 
 import prisma from "@/lib/db/prisma";
+import { drivePut } from "@/lib/drive-blob";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
   activateDriveUploadResource,
@@ -121,8 +121,7 @@ export async function writeOwnerDriveFile(input: {
     mimeType: contentType,
     sizeBytes: bytes.byteLength,
   });
-  const blob = await put(pathname, Buffer.from(bytes), {
-    access: "public",
+  const blob = await drivePut(pathname, Buffer.from(bytes), {
     contentType,
     addRandomSuffix: false,
     allowOverwrite: true,

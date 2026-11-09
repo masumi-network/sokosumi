@@ -16769,6 +16769,72 @@ export const FileCollectionSchema = {
     ]
 } as const;
 
+export const DataRoomsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoom'
+    }
+} as const;
+
+export const DataRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        folderPath: {
+            type: 'string'
+        },
+        storage: {
+            type: 'string',
+            enum: [
+                'moving_in',
+                'private',
+                'moving_out'
+            ],
+            description: 'moving_in while its files go to the private store, private once they all are, moving_out after it was closed.'
+        },
+        createdAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'folderPath',
+        'storage',
+        'createdAt'
+    ]
+} as const;
+
+export const CreateDataRoomRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            description: 'Folder to turn into a data room, e.g. "Series A".',
+            example: 'Series A'
+        }
+    },
+    required: [
+        'scope',
+        'folderPath'
+    ]
+} as const;
+
 export const DriveFileUploadSessionSchema = {
     type: 'object',
     properties: {
@@ -16786,10 +16852,11 @@ export const DriveFileUploadSessionSchema = {
         access: {
             type: 'string',
             enum: [
-                'public'
+                'public',
+                'private'
             ],
             example: 'public',
-            description: 'Blob access level for the upload'
+            description: 'Blob access level for the upload: private inside a data room.'
         },
         method: {
             type: 'string',
@@ -16939,12 +17006,18 @@ export const DriveFolderSchema = {
             type: 'string',
             example: 'Documents',
             description: 'Relative folder path from current folder (single segment)'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'This folder is a data room, or is inside one.'
         }
     },
     required: [
         'type',
         'name',
-        'path'
+        'path',
+        'dataRoom'
     ]
 } as const;
 
@@ -17001,6 +17074,11 @@ export const DriveFileSchema = {
             format: 'date-time',
             example: '2026-08-18T10:00:00.000Z',
             description: 'When the file was uploaded to Blob storage'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.'
         }
     },
     required: [
@@ -17008,7 +17086,8 @@ export const DriveFileSchema = {
         'fileUrl',
         'pathname',
         'size',
-        'uploadedAt'
+        'uploadedAt',
+        'dataRoom'
     ]
 } as const;
 
@@ -17381,6 +17460,11 @@ export const DriveRecentsDriveFileItemSchema = {
                 ]
             },
             description: 'Tags on this file, automatic or confirmed. Labels a person removed are never listed.'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.'
         }
     },
     required: [
@@ -17392,7 +17476,8 @@ export const DriveRecentsDriveFileItemSchema = {
         'activityAt',
         'resourceId',
         'category',
-        'tags'
+        'tags',
+        'dataRoom'
     ]
 } as const;
 

@@ -9124,6 +9124,8 @@
       "moveNewFolderPlaceholder": "Oder neuen Ordnernamen eingeben",
       "shareAction": "Teilen",
       "shareFolderAction": "„{name}“ teilen",
+      "dataRoomAction": "Datenraum",
+      "dataRoomFolderAction": "Datenraum für {name}",
       "moveDialogTitle": "{itemName} verschieben",
       "moveDialogDescription": "Wähle den Zielordner aus",
       "moveHere": "Hierher verschieben",
@@ -9349,6 +9351,25 @@
         "revoked": "Link deaktiviert",
         "loadFailed": "Link konnte nicht geladen werden",
         "saveFailed": "Link konnte nicht gespeichert werden"
+      },
+      "DataRoom": {
+        "makeTitle": "„{name}“ zum Datenraum machen",
+        "makeDescription": "Die Dateien ziehen in einen privaten Speicher. Nur Personen, die du einlädst, können sie öffnen. Links auf diesen Ordner oder etwas darin funktionieren nicht mehr.",
+        "make": "Datenraum einrichten",
+        "made": "Datenraum aktiv. Die Dateien ziehen in den privaten Speicher.",
+        "roomTitle": "Datenraum „{name}“",
+        "insideRoom": "Dieser Ordner liegt im Datenraum „{room}“.",
+        "storage": {
+          "moving_in": "Die Dateien ziehen in den privaten Speicher. Du kannst in der Zwischenzeit weiter mit ihnen arbeiten.",
+          "private": "Alle Dateien liegen im privaten Speicher. Von außerhalb von Sokosumi kann sie niemand öffnen.",
+          "moving_out": "Wird geschlossen. Die Dateien ziehen zurück in den normalen Speicher."
+        },
+        "close": "Datenraum schließen",
+        "closeTitle": "Datenraum „{name}“ schließen?",
+        "closeDescription": "Die Dateien ziehen zurück in den normalen Speicher, wo jeder mit der Adresse einer Datei sie öffnen kann.",
+        "closed": "Datenraum geschlossen. Die Dateien ziehen zurück.",
+        "cancel": "Abbrechen",
+        "saveFailed": "Datenraum konnte nicht gespeichert werden"
       }
     },
     "SokoBot": {
