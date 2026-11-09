@@ -344,7 +344,8 @@ export function SeoTimeline({
                                 ? ` · ${coverageText(check.observation.coverage)}`
                                 : ""}
                               {/* Folding ignores optional checks; name a count that differs from the newest. */}
-                              {check.observation &&
+                              {/* No module record is no data, not "all requested". */}
+                              {check.observation?.coverage.modules &&
                               (check.observation.coverage.modules
                                 ?.notRequested ?? 0) !==
                                 (observation?.coverage.modules?.notRequested ??

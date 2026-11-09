@@ -71,11 +71,11 @@ export function SeoWorkspace({
   const editScope = Boolean(
     model.data.scope.id && model.data.availableActions.canEdit,
   );
-  // An empty filter block would still add a gap under the header.
   const dateFields = useSeoDateFields({
     filters: model.filters,
     dates: controls.dates,
   });
+  // An empty filter block would still add a gap under the header.
   const showFilters =
     foldFilters || controls.dates || dateFields.open || editScope;
   const [filtersOpen, setFiltersOpen] = useState(
