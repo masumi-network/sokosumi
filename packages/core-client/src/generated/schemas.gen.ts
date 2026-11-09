@@ -21586,6 +21586,13 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
         error: {
             type: [
                 'string',
@@ -38781,6 +38788,14 @@ export const CreateProjectImageJobRequestSchema = {
             },
             maxItems: 4,
             default: []
+        },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 4
         },
         parentAssetId: {
             type: [

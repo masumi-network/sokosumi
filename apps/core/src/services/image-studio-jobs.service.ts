@@ -34,6 +34,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
+import type { FileActor } from "@/lib/files/actor";
 import {
   requireProjectAccess,
   requireProjectAccessForUser,
@@ -74,6 +75,7 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { loadLiveResources } from "@/services/file-search.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
@@ -137,6 +139,8 @@ export interface CreateImageJobInput {
    * product photos. The caller checks the person may open them.
    */
   referenceFileIds?: string[];
+  /** The REST caller, whose file access must be checked for new requests. */
+  referenceFileActor?: FileActor;
   /** The version being refined, when the user started from a selection. */
   parentAssetId: string | null;
   idempotencyKey: string;
@@ -287,6 +291,40 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // The replay answer. Returning the existing row — rather than creating a
     // second one — is what makes the HTTP endpoint safe to retry.
     if (existing) return { job: existing, created: false };
+
+    const referenceCount =
+      input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
+    if (
+      input.referenceFileActor &&
+      referenceCount > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB
+    ) {
+      throw unprocessableEntity(
+        `Choose up to ${LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB} reference images.`,
+      );
+    }
+
+    if (input.referenceFileActor && input.referenceFileIds?.length) {
+      const files = await loadLiveResources(
+        {
+          workspaceId: input.workspaceId,
+          actor: input.referenceFileActor,
+          resourceIds: input.referenceFileIds,
+        },
+        tx,
+      );
+      for (const id of input.referenceFileIds) {
+        const file = files.find((candidate) => candidate.id === id);
+        if (
+          file?.sourceKind !== FileSourceKind.DRIVE_UPLOAD ||
+          !file.mimeType?.startsWith("image/")
+        ) {
+          throw notFound("A reference image was not found in your Files.");
+        }
+        if ((file.sizeBytes ?? 0) > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES) {
+          throw unprocessableEntity("A reference image is too large to send.");
+        }
+      }
+    }
 
     const inFlight = await tx.projectImageJob.count({
       where: { projectId: input.projectId, status: { in: ACTIVE_STATUSES } },

@@ -76,10 +76,12 @@ import {
   creditsByAssetId,
   elapsedByAssetId,
   isActive,
+  MAX_STUDIO_REFERENCES,
   type StudioAsset,
   type StudioCatalog,
   type StudioJob,
   type StudioLabels,
+  type StudioProductPhoto,
   type StudioState,
   type StudioTarget,
 } from "./types";
@@ -178,6 +180,10 @@ export function ImageStudio({
     initialSelectedAssetId ? { mode: "single" } : null,
   );
   const [prompt, setPrompt] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [productPhoto, setProductPhoto] = useState<StudioProductPhoto | null>(
+    null,
+  );
   const [hasNewerSettings, setHasNewerSettings] = useState(false);
   const [composerKey, setComposerKey] = useState(0);
   const [parentAssetId, setParentAssetId] = useState<
@@ -446,6 +452,11 @@ export function ImageStudio({
         : from === "asset"
           ? [(source as StudioAsset).id]
           : (source as StudioJob).referenceAssetIds,
+      ...(from === "job" &&
+      !reroll &&
+      (source as StudioJob).referenceFileIds?.length
+        ? { referenceFileIds: (source as StudioJob).referenceFileIds }
+        : {}),
       idempotencyKey: `ui:${id}`,
     };
     queue.enqueue([request]);
@@ -534,9 +545,15 @@ export function ImageStudio({
 
   function canEditRequest(request: QueuedGeneration) {
     const model = modelById(catalog, request.modelId);
-    if (!model || request.projectId !== activeProjectId) return false;
-    const { referenceAssetIds, parentAssetId, settings } = request;
+    if (uploadingPhoto || !model || request.projectId !== activeProjectId)
+      return false;
+    const { referenceAssetIds, referenceFileIds, parentAssetId, settings } =
+      request;
+    const referenceCount =
+      referenceAssetIds.length + (referenceFileIds?.length ?? 0);
     if (
+      referenceCount > MAX_STUDIO_REFERENCES ||
+      (referenceFileIds?.length ?? 0) > 1 ||
       referenceAssetIds.some(
         (id) =>
           !state.assets.some(
@@ -548,8 +565,8 @@ export function ImageStudio({
           (asset) =>
             asset.id === parentAssetId && asset.projectId === request.projectId,
         )) ||
-      (referenceAssetIds.length > 0 &&
-        (!model.editEndpoint || model.maxReferences < referenceAssetIds.length))
+      (referenceCount > 0 &&
+        (!model.editEndpoint || model.maxReferences < referenceCount))
     ) {
       return false;
     }
@@ -750,6 +767,14 @@ export function ImageStudio({
           setHasNewerSettings(true);
         }}
         onGenerate={handleGenerate}
+        onProductPhotoChange={(photo) => {
+          setProductPhoto(photo);
+          setTemplateUndo(null);
+          setHasNewerSettings(true);
+        }}
+        productPhoto={productPhoto}
+        uploadingPhoto={uploadingPhoto}
+        onPhotoUploadChange={setUploadingPhoto}
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
@@ -885,6 +910,12 @@ export function ImageStudio({
                         settings: request.settings,
                       });
                       setCheckedIds(request.referenceAssetIds);
+                      const photoId = request.referenceFileIds?.[0];
+                      setProductPhoto((current) => {
+                        if (!photoId) return null;
+                        if (current?.id === photoId) return current;
+                        return { id: photoId, name: t("productPhoto") };
+                      });
                       setParentAssetId(request.parentAssetId);
                       setHasNewerSettings(true);
                       // A saved failure is one leg, even if its batch had copies.

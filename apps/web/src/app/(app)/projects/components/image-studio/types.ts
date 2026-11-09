@@ -8,6 +8,13 @@ import type {
 import { extensionForEntityImageMime } from "@sokosumi/utils";
 import type { StudioTemplateId } from "./studio-templates";
 
+export const MAX_STUDIO_REFERENCES = 4;
+
+export interface StudioProductPhoto {
+  id: string;
+  name: string;
+}
+
 export type StudioAsset = ProjectImageAsset;
 export type StudioJob = ProjectImageJob;
 /** Either state: one project's, or the workspace's (which has no sessions). */

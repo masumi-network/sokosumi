@@ -328,6 +328,7 @@ export interface JobView {
   video: VideoSettingsView | null;
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
+  referenceFileIds?: string[];
   /** One sentence a person can read. Never the provider's own words. */
   error: string | null;
   /**
@@ -378,6 +379,7 @@ export async function getJob(options: {
       prompt: true,
       settings: true,
       referenceAssetIds: true,
+      referenceFileIds: true,
       error: true,
       failureReason: true,
       parentAssetId: true,
@@ -410,6 +412,7 @@ export async function listJobs(
       prompt: true,
       settings: true,
       referenceAssetIds: true,
+      referenceFileIds: true,
       error: true,
       failureReason: true,
       parentAssetId: true,
@@ -434,6 +437,7 @@ export function toJobView(job: {
   prompt: string;
   settings: unknown;
   referenceAssetIds: string[];
+  referenceFileIds?: string[];
   error: string | null;
   failureReason: string | null;
   parentAssetId: string | null;
@@ -457,6 +461,9 @@ export function toJobView(job: {
       job.settings,
     ),
     referenceAssetIds: job.referenceAssetIds,
+    ...(job.referenceFileIds?.length
+      ? { referenceFileIds: job.referenceFileIds }
+      : {}),
     error: job.error,
     failureReason: readImageJobFailureReason(job.failureReason),
     parentAssetId: job.parentAssetId,

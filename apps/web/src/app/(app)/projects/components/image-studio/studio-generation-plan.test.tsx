@@ -1,11 +1,26 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { MAX_BATCH, StudioComposer } from "./studio-composer";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import type { StudioCatalog, StudioTarget } from "./types";
+import type { StudioCatalog, StudioProductPhoto, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
+
+const { uploadPhoto } = vi.hoisted(() => ({ uploadPhoto: vi.fn() }));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {
+    getSession: async () => ({
+      data: { session: { activeOrganizationId: "workspace-org" } },
+    }),
+  },
+}));
+
+vi.mock("@/lib/utils/drive-file-upload.client", () => ({
+  uploadDriveFile: uploadPhoto,
+  isDriveFileUploadDuplicate: () => false,
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -43,13 +58,17 @@ function Harness({
   catalog = LARGE_CATALOG,
   initial,
   onGenerate,
+  productPhotos = false,
 }: {
   catalog?: StudioCatalog;
   initial: StudioTarget;
   onGenerate: (requests: GenerationRequest[]) => void;
+  productPhotos?: boolean;
 }) {
   const [target, setTarget] = useState(initial);
   const [prompt, setPrompt] = useState("A campaign image");
+  const [photo, setPhoto] = useState<StudioProductPhoto | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   return (
     <StudioComposer
       busy={false}
@@ -64,7 +83,11 @@ function Harness({
       }}
       onClearReferences={() => {}}
       onGenerate={onGenerate}
+      onProductPhotoChange={productPhotos ? setPhoto : undefined}
+      onPhotoUploadChange={setUploadingPhoto}
+      uploadingPhoto={uploadingPhoto}
       onPromptChange={setPrompt}
+      productPhoto={photo}
       onTargetChange={setTarget}
       prompt={prompt}
       referenceAssets={[]}
@@ -92,6 +115,48 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
+  it("uploads a product photo to the active workspace and sends it to every placement", async () => {
+    const pendingUpload = Promise.withResolvers<{ resourceId: string }>();
+    uploadPhoto.mockReturnValueOnce(pendingUpload.promise);
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+        productPhotos
+      />,
+    );
+
+    const photo = new File(["image"], "product.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText("productPhoto"), {
+      target: { files: [photo] },
+    });
+
+    expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
+    await act(async () => pendingUpload.resolve({ resourceId: "photo-1" }));
+    expect(await screen.findByText("product.png")).toBeInTheDocument();
+    expect(uploadPhoto).toHaveBeenCalledWith(photo, {
+      scope: "org",
+      organizationId: "workspace-org",
+    });
+    for (const placement of ["squareFeed", "stories"]) {
+      fireEvent.click(
+        screen.getByRole("button", { name: new RegExp(placement) }),
+      );
+    }
+    generate();
+    expect(
+      onGenerate.mock.calls[0][0].map((request) => request.referenceFileIds),
+    ).toEqual([["photo-1"], ["photo-1"]]);
+
+    fireEvent.click(screen.getByRole("button", { name: "removeProductPhoto" }));
+    generate();
+    expect(
+      onGenerate.mock.calls[1][0].map((request) => request.referenceFileIds),
+    ).toEqual([undefined, undefined]);
+  });
+
   it("selects only models that fit and buys every checked model", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(

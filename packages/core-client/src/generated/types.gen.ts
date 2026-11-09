@@ -6143,6 +6143,7 @@ export type ProjectImageJob = {
     settings: ProjectImageSettings;
     video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
+    referenceFileIds?: Array<string>;
     error: string | null;
     failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
     parentAssetId: string | null;
@@ -10337,6 +10338,7 @@ export type CreateProjectImageJobRequest = {
     prompt: string;
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
+    referenceFileIds?: Array<string>;
     parentAssetId?: string | null;
     sessionId?: string | null;
     idempotencyKey: string;

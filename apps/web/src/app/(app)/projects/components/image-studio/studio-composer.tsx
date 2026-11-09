@@ -28,14 +28,17 @@ import {
   STUDIO_PILL_CLASS,
 } from "./studio-classes";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
+import { StudioProductPhotoControl } from "./studio-product-photo";
 import { StudioTemplateMenu } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
   assetContentUrl,
+  MAX_STUDIO_REFERENCES,
   type StudioAsset,
   type StudioCatalog,
   type StudioLabels,
   type StudioModel,
+  type StudioProductPhoto,
   type StudioSettings,
   type StudioTarget,
 } from "./types";
@@ -126,6 +129,10 @@ export function StudioComposer({
   prompt,
   promptRef,
   referenceAssets,
+  productPhoto,
+  uploadingPhoto = false,
+  onProductPhotoChange,
+  onPhotoUploadChange,
   onClearReferences,
   onCopiesChange,
   parentAssetId,
@@ -176,6 +183,10 @@ export function StudioComposer({
   promptRef?: React.Ref<HTMLTextAreaElement>;
   /** Images the person picked in the gallery to generate *from*. */
   referenceAssets: StudioAsset[];
+  productPhoto?: StudioProductPhoto | null;
+  onProductPhotoChange?: (photo: StudioProductPhoto | null) => void;
+  uploadingPhoto?: boolean;
+  onPhotoUploadChange?: (uploading: boolean) => void;
   onClearReferences: () => void;
   onCopiesChange?: () => void;
   /** Recovery keeps the saved parent independent of reference order. */
@@ -207,6 +218,8 @@ export function StudioComposer({
     placementRatios = NO_PLACEMENTS,
   } = target;
   const frameCount = Math.max(1, placementRatios.length);
+  const referenceCount = referenceAssets.length + (productPhoto ? 1 : 0);
+  const tooManyReferences = referenceCount > MAX_STUDIO_REFERENCES;
   const modelLimit = Math.floor(MAX_BATCH / frameCount);
 
   // A reference is an edit request. Only offer models that can consume every
@@ -215,11 +228,11 @@ export function StudioComposer({
     () =>
       catalog.models.filter(
         (model) =>
-          referenceAssets.length === 0 ||
+          referenceCount === 0 ||
           (model.editEndpoint !== null &&
-            model.maxReferences >= referenceAssets.length),
+            model.maxReferences >= referenceCount),
       ),
-    [catalog.models, referenceAssets.length],
+    [catalog.models, referenceCount],
   );
   const selectedModels = useMemo(
     () =>
@@ -311,12 +324,13 @@ export function StudioComposer({
     const frames = placementRatios.length
       ? placementRatios
       : [settings.aspectRatio];
-    const configured = (unsupportedPlacements ? [] : frames).flatMap(
-      (aspectRatio) =>
-        selectedModels.map((model) => ({
-          model,
-          settings: clampToModel(model, { ...settings, aspectRatio }),
-        })),
+    const configured = (
+      unsupportedPlacements || tooManyReferences ? [] : frames
+    ).flatMap((aspectRatio) =>
+      selectedModels.map((model) => ({
+        model,
+        settings: clampToModel(model, { ...settings, aspectRatio }),
+      })),
     );
     const each = configured.length
       ? Math.min(copies, Math.floor(MAX_BATCH / configured.length))
@@ -331,6 +345,7 @@ export function StudioComposer({
     placementRatios,
     selectedModels,
     settings,
+    tooManyReferences,
     unsupportedPlacements,
   ]);
 
@@ -349,7 +364,11 @@ export function StudioComposer({
   const overSelectionLimit = selectedModels.length > modelLimit;
   const selectionLimitReason = t("modelSelectionLimit", { count: modelLimit });
   const canGenerate =
-    !busy && promptLength > 0 && !promptTooLong && totalJobs > 0;
+    !busy &&
+    !uploadingPhoto &&
+    promptLength > 0 &&
+    !promptTooLong &&
+    totalJobs > 0;
 
   function toggleModel(model: StudioModel) {
     onTargetChange((current) => {
@@ -404,6 +423,7 @@ export function StudioComposer({
             ? (references[0]?.id ?? null)
             : parentAssetId,
         referenceAssetIds: references.map((asset) => asset.id),
+        ...(productPhoto ? { referenceFileIds: [productPhoto.id] } : {}),
         // One key per request, never shared across the batch: these are
         // deliberately different images, not retries of one.
         idempotencyKey: `ui:${id}`,
@@ -484,6 +504,21 @@ export function StudioComposer({
                 {selectionLimitReason}
               </p>
             ) : null}
+            {tooManyReferences ? (
+              <p className="text-destructive px-4 pb-2 text-xs" role="alert">
+                {t("tooManyReferences", { count: MAX_STUDIO_REFERENCES })}
+              </p>
+            ) : null}
+            {productPhoto &&
+            !tooManyReferences &&
+            selectedModels.length === 0 ? (
+              <p
+                className="text-muted-foreground px-4 pb-2 text-xs"
+                role="status"
+              >
+                {t("productPhotoNeedsModel")}
+              </p>
+            ) : null}
             {references.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2 px-4 pt-1 pb-2">
                 <span className="text-muted-foreground text-xs font-medium">
@@ -561,6 +596,14 @@ export function StudioComposer({
         toolbarStart={
           <>
             {modeSwitch}
+            {onProductPhotoChange && onPhotoUploadChange ? (
+              <StudioProductPhotoControl
+                onPhotoChange={onProductPhotoChange}
+                onUploadingChange={onPhotoUploadChange}
+                photo={productPhoto ?? null}
+                uploading={uploadingPhoto}
+              />
+            ) : null}
             {showTemplates ? (
               <StudioTemplateMenu
                 labels={labels}

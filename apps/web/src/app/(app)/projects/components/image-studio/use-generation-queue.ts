@@ -45,6 +45,7 @@ export interface QueuedGeneration {
   settings: StudioSettings;
   parentAssetId: string | null;
   referenceAssetIds: string[];
+  referenceFileIds?: string[];
   /** Fixed per request: a retry must return the first job, never buy a second. */
   idempotencyKey: string;
 }
@@ -178,6 +179,9 @@ export function useGenerationQueue({
           settings: next.settings,
           parentAssetId: next.parentAssetId,
           referenceAssetIds: next.referenceAssetIds,
+          ...(next.referenceFileIds?.length
+            ? { referenceFileIds: next.referenceFileIds }
+            : {}),
           sessionId: null,
           idempotencyKey: next.idempotencyKey,
         });

@@ -76,6 +76,12 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         modelId: input.modelId,
         settings: { ...DEFAULT_SETTINGS, ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
+        referenceFileIds: input.referenceFileIds,
+        referenceFileActor: {
+          userId: userContext.userId,
+          organizationId: workspaceContext.organizationId,
+          kind: "interactive",
+        },
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
       });
