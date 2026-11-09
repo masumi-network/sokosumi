@@ -9386,7 +9386,8 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}"
+        "pictureTitle": "Wähle ein Bild für {name}",
+        "skip": "Überspringen"
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -9729,6 +9730,7 @@
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
+        "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
         "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal.",
         "edit": "Bild bearbeiten",

@@ -115,4 +115,66 @@ describe("AvatarPicker", () => {
     await waitFor(() => expect(pressed("Current picture")).toBe("true"));
     expect(screen.queryByRole("button", { name: "owl" })).toBeNull();
   });
+
+  it("offers six avatars at once", async () => {
+    topUpMock.mockResolvedValue({
+      ok: true,
+      value: avatars("a", "b", "c", "d", "e", "f"),
+    });
+    renderPicker();
+
+    expect(await screen.findByRole("button", { name: "f" })).toBeTruthy();
+    expect(topUpMock).toHaveBeenCalledWith({
+      input: { take: 6, excludeIds: [] },
+    });
+    for (const name of ["a", "b", "c", "d", "e", "f"]) {
+      expect(screen.getByRole("button", { name })).toBeTruthy();
+    }
+  });
+
+  it("shows six others on Show others, never the ones already seen", async () => {
+    const user = userEvent.setup();
+    topUpMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("a", "b", "c", "d", "e", "f"),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("g", "h", "i", "j", "k", "l"),
+      });
+    renderPicker();
+    await screen.findByRole("button", { name: "a" });
+
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+
+    expect(await screen.findByRole("button", { name: "l" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "a" })).toBeNull();
+    expect(topUpMock).toHaveBeenLastCalledWith({
+      input: {
+        take: 6,
+        excludeIds: expect.arrayContaining(["a", "b", "c", "d", "e", "f"]),
+      },
+    });
+  });
+
+  it("shows the pictures as loading while new ones are drawn", async () => {
+    let resolveFirstSet: (value: unknown) => void = () => {};
+    topUpMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFirstSet = resolve;
+      }),
+    );
+    renderPicker();
+
+    expect(screen.getByRole("group", { name: "Pictures" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    await act(async () => resolveFirstSet({ ok: true, value: avatars("a") }));
+    expect(screen.getByRole("group", { name: "Pictures" })).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+  });
 });

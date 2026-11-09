@@ -365,7 +365,6 @@ import {
 } from "@/lib/soko-bot-avatar/style";
 import {
   claimAvatar,
-  generateAvatars,
   sweepExpiredDrafts,
 } from "@/services/soko-bot-avatar.service";
 import {
@@ -2329,55 +2328,6 @@ describe("one of a kind", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it("draws a pool look from its seed, with its traits, key and prompt", async () => {
-    rollSeeds(4321);
-
-    await generateAvatars(1);
-
-    const row = avatars.rows[0]!;
-    const expected = lookFromSeed(CRAFTED_DESK_STYLE, 4321);
-    expect(row).toMatchObject({
-      seed: 4321,
-      look: expected,
-      traitKey: traitKeyOf(CRAFTED_DESK_STYLE, expected),
-    });
-    const prompt = providerMock.editImage.mock.calls[0]?.[0].prompt as string;
-    for (const [axisId, optionId] of Object.entries(expected.traits ?? {})) {
-      const axis = CRAFTED_DESK_STYLE.traits.find((one) => one.id === axisId);
-      const phrase =
-        axis?.options.find((one) => one.id === optionId)?.phrase ??
-        CRAFTED_DESK_STYLE.creatures
-          .find((one) => one.id === expected.creature)
-          ?.coats.find((one) => one.id === optionId)?.phrase;
-      expect(prompt).toContain(phrase);
-    }
-  });
-
-  it("skips a combination a pool or claimed look already has", async () => {
-    const taken = keyOfSeed(111)!;
-    await poolRow(taken);
-    // The first roll lands on the taken key; every later one is free.
-    rollSeeds(111, 222);
-
-    await generateAvatars(1);
-
-    expect(avatars.rows).toHaveLength(2);
-    expect(avatars.rows[1]).toMatchObject({
-      seed: 222,
-      traitKey: keyOfSeed(222),
-    });
-  });
-
-  it("gives two looks drawn together different keys", async () => {
-    // The second slot rolls the first one's combination before a new one.
-    rollSeeds(5, ...Array(11).fill(9), 5, 5, 9);
-
-    await generateAvatars(2);
-
-    const keys = avatars.rows.map((row) => row.traitKey);
-    expect(new Set(keys).size).toBe(2);
   });
 
   it("shuffles to a look nobody has, when it draws fresh", async () => {

@@ -89,7 +89,13 @@ export function AvatarPicker({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+      {/* Busy while a set loads: an empty pool is drawn on the spot, which takes a while. */}
+      <div
+        role="group"
+        aria-label={t("pictures")}
+        aria-busy={isPending || !loaded}
+        className="grid grid-cols-3 gap-3 sm:grid-cols-6"
+      >
         {currentImageUrl ? (
           <AvatarTile
             imageUrl={currentImageUrl}

@@ -33,9 +33,9 @@ Optional, per network:
 - Avatars: the pool and the studio draw through `AI_GATEWAY_API_KEY` and store
   to `BLOB_READ_WRITE_TOKEN`. Without either the pool stays empty, the picker
   offers no pictures and the sidebar shows a plain icon.
-  `/sync/soko-bot-avatars` keeps the pool topped up every 30 minutes and is a
-  no-op while they are unset; `/sync/soko-bot-avatar-renders` renders kept looks
-  every minute.
+  There is no pool cron: opening the picker draws new avatars with
+  `google/gemini-3.1-flash-image` when the pool runs low, capped at 24 per user
+  per hour. `/sync/soko-bot-avatar-renders` renders kept looks every minute.
 - `AVATAR_FFMPEG_URL` and `AVATAR_FFMPEG_SHA256` (set together) — where a
   deployed instance fetches the ffmpeg that encodes avatar loops: a gzip of a
   static linux-x64 build and its sha256. The function does not ship ffmpeg (80 MB

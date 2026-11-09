@@ -6,9 +6,6 @@
  *   pnpm --filter @sokosumi/core dev:crons                      # avatar state renders
  *   pnpm --filter @sokosumi/core dev:crons /sync/image-jobs     # any sync routes
  *
- * The avatar pool route is left out by default: its first run draws the whole
- * pool floor (paid images). Pass `/sync/soko-bot-avatars` to include it.
- *
  * Reads CRON_SECRET from apps/core/.env. CORE_URL (default http://localhost:8787)
  * and CRON_INTERVAL_SECONDS (default 20) override the target and the pace.
  */

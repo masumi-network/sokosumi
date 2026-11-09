@@ -19,7 +19,27 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
 }));
 
 vi.mock("./avatar-picker.client", () => ({
-  AvatarPicker: () => <div data-testid="avatar-picker" />,
+  // Picks the first avatar on mount, as the real picker does for a new bot.
+  AvatarPicker: ({
+    onChange,
+  }: {
+    onChange: (avatar: { id: string; imageUrl: string }) => void;
+  }) => (
+    <div data-testid="avatar-picker">
+      <button
+        type="button"
+        onClick={() =>
+          onChange({ id: "owl-1", imageUrl: "https://blob.test/owl-1.png" })
+        }
+      >
+        owl
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("@/components/aurora-orb", () => ({
+  AuroraOrb: () => <div data-testid="orb" />,
 }));
 
 vi.mock("./open-new-soko-bot-room", () => ({
@@ -111,5 +131,41 @@ describe("CreateState", () => {
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
     // Opened from Soko Bots, not setup: the bot still says hello in its room.
     expect(openNewSokoBotRoom).toHaveBeenCalledWith("bot-1");
+  });
+
+  it("creates the bot with the picked picture", async () => {
+    const user = userEvent.setup();
+    createMock.mockResolvedValue({
+      ok: true,
+      value: { id: "bot-1", name: "Atlas", userId: "u1", avatarSeed: null },
+    });
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    await user.click(screen.getByRole("button", { name: "owl" }));
+    await user.click(screen.getByRole("button", { name: "Create Atlas" }));
+
+    expect(createMock).toHaveBeenCalledWith({
+      input: { name: "Atlas", avatarId: "owl-1" },
+    });
+  });
+
+  it("lets the person skip the picture, and the bot gets its orb", async () => {
+    const user = userEvent.setup();
+    createMock.mockResolvedValue({
+      ok: true,
+      value: { id: "bot-1", name: "Atlas", userId: "u1", avatarSeed: null },
+    });
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    await user.click(screen.getByRole("button", { name: "owl" }));
+    await user.click(screen.getByRole("button", { name: "Skip" }));
+
+    expect(createMock).toHaveBeenCalledWith({
+      input: { name: "Atlas", avatarId: null },
+    });
+    expect(await screen.findByText("Meet Atlas")).toBeTruthy();
+    expect(screen.getByTestId("orb")).toBeTruthy();
   });
 });

@@ -9386,7 +9386,8 @@
         "nameHint": "Tu propio asistente de IA en Sokosumi. Puedes cambiarle el nombre más tarde.",
         "continue": "Continuar",
         "back": "Atrás",
-        "pictureTitle": "Elige una imagen para {name}"
+        "pictureTitle": "Elige una imagen para {name}",
+        "skip": "Omitir"
       },
       "Memory": {
         "title": "Memoria",
@@ -9729,6 +9730,7 @@
         "current": "Imagen actual",
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
+        "pictures": "Imágenes",
         "loadError": "No se pudieron cargar las imágenes.",
         "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde.",
         "edit": "Editar imagen",

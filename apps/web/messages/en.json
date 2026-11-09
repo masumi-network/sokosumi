@@ -9386,7 +9386,8 @@
         "nameHint": "Your own AI assistant in Sokosumi. You can rename it later.",
         "continue": "Continue",
         "back": "Back",
-        "pictureTitle": "Pick a picture for {name}"
+        "pictureTitle": "Pick a picture for {name}",
+        "skip": "Skip"
       },
       "Memory": {
         "title": "Memory",
@@ -9729,6 +9730,7 @@
         "current": "Current picture",
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
+        "pictures": "Pictures",
         "loadError": "Could not load pictures.",
         "rateLimited": "Too many new pictures requested. Try again later.",
         "edit": "Edit avatar",
