@@ -10648,15 +10648,13 @@
         "dailyValues": "Daily values",
         "day": "Day",
         "synced": "Last synced",
-        "window": {
-          "current": "Last 7 days: {value}",
-          "previous": "Previous 7 days: {value}"
-        },
         "noChange": "No change",
         "better": "Better by {amount}",
         "worse": "Worse by {amount}",
         "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
-        "percentPoints": "{value} pts"
+        "percentPoints": "{value} pts",
+        "vsPrevious": "{change} vs previous 7 days",
+        "noComparison": "Not enough days to compare"
       },
       "keywords": {
         "title": "Tracked keywords",

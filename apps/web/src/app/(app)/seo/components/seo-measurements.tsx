@@ -104,9 +104,6 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
       { month: "short", day: "numeric", timeZone: "UTC" },
     );
   }
-  function weekValue(value: number | null, unit: ProjectSeoMetric["unit"]) {
-    return value === null ? t("none") : measuredValue(value, unit);
-  }
   return (
     <SeoSection
       title={t("overview.measurements")}
@@ -179,24 +176,20 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   >
                     {value(metric)}
                   </span>
+                  {/* One comparison line; "About this data" names both weeks. */}
                   {week ? (
-                    <span className="text-muted-foreground space-y-0.5 text-xs font-normal">
-                      {(["current", "previous"] as const).map((side) => (
-                        <span key={side} className="block">
-                          {t(`overview.window.${side}`, {
-                            value: weekValue(week[side], metric.unit),
-                          })}
-                        </span>
-                      ))}
-                      {moved ? (
-                        <span className="text-foreground flex items-center gap-1 font-medium">
-                          {moved.Icon ? (
-                            <moved.Icon className="size-3" aria-hidden />
-                          ) : null}
-                          {moved.text}
-                        </span>
-                      ) : null}
-                    </span>
+                    moved ? (
+                      <span className="flex items-center gap-1 text-xs font-medium">
+                        {moved.Icon ? (
+                          <moved.Icon className="size-3 shrink-0" aria-hidden />
+                        ) : null}
+                        {t("overview.vsPrevious", { change: moved.text })}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs font-normal">
+                        {t("overview.noComparison")}
+                      </span>
+                    )
                   ) : null}
                 </Button>
               );
