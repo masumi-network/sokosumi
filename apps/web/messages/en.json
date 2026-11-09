@@ -8515,6 +8515,23 @@
         "pinError": "Could not pin message.",
         "unpinError": "Could not unpin message."
       },
+      "SavedMessages": {
+        "save": "Save for later",
+        "saved": "Saved for later",
+        "view": "View saved",
+        "saveError": "Could not save the message.",
+        "removeError": "Could not remove the message from Saved.",
+        "error": "Could not load saved messages.",
+        "title": "Saved",
+        "description": "Messages you saved for later. Only you see this list.",
+        "empty": "Nothing saved yet",
+        "emptyHint": "Open a message's actions and choose Save for later to keep it here.",
+        "remove": "Remove from saved",
+        "removed": "Removed from saved",
+        "loadOlder": "Load older",
+        "untitled": "Message without text",
+        "savedAgo": "Saved {time}"
+      },
       "Quote": {
         "action": "Quote",
         "dismiss": "Remove quote",
@@ -8918,7 +8935,8 @@
         "CatchUpTabs": {
           "label": "Catch up sections",
           "overview": "Overview",
-          "threads": "Threads"
+          "threads": "Threads",
+          "saved": "Saved"
         },
         "Briefing": {
           "welcomeBack": "Welcome back",
