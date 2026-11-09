@@ -37477,7 +37477,7 @@ export const CreateProjectImageJobRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 200,
-            default: 'gemini-flash'
+            default: 'muse-image'
         },
         prompt: {
             type: 'string',
