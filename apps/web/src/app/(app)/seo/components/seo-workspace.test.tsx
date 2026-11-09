@@ -445,7 +445,7 @@ describe("SEO workspace integration", () => {
       expect(
         screen.getByText(
           onTimeline
-            ? "1 not checked"
+            ? /^2 tests · .* · 1 not checked$/
             : "Rule checks: 2 checked, 1 not checked, 0 unavailable",
         ),
       ).toBeInTheDocument();

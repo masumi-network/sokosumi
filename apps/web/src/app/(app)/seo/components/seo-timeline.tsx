@@ -12,12 +12,18 @@ import {
   SearchCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { SeoDate, SeoEmpty, SeoSection, SeoState } from "./seo-shared";
+import {
+  SeoDate,
+  SeoEmpty,
+  SeoSection,
+  SeoState,
+  seoMarketName,
+} from "./seo-shared";
 import { seoCoverageIsNews } from "./seo-statistics-model";
 import {
   buildSeoTimeline,
@@ -56,6 +62,7 @@ export function SeoTimeline({
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
+  const locale = useLocale();
   // A gap in a check is named only when there is one; the row already says how much ran.
   function gapText(
     coverage: ProjectSeoWorkspace["observations"][number]["coverage"],
@@ -280,8 +287,12 @@ export function SeoTimeline({
                         {t("pages.count", {
                           count: observation.pageIds.length,
                         })}
+                        {/* One check names its gaps next to the count they belong to. */}
+                        {!earlier.length && gapText(observation.coverage)
+                          ? ` · ${gapText(observation.coverage)}`
+                          : ""}
                         {manyMarkets && observation.countryCode
-                          ? ` · ${observation.countryCode} / ${observation.languageCode ?? t("none")}`
+                          ? ` · ${seoMarketName(locale, observation.countryCode, observation.languageCode)}`
                           : ""}
                       </p>
                     ) : event.kind === "page_change" ? (
@@ -297,13 +308,6 @@ export function SeoTimeline({
                     {incomplete ? (
                       <p className="text-muted-foreground text-xs">
                         {t("timeline.incomplete")}
-                      </p>
-                    ) : null}
-                    {observation &&
-                    !earlier.length &&
-                    gapText(observation.coverage) ? (
-                      <p className="text-muted-foreground text-xs">
-                        {gapText(observation.coverage)}
                       </p>
                     ) : null}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
@@ -334,8 +338,21 @@ export function SeoTimeline({
                                   taskId: check.event.taskId,
                                 })),
                               ].map((check) => {
+                                // A count that differs from the newest says which check ran fewer or more tests.
                                 const gaps = check.observation
-                                  ? gapText(check.observation.coverage)
+                                  ? [
+                                      check.observation.coverage.checked !==
+                                      observation.coverage.checked
+                                        ? t("timeline.checkSummary", {
+                                            checked:
+                                              check.observation.coverage
+                                                .checked,
+                                          })
+                                        : null,
+                                      gapText(check.observation.coverage),
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ")
                                   : "";
                                 return (
                                   <p key={check.id}>

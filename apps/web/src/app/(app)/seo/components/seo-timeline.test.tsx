@@ -231,7 +231,7 @@ describe("SEO timeline recovery", () => {
       within(clean).getByText("24 tests · Desktop · 1 page"),
     ).toBeVisible();
     expect(
-      within(clean).getByText("Earlier checks ran 12 tests."),
+      within(clean).getByText("Some earlier checks ran 12 tests."),
     ).toBeVisible();
     // Every folded check keeps its Task, on its own line, newest first.
     expect(
@@ -257,7 +257,9 @@ describe("SEO timeline recovery", () => {
       within(clean).getAllByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov [23], 2026.* · Open task$/.test(element.textContent ?? ""),
+          /^Nov [23], 2026.* · 12 tests · Open task$/.test(
+            element.textContent ?? "",
+          ),
       ),
     ).toHaveLength(2);
     // The server detail says the same in English; it is not shown twice.
@@ -349,7 +351,7 @@ describe("SEO timeline recovery", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getAllByText("No issues found")).toHaveLength(2);
-    expect(screen.getByText(/GB \/ en/)).toBeVisible();
+    expect(screen.getByText(/United Kingdom · English/)).toBeVisible();
   });
 
   it("does not claim no issues for an incomplete check", () => {

@@ -10790,7 +10790,7 @@
         "metricsFailedTimes": "{count, plural, one {Statistik-Synchronisierung fehlgeschlagen} other {Statistik-Synchronisierung # Mal fehlgeschlagen}}",
         "result": "{count, plural, =0 {Keine Probleme gefunden} one {# Problem gefunden} other {# Probleme gefunden}}",
         "cleanChecks": "Keine Probleme in {count} Prüfungen",
-        "earlierRules": "Frühere Prüfungen liefen mit {counts} Tests.",
+        "earlierRules": "Einige frühere Prüfungen liefen mit {counts} Tests.",
         "rulesSkipped": "{count} nicht geprüft",
         "rulesUnavailable": "{count} nicht verfügbar",
         "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}"

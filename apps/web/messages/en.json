@@ -10790,7 +10790,7 @@
         "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}",
         "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
         "cleanChecks": "No issues in {count} checks",
-        "earlierRules": "Earlier checks ran {counts} tests.",
+        "earlierRules": "Some earlier checks ran {counts} tests.",
         "rulesSkipped": "{count} not checked",
         "rulesUnavailable": "{count} unavailable",
         "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}"
