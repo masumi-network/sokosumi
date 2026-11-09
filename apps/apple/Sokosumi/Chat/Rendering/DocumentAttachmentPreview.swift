@@ -89,21 +89,4 @@ struct DocumentAttachmentPreview: View {
       }
     }
   }
-#else
-  struct NativePDFPreview: UIViewRepresentable {
-    let document: PDFDocument
-
-    func makeUIView(context _: Context) -> PDFView {
-      let view = PDFView()
-      view.autoScales = true
-      view.document = document
-      return view
-    }
-
-    func updateUIView(_ view: PDFView, context _: Context) {
-      if view.document !== document {
-        view.document = document
-      }
-    }
-  }
 #endif
