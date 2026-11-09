@@ -8,11 +8,12 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
 import { asking, brain, draft, strategy } from "../../test-fixtures/onboarding";
+import { inertOnboardingActions, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
-import { type OnboardingActions, OnboardingFlow } from "./flow";
+import { OnboardingFlow } from "./flow";
 import { LaunchStep } from "./launch-step";
-import { QuestionCard, useAnswers } from "./parts";
 import { PlanStep } from "./plan-step";
+import { QuestionCard, useAnswers } from "./questions";
 
 // happy-dom cannot run Web Animations; motion's would reject on unmount.
 MotionGlobalConfig.skipAnimations = true;
@@ -153,13 +154,11 @@ function actionsFor(overrides: Partial<OnboardingActions> = {}) {
       })),
     },
   });
-  const actions = {
-    loadState: async () => ({ overview: null, messages: [] }),
-    sendMessage: noop,
+  return {
+    ...inertOnboardingActions(asking()),
     retryLearning: async () => ({ overview: asking(), error: null }),
     requestStrategy: vi.fn(async () => ({ overview: null, error: null })),
     approveStrategy: vi.fn(async () => draft(cmoStrategyVersion(new Date()))),
-    setAdBudget: async () => ({ overview: null, error: null }),
     approveBrandBrain: vi.fn(async () => draft()),
     answerBrandQuestion: vi.fn(async ({ questionId, answer }) => {
       answered.set(questionId, answer);
@@ -168,16 +167,10 @@ function actionsFor(overrides: Partial<OnboardingActions> = {}) {
     skipBrandQuestions: vi.fn(async () => asking()),
     saveBrandBrain: async () => asking(),
     answerPlanQuestion: async () => draft(),
-    applyPlanAnswers: async () => ({ overview: null, error: null }),
     finishAccounts: vi.fn(() => new Promise<never>(() => {})),
-    connectChannel: async () => ({ url: null, error: null }),
-    connectMeasurement: async () => ({ url: null, error: null }),
-    connectAds: async () => ({ url: null, error: null }),
-    startOver: async () => null,
     signOut: noop,
     ...overrides,
   } satisfies OnboardingActions;
-  return actions;
 }
 
 it("keeps a finished Site on screen until See your brand", async () => {

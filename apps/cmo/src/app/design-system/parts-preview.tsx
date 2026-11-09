@@ -5,17 +5,18 @@ import "../../components/onboarding/onboarding.css";
 import { CusoStatus } from "../../components/app/cuso-status";
 import { Sidebar } from "../../components/app/sidebar";
 import { CusoAvatar } from "../../components/cuso";
+import { Checklist, SkeletonTile } from "../../components/onboarding/checklist";
 import {
   AssumptionChip,
-  Checklist,
-  GoalBlock,
   QuestionCard,
+} from "../../components/onboarding/questions";
+import { StepMarkers } from "../../components/onboarding/step-markers";
+import {
+  GoalBlock,
   SidePanel,
-  SkeletonTile,
   StatRow,
-  StepMarkers,
   Tile,
-} from "../../components/onboarding/parts";
+} from "../../components/onboarding/tiles";
 import { AGENT_NAME } from "../../lib/agent";
 import { overview } from "./app/fixtures";
 

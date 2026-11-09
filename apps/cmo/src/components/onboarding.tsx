@@ -12,7 +12,8 @@ import { CusoAvatar } from "./cuso";
 import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
-import { StatRow, StepMarkers } from "./onboarding/parts";
+import { StepMarkers } from "./onboarding/step-markers";
+import { StatRow } from "./onboarding/tiles";
 
 const STATS = [
   { value: "3 min", line: "I read your site and what is public about you." },

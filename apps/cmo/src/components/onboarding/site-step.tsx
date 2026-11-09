@@ -16,16 +16,18 @@ import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
 import { brandTiles, tileSource } from "./brand-step";
 import {
-  type Answer,
   Checklist,
-  QuestionCard,
   RESEARCH_PHASES,
-  RetryButton,
   SkeletonTile,
-  useAnswers,
   useElapsed,
   workChecklist,
-} from "./parts";
+} from "./checklist";
+import {
+  type Answer,
+  QuestionCard,
+  RetryButton,
+  useAnswers,
+} from "./questions";
 import { Refusal } from "./refusal";
 import type { SitePhase } from "./step";
 

@@ -8,72 +8,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { SkippedStep } from "../../lib/skipped-steps";
-import { type AdActions, adsReturnError } from "../ads";
+import { adsReturnError } from "../ads";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
 import { ThemeToggle } from "../theme-toggle";
+import { type AnswerInput, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
 import { LaunchStep } from "./launch-step";
-import { type Answer, StepMarkers } from "./parts";
 import { PlanStep } from "./plan-step";
 import { SiteStep } from "./site-step";
 import { type OnboardingStep, onboardingStep, STEPS, stepIndex } from "./step";
-
-/** One answer to one of Cuso's questions, with what is true instead after a no. */
-interface AnswerInput {
-  questionId: string;
-  answer: Answer;
-  note?: string;
-}
-
-export interface OnboardingActions {
-  loadState: () => Promise<{
-    overview: CmoOverview | null;
-    messages: CusoMessage[];
-  }>;
-  sendMessage: (content: string) => Promise<void>;
-  retryLearning: () => Promise<{
-    overview: CmoOverview;
-    error: string | null;
-  }>;
-  requestStrategy: (note?: string) => Promise<{
-    overview: CmoOverview | null;
-    error: string | null;
-  }>;
-  approveStrategy: () => Promise<CmoOverview>;
-  /** The owner's own monthly ad budget; Cuso re-plans around it. */
-  setAdBudget: (
-    monthly: number,
-    currency: string,
-  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
-  /** The founder approved the Brand Brain; the plan comes next. */
-  approveBrandBrain: () => Promise<CmoOverview>;
-  answerBrandQuestion: (answer: AnswerInput) => Promise<CmoOverview>;
-  /** The founder left Cuso's questions about the brand for later. */
-  skipBrandQuestions: () => Promise<CmoOverview>;
-  saveBrandBrain: (
-    brandBrain: NonNullable<CmoOverview["brandBrain"]>,
-  ) => Promise<CmoOverview>;
-  answerPlanQuestion: (answer: AnswerInput) => Promise<CmoOverview>;
-  applyPlanAnswers: () => Promise<{
-    overview: CmoOverview | null;
-    error: string | null;
-  }>;
-  /** Records that the founder launched, so the app opens on the chat next. */
-  finishAccounts: () => Promise<never>;
-  connectChannel: (
-    provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
-  ) => Promise<{ url: string | null; error: string | null }>;
-  connectMeasurement: (
-    provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app",
-  ) => Promise<{ url: string | null; error: string | null }>;
-  connectAds: AdActions["connectAds"];
-  /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
-  startOver: () => Promise<string | null>;
-  signOut: () => Promise<void>;
-}
+import { StepMarkers } from "./step-markers";
 
 /** The steps the founder can open again once past them; Site only leads to Brand. */
 function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
