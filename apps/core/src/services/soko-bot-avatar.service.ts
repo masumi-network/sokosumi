@@ -296,6 +296,12 @@ function canDraw(): boolean {
   return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
 }
 
+/** How a draw treats the caller's runs that are still in flight. */
+interface AvatarDrawOptions {
+  /** Reserve nothing while one of the caller's own runs is in flight. */
+  skipWhileInFlight?: boolean;
+}
+
 /**
  * Claim draws under the caller's hourly allowance, in one atomic step.
  *
@@ -319,7 +325,7 @@ function canDraw(): boolean {
 async function reserveDraws(
   count: number,
   requestedByUserId: string,
-  { skipWhileInFlight = false }: { skipWhileInFlight?: boolean } = {},
+  { skipWhileInFlight = false }: AvatarDrawOptions = {},
 ): Promise<AvatarReservation[]> {
   return await serializableTransaction(async (tx) => {
     if (skipWhileInFlight) {
@@ -455,7 +461,7 @@ function isRecoverableGenerationFailure(error: unknown): boolean {
 export async function generateAvatars(
   count: number,
   requestedByUserId: string,
-  options: { skipWhileInFlight?: boolean } = {},
+  options: AvatarDrawOptions = {},
 ): Promise<number> {
   const reservations = await reserveDraws(
     Math.min(count, MAX_TOP_UP_PER_CALL),
@@ -591,15 +597,15 @@ export async function listAvailableAvatars(
 async function sweepAndDraw(
   count: number,
   requestedByUserId: string,
-  options: { skipWhileInFlight?: boolean } = {},
-): Promise<{ skipped: unknown } | null> {
+  options: AvatarDrawOptions = {},
+): Promise<{ recoverableError: unknown } | null> {
   await sweepStaleReservations();
   try {
     await generateAvatars(count, requestedByUserId, options);
     return null;
   } catch (error) {
     if (!isRecoverableGenerationFailure(error)) throw error;
-    return { skipped: error };
+    return { recoverableError: error };
   }
 }
 
@@ -620,13 +626,14 @@ function drawShortfallInBackground(
   count: number,
   requestedByUserId: string,
 ): void {
+  // Sweeps first, like every draw, so a dead run cannot hold the allowance.
   waitUntil(
     sweepAndDraw(count, requestedByUserId, { skipWhileInFlight: true }).then(
       (result) => {
         if (!result) return;
         console.warn("Soko Bot avatar background draw skipped", {
           count,
-          error: errorText(result.skipped),
+          error: errorText(result.recoverableError),
         });
       },
       (error: unknown) => {
@@ -682,9 +689,9 @@ export async function topUpAvailableAvatars(
         // surface the failure only when that turns out to be nothing.
         const fallback = await listAvailableAvatars(take, options);
         if (fallback.length > 0) return fallback;
-        throw result.skipped instanceof AvatarGenerationCappedError
+        throw result.recoverableError instanceof AvatarGenerationCappedError
           ? avatarGenerationCapped()
-          : result.skipped;
+          : result.recoverableError;
       }
     }
   }

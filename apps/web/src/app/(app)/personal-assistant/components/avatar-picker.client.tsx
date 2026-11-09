@@ -3,7 +3,7 @@
 import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { Check, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -61,13 +61,17 @@ function AvatarPickerSet({
 
   const loading = isPending || !loaded;
 
+  // Closing the dialog unmounts the picker mid-load. A set that lands after
+  // that belongs to nobody, and a reopened picker owns the loading state.
+  const mounted = useRef(true);
+
   function load(excludeIds: string[]) {
     onLoadingChange?.(true);
     startTransition(async () => {
       try {
         await loadSet(excludeIds);
       } finally {
-        onLoadingChange?.(false);
+        if (mounted.current) onLoadingChange?.(false);
       }
     });
   }
@@ -121,7 +125,11 @@ function AvatarPickerSet({
   // The first set. The parent already starts loading, so the `true` from
   // `load()` confirms it and its `false` releases saving.
   useMountEffect(() => {
+    mounted.current = true;
     load([]);
+    return () => {
+      mounted.current = false;
+    };
   });
 
   return (

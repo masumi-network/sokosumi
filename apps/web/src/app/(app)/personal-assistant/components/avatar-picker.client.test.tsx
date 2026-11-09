@@ -274,6 +274,38 @@ describe("AvatarPicker", () => {
     expect(onLoadingChange).toHaveBeenLastCalledWith(false);
   });
 
+  it("does not release saving for a set that lands after the picker closed", async () => {
+    let resolveFirstSet: (value: unknown) => void = () => {};
+    topUpMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFirstSet = resolve;
+      }),
+    );
+    const onLoadingChange = vi.fn();
+    const view = render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <AvatarPicker
+          value={null}
+          onChange={vi.fn()}
+          onLoadingChange={onLoadingChange}
+        />
+      </NextIntlClientProvider>,
+    );
+    // Closing the dialog unmounts the picker while its set is still coming.
+    view.unmount();
+    onLoadingChange.mockClear();
+
+    await act(async () => {
+      resolveFirstSet({
+        ok: true,
+        value: avatars("a", "b", "c", "d", "e", "f"),
+      });
+    });
+
+    // A reopened picker owns the loading state now; a late set must not end it.
+    expect(onLoadingChange).not.toHaveBeenCalledWith(false);
+  });
+
   it("shows the pictures as loading while new ones are drawn", async () => {
     let resolveFirstSet: (value: unknown) => void = () => {};
     topUpMock.mockReturnValue(
