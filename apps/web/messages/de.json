@@ -10685,7 +10685,7 @@
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
         "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder",
-        "notListed": "Keine Impressionen von Google gemeldet",
+        "notListed": "Nicht unter den Suchen, die Google auflistet",
         "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen"
       },
       "competitors": {
@@ -11070,7 +11070,7 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "Google meldet für „{keyword}“ keine Impressionen auf diesen Seiten. Frag den Agenten, wie du darauf zielst.",
+          "keyword": "„{keyword}“ ist nicht unter den Suchen, die Google für diese Seiten auflistet. Frag den Agenten, wie du darauf zielst.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
         },
         "prompts": {

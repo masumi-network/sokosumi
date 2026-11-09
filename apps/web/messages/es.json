@@ -10685,7 +10685,7 @@
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
         "searchConsoleNote": "Promedio de Search Console, todos los países",
-        "notListed": "Google no informó impresiones",
+        "notListed": "No está entre las búsquedas que muestra Google",
         "notInKeptRows": "No está entre las primeras {count} filas guardadas"
       },
       "competitors": {
@@ -11070,7 +11070,7 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "keyword": "Google no informó impresiones para “{keyword}” en estas páginas. Pregunta al agente cómo orientarlas.",
+          "keyword": "“{keyword}” no está entre las búsquedas que Google muestra para estas páginas. Pregunta al agente cómo orientarlas.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas."
         },
         "prompts": {

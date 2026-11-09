@@ -10685,7 +10685,7 @@
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
         "searchConsoleNote": "Search Console average, all countries",
-        "notListed": "No impressions reported by Google",
+        "notListed": "Not among the searches Google lists",
         "notInKeptRows": "Not in the first {count} rows kept"
       },
       "competitors": {
@@ -11070,7 +11070,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "keyword": "Google reported no impressions for “{keyword}” on these pages. Ask the agent how to target it.",
+          "keyword": "“{keyword}” is not among the searches Google lists for these pages. Ask the agent how to target it.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches."
         },
         "prompts": {
