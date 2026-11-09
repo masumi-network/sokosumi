@@ -8,6 +8,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 
 const MIN_SCHEDULE_INTERVAL_MS = 60_000;
+/** The owner's own schedules; the bot's system rhythms do not count. */
 export const MAX_ACTIVE_SOKO_BOT_SCHEDULES = 10;
 /** Consecutive failed runs after which a schedule switches itself off. */
 export const MAX_CONSECUTIVE_SCHEDULE_FAILURES = 5;
@@ -274,7 +275,7 @@ export async function createSokoBotSchedule(
       });
     }
     const activeCount = await tx.sokoBotSchedule.count({
-      where: { sokoBotId: bot.id, enabled: true },
+      where: { sokoBotId: bot.id, enabled: true, systemKey: null },
     });
     if (activeCount >= MAX_ACTIVE_SOKO_BOT_SCHEDULES) {
       throw new SokoBotScheduleValidationError(
@@ -422,7 +423,11 @@ export async function updateSokoBotSchedule(
   if (input.enabled === true && !schedule.enabled) {
     const mutate = async (tx: Prisma.TransactionClient) => {
       const activeCount = await tx.sokoBotSchedule.count({
-        where: { sokoBotId: schedule.sokoBotId, enabled: true },
+        where: {
+          sokoBotId: schedule.sokoBotId,
+          enabled: true,
+          systemKey: null,
+        },
       });
       if (activeCount >= MAX_ACTIVE_SOKO_BOT_SCHEDULES) {
         throw new SokoBotScheduleValidationError(

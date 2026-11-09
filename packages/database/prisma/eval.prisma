@@ -1,0 +1,115 @@
+/// Why a run started: the daily run on main, or a person or agent asking.
+enum EvalRunTrigger {
+  DAILY
+  MANUAL
+}
+
+enum EvalRunStatus {
+  /// Waiting for the run before it: lanes run one eval run at a time.
+  QUEUED
+  RUNNING
+  COMPLETED
+  CANCELLED
+}
+
+enum EvalResultStatus {
+  PENDING
+  RUNNING
+  PASSED
+  FAILED
+  /// The case could not be run or scored (a turn that never settled, a setup that failed).
+  ERROR
+  /// The case needs something this environment lacks (a connected mailbox).
+  SKIPPED
+}
+
+/// One eval run: the fixed Soko Bot and CMO cases against what is deployed.
+/// The reference point is the commit and the PR it came from, so the trend
+/// reads PR by PR; versions and models are recorded beside it.
+model EvalRun {
+  id         String         @id @default(uuid(7)) @db.Uuid
+  createdAt  DateTime       @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+  trigger    EvalRunTrigger
+  status     EvalRunStatus  @default(QUEUED)
+
+  /// "soko-bot", "cmo"
+  suites  String[]
+  /// Empty: every case of the suites.
+  caseIds String[]
+  repeats Int
+
+  commitSha     String?
+  /// First line of the commit message; main's squash commits end in "(#1234)".
+  commitMessage String?
+  prNumber      Int?
+  /// Where it ran: "mainnet", "preprod", "preview", "local".
+  environment   String
+  label         String?
+
+  startedByUserId String?
+  /// The versions and models the lanes' bots ran on, `{ versionId: model }`.
+  models          Json?
+
+  results EvalResult[]
+
+  @@index([createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("eval_run")
+}
+
+/// One case, one repeat. Repeat N runs in lane N, so repeats run side by side.
+model EvalResult {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime         @default(now())
+  runId     String           @db.Uuid
+  run       EvalRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  caseId    String
+  suite     String
+  repeat    Int
+  /// Order within the lane: Soko Bot cases build on what earlier ones made.
+  position  Int
+  status    EvalResultStatus @default(PENDING)
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  /// The main turn; a CMO month case runs many, listed in `state`.
+  turnId     String?          @db.Uuid
+  /// What the runner needs between ticks (turn ids, the strategy it made).
+  state      Json?
+  /// `{ label, pass, actual }[]`, the deterministic checks.
+  checks     Json?
+  judge      Json?
+  judgeModel String?
+  /// What the case produced, for the admin view: answer, tools, plan, posts.
+  output     Json?
+  error      String?
+
+  costUsdMicros BigInt?
+  durationMs    Int?
+
+  @@unique([runId, caseId, repeat])
+  @@index([runId, repeat, position])
+  @@index([caseId, createdAt(sort: Desc)])
+  @@map("eval_result")
+}
+
+/// A lane: one eval organization with its owner, teammates, Soko Bot and
+/// Cuso. Nothing in it reaches people outside it: the runtime hides global
+/// Coworkers from it and simulates hires (`lib/evals/eval-guard.ts`).
+model EvalLane {
+  lane           Int      @id
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         String
+  organizationId String
+  workspaceId    String   @unique @db.Uuid
+  sokoBotId      String   @db.Uuid
+  cusoBotId      String?  @db.Uuid
+  cusoProjectId  String?  @db.Uuid
+  /// Ids of what the lane's world holds (Projects, room, teammates), for resets.
+  world          Json
+
+  @@map("eval_lane")
+}
