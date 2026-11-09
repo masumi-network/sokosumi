@@ -165,10 +165,10 @@ sokosumi --preprod tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --co
 
 [CORRECTION, REPORTED: operator direction, 2026-11-06] Specs and tickets for this repository are on **mainnet**. Always fetch them with a mainnet target (`--api-url https://api.sokosumi.com` for legacy keys). Never substitute a Preprod Task, Linear, or a PR body when a mainnet Task id is known.
 
-Mainnet Task create, update, link, unlink, relink, comment, and archive are production API writes: stop and get an unambiguous operator `yes` first, listing the exact command, target environment, intended effect, rollback, verification, and exclusions. Stored credentials and Workspace membership are not that approval. Use `--preprod` only when the operator explicitly wants a sandbox Task outside the production tracker.
+Read-only mainnet tracker fetches (`tasks get` / `list` / `links` / `events` / `jobs`, and `workspaces list` only to resolve the tracker Workspace) are the production-safety exception in `apps/cli/AGENTS.md`: they use production credentials and endpoints but do not need a fresh operator `yes`. Mainnet Task create, update, link, unlink, relink, comment, and archive remain production API **writes**: stop and get an unambiguous operator `yes` first, listing the exact command, target environment, intended effect, rollback, verification, and exclusions. Stored credentials and Workspace membership are not that approval. Use `--preprod` only when the operator explicitly wants a sandbox Task outside the production tracker.
 
 ```bash
-# Reads (no write approval needed)
+# Reads (mainnet tracker — allowed without a fresh yes; see apps/cli/AGENTS.md)
 sokosumi --api-url https://api.sokosumi.com tasks get SOK-12 --organization-slug WORKSPACE_SLUG --json
 sokosumi --api-url https://api.sokosumi.com tasks links SOK-12 --organization-slug WORKSPACE_SLUG --json
 sokosumi --api-url https://api.sokosumi.com tasks list --organization-slug WORKSPACE_SLUG --project-id PROJECT_ID --status READY --sort priority --limit 50 --json
