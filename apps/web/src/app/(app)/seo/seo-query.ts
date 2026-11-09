@@ -1,14 +1,29 @@
 import { z } from "zod";
 
-/** Tab order. Actions sits next to the Overview, so it stays in view on a phone. */
+/** Tab order: the agent first, then its approvals, then the three tools. Actions stays in view on a phone. */
 export const SEO_TABS = [
-  "overview",
+  "agent",
   "actions",
-  "keywords",
-  "pages",
-  "competitors",
+  "traffic",
+  "rankings",
+  "health",
 ] as const;
 export type SeoTab = (typeof SEO_TABS)[number];
+
+/** Links saved before the agent layout keep opening the tab that now holds their content. */
+const LEGACY_SEO_TABS = new Map<string, SeoTab>([
+  ["overview", "agent"],
+  ["keywords", "rankings"],
+  ["competitors", "rankings"],
+  ["pages", "health"],
+]);
+
+export function seoTab(value: string | null | undefined): SeoTab | null {
+  if (!value) return null;
+  return (SEO_TABS as readonly string[]).includes(value)
+    ? (value as SeoTab)
+    : (LEGACY_SEO_TABS.get(value) ?? null);
+}
 
 export const seoFilterQuerySchema = z
   .object({
@@ -34,7 +49,10 @@ export const seoPageQuerySchema = seoFilterQuerySchema
     auditId: z.uuid().optional(),
     projectId: z.uuid().optional(),
     cursor: z.string().max(200).optional(),
-    tab: z.enum(SEO_TABS).optional(),
+    tab: z
+      .string()
+      .refine((value) => seoTab(value) !== null, "Unknown tab")
+      .optional(),
   })
   .refine(
     (query) => !(query.auditId && query.projectId),

@@ -15,7 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { normalizeQuery, searchConsoleIndex } from "./seo-search-model";
-import { SeoSearchQueries } from "./seo-search-queries";
 import {
   SEO_SEARCH_MIN_ROWS,
   SEO_STACKED_TABLE_CLASS,
@@ -30,6 +29,32 @@ import {
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
+
+/** One filter for search queries and tracked keywords; it shows once a list is long enough to need it. */
+export function SeoQueryFilter({
+  model,
+  rows,
+}: {
+  model: SeoWorkspaceModel;
+  rows: number;
+}) {
+  const t = useTranslations("App.Seo");
+  if (rows < SEO_SEARCH_MIN_ROWS && !model.keywordSearch) return null;
+  return (
+    <div>
+      <Label className="sr-only" htmlFor="seo-keyword-search">
+        {t("search")}
+      </Label>
+      <Input
+        id="seo-keyword-search"
+        type="search"
+        value={model.keywordSearch}
+        onChange={(event) => model.setKeywordSearch(event.target.value)}
+        placeholder={t("keywords.searchPlaceholder")}
+      />
+    </div>
+  );
+}
 
 export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
@@ -60,23 +85,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   const manyPages = model.data.scope.pageIds.length > 1;
   return (
     <div className="space-y-5">
-      {model.data.keywords.length +
-        (model.data.searchQueries?.rows.length ?? 0) >=
-        SEO_SEARCH_MIN_ROWS || model.keywordSearch ? (
-        <div>
-          <Label className="sr-only" htmlFor="seo-keyword-search">
-            {t("search")}
-          </Label>
-          <Input
-            id="seo-keyword-search"
-            type="search"
-            value={model.keywordSearch}
-            onChange={(event) => model.setKeywordSearch(event.target.value)}
-            placeholder={t("keywords.searchPlaceholder")}
-          />
-        </div>
-      ) : null}
-      <SeoSearchQueries model={model} />
+      <SeoQueryFilter model={model} rows={model.data.keywords.length} />
       <SeoSection
         title={t("keywords.title")}
         description={paidOff ? undefined : t("keywords.help")}

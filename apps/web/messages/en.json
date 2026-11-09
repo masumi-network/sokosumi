@@ -10602,11 +10602,11 @@
       "scopeHelp": "Save a selection of related pages for repeated checks. Each run records the pages it covers.",
       "pageHelp": "Add the exact page URL. Adding a page does not run a check.",
       "tabs": {
-        "overview": "Overview",
-        "keywords": "Keywords",
-        "competitors": "Competitors",
-        "pages": "Pages",
-        "actions": "Actions"
+        "actions": "Actions",
+        "agent": "Agent",
+        "traffic": "Traffic",
+        "rankings": "Rankings",
+        "health": "Site health"
       },
       "overview": {
         "measurements": "Performance",
@@ -10914,25 +10914,20 @@
       "resetFilters": "Clear filters",
       "selectPagesLimit": "Select between 1 and {count} pages.",
       "monitor": {
-        "unavailableBody": "Scheduled checks are unavailable in this workspace.",
         "unavailable": "Scheduled checks are unavailable here. Return to the audit or import an existing report.",
-        "title": "Monitoring",
+        "title": "Scheduled checks",
         "create": "Schedule checks",
         "description": "Repeat a focused check for a fixed number of runs. Review the market, pages and per-run budget before saving.",
-        "help": "Monitoring keeps its original pages and limits. Manage pause and end settings in Task Schedules.",
-        "empty": "No scheduled SEO checks",
-        "emptyBody": "Schedule daily or weekly checks for the selected pages. Each run creates a Task and a new captured result.",
         "cadence": "Frequency",
         "daily": "Daily at 09:00",
-        "weekly": "Mondays at 09:00",
+        "weekly": "Let the agent check weekly",
         "runs": "Number of runs",
         "timeZone": "Time zone",
         "cap": "Up to {runs} runs and {calls} data requests in total. Model and runtime charges can also apply.",
         "created": "SEO monitoring scheduled",
-        "progress": "{count} of {total} runs released",
-        "perRun": "Up to {count} data requests per run",
         "next": "Next run",
-        "manage": "Manage task schedule"
+        "manage": "Manage task schedule",
+        "offBody": "Off. The agent can check these pages every week and save each result here. Nothing runs until you schedule it."
       },
       "pageChange": {
         "title": "Record a change",
@@ -11091,7 +11086,8 @@
         "lastCheckOn": "Last check",
         "askHow": "Draft a plan",
         "traffic": "Google search: {impressions, plural, one {# impression} other {# impressions}}, {clicks, plural, one {# click} other {# clicks}}",
-        "askShort": "Ask"
+        "askShort": "Ask",
+        "openTraffic": "Open Traffic"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

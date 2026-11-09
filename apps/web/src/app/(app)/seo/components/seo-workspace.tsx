@@ -9,7 +9,6 @@ import {
   MessageSquare,
   MoreHorizontal,
   PencilLine,
-  Play,
   Plus,
   Settings2,
 } from "lucide-react";
@@ -38,16 +37,16 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { SeoActions } from "./seo-actions";
+import { SeoAgentHome } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoCompetitors } from "./seo-competitors";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImportDialog } from "./seo-import-dialog";
 import { SeoKeywords } from "./seo-keywords";
-import { SeoOverview } from "./seo-overview";
+import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
-import { SeoPages } from "./seo-pages";
 import {
   SeoScopeBar,
   seoScopeControls,
@@ -55,6 +54,7 @@ import {
 } from "./seo-scope-bar";
 import { SeoEmpty } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
+import { SeoTraffic } from "./seo-traffic";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 export function SeoWorkspace({
@@ -131,14 +131,7 @@ export function SeoWorkspace({
         {t("loading")}
       </p>
     );
-  // Before the first check the Overview's start card carries "Run a check"; one copy is enough.
-  const startCard =
-    model.filters.tab === "overview" &&
-    !model.data.observations.length &&
-    !model.filters.from &&
-    !model.filters.to &&
-    model.data.availableActions.canEdit;
-  // Next steps on the Overview cover an Audit without actions; an empty Actions tab only disagreed with them.
+  // Next steps on the Agent tab cover an Audit without actions; an empty Actions tab only disagreed with them.
   const tabs = SEO_TABS.filter(
     (tab) =>
       tab !== "actions" ||
@@ -164,7 +157,7 @@ export function SeoWorkspace({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {model.data.auditId && model.filters.tab !== "overview" ? (
+          {model.data.auditId && model.filters.tab !== "agent" ? (
             <Button
               variant="outline"
               size="sm"
@@ -175,18 +168,6 @@ export function SeoWorkspace({
               {/* A short label on the phone keeps the three header buttons on one row. */}
               <span className="sm:hidden">{t("agent.askShort")}</span>
               <span className="max-sm:hidden">{t("agent.ask")}</span>
-            </Button>
-          ) : null}
-          {model.data.availableActions.canRequestAnalysis && !startCard ? (
-            <Button
-              // The agent's next step is the one primary action, so this stays outline on every tab.
-              variant="outline"
-              size="sm"
-              disabled={unavailable || !model.data.scope.pageIds.length}
-              onClick={() => model.setDialog("analysis")}
-            >
-              <Play className="size-4" />
-              {t("runAnalysis")}
             </Button>
           ) : null}
           <DropdownMenu>
@@ -383,17 +364,18 @@ export function SeoWorkspace({
           )
         ) : (
           <>
-            <TabsContent value="overview">
-              <SeoOverview model={model} />
+            <TabsContent value="agent">
+              <SeoAgentHome model={model} />
             </TabsContent>
-            <TabsContent value="keywords">
+            <TabsContent value="traffic">
+              <SeoTraffic model={model} />
+            </TabsContent>
+            <TabsContent value="rankings" className="space-y-8">
               <SeoKeywords model={model} />
-            </TabsContent>
-            <TabsContent value="competitors">
               <SeoCompetitors model={model} />
             </TabsContent>
-            <TabsContent value="pages">
-              <SeoPages model={model} />
+            <TabsContent value="health">
+              <SeoHealth model={model} />
             </TabsContent>
             <TabsContent value="actions">
               <SeoActions model={model} />

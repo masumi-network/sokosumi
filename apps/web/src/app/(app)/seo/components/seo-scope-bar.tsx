@@ -16,6 +16,12 @@ import {
 import { SeoSelect } from "./seo-form-fields";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+const DATED_TABS = new Set<SeoWorkspaceModel["filters"]["tab"]>([
+  "traffic",
+  "rankings",
+  "health",
+]);
+
 /**
  * Which filters offer a real choice. With one page, that page is the same as all pages,
  * so the picker shows only for a saved selection or a page the Audit no longer has.
@@ -37,12 +43,8 @@ export function seoScopeControls({
     channel:
       Boolean(filters.channel) ||
       data.metrics.some((metric) => metric.source === "ga4"),
-    // Competitors are a saved list; a date filter there changes nothing anyone looks for.
-    // A 1-page Audit gets its dated view on Overview; its Pages tab is just the page and its last check.
-    dates:
-      (filters.tab !== "competitors" &&
-        !(filters.tab === "pages" && data.pages.length <= 1)) ||
-      Boolean(filters.from || filters.to),
+    // Dates narrow measured traffic, rankings and checks; the agent's brief and its approvals stay current.
+    dates: DATED_TABS.has(filters.tab) || Boolean(filters.from || filters.to),
   };
 }
 

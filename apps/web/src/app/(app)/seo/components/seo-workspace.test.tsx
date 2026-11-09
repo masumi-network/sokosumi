@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import { SEO_VIEWER_HEADER } from "@/lib/seo/owner";
 import messages from "../../../../../messages/en.json";
-import { SeoMonitors } from "./seo-monitors";
+import { SeoAutomation } from "./seo-monitors";
 import {
   openStatisticsSetup,
   SEO_TEST_AUDIT,
@@ -95,7 +95,7 @@ function nativeChatNetwork(
 }
 
 function SeoMonitorPanel({ workspace }: { workspace: ProjectSeoWorkspace }) {
-  return <SeoMonitors model={useSeoWorkspace(workspace)} />;
+  return <SeoAutomation model={useSeoWorkspace(workspace)} />;
 }
 function renderWorkspace(
   workspace: ProjectSeoWorkspace,
@@ -253,14 +253,16 @@ describe("SEO workspace integration", () => {
         ),
       ),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=health");
     const measurement = screen.getByText("Title length measured");
     expect(measurement).not.toBeVisible();
     expect(measurement.closest("details")).not.toHaveAttribute("open");
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       "No issues found in the last check",
     );
     expect(screen.getByText(/tests? on 1 page\./)).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Traffic" }));
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
     );
@@ -288,7 +290,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=health");
     expect(screen.getByText("The page has no description")).toBeVisible();
     const evidence = screen.getByText(
       "Raw HTML evidence: no meta description element.",
@@ -345,7 +347,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=health");
     // The folded section says whether opening it pays off.
     expect(screen.getByText(/· 2 notes$/)).toBeInTheDocument();
     await user.click(
@@ -464,7 +466,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=health");
     await user.click(
       screen.getByRole("heading", {
         name: "Title, description and other page details",
@@ -491,50 +493,41 @@ describe("SEO workspace integration", () => {
     ).toEqual(["/tasks/one-check-task"]);
   });
 
-  it("leaves the date filter off Competitors and a 1-page Pages tab unless dates are set", () => {
+  it("leaves the date filter off the Agent tab unless dates are set", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    const { unmount } = renderWorkspace(workspace, "?tab=competitors");
+    const { unmount } = renderWorkspace(workspace);
     expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
     unmount();
     // A set date filter still shows, so it can be cleared.
-    const set = renderWorkspace(workspace, "?tab=competitors&from=2026-01-01");
+    const set = renderWorkspace(workspace, "?from=2026-01-01");
     expect(screen.getByLabelText("Activity from")).toBeVisible();
     set.unmount();
-    const onePage = renderWorkspace(workspace, "?tab=pages");
-    expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
-    onePage.unmount();
-    // With more pages, the Pages tab compares them over the chosen dates.
-    const two = seoTestWorkspace();
-    two.pages.push({ ...two.pages[0], id: crypto.randomUUID(), label: "Blog" });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => Response.json(two)),
-    );
-    renderWorkspace(two, "?tab=pages");
+    // Rankings change over time, so their tab offers the dates.
+    renderWorkspace(workspace, "?tab=rankings");
     expect(
       screen.getByRole("button", { name: "Filter by date" }),
     ).toBeVisible();
   });
 
-  it("folds empty date fields opened on another tab when Competitors opens", async () => {
+  it("folds empty date fields opened on another tab when the Agent tab opens", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
     await user.click(screen.getByRole("button", { name: "Filter by date" }));
     expect(screen.getByLabelText("Activity from")).toBeVisible();
-    await user.click(screen.getByRole("tab", { name: "Competitors" }));
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(screen.queryByLabelText("Activity from")).toBeNull();
   });
 
-  it("keeps a Competitors date field while its date is cleared mid-edit", async () => {
+  it("keeps an Agent tab date field while its date is cleared mid-edit", async () => {
     const workspace = seoTestWorkspace();
     // No other filter: the date fields alone keep the filter block.
     workspace.availableActions.canEdit = false;
@@ -543,7 +536,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace, "?tab=competitors&from=2026-01-01");
+    renderWorkspace(workspace, "?from=2026-01-01");
     const from = screen.getByLabelText("Activity from");
     // A date input reports an empty value as soon as one part is cleared.
     fireEvent.change(from, { target: { value: "" } });
@@ -557,7 +550,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
     const tabs = screen.getByRole("tablist");
     const dates = screen.getByRole("button", { name: "Filter by date" });
     expect(
@@ -571,7 +564,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace, "?tab=pages");
+    renderWorkspace(workspace, "?tab=health");
     expect(screen.getByText("https://example.com/")).toBeVisible();
     expect(screen.queryByText("Primary page")).toBeNull();
   });
@@ -585,7 +578,7 @@ describe("SEO workspace integration", () => {
     );
     const { unmount } = renderWorkspace(
       workspace,
-      `?pageId=${workspace.pages[0].id}`,
+      `?tab=traffic&pageId=${workspace.pages[0].id}`,
     );
     // One page is all pages; the picker would only repeat it.
     expect(screen.queryByRole("combobox", { name: "Pages" })).toBeNull();
@@ -643,7 +636,7 @@ describe("SEO workspace integration", () => {
         "fetch",
         vi.fn(async () => Response.json(workspace)),
       );
-      renderWorkspace(workspace);
+      renderWorkspace(workspace, "?tab=health");
       // The Timeline row carries the coverage; a second list would repeat it.
       expect(
         screen.queryByRole("heading", {
@@ -718,7 +711,7 @@ describe("SEO workspace integration", () => {
         "fetch",
         vi.fn(async () => Response.json(workspace)),
       );
-      renderWorkspace(workspace, "tab=pages");
+      renderWorkspace(workspace, "tab=health");
       const row = screen.getByRole("heading", { name: "Blog" }).closest("li");
       if (!row) throw new Error("Related page row missing");
       expect(within(row).getByText(expected)).toBeVisible();
@@ -758,7 +751,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    const { unmount } = renderWorkspace(workspace, "tab=pages");
+    const { unmount } = renderWorkspace(workspace, "tab=health");
     const row = screen.getByRole("heading", { name: "Home" }).closest("li");
     if (!row) throw new Error("Page row missing");
     expect(within(row).getByText("Search clicks")).toBeVisible();
@@ -775,7 +768,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(one)),
     );
-    const single = renderWorkspace(one, "tab=pages");
+    const single = renderWorkspace(one, "tab=health");
     expect(screen.getByText("Not checked yet")).toBeVisible();
     expect(screen.queryByText("Search clicks")).toBeNull();
     single.unmount();
@@ -788,7 +781,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(two)),
     );
-    renderWorkspace(two, "tab=pages");
+    renderWorkspace(two, "tab=health");
     // Totals for two pages belong to neither page.
     expect(screen.queryByText("Search clicks")).toBeNull();
   });
@@ -822,7 +815,7 @@ describe("SEO workspace integration", () => {
       ),
     );
     vi.stubGlobal("fetch", fetch);
-    renderWorkspace(workspace, "tab=competitors");
+    renderWorkspace(workspace, "tab=rankings");
     await user.click(
       screen.getByRole("button", { name: "Compare with my page" }),
     );
@@ -849,7 +842,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace, "tab=pages");
+    renderWorkspace(workspace, "tab=health");
     const row = screen
       .getByRole("heading", { name: "Website and blog" })
       .closest("li");
@@ -907,7 +900,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
     // An arrow up beside a falling number reads as worse; the words carry it.
     const change = screen.getByText(/: 4\.0 · week before: 5\.0, better$/);
     expect(change.querySelector("svg")).toBeNull();
@@ -955,7 +948,7 @@ describe("SEO workspace integration", () => {
     );
     const { unmount } = renderWorkspace(workspace);
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Google search: 35 impressions, 2 clicks · Jan 1\W+2, 2026$/,
+      /^Google search: 35 impressions, 2 clicks · Jan 1\W+2, 2026 · Open Traffic$/,
     );
     unmount();
     // Without clicks the line would read as zero clicks; it stays away.
@@ -1005,7 +998,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
     // One note under the tiles, not one per tile.
     expect(screen.queryByText("Not enough days to compare")).toBeNull();
     // Search Console is Google search only; the subtitle does not repeat it.
@@ -1070,7 +1063,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
     const count = screen.getByText(/: 35 · week before: 4,900$/);
     expect(count.querySelector("svg")).not.toBeNull();
     // 35 impressions cannot carry a position change; only the position note shows.
@@ -1115,12 +1108,13 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
     expect(screen.getByText("Page views")).toBeVisible();
     expect(screen.getByText("0")).toBeVisible();
     expect(screen.getByText("Active users")).toBeVisible();
     expect(screen.getAllByText("Not available").length).toBeGreaterThan(0);
-    await user.click(screen.getByText("About this data"));
+    // The totals come first on Traffic; the search queries carry their own note.
+    await user.click(screen.getAllByText("About this data")[0]);
     expect(screen.getByText(/Europe\/Berlin/)).toBeVisible();
     await waitFor(() => expect(fetch).toHaveBeenCalled());
   });
@@ -1149,7 +1143,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
     expect(screen.getByTestId("seo-metric-engagement_rate")).toHaveTextContent(
       "25%",
     );
@@ -1244,7 +1238,7 @@ describe("SEO workspace integration", () => {
         }),
       );
       mutate.mockResolvedValue({ ok: true, value: null });
-      renderWorkspace(workspace, query);
+      renderWorkspace(workspace, `tab=traffic&${query}`);
       await openStatisticsSetup(user);
       const dialog = screen.getByRole("dialog");
       await waitFor(() =>
@@ -1325,7 +1319,7 @@ describe("SEO workspace integration", () => {
           : Promise.resolve(Response.json(workspace)),
       ),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=health");
     expect(screen.getByText("Previous page finding")).toBeVisible();
     await user.click(screen.getByRole("combobox", { name: "Pages" }));
     await user.click(screen.getByRole("option", { name: "Other page" }));
@@ -1361,7 +1355,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(() => new Promise(() => {})),
     );
-    const view = renderWorkspace(workspace);
+    const view = renderWorkspace(workspace, "?tab=traffic");
     expect(screen.getByText("47")).toBeVisible();
     viewer.userId = "another-owner";
     view.refreshViewer();
@@ -1586,7 +1580,9 @@ describe("SEO workspace integration", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Schedule checks" }));
+    await user.click(
+      screen.getByRole("button", { name: "Let the agent check weekly" }),
+    );
     const dialog = screen.getByRole("dialog");
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
@@ -1667,13 +1663,8 @@ describe("SEO workspace integration", () => {
       ).toBeNull();
       view.unmount();
       renderWorkspace(workspace, "", true);
-      expect(
-        screen.getByText("Scheduled checks are unavailable in this workspace."),
-      ).toBeVisible();
-      expect(screen.queryByText(messages.App.Seo.monitor.emptyBody)).toBeNull();
-      expect(
-        screen.queryByRole("button", { name: "Schedule checks" }),
-      ).toBeNull();
+      // Without a scheduler and without schedules the agent offers nothing to turn on.
+      expect(screen.queryByTestId("seo-automation")).toBeNull();
     },
   );
 
@@ -1686,7 +1677,9 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     const view = renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Schedule checks" }));
+    await user.click(
+      screen.getByRole("button", { name: "Let the agent check weekly" }),
+    );
     const dialog = screen.getByRole("dialog");
     expect(
       within(dialog).getByText(messages.App.Seo.analysis.htmlService),
@@ -1934,7 +1927,7 @@ describe("SEO workspace integration", () => {
       }),
     );
     mutate.mockResolvedValue({ ok: true, value: null });
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
     await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("combobox", { name: "Source" }));
@@ -2012,7 +2005,7 @@ describe("SEO workspace integration", () => {
       Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
     );
     vi.stubGlobal("fetch", fetchMock);
-    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}&tab=keywords`);
+    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}&tab=rankings`);
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const panel = await screen.findByRole("dialog", {
       name: "Ask the SEO agent",
@@ -2137,8 +2130,8 @@ describe("SEO workspace integration", () => {
     await user.type(screen.getByLabelText("Your question"), "New question");
     await user.click(screen.getByRole("button", { name: "Send message" }));
     expect(await screen.findByText("Answer to New question")).toBeVisible();
-    await user.click(screen.getByRole("tab", { name: "Keywords" }));
-    await user.click(screen.getByRole("tab", { name: "Overview" }));
+    await user.click(screen.getByRole("tab", { name: "Rankings" }));
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(await screen.findByText("Answer to New question")).toBeVisible();
     expect(screen.queryByText("Earlier visit question")).toBeNull();
   });
@@ -2226,8 +2219,8 @@ describe("SEO workspace integration", () => {
       ),
     );
     // A first visit on another tab caches the Audit without reading the chat.
-    const first = renderWorkspace(workspace, "?tab=keywords", false, 60_000);
-    await screen.findByRole("tab", { name: "Keywords", selected: true });
+    const first = renderWorkspace(workspace, "?tab=rankings", false, 60_000);
+    await screen.findByRole("tab", { name: "Rankings", selected: true });
     // The first mount read must finish, so the cache is fresh when the Audit opens again.
     await waitFor(() =>
       expect(
@@ -2295,7 +2288,7 @@ describe("SEO workspace integration", () => {
       await within(sheet).findByText("Answer to Sheet question"),
     ).toBeVisible();
     await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("tab", { name: "Overview" }));
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(await screen.findByText("Answer to Sheet question")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Show 1 earlier question" }),
@@ -2378,7 +2371,7 @@ describe("SEO workspace integration", () => {
         Response.json(url.endsWith("/chat") ? history : workspace),
       ),
     );
-    renderWorkspace(workspace, "tab=keywords");
+    renderWorkspace(workspace, "tab=rankings");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const panel = await screen.findByRole("dialog", {
       name: "Ask the SEO agent",
@@ -2394,6 +2387,18 @@ describe("SEO workspace integration", () => {
     expect(within(panel).queryByText(/visible only to you/)).toBeNull();
   });
 
+  it("opens a saved link to an old tab on the tab that now holds its content", async () => {
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=keywords");
+    expect(
+      await screen.findByRole("tab", { name: "Rankings", selected: true }),
+    ).toBeVisible();
+  });
+
   it("shows the Actions tab only once the Audit has actions", async () => {
     const workspace = seoTestWorkspace();
     workspace.actions = [];
@@ -2402,8 +2407,8 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    expect(await screen.findByRole("tab", { name: "Overview" })).toBeVisible();
-    expect(screen.getByRole("tab", { name: "Keywords" })).toBeVisible();
+    expect(await screen.findByRole("tab", { name: "Agent" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Rankings" })).toBeVisible();
     expect(screen.queryByRole("tab", { name: "Actions" })).toBeNull();
   });
 
@@ -2434,7 +2439,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace, "?tab=keywords");
+    renderWorkspace(workspace, "?tab=rankings");
     expect(await screen.findByText("Stablecoins")).toBeVisible();
     // Every row is tracked, paid columns can never fill, and no Analytics data exists.
     expect(screen.queryByText("Tracked")).toBeNull();
@@ -2492,7 +2497,7 @@ describe("SEO workspace integration", () => {
         ),
       ),
     );
-    renderWorkspace(workspace, "?tab=keywords");
+    renderWorkspace(workspace, "?tab=rankings");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     expect(
       await screen.findByText(
@@ -2515,7 +2520,7 @@ describe("SEO workspace integration", () => {
         Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
       ),
     );
-    const view = renderWorkspace(workspace, "?tab=keywords");
+    const view = renderWorkspace(workspace, "?tab=rankings");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     await user.type(
       screen.getByLabelText("Your question"),
@@ -2566,7 +2571,7 @@ describe("SEO workspace integration", () => {
         );
       });
       vi.stubGlobal("fetch", fetchMock);
-      const view = renderWorkspace(workspace, "?tab=keywords");
+      const view = renderWorkspace(workspace, "?tab=rankings");
       await user.click(
         screen.getByRole("button", { name: "Ask the SEO agent" }),
       );
@@ -2619,7 +2624,7 @@ describe("SEO workspace integration", () => {
       auditName: "Launch pages",
     };
     const requests = nativeChatNetwork(workspace);
-    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}&tab=keywords`);
+    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}&tab=rankings`);
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
@@ -2640,7 +2645,7 @@ describe("SEO workspace integration", () => {
       auditName: "Launch pages",
     };
     const requests = nativeChatNetwork(workspace, { uncertainFirst: true });
-    renderWorkspace(workspace, "?tab=keywords");
+    renderWorkspace(workspace, "?tab=rankings");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
@@ -2660,7 +2665,7 @@ describe("SEO workspace integration", () => {
       auditName: "Launch pages",
     };
     const requests = nativeChatNetwork(workspace, { failedFirst: true });
-    renderWorkspace(workspace, "?tab=keywords");
+    renderWorkspace(workspace, "?tab=rankings");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");

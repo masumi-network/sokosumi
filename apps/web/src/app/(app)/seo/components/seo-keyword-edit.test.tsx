@@ -9,6 +9,7 @@ import { createFormats } from "@/i18n/time-format";
 import enMessages from "../../../../../messages/en.json";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoKeywords } from "./seo-keywords";
+import { SeoSearchQueries } from "./seo-search-queries";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
@@ -62,6 +63,7 @@ function KeywordWorkspace({ workspace }: { workspace: ProjectSeoWorkspace }) {
   const model = useSeoWorkspace(workspace);
   return (
     <>
+      <SeoSearchQueries model={model} />
       <SeoKeywords model={model} />
       {model.dialog === "edit_keyword" ? <SeoEditDialog model={model} /> : null}
     </>

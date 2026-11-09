@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readSeoPageQuery } from "./seo-query";
+import { readSeoPageQuery, seoTab } from "./seo-query";
 
 const PROJECT = "39d1c2a6-aade-4322-aed5-3f139a34b127";
 const PAGE = "2c32dca9-c44f-4372-9114-8c146d5eb30b";
@@ -27,4 +27,24 @@ describe("SEO URL boundary", () => {
   ])("rejects invalid filters instead of widening scope: %j", (filters) => {
     expect(readSeoPageQuery(filters).success).toBe(false);
   });
+});
+
+describe("SEO tab in the URL", () => {
+  it.each([
+    ["overview", "agent"],
+    ["keywords", "rankings"],
+    ["competitors", "rankings"],
+    ["pages", "health"],
+    ["traffic", "traffic"],
+    ["actions", "actions"],
+  ])("opens %s links on the %s tab", (value, tab) => {
+    expect(seoTab(value)).toBe(tab);
+  });
+  it.each(["constructor", "toString", "Overview", ""])(
+    "refuses an unknown tab: %j",
+    (value) => {
+      expect(seoTab(value)).toBeNull();
+      expect(readSeoPageQuery({ tab: value }).success).toBe(false);
+    },
+  );
 });

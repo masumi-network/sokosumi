@@ -18,6 +18,7 @@ import {
 import { SeoChatThread, useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
+import { SeoAutomation } from "./seo-monitors";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
@@ -262,6 +263,16 @@ function SeoAgentPanel({
                 clicks: traffic.clicks,
               })}{" "}
               · <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
+              {" · "}
+              <button
+                type="button"
+                className="focus-visible:ring-ring rounded-sm underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+                onClick={() => {
+                  void model.setFilters({ tab: "traffic" });
+                }}
+              >
+                {t("agent.openTraffic")}
+              </button>
             </p>
           ) : null}
           {autopilot.state === "refreshing" ? (
@@ -274,6 +285,7 @@ function SeoAgentPanel({
             </p>
           ) : null}
         </div>
+        <SeoAutomation model={model} />
         <div className="space-y-2">
           <h3 className="px-2 text-sm font-semibold">{t("agent.nextTitle")}</h3>
           {!model.data.observations.length ? (

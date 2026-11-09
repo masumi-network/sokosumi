@@ -10602,11 +10602,11 @@
       "scopeHelp": "Guarda una selección de páginas relacionadas para repetir comprobaciones. Cada ejecución registra las páginas que abarca.",
       "pageHelp": "Añade la URL exacta. Añadir una página no inicia una comprobación.",
       "tabs": {
-        "overview": "Resumen",
-        "keywords": "Palabras clave",
-        "competitors": "Competidores",
-        "pages": "Páginas",
-        "actions": "Acciones"
+        "actions": "Acciones",
+        "agent": "Agente",
+        "traffic": "Tráfico",
+        "rankings": "Posiciones",
+        "health": "Estado del sitio"
       },
       "overview": {
         "measurements": "Rendimiento",
@@ -10914,25 +10914,20 @@
       "resetFilters": "Borrar filtros",
       "selectPagesLimit": "Selecciona entre 1 y {count} páginas.",
       "monitor": {
-        "unavailableBody": "Las comprobaciones programadas no están disponibles en este espacio de trabajo.",
         "unavailable": "Las comprobaciones programadas no están disponibles aquí. Vuelve a la auditoría o importa un informe existente.",
-        "title": "Seguimiento",
+        "title": "Comprobaciones programadas",
         "create": "Programar revisiones",
         "description": "Repite una revisión concreta durante un número fijo de ejecuciones. Revisa el mercado, las páginas y el presupuesto por ejecución antes de guardar.",
-        "help": "El seguimiento conserva sus páginas y límites originales. Puedes pausarlo o finalizarlo en los planes de tareas.",
-        "empty": "No hay revisiones SEO programadas",
-        "emptyBody": "Programa revisiones diarias o semanales para las páginas seleccionadas. Cada ejecución crea una tarea y un nuevo resultado.",
         "cadence": "Frecuencia",
         "daily": "Cada día a las 09:00",
-        "weekly": "Los lunes a las 09:00",
+        "weekly": "Que el agente compruebe cada semana",
         "runs": "Número de ejecuciones",
         "timeZone": "Zona horaria",
         "cap": "Hasta {runs} ejecuciones y {calls} solicitudes de datos en total. También pueden aplicarse cargos de modelo y ejecución.",
         "created": "Seguimiento SEO programado",
-        "progress": "{count} de {total} ejecuciones iniciadas",
-        "perRun": "Hasta {count} solicitudes de datos por ejecución",
         "next": "Próxima ejecución",
-        "manage": "Gestionar plan de tareas"
+        "manage": "Gestionar plan de tareas",
+        "offBody": "Desactivadas. El agente puede comprobar estas páginas cada semana y guardar cada resultado aquí. Nada se ejecuta hasta que lo programes."
       },
       "pageChange": {
         "title": "Registrar un cambio",
@@ -11091,7 +11086,8 @@
         "lastCheckOn": "Última comprobación",
         "askHow": "Preparar un plan",
         "traffic": "En Google: {impressions, plural, one {# impresión} other {# impresiones}}, {clicks, plural, one {# clic} other {# clics}}",
-        "askShort": "Preguntar"
+        "askShort": "Preguntar",
+        "openTraffic": "Abrir tráfico"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",

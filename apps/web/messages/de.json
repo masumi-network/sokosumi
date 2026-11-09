@@ -10602,11 +10602,11 @@
       "scopeHelp": "Speichere eine Auswahl zusammengehöriger Seiten für wiederholte Prüfungen. Jeder Durchlauf hält die geprüften Seiten fest.",
       "pageHelp": "Füge die genaue Seiten-URL hinzu. Dadurch wird keine Prüfung gestartet.",
       "tabs": {
-        "overview": "Übersicht",
-        "keywords": "Keywords",
-        "competitors": "Mitbewerber",
-        "pages": "Seiten",
-        "actions": "Aktionen"
+        "actions": "Aktionen",
+        "agent": "Agent",
+        "traffic": "Zugriffe",
+        "rankings": "Rankings",
+        "health": "Website-Zustand"
       },
       "overview": {
         "measurements": "Leistung",
@@ -10914,25 +10914,20 @@
       "resetFilters": "Filter löschen",
       "selectPagesLimit": "Wähle zwischen 1 und {count} Seiten.",
       "monitor": {
-        "unavailableBody": "Geplante Prüfungen sind in diesem Arbeitsbereich nicht verfügbar.",
         "unavailable": "Geplante Prüfungen sind hier nicht verfügbar. Kehre zum Audit zurück oder importiere einen vorhandenen Bericht.",
-        "title": "Monitoring",
+        "title": "Geplante Prüfungen",
         "create": "Prüfungen planen",
         "description": "Wiederhole eine gezielte Prüfung für eine feste Anzahl von Durchläufen. Prüfe Markt, Seiten und Budget pro Durchlauf vor dem Speichern.",
-        "help": "Das Monitoring behält seine ursprünglichen Seiten und Grenzen. Pausieren und Beenden kannst du in den Aufgabenplänen.",
-        "empty": "Keine geplanten SEO-Prüfungen",
-        "emptyBody": "Plane tägliche oder wöchentliche Prüfungen der ausgewählten Seiten. Jeder Durchlauf erstellt eine Aufgabe und ein neues Ergebnis.",
         "cadence": "Häufigkeit",
         "daily": "Täglich um 09:00",
-        "weekly": "Montags um 09:00",
+        "weekly": "Agent wöchentlich prüfen lassen",
         "runs": "Anzahl der Durchläufe",
         "timeZone": "Zeitzone",
         "cap": "Bis zu {runs} Durchläufe und insgesamt {calls} Datenanfragen. Modell- und Laufzeitkosten können ebenfalls anfallen.",
         "created": "SEO-Monitoring geplant",
-        "progress": "{count} von {total} Durchläufen gestartet",
-        "perRun": "Bis zu {count} Datenanfragen pro Durchlauf",
         "next": "Nächster Durchlauf",
-        "manage": "Aufgabenplan verwalten"
+        "manage": "Aufgabenplan verwalten",
+        "offBody": "Aus. Der Agent kann diese Seiten jede Woche prüfen und jedes Ergebnis hier speichern. Nichts läuft, bevor du es planst."
       },
       "pageChange": {
         "title": "Änderung vermerken",
@@ -11091,7 +11086,8 @@
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Plan entwerfen",
         "traffic": "Google-Suche: {impressions, plural, one {# Impression} other {# Impressionen}}, {clicks, plural, one {# Klick} other {# Klicks}}",
-        "askShort": "Agent fragen"
+        "askShort": "Agent fragen",
+        "openTraffic": "Zugriffe öffnen"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",

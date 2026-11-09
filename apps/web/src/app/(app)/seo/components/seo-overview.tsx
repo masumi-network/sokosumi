@@ -1,16 +1,16 @@
 "use client";
 
+import { Play } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { SeoAgentHome } from "./seo-agent-home";
-import { SeoMeasurements } from "./seo-measurements";
-import { SeoMonitors } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
+import { SeoPages } from "./seo-pages";
 import {
   SeoDate,
   SeoPageLink,
@@ -30,7 +30,8 @@ function checkName(title: string) {
     : title;
 }
 
-export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
+/** Site health: run a check, then what the checks found, page by page and over time. */
+export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const { data } = model;
   const overview = seoOverviewModel(data);
@@ -57,7 +58,17 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
   ).length;
   return (
     <div className="space-y-5">
-      <SeoAgentHome model={model} />
+      {data.availableActions.canRequestAnalysis ? (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!data.scope.pageIds.length}
+          onClick={() => model.setDialog("analysis")}
+        >
+          <Play className="size-4" />
+          {t("runAnalysis")}
+        </Button>
+      ) : null}
       {overview.issues.length ? (
         <SeoSection title={t("overview.findings")}>
           {overview.issues.map((finding) => (
@@ -98,7 +109,6 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
           {t("actions.checksIncompleteBody")}
         </p>
       ) : null}
-      <SeoMeasurements model={model} />
       {overview.recentChecks.length ? (
         <SeoSection title={t("overview.recentChecks")}>
           {overview.recentChecks.map((item) => (
@@ -127,10 +137,6 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
           ))}
         </SeoSection>
       ) : null}
-      {data.monitors.length ||
-      data.availableActions.canCreateMonitor === true ? (
-        <SeoMonitors model={model} />
-      ) : null}
       <SeoTimeline
         workspace={data}
         onRetry={
@@ -139,6 +145,7 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
             : undefined
         }
       />
+      <SeoPages model={model} />
       {overview.diagnostics.length || offTimeline.length ? (
         <details className={cn(HOLDER_CLASS, "text-sm")}>
           <summary className="focus-visible:ring-ring cursor-pointer rounded-sm px-2 py-2.5 focus-visible:ring-2 focus-visible:outline-none">

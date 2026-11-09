@@ -232,6 +232,7 @@ describe("statistics source and property recovery", () => {
       body: { provider: "search_console", propertyId: "sc-domain:example.com" },
     });
     mutate.mockClear();
+    await user.click(screen.getByRole("tab", { name: "Traffic" }));
     await user.click(screen.getByRole("combobox", { name: "Source" }));
     await user.click(screen.getByRole("option", { name: "Google Analytics" }));
     // Analytics has no one-click sync; its button opens the dialog for the displayed source.

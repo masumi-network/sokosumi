@@ -9,7 +9,12 @@ import type {
 } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import {
+  createParser,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -18,7 +23,7 @@ import {
   seoLoadRecovery,
   shouldRetrySeoLoad,
 } from "@/app/seo/seo-load-error-model";
-import { SEO_TABS } from "@/app/seo/seo-query";
+import { type SeoTab, seoTab } from "@/app/seo/seo-query";
 import { mutateSeo } from "@/lib/actions/seo/action";
 import type { SeoCommand } from "@/lib/actions/seo/types";
 import { useSession } from "@/lib/auth/auth.client";
@@ -34,6 +39,12 @@ import {
 } from "./seo-statistics-model";
 
 const SEO_RUNNING_REFRESH_MS = 15_000;
+
+// Old tab names in saved links open the tab that now holds their content.
+const parseAsSeoTab = createParser<SeoTab>({
+  parse: seoTab,
+  serialize: (tab) => tab,
+});
 
 export type SeoDialog =
   | "page"
@@ -57,7 +68,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   // A question another tab prepared; the chat shows it for the user to review and send.
   const [chatDraft, setChatDraft] = useState<string | null>(null);
   const [filters, setFilters] = useQueryStates({
-    tab: parseAsStringLiteral(SEO_TABS).withDefault("overview"),
+    tab: parseAsSeoTab.withDefault("agent"),
     pageId: parseAsString,
     scopeId: parseAsString,
     from: parseAsString,
