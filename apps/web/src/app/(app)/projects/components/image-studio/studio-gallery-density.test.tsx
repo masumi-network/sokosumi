@@ -41,6 +41,10 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   writeStudioAssetCaption: vi.fn(),
 }));
 
+vi.mock("eve/react", () => ({
+  useEveAgent: () => ({ status: "idle", messages: [] }),
+}));
+
 vi.mock("./use-studio-state", () => ({
   useStudioState: ({
     initialState,
@@ -185,6 +189,32 @@ function settledJob(
 }
 
 describe("a gallery with work in it", () => {
+  it("hands the selected ad to the assistant and keeps the generation draft", () => {
+    const product = { id: "mug", name: "Stoneware mug" };
+    mount([{ ...ASSET, projectId: "p", product }]);
+    const draft = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(draft, { target: { value: "An unrelated draft" } });
+
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Assistant.edit" }),
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const panel = screen.getByRole("complementary", {
+      name: "Assistant.title",
+    });
+    expect(
+      within(panel).getByText(/editingProduct.*Stoneware mug/),
+    ).toBeVisible();
+    fireEvent.click(within(panel).getByRole("button", { name: "close" }));
+    expect(
+      screen.queryByRole("complementary", { name: "Assistant.title" }),
+    ).not.toBeInTheDocument();
+    expect(draft).toHaveValue("An unrelated draft");
+  });
+
   it("groups ads across days by product and project, and can return to date grouping", () => {
     const product = { id: "mug", name: "Stoneware mug" };
     const assets = [
