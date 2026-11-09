@@ -4178,6 +4178,7 @@
       "downloadAdsZip": "Download ZIP",
       "downloadBatchZip": "Download batch ZIP",
       "downloadBatchZipHint": "Includes every ad that is ready now.",
+      "logoOnBatch": "Project logo on every ad",
       "archiveImageLimit": "Select up to {count} images per ZIP.",
       "archiveSizeLimit": "Select images totaling {size} MiB or less.",
       "archiveDownloadFailed": "Could not download the ZIP. Try again or download the images individually.",

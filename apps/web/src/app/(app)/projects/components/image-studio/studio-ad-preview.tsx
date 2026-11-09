@@ -1,4 +1,4 @@
-import { StudioLogoPosition } from "@sokosumi/core-client";
+import type { StudioLogoPosition } from "@sokosumi/core-client";
 import {
   Bookmark,
   Ellipsis,
@@ -9,7 +9,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -24,10 +24,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { fetchStudioAd, saveStudioDownload } from "./studio-ad-download";
 import { StudioImage } from "./studio-image";
+import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import type { StudioAsset, StudioLabels } from "./types";
 
@@ -38,18 +38,21 @@ const PLATFORM_RATIOS = {
 } satisfies Record<string, [PlacementRatio, ...PlacementRatio[]]>;
 
 type PreviewPlatform = keyof typeof PLATFORM_RATIOS;
-const LOGO_POSITIONS = Object.values(StudioLogoPosition);
 
 export function StudioAdPreview({
   asset,
   caption,
   labels,
   projectLogo,
+  logoPosition,
+  onLogoPositionChange,
 }: {
   asset: StudioAsset;
   caption?: string;
   labels: StudioLabels;
   projectLogo?: string | null;
+  logoPosition?: StudioLogoPosition;
+  onLogoPositionChange: (position: StudioLogoPosition | undefined) => void;
 }) {
   const t = useTranslations("App.Studio");
   const [ratio, setRatio] = useState<PlacementRatio>(
@@ -59,8 +62,6 @@ export function StudioAdPreview({
   const [platform, setPlatform] = useState<PreviewPlatform>(() =>
     ratio === "9:16" ? "reels" : ratio === "16:9" ? "facebook" : "instagram",
   );
-  const logoControlId = useId();
-  const [logoPosition, setLogoPosition] = useState<StudioLogoPosition>();
   const [downloading, startDownload] = useTransition();
   const isReel = platform === "reels";
   const isFacebook = platform === "facebook";
@@ -142,28 +143,11 @@ export function StudioAdPreview({
           ))}
         </div>
         {projectLogo ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Label htmlFor={logoControlId}>{t("logoOnCreative")}</Label>
-            <select
-              className="border-input bg-background focus-visible:ring-ring h-8 rounded-md border px-2 text-sm focus-visible:ring-2"
-              id={logoControlId}
-              onChange={(event) =>
-                setLogoPosition(
-                  LOGO_POSITIONS.find(
-                    (position) => position === event.currentTarget.value,
-                  ),
-                )
-              }
-              value={logoPosition ?? ""}
-            >
-              <option value="">{t("LogoPositions.none")}</option>
-              {LOGO_POSITIONS.map((position) => (
-                <option key={position} value={position}>
-                  {t(`LogoPositions.${position}`)}
-                </option>
-              ))}
-            </select>
-          </div>
+          <StudioLogoPositionSelect
+            label={t("logoOnCreative")}
+            onChange={onLogoPositionChange}
+            value={logoPosition}
+          />
         ) : null}
         <div
           aria-label={t("adPlacements")}

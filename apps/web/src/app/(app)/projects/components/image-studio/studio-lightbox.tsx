@@ -1,5 +1,6 @@
 "use client";
 
+import type { StudioLogoPosition } from "@sokosumi/core-client";
 import { Download, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { resolveModel, supportsVariation } from "./catalog";
 import { StudioAdPreview } from "./studio-ad-preview";
 import { StudioImage } from "./studio-image";
+import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import {
   assetContentUrl,
   assetFileExtension,
@@ -75,7 +77,7 @@ export function StudioLightbox({
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
-  onDownloadBatch?: (asset: StudioAsset) => void;
+  onDownloadBatch?: (asset: StudioAsset, logo?: StudioLogoPosition) => void;
   downloadingBatch?: boolean;
   onEditWithAssistant?: (asset: StudioAsset) => void;
   editWithAssistantLabel?: string;
@@ -107,11 +109,24 @@ export function StudioLightbox({
   const single = assets.length === 1 ? assets[0] : null;
   const [scheduling, setScheduling] = useState(false);
   const [writingCaption, setWritingCaption] = useState(false);
+  const [logoChoice, setLogoChoice] = useState<{
+    scope: string;
+    position: StudioLogoPosition;
+  }>();
 
   if (assets.length === 0) return null;
 
   if (single) {
     const url = assetContentUrl(single);
+    const logoScope = single.batchId
+      ? `${single.projectId}/batch/${single.batchId}`
+      : `${single.projectId}/asset/${single.id}`;
+    const logoPosition =
+      projectLogo && logoChoice?.scope === logoScope
+        ? logoChoice.position
+        : undefined;
+    const changeLogoPosition = (position: StudioLogoPosition | undefined) =>
+      setLogoChoice(position ? { scope: logoScope, position } : undefined);
     return (
       <ImageViewer
         activeSrc={url}
@@ -202,30 +217,11 @@ export function StudioLightbox({
                   caption={caption}
                   key={single.id}
                   labels={labels}
+                  logoPosition={logoPosition}
+                  onLogoPositionChange={changeLogoPosition}
                   projectLogo={projectLogo}
                 />
               )}
-              {single.batchId && onDownloadBatch ? (
-                <div className="space-y-1">
-                  <Button
-                    aria-describedby="studio-batch-download-note"
-                    loading={downloadingBatch}
-                    onClick={() => onDownloadBatch(single)}
-                    size="sm"
-                    type="button"
-                    variant="secondary"
-                  >
-                    <Download aria-hidden />
-                    {t("downloadBatchZip")}
-                  </Button>
-                  <p
-                    id="studio-batch-download-note"
-                    className="text-muted-foreground text-xs"
-                  >
-                    {t("downloadBatchZipHint")}
-                  </p>
-                </div>
-              ) : null}
               {onEditWithAssistant && !isVideoAsset(single) ? (
                 <Button
                   onClick={() => onEditWithAssistant(single)}
@@ -290,6 +286,34 @@ export function StudioLightbox({
                 </Button>
               ) : null}
             </div>
+            {single.batchId && onDownloadBatch ? (
+              <div className="border-border mt-4 space-y-2 border-t pt-4">
+                {projectLogo ? (
+                  <StudioLogoPositionSelect
+                    label={t("logoOnBatch")}
+                    onChange={changeLogoPosition}
+                    value={logoPosition}
+                  />
+                ) : null}
+                <Button
+                  aria-describedby="studio-batch-download-note"
+                  loading={downloadingBatch}
+                  onClick={() => onDownloadBatch(single, logoPosition)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  <Download aria-hidden />
+                  {t("downloadBatchZip")}
+                </Button>
+                <p
+                  className="text-muted-foreground text-xs"
+                  id="studio-batch-download-note"
+                >
+                  {t("downloadBatchZipHint")}
+                </p>
+              </div>
+            ) : null}
           </>
         }
         images={siblings.map((asset) => ({

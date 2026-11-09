@@ -399,7 +399,10 @@ export function ImageStudio({
     );
   }
 
-  function handleDownloadBatch({ projectId, batchId }: StudioAsset) {
+  function handleDownloadBatch(
+    { projectId, batchId }: StudioAsset,
+    logo?: StudioLogoPosition,
+  ) {
     if (downloadingAds || !batchId) return;
     startAdDownload(async () => {
       try {
@@ -409,9 +412,13 @@ export function ImageStudio({
           toast.error(limit);
           return;
         }
-        await downloadArchive(assets, "studio-ad-batch.zip");
+        await downloadArchive(
+          assets,
+          logo ? "studio-branded-ad-batch.zip" : "studio-ad-batch.zip",
+          logo,
+        );
       } catch {
-        toast.error(t("archiveDownloadFailed"));
+        toast.error(t(logo ? "brandExportFailed" : "archiveDownloadFailed"));
       }
     });
   }

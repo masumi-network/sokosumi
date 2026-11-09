@@ -1,3 +1,4 @@
+import { StudioLogoPosition } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -108,7 +109,11 @@ const ASSET = {
   contentPath: "/a",
 } as unknown as StudioAsset;
 
-function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
+function mount(
+  assets: StudioAsset[] = [],
+  jobs: StudioJob[] = [],
+  projectLogo?: string,
+) {
   return render(
     <ImageStudio
       catalog={TEST_CATALOG}
@@ -116,6 +121,7 @@ function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
       initialState={{ assets, jobs, sessions: [] } as never}
       labels={TEST_LABELS}
       projectId="p"
+      projectLogo={projectLogo}
     />,
   );
 }
@@ -214,6 +220,7 @@ describe("a gallery with work in it", () => {
 
     mount([open]);
     fireEvent.click(screen.getByRole("img").closest("button")!);
+    expect(screen.queryByLabelText("logoOnBatch")).not.toBeInTheDocument();
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", {
         name: "downloadBatchZip",
@@ -231,6 +238,42 @@ describe("a gallery with work in it", () => {
     expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
       expect.any(Blob),
       "studio-ad-batch.zip",
+    );
+  });
+
+  it("uses the logo corner from the ad preview on all ready ads in the batch", async () => {
+    const open = { ...ASSET, projectId: "p", batchId: "batch-a" };
+    const older = { ...open, id: "older-ad" };
+    mocks.listBatchAssets.mockResolvedValueOnce([open, older]);
+    mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+    mount([open], [], "https://example.com/approved-logo.png");
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    const batchLogo = screen.getByLabelText("logoOnBatch");
+    expect(batchLogo).toHaveValue("");
+    fireEvent.change(batchLogo, {
+      target: { value: StudioLogoPosition.BOTTOM_LEFT },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
+    const previewLogo = preview.getByLabelText("logoOnCreative");
+    expect(previewLogo).toHaveValue(StudioLogoPosition.BOTTOM_LEFT);
+    fireEvent.change(previewLogo, {
+      target: { value: StudioLogoPosition.TOP_LEFT },
+    });
+    fireEvent.click(preview.getByRole("button", { name: "close" }));
+    expect(batchLogo).toHaveValue(StudioLogoPosition.TOP_LEFT);
+
+    fireEvent.click(screen.getByRole("button", { name: "downloadBatchZip" }));
+    await waitFor(() => expect(mocks.saveDownload).toHaveBeenCalled());
+    expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+      [open, older],
+      StudioLogoPosition.TOP_LEFT,
+    );
+    expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Blob),
+      "studio-branded-ad-batch.zip",
     );
   });
 
