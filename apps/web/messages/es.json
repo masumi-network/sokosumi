@@ -10955,7 +10955,7 @@
       },
       "chat": {
         "title": "Chat SEO",
-        "description": "Pregunta sobre las páginas seleccionadas y los resultados de la auditoría. Revisa las acciones propuestas antes de confirmarlas.",
+        "description": "Pregunta sobre las páginas y los resultados de esta auditoría. Revisa las acciones propuestas antes de confirmarlas.",
         "empty": "¿Qué te gustaría mejorar?",
         "emptyBody": "Pregunta sobre problemas de páginas, posiciones de palabras clave o tráfico.",
         "question": "Tu pregunta",
@@ -11067,14 +11067,14 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "keyword": "“{keyword}” no está entre las búsquedas que Google muestra para estas páginas. Pregunta al agente cómo orientarlas.",
+          "keyword": "“{keyword}” no está entre las búsquedas que Google muestra para estas páginas. El agente prepara un plan; tú apruebas cada cambio.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas."
         },
         "prompts": {
           "first": "¿Qué debo hacer primero?",
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabemos de los competidores?",
-          "keyword": "¿Cómo pueden estas páginas posicionarse para “{keyword}”? Usa las comprobaciones guardadas y los datos de Search Console."
+          "keyword": "Prepara un plan para que estas páginas se posicionen para “{keyword}”. Usa las comprobaciones guardadas y los datos de Search Console, y propón los cambios como acciones que pueda aprobar."
         },
         "researchCompetitors": "Investigar competidores",
         "verdict": {
@@ -11085,7 +11085,7 @@
           "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}"
         },
         "lastCheckOn": "Última comprobación",
-        "askHow": "Preguntar al agente",
+        "askHow": "Preparar un plan",
         "traffic": "En Google: {impressions, plural, one {# impresión} other {# impresiones}}, {clicks, plural, one {# clic} other {# clics}}",
         "askShort": "Preguntar"
       },

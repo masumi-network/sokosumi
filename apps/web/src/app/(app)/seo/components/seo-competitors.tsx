@@ -181,7 +181,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     </TableCell>
                   ) : null}
                   <TableCell className="text-right">
-                    <div className="flex flex-wrap justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2 max-sm:justify-start">
                       {row.role === "competitor" && model.data.auditId ? (
                         <Button
                           variant="outline"
@@ -199,7 +199,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       row.role === "competitor" &&
                       (row.canConfirm || row.confirmed) ? (
                         <Button
-                          variant="outline"
+                          // Removing is the rare choice; it stays quieter than Compare.
+                          variant={row.confirmed ? "ghost" : "outline"}
                           size="sm"
                           disabled={model.pending}
                           onClick={() => {

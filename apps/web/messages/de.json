@@ -10955,7 +10955,7 @@
       },
       "chat": {
         "title": "SEO-Chat",
-        "description": "Frage zu den ausgewählten Seiten und Audit-Ergebnissen. Prüfe vorgeschlagene Aktionen, bevor du sie bestätigst.",
+        "description": "Frag zu den Seiten und Ergebnissen dieses Audits. Prüfe vorgeschlagene Aktionen, bevor du sie bestätigst.",
         "empty": "Was möchtest du verbessern?",
         "emptyBody": "Frage zu Seitenproblemen, Keyword-Positionen oder Zugriffen.",
         "question": "Deine Frage",
@@ -11067,14 +11067,14 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "„{keyword}“ ist nicht unter den Suchen, die Google für diese Seiten auflistet. Frag den Agenten, wie du darauf zielst.",
+          "keyword": "„{keyword}“ ist nicht unter den Suchen, die Google für diese Seiten auflistet. Der Agent entwirft einen Plan; du bestätigst jede Änderung.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was wissen wir über Wettbewerber?",
-          "keyword": "Wie können diese Seiten für „{keyword}“ ranken? Nutze die gespeicherten Prüfungen und Search-Console-Daten."
+          "keyword": "Entwirf einen Plan, damit diese Seiten für „{keyword}“ ranken. Nutze die gespeicherten Prüfungen und Search-Console-Daten und schlage die Änderungen als Aktionen vor, die ich bestätigen kann."
         },
         "researchCompetitors": "Wettbewerber recherchieren",
         "verdict": {
@@ -11085,7 +11085,7 @@
           "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}"
         },
         "lastCheckOn": "Letzte Prüfung",
-        "askHow": "Agent fragen",
+        "askHow": "Plan entwerfen",
         "traffic": "Google-Suche: {impressions, plural, one {# Mal} other {# Mal}} gezeigt, {clicks, plural, one {# Klick} other {# Klicks}}",
         "askShort": "Agent fragen"
       },
