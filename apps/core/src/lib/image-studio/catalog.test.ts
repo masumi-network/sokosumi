@@ -56,18 +56,18 @@ describe("resolved image catalog", () => {
     expect(imageStudioSettingsSchema.parse(settings)).toEqual(settings);
   });
 
-  it("opens on the studio default and offers the curated five first, in order", () => {
+  it("opens on the studio default and offers the curated six first, in order", () => {
     const catalog = getImageCatalog();
     expect(catalog.defaultModelId).toBe(DEFAULT_IMAGE_MODEL_ID);
-    expect(catalog.models.slice(0, 5).map((model) => model.id)).toEqual([
+    expect(catalog.models.slice(0, 6).map((model) => model.id)).toEqual([
       ...CURATED_MODEL_IDS,
     ]);
     expect(
-      catalog.models.slice(0, 5).map((model) => model.curatedRank),
-    ).toEqual([1, 2, 3, 4, 5]);
+      catalog.models.slice(0, 6).map((model) => model.curatedRank),
+    ).toEqual([1, 2, 3, 4, 5, 6]);
     // Everything after the shortlist is unranked, so no client has to hold its
-    // own list to know which five come first.
-    for (const model of catalog.models.slice(5)) {
+    // own list to know which six come first.
+    for (const model of catalog.models.slice(6)) {
       expect(model.curatedRank).toBeNull();
     }
   });
@@ -131,8 +131,9 @@ describe("resolved image catalog", () => {
     }
   });
 
-  it("charges the curated five what the shared contract says they cost", () => {
+  it("charges the curated six what the shared contract says they cost", () => {
     const square1K = { aspectRatio: "1:1", resolution: "1K" };
+    expect(creditsPerImage(imageModel("muse-image"), square1K)).toBe(1);
     expect(creditsPerImage(imageModel("gemini-flash"), square1K)).toBe(8);
     expect(creditsPerImage(imageModel("gemini-pro"), square1K)).toBe(15);
     expect(creditsPerImage(imageModel("ideogram-v3"), square1K)).toBe(3);

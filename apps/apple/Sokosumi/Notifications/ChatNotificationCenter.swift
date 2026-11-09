@@ -22,8 +22,6 @@ final class ChatNotificationCenter: NSObject, ChatNotificationPresenting {
   var isAppActive: Bool {
     #if os(macOS)
       NSApplication.shared.isActive
-    #else
-      true
     #endif
   }
 

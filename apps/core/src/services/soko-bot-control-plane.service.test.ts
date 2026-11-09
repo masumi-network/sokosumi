@@ -1722,7 +1722,14 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(botFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          AND: [{ versionId: { in: ["cmo-v1"] } }, {}],
+          AND: [
+            {
+              versionId: {
+                in: expect.arrayContaining(["cmo-v1", "cmo-v1-gpt-oss-20b"]),
+              },
+            },
+            {},
+          ],
         }),
       }),
     );
