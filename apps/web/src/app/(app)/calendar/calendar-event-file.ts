@@ -1,6 +1,6 @@
 /** One Calendar entry as an iCalendar (RFC 5545) file another calendar app imports. */
 export interface CalendarEventFileInput {
-  /** Stable across downloads, so importing again updates the event instead of adding one. */
+  /** The same for every download of one entry, so a calendar app can tell it is one event. */
   uid: string;
   title: string;
   start: Date;
@@ -22,7 +22,8 @@ function escapeText(value: string): string {
     .replace(/\\/g, "\\\\")
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
-    .replace(/\r?\n/g, "\\n");
+    .replace(/\r\n|\r|\n/g, "\\n")
+    .replace(/[\u0000-\u0008\u000A-\u001F\u007F]/g, "");
 }
 
 /** Lines longer than 75 octets continue on the next line after a space. */
@@ -59,7 +60,6 @@ export function calendarEventFile({
     "VERSION:2.0",
     "PRODID:-//Sokosumi//Calendar//EN",
     "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     `UID:${escapeText(uid)}`,
     `DTSTAMP:${utcStamp(now)}`,

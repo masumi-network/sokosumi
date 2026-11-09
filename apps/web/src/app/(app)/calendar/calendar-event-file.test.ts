@@ -21,7 +21,6 @@ describe("calendarEventFile", () => {
       "VERSION:2.0",
       "PRODID:-//Sokosumi//Calendar//EN",
       "CALSCALE:GREGORIAN",
-      "METHOD:PUBLISH",
       "BEGIN:VEVENT",
       "UID:run-1@app.sokosumi.com",
       "DTSTAMP:20261109T120005Z",
@@ -33,7 +32,9 @@ describe("calendarEventFile", () => {
       "END:VCALENDAR",
       "",
     ]);
-    expect(file).not.toMatch(/DTEND|DURATION/);
+    // A snapshot, not a scheduling message: PUBLISH would need an ORGANIZER
+    // and a matching MIME method (RFC 5546 3.2.1, RFC 5545 8.1).
+    expect(file).not.toMatch(/METHOD|DTEND|DURATION/);
   });
 
   it("escapes text that would break the format", () => {
@@ -45,6 +46,25 @@ describe("calendarEventFile", () => {
     expect(file).toContain(
       "SUMMARY:Plan\\; budget\\, review\\\\notes\\nnext\r\n",
     );
+  });
+
+  it("turns every newline form into an escaped newline", () => {
+    const file = calendarEventFile({ ...base, title: "a\r\nb\rc\nd" });
+
+    expect(file).toContain("SUMMARY:a\\nb\\nc\\nd\r\n");
+  });
+
+  it("leaves no bare CR, LF or other control character inside a line", () => {
+    const file = calendarEventFile({
+      ...base,
+      title: "Before\rAfter\u0000\u0007\u001b\u007f\tend",
+    });
+    const lines = file.split("\r\n");
+
+    expect(lines).toContain("SUMMARY:Before\\nAfter\tend");
+    for (const line of lines) {
+      expect(line).not.toMatch(/[\u0000-\u0008\u000A-\u001F\u007F]/);
+    }
   });
 
   it("folds long lines at 75 octets without splitting characters", () => {
