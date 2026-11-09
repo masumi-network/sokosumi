@@ -25,6 +25,11 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const { data } = model;
   const overview = seoOverviewModel(data);
+  // Timeline rows carry their own check's coverage; only checks without a row are listed here.
+  const onTimeline = new Set(data.timeline.map((event) => event.observationId));
+  const offTimeline = data.observations.filter(
+    (observation) => !onTimeline.has(observation.id),
+  );
   return (
     <div className="space-y-5">
       <SeoAgentHome model={model} />
@@ -109,7 +114,7 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
             : undefined
         }
       />
-      {overview.diagnostics.length || data.observations.length ? (
+      {overview.diagnostics.length || offTimeline.length ? (
         <details className={cn(HOLDER_CLASS, "text-sm")}>
           <summary className="focus-visible:ring-ring cursor-pointer rounded-sm px-2 py-2.5 focus-visible:ring-2 focus-visible:outline-none">
             <h2 className="inline text-sm font-semibold">
@@ -117,7 +122,7 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
             </h2>
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
-            {data.observations.map((observation) => (
+            {offTimeline.map((observation) => (
               <div
                 key={observation.id}
                 className="text-muted-foreground space-y-2"

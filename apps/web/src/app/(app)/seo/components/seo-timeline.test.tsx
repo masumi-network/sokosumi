@@ -239,6 +239,16 @@ describe("SEO timeline recovery", () => {
       "/tasks/clean-1-task",
       "/tasks/clean-3-task",
     ]);
+    // The folded row names the days it spans, and each check says what it covered.
+    expect(within(clean).getByText(/^Nov 2\W+4, 2026$/)).toBeVisible();
+    expect(
+      within(clean).getByText(
+        "Rule checks: 24 checked, 0 not checked, 0 unavailable",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(clean).getAllByText(/Rule checks: 12 checked, 0 not checked/),
+    ).toHaveLength(2);
     expect(within(issues).getByText("3 issues found")).toBeVisible();
   });
 

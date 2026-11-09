@@ -298,6 +298,61 @@ describe("SEO workspace integration", () => {
     expect(evidence).toBeVisible();
   });
 
+  it.each([true, false])(
+    "lists a check under Check details only when it has no Timeline row: %s",
+    (onTimeline) => {
+      const workspace = seoTestWorkspace();
+      workspace.findings = [];
+      workspace.observations = [
+        {
+          id: "lone-check",
+          kind: "page_check",
+          source: "seo_coworker",
+          observedAt: new Date("2026-01-03T12:00:00Z"),
+          pageIds: workspace.scope.pageIds,
+          scopeVersion: 2,
+          sourceTaskId: null,
+          countryCode: "US",
+          languageCode: "en",
+          devices: ["desktop"],
+          rulebookVersion: "html-v1",
+          artifactHash: "lone",
+          issues: 0,
+          coverage: { checked: 2, skipped: 1, failed: 0 },
+        },
+      ];
+      workspace.timeline = onTimeline
+        ? [
+            {
+              id: "lone-event",
+              kind: "check",
+              title: "SEO check results imported",
+              status: "completed",
+              detail: "",
+              at: new Date("2026-01-03T12:00:00Z"),
+              pageIds: workspace.scope.pageIds,
+              taskId: null,
+              observationId: "lone-check",
+            },
+          ]
+        : [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace);
+      // The Timeline row carries the coverage; a second list would repeat it.
+      expect(
+        screen.queryByRole("heading", { name: "Check details" }) !== null,
+      ).toBe(!onTimeline);
+      expect(
+        screen.getByText(
+          "Rule checks: 2 checked, 1 not checked, 0 unavailable",
+        ),
+      ).toBeInTheDocument();
+    },
+  );
+
   it.each([false, true])(
     "distinguishes an empty Actions tab when checked evidence exists: %s",
     async (checked) => {

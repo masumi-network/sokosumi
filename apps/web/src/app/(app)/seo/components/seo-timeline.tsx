@@ -12,7 +12,7 @@ import {
   SearchCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -55,6 +55,23 @@ export function SeoTimeline({
   onRetry?: () => void;
 }) {
   const t = useTranslations("App.Seo");
+  const format = useFormatter();
+  // A check's own row says what it covered; there is no separate list of check details.
+  function coverageText(
+    coverage: ProjectSeoWorkspace["observations"][number]["coverage"],
+  ) {
+    const rules = t("overview.coverageCounts", {
+      checked: coverage.checked,
+      skipped: coverage.skipped,
+      failed: coverage.failed,
+    });
+    return coverage.modules
+      ? `${rules} · ${t("overview.moduleCoverage", {
+          notRequested: coverage.modules.notRequested,
+          failed: coverage.modules.failed,
+        })}`
+      : rules;
+  }
   const taskStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const [showAll, setShowAll] = useState(false);
   // The button unmounts on click; move focus to the first event it revealed.
@@ -197,7 +214,8 @@ export function SeoTimeline({
                     <Icon className="size-3.5" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    {/* The date keeps its own line on a phone, so every row reads the same. */}
+                    <div className="flex flex-col gap-y-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-3">
                       <h3 className="text-sm font-medium">
                         {event.kind === "metrics" && failed
                           ? t("timeline.metricsFailedTimes", {
@@ -216,7 +234,20 @@ export function SeoTimeline({
                                 : t(`timeline.${label}`)}
                       </h3>
                       <span className="text-muted-foreground text-xs">
-                        <SeoDate value={at} />
+                        {earlier.length ? (
+                          // Folded checks name the days they span; one day keeps one date.
+                          format.dateTimeRange(
+                            Math.min(
+                              ...earlier.map((check) =>
+                                new Date(check.at).getTime(),
+                              ),
+                            ),
+                            new Date(at),
+                            { dateStyle: "medium" },
+                          )
+                        ) : (
+                          <SeoDate value={at} />
+                        )}
                       </span>
                     </div>
                     {event.kind === "action" && taskStatus.has(event.status) ? (
@@ -268,6 +299,9 @@ export function SeoTimeline({
                             {event.detail}
                           </p>
                           {observation ? (
+                            <p>{coverageText(observation.coverage)}</p>
+                          ) : null}
+                          {observation ? (
                             <p>
                               {observation.devices
                                 .map((device) => t(`analysis.${device}`))
@@ -282,7 +316,7 @@ export function SeoTimeline({
                             <p key={check.event.id}>
                               <SeoDate value={check.at} />
                               {check.observation
-                                ? ` · ${t("timeline.checkSummary", { checked: check.observation.coverage.checked })}`
+                                ? ` · ${coverageText(check.observation.coverage)}`
                                 : ""}
                               {check.event.taskId ? (
                                 <>
