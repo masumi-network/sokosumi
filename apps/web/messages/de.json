@@ -509,6 +509,7 @@
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",
         "emptyJobs": "Noch keine Jobs. Beauftrage diesen Coworker, um zu starten.",
+        "noMatches": "Keine Jobs passen zu deiner Suche.",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
@@ -7897,10 +7898,14 @@
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "Header": {
           "back": "Zurück zu Agents",
-          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
+          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
+          "backToAgent": "Zurück zu {name}",
+          "yourJobs": "Deine Jobs",
+          "yourJobsCount": "Deine Jobs · {count}"
         },
         "Modal": {
-          "back": "Zurück"
+          "back": "Zurück",
+          "title": "Job-Details"
         },
         "Footer": {
           "termsAndConditions": "Allgemeine Geschäftsbedingungen",
@@ -8275,6 +8280,7 @@
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
       "headerVisitSwitch": "Zu {workspace} wechseln",
+      "headerMore": "Weitere Chat-Optionen",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",

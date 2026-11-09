@@ -6,7 +6,14 @@ import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -40,6 +47,8 @@ interface JobsListProps {
   userId: string;
   agentId: string;
   selectedJobId?: string;
+  /** Rendered above the search field. */
+  header?: ReactNode;
 }
 
 function JobsStatusRealtimeListener({
@@ -112,6 +121,7 @@ export function JobsList({
   userId,
   agentId,
   selectedJobId,
+  header,
 }: JobsListProps) {
   const t = useTranslations("Components.Jobs.JobsList");
   const { locale } = useLocalizedDateTime();
@@ -235,6 +245,7 @@ export function JobsList({
         </ChannelProvider>
       </LazyAblyProvider>
       <aside className="@4xl/jobs-panes:border-border flex size-full min-h-0 flex-col py-4 @4xl/jobs-panes:border-r">
+        {header}
         <JobsSearch
           jobs={localJobs}
           hasMoreHistory={Boolean(nextCursor)}
@@ -263,7 +274,7 @@ export function JobsList({
             ))
           ) : (
             <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-2 py-8 text-sm text-pretty">
-              {t("emptyJobs")}
+              {localJobs.length > 0 ? t("noMatches") : t("emptyJobs")}
             </div>
           )}
           {nextCursor ? (

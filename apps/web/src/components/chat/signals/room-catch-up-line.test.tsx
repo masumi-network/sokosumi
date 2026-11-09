@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
+  useNow: () => new Date(),
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({
     relativeTime: () => "now",

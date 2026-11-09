@@ -80,7 +80,7 @@ export function JobsSearch({
   }
 
   return (
-    <div className="flex w-full flex-col items-start justify-between px-2 pb-2 md:flex-row md:items-center md:px-0 md:pr-4">
+    <div className="flex w-full flex-col items-start gap-1 px-2 pb-2 md:px-0 md:pr-4">
       <div className="relative w-full">
         <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2" />
         <Input
@@ -103,7 +103,7 @@ export function JobsSearch({
         ) : null}
       </div>
       {searchValue ? (
-        <div className="text-muted-foreground flex flex-col gap-0.5 px-1 text-xs md:items-end md:text-sm">
+        <div className="text-muted-foreground flex flex-col gap-0.5 px-1 text-xs">
           <span className="whitespace-nowrap">
             {t(hasMoreHistory ? "resultsCountLoaded" : "resultsCount", {
               found: filteredJobs.length,
