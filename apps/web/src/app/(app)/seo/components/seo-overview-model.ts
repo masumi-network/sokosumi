@@ -6,6 +6,16 @@ const NON_ISSUE_RANK = Object.keys(ISSUE_SEVERITIES).length;
 type Finding = ProjectSeoWorkspace["findings"][number];
 type Action = ProjectSeoWorkspace["actions"][number];
 
+// The page check names raw-HTML rows "Raw HTML: <rule>"; the check's record already says so.
+const RAW_HTML_PREFIX = "Raw HTML: ";
+
+/** A check row's title without the "Raw HTML: " source prefix. */
+export function checkName(title: string) {
+  return title.startsWith(RAW_HTML_PREFIX)
+    ? title.slice(RAW_HTML_PREFIX.length)
+    : title;
+}
+
 function issueRank(finding: Finding): number {
   return finding.severity in ISSUE_SEVERITIES
     ? ISSUE_SEVERITIES[finding.severity as keyof typeof ISSUE_SEVERITIES]
@@ -255,4 +265,40 @@ export function toolRangeFit(value: string, guidance: readonly string[]) {
     if (!form[1](Number(a), Number(b))(number)) outside.push(tool);
   }
   return { total: ranges.length, outside };
+}
+
+/**
+ * A note's first evidence line split into what the check found and its value,
+ * e.g. "meta keywords in head: \"...\"". A ": " inside a quote ("", “” or „“) is part of the
+ * finding, not its label. A line without a label is all finding.
+ */
+export function noteFinding(line: string) {
+  let split = line.indexOf(": ");
+  while (split > 0 && (line.slice(0, split).match(/["“”„]/g)?.length ?? 0) % 2)
+    split = line.indexOf(": ", split + 1);
+  return split > 0
+    ? { found: line.slice(0, split), detail: line.slice(split + 2) }
+    : { found: line, detail: undefined };
+}
+
+/** Measurements whose value falls outside at least one tool range in their own guidance. */
+export function measuresOutsideToolRanges(diagnostics: readonly Finding[]) {
+  // Two checks can measure one rule on one page; rows come newest first, so only the newest
+  // check counts. Its desktop and mobile rows can differ; either one outside a range is a step.
+  const newest = new Map<string, string>();
+  const stepped = new Set<string>();
+  return diagnostics.flatMap((finding) => {
+    const first = finding.evidence[0];
+    if (finding.severity !== "measure" || first === undefined) return [];
+    const name = checkName(finding.title);
+    const key = JSON.stringify([name, finding.pageUrl]);
+    if (!newest.has(key)) newest.set(key, finding.observationId);
+    if (newest.get(key) !== finding.observationId || stepped.has(key))
+      return [];
+    const value = measureValue(name, first);
+    const fit = toolRangeFit(value, pageDetailGuidance(finding.evidence));
+    if (!fit?.outside.length) return [];
+    stepped.add(key);
+    return [{ name, value, tools: fit.outside, pageUrl: finding.pageUrl }];
+  });
 }

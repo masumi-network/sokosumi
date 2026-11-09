@@ -186,4 +186,74 @@ describe("SEO agent brief", () => {
       seoAgentBrief(workspace, synced).steps.map((step) => step.kind),
     ).not.toContain("keyword");
   });
+
+  it("turns a measured value outside a tool range into the first free step", () => {
+    const workspace = connected();
+    const measured = (id: string, evidence: string) => ({
+      id,
+      observationId: "check",
+      pageUrl: "https://example.com/",
+      device: "desktop" as const,
+      rowId: id,
+      title: `Raw HTML: ${id === "title" ? "Title" : "Meta description"} length`,
+      severity: "measure",
+      evidence: [
+        evidence,
+        "vendor tools: Ahrefs under 160 (N1-247); Moz 55 to 300 (N1-279)",
+      ],
+      sourceRef: "html",
+      observedAt: synced,
+    });
+    workspace.findings = [
+      measured("title", "title 56 characters"),
+      // The same check's desktop row is in range; its mobile row is not, and that is the step.
+      {
+        ...measured("description", "meta description 150 characters"),
+        id: "description-desktop",
+      },
+      {
+        ...measured("description", "meta description 163 characters"),
+        device: "mobile" as const,
+      },
+      // An older check of the same rule and page: the newest value is the step.
+      {
+        ...measured("description", "meta description 170 characters"),
+        id: "description-old",
+        observationId: "older-check",
+      },
+    ] as ProjectSeoWorkspace["findings"];
+    workspace.keywords = [
+      { keyword: "battery", saved: true },
+    ] as unknown as ProjectSeoWorkspace["keywords"];
+    workspace.searchQueries = {
+      rows: [],
+    } as unknown as ProjectSeoWorkspace["searchQueries"];
+    const steps = seoAgentBrief(workspace, synced).steps;
+    // Only the value outside a range becomes a step, and it leads the keyword step.
+    expect(steps.filter((step) => step.kind === "measure")).toEqual([
+      {
+        kind: "measure",
+        name: "Meta description length",
+        value: "163 characters",
+        tools: ["Ahrefs"],
+        pageUrl: "https://example.com/",
+      },
+    ]);
+    expect(steps.map((step) => step.kind).slice(0, 2)).toEqual([
+      "measure",
+      "keyword",
+    ]);
+    // A value fixed since: the newest check is in range, so an older value outside it is no step.
+    workspace.findings = [
+      measured("description", "meta description 150 characters"),
+      {
+        ...measured("description", "meta description 170 characters"),
+        id: "description-old",
+        observationId: "older-check",
+      },
+    ] as ProjectSeoWorkspace["findings"];
+    expect(
+      seoAgentBrief(workspace, synced).steps.map((step) => step.kind),
+    ).not.toContain("measure");
+  });
 });

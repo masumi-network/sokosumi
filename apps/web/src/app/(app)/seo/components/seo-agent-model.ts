@@ -1,5 +1,8 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { seoOverviewModel } from "./seo-overview-model";
+import {
+  measuresOutsideToolRanges,
+  seoOverviewModel,
+} from "./seo-overview-model";
 import { normalizeQuery, searchConsoleIndex } from "./seo-search-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
@@ -12,6 +15,13 @@ export const SEO_AGENT_ACTION_LIMIT = 3;
 type Action = ProjectSeoWorkspace["actions"][number];
 export type SeoAgentStep =
   | { kind: "action"; action: Action }
+  | {
+      kind: "measure";
+      name: string;
+      value: string;
+      tools: string[];
+      pageUrl: string;
+    }
   | { kind: "keyword"; keyword: string }
   | { kind: "pages" }
   | { kind: "refresh"; reason: "stale" | "no_queries" }
@@ -57,6 +67,12 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   const steps: SeoAgentStep[] = [...fixes, ...opportunities]
     .slice(0, SEO_AGENT_ACTION_LIMIT)
     .map((action) => ({ kind: "action", action }));
+  // A measured value outside the tools' ranges is evidence on the page; it leads the free SEO work.
+  for (const measure of measuresOutsideToolRanges(overview.diagnostics).slice(
+    0,
+    SEO_AGENT_ACTION_LIMIT,
+  ))
+    steps.push({ kind: "measure", ...measure });
   // SEO work from free saved data comes before account upkeep.
   // A cut list cannot prove Google left a keyword out.
   const listed =

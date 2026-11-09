@@ -5,6 +5,7 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -396,9 +397,11 @@ describe("SEO workspace integration", () => {
         name: "Notes (2) · not counted as issues",
       }),
     ).toBeVisible();
+    // A note leads with what the check found; the rule name follows, so it does not read as a claim.
     expect(
-      screen.getByRole("heading", { name: "Rule not met: No meta keywords" }),
+      screen.getByRole("heading", { name: "Found: meta keywords in head" }),
     ).toBeVisible();
+    expect(screen.getByText("Rule not met: “No meta keywords”")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
     // A 1-page Audit does not repeat its URL on every row.
     const details = screen.getAllByText("Title length:")[0].closest("details");
@@ -421,7 +424,7 @@ describe("SEO workspace integration", () => {
     expect(details.querySelectorAll("time")).toHaveLength(4);
     expect(
       screen.getByRole("heading", {
-        name: "Rule not met: AI search bots may fetch the page",
+        name: "Found: robots.txt blocks GPTBot",
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
@@ -462,8 +465,7 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getByRole("button", {
         name: "Ask the agent",
-        description:
-          "Rule not met: AI search bots may fetch the page https://example.com/old",
+        description: "Found: robots.txt blocks GPTBot https://example.com/old",
       }),
     );
     const sheet = await screen.findByRole("dialog");
@@ -561,6 +563,20 @@ describe("SEO workspace integration", () => {
         sourceRef: "html:head",
         observedAt: new Date("2026-01-03T12:05:00Z"),
       },
+      {
+        id: "long-unlabelled-note",
+        observationId: observation.id,
+        pageUrl: workspace.pages[1].url,
+        device: "mobile",
+        rowId: "link-text",
+        title: "Raw HTML: Descriptive link text",
+        severity: "note",
+        evidence: [
+          `the page links with generic text ${"read more, ".repeat(12)}and no other words`,
+        ],
+        sourceRef: "html:links",
+        observedAt: new Date("2026-01-03T12:05:00Z"),
+      },
     );
     vi.stubGlobal(
       "fetch",
@@ -588,8 +604,14 @@ describe("SEO workspace integration", () => {
     expect(
       within(details).queryAllByRole("link", { name: "View results" }),
     ).toHaveLength(0);
+    // A long line without a label is the value under its rule, not a heading.
+    expect(
+      within(details).getByRole("heading", {
+        name: "Rule not met: “Descriptive link text”",
+      }),
+    ).toBeVisible();
     // A long note the clamp does not cut needs no toggle.
-    expect(within(details).getByText(/meta keywords in head/)).toBeVisible();
+    expect(within(details).getByText(/^"battery, battery/)).toBeVisible();
     expect(
       within(details).queryByRole("button", { name: "Show all" }),
     ).toBeNull();
@@ -1098,7 +1120,7 @@ describe("SEO workspace integration", () => {
       "Your page passes the last check, but Google rarely shows it yet",
     );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Google search: 2 clicks, 35 impressions · Jan 1\W+2, 2026 · Open Traffic$/,
+      /^Google search on this page: 2 clicks, 35 impressions · Jan 1\W+2, 2026 · Open Traffic$/,
     );
     unmount();
     // Without clicks the line would read as zero clicks; it stays away.
@@ -2420,6 +2442,77 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("button", { name: "Show 1 earlier question" }),
     ).toBeVisible();
+  });
+
+  it("offers a fix for a measured value outside a tool range as the primary step", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    workspace.findings.push({
+      id: "measured-description",
+      observationId: "check-description",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "description-length",
+      title: "Raw HTML: Meta description length",
+      severity: "measure",
+      evidence: [
+        "meta description 163 characters",
+        "vendor tools: Ahrefs under 160 (N1-247); Moz 55 to 300 (N1-279)",
+      ],
+      sourceRef: "html:description",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    const questions: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (!url.endsWith("/chat")) return Response.json(workspace);
+        if (init?.method !== "POST")
+          return Response.json({ sharing: "personal", turns: [] });
+        questions.push(JSON.parse(String(init.body)).question);
+        return Response.json({
+          id: crypto.randomUUID(),
+          question: questions.at(-1),
+          response: "Draft",
+          status: "completed",
+          actions: [],
+          scope: { pageIds: workspace.scope.pageIds },
+          createdAt: new Date().toISOString(),
+        });
+      }),
+    );
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByText(
+        "Meta description length: 163 characters, outside the range of Ahrefs. The agent can draft a change for you to approve.",
+      ),
+    ).toBeVisible();
+    // The step with page evidence carries the one primary button.
+    const draft = screen.getByRole("button", {
+      name: "Draft a fix",
+      description: /^Meta description length: 163 characters/,
+    });
+    expect(draft).toHaveClass("bg-primary");
+    await user.click(draft);
+    await waitFor(() =>
+      expect(questions).toEqual([
+        `The check measured “Meta description length” on ${workspace.pages[0].url} as 163 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.`,
+      ]),
+    );
+    cleanup();
+    // Without the agent chat the step has no button, so the next step keeps the primary one.
+    renderWorkspace({ ...workspace, auditId: null });
+    expect(
+      await screen.findByText(/^Meta description length: 163 characters/),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Draft a fix" })).toBeNull();
+    const pagesStep = screen
+      .getByText(/^This audit checks 1 page/)
+      .closest("li");
+    if (!pagesStep) throw new Error("Pages step missing");
+    expect(
+      within(pagesStep).getByRole("button", { name: "Add a page" }),
+    ).toHaveClass("bg-primary");
   });
 
   it("keeps an answer asked in the chat sheet on another tab visible on the Overview", async () => {

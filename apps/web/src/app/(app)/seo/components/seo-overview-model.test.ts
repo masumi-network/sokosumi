@@ -2,6 +2,7 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   measureValue,
+  noteFinding,
   pageDetailGuidance,
   pageDetailGuidanceRows,
   pageDetailReferences,
@@ -406,5 +407,37 @@ describe("tool ranges", () => {
       "N1-279",
       "N1-286",
     ]);
+  });
+});
+
+describe("note finding", () => {
+  it("splits at the label, not at a colon inside a quote", () => {
+    expect(noteFinding('meta keywords in head: "battery, health"')).toEqual({
+      found: "meta keywords in head",
+      detail: '"battery, health"',
+    });
+    // Agent evidence names a link by its quoted text, which can hold ": ".
+    expect(
+      noteFinding(
+        'a "Shop: new arrivals" (url) at 900 px: below the first screen',
+      ),
+    ).toEqual({
+      found: 'a "Shop: new arrivals" (url) at 900 px',
+      detail: "below the first screen",
+    });
+    expect(noteFinding("a “Shop: new” link at 900 px: below the fold")).toEqual(
+      {
+        found: "a “Shop: new” link at 900 px",
+        detail: "below the fold",
+      },
+    );
+    expect(noteFinding("Link „Shop: neu“ bei 900 px: unter dem Rand")).toEqual({
+      found: "Link „Shop: neu“ bei 900 px",
+      detail: "unter dem Rand",
+    });
+    expect(noteFinding("robots.txt blocks GPTBot")).toEqual({
+      found: "robots.txt blocks GPTBot",
+      detail: undefined,
+    });
   });
 });

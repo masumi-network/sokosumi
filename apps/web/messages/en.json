@@ -10661,7 +10661,7 @@
         "pageMeasurements": "Measurements",
         "pageNotes": "Notes ({count})",
         "references": "{count, plural, one {# source} other {# sources}}",
-        "noteRule": "Rule not met: {name}",
+        "noteRule": "Rule not met: “{name}”",
         "notesNotCounted": "not counted as issues",
         "askAgent": "Ask the agent",
         "askAboutNote": "A check flagged “{name}” on my page. What does it mean, and should I change anything?",
@@ -10676,7 +10676,8 @@
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "askAboutMeasure": "A check measured “{name}” on my page as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Should I change it?",
         "askAboutMeasureOnPage": "A check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Should I change it?",
-        "positionHint": "1 is the top result"
+        "positionHint": "1 is the top result",
+        "noteFound": "Found: {found}"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -10709,7 +10710,7 @@
         "notListed": "Not in Search Console's list",
         "notInKeptRows": "Not in the first {count} rows kept",
         "trendShow": "Daily positions",
-        "trendEmpty": "No Search Console impressions",
+        "trendEmpty": "No Search Console impressions in any country",
         "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
         "trendLabel": "Average position for “{keyword}”",
         "trendNoImpressions": "No impressions"
@@ -11091,14 +11092,17 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "keyword": "Google has not shown {pages, plural, one {your page} other {your pages}} for exactly “{keyword}” yet. The agent can draft a plan to rank for it.",
-          "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches."
+          "keyword": "Search Console lists no searches for “{keyword}” on {pages, plural, one {your page} other {your pages}} yet. The agent can draft a plan to rank for it.",
+          "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches.",
+          "measure": "{name}: {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve.",
+          "measureOnPage": "{name} on {url}: {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve."
         },
         "prompts": {
           "first": "What should I do first?",
           "queries": "Which searches bring people to these pages?",
           "competitors": "What do we know about competitors?",
-          "keyword": "Draft a plan to make these pages rank for “{keyword}”. Use the saved checks and Search Console data, and suggest the changes as actions I can approve."
+          "keyword": "Draft a plan to make these pages rank for “{keyword}”. Use the saved checks and Search Console data, and suggest the changes as actions I can approve.",
+          "measure": "The check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Draft a change and suggest it as an action I can approve."
         },
         "researchCompetitors": "Research competitors",
         "verdict": {
@@ -11111,9 +11115,10 @@
         },
         "lastCheckOn": "Last check",
         "askHow": "Draft a plan",
-        "traffic": "Google search: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
+        "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
         "askShort": "Ask",
-        "openTraffic": "Open Traffic"
+        "openTraffic": "Open Traffic",
+        "draftFix": "Draft a fix"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

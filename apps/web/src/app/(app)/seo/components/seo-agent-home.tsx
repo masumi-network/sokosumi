@@ -1,8 +1,8 @@
 "use client";
 
 import { Bot } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useFormatter, useTranslations } from "next-intl";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -47,91 +47,135 @@ function StepRow({
   first: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const format = useFormatter();
+  // Several steps can carry the same button name; the step's text tells them apart.
+  const bodyId = useId();
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const variant = first ? "primary" : "outline";
   const [body, control] =
-    step.kind === "keyword"
+    step.kind === "measure"
       ? [
-          t("agent.steps.keyword", {
-            keyword: step.keyword,
-            pages: model.data.scope.pageIds.length,
-          }),
+          // One page needs no URL; with several, the step names its page.
+          model.data.scope.pageIds.length > 1
+            ? t("agent.steps.measureOnPage", {
+                name: step.name,
+                value: step.value,
+                count: step.tools.length,
+                tools: format.list(step.tools),
+                url: step.pageUrl,
+              })
+            : t("agent.steps.measure", {
+                name: step.name,
+                value: step.value,
+                count: step.tools.length,
+                tools: format.list(step.tools),
+              }),
           model.data.auditId ? (
             <Button
-              key="keyword"
+              key="measure"
               size="sm"
               variant={variant}
+              aria-describedby={bodyId}
               disabled={chat.busy}
               onClick={() => {
                 void chat.send(
-                  t("agent.prompts.keyword", { keyword: step.keyword }),
+                  t("agent.prompts.measure", {
+                    name: step.name,
+                    value: step.value,
+                    count: step.tools.length,
+                    tools: format.list(step.tools),
+                    url: step.pageUrl,
+                  }),
                 );
               }}
             >
-              {t("agent.askHow")}
+              {t("agent.draftFix")}
             </Button>
           ) : null,
         ]
-      : step.kind === "pages"
+      : step.kind === "keyword"
         ? [
-            t("agent.steps.pages"),
-            <Button
-              key="pages"
-              size="sm"
-              variant={variant}
-              onClick={() => model.setDialog("page")}
-            >
-              {t("addPage")}
-            </Button>,
-          ]
-        : step.kind === "refresh"
-          ? [
-              t(`agent.steps.refresh.${step.reason}`),
+            t("agent.steps.keyword", {
+              keyword: step.keyword,
+              pages: model.data.scope.pageIds.length,
+            }),
+            model.data.auditId ? (
               <Button
-                key="refresh"
+                key="keyword"
                 size="sm"
                 variant={variant}
-                loading={refreshing}
-                disabled={model.pending}
-                onClick={refresh}
+                aria-describedby={bodyId}
+                disabled={chat.busy}
+                onClick={() => {
+                  void chat.send(
+                    t("agent.prompts.keyword", { keyword: step.keyword }),
+                  );
+                }}
               >
-                {t("syncNow")}
+                {t("agent.askHow")}
+              </Button>
+            ) : null,
+          ]
+        : step.kind === "pages"
+          ? [
+              t("agent.steps.pages"),
+              <Button
+                key="pages"
+                size="sm"
+                variant={variant}
+                onClick={() => model.setDialog("page")}
+              >
+                {t("addPage")}
               </Button>,
             ]
-          : step.kind === "connect"
+          : step.kind === "refresh"
             ? [
-                t(`agent.steps.connect.${step.provider}`),
-                <SeoConnectionButton
-                  key="connect"
-                  provider={step.provider}
-                  onConnected={() => model.openStatistics(step.provider)}
-                />,
+                t(`agent.steps.refresh.${step.reason}`),
+                <Button
+                  key="refresh"
+                  size="sm"
+                  variant={variant}
+                  loading={refreshing}
+                  disabled={model.pending}
+                  onClick={refresh}
+                >
+                  {t("syncNow")}
+                </Button>,
               ]
-            : [
-                t(
-                  step.available
-                    ? "agent.steps.competitors.available"
-                    : "agent.steps.competitors.unavailable",
-                ),
-                canEdit && (canRequestAnalysis || !step.available) ? (
-                  <Button
-                    key="competitors"
-                    size="sm"
-                    variant={variant}
-                    onClick={() =>
-                      model.setDialog(
-                        step.available ? "analysis" : "competitor",
-                      )
-                    }
-                  >
-                    {t(
-                      step.available
-                        ? "agent.researchCompetitors"
-                        : "competitors.add",
-                    )}
-                  </Button>
-                ) : null,
-              ];
+            : step.kind === "connect"
+              ? [
+                  t(`agent.steps.connect.${step.provider}`),
+                  <SeoConnectionButton
+                    key="connect"
+                    provider={step.provider}
+                    onConnected={() => model.openStatistics(step.provider)}
+                  />,
+                ]
+              : [
+                  t(
+                    step.available
+                      ? "agent.steps.competitors.available"
+                      : "agent.steps.competitors.unavailable",
+                  ),
+                  canEdit && (canRequestAnalysis || !step.available) ? (
+                    <Button
+                      key="competitors"
+                      size="sm"
+                      variant={variant}
+                      onClick={() =>
+                        model.setDialog(
+                          step.available ? "analysis" : "competitor",
+                        )
+                      }
+                    >
+                      {t(
+                        step.available
+                          ? "agent.researchCompetitors"
+                          : "competitors.add",
+                      )}
+                    </Button>
+                  ) : null,
+                ];
   return (
     <li
       className={cn(
@@ -139,7 +183,12 @@ function StepRow({
         "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 p-4",
       )}
     >
-      <p className="min-w-0 basis-full text-sm sm:basis-0 sm:flex-1">{body}</p>
+      <p
+        id={bodyId}
+        className="min-w-0 basis-full text-sm break-words sm:basis-0 sm:flex-1"
+      >
+        {body}
+      </p>
       {control}
     </li>
   );
@@ -211,7 +260,7 @@ function SeoAgentPanel({
   // Action cards and connection buttons keep their own style.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const primary = brief.steps.findIndex((step) =>
-    step.kind === "keyword"
+    step.kind === "keyword" || step.kind === "measure"
       ? Boolean(model.data.auditId)
       : step.kind === "competitors"
         ? canEdit && (canRequestAnalysis || !step.available)
@@ -270,6 +319,8 @@ function SeoAgentPanel({
               {t("agent.traffic", {
                 impressions: traffic.impressions,
                 clicks: traffic.clicks,
+                // Every Search Console read is filtered to the Audit's pages.
+                pages: model.data.scope.pageIds.length,
               })}{" "}
               · <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
               {" · "}
@@ -313,7 +364,7 @@ function SeoAgentPanel({
                   </li>
                 ) : (
                   <StepRow
-                    key={`${step.kind}:${"provider" in step ? step.provider : ""}`}
+                    key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
                     step={step}
                     model={model}
                     chat={chat}

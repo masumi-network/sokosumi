@@ -10661,7 +10661,7 @@
         "pageMeasurements": "Messwerte",
         "pageNotes": "Hinweise ({count})",
         "references": "{count, plural, one {# Quelle} other {# Quellen}}",
-        "noteRule": "Regel nicht erfüllt: {name}",
+        "noteRule": "Regel nicht erfüllt: „{name}“",
         "notesNotCounted": "zählen nicht als Probleme",
         "askAgent": "Agent fragen",
         "askAboutNote": "Eine Prüfung hat „{name}“ auf meiner Seite markiert. Was bedeutet das, und sollte ich etwas ändern?",
@@ -10676,7 +10676,8 @@
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
         "askAboutMeasure": "Eine Prüfung hat „{name}“ auf meiner Seite mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Sollte ich das ändern?",
         "askAboutMeasureOnPage": "Eine Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Sollte ich das ändern?",
-        "positionHint": "1 ist das oberste Ergebnis"
+        "positionHint": "1 ist das oberste Ergebnis",
+        "noteFound": "Gefunden: {found}"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -10709,7 +10710,7 @@
         "notListed": "Nicht in der Search-Console-Liste",
         "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen",
         "trendShow": "Tägliche Positionen",
-        "trendEmpty": "Keine Search-Console-Impressionen",
+        "trendEmpty": "In keinem Land Search-Console-Impressionen",
         "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 25 verfolgte Keywords erhalten tägliche Positionen.",
         "trendLabel": "Durchschnittliche Position für „{keyword}“",
         "trendNoImpressions": "Keine Impressionen"
@@ -11091,14 +11092,17 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "Google hat {pages, plural, one {deine Seite} other {deine Seiten}} für genau „{keyword}“ noch nicht gezeigt. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
-          "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
+          "keyword": "Search Console listet noch keine Suchen nach „{keyword}“ für {pages, plural, one {deine Seite} other {deine Seiten}}. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
+          "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden.",
+          "measure": "{name}: {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst.",
+          "measureOnPage": "{name} auf {url}: {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst."
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was wissen wir über Wettbewerber?",
-          "keyword": "Entwirf einen Plan, damit diese Seiten für „{keyword}“ ranken. Nutze die gespeicherten Prüfungen und Search-Console-Daten und schlage die Änderungen als Aktionen vor, die ich bestätigen kann."
+          "keyword": "Entwirf einen Plan, damit diese Seiten für „{keyword}“ ranken. Nutze die gespeicherten Prüfungen und Search-Console-Daten und schlage die Änderungen als Aktionen vor, die ich bestätigen kann.",
+          "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann."
         },
         "researchCompetitors": "Wettbewerber recherchieren",
         "verdict": {
@@ -11111,9 +11115,10 @@
         },
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Plan entwerfen",
-        "traffic": "Google-Suche: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
+        "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
         "askShort": "Agent fragen",
-        "openTraffic": "Zugriffe öffnen"
+        "openTraffic": "Zugriffe öffnen",
+        "draftFix": "Korrektur entwerfen"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",

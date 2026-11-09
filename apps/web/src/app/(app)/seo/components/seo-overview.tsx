@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import {
+  checkName,
   measureValue,
+  noteFinding,
   pageDetailGuidance,
   pageDetailGuidanceRows,
   pageDetailReferences,
@@ -31,15 +33,6 @@ import {
 } from "./seo-shared";
 import { SeoTimeline } from "./seo-timeline";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
-
-// The page check names raw-HTML rows "Raw HTML: <rule>"; the check's record already says so.
-const RAW_HTML_PREFIX = "Raw HTML: ";
-
-function checkName(title: string) {
-  return title.startsWith(RAW_HTML_PREFIX)
-    ? title.slice(RAW_HTML_PREFIX.length)
-    : title;
-}
 
 type Diagnostic = ReturnType<typeof seoOverviewModel>["diagnostics"][number];
 
@@ -80,8 +73,15 @@ function PageDetail({
   const fit = value
     ? toolRangeFit(value, pageDetailGuidance(finding.evidence))
     : null;
+  // A note leads with what the check found on the page; its rule name can read as the opposite.
+  // A long finding stays a foldable value under the rule, not a heading.
+  const split =
+    !measure && first !== undefined ? noteFinding(first) : undefined;
+  const note =
+    split && split.found.length <= NOTE_VALUE_FOLD_CHARS ? split : undefined;
+  const detail = note ? note.detail : measure ? undefined : first;
   const foldable =
-    !measure && first !== undefined && first.length > NOTE_VALUE_FOLD_CHARS;
+    detail !== undefined && detail.length > NOTE_VALUE_FOLD_CHARS;
   // With one page there is nothing to tell apart, unless the row is for a page removed since.
   const showPage =
     data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url;
@@ -90,7 +90,7 @@ function PageDetail({
   useLayoutEffect(() => {
     const element = valueRef.current;
     // New text in the same box does not resize it, so the text itself starts a new check.
-    if (!foldable || fullValue || !element || !first) return;
+    if (!foldable || fullValue || !element || !detail) return;
     // Once cut, the toggle stays: dropping it on a resize would drop the focus on it.
     const check = () =>
       setClamped((cut) => cut || element.scrollHeight > element.clientHeight);
@@ -103,7 +103,7 @@ function PageDetail({
     const observer = new ResizeObserver(check);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [foldable, fullValue, first]);
+  }, [foldable, fullValue, detail]);
   const toggle = foldable && clamped;
   // A note can always be asked about; a measurement only when some tool range leaves it out.
   const ask = measure ? (fit?.outside.length ? onAsk : undefined) : onAsk;
@@ -132,11 +132,18 @@ function PageDetail({
         </p>
       ) : (
         <>
-          {/* A note's name is the rule it checks, e.g. "No meta keywords", not what the page has. */}
-          <h4 id={headingId} className="text-sm font-medium">
-            {t("overview.noteRule", { name })}
+          {/* The heading is the check's own finding; the rule name, e.g. "No meta keywords", follows it. */}
+          <h4 id={headingId} className="text-sm font-medium break-words">
+            {note
+              ? t("overview.noteFound", { found: note.found })
+              : t("overview.noteRule", { name })}
           </h4>
-          {first ? (
+          {note ? (
+            <p className="text-muted-foreground text-xs">
+              {t("overview.noteRule", { name })}
+            </p>
+          ) : null}
+          {detail ? (
             <p
               id={valueId}
               ref={valueRef}
@@ -145,7 +152,7 @@ function PageDetail({
                 foldable && !fullValue && "line-clamp-3",
               )}
             >
-              {first}
+              {detail}
             </p>
           ) : null}
         </>

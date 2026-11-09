@@ -447,7 +447,7 @@ describe("Search Console queries", () => {
       .closest("table");
     const row = within(table!).getByText("stablecoin yield").closest("tr");
     expect(
-      within(row!).getAllByText("No Search Console impressions"),
+      within(row!).getAllByText("No Search Console impressions in any country"),
     ).toHaveLength(1);
     expect(within(row!).queryByText("Not in Search Console's list")).toBeNull();
     expect(
@@ -456,7 +456,9 @@ describe("Search Console queries", () => {
     const ranked = within(table!).getByText("stablecoin rate").closest("tr");
     expect(within(ranked!).getByText("4")).toBeVisible();
     expect(
-      within(ranked!).getAllByText("No Search Console impressions"),
+      within(ranked!).getAllByText(
+        "No Search Console impressions in any country",
+      ),
     ).toHaveLength(1);
   });
 

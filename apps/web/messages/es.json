@@ -10661,7 +10661,7 @@
         "pageMeasurements": "Mediciones",
         "pageNotes": "Notas ({count})",
         "references": "{count, plural, one {# fuente} other {# fuentes}}",
-        "noteRule": "Regla no cumplida: {name}",
+        "noteRule": "Regla no cumplida: «{name}»",
         "notesNotCounted": "no cuentan como problemas",
         "askAgent": "Preguntar al agente",
         "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
@@ -10676,7 +10676,8 @@
         "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
         "askAboutMeasure": "Una comprobación midió «{name}» en mi página: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. ¿Debería cambiarlo?",
         "askAboutMeasureOnPage": "Una comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. ¿Debería cambiarlo?",
-        "positionHint": "1 es el primer resultado"
+        "positionHint": "1 es el primer resultado",
+        "noteFound": "Encontrado: {found}"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10709,7 +10710,7 @@
         "notListed": "No figura en la lista de Search Console",
         "notInKeptRows": "No está entre las primeras {count} filas guardadas",
         "trendShow": "Posiciones diarias",
-        "trendEmpty": "Sin impresiones de Search Console",
+        "trendEmpty": "Sin impresiones de Search Console en ningún país",
         "trendNotRequested": "No se leyó en la última sincronización. Hasta 25 palabras clave seguidas reciben posiciones diarias.",
         "trendLabel": "Posición media de «{keyword}»",
         "trendNoImpressions": "Sin impresiones"
@@ -11091,14 +11092,17 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "keyword": "Google aún no ha mostrado {pages, plural, one {tu página} other {tus páginas}} para exactamente «{keyword}». El agente puede preparar un plan para que aparezcas en esa búsqueda.",
-          "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas."
+          "keyword": "Search Console aún no muestra búsquedas de «{keyword}» para {pages, plural, one {tu página} other {tus páginas}}. El agente puede preparar un plan para que aparezcas en esa búsqueda.",
+          "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas.",
+          "measure": "{name}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes.",
+          "measureOnPage": "{name} en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes."
         },
         "prompts": {
           "first": "¿Qué debo hacer primero?",
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabemos de los competidores?",
-          "keyword": "Prepara un plan para que estas páginas se posicionen para “{keyword}”. Usa las comprobaciones guardadas y los datos de Search Console, y propón los cambios como acciones que pueda aprobar."
+          "keyword": "Prepara un plan para que estas páginas se posicionen para “{keyword}”. Usa las comprobaciones guardadas y los datos de Search Console, y propón los cambios como acciones que pueda aprobar.",
+          "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar."
         },
         "researchCompetitors": "Investigar competidores",
         "verdict": {
@@ -11111,9 +11115,10 @@
         },
         "lastCheckOn": "Última comprobación",
         "askHow": "Preparar un plan",
-        "traffic": "En Google: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
+        "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
         "askShort": "Preguntar",
-        "openTraffic": "Abrir tráfico"
+        "openTraffic": "Abrir tráfico",
+        "draftFix": "Preparar un arreglo"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
