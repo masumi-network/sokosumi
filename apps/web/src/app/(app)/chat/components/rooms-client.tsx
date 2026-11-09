@@ -939,10 +939,15 @@ function RoomView({
     useState<TranscriptBoundaryStatus>("idle");
   const [pendingThreadQuote, setPendingThreadQuote] =
     useState<PendingRoomQuote | null>(null);
+  // inThread: the open thread also shows its parent message, so only the
+  // surface that started the edit mounts the editor. Two editors steal focus
+  // from each other and the blurred one cancels the edit.
   const [editSession, setEditSession] = useState<{
     messageId: string;
     draft: string;
+    inThread: boolean;
   } | null>(null);
+  const roomEditSession = editSession?.inThread ? null : editSession;
   const [isSavingEdit, startSavingEditTransition] = useTransition();
   // Explicit flag (not useTransition): open must paint loading before any
   // await. mark-read used to run first with replies=[] + isLoading false →
@@ -2604,8 +2609,8 @@ function RoomView({
     })();
   }
 
-  function handleStartEdit(message: ChatRoomMessage) {
-    setEditSession({ messageId: message.id, draft: message.content });
+  function handleStartEdit(message: ChatRoomMessage, inThread: boolean) {
+    setEditSession({ messageId: message.id, draft: message.content, inThread });
   }
 
   function handleCancelEdit() {
@@ -2977,7 +2982,9 @@ function RoomView({
       onSendToSelf: (message: ChatRoomMessage) =>
         latestMessageHandlersRef.current.handleSendMessageToSelf(message),
       onStartEdit: (message: ChatRoomMessage) =>
-        latestMessageHandlersRef.current.handleStartEdit(message),
+        latestMessageHandlersRef.current.handleStartEdit(message, false),
+      onStartThreadEdit: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleStartEdit(message, true),
       onDelete: (message: ChatRoomMessage) =>
         latestMessageHandlersRef.current.handleDeleteMessage(message),
       onRemoveUnfurl: (message: ChatRoomMessage, url: string) =>
@@ -3358,15 +3365,17 @@ function RoomView({
                   : stableMessageHandlers.onSendToSelf
               }
               showOutboundSentTick={outboundSentTickIds.has(message.id)}
-              isEditing={editSession?.messageId === message.id}
+              isEditing={roomEditSession?.messageId === message.id}
               editDraft={
-                editSession?.messageId === message.id ? editSession.draft : ""
+                roomEditSession?.messageId === message.id
+                  ? roomEditSession.draft
+                  : ""
               }
               onEditDraftChange={stableMessageHandlers.onEditDraftChange}
               onCancelEdit={stableMessageHandlers.onCancelEdit}
               onSaveEdit={stableMessageHandlers.onSaveEdit}
               isSavingEdit={
-                isSavingEdit && editSession?.messageId === message.id
+                isSavingEdit && roomEditSession?.messageId === message.id
               }
               showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
@@ -3650,10 +3659,10 @@ function RoomView({
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
-                onStartEdit={stableMessageHandlers.onStartEdit}
+                onStartEdit={stableMessageHandlers.onStartThreadEdit}
                 onDelete={stableMessageHandlers.onDelete}
                 onRemoveUnfurl={stableMessageHandlers.onRemoveUnfurl}
-                editSession={editSession}
+                editSession={editSession?.inThread ? editSession : null}
                 onEditDraftChange={stableMessageHandlers.onEditDraftChange}
                 onCancelEdit={stableMessageHandlers.onCancelEdit}
                 onSaveEdit={stableMessageHandlers.onSaveEdit}

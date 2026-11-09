@@ -9,7 +9,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useFormatter } from "next-intl";
+import { useFormatter, useNow } from "next-intl";
 import type { RoomMemberReadState } from "@/app/chat/hooks/use-room-read-receipts";
 import { AuroraOrb } from "@/components/aurora-orb";
 import {
@@ -154,7 +154,8 @@ function RosterMemberReadState({
   labels: RoomRosterPanelLabels;
 }) {
   const format = useFormatter();
-  const relative = format.relativeTime(readState.lastReadAt);
+  const now = useNow({ updateInterval: 60_000 });
+  const relative = format.relativeTime(readState.lastReadAt, now);
 
   return (
     <span

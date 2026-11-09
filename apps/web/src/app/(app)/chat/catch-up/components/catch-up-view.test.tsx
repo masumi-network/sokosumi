@@ -615,6 +615,36 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       expect(within(quiet).queryByText(/^Phil: /)).toBeNull();
     });
 
+    it.each([
+      ["a lone group spans the full width", false],
+      ["a group beside topics takes the side column", true],
+    ] as const)("%s", async (_name, twoColumns) => {
+      summaryAnswers({
+        topics: twoColumns ? [topic("t1")] : [],
+        quietRooms: [
+          {
+            roomId: "room-q",
+            roomName: "random",
+            roomKind: "channel",
+            unreadCount: 2,
+            latest: null,
+            mentionsYou: false,
+          },
+        ],
+      });
+
+      renderCatchUp();
+      await screen.findByRole("region", {
+        name: "App.Channels.Signals.Briefing.otherMessages 1",
+      });
+
+      expect(
+        screen
+          .getByTestId("catch-up-groups")
+          .className.includes("lg:grid-cols-"),
+      ).toBe(twoColumns);
+    });
+
     it("marks every unread room read at once", async () => {
       summaryAnswers({
         topics: [topic("t1"), topic("t2", { roomId: "room-b" })],
