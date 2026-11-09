@@ -53,6 +53,8 @@ import {
   listSokoBotVersions as coreListSokoBotVersions,
   reactivateSokoBot as coreReactivateSokoBot,
   removeMySokoBotSkill as coreRemoveMySokoBotSkill,
+  renameMySokoBot as coreRenameMySokoBot,
+  renameSokoBot as coreRenameSokoBot,
   resetMySokoBotMemory as coreResetMySokoBotMemory,
   resetSokoBotMemory as coreResetSokoBotMemory,
   resolveMySokoBotDecision as coreResolveMySokoBotDecision,
@@ -212,6 +214,17 @@ export function createSokoBotClient(getClient: GetCoreClient) {
             })
           : coreUpdateMySokoBotBoardFollowing({ client, body }),
       "Failed to update board following",
+    );
+  }
+
+  async function renameMySokoBot(body: { name: string }, sokoBotId?: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreRenameSokoBot({ client, path: { sokoBotId }, body })
+          : coreRenameMySokoBot({ client, body }),
+      "Failed to rename Soko Bot",
     );
   }
 
@@ -619,6 +632,7 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     updateMySokoBotProactive,
     sendMySokoBotTurnFeedback,
     updateMySokoBotBoardFollowing,
+    renameMySokoBot,
     updateMySokoBotVersion,
     getSokoBotTeam,
     listMySokoBotIntegrations,
