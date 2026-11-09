@@ -80,6 +80,9 @@ describe("CMO version", () => {
     expect(prompt).toContain("# Truth");
     expect(prompt).toContain("When the owner forbids or defers an action");
     expect(prompt).toContain("# You are Cuso");
+    expect(prompt).toContain(
+      "Answer in the language of the owner's latest message",
+    );
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
         "social-posting-instructions",
