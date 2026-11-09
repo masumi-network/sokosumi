@@ -753,6 +753,41 @@ describe("SEO workspace integration", () => {
     expect(count.querySelector("svg")).toBeNull();
   });
 
+  it("keeps the arrow on a search count that collapses from a busy week", () => {
+    const workspace = seoTestWorkspace();
+    const days = Array.from(
+      { length: 14 },
+      (_, day) => `2026-01-${String(day + 1).padStart(2, "0")}`,
+    );
+    workspace.metrics = [
+      {
+        id: "sync:impressions",
+        key: "impressions",
+        label: "",
+        unit: "count",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        from: days[0],
+        to: days[13],
+        timeZone: "UTC",
+        observedAt: new Date(),
+        coverage: "complete",
+        notes: [],
+        value: 4935,
+        // 4,900 impressions, then 35: a page that dropped out of the results.
+        points: days.map((date, day) => ({ date, value: day < 7 ? 700 : 5 })),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    const count = screen.getByText(/: 35 · week before: 4,900$/);
+    expect(count.querySelector("svg")).not.toBeNull();
+  });
+
   it("renders source measurements without replacing missing values with zero", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

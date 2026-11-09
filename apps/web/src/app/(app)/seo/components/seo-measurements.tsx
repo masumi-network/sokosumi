@@ -112,7 +112,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         muted: false,
       };
     // A search count still shows both weeks, but on a handful of impressions an arrow suggests a trend.
-    const trend = !weekImpressions || enoughImpressions;
+    // One busy week is enough: a collapse or a launch is a real change.
+    const trend =
+      !weekImpressions ||
+      Math.max(weekImpressions.current ?? 0, weekImpressions.previous ?? 0) >=
+        SEO_MIN_COMPARE_IMPRESSIONS;
     return {
       text: t("overview.weekCompare", values),
       Icon:
