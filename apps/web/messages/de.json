@@ -10641,7 +10641,7 @@
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
         "checkDetails": "Prüfdetails",
-        "diagnostics": "Messwerte und Hinweise zur Seite",
+        "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
         "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
@@ -10654,7 +10654,6 @@
         "weekBetter": "{period}: {current} · Woche davor: {previous}, besser",
         "weekWorse": "{period}: {current} · Woche davor: {previous}, schlechter",
         "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung.",
-        "basedOn": "Basierend auf {count, plural, one {# Impression} other {# Impressionen}}",
         "tooFewToCompareRates": "Zu wenige Impressionen für einen Wochenvergleich {which, select, ctr {der Klickrate} position {der durchschnittlichen Position} other {von Klickrate und durchschnittlicher Position}}.",
         "pickTile": "Wähle oben eine Zahl, um sie im Diagramm zu zeigen.",
         "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich: {current} im Zeitraum {period}, {previous} in der Woche davor."
@@ -10697,7 +10696,7 @@
         "add": "Mitbewerber hinzufügen",
         "suggested": "Vorgeschlagene konkurrierende Seite",
         "confirm": "Mitbewerber bestätigen",
-        "unconfirm": "Kein Wettbewerber",
+        "unconfirm": "Nicht mehr verfolgen",
         "rank": "Rang",
         "backlinks": "Backlinks",
         "domains": "Verweisende Domains",
@@ -10728,7 +10727,7 @@
         "checksIncomplete": "Diese Prüfungen sind unvollständig",
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
-        "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder öffne den SEO-Chat für die nächsten Schritte.",
+        "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder frag den SEO-Agenten nach den nächsten Schritten.",
         "fixesTitle": "Korrekturen für bestätigte Probleme",
         "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur braucht es eine neue Prüfung zur Bestätigung.",
         "opportunitiesTitle": "Vorschläge aus Suchdaten",
@@ -10795,7 +10794,8 @@
         "rulesUnavailable": "{count} nicht verfügbar",
         "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}",
         "viewResults": "Ergebnisse ansehen",
-        "checkSummaryEach": "je {checked, plural, one {# Test} other {# Tests}}"
+        "checkSummaryEach": "je {checked, plural, one {# Test} other {# Tests}}",
+        "device": "{device, select, mobile {Mobil} desktop {Desktop} other {{device}}}"
       },
       "analysis": {
         "title": "Prüfung starten",
@@ -10957,7 +10957,7 @@
         "all": "Alle Audits"
       },
       "chat": {
-        "title": "SEO-Chat",
+        "title": "SEO-Agent fragen",
         "description": "Stell Fragen zu den Seiten und Ergebnissen dieses Audits. Prüfe vorgeschlagene Aktionen, bevor du sie bestätigst.",
         "empty": "Was möchtest du verbessern?",
         "emptyBody": "Frage zu Seitenproblemen, Keyword-Positionen oder Zugriffen.",
@@ -10972,7 +10972,7 @@
         "you": "Du",
         "member": "Mitglied",
         "open": "{action} öffnen",
-        "auditRequired": "Öffne ein Audit, um den SEO-Chat zu nutzen.",
+        "auditRequired": "Öffne ein Audit, um den SEO-Agenten zu fragen.",
         "dailyLimit": "Du hast das heutige Limit für den SEO-Chat erreicht. Versuche es morgen erneut.",
         "createTask": "Aufgabenentwurf erstellen: {title}",
         "showEarlier": "{count, plural, one {# frühere Frage anzeigen} other {# frühere Fragen anzeigen}}",
@@ -11035,7 +11035,7 @@
         "noMatchBody": "Leere den Filter, um alle gespeicherten Suchanfragen zu sehen.",
         "empty": "Die Search Console lieferte keine Suchanfragen",
         "emptyBody": "Google zeigte in diesem Zeitraum keine zuordenbaren Suchen für diese Seiten. Anonymisierte Suchanfragen erscheinen nie.",
-        "hiddenImpressions": "Google nennt Suchanfragen für {listed, number} von {total, number} Impressionen. Seltene Suchanfragen blendet Google zum Schutz der Privatsphäre aus.",
+        "hiddenImpressions": "Google zeigt die Suchbegriffe nur für {listed, number} von {total, number} Impressionen. Seltene Suchen verbirgt Google aus Datenschutzgründen.",
         "buckets": {
           "label": "Suchanfragen nach durchschnittlicher Position",
           "top3": "Top 3",
@@ -11070,7 +11070,7 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "„{keyword}“ ist nicht unter den Suchen, die Google für diese Seiten auflistet. Der Agent entwirft einen Plan; du bestätigst jede Änderung.",
+          "keyword": "„{keyword}“ ist nicht unter den Suchen, die Google für {pages, plural, one {diese Seite} other {diese Seiten}} auflistet. Der Agent entwirft einen Plan; du bestätigst jede Änderung.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
         },
         "prompts": {

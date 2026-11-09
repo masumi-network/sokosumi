@@ -10641,7 +10641,7 @@
         "noFixes": "No fixes recommended from these checks",
         "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
         "checkDetails": "Check details",
-        "diagnostics": "Page measurements and notes",
+        "diagnostics": "Title, description and other page details",
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
@@ -10654,7 +10654,6 @@
         "weekBetter": "{period}: {current} · week before: {previous}, better",
         "weekWorse": "{period}: {current} · week before: {previous}, worse",
         "reportDelay": "Google reports search data a few days late.",
-        "basedOn": "From {count, plural, one {# impression} other {# impressions}}",
         "tooFewToCompareRates": "Too few impressions to compare weeks for {which, select, ctr {click-through rate} position {average position} other {click-through rate and average position}}.",
         "pickTile": "Select a number above to chart it.",
         "tooFewToCompare": "Too few impressions to compare weeks: {current} in {period}, {previous} the week before."
@@ -10697,7 +10696,7 @@
         "add": "Add a competitor",
         "suggested": "Suggested competing page",
         "confirm": "Confirm competitor",
-        "unconfirm": "Not a competitor",
+        "unconfirm": "Stop tracking",
         "rank": "Rank",
         "backlinks": "Backlinks",
         "domains": "Referring domains",
@@ -10728,7 +10727,7 @@
         "checksIncomplete": "These checks are incomplete",
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
-        "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or open SEO chat to decide what to do next.",
+        "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or ask the SEO agent what to do next.",
         "fixesTitle": "Fixes for confirmed issues",
         "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
         "opportunitiesTitle": "Suggestions from search data",
@@ -10795,7 +10794,8 @@
         "rulesUnavailable": "{count} unavailable",
         "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}",
         "viewResults": "View results",
-        "checkSummaryEach": "{checked, plural, one {# test} other {# tests}} each"
+        "checkSummaryEach": "{checked, plural, one {# test} other {# tests}} each",
+        "device": "{device, select, mobile {mobile} desktop {desktop} other {{device}}}"
       },
       "analysis": {
         "title": "Run a check",
@@ -10957,7 +10957,7 @@
         "all": "All audits"
       },
       "chat": {
-        "title": "SEO chat",
+        "title": "Ask the SEO agent",
         "description": "Ask about this audit's pages and results. Review suggested actions before you submit them.",
         "empty": "What would you like to improve?",
         "emptyBody": "Ask about page issues, keyword positions or traffic.",
@@ -10972,7 +10972,7 @@
         "you": "You",
         "member": "Member",
         "open": "Open {action}",
-        "auditRequired": "Open an audit to use SEO chat.",
+        "auditRequired": "Open an audit to ask the SEO agent.",
         "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow.",
         "createTask": "Create draft task: {title}",
         "showEarlier": "{count, plural, one {Show # earlier question} other {Show # earlier questions}}",
@@ -11035,7 +11035,7 @@
         "noMatchBody": "Clear the filter to see every saved query row.",
         "empty": "Search Console returned no query rows",
         "emptyBody": "Google showed no attributable searches for these pages in this period. Anonymized queries are never listed.",
-        "hiddenImpressions": "Google lists queries for {listed, number} of {total, number} impressions. It hides rare queries for privacy.",
+        "hiddenImpressions": "Google shows the search words for only {listed, number} of your {total, number} impressions. It hides rare searches for privacy.",
         "buckets": {
           "label": "Queries by average position",
           "top3": "Top 3",
@@ -11070,7 +11070,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "keyword": "“{keyword}” is not among the searches Google lists for these pages. The agent drafts a plan; you approve each change.",
+          "keyword": "“{keyword}” is not among the searches Google lists for {pages, plural, one {this page} other {these pages}}. The agent drafts a plan; you approve each change.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches."
         },
         "prompts": {

@@ -97,6 +97,23 @@ describe("SEO overview relevance", () => {
     expect(workspace.findings[0].id).toBe("measure");
   });
 
+  it("shows a measurement once per check when each device reported it", () => {
+    const workspace = seoTestWorkspace();
+    const measured = (id: string, observationId: string) => ({
+      ...finding(id, "measure"),
+      title: "Title length",
+      evidence: ["title 56 characters"],
+      observationId,
+    });
+    workspace.findings = [
+      { ...measured("desktop", "check-1"), device: "desktop" as const },
+      { ...measured("mobile", "check-1"), device: "mobile" as const },
+      // Another check keeps its own row, with its own date and evidence link.
+      measured("earlier", "check-0"),
+    ];
+    expect(seoOverviewModel(workspace).diagnostics).toHaveLength(2);
+  });
+
   it("ranks cited issues while preserving strategic proposals, unknown references and linked work", () => {
     const workspace = seoTestWorkspace();
     workspace.findings = [

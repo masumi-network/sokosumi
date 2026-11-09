@@ -54,7 +54,7 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText("12 tests · Desktop · 1 page")).toBeVisible();
+    expect(screen.getByText("12 tests · desktop")).toBeVisible();
     expect(
       screen.queryByText("Some requested work could not be completed."),
     ).toBeNull();
@@ -228,9 +228,7 @@ describe("SEO timeline recovery", () => {
     expect(rows).toHaveLength(2);
     const [clean, issues] = rows;
     expect(within(clean).getByText("No issues in 3 checks")).toBeVisible();
-    expect(
-      within(clean).getByText("24 tests · Desktop · 1 page"),
-    ).toBeVisible();
+    expect(within(clean).getByText("24 tests · desktop")).toBeVisible();
     expect(
       within(clean).getByText("Some earlier checks ran 12 tests."),
     ).toBeVisible();
@@ -308,8 +306,8 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    // Two folded checks of 12 tests are not 12 tests in all.
-    expect(screen.getByText("12 tests each · 1 page")).toBeVisible();
+    // Two folded checks of 12 tests are not 12 tests in all; one page needs no count.
+    expect(screen.getByText("12 tests each")).toBeVisible();
   });
 
   it("keeps clean checks for another market as their own rows", () => {
@@ -447,6 +445,8 @@ describe("SEO timeline recovery", () => {
     );
     expect(screen.getByText("Check results")).toBeVisible();
     expect(screen.queryByText("No issues found")).toBeNull();
+    // The view has one page, but this check covered two; the count stays.
+    expect(screen.getByText("10 tests · desktop · 2 pages")).toBeVisible();
   });
 
   it("shows a failed check and offers a reviewed new check without hiding its source Task", () => {

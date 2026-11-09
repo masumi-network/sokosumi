@@ -161,6 +161,7 @@ export function SeoTimeline({
   );
   const nodes = foldCleanChecks(synced, (node) => resultOf(node) === 0);
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
+  const onePage = workspace.scope.pageIds.length <= 1;
   // The market only tells runs apart when they used different ones.
   const manyMarkets =
     new Set(
@@ -284,14 +285,18 @@ export function SeoTimeline({
                         {observation.devices.length
                           ? ` · ${format.list(
                               observation.devices.map((device) =>
-                                t(`analysis.${device}`),
+                                t("timeline.device", { device }),
                               ),
                             )}`
                           : ""}
-                        {" · "}
-                        {t("pages.count", {
-                          count: observation.pageIds.length,
-                        })}
+                        {/* A one-page Audit needs no page count on every row. */}
+                        {onePage &&
+                        observation.pageIds.length === 1 &&
+                        viewed.has(observation.pageIds[0])
+                          ? ""
+                          : ` · ${t("pages.count", {
+                              count: observation.pageIds.length,
+                            })}`}
                         {/* One check names its gaps next to the count they belong to. */}
                         {!earlier.length && gapText(observation.coverage)
                           ? ` · ${gapText(observation.coverage)}`

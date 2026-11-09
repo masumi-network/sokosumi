@@ -26,10 +26,6 @@ function withKeys(base: Messages, extra: Messages): Messages {
 const messages = withKeys(enMessages as Messages, {
   App: {
     Seo: {
-      queries: {
-        hiddenImpressions:
-          "Google lists queries for {listed, number} of {total, number} impressions. It hides rare queries for privacy.",
-      },
       keywords: {
         searchConsoleAverage:
           "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
@@ -388,7 +384,9 @@ describe("Search Console queries", () => {
   it("names the impressions Google listed under no query", () => {
     renderWorkspace(searchQueryWorkspace());
     expect(
-      screen.getByText(/Google lists queries for 40 of 100 impressions/),
+      screen.getByText(
+        /Google shows the search words for only 40 of your 100 impressions/,
+      ),
     ).toBeVisible();
   });
 

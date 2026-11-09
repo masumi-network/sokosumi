@@ -62,13 +62,6 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           signDisplay,
         });
   }
-  const impressionsMetric = visible.find(
-    (metric) => metric.key === "impressions",
-  );
-  const totalImpressions =
-    impressionsMetric && impressionsMetric.coverage !== "unavailable"
-      ? impressionsMetric.value
-      : null;
   const weekImpressions = compared?.values.impressions;
   // A rate or an average over a handful of impressions moves at random from week to week.
   const enoughImpressions =
@@ -151,6 +144,34 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
       { month: "short", day: "numeric", timeZone: "UTC" },
     );
   }
+  // Sync sits in the header next to the date it changes, as on Keywords.
+  const syncButton = !active ? null : canSync &&
+    active.source === "search_console" ? (
+    <Button
+      variant="outline"
+      size="sm"
+      loading={model.pending}
+      onClick={() => {
+        void model.refreshSearchStatistics(active);
+      }}
+    >
+      {t("syncNow")}
+    </Button>
+  ) : canSync ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() =>
+        model.openStatistics(
+          active.source === "ga4" || active.source === "search_console"
+            ? active.source
+            : undefined,
+        )
+      }
+    >
+      {t("syncStatistics")}
+    </Button>
+  ) : null;
   return (
     <SeoSection
       title={t("overview.measurements")}
@@ -167,26 +188,33 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                     ? "statistics.channelOrganic"
                     : "statistics.channelAll",
                 )}`}
+            {" · "}
+            {t("overview.synced")} <SeoDate value={active.observedAt} />
           </>
         ) : undefined
       }
       actions={
         active && providers.length > 1 ? (
-          <SeoField
-            id="seo-performance-source"
-            label={t("statistics.provider")}
-          >
-            <SeoSelect
+          <div className="flex flex-wrap items-end gap-2">
+            <SeoField
               id="seo-performance-source"
-              value={provider}
-              onValueChange={setProvider}
-              options={providers.map((source) => ({
-                value: source,
-                label: t(`statistics.${source}`),
-              }))}
-            />
-          </SeoField>
-        ) : undefined
+              label={t("statistics.provider")}
+            >
+              <SeoSelect
+                id="seo-performance-source"
+                value={provider}
+                onValueChange={setProvider}
+                options={providers.map((source) => ({
+                  value: source,
+                  label: t(`statistics.${source}`),
+                }))}
+              />
+            </SeoField>
+            {syncButton}
+          </div>
+        ) : (
+          (syncButton ?? undefined)
+        )
       }
     >
       {active ? (
@@ -229,15 +257,6 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   >
                     {value(metric)}
                   </span>
-                  {/* A rate or an average says how many impressions it rests on. */}
-                  {(metric.key === "ctr" || metric.key === "position") &&
-                  totalImpressions !== null &&
-                  metric.value !== null &&
-                  metric.coverage !== "unavailable" ? (
-                    <span className="text-muted-foreground text-xs font-normal">
-                      {t("overview.basedOn", { count: totalImpressions })}
-                    </span>
-                  ) : null}
                   {/* One comparison line; "About this data" names both weeks. */}
                   {week ? (
                     moved ? (
@@ -306,47 +325,9 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               </p>
             )}
           </div>
-          <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-xs">
-            <p className="flex flex-wrap items-center gap-2">
-              <span>
-                {t("overview.synced")} <SeoDate value={active.observedAt} />
-              </span>
-              {/* Explains why the chart ends days before the sync. */}
-              {active.source === "search_console" ? (
-                <span>{t("overview.reportDelay")}</span>
-              ) : null}
-              {seoCoverageIsNews(active) ? (
-                <SeoState>{t(`coverageStatus.${active.coverage}`)}</SeoState>
-              ) : null}
-            </p>
-            {canSync && active.source === "search_console" ? (
-              <Button
-                variant="outline"
-                size="sm"
-                loading={model.pending}
-                onClick={() => {
-                  void model.refreshSearchStatistics(active);
-                }}
-              >
-                {t("syncNow")}
-              </Button>
-            ) : canSync ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  model.openStatistics(
-                    active.source === "ga4" ||
-                      active.source === "search_console"
-                      ? active.source
-                      : undefined,
-                  )
-                }
-              >
-                {t("syncStatistics")}
-              </Button>
-            ) : null}
-          </div>
+          {seoCoverageIsNews(active) ? (
+            <SeoState>{t(`coverageStatus.${active.coverage}`)}</SeoState>
+          ) : null}
           <details className="text-muted-foreground text-xs">
             <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-3 focus-visible:ring-2 focus-visible:outline-none">
               {t("overview.measurementDetails")}
@@ -359,6 +340,10 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                     previous: windowLabel(compared.previous),
                   })}
                 </p>
+              ) : null}
+              {/* Explains why the chart ends days before the sync. */}
+              {active.source === "search_console" ? (
+                <p>{t("overview.reportDelay")}</p>
               ) : null}
               <p>
                 {t("statistics.property")}: <bdi>{active.propertyId}</bdi>

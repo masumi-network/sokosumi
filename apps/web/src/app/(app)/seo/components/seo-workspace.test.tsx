@@ -439,7 +439,7 @@ describe("SEO workspace integration", () => {
       // The Timeline row carries the coverage; a second list would repeat it.
       expect(
         screen.queryByRole("heading", {
-          name: "Page measurements and notes",
+          name: "Title, description and other page details",
         }) !== null,
       ).toBe(!onTimeline);
       expect(
@@ -690,8 +690,6 @@ describe("SEO workspace integration", () => {
     // The line names the newest 7 days, so "week before" has a clear anchor.
     expect(change).toHaveTextContent(/^Oct 8\W+14:/);
     expect(screen.getByText(/: 140 · week before: 140$/)).toBeVisible();
-    // An average says how many impressions it rests on.
-    expect(screen.getByText("From 280 impressions")).toBeVisible();
   });
 
   it("puts the Google search totals under the agent verdict only when both counts exist", () => {
@@ -1792,7 +1790,9 @@ describe("SEO workspace integration", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}&tab=keywords`);
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
-    const panel = await screen.findByRole("dialog", { name: "SEO chat" });
+    const panel = await screen.findByRole("dialog", {
+      name: "Ask the SEO agent",
+    });
     expect(within(panel).getByLabelText("Your question")).toBeVisible();
     expect(
       await within(panel).findByText("What would you like to improve?"),
@@ -2156,7 +2156,9 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace, "tab=keywords");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
-    const panel = await screen.findByRole("dialog", { name: "SEO chat" });
+    const panel = await screen.findByRole("dialog", {
+      name: "Ask the SEO agent",
+    });
     await within(panel).findByText(history.turns[0].response);
     expect(within(panel).getByText("Alex")).toBeVisible();
     expect(within(panel).getByText("You")).toBeVisible();

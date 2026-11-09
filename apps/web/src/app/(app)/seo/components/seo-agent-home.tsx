@@ -50,7 +50,10 @@ function StepRow({
   const [body, control] =
     step.kind === "keyword"
       ? [
-          t("agent.steps.keyword", { keyword: step.keyword }),
+          t("agent.steps.keyword", {
+            keyword: step.keyword,
+            pages: model.data.scope.pageIds.length,
+          }),
           model.data.auditId ? (
             <Button
               key="keyword"

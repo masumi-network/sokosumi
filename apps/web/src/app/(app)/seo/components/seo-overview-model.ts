@@ -17,9 +17,23 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   const issues = workspace.findings
     .filter((finding) => issueRank(finding) < NON_ISSUE_RANK)
     .toSorted((left, right) => issueRank(left) - issueRank(right));
-  const diagnostics = workspace.findings.filter(
-    (finding) => issueRank(finding) === NON_ISSUE_RANK,
-  );
+  // Each device of one check can report the same measurement; one check shows it once.
+  const diagnostics = [
+    ...new Map(
+      workspace.findings
+        .filter((finding) => issueRank(finding) === NON_ISSUE_RANK)
+        .map((finding) => [
+          JSON.stringify([
+            finding.observationId,
+            finding.severity,
+            finding.title,
+            finding.pageUrl,
+            finding.evidence,
+          ]),
+          finding,
+        ]),
+    ).values(),
+  ];
   const findingRanks = new Map(
     issues.map((finding) => [finding.id, issueRank(finding)]),
   );
