@@ -4,11 +4,11 @@
 
 **Blocked by:** 02: Change the avatar in the console and admin; 03: Switch bots off crafted avatars
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] No Web surface renders per-state avatar pictures or loops
-- [ ] The studio pages and their Web route are gone, and their translation keys are removed in every locale
-- [ ] Core no longer serves the studio endpoints or the crafted fields; `avatarImageUrl`, `avatarSeed`, the pool listing, top-up and claim stay
-- [ ] The Core client snapshot is regenerated and Web typechecks
-- [ ] The Apple OpenAPI copy is refreshed; its structural diff shows only removed optional fields and removed studio operations
-- [ ] Existing tests for the touched surfaces pass with the still picture or the orb
+- [x] No Web surface renders per-state avatar pictures or loops
+- [x] The studio pages and their Web route are gone, and their translation keys are removed in every locale
+- [x] Core no longer serves the studio endpoints or the crafted fields; `avatarImageUrl`, `avatarSeed`, the pool listing, top-up and claim stay
+- [x] The Core client snapshot is regenerated and Web typechecks
+- [x] The Apple OpenAPI copy is refreshed; its structural diff shows only removed optional fields and removed studio operations
+- [x] Existing tests for the touched surfaces pass with the still picture or the orb
