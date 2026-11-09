@@ -179,7 +179,7 @@ describe("SEO competitor baselines", () => {
     expect(row?.lastElementChild).toBeEmptyDOMElement();
   });
 
-  it("says why a lone competitor is listed", () => {
+  it("shows no badge on a confirmed competitor", () => {
     const workspace = seoTestWorkspace();
     workspace.competitors = [
       {
@@ -203,8 +203,10 @@ describe("SEO competitor baselines", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    // A bare URL gives no reason; the state names it even when every row shares it.
-    expect(screen.getByText("Confirmed competitor")).toBeVisible();
+    // Confirmed is the default row; a badge would repeat on every row.
+    expect(screen.getByText("https://competitor.example/")).toBeVisible();
+    expect(screen.queryByText("Confirmed competitor")).toBeNull();
+    expect(screen.queryByText("Suggested competing page")).toBeNull();
     // The address may wrap after "." or "/", never inside "//"; its name stays whole.
     const link = screen.getByRole("link", {
       name: "https://competitor.example/",

@@ -733,7 +733,7 @@ describe("SEO workspace integration", () => {
     );
     const { unmount } = renderWorkspace(workspace);
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Google search: shown 35 times, 2 clicks · Jan 1\W+2, 2026$/,
+      /^Google search: 35 impressions, 2 clicks · Jan 1\W+2, 2026$/,
     );
     unmount();
     // Without clicks the line would read as zero clicks; it stays away.
@@ -791,18 +791,14 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getAllByText(/^Too few impressions to compare weeks/),
     ).toHaveLength(1);
+    // Both weeks are small: no tile compares, and the one note keeps both counts.
     expect(
       screen.getByText(
-        // Only the position tile is on show, so the note names only it.
-        "Too few impressions to compare weeks for average position.",
+        /^Too few impressions to compare weeks: 14 in Jan 8\W+14, 7 the week before\.$/,
       ),
     ).toBeVisible();
     expect(screen.queryByText(/better|worse/)).toBeNull();
-    // A count is a fact at any size; it keeps its numbers.
-    const count = screen.getByText(/: 14 · week before: 7$/);
-    expect(count).toBeVisible();
-    // The numbers stay; an arrow would read as a trend.
-    expect(count.querySelector("svg")).toBeNull();
+    expect(screen.queryByText(/week before: /)).toBeNull();
   });
 
   it("keeps the arrow on a search count that collapses from a busy week", () => {
@@ -830,6 +826,23 @@ describe("SEO workspace integration", () => {
         // 4,900 impressions, then 35: a page that dropped out of the results.
         points: days.map((date, day) => ({ date, value: day < 7 ? 700 : 5 })),
       },
+      {
+        id: "sync:position",
+        key: "position",
+        label: "",
+        unit: "position",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        from: days[0],
+        to: days[13],
+        timeZone: "UTC",
+        observedAt: new Date(),
+        coverage: "complete",
+        notes: [],
+        value: 4.5,
+        points: days.map((date, day) => ({ date, value: day < 7 ? 5 : 4 })),
+      },
     ];
     vi.stubGlobal(
       "fetch",
@@ -838,6 +851,13 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     const count = screen.getByText(/: 35 · week before: 4,900$/);
     expect(count.querySelector("svg")).not.toBeNull();
+    // 35 impressions cannot carry a position change; only the position note shows.
+    expect(
+      screen.getByText(
+        "Too few impressions to compare weeks for average position.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(/better|worse/)).toBeNull();
   });
 
   it("renders source measurements without replacing missing values with zero", async () => {

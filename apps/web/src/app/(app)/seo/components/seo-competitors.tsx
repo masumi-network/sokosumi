@@ -48,11 +48,12 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     shown.observed ? null : t("observed"),
   ].filter((label): label is string => label !== null);
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
+  // A confirmed competitor is the default row; only the other states need a badge.
   const state = (row: (typeof rows)[number]) =>
     row.role === "page"
       ? "competitors.yourPage"
       : row.confirmed
-        ? "competitors.confirmed"
+        ? null
         : "competitors.suggested";
   return (
     <SeoSection
@@ -129,14 +130,16 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                   model.data.availableActions.canEdit &&
                   row.role === "competitor" &&
                   (row.canConfirm || row.confirmed);
+                const badge = state(row);
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="min-w-56 whitespace-normal">
                       <SeoPageLink url={row.url} />
-                      {/* Without paid metrics, the state is what says why a row is listed. */}
-                      <div className="mt-1">
-                        <SeoState>{t(state(row))}</SeoState>
-                      </div>
+                      {badge ? (
+                        <div className="mt-1">
+                          <SeoState>{t(badge)}</SeoState>
+                        </div>
+                      ) : null}
                       {row.exclusionReason ? (
                         <p className="text-muted-foreground mt-2 text-sm">
                           {row.exclusionReason}

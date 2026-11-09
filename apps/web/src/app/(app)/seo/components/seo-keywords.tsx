@@ -145,7 +145,8 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                             {t("keywords.anyPage")}
                           </span>
                         )}
-                        {row.version > 0 ? (
+                        {/* One page in scope: the target can only be that page. */}
+                        {row.version > 0 && manyPages ? (
                           <p className="text-muted-foreground mt-1 text-xs">
                             {t("keywords.target")}:{" "}
                             {target?.label ||
@@ -290,7 +291,8 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                               </Button>
                             ) : null}
                             <Button
-                              variant="outline"
+                              // Removing is the quiet action, as on Competitors.
+                              variant={row.saved ? "ghost" : "outline"}
                               size="sm"
                               disabled={model.pending}
                               onClick={() => {

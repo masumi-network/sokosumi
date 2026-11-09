@@ -10656,7 +10656,8 @@
         "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
         "basedOn": "Según {count, plural, one {# impresión} other {# impresiones}}",
         "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
-        "pickTile": "Elige un número de arriba para verlo en el gráfico."
+        "pickTile": "Elige un número de arriba para verlo en el gráfico.",
+        "tooFewToCompare": "Muy pocas impresiones para comparar semanas: {current} del {period}, {previous} la semana anterior."
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10686,7 +10687,7 @@
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
         "searchConsoleNote": "Promedio de Search Console, todos los países",
-        "notListed": "No está entre las búsquedas que muestra Google",
+        "notListed": "No figura en la lista de Search Console",
         "notInKeptRows": "No está entre las primeras {count} filas guardadas"
       },
       "competitors": {
@@ -10694,7 +10695,6 @@
         "empty": "Todavía no hay competidores",
         "emptyBody": "Importa una auditoría para ver sugerencias o añade un competidor a tu lista.",
         "add": "Añadir un competidor",
-        "confirmed": "Competidor confirmado",
         "suggested": "Página competidora sugerida",
         "confirm": "Confirmar competidor",
         "unconfirm": "No es competidor",
@@ -10702,7 +10702,7 @@
         "backlinks": "Enlaces entrantes",
         "domains": "Dominios de referencia",
         "excluded": "No se puede confirmar este candidato.",
-        "help": "Páginas que compiten con la tuya por las mismas búsquedas. «Comparar con mi página» escribe una pregunta para el agente en el chat. No se envía ni cambia nada hasta que la envíes.",
+        "help": "Páginas que compiten con la tuya por las mismas búsquedas.",
         "yourPage": "Tu página",
         "compare": "Comparar con mi página",
         "compareDraft": "Compara mi página con {url}. ¿Qué hace mejor para las mismas búsquedas y qué debería cambiar primero?"
@@ -10793,7 +10793,9 @@
         "earlierRules": "Algunas comprobaciones anteriores hicieron {counts} pruebas.",
         "rulesSkipped": "{count} sin comprobar",
         "rulesUnavailable": "{count, plural, one {# no disponible} other {# no disponibles}}",
-        "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}"
+        "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
+        "viewResults": "Ver resultados",
+        "checkSummaryEach": "{checked, plural, one {# prueba} other {# pruebas}} cada una"
       },
       "analysis": {
         "title": "Iniciar comprobación",

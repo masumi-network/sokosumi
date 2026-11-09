@@ -79,13 +79,21 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     weekImpressions?.current != null &&
     weekImpressions.previous != null &&
     !enoughImpressions;
+  // Both weeks under the floor: no week line on any tile, one note gives the two counts.
+  const quietWeeks =
+    tooFew &&
+    Math.max(weekImpressions.current ?? 0, weekImpressions.previous ?? 0) <
+      SEO_MIN_COMPARE_IMPRESSIONS;
   const isRate = (key: string) => key === "ctr" || key === "position";
   // The rate tiles on show whose weeks are too small; the note names only these.
-  const quietRates = tooFew
-    ? visible
-        .filter((metric) => isRate(metric.key) && compared?.values[metric.key])
-        .map((metric) => metric.key)
-    : [];
+  const quietRates =
+    tooFew && !quietWeeks
+      ? visible
+          .filter(
+            (metric) => isRate(metric.key) && compared?.values[metric.key],
+          )
+          .map((metric) => metric.key)
+      : [];
   /** The last 7 days against the 7 before, with both values shown. A lower position is better. */
   function change(
     key: string,
@@ -115,8 +123,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         Icon: null,
         muted: false,
       };
-    // A search count still shows both weeks, but on a handful of impressions an arrow suggests a trend.
-    // One busy week is enough: a collapse or a launch is a real change.
+    // An arrow needs one busy week: a collapse or a launch is a real change.
     const trend =
       !weekImpressions ||
       Math.max(weekImpressions.current ?? 0, weekImpressions.previous ?? 0) >=
@@ -187,7 +194,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {visible.map((metric) => {
               const week =
-                tooFew && isRate(metric.key)
+                quietWeeks || (tooFew && isRate(metric.key))
                   ? null
                   : (compared?.values[metric.key] ?? null);
               const moved = week ? change(metric.key, week, metric.unit) : null;
@@ -257,7 +264,15 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               );
             })}
           </div>
-          {quietRates.length ? (
+          {quietWeeks && compared ? (
+            <p className="text-muted-foreground -mt-3 text-xs">
+              {t("overview.tooFewToCompare", {
+                period: windowLabel(compared.current),
+                current: format.number(weekImpressions.current ?? 0),
+                previous: format.number(weekImpressions.previous ?? 0),
+              })}
+            </p>
+          ) : quietRates.length ? (
             <p className="text-muted-foreground -mt-3 text-xs">
               {t("overview.tooFewToCompareRates", {
                 which: quietRates.length > 1 ? "both" : quietRates[0],

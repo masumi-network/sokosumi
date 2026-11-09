@@ -97,13 +97,6 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   );
   return (
     <SeoSection title={t("queries.title")}>
-      {/* Same toggle as Performance: the meaning of the columns stays one tap away. */}
-      <details className="text-muted-foreground px-2 pb-1 text-xs">
-        <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-3 focus-visible:ring-2 focus-visible:outline-none">
-          {t("overview.measurementDetails")}
-        </summary>
-        <p className="pt-1 pb-2 text-sm">{t("queries.help")}</p>
-      </details>
       {source ? (
         <p className="text-muted-foreground px-2 pb-3 text-xs">
           <SeoPeriod {...seoQueryPeriod(source, model.data.metrics)} /> ·{" "}
@@ -291,6 +284,13 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
           )}
         />
       )}
+      {/* Same toggle and place as Performance: after the data it explains. */}
+      <details className="text-muted-foreground px-2 pt-2 text-xs">
+        <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-3 focus-visible:ring-2 focus-visible:outline-none">
+          {t("overview.measurementDetails")}
+        </summary>
+        <p className="pt-1 pb-2 text-sm">{t("queries.help")}</p>
+      </details>
     </SeoSection>
   );
 }

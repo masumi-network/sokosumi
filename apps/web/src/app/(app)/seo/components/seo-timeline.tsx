@@ -81,12 +81,13 @@ export function SeoTimeline({
       .filter(Boolean)
       .join(" · ");
   }
-  const taskLink = (taskId: string) => (
+  // A check's Task holds its results; other events link to the Task itself.
+  const taskLink = (taskId: string, check = false) => (
     <Link
       href={`/tasks/${encodeURIComponent(taskId)}`}
       className="inline-block py-3 text-foreground underline underline-offset-4"
     >
-      {t("openTask")}
+      {t(check ? "timeline.viewResults" : "openTask")}
     </Link>
   );
   const taskStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -272,9 +273,13 @@ export function SeoTimeline({
                     ) : null}
                     {observation ? (
                       <p className="text-muted-foreground text-xs">
-                        {t("timeline.checkSummary", {
-                          checked: observation.coverage.checked,
-                        })}
+                        {t(
+                          // Folded checks that all ran the same count say it is per check.
+                          earlier.length && !earlierRules.length
+                            ? "timeline.checkSummaryEach"
+                            : "timeline.checkSummary",
+                          { checked: observation.coverage.checked },
+                        )}
                         {/* Devices tell rows with another rule count apart. */}
                         {observation.devices.length
                           ? ` · ${format.list(
@@ -314,7 +319,7 @@ export function SeoTimeline({
                       {observation && !earlier.length ? (
                         // One check needs no details: its Task is the record behind the row.
                         event.taskId ? (
-                          taskLink(event.taskId)
+                          taskLink(event.taskId, true)
                         ) : null
                       ) : (
                         <details className="text-muted-foreground">
@@ -361,7 +366,7 @@ export function SeoTimeline({
                                     {check.taskId ? (
                                       <>
                                         {" · "}
-                                        {taskLink(check.taskId)}
+                                        {taskLink(check.taskId, true)}
                                       </>
                                     ) : null}
                                   </p>

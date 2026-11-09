@@ -167,7 +167,8 @@ describe("SEO timeline recovery", () => {
     );
     // One time per check: the save time is not a second date.
     expect(within(recheck).queryByText("Saved")).toBeNull();
-    const task = within(recheck).getByRole("link", { name: "Open task" });
+    // A check's Task holds its results; the link says so.
+    const task = within(recheck).getByRole("link", { name: "View results" });
     expect(task).toHaveAttribute("href", "/tasks/second-task");
     // One check needs no Details: its Task sits on the row.
     expect(task).toBeVisible();
@@ -236,7 +237,7 @@ describe("SEO timeline recovery", () => {
     // Every folded check keeps its Task, on its own line, newest first.
     expect(
       within(clean)
-        .getAllByRole("link", { name: "Open task", hidden: true })
+        .getAllByRole("link", { name: "View results", hidden: true })
         .map((link) => link.getAttribute("href")),
     ).toEqual([
       "/tasks/clean-3-task",
@@ -250,14 +251,14 @@ describe("SEO timeline recovery", () => {
       within(clean).getByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov 4, 2026.* · Open task$/.test(element.textContent ?? ""),
+          /^Nov 4, 2026.* · View results$/.test(element.textContent ?? ""),
       ),
     ).toBeInTheDocument();
     expect(
       within(clean).getAllByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov [23], 2026.* · 12 tests · Open task$/.test(
+          /^Nov [23], 2026.* · 12 tests · View results$/.test(
             element.textContent ?? "",
           ),
       ),
@@ -267,7 +268,7 @@ describe("SEO timeline recovery", () => {
     expect(within(issues).getByText("3 issues found")).toBeVisible();
   });
 
-  it("leaves out an empty device list", () => {
+  it("leaves out an empty device list and says a folded count is per check", () => {
     const workspace = seoTestWorkspace();
     const check = (id: string, day: number) => ({
       id,
@@ -285,7 +286,7 @@ describe("SEO timeline recovery", () => {
       issues: 0,
       coverage: { checked: 12, skipped: 0, failed: 0 },
     });
-    workspace.observations = [check("only", 2)];
+    workspace.observations = [check("first", 1), check("only", 2)];
     workspace.timeline = workspace.observations.map((observation) => ({
       id: observation.id,
       kind: "check",
@@ -307,7 +308,8 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText("12 tests · 1 page")).toBeVisible();
+    // Two folded checks of 12 tests are not 12 tests in all.
+    expect(screen.getByText("12 tests each · 1 page")).toBeVisible();
   });
 
   it("keeps clean checks for another market as their own rows", () => {

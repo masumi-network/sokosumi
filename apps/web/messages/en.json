@@ -10656,7 +10656,8 @@
         "reportDelay": "Google reports search data a few days late.",
         "basedOn": "From {count, plural, one {# impression} other {# impressions}}",
         "tooFewToCompareRates": "Too few impressions to compare weeks for {which, select, ctr {click-through rate} position {average position} other {click-through rate and average position}}.",
-        "pickTile": "Select a number above to chart it."
+        "pickTile": "Select a number above to chart it.",
+        "tooFewToCompare": "Too few impressions to compare weeks: {current} in {period}, {previous} the week before."
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -10686,7 +10687,7 @@
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
         "searchConsoleNote": "Search Console average, all countries",
-        "notListed": "Not among the searches Google lists",
+        "notListed": "Not in Search Console's list",
         "notInKeptRows": "Not in the first {count} rows kept"
       },
       "competitors": {
@@ -10694,7 +10695,6 @@
         "empty": "No competitors yet",
         "emptyBody": "Import an audit for suggested search competitors or add a competitor to your list.",
         "add": "Add a competitor",
-        "confirmed": "Confirmed competitor",
         "suggested": "Suggested competing page",
         "confirm": "Confirm competitor",
         "unconfirm": "Not a competitor",
@@ -10702,7 +10702,7 @@
         "backlinks": "Backlinks",
         "domains": "Referring domains",
         "excluded": "This candidate cannot be confirmed.",
-        "help": "Pages that compete with yours for the same searches. “Compare with my page” writes a question for the agent in the chat. Nothing is sent or changed until you send it.",
+        "help": "Pages that compete with yours for the same searches.",
         "yourPage": "Your page",
         "compare": "Compare with my page",
         "compareDraft": "Compare my page with {url}. What does it do better for the same searches, and what should I change first?"
@@ -10793,7 +10793,9 @@
         "earlierRules": "Some earlier checks ran {counts} tests.",
         "rulesSkipped": "{count} not checked",
         "rulesUnavailable": "{count} unavailable",
-        "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}"
+        "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}",
+        "viewResults": "View results",
+        "checkSummaryEach": "{checked, plural, one {# test} other {# tests}} each"
       },
       "analysis": {
         "title": "Run a check",
@@ -11087,7 +11089,7 @@
         },
         "lastCheckOn": "Last check",
         "askHow": "Draft a plan",
-        "traffic": "Google search: shown {impressions, plural, one {# time} other {# times}}, {clicks, plural, one {# click} other {# clicks}}",
+        "traffic": "Google search: {impressions, plural, one {# impression} other {# impressions}}, {clicks, plural, one {# click} other {# clicks}}",
         "askShort": "Ask"
       },
       "scopeFilters": "Pages and filters",

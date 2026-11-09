@@ -10656,7 +10656,8 @@
         "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung.",
         "basedOn": "Basierend auf {count, plural, one {# Impression} other {# Impressionen}}",
         "tooFewToCompareRates": "Zu wenige Impressionen für einen Wochenvergleich {which, select, ctr {der Klickrate} position {der durchschnittlichen Position} other {von Klickrate und durchschnittlicher Position}}.",
-        "pickTile": "Wähle oben eine Zahl, um sie im Diagramm zu zeigen."
+        "pickTile": "Wähle oben eine Zahl, um sie im Diagramm zu zeigen.",
+        "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich: {current} im Zeitraum {period}, {previous} in der Woche davor."
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -10686,7 +10687,7 @@
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
         "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder",
-        "notListed": "Nicht unter den Suchen, die Google auflistet",
+        "notListed": "Nicht in der Search-Console-Liste",
         "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen"
       },
       "competitors": {
@@ -10694,7 +10695,6 @@
         "empty": "Noch keine Wettbewerber",
         "emptyBody": "Importiere ein Audit für Vorschläge oder füge einen Mitbewerber hinzu.",
         "add": "Mitbewerber hinzufügen",
-        "confirmed": "Bestätigter Mitbewerber",
         "suggested": "Vorgeschlagene konkurrierende Seite",
         "confirm": "Mitbewerber bestätigen",
         "unconfirm": "Kein Wettbewerber",
@@ -10702,7 +10702,7 @@
         "backlinks": "Backlinks",
         "domains": "Verweisende Domains",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
-        "help": "Seiten, die mit deiner Seite um dieselben Suchen konkurrieren. „Mit meiner Seite vergleichen“ schreibt eine Frage an den Agenten in den Chat. Nichts wird gesendet oder geändert, bis du sie sendest.",
+        "help": "Seiten, die mit deiner Seite um dieselben Suchen konkurrieren.",
         "yourPage": "Deine Seite",
         "compare": "Mit meiner Seite vergleichen",
         "compareDraft": "Vergleiche meine Seite mit {url}. Was macht sie bei denselben Suchanfragen besser, und was sollte ich zuerst ändern?"
@@ -10793,7 +10793,9 @@
         "earlierRules": "Einige frühere Prüfungen liefen mit {counts} Tests.",
         "rulesSkipped": "{count} nicht geprüft",
         "rulesUnavailable": "{count} nicht verfügbar",
-        "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}"
+        "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}",
+        "viewResults": "Ergebnisse ansehen",
+        "checkSummaryEach": "je {checked, plural, one {# Test} other {# Tests}}"
       },
       "analysis": {
         "title": "Prüfung starten",
@@ -11087,7 +11089,7 @@
         },
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Plan entwerfen",
-        "traffic": "Google-Suche: {impressions, plural, one {# Mal} other {# Mal}} gezeigt, {clicks, plural, one {# Klick} other {# Klicks}}",
+        "traffic": "Google-Suche: {impressions, plural, one {# Impression} other {# Impressionen}}, {clicks, plural, one {# Klick} other {# Klicks}}",
         "askShort": "Agent fragen"
       },
       "scopeFilters": "Seiten und Filter",

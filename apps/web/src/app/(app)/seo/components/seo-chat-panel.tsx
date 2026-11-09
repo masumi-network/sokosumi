@@ -293,9 +293,6 @@ export function SeoChatThread({
             </Button>
           ))}
         </div>
-        <p className="text-muted-foreground text-xs">
-          {t(chat.sharing === "organization" ? "chat.shared" : "chat.private")}
-        </p>
         <Label htmlFor={inputId}>{t("chat.question")}</Label>
         <Textarea
           id={inputId}
@@ -319,6 +316,10 @@ export function SeoChatThread({
           <Send className="size-4" />
           {t("chat.send")}
         </Button>
+        {/* Who can read the chat sits next to Send, where it matters. */}
+        <p className="text-muted-foreground text-xs">
+          {t(chat.sharing === "organization" ? "chat.shared" : "chat.private")}
+        </p>
       </form>
     </div>
   );
