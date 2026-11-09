@@ -938,6 +938,7 @@ export function ImageStudio({
           )}
         >
           <StudioBrandKitDialog
+            hasWebsite={Boolean(websiteUrl)}
             key={`brand-kit-${activeProjectId}`}
             onLogoChange={(logo) =>
               setBrandKitLogo({ projectId: activeProjectId, logo })

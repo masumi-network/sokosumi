@@ -12,6 +12,13 @@ export const studioBrandCopySchema = z
 
 export type StudioBrandCopy = z.infer<typeof studioBrandCopySchema>;
 
+export const studioWebsiteCopySchema = z
+  .object({
+    summary: studioBrandCopySchema.shape.summary.nullable(),
+    lines: studioBrandCopySchema.shape.approvedLines,
+  })
+  .openapi("StudioWebsiteCopy");
+
 export const studioBrandKitSchema = z
   .object({
     logo: z.string().url().nullable(),

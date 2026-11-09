@@ -4025,6 +4025,10 @@
       "brandKit": "Brand kit",
       "brandKitNewTab": "Open project design in a new tab",
       "BrandKit": {
+        "addWebsiteCopy": "Add website copy to draft",
+        "websiteCopyAdded": "Website copy added. Review it before saving.",
+        "websiteCopyEmpty": "There’s no new website copy to add.",
+        "websiteCopyError": "Could not read copy from the project website. Try again.",
         "logoFile": "Project logo file",
         "uploadLogo": "Upload logo",
         "replaceLogo": "Replace logo",

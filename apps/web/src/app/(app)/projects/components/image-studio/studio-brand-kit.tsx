@@ -5,7 +5,7 @@ import {
   resolveUserUploadContentType,
   STUDIO_LOGO_MIME_TYPES,
 } from "@sokosumi/utils";
-import { ExternalLink, ImagePlus, Palette } from "lucide-react";
+import { ExternalLink, Globe, ImagePlus, Palette } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getStudioBrandKit,
+  getStudioWebsiteCopy,
   saveStudioBrandCopy,
   uploadStudioProjectLogo,
 } from "@/lib/actions/image-studio/brand-kit";
@@ -42,9 +43,11 @@ function lines(value: string): string[] {
 }
 
 export function StudioBrandKitDialog({
+  hasWebsite = false,
   onLogoChange,
   projectId,
 }: {
+  hasWebsite?: boolean;
   onLogoChange: (logo: string | null) => void;
   projectId: string;
 }) {
@@ -63,10 +66,14 @@ export function StudioBrandKitDialog({
   >(null);
   const [brandPending, startTransition] = useTransition();
   const [logoPending, startLogoTransition] = useTransition();
-  const pending = brandPending || logoPending;
+  const [websitePending, startWebsiteTransition] = useTransition();
+  const pending = brandPending || logoPending || websitePending;
   const logoInput = useRef<HTMLInputElement>(null);
   const [logoMessage, setLogoMessage] = useState<
     "logoSaved" | "logoUploadError" | "logoFileInvalid" | null
+  >(null);
+  const [websiteMessage, setWebsiteMessage] = useState<
+    "websiteCopyAdded" | "websiteCopyEmpty" | "websiteCopyError" | null
   >(null);
   const copy: StudioBrandCopy = {
     summary: draft.summary.trim(),
@@ -84,6 +91,7 @@ export function StudioBrandKitDialog({
     startTransition(async () => {
       setMessage(null);
       setLogoMessage(null);
+      setWebsiteMessage(null);
       try {
         const next = await getStudioBrandKit({ projectId });
         setKit(next);
@@ -130,6 +138,46 @@ export function StudioBrandKitDialog({
     setDraft((current) => ({ ...current, [field]: value }));
     setDirty(true);
     if (message !== "conflict") setMessage(null);
+  }
+
+  function addWebsiteCopy() {
+    if (pending || !kit) return;
+    startWebsiteTransition(async () => {
+      setWebsiteMessage(null);
+      try {
+        const website = await getStudioWebsiteCopy({ projectId });
+        const seen = new Set(
+          copy.approvedLines.map((line) => line.toLowerCase()),
+        );
+        const additions = website.lines
+          .filter((line) => {
+            const key = line.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .slice(0, Math.max(0, MAX_LINES - copy.approvedLines.length));
+        const summary = !copy.summary ? website.summary : null;
+        if (!summary && !additions.length) {
+          setWebsiteMessage("websiteCopyEmpty");
+          return;
+        }
+        setDraft({
+          ...draft,
+          summary: summary ?? draft.summary,
+          approvedLines: additions.length
+            ? [draft.approvedLines.trimEnd(), ...additions]
+                .filter(Boolean)
+                .join("\n")
+            : draft.approvedLines,
+        });
+        setDirty(true);
+        setWebsiteMessage("websiteCopyAdded");
+        if (message !== "conflict") setMessage(null);
+      } catch {
+        setWebsiteMessage("websiteCopyError");
+      }
+    });
   }
 
   function save() {
@@ -185,6 +233,26 @@ export function StudioBrandKitDialog({
           <DialogTitle>{t("brandKit")}</DialogTitle>
           <DialogDescription>{t("BrandKit.description")}</DialogDescription>
         </DialogHeader>
+        {kit && hasWebsite ? (
+          <div className="space-y-2">
+            <Button
+              disabled={pending}
+              loading={websitePending}
+              onClick={addWebsiteCopy}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <Globe aria-hidden />
+              {t("BrandKit.addWebsiteCopy")}
+            </Button>
+            {websiteMessage ? (
+              <p role="status" className="text-muted-foreground text-sm">
+                {t(`BrandKit.${websiteMessage}`)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {kit ? (
           <fieldset className="min-w-0 space-y-4" disabled={pending}>
             <div className="space-y-2">

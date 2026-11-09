@@ -7,13 +7,17 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
-import { readStudioBrandKit } from "@/lib/image-studio/studio-brand";
+import {
+  readStudioBrandKit,
+  readStudioWebsiteCopy,
+} from "@/lib/image-studio/studio-brand";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.schema";
 import {
   saveStudioBrandCopySchema,
   studioBrandKitSchema,
+  studioWebsiteCopySchema,
 } from "@/schemas/studio-brand-kit.schema";
 import { saveStudioBrandCopy } from "@/services/brand-brain.service";
 
@@ -64,6 +68,22 @@ const putRoute = withOrganizationSlugHeaderParameter(
   }),
 );
 
+const websiteCopyRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "get",
+    path: `${path}/website-copy`,
+    operationId: "getStudioWebsiteCopy",
+    tags,
+    request: { params: imageStudioProjectParamsSchema },
+    responses: {
+      200: jsonSuccessResponse(studioWebsiteCopySchema, "Website copy draft"),
+      ...accessErrors,
+      422: jsonErrorResponse("Project website missing"),
+      502: jsonErrorResponse("Website could not be read"),
+    },
+  }),
+);
+
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
   app.openapi(getRoute, async (c) => {
     const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
@@ -71,6 +91,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     const { id: projectId } = c.req.valid("param");
     await requireProjectAccess({ userId, workspaceId, projectId });
     return ok(c, await readStudioBrandKit(projectId));
+  });
+
+  app.openapi(websiteCopyRoute, async (c) => {
+    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
+    const { id: projectId } = c.req.valid("param");
+    await requireProjectAccess({ userId, workspaceId, projectId });
+    return ok(c, await readStudioWebsiteCopy(projectId));
   });
 
   app.openapi(putRoute, async (c) => {

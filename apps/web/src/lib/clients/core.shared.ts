@@ -4,6 +4,7 @@ import {
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   getStudioBrandKit as coreGetStudioBrandKit,
   getStudioProductCatalog as coreGetStudioProductCatalog,
+  getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
   importStudioProductCatalog as coreImportStudioProductCatalog,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
@@ -4173,6 +4174,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getStudioWebsiteCopy(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioWebsiteCopy({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch website copy for Studio",
+    );
+  }
+
   async function uploadStudioProjectLogo(id: string, file: File) {
     return executeCoreOperation(
       getClient,
@@ -7050,6 +7060,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     attachStudioProductPhoto,
     getStudioProductCatalog,
     getStudioBrandKit,
+    getStudioWebsiteCopy,
     saveStudioBrandCopy,
     uploadStudioProjectLogo,
     replaceStudioProductCatalog,

@@ -4025,6 +4025,10 @@
       "brandKit": "Kit de marca",
       "brandKitNewTab": "Abrir el diseño del proyecto en una pestaña nueva",
       "BrandKit": {
+        "addWebsiteCopy": "Añadir texto del sitio web al borrador",
+        "websiteCopyAdded": "Texto del sitio web añadido. Revísalo antes de guardar.",
+        "websiteCopyEmpty": "No hay texto nuevo del sitio web para añadir.",
+        "websiteCopyError": "No se pudo leer el texto del sitio web del proyecto. Inténtalo de nuevo.",
         "logoFile": "Archivo del logotipo del proyecto",
         "uploadLogo": "Subir logotipo",
         "replaceLogo": "Reemplazar logotipo",

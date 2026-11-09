@@ -146,6 +146,7 @@ describe("Studio product catalog", () => {
     });
     expect(screen.getByLabelText("name")).toHaveValue("Local edits");
 
+    await waitFor(() => expect(reload).toBeEnabled());
     fireEvent.click(reload);
     await waitFor(() =>
       expect(screen.getByLabelText("name")).toHaveValue("Updated vase"),

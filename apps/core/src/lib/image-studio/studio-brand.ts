@@ -1,8 +1,15 @@
 import { designMdBrandLook, isOwnedProjectLogoUrl } from "@sokosumi/utils";
+import { DomUtils, parseDocument } from "htmlparser2";
 
+import { badGateway, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
-import { studioBrandKitSchema } from "@/schemas/studio-brand-kit.schema";
+import { parseOpenGraphFields } from "@/lib/open-graph-html";
+import { readHomepage } from "@/lib/site-platform";
+import {
+  studioBrandKitSchema,
+  studioWebsiteCopySchema,
+} from "@/schemas/studio-brand-kit.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 
 /** Enough for colours, type, and voice. The stored job prompt stays the brief. */
@@ -99,6 +106,55 @@ export async function readStudioBrandKit(projectId: string) {
     approvedLines: brain?.voice.examples ?? [],
     version: project.brandBrain?.updatedAt?.toISOString() ?? null,
   });
+}
+
+export async function readStudioWebsiteCopy(projectId: string) {
+  const { websiteUrl } = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: { websiteUrl: true },
+  });
+  if (!websiteUrl) throw unprocessableEntity("Set a project website first");
+  const page = await readHomepage(websiteUrl);
+  const contentType = page?.headers
+    .get("content-type")
+    ?.split(";")[0]
+    ?.trim()
+    .toLowerCase();
+  if (
+    !page ||
+    (contentType !== "text/html" && contentType !== "application/xhtml+xml")
+  ) {
+    throw badGateway("Could not read the project website");
+  }
+
+  const html = page.html.slice(0, 512 * 1024);
+  const document = parseDocument(html);
+  const description = DomUtils.getElementsByTagName(
+    "meta",
+    document.children,
+  ).find((tag) => tag.attribs.name?.toLowerCase() === "description")?.attribs
+    .content;
+  const summary = websiteCopyLine(
+    parseOpenGraphFields(html).description ?? description,
+  );
+  const main = DomUtils.getElementsByTagName("main", document.children)[0];
+  const headlines = DomUtils.getElementsByTagName(
+    (name) => name === "h1" || name === "h2",
+    main?.children ?? document.children,
+  );
+  const lines = [
+    ...new Set(
+      headlines
+        .map((heading) => websiteCopyLine(DomUtils.textContent(heading)))
+        .filter((line): line is string => line !== null && line !== summary),
+    ),
+  ].slice(0, 4);
+  return studioWebsiteCopySchema.parse({ summary, lines });
+}
+
+function websiteCopyLine(value: string | undefined | null): string | null {
+  const text = value?.replace(/\s+/g, " ").trim();
+  return text && text.length <= 2_000 ? text : null;
 }
 
 /** The Brand Brain lines a picture can follow: its summary, voice, audience and products. */

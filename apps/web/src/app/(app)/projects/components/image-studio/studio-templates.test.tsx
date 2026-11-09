@@ -44,10 +44,12 @@ const mocks = vi.hoisted(() => ({
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
   uploadLogo: vi.fn(),
+  loadWebsiteCopy: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   getStudioBrandKit: mocks.loadBrandKit,
+  getStudioWebsiteCopy: mocks.loadWebsiteCopy,
   saveStudioBrandCopy: mocks.saveBrandCopy,
   uploadStudioProjectLogo: mocks.uploadLogo,
 }));
@@ -74,7 +76,7 @@ vi.mock("./use-generation-queue", () => ({
   }),
 }));
 
-function mount() {
+function mount(websiteUrl?: string) {
   return render(
     <ImageStudio
       catalog={TEST_CATALOG}
@@ -82,6 +84,7 @@ function mount() {
       initialState={{ assets: [], jobs: [], sessions: [] } as never}
       labels={TEST_LABELS}
       projectId="p"
+      websiteUrl={websiteUrl}
     />,
   );
 }
@@ -145,6 +148,66 @@ describe("starting from a template", () => {
         tone: "Direct",
         audience: ["Home cooks"],
         approvedLines: ["Made from reclaimed clay.", "Fired in Prague."],
+      },
+    });
+  });
+
+  it("adds website copy to the draft and only saves after review", async () => {
+    mocks.saveBrandCopy.mockClear();
+    const version = new Date("2026-11-09T12:00:00.000Z");
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "",
+      tone: "Direct",
+      audience: ["Home cooks"],
+      approvedLines: ["Fired in Prague."],
+      version,
+    });
+    mocks.loadWebsiteCopy.mockResolvedValueOnce({
+      summary: "A ceramics studio",
+      lines: ["fired in Prague.", "Made from reclaimed clay."],
+    });
+    mocks.saveBrandCopy.mockResolvedValueOnce({
+      ok: true,
+      version: new Date(),
+    });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const summary = await screen.findByLabelText("BrandKit.summary");
+    const copy = screen.getByLabelText("BrandKit.approvedLines");
+    await waitFor(() => expect(copy).toBeEnabled());
+    fireEvent.change(copy, {
+      target: { value: "Fired in Prague.\nWheel-thrown." },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "BrandKit.addWebsiteCopy" }),
+    );
+    await screen.findByText("BrandKit.websiteCopyAdded");
+    expect(mocks.loadWebsiteCopy).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+    });
+    expect(summary).toHaveValue("A ceramics studio");
+    expect(copy).toHaveValue(
+      "Fired in Prague.\nWheel-thrown.\nMade from reclaimed clay.",
+    );
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "BrandKit.save" }));
+    await screen.findByText("BrandKit.saved");
+    expect(mocks.saveBrandCopy).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      version,
+      copy: {
+        summary: "A ceramics studio",
+        tone: "Direct",
+        audience: ["Home cooks"],
+        approvedLines: [
+          "Fired in Prague.",
+          "Wheel-thrown.",
+          "Made from reclaimed clay.",
+        ],
       },
     });
   });

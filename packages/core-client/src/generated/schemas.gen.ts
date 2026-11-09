@@ -38873,6 +38873,33 @@ export const StudioBrandKitSchema = {
     ]
 } as const;
 
+export const StudioWebsiteCopySchema = {
+    type: 'object',
+    properties: {
+        summary: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        lines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        }
+    },
+    required: [
+        'summary',
+        'lines'
+    ]
+} as const;
+
 export const SaveStudioBrandCopySchema = {
     type: 'object',
     properties: {

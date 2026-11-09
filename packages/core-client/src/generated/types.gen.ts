@@ -10355,6 +10355,11 @@ export type StudioBrandKit = {
     version: Date | null;
 };
 
+export type StudioWebsiteCopy = {
+    summary: string | null;
+    lines: Array<string>;
+};
+
 export type SaveStudioBrandCopy = {
     copy: StudioBrandCopy;
     version: Date | null;
@@ -67542,6 +67547,117 @@ export type SaveStudioBrandCopyResponses = {
 };
 
 export type SaveStudioBrandCopyResponse = SaveStudioBrandCopyResponses[keyof SaveStudioBrandCopyResponses];
+
+export type GetStudioWebsiteCopyData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/website-copy';
+};
+
+export type GetStudioWebsiteCopyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project website missing
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Website could not be read
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetStudioWebsiteCopyError = GetStudioWebsiteCopyErrors[keyof GetStudioWebsiteCopyErrors];
+
+export type GetStudioWebsiteCopyResponses = {
+    /**
+     * Website copy draft
+     */
+    200: {
+        data: StudioWebsiteCopy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetStudioWebsiteCopyResponse = GetStudioWebsiteCopyResponses[keyof GetStudioWebsiteCopyResponses];
 
 export type UploadStudioProjectLogoData = {
     body: {

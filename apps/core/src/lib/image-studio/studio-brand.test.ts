@@ -29,6 +29,7 @@ import {
   applyStudioBrandPrompt,
   loadStudioBrand,
   readStudioBrandKit,
+  readStudioWebsiteCopy,
 } from "@/lib/image-studio/studio-brand";
 
 const DESIGN_MD_URL =
@@ -167,6 +168,55 @@ describe("readStudioBrandKit", () => {
       audience: ["Home cooks"],
       approvedLines: ["Made from reclaimed clay."],
       version: version.toISOString(),
+    });
+  });
+});
+
+describe("readStudioWebsiteCopy", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("reads the stored website and returns its description and distinct main headings", async () => {
+    const websiteUrl = "https://fieldwork.example";
+    projectFindUniqueOrThrowMock.mockResolvedValueOnce({ websiteUrl });
+    ssrfSafeFetchMock.mockResolvedValueOnce(
+      new Response(
+        `<head><meta name="description" content="Coffee &amp; gear."></head>
+         <header><h2>Sign in</h2></header>
+         <main><h1>Brew at your own pace.</h1>
+           <h2>Good coffee, <em>anywhere</em>.</h2>
+           <h2>Good coffee, anywhere.</h2>
+           <h2>Coffee &amp; gear.</h2>
+         </main>`,
+        { headers: { "Content-Type": "text/html; charset=utf-8" } },
+      ),
+    );
+    await expect(readStudioWebsiteCopy("project-1")).resolves.toEqual({
+      summary: "Coffee & gear.",
+      lines: ["Brew at your own pace.", "Good coffee, anywhere."],
+    });
+    expect(projectFindUniqueOrThrowMock).toHaveBeenCalledExactlyOnceWith({
+      where: { id: "project-1" },
+      select: { websiteUrl: true },
+    });
+    expect(ssrfSafeFetchMock).toHaveBeenCalledExactlyOnceWith(
+      `${websiteUrl}/`,
+      expect.objectContaining({ maxResponseBytes: expect.any(Number) }),
+    );
+  });
+
+  it("reports missing and unreachable websites without modifying the brand kit", async () => {
+    projectFindUniqueOrThrowMock.mockResolvedValueOnce({ websiteUrl: null });
+    await expect(readStudioWebsiteCopy("project-1")).rejects.toMatchObject({
+      status: 422,
+    });
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+
+    projectFindUniqueOrThrowMock.mockResolvedValueOnce({
+      websiteUrl: "https://fieldwork.example",
+    });
+    ssrfSafeFetchMock.mockRejectedValueOnce(new Error("fetch blocked"));
+    await expect(readStudioWebsiteCopy("project-1")).rejects.toMatchObject({
+      status: 502,
     });
   });
 });
