@@ -38,6 +38,9 @@ import mountSimulateMySokoBotTaskEvent from "./me/lab/task-event/post.js";
 import mountResetMySokoBotMemory, {
   mountById as mountResetSokoBotMemory,
 } from "./me/memory/reset/post.js";
+import mountRenameMySokoBot, {
+  mountById as mountRenameSokoBot,
+} from "./me/name/put.js";
 import mountDeleteMySokoBotPermanently, {
   mountById as mountDeleteSokoBotPermanently,
 } from "./me/permanent/delete.js";
@@ -118,6 +121,7 @@ mountListSokoBotVersions(app);
 mountUpdateMySokoBotProactive(app);
 mountSendMySokoBotTurnFeedback(app);
 mountUpdateMySokoBotBoardFollowing(app);
+mountRenameMySokoBot(app);
 mountUpdateMySokoBotVersion(app);
 mountRunMySokoBotLabIngest(app);
 mountSimulateMySokoBotTaskEvent(app);
@@ -141,6 +145,7 @@ mountResetSokoBotMemory(app);
 mountDeleteSokoBotPermanently(app);
 mountUpdateSokoBotProactive(app);
 mountUpdateSokoBotBoardFollowing(app);
+mountRenameSokoBot(app);
 mountResolveSokoBotDecision(app);
 mountCancelSokoBotTurn(app);
 mountGetSokoBotTurn(app);

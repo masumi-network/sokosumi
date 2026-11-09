@@ -1,37 +1,42 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createSokoBotScheduleAction } from "@/lib/actions/soko-bot/action";
+import {
+  type ScheduleRepeat,
+  type ScheduleWhen,
+  selectionToWhen,
+  upcomingRuns,
+} from "@/lib/schedules/schedule-when";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
+import { sokoBotScheduleCron } from "@/lib/soko-bot/schedule-cron";
+import { isValidCronExpression } from "@/lib/utils/task-schedule";
 import { useSokoBotTargetId } from "./soko-bot-target";
 
 const DEFAULT_CRON = "0 9 * * 1-5";
 
-/** Minimal create form: name, cron, timezone, prompt. Collapsed until opened. */
-export function ScheduleForm() {
-  const botId = useSokoBotTargetId();
+/** Core runs a bot schedule forever on one cron: no interval, no end. */
+const REPEATS: readonly ScheduleRepeat[] = [
+  "daily",
+  "weekdays",
+  "weekly",
+  "monthly",
+  "custom",
+];
+
+/** Collapsed until opened; each opening starts fresh in the bot's timezone. */
+export function ScheduleForm({ timezone }: { timezone?: string }) {
   const t = useTranslations("App.SokoBot.Schedules.Form");
-  const router = useRouter();
-  const ids = {
-    name: useId(),
-    cron: useId(),
-    timezone: useId(),
-    prompt: useId(),
-  };
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [cronExpression, setCronExpression] = useState(DEFAULT_CRON);
-  const [timezone, setTimezone] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [isPending, startTransition] = useTransition();
 
   if (!open) {
     return (
@@ -39,25 +44,56 @@ export function ScheduleForm() {
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => {
-          setTimezone((current) => current || getDefaultTimezone());
-          setOpen(true);
-        }}
+        onClick={() => setOpen(true)}
       >
         {t("open")}
       </Button>
     );
   }
+  return (
+    <OpenScheduleForm timezone={timezone} onClose={() => setOpen(false)} />
+  );
+}
+
+function OpenScheduleForm({
+  timezone,
+  onClose,
+}: {
+  timezone?: string;
+  onClose: () => void;
+}) {
+  const botId = useSokoBotTargetId();
+  const t = useTranslations("App.SokoBot.Schedules.Form");
+  const tWhen = useTranslations("App.Tasks.Schedules.Dialog.When");
+  const formatter = useFormatter();
+  const router = useRouter();
+  const ids = { name: useId(), prompt: useId(), next: useId() };
+  const [name, setName] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [when, setWhen] = useState<ScheduleWhen>(() =>
+    selectionToWhen({
+      timezone: timezone ?? getDefaultTimezone(),
+      cron: DEFAULT_CRON,
+    }),
+  );
+  const [isPending, startTransition] = useTransition();
+
+  const cron = sokoBotScheduleCron(when);
+  const valid = cron !== null && isValidCronExpression(cron, when.timezone);
+  const [next] = valid
+    ? upcomingRuns({ timezone: when.timezone, cron }, 1)
+    : [];
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!cron || !valid) return;
     startTransition(async () => {
       const result = await createSokoBotScheduleAction({
         botId,
         input: {
           name: name.trim(),
-          cronExpression: cronExpression.trim(),
-          timezone: timezone.trim(),
+          cronExpression: cron,
+          timezone: when.timezone,
           prompt: prompt.trim(),
         },
       });
@@ -66,10 +102,7 @@ export function ScheduleForm() {
         return;
       }
       toast.success(t("created"));
-      setName("");
-      setPrompt("");
-      setCronExpression(DEFAULT_CRON);
-      setOpen(false);
+      onClose();
       router.refresh();
     });
   }
@@ -86,33 +119,12 @@ export function ScheduleForm() {
           required
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor={ids.cron}>{t("cron")}</Label>
-          <Input
-            id={ids.cron}
-            value={cronExpression}
-            onChange={(event) => setCronExpression(event.target.value)}
-            className="font-mono"
-            maxLength={64}
-            required
-            aria-describedby={`${ids.cron}-hint`}
-          />
-          <p id={`${ids.cron}-hint`} className="text-muted-foreground text-xs">
-            {t("cronHint")}
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={ids.timezone}>{t("timezone")}</Label>
-          <Input
-            id={ids.timezone}
-            value={timezone}
-            onChange={(event) => setTimezone(event.target.value)}
-            maxLength={64}
-            required
-          />
-        </div>
-      </div>
+      <TaskScheduleWhen
+        value={when}
+        onChange={setWhen}
+        repeats={REPEATS}
+        showEnds={false}
+      />
       <div className="space-y-1.5">
         <Label htmlFor={ids.prompt}>{t("prompt")}</Label>
         <Textarea
@@ -124,17 +136,36 @@ export function ScheduleForm() {
           required
         />
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <p
+          id={ids.next}
+          aria-live="polite"
+          className="text-muted-foreground mr-auto text-xs tabular-nums"
+        >
+          {next
+            ? tWhen("next", {
+                date: `${formatter.dateTime(next, "dateTimeMedium", {
+                  timeZone: when.timezone,
+                })} (${when.timezone.replaceAll("_", " ")})`,
+              })
+            : tWhen("noNext")}
+        </p>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setOpen(false)}
+          onClick={onClose}
           disabled={isPending}
         >
           {t("cancel")}
         </Button>
-        <Button type="submit" size="sm" loading={isPending}>
+        <Button
+          type="submit"
+          size="sm"
+          loading={isPending}
+          disabled={!valid}
+          aria-describedby={ids.next}
+        >
           {t("submit")}
         </Button>
       </div>
