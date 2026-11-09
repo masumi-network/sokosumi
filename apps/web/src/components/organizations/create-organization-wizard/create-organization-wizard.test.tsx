@@ -417,6 +417,37 @@ describe("CreateOrganizationWizard", () => {
     expect(screen.getByText("Invite.title")).toBeTruthy();
   });
 
+  it("says a rejected logo failed in the page's language, not FileUpload's English", async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    const dropzone = await screen.findByRole("button", {
+      name: "Logo.dropzone",
+    });
+    const [inputId] = (dropzone.getAttribute("aria-controls") ?? "").split(" ");
+    const input = document.getElementById(inputId ?? "") as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["not a logo"], "notes.txt", { type: "text/plain" }),
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Logo.uploadError");
+    });
+    expect(toastErrorMock).not.toHaveBeenCalledWith("File type not accepted");
+    expect(organizationUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("offers to replace a found logo and continues instead of skipping", async () => {
     resolveOrganizationSiteIconMock.mockResolvedValue({
       ok: true,

@@ -860,9 +860,9 @@ export function CreateOrganizationWizard({
                     multiple={false}
                     disabled={isUploadingLogo}
                     onAccept={handleLogoUpload}
-                    onFileReject={(_file: File, message?: string) => {
-                      toast.error(message ?? t("Logo.uploadError"));
-                    }}
+                    // FileUpload's reasons are English; one translated line covers
+                    // size, type and count, as `logoLabels` does.
+                    onFileReject={() => toast.error(t("Logo.uploadError"))}
                     className="mx-auto mt-8 w-full max-w-md"
                   >
                     <FileUploadDropzone
@@ -900,9 +900,9 @@ export function CreateOrganizationWizard({
                       multiple={false}
                       disabled={isUploadingLogo}
                       onAccept={handleLogoUpload}
-                      onFileReject={(_file: File, message?: string) => {
-                        toast.error(message ?? t("Logo.uploadError"));
-                      }}
+                      // FileUpload's reasons are English; one translated line covers
+                      // size, type and count, as `logoLabels` does.
+                      onFileReject={() => toast.error(t("Logo.uploadError"))}
                     >
                       <FileUploadTrigger asChild>
                         <Button
