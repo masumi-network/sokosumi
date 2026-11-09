@@ -480,7 +480,10 @@ describe("SEO workspace integration", () => {
       points: [],
       notes: [],
     };
-    workspace.metrics = [clicks];
+    workspace.metrics = [
+      clicks,
+      { ...clicks, id: "sync:ctr", key: "ctr", unit: "ratio", value: 0.057 },
+    ];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -490,6 +493,8 @@ describe("SEO workspace integration", () => {
     if (!row) throw new Error("Page row missing");
     expect(within(row).getByText("Search clicks")).toBeVisible();
     expect(within(row).getByText("7")).toBeVisible();
+    // The same rate the Performance tiles show, as a percent.
+    expect(within(row).getByText("5.7%")).toBeVisible();
     expect(within(row).getByText("Not checked yet")).toBeVisible();
     // One page has nothing to switch to.
     expect(within(row).queryByRole("button", { name: "View page" })).toBeNull();

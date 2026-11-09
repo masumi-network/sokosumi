@@ -136,7 +136,8 @@ function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
 }
 
 /** Search totals that belong to one page: only when the saved statistics cover that page alone. */
-const PAGE_TOTALS = ["clicks", "impressions", "position"] as const;
+// The same order as the Performance tiles.
+const PAGE_TOTALS = ["clicks", "impressions", "ctr", "position"] as const;
 
 export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
@@ -218,10 +219,17 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                             {t(`metrics.${key}`)}
                           </dt>
                           <dd className="font-medium tabular-nums">
-                            {format.number(value, {
-                              minimumFractionDigits: key === "position" ? 1 : 0,
-                              maximumFractionDigits: key === "position" ? 1 : 0,
-                            })}
+                            {key === "ctr"
+                              ? format.number(value, {
+                                  style: "percent",
+                                  maximumFractionDigits: 1,
+                                })
+                              : format.number(value, {
+                                  minimumFractionDigits:
+                                    key === "position" ? 1 : 0,
+                                  maximumFractionDigits:
+                                    key === "position" ? 1 : 0,
+                                })}
                           </dd>
                         </div>
                       ))}
