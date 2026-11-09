@@ -1886,6 +1886,39 @@ describe("Notification Center snooze", () => {
     ).toBeTruthy();
   });
 
+  it("moves focus to the next row when a row is snoozed, and to the view tab when the last one is unsnoozed", async () => {
+    const first = row("first", {
+      isRead: false,
+      readAt: null,
+      createdAt: new Date("2026-06-18T10:00:00.000Z"),
+    });
+    const second = row("second", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([first, second]));
+    patchNotificationSnoozeMock.mockReturnValue(new Promise(() => {}));
+
+    await renderPage();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "snooze: first" }));
+    await user.keyboard("{ArrowDown}{Enter}");
+    await settle();
+
+    expect(screen.queryByText("first")).toBeNull();
+    expect(document.activeElement?.textContent).toContain("second");
+
+    const snoozed = { ...second, snoozedUntil: new Date(Date.now() + 3600e3) };
+    getNotificationsMock.mockResolvedValue(page([snoozed]));
+    await user.click(screen.getByRole("tab", { name: "filterSnoozed" }));
+    await settle();
+    await user.click(screen.getByRole("button", { name: "unsnooze: second" }));
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    expect(document.activeElement?.getAttribute("role")).toBe("tab");
+    expect(document.activeElement?.textContent).toContain("filterSnoozed");
+  });
+
   it("offers no snooze on a chat row", async () => {
     getNotificationsMock.mockResolvedValue(
       page([

@@ -3,6 +3,7 @@
 import type { NotificationItem } from "@sokosumi/core-client";
 import { AlarmClock, AlarmClockOff } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { useRef } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,27 @@ interface NotificationSnoozeControlProps {
 }
 
 /**
+ * Where focus goes once `from`'s row leaves the list: the next row, else the
+ * one above, else the frame's active view tab. Read before the row goes.
+ */
+function focusAfterRowLeaves(from: HTMLElement | null): HTMLElement | null {
+  const frame = from?.closest("[data-notification-frame]");
+  const row = from?.closest("[data-notification-row]");
+  if (!frame || !row) return null;
+  const rows = [
+    ...frame.querySelectorAll<HTMLElement>("[data-notification-row]"),
+  ];
+  const index = rows.indexOf(row as HTMLElement);
+  const neighbour = rows[index + 1] ?? rows[index - 1];
+  return (
+    neighbour?.querySelector<HTMLElement>("button") ??
+    frame.querySelector<HTMLElement>(
+      '[data-slot="tabs-trigger"][data-state="active"]',
+    )
+  );
+}
+
+/**
  * Snooze beside the read toggle: the row leaves until the chosen time, then
  * is back unread. In the Snoozed view it is the way back out. Chat rows have
  * none, because their room counts them.
@@ -38,6 +60,9 @@ export function NotificationSnoozeControl({
   const t = useTranslations("Components.NotificationCenter");
   const format = useFormatter();
   const { view, snooze } = useNotifications();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // The row leaves on snooze; focus moves on rather than falling to <body>.
+  const focusNext = useRef<HTMLElement | null>(null);
 
   if (notification.kind === "CHAT") return null;
 
@@ -73,7 +98,11 @@ export function NotificationSnoozeControl({
         aria-label={t("unsnooze", { message: notificationMessage })}
         title={t("unsnoozeTooltip")}
         className={CONTROL_CLASS_NAME}
-        onClick={() => apply(null)}
+        onClick={(event) => {
+          const next = focusAfterRowLeaves(event.currentTarget);
+          apply(null);
+          requestAnimationFrame(() => next?.focus());
+        }}
       >
         <AlarmClockOff className="size-4" />
       </Button>
@@ -86,6 +115,7 @@ export function NotificationSnoozeControl({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          ref={triggerRef}
           type="button"
           variant="ghost"
           size="icon"
@@ -96,12 +126,28 @@ export function NotificationSnoozeControl({
           <AlarmClock className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        onCloseAutoFocus={(event) => {
+          const next = focusNext.current;
+          if (!next) return;
+          // The trigger left with its row; Radix would focus nothing.
+          event.preventDefault();
+          focusNext.current = null;
+          next.focus();
+        }}
+      >
         <DropdownMenuLabel>{t("snoozeMenuLabel")}</DropdownMenuLabel>
         {SNOOZE_PRESETS.map((preset) => {
           const until = snoozeUntil(preset, now);
           return (
-            <DropdownMenuItem key={preset} onSelect={() => apply(until)}>
+            <DropdownMenuItem
+              key={preset}
+              onSelect={() => {
+                focusNext.current = focusAfterRowLeaves(triggerRef.current);
+                apply(until);
+              }}
+            >
               {t(`snoozePreset.${preset}`)}
               <DropdownMenuShortcut>
                 {format.dateTime(until, "dateTime")}

@@ -124,7 +124,7 @@ export function NotificationCenterRow({
   // one the reader takes from the message itself.
   if (showPendingAccessActions) {
     return (
-      <div className={rowClassName}>
+      <div className={rowClassName} data-notification-row="">
         <NotificationUnreadRail isRead={notification.isRead} />
         <div className="flex min-w-0 flex-1 p-3">{body}</div>
         {readToggle}
@@ -134,7 +134,7 @@ export function NotificationCenterRow({
 
   // The padding lives on the button, so the whole row stays one click target.
   return (
-    <div className={rowClassName}>
+    <div className={rowClassName} data-notification-row="">
       <NotificationUnreadRail isRead={notification.isRead} />
       <button
         type="button"
