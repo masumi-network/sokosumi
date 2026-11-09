@@ -66,6 +66,8 @@ interface ProjectionInput {
   canSchedule?: boolean;
   monitors?: ProjectSeoWorkspace["monitors"];
 }
+/** Severities that name a problem; notes, tests and measurements do not. */
+const SEO_ISSUE_SEVERITIES = new Set(["critical", "major", "minor"]);
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 const priority = z.enum(["low", "medium", "high"]);
 
@@ -281,6 +283,11 @@ export function projectSeoProjection(
       ],
       rulebookVersion: data.rulebookVersion,
       artifactHash: row.artifactHash,
+      issues: data.findings.filter(
+        (item) =>
+          SEO_ISSUE_SEVERITIES.has(item.severity) &&
+          selectedUrls.has(normalizeSeoUrl(item.pageUrl)),
+      ).length,
       coverage,
     });
     for (const check of data.checks) {

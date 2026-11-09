@@ -102,6 +102,7 @@ describe("native audit chat inference boundary", () => {
         devices: ["desktop"],
         rulebookVersion: "test",
         artifactHash: "hash",
+        issues: 0,
         coverage: {
           checked: 12,
           skipped: 0,
@@ -299,6 +300,7 @@ describe("native audit chat inference boundary", () => {
       devices: ["desktop"],
       rulebookVersion: "a".repeat(20_000),
       artifactHash: "hash",
+      issues: 0,
       coverage: { checked: 1, skipped: 0, failed: 0 },
     }));
     const encoded = seoChatContext(workspace);

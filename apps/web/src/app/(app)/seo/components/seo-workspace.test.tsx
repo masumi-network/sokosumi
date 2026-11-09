@@ -179,6 +179,7 @@ describe("SEO workspace integration", () => {
           kind,
           observedAt: new Date("2026-01-03T12:00:00Z"),
           artifactHash: "newer",
+          issues: 0,
           coverage: {
             checked: 0,
             skipped: kind === "page_check" ? 30 : 0,
@@ -191,6 +192,7 @@ describe("SEO workspace integration", () => {
           kind: "page_check",
           observedAt: new Date("2026-01-01T12:00:00Z"),
           artifactHash: "older",
+          issues: 0,
           coverage: { checked: 20, skipped: 0, failed: 0 },
         },
       ];
@@ -221,6 +223,7 @@ describe("SEO workspace integration", () => {
       devices: ["desktop"],
       rulebookVersion: "html-v1",
       artifactHash: "checked-html",
+      issues: 0,
       coverage: { checked: 2, skipped: 0, failed: 0 },
     });
     workspace.findings.push({
@@ -310,6 +313,7 @@ describe("SEO workspace integration", () => {
           devices: ["desktop"],
           rulebookVersion: "html-v1",
           artifactHash: "checked-html",
+          issues: 0,
           coverage: { checked: 2, skipped: 2, failed: 0 },
         });
       vi.stubGlobal(

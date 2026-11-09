@@ -37163,6 +37163,10 @@ export const ProjectSeoObservationSchema = {
         artifactHash: {
             type: 'string'
         },
+        issues: {
+            type: 'integer',
+            minimum: 0
+        },
         coverage: {
             type: 'object',
             properties: {
@@ -37227,6 +37231,7 @@ export const ProjectSeoObservationSchema = {
         'devices',
         'rulebookVersion',
         'artifactHash',
+        'issues',
         'coverage'
     ]
 } as const;

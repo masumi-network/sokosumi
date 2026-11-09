@@ -23,6 +23,7 @@ function check(id: string, at: string): Observation {
     devices: ["desktop", "mobile"],
     rulebookVersion: "rules-v1",
     artifactHash: `hash-${id}`,
+    issues: 0,
     coverage: { checked: 12, skipped: 2, failed: 0 },
   };
 }

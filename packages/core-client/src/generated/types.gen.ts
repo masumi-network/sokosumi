@@ -9940,6 +9940,7 @@ export type ProjectSeoObservation = {
     devices: Array<'mobile' | 'desktop'>;
     rulebookVersion: string;
     artifactHash: string;
+    issues: number;
     coverage: {
         checked: number;
         skipped: number;

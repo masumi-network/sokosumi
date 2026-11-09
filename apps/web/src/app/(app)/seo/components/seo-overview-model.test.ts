@@ -58,6 +58,7 @@ function observation(
     devices: ["desktop"],
     rulebookVersion: "html-v1",
     artifactHash: "html",
+    issues: 0,
     coverage: { checked, skipped, failed },
   };
 }

@@ -214,6 +214,31 @@ describe("stored SEO workspace projections", () => {
     );
   });
 
+  it("counts each run's issues on the selected pages only", () => {
+    const input = fixture();
+    const payload = parsePublicSeoArtifact(legacyReport());
+    const [issue] = payload.findings;
+    payload.findings.push(
+      { ...issue, id: "other-page", pageUrl: "https://other.example/" },
+      { ...issue, id: "note", severity: "note" },
+    );
+    const clean = parsePublicSeoArtifact(focusedReport());
+    input.observations = [
+      observation(input, payload, "2026-11-01T12:00:00Z"),
+      observation(input, clean, "2026-11-02T12:00:00Z"),
+    ];
+    const issues = Object.fromEntries(
+      projectSeoProjection(input).observations.map((row) => [
+        row.observedAt,
+        row.issues,
+      ]),
+    );
+    expect(issues).toEqual({
+      "2026-11-01T12:00:00.000Z": 1,
+      "2026-11-02T12:00:00.000Z": 0,
+    });
+  });
+
   it("omits unsaved manual keywords while keeping real observations and saved choices", () => {
     const { input, original } = actionFixture();
     const choice = {

@@ -22,6 +22,7 @@ describe("SEO timeline recovery", () => {
       devices: ["desktop" as const],
       rulebookVersion: "test",
       artifactHash: "hash",
+      issues: 0,
       coverage: {
         checked: 12,
         skipped: 0,
@@ -110,6 +111,7 @@ describe("SEO timeline recovery", () => {
       devices: ["desktop" as const],
       rulebookVersion: "test-rules",
       artifactHash: "first-hash",
+      issues: 0,
       coverage: { checked: 12, skipped: 2, failed: 0 },
     };
     workspace.observations = [

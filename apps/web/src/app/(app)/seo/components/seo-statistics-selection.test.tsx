@@ -146,6 +146,7 @@ describe("statistics source and property recovery", () => {
         devices: ["desktop"],
         rulebookVersion: "html-v1",
         artifactHash: "checked-html",
+        issues: 0,
         coverage: { checked: 2, skipped: 0, failed: 0 },
       },
     ];

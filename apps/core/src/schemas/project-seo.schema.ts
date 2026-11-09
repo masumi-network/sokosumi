@@ -429,6 +429,8 @@ export const seoObservationSchema = z
     devices: z.array(seoDeviceSchema),
     rulebookVersion: z.string(),
     artifactHash: z.string(),
+    /** Critical, major and minor findings this run saved for the selected pages. */
+    issues: z.number().int().nonnegative(),
     coverage: z.object({
       checked: z.number().int(),
       skipped: z.number().int(),
