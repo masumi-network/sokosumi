@@ -19,13 +19,11 @@ describe("BotFace", () => {
     expect(face.className).toContain("size-10");
   });
 
-  it("draws the bot's orb when it has no avatar", () => {
+  it("draws the bot's orb when it has no avatar", async () => {
     render(<BotFace imageUrl={null} seed="seed-1" alt="Writer" />);
 
-    expect(
-      screen.queryByRole("img", { name: "Writer" })?.getAttribute("src") ??
-        null,
-    ).not.toBe("https://blob/avatar.webp");
+    const orb = await screen.findByRole("img", { name: "Writer" });
+    expect(orb.getAttribute("src") ?? "").not.toMatch(/^https:/);
     expect(document.querySelector('img[src^="https://"]')).toBeNull();
   });
 });

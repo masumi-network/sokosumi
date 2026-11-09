@@ -1,6 +1,17 @@
 import { AuroraOrb } from "@/components/aurora-orb";
-import type { OrbExpression } from "@/lib/aurora-orb";
+import { defaultOrbSeed, type OrbExpression } from "@/lib/aurora-orb";
 import { cn } from "@/lib/utils";
+
+/**
+ * The orb seed `BotFace` draws for a bot: its own seed, or the default orb of
+ * `ownerId` (the user it belongs to, or the bot's id when it has none).
+ */
+export function botFaceSeed(
+  bot: { avatarSeed?: string | null },
+  ownerId: string,
+): string {
+  return bot.avatarSeed ?? defaultOrbSeed(ownerId);
+}
 
 /**
  * A bot's Soko Bot avatar, or its seeded orb when it predates avatars. The

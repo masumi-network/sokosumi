@@ -18,8 +18,9 @@ import {
 const PAGE_SIZE = 6;
 
 /**
- * Six unclaimed Soko Bot avatars at a time, "show others" for a fresh set. Each one is
- * unique across all bots: the pool hands an avatar to exactly one bot.
+ * Six unclaimed Soko Bot avatars at a time, or five beside the current
+ * picture; "show others" for a fresh set. Each one is unique across all bots:
+ * the pool hands an avatar to exactly one bot.
  */
 export function AvatarPicker(props: AvatarPickerProps) {
   // A saved pick becomes the current picture. Remount on that change so the

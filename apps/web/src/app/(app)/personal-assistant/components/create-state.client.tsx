@@ -8,7 +8,7 @@ import { type ReactNode, useId, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { CHAT_MOBILE_COMPOSER_SAFE_AREA_PB } from "@/app/chat/components/chat-mobile-tab-registry";
-import { BotFace } from "@/components/soko-bot/bot-face";
+import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import {
   SOKO_BOT_SETUP_FRAME_CLASS,
   SokoBotSetupSteps,
@@ -22,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -117,9 +116,10 @@ export function CreateState({
       setCreated({
         name: result.value.name ?? trimmed,
         imageUrl: picked?.imageUrl ?? null,
-        orbSeed:
-          result.value.avatarSeed ??
-          defaultOrbSeed(result.value.userId ?? result.value.id),
+        orbSeed: botFaceSeed(
+          result.value,
+          result.value.userId ?? result.value.id,
+        ),
       });
       // Let the reveal play, then the last step: mail and calendar.
       await new Promise((resolve) => setTimeout(resolve, 1500));
