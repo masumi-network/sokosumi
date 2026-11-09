@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -105,7 +104,11 @@ import {
   topUpAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
 
-const IMAGE_BYTES = new Uint8Array([1, 2, 3, 4]);
+const IMAGE_BYTES = await sharp({
+  create: { width: 8, height: 8, channels: 3, background: "#9aa88c" },
+})
+  .png()
+  .toBuffer();
 
 /** What the image model answers: one PNG among its files. */
 function imageAnswer() {
@@ -171,12 +174,7 @@ describe("Soko Bot avatar pool", () => {
     expect(billed()).toBe(1);
   });
 
-  it("draws with the Gateway image model and the original prompt, and stores a PNG", async () => {
-    const hash12 = createHash("sha256")
-      .update(IMAGE_BYTES)
-      .digest("hex")
-      .slice(0, 12);
-
+  it("draws with the Gateway image model and the original prompt, and stores a WebP", async () => {
     await generateAvatars(1);
 
     const [call] = generateTextMock.mock.calls[0] ?? [];
@@ -187,12 +185,14 @@ describe("Soko Bot avatar pool", () => {
     expect(call.prompt).toContain("cute, endearing owl character");
     // The first draw of an empty pool: owl, seed 1.
     expect(putMock).toHaveBeenCalledWith(
-      `soko-bots/avatars/owl-1-${hash12}.png`,
+      expect.stringMatching(
+        /^soko-bots\/avatars\/original\/owl-1-[0-9a-f]{12}\.webp$/,
+      ),
       expect.anything(),
       // The upload is the one step of a fill with no natural time limit.
       // Unbounded, it can outlive the sweep cutoff and lose its reservation.
       expect.objectContaining({
-        contentType: "image/png",
+        contentType: "image/webp",
         abortSignal: expect.any(AbortSignal),
       }),
     );

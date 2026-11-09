@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The picker's two calls, with the database and the image model replaced
@@ -130,14 +131,28 @@ function seedCrafted(row: Record<string, unknown> = {}) {
   });
 }
 
+/** A real PNG, like the image model answers with. */
+let drawnPng: Uint8Array;
+
 describe("Soko Bot avatar picker", () => {
+  beforeAll(async () => {
+    drawnPng = await sharp({
+      create: {
+        width: 64,
+        height: 64,
+        channels: 3,
+        background: { r: 150, g: 170, b: 140 },
+      },
+    })
+      .png()
+      .toBuffer();
+  });
+
   beforeEach(() => {
     store.reset();
     vi.clearAllMocks();
     generateTextMock.mockImplementation(async () => ({
-      files: [
-        { mediaType: "image/png", uint8Array: new Uint8Array([1, 2, 3, 4]) },
-      ],
+      files: [{ mediaType: "image/png", uint8Array: drawnPng }],
     }));
     putMock.mockImplementation(async (pathname: string) => ({
       url: `https://blob.test/${pathname}`,
@@ -199,10 +214,30 @@ describe("Soko Bot avatar picker", () => {
         expect(row.model).toBe(IMAGE_MODEL);
         expect(row.reservedAt).toBeNull();
         expect(row.imageUrl).toMatch(
-          /^https:\/\/blob\.test\/soko-bots\/avatars\/.+-[0-9a-f]{12}\.png$/,
+          /^https:\/\/blob\.test\/soko-bots\/avatars\/original\/.+-[0-9a-f]{12}\.webp$/,
         );
         expect(row.background).not.toContain(":");
       }
+    });
+
+    it("stores each drawn avatar as a WebP under its own prefix", async () => {
+      const { avatars } = await topUp(1);
+
+      expect(avatars).toHaveLength(1);
+      expect(putMock).toHaveBeenCalledTimes(1);
+      const [pathname, body, options] = putMock.mock.calls[0]!;
+      expect(pathname).toMatch(
+        /^soko-bots\/avatars\/original\/.+-[0-9a-f]{12}\.webp$/,
+      );
+      expect(options.contentType).toBe("image/webp");
+      const stored = await sharp(body).metadata();
+      expect(stored.format).toBe("webp");
+      expect([stored.width, stored.height]).toEqual([64, 64]);
+      // A new original-style avatar is offered, not hidden as a crafted one.
+      await expect(list()).resolves.toEqual({
+        status: 200,
+        ids: [avatars![0]!.id],
+      });
     });
 
     it("does not count crafted avatars as stock", async () => {

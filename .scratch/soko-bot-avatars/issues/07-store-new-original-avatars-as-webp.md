@@ -4,9 +4,9 @@
 
 **Blocked by:** 01: Pick an original-style avatar at onboarding
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The top-up encodes each drawn original-style avatar to WebP with `sharp` before upload, at a quality with no visible loss at the largest size Web shows
-- [ ] New original-style pictures go under their own Blob prefix (`soko-bots/avatars/original/`), so 06's cleanup can never mistake them for crafted `.webp` files
-- [ ] Existing PNG avatars and their URLs are untouched
-- [ ] The Core avatar route test checks that a topped-up avatar is a WebP under the new prefix
+- [x] The top-up encodes each drawn original-style avatar to WebP with `sharp` before upload, at a quality with no visible loss at the largest size Web shows
+- [x] New original-style pictures go under their own Blob prefix (`soko-bots/avatars/original/`), so 06's cleanup can never mistake them for crafted `.webp` files
+- [x] Existing PNG avatars and their URLs are untouched
+- [x] The Core avatar route test checks that a topped-up avatar is a WebP under the new prefix
