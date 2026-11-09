@@ -29,6 +29,7 @@ import {
   formatUnknownCommandUsage,
   runDiscoverCommand,
 } from "./commands/discover.js";
+import { runEvalsCommand } from "./commands/evals.js";
 import { runJobsCommand } from "./commands/jobs.js";
 import {
   type RuntimeDependencies,
@@ -60,6 +61,8 @@ export interface CliDependencies {
   loginFn?: AuthLoginOptions["loginFn"];
   readStdin?: () => string;
   runtime?: RuntimeDependencies;
+  /** Waits between `evals run --wait` polls; tests pass a stub. */
+  evalsSleep?: (ms: number) => Promise<void>;
 }
 
 export interface CliResult {
@@ -81,6 +84,9 @@ const BOOLEAN_OPTION_NAMES = [
   "personal",
   "unassign",
   "clear-project",
+  "wait",
+  "tick",
+  "markdown",
 ] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -132,6 +138,11 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "relation",
   "note",
   "sort",
+  "suite",
+  "cases",
+  "repeats",
+  "soko-bot-version",
+  "cuso-version",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -441,6 +452,18 @@ export async function runCli(
         subcommand: command,
         positionalId,
         options,
+      });
+      return {};
+    }
+    if (section === "evals") {
+      await runEvalsCommand({
+        client: getCoreClient(session, dependencies),
+        stdout,
+        json: options.json,
+        subcommand: command,
+        positionalId,
+        options,
+        sleep: dependencies.evalsSleep,
       });
       return {};
     }

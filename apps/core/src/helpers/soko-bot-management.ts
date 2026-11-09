@@ -21,6 +21,7 @@ export const SOKO_BOT_ADMIN_ACTIONS = {
   reactivate: "reactivate",
   manageApiKeys: "manage the API keys of",
   changeAvatar: "change the avatar of",
+  rename: "rename",
 } as const;
 
 export type SokoBotAdminAction = keyof typeof SOKO_BOT_ADMIN_ACTIONS;

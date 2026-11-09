@@ -26,6 +26,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/evals",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/social-performance",
       "schedule": "7,22,37,52 * * * *"
     },

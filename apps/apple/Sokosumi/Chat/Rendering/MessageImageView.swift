@@ -100,9 +100,6 @@ struct MessageImageView: View {
       #if os(macOS)
         guard let image = NSImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
         return (Image(nsImage: image), image.size.width / image.size.height)
-      #else
-        guard let image = UIImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
-        return (Image(uiImage: image), image.size.width / image.size.height)
       #endif
     }
   }

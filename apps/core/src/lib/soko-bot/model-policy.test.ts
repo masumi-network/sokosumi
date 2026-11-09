@@ -1,3 +1,4 @@
+import { SOKO_BOT_PRODUCT_VERSIONS } from "@sokosumi/soko-bot";
 import {
   generateText,
   simulateReadableStream,
@@ -253,6 +254,24 @@ describe("owner-approved global agent models", () => {
       zeroDataRetention: true,
       disallowPromptTraining: true,
     });
+    vi.unstubAllEnvs();
+  });
+
+  it("runs every Cuso model trial as an agent, never as the judge", () => {
+    vi.stubEnv("VERCEL", "1");
+    const trials = SOKO_BOT_PRODUCT_VERSIONS.filter(
+      (version) => version.model !== "openai/gpt-6-luna",
+    );
+    expect(trials.length).toBeGreaterThan(0);
+    for (const version of trials) {
+      expect(
+        sokoBotModelRequest({ role: "agent", model: version.model })
+          .providerOptions.gateway,
+      ).toEqual({ zeroDataRetention: true, disallowPromptTraining: true });
+      expect(() =>
+        sokoBotModelRequest({ role: "judge", model: version.model }),
+      ).toThrow("not approved");
+    }
     vi.unstubAllEnvs();
   });
 

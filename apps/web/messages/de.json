@@ -5247,6 +5247,10 @@
           "designSystem": {
             "title": "Designsystem",
             "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten."
+          },
+          "evals": {
+            "title": "Evals",
+            "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
           }
         }
       },
@@ -6189,7 +6193,7 @@
           "realRunsByVersion": "Echte Nutzung nach Version",
           "descriptionBot": "Bewertungen (1–5) für die echten Durchläufe dieses Bots, letzte 30 Tage. Echte Durchläufe werden nicht mehr bewertet, daher erscheinen nur frühere Bewertungen."
         },
-        "labLink": "Verhaltenslabor",
+        "evalsLink": "Evals",
         "evaluationsLink": "Modellvergleiche",
         "versionsLink": "Versionen",
         "Versions": {
@@ -6768,6 +6772,99 @@
           "doneBody": "Der erste geht am Donnerstag um 09:00 in deiner Zeitzone raus.",
           "doneAction": "Kalender öffnen"
         }
+      },
+      "Evals": {
+        "title": "Evals",
+        "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
+        "noHistory": "No daily runs yet",
+        "historyLabel": "Pass rate in the last {count} daily runs",
+        "noDailyRuns": "No daily run has finished yet.",
+        "trendBarTitle": "{rate} passed ({passed} of {scored})",
+        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "wasRate": "was {rate}",
+        "noCasesMatch": "No case matches this filter.",
+        "runTitle": "{trigger} run, {when}",
+        "comparedWith": "Compared with the daily run of {when}",
+        "noBaseline": "No daily run before this one to compare with.",
+        "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
+        "passedOf": "{passed} of {scored} passed",
+        "suiteFilter": "Suite",
+        "outcomeFilter": "Cases",
+        "allSuites": "All",
+        "allCases": "All cases",
+        "onlyChanges": "Only what needs a look",
+        "cancelRun": "Stop run",
+        "cancelError": "The run could not be stopped.",
+        "backToRun": "Back to the run",
+        "Suite": {
+          "soko-bot": "Soko Bot",
+          "cmo": "CMO"
+        },
+        "Runs": {
+          "title": "Runs",
+          "when": "When",
+          "run": "Run",
+          "pr": "PR",
+          "versions": "Versions",
+          "cost": "Cost"
+        },
+        "Trigger": {
+          "DAILY": "Daily",
+          "MANUAL": "Manual"
+        },
+        "Status": {
+          "QUEUED": "Queued",
+          "RUNNING": "Running",
+          "COMPLETED": "Done",
+          "CANCELLED": "Stopped"
+        },
+        "Outcome": {
+          "regressed": "Regressed",
+          "error": "Error",
+          "failing": "Failing",
+          "flaky": "Flaky",
+          "fixed": "Fixed",
+          "passing": "Passing",
+          "pending": "Waiting",
+          "skipped": "Skipped"
+        },
+        "State": {
+          "PENDING": "Waiting",
+          "RUNNING": "Running",
+          "PASSED": "Passed",
+          "FAILED": "Failed",
+          "ERROR": "Could not run",
+          "SKIPPED": "Skipped"
+        },
+        "RunDialog": {
+          "open": "Run evals",
+          "title": "Run evals",
+          "description": "Runs on this deployment. If a run is in progress, this one waits until it is done.",
+          "suites": "Suites",
+          "all": "Both",
+          "sokoBot": "Soko Bot",
+          "cmo": "CMO",
+          "repeats": "Repeats",
+          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "cases": "Only these cases",
+          "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
+          "casesHint": "Leave empty to run every case of the suites.",
+          "cancel": "Cancel",
+          "start": "Start run",
+          "error": "The run could not be started."
+        },
+        "Case": {
+          "judge": "Judge: {verdict}",
+          "seconds": "{seconds} s",
+          "passed": "Passed",
+          "failed": "Failed",
+          "answer": "Answer",
+          "tools": "Tools, in order",
+          "toolFailed": "failed",
+          "thisRun": "This run, repeat {repeat}",
+          "before": "Daily run of {when}"
+        },
+        "labLink": "Try one scenario on your own bot"
       }
     },
     "Billing": {
@@ -9364,9 +9461,6 @@
         "Form": {
           "open": "Neuer Zeitplan",
           "name": "Name",
-          "cron": "Cron-Ausdruck",
-          "cronHint": "Fünf Felder, z. B. 0 9 * * 1-5 für werktags um 09:00.",
-          "timezone": "Zeitzone",
           "prompt": "Prompt",
           "submit": "Zeitplan erstellen",
           "cancel": "Abbrechen",
@@ -9375,6 +9469,12 @@
         }
       },
       "Settings": {
+        "nameTitle": "Name",
+        "nameDescription": "Erscheint im Chat, bei Tasks und in der Seitenleiste.",
+        "nameRequired": "Gib einen Namen ein.",
+        "rename": "Speichern",
+        "renamed": "Name gespeichert.",
+        "renameError": "Der Name konnte nicht gespeichert werden.",
         "Proactive": {
           "pauseTitle": "Alles pausieren, was er von sich aus startet",
           "pauseDescription": "Stoppt Stand-up, Wochenrückblick, Mail-Checks und Nudges. Chat und zugewiesene Tasks laufen weiter.",

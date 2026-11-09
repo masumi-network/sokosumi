@@ -1641,6 +1641,181 @@ export type CreateFreeCreditGrant = {
     referenceNote: string | null;
 };
 
+export type EvalCaseDefinition = {
+    id: string;
+    suite: EvalSuite;
+    area: string;
+    title: string;
+    intent: string;
+    kind: string;
+    requires: string | null;
+};
+
+export const EvalSuite = { SOKO_BOT: 'soko-bot', CMO: 'cmo' } as const;
+
+export type EvalSuite = typeof EvalSuite[keyof typeof EvalSuite];
+
+export type EvalRunListItem = EvalRun & {
+    scores: {
+        [key: string]: {
+            passed: number;
+            scored: number;
+            failed: number;
+            errors: number;
+            skipped: number;
+            open: number;
+            passRate: number | null;
+        };
+    };
+    costUsd: number;
+};
+
+export type EvalRun = {
+    id: string;
+    createdAt: Date;
+    startedAt: Date | null;
+    finishedAt: Date | null;
+    trigger: 'DAILY' | 'MANUAL';
+    status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'CANCELLED';
+    suites: Array<string>;
+    caseIds: Array<string>;
+    repeats: number;
+    commitSha: string | null;
+    commitMessage: string | null;
+    prNumber: number | null;
+    environment: string;
+    label: string | null;
+    startedByUserId: string | null;
+    models: {
+        [key: string]: string | null;
+    };
+};
+
+export type CreateEvalRunBody = {
+    suites?: Array<EvalSuite>;
+    caseIds?: Array<string>;
+    repeats?: number;
+    label?: string;
+    sokoBotVersionId?: string;
+    cusoVersionId?: string;
+    commitSha?: string;
+    commitMessage?: string;
+};
+
+export type EvalRunReport = {
+    run: EvalRun;
+    baseline: {
+        id: string;
+        createdAt: Date;
+        prNumber: number | null;
+        commitSha: string | null;
+    } | null;
+    history: Array<{
+        id: string;
+        createdAt: Date;
+        prNumber: number | null;
+        commitSha: string | null;
+    }>;
+    summary: {
+        counts: {
+            regressed?: number;
+            fixed?: number;
+            flaky?: number;
+            failing?: number;
+            passing?: number;
+            error?: number;
+            pending?: number;
+            skipped?: number;
+        };
+        passed: number;
+        scored: number;
+        open: number;
+        costUsd: number;
+    };
+    cases: Array<EvalCaseReport>;
+};
+
+export type EvalCaseReport = {
+    caseId: string;
+    suite: string;
+    area: string;
+    title: string;
+    intent: string;
+    outcome: EvalOutcome;
+    states: Array<EvalResultStatus>;
+    passRate: number | null;
+    baselinePassRate: number | null;
+    history: Array<number | null>;
+    results: Array<EvalResult>;
+};
+
+export const EvalOutcome = {
+    REGRESSED: 'regressed',
+    FIXED: 'fixed',
+    FLAKY: 'flaky',
+    FAILING: 'failing',
+    PASSING: 'passing',
+    ERROR: 'error',
+    PENDING: 'pending',
+    SKIPPED: 'skipped'
+} as const;
+
+export type EvalOutcome = typeof EvalOutcome[keyof typeof EvalOutcome];
+
+export const EvalResultStatus = {
+    PENDING: 'PENDING',
+    RUNNING: 'RUNNING',
+    PASSED: 'PASSED',
+    FAILED: 'FAILED',
+    ERROR: 'ERROR',
+    SKIPPED: 'SKIPPED'
+} as const;
+
+export type EvalResultStatus = typeof EvalResultStatus[keyof typeof EvalResultStatus];
+
+export type EvalResult = {
+    id: string;
+    caseId: string;
+    repeat: number;
+    status: EvalResultStatus;
+    startedAt: Date | null;
+    finishedAt: Date | null;
+    turnId: string | null;
+    checks: Array<EvalCheck>;
+    judge: {
+        [key: string]: unknown;
+    } | null;
+    judgeModel: string | null;
+    output: {
+        [key: string]: unknown;
+    };
+    error: string | null;
+    costUsd: number | null;
+    durationMs: number | null;
+};
+
+export type EvalCheck = {
+    label: string;
+    pass: boolean;
+    actual: string;
+};
+
+export type EvalCaseBaseline = {
+    run: {
+        id: string;
+        createdAt: Date;
+        prNumber: number | null;
+        commitSha: string | null;
+    } | null;
+    results: Array<EvalResult>;
+};
+
+export type EvalTick = {
+    runId: string | null;
+    completed: boolean;
+    busy: boolean;
+};
+
 export type AdminTaskListItem = {
     id: string;
     name: string;
@@ -11556,6 +11731,7 @@ export type CreateSokoBotRequest = {
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
+    timezone?: string;
 };
 
 export type StartSokoBotTurnResponse = {
@@ -11673,6 +11849,10 @@ export type SokoBotTurnFeedbackRequest = {
 
 export type UpdateSokoBotBoardFollowingRequest = {
     enabled: boolean;
+};
+
+export type RenameSokoBotRequest = {
+    name: string;
 };
 
 export type UpdateSokoBotVersionRequest = {
@@ -11866,9 +12046,9 @@ export type CreateScopedSokoBotRequest = {
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
+    timezone?: string;
     scope: SokoBotScope;
     projectId?: string | null;
-    timezone?: string;
 };
 
 export const SokoBotScope = {
@@ -18828,6 +19008,496 @@ export type CreateAdminFreeCreditGrantResponses = {
 };
 
 export type CreateAdminFreeCreditGrantResponse = CreateAdminFreeCreditGrantResponses[keyof CreateAdminFreeCreditGrantResponses];
+
+export type ListAdminEvalCasesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/evals/cases';
+};
+
+export type ListAdminEvalCasesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminEvalCasesError = ListAdminEvalCasesErrors[keyof ListAdminEvalCasesErrors];
+
+export type ListAdminEvalCasesResponses = {
+    /**
+     * Every eval case, in the order a run runs them
+     */
+    200: {
+        data: Array<EvalCaseDefinition>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminEvalCasesResponse = ListAdminEvalCasesResponses[keyof ListAdminEvalCasesResponses];
+
+export type ListAdminEvalRunsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+    };
+    url: '/admin/evals/runs';
+};
+
+export type ListAdminEvalRunsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminEvalRunsError = ListAdminEvalRunsErrors[keyof ListAdminEvalRunsErrors];
+
+export type ListAdminEvalRunsResponses = {
+    /**
+     * Eval runs with their scores per suite, newest first
+     */
+    200: {
+        data: Array<EvalRunListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminEvalRunsResponse = ListAdminEvalRunsResponses[keyof ListAdminEvalRunsResponses];
+
+export type CreateAdminEvalRunData = {
+    body: CreateEvalRunBody;
+    path?: never;
+    query?: never;
+    url: '/admin/evals/runs';
+};
+
+export type CreateAdminEvalRunErrors = {
+    /**
+     * Unknown case, suite or version
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid body
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminEvalRunError = CreateAdminEvalRunErrors[keyof CreateAdminEvalRunErrors];
+
+export type CreateAdminEvalRunResponses = {
+    /**
+     * The run, queued behind any run still in progress
+     */
+    201: {
+        data: EvalRun;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminEvalRunResponse = CreateAdminEvalRunResponses[keyof CreateAdminEvalRunResponses];
+
+export type GetAdminEvalRunData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/evals/runs/{id}';
+};
+
+export type GetAdminEvalRunErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminEvalRunError = GetAdminEvalRunErrors[keyof GetAdminEvalRunErrors];
+
+export type GetAdminEvalRunResponses = {
+    /**
+     * Every case of the run against the daily runs on main before it
+     */
+    200: {
+        data: EvalRunReport;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminEvalRunResponse = GetAdminEvalRunResponses[keyof GetAdminEvalRunResponses];
+
+export type CancelAdminEvalRunData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/evals/runs/{id}/cancel';
+};
+
+export type CancelAdminEvalRunErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CancelAdminEvalRunError = CancelAdminEvalRunErrors[keyof CancelAdminEvalRunErrors];
+
+export type CancelAdminEvalRunResponses = {
+    /**
+     * The run, cancelled; cases not yet finished are skipped
+     */
+    200: {
+        data: EvalRun;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CancelAdminEvalRunResponse = CancelAdminEvalRunResponses[keyof CancelAdminEvalRunResponses];
+
+export type GetAdminEvalCaseBaselineData = {
+    body?: never;
+    path: {
+        id: string;
+        caseId: string;
+    };
+    query?: never;
+    url: '/admin/evals/runs/{id}/cases/{caseId}/baseline';
+};
+
+export type GetAdminEvalCaseBaselineErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminEvalCaseBaselineError = GetAdminEvalCaseBaselineErrors[keyof GetAdminEvalCaseBaselineErrors];
+
+export type GetAdminEvalCaseBaselineResponses = {
+    /**
+     * The case in the daily run on main before this run, to compare outputs
+     */
+    200: {
+        data: EvalCaseBaseline;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminEvalCaseBaselineResponse = GetAdminEvalCaseBaselineResponses[keyof GetAdminEvalCaseBaselineResponses];
+
+export type TickAdminEvalRunsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/evals/tick';
+};
+
+export type TickAdminEvalRunsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TickAdminEvalRunsError = TickAdminEvalRunsErrors[keyof TickAdminEvalRunsErrors];
+
+export type TickAdminEvalRunsResponses = {
+    /**
+     * One step of the running eval run, for a Core without the minute cron
+     */
+    200: {
+        data: EvalTick;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TickAdminEvalRunsResponse = TickAdminEvalRunsResponses[keyof TickAdminEvalRunsResponses];
 
 export type ListAdminTasksData = {
     body?: never;
@@ -29748,7 +30418,7 @@ export type GetChatsSavedMessagesData = {
     path?: never;
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * `nextCursor` from the previous page. It names a position, not a row, so removing that save does not lose the rest of the list.
          */
         cursor?: string;
         /**
@@ -75055,6 +75725,79 @@ export type UpdateMySokoBotBoardFollowingResponses = {
 
 export type UpdateMySokoBotBoardFollowingResponse = UpdateMySokoBotBoardFollowingResponses[keyof UpdateMySokoBotBoardFollowingResponses];
 
+export type RenameMySokoBotData = {
+    body?: RenameSokoBotRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/name';
+};
+
+export type RenameMySokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RenameMySokoBotError = RenameMySokoBotErrors[keyof RenameMySokoBotErrors];
+
+export type RenameMySokoBotResponses = {
+    /**
+     * Bot with its new name
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RenameMySokoBotResponse = RenameMySokoBotResponses[keyof RenameMySokoBotResponses];
+
 export type UpdateMySokoBotVersionData = {
     body?: UpdateSokoBotVersionRequest;
     path?: never;
@@ -76607,6 +77350,81 @@ export type UpdateSokoBotBoardFollowingResponses = {
 };
 
 export type UpdateSokoBotBoardFollowingResponse = UpdateSokoBotBoardFollowingResponses[keyof UpdateSokoBotBoardFollowingResponses];
+
+export type RenameSokoBotData = {
+    body?: RenameSokoBotRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/name';
+};
+
+export type RenameSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RenameSokoBotError = RenameSokoBotErrors[keyof RenameSokoBotErrors];
+
+export type RenameSokoBotResponses = {
+    /**
+     * Bot with its new name
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RenameSokoBotResponse = RenameSokoBotResponses[keyof RenameSokoBotResponses];
 
 export type ResolveSokoBotDecisionData = {
     body?: ResolveSokoBotDecisionRequest;
