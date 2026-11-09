@@ -1,4 +1,4 @@
-import { STUDIO_TEMPLATE_IDS, type StudioTemplateId } from "./studio-templates";
+import { STUDIO_TEMPLATES, type StudioTemplateId } from "./studio-templates";
 import type { StudioFailureReason, StudioLabels } from "./types";
 
 /** Every string the studio needs, resolved once by whichever page mounts it. */
@@ -119,13 +119,13 @@ export function buildStudioLabels(t: Translator): StudioLabels {
  * The template labels, derived rather than spelled out.
  *
  * The exception the rule above allows: the source of truth is
- * `STUDIO_TEMPLATE_IDS`, a typed local tuple, so the result is still a
+ * `STUDIO_TEMPLATES`, the template catalog, so the result is still a
  * `Record<StudioTemplateId, string>` and the key paths are still discoverable
  * from one list. Looping over the *catalogue* would lose both.
  */
 function templateLabels(t: Translator): Record<StudioTemplateId, string> {
   return Object.fromEntries(
-    STUDIO_TEMPLATE_IDS.map((id) => [id, t(`Templates.${id}`)]),
+    STUDIO_TEMPLATES.map(({ id }) => [id, t(`Templates.${id}`)]),
   ) as Record<StudioTemplateId, string>;
 }
 

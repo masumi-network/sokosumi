@@ -248,7 +248,7 @@ describe("the page around the results", () => {
   it("shows the empty-state carousel above the composer", () => {
     mount([]);
     const composer = screen.getByRole("region", { name: "composerTitle" });
-    const tile = screen.getByRole("button", { name: "poster" });
+    const tile = screen.getByRole("button", { name: "story-ad" });
     expect(
       tile.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

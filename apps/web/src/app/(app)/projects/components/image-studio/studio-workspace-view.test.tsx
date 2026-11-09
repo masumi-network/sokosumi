@@ -265,10 +265,10 @@ describe("the workspace view", () => {
     const menu = screen.getByRole("button", { name: "templates" });
     expect(box.closest("form")).toContainElement(menu);
     expect(
-      screen.queryByRole("button", { name: "poster" }),
+      screen.queryByRole("button", { name: "story-ad" }),
     ).not.toBeInTheDocument();
     fireEvent.click(menu);
-    expect(screen.getAllByRole("button", { name: "poster" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "story-ad" })).toHaveLength(1);
     fireEvent.keyDown(screen.getByRole("dialog", { name: "templates" }), {
       key: "Escape",
     });
@@ -291,9 +291,9 @@ describe("the workspace view", () => {
 
   it("preserves the selected style and frame after closing the project selector", () => {
     mount(null, []);
-    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
     const template = STUDIO_TEMPLATES.find(
-      (candidate) => candidate.id === "headshot",
+      (candidate) => candidate.id === "social-post",
     )!;
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(box).toHaveValue(template.prompt);
@@ -391,11 +391,11 @@ describe("the workspace view", () => {
   it("keeps the pending style batch when creating its destination project", () => {
     mount(null, []);
     const template = STUDIO_TEMPLATES.find(
-      (item) => item.id === "illustration",
+      (item) => item.id === "product-announcement",
     )!;
     fireEvent.click(
       screen.getByRole("button", {
-        name: TEST_LABELS.templateLabels.illustration,
+        name: TEST_LABELS.templateLabels["product-announcement"],
       }),
     );
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });

@@ -353,7 +353,7 @@ export function StudioTemplateCarousel({
                 STUDIO_TOUCH_CALLOUT_NONE_CLASS,
                 reduceMotion
                   ? "basis-3/4 sm:basis-1/2 lg:basis-1/3"
-                  : "basis-1/3 pl-0! sm:basis-1/5",
+                  : "basis-1/3 pl-0! sm:basis-1/3",
               )}
               key={template.id}
             >

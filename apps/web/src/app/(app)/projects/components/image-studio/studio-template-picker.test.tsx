@@ -77,7 +77,7 @@ function hoverStyle(name: string, left: number, width = 300) {
 describe("the empty studio carousel", () => {
   it("draws large cards with a border and no drop shadow", () => {
     mount();
-    const card = screen.getByRole("button", { name: "poster" });
+    const card = screen.getByRole("button", { name: "story-ad" });
     expect(card.className).toContain("border-border");
     expect(card.className).not.toMatch(/\bshadow(?:-lg|-md|-sm)?\b/);
   });
@@ -86,23 +86,23 @@ describe("the empty studio carousel", () => {
     const { apply } = mount();
     advance();
     expect(mocks.api.scrollNext).not.toHaveBeenCalled();
-    expect(screen.getAllByRole("button")).toHaveLength(14);
+    expect(screen.getAllByRole("button")).toHaveLength(5);
     const carousel = screen.getByRole("region", { name: "templates" });
     fireEvent.keyDown(carousel, { key: "ArrowRight" });
     fireEvent.keyDown(carousel, { key: "ArrowLeft" });
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
     expect(mocks.api.scrollPrev).toHaveBeenCalledTimes(1);
     expect(apply).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
     expect(apply).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "poster" }),
+      expect.objectContaining({ id: "story-ad" }),
     );
   });
 
   it("suspends hover scrolling during keyboard focus and dragging, then resumes", () => {
     mount();
-    hoverStyle("headshot", 600);
-    const poster = screen.getByRole("button", { name: "poster" });
+    hoverStyle("social-post", 600);
+    const poster = screen.getByRole("button", { name: "story-ad" });
     fireEvent.focus(poster);
     advance();
     expect(mocks.api.scrollNext).not.toHaveBeenCalled();
@@ -125,11 +125,11 @@ describe("the empty studio carousel", () => {
 
   it("scrolls repeatedly toward the hovered outer card without applying it", () => {
     const { apply } = mount();
-    hoverStyle("headshot", 600);
+    hoverStyle("social-post", 600);
     act(() => vi.advanceTimersByTime(2300));
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(3);
     expect(mocks.api.scrollPrev).not.toHaveBeenCalled();
-    hoverStyle("poster", 0);
+    hoverStyle("story-ad", 0);
     act(() => vi.advanceTimersByTime(1300));
     expect(mocks.api.scrollPrev).toHaveBeenCalledTimes(2);
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(3);
@@ -138,13 +138,13 @@ describe("the empty studio carousel", () => {
 
   it("stops edge scrolling over the center card and when the pointer leaves", () => {
     mount();
-    hoverStyle("headshot", 600);
+    hoverStyle("social-post", 600);
     act(() => vi.advanceTimersByTime(300));
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
-    hoverStyle("poster", 300);
+    hoverStyle("story-ad", 300);
     act(() => vi.advanceTimersByTime(3000));
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
-    hoverStyle("headshot", 600);
+    hoverStyle("social-post", 600);
     fireEvent.mouseLeave(screen.getByRole("region", { name: "templates" }));
     act(() => vi.advanceTimersByTime(3000));
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
@@ -152,7 +152,7 @@ describe("the empty studio carousel", () => {
 
   it("cleans up edge scrolling on unmount", () => {
     const { unmount } = mount();
-    hoverStyle("headshot", 600);
+    hoverStyle("social-post", 600);
     unmount();
     advance();
     expect(mocks.api.scrollNext).not.toHaveBeenCalled();
@@ -186,7 +186,7 @@ describe("the empty studio carousel", () => {
     act(() => paint());
     expect(frames).toHaveLength(1);
     act(() => frames[0]?.(0));
-    const center = screen.getByRole("button", { name: "poster" });
+    const center = screen.getByRole("button", { name: "story-ad" });
     const outer = screen.getByRole("button", { name: "product-announcement" });
     expect(center.style.transform).toContain("scale(1)");
     expect(Number(slides[0]!.style.zIndex)).toBeGreaterThan(
@@ -200,7 +200,7 @@ describe("the empty studio carousel", () => {
       outer.querySelector<HTMLElement>("[data-template-preview]")!.style.filter,
     ).toBe("");
     expect(Number(center.style.opacity || 1)).toBeGreaterThan(0);
-    expect(center.textContent).toBe("poster");
+    expect(center.textContent).toBe("story-ad");
     expect(center).toHaveAttribute("data-studio-snap-target");
     const region = screen.getByRole("region", { name: "templates" });
     const startDrag = mocks.api.on.mock.calls.find(
@@ -219,7 +219,7 @@ describe("the empty studio carousel", () => {
 
   it("keeps cards and the canvas unselectable on click and only locks the document while dragging", () => {
     const { apply } = mount();
-    const card = screen.getByRole("button", { name: "poster" });
+    const card = screen.getByRole("button", { name: "story-ad" });
     const carousel = screen.getByRole("region", { name: "templates" });
     const item = card.closest("[data-slot=carousel-item]");
     expect(card.className).toContain(STUDIO_SELECT_NONE_CLASS);
@@ -261,7 +261,7 @@ describe("the empty studio carousel", () => {
   it("does not hover-scroll with reduced motion and still allows keyboard navigation", () => {
     mocks.reduceMotion = true;
     mount();
-    hoverStyle("headshot", 600);
+    hoverStyle("social-post", 600);
     advance();
     expect(mocks.api.scrollNext).not.toHaveBeenCalled();
     fireEvent.keyDown(screen.getByRole("region", { name: "templates" }), {

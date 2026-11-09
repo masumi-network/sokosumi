@@ -69,8 +69,8 @@ function mount() {
   );
 }
 
-const POSTER = STUDIO_TEMPLATES.find(
-  (template) => template.id === "poster",
+const STORY_AD = STUDIO_TEMPLATES.find(
+  (template) => template.id === "story-ad",
 ) as (typeof STUDIO_TEMPLATES)[number];
 
 describe("starting from a template", () => {
@@ -88,21 +88,20 @@ describe("starting from a template", () => {
     mount();
 
     // The default target is 1:1 (see `defaultModel` and the initial settings),
-    // and the poster brief is composed for 2:3 — so this press has to move the
-    // frame as well as the text.
+    // and only one selected model supports the story frame of 9:16.
     expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
 
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
-    expect(prompt).toHaveValue(POSTER.prompt);
-    expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
+    expect(prompt).toHaveValue(STORY_AD.prompt);
+    expect(screen.getByText("mixedSettings")).toBeInTheDocument();
   });
 
   it("does not submit, and leaves the caret in the prompt", () => {
     mount();
 
-    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
 
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     // Editable text in a focused box, not a request: the whole point of a
@@ -133,8 +132,8 @@ describe("starting from a template", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "4:5" }), {
       key: "Escape",
     });
-    fireEvent.click(screen.getByRole("button", { name: "poster" }));
-    expect(prompt).toHaveValue(POSTER.prompt);
+    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
+    expect(prompt).toHaveValue(STORY_AD.prompt);
     fireEvent.click(screen.getByRole("button", { name: "undoTemplate" }));
     expect(prompt).toHaveValue("My original campaign brief");
     expect(prompt).toHaveFocus();
@@ -148,15 +147,15 @@ describe("starting from a template", () => {
     mount();
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "Original" } });
-    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
     expect(
       screen.getByRole("button", { name: "undoTemplate" }),
     ).toBeInTheDocument();
-    fireEvent.change(prompt, { target: { value: "Edited poster brief" } });
+    fireEvent.change(prompt, { target: { value: "Edited story brief" } });
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
     fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
@@ -167,8 +166,8 @@ describe("starting from a template", () => {
     mount();
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "Original brief" } });
-    fireEvent.click(screen.getByRole("button", { name: "poster" }));
-    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
+    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
     fireEvent.click(screen.getByRole("button", { name: "undoTemplate" }));
     expect(prompt).toHaveValue("Original brief");
     expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
@@ -178,12 +177,13 @@ describe("starting from a template", () => {
     mount();
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "Original brief" } });
-    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
     fireEvent.click(screen.getByRole("button", { name: /moreOptions/ }));
     fireEvent.click(screen.getByRole("button", { name: "16:9" }));
     fireEvent.click(screen.getByRole("button", { name: "1:1" }));
     expect(prompt).toHaveValue(
-      STUDIO_TEMPLATES.find((template) => template.id === "headshot")?.prompt,
+      STUDIO_TEMPLATES.find((template) => template.id === "social-post")
+        ?.prompt,
     );
     expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
     expect(
@@ -195,7 +195,7 @@ describe("starting from a template", () => {
     mount();
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "Original brief" } });
-    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
     fireEvent.click(screen.getByRole("button", { name: /moreOptions/ }));
     fireEvent.click(screen.getByRole("button", { name: "2" }));
     expect(
@@ -244,12 +244,12 @@ describe("templates once there are images", () => {
     const menu = screen.getByRole("button", { name: "templates" });
     expect(form).toContainElement(menu);
     fireEvent.click(menu);
-    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
 
     expect(
       screen.queryByRole("dialog", { name: "templates" }),
     ).not.toBeInTheDocument();
-    expect(prompt).toHaveValue(POSTER.prompt);
+    expect(prompt).toHaveValue(STORY_AD.prompt);
     expect(prompt).toHaveFocus();
     expect(screen.getByRole("status")).toHaveTextContent(
       "templateReplacedBrief",
