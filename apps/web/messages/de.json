@@ -8278,6 +8278,7 @@
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
       "headerVisitSwitch": "Zu {workspace} wechseln",
+      "headerMore": "Weitere Chat-Optionen",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",

@@ -71,6 +71,7 @@ vi.mock("../room-message-row", async () => {
       onToggleReaction,
       onPin,
       onStartEdit,
+      onOpenThread,
       onEditDraftChange,
       onSaveEdit,
     }: {
@@ -81,6 +82,7 @@ vi.mock("../room-message-row", async () => {
       onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
       onPin?: (message: ChatRoomMessage) => void;
       onStartEdit?: (message: ChatRoomMessage) => void;
+      onOpenThread?: (message: ChatRoomMessage) => void;
       onEditDraftChange?: (value: string) => void;
       onSaveEdit?: (content?: string) => void;
     }) {
@@ -103,6 +105,9 @@ vi.mock("../room-message-row", async () => {
           <button type="button" onClick={() => onStartEdit?.(message)}>
             {`Edit ${message.id}`}
           </button>
+          <button type="button" onClick={() => onOpenThread?.(message)}>
+            {`Thread ${message.id}`}
+          </button>
           <button
             type="button"
             onClick={() => onEditDraftChange?.("typed draft")}
@@ -119,7 +124,21 @@ vi.mock("../room-message-row", async () => {
 });
 
 vi.mock("../thread-panel", () => ({
-  ThreadPanel: () => null,
+  ThreadPanel: ({
+    parentMessage,
+    editSession,
+    onStartEdit,
+  }: {
+    parentMessage: ChatRoomMessage;
+    editSession?: { messageId: string } | null;
+    onStartEdit?: (message: ChatRoomMessage) => void;
+  }) => (
+    <div data-testid="thread-panel" data-editing={editSession?.messageId ?? ""}>
+      <button type="button" onClick={() => onStartEdit?.(parentMessage)}>
+        Edit thread parent
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
@@ -312,6 +331,32 @@ describe("RoomsClient transcript row render isolation", () => {
         .map((row) => row.getAttribute("data-editing")),
     ).toEqual(["false", "true", "false"]);
     expect(rendersSince(before)).toEqual({ m1: 0, m2: 1, m3: 0 });
+  });
+
+  it("edits an open thread's parent in only the surface that started it", async () => {
+    await mountRoom();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Thread m2" }));
+    });
+    const row = () =>
+      screen
+        .getAllByTestId("chat-message-row")
+        .find((r) => r.getAttribute("data-message-id") === "m2");
+    const thread = () => screen.getByTestId("thread-panel");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Edit m2" }));
+    });
+    expect(row()?.getAttribute("data-editing")).toBe("true");
+    expect(thread().getAttribute("data-editing")).toBe("");
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Edit thread parent" }),
+      );
+    });
+    expect(row()?.getAttribute("data-editing")).toBe("false");
+    expect(thread().getAttribute("data-editing")).toBe("m2");
   });
 
   it("re-renders only the edited row while its draft changes", async () => {

@@ -1,8 +1,16 @@
 "use client";
 
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { MessageCircle } from "lucide-react";
+import {
+  Ellipsis,
+  Gavel,
+  MessageCircle,
+  MessagesSquare,
+  Pin,
+  Users,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRef, useState } from "react";
 import { useRoomWorkspaceName } from "@/app/chat/components/use-room-display-name";
 import { ROOM_HEADER_ACTIONS_SLOT } from "@/app/chat/components/use-room-panel-slide";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
@@ -14,10 +22,22 @@ import {
 } from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import {
+  ROOM_COUNT_CAP,
+  roomCountLabel,
+} from "@/components/chat/room-count-label";
 import { RoomDecisionsPopover } from "@/components/chat/signals/room-decisions-popover";
+import { CornerCountBadge } from "@/components/common/corner-count-badge";
 import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -199,6 +219,131 @@ function RoomVisitWorkspaceName({
   );
 }
 
+interface RoomHeaderMenuProps {
+  room: ChatRoom;
+  isDirectRoom: boolean;
+  onJumpToMessage: (hit: ChatRoomMessage) => void;
+  onTogglePinned: () => void;
+  onToggleThreadList: () => void;
+  unreadThreadCount: number;
+  /** Null when the room shows no members control. */
+  onToggleRoster: (() => void) | null;
+}
+
+/**
+ * Below md, one button in place of pinned, decisions, threads and members, so
+ * the room's name and subtitle keep the width. It wears the threads badge,
+ * since the threads button it replaces did.
+ */
+function RoomHeaderMenu({
+  room,
+  isDirectRoom,
+  onJumpToMessage,
+  onTogglePinned,
+  onToggleThreadList,
+  unreadThreadCount,
+  onToggleRoster,
+}: RoomHeaderMenuProps) {
+  const t = useTranslations("App.Channels");
+  const [decisionsOpen, setDecisionsOpen] = useState(false);
+  // The menu's close would put focus on its button, under the decisions
+  // log opening in the same click, and the log closes on that focus.
+  const opensDecisionsRef = useRef(false);
+  const hasUnread = unreadThreadCount > 0;
+  const spokenUnread =
+    unreadThreadCount > ROOM_COUNT_CAP
+      ? t("UnreadThreads.unreadThreadsCapped", { max: ROOM_COUNT_CAP })
+      : t("UnreadThreads.unreadThreads", { count: unreadThreadCount });
+  const label = hasUnread
+    ? `${t("headerMore")}, ${spokenUnread}`
+    : t("headerMore");
+
+  const menu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={label}
+          title={t("headerMore")}
+          data-testid="room-header-menu-trigger"
+          className="relative size-10"
+        >
+          <Ellipsis className="size-4" aria-hidden />
+          {hasUnread ? (
+            <CornerCountBadge className="bg-primary text-primary-foreground -top-0.75 -right-0.75">
+              {roomCountLabel(unreadThreadCount)}
+            </CornerCountBadge>
+          ) : null}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-52"
+        onCloseAutoFocus={(event) => {
+          if (!opensDecisionsRef.current) return;
+          opensDecisionsRef.current = false;
+          event.preventDefault();
+        }}
+      >
+        {isDirectRoom ? null : (
+          <>
+            <DropdownMenuItem onSelect={onTogglePinned}>
+              <Pin aria-hidden />
+              {t("PinnedMessages.open")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                opensDecisionsRef.current = true;
+                setDecisionsOpen(true);
+              }}
+            >
+              <Gavel aria-hidden />
+              {t("Signals.Decisions.open")}
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuItem onSelect={onToggleThreadList}>
+          <MessagesSquare aria-hidden />
+          {t("UnreadThreads.open")}
+          {hasUnread ? (
+            <>
+              <span
+                aria-hidden
+                className="text-muted-foreground ms-auto text-xs tabular-nums"
+              >
+                {roomCountLabel(unreadThreadCount)}
+              </span>
+              <span className="sr-only">, {spokenUnread}</span>
+            </>
+          ) : null}
+        </DropdownMenuItem>
+        {onToggleRoster ? (
+          <DropdownMenuItem onSelect={onToggleRoster}>
+            <Users aria-hidden />
+            {t("RoomRoster.open")}
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  return isDirectRoom ? (
+    menu
+  ) : (
+    <RoomDecisionsPopover
+      room={room}
+      onJumpToMessage={onJumpToMessage}
+      anchor={{
+        node: menu,
+        open: decisionsOpen,
+        onOpenChange: setDecisionsOpen,
+      }}
+    />
+  );
+}
+
 export interface RoomHeaderChromeProps {
   room: ChatRoom;
   /** The room is not one of the active workspace's (ADR-0061). */
@@ -266,6 +411,7 @@ export function RoomHeaderChrome({
         : t("Browse.memberCount", {
             count: getRoomParticipantPreviews(room).length,
           }));
+  const showRoster = showParticipants && shouldShowRoomRosterControl(room);
   const channelTitle = (
     <>
       <ChannelDiscoverabilityIcon
@@ -380,41 +526,58 @@ export function RoomHeaderChrome({
               replyBadge: t("RoomSearch.replyBadge"),
             }}
           />
-          {isDirectRoom ? null : (
-            <PinnedMessagesHeaderButton
-              isOpen={pinnedOpen}
-              onToggle={onTogglePinned}
-              openLabel={t("PinnedMessages.open")}
+          {/* Below md these four live in RoomHeaderMenu. */}
+          <div className="hidden md:contents">
+            {isDirectRoom ? null : (
+              <PinnedMessagesHeaderButton
+                isOpen={pinnedOpen}
+                onToggle={onTogglePinned}
+                openLabel={t("PinnedMessages.open")}
+              />
+            )}
+            {isDirectRoom ? null : (
+              <RoomDecisionsPopover
+                key={`decisions-${room.id}`}
+                room={room}
+                onJumpToMessage={onJumpToMessage}
+              />
+            )}
+            <UnreadThreadsPanel
+              key={`unread-threads-${room.id}`}
+              isOpen={threadListOpen}
+              onToggle={onToggleThreadList}
+              unreadCount={unreadThreadCount}
+              labels={{
+                open: t("UnreadThreads.open"),
+                unreadThreads: (count) =>
+                  t("UnreadThreads.unreadThreads", { count }),
+                unreadThreadsCapped: (max) =>
+                  t("UnreadThreads.unreadThreadsCapped", { max }),
+              }}
             />
-          )}
-          {isDirectRoom ? null : (
-            <RoomDecisionsPopover
-              key={`decisions-${room.id}`}
+          </div>
+          <div className="contents md:hidden">
+            <RoomHeaderMenu
+              key={`header-menu-${room.id}`}
               room={room}
+              isDirectRoom={isDirectRoom}
               onJumpToMessage={onJumpToMessage}
+              onTogglePinned={onTogglePinned}
+              onToggleThreadList={onToggleThreadList}
+              unreadThreadCount={unreadThreadCount}
+              onToggleRoster={showRoster ? onToggleRoster : null}
             />
-          )}
-          <UnreadThreadsPanel
-            key={`unread-threads-${room.id}`}
-            isOpen={threadListOpen}
-            onToggle={onToggleThreadList}
-            unreadCount={unreadThreadCount}
-            labels={{
-              open: t("UnreadThreads.open"),
-              unreadThreads: (count) =>
-                t("UnreadThreads.unreadThreads", { count }),
-              unreadThreadsCapped: (max) =>
-                t("UnreadThreads.unreadThreadsCapped", { max }),
-            }}
-          />
+          </div>
         </div>
-        {showParticipants && shouldShowRoomRosterControl(room) ? (
-          <RoomParticipantStack
-            room={room}
-            rosterOpen={rosterOpen}
-            onToggleRoster={onToggleRoster}
-            readReceipts={readReceipts}
-          />
+        {showRoster ? (
+          <div className="hidden md:contents">
+            <RoomParticipantStack
+              room={room}
+              rosterOpen={rosterOpen}
+              onToggleRoster={onToggleRoster}
+              readReceipts={readReceipts}
+            />
+          </div>
         ) : null}
       </div>
     </div>
