@@ -41,8 +41,7 @@
     "MICROSOFT_CLIENT_SECRET",
     "TURBO_TOKEN",
     "TURBO_TEAM",
-    "ENABLE_EXPERIMENTAL_COREPACK",
-    "FFMPEG_BIN"
+    "ENABLE_EXPERIMENTAL_COREPACK"
   ],
   "tasks": {
     "prisma:generate": {

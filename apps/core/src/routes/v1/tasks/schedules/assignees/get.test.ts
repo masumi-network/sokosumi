@@ -64,8 +64,7 @@ describe("GET /tasks/schedules/assignees", () => {
       id: SOKO_BOT_ID,
       name: "Atlas",
       avatarSeed: null,
-      avatarImageUrl: "https://blob.test/idle.webp",
-      avatar: { styleId: "crafted-desk" },
+      avatarImageUrl: null,
     });
 
     const response = await createTaskScheduleTestApp(mount).request(
@@ -75,11 +74,7 @@ describe("GET /tasks/schedules/assignees", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).data).toMatchObject({
       coworkers: [{ id: "cow_123", name: "Ops Agent" }],
-      sokoBot: {
-        id: SOKO_BOT_ID,
-        name: "Atlas",
-        avatarStyleId: "crafted-desk",
-      },
+      sokoBot: { id: SOKO_BOT_ID, name: "Atlas" },
     });
     expect(coworkerFindMany).toHaveBeenCalledWith({
       where: {
@@ -102,8 +97,6 @@ describe("GET /tasks/schedules/assignees", () => {
         name: true,
         avatarSeed: true,
         avatarImageUrl: true,
-        // One join in the same query, not a read per bot.
-        avatar: { select: { styleId: true } },
       },
     });
   });

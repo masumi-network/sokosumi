@@ -76,7 +76,7 @@ function createApp() {
 }
 
 /**
- * Generation writes rows and bills FAL. It must never hang off the GET: a GET
+ * Generation writes rows and bills the image model. It must never hang off the GET: a GET
  * is cacheable by intermediaries, and a cross-site top-level navigation
  * carries the Core session cookie because Better Auth issues it SameSite=Lax.
  */

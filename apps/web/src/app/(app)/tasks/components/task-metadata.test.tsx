@@ -289,8 +289,8 @@ describe("TaskMetadata", () => {
     );
   });
 
-  it("shows the mascot the bot claimed, not a generated orb", () => {
-    // Claimed mascot is the bot's face; the orb is only the fallback.
+  it("shows the avatar the bot claimed, not a generated orb", () => {
+    // Claimed Soko Bot avatar is the bot's face; the orb is only the fallback.
     renderTaskMetadata({
       task: createTask({
         assignee: {
@@ -309,33 +309,6 @@ describe("TaskMetadata", () => {
 
     expect(screen.queryByTestId("assistant-orb")).not.toBeInTheDocument();
     expect(screen.getByText("Joseph")).toBeInTheDocument();
-  });
-
-  it("crops a crafted avatar to the bot's face, but leaves a mascot alone", () => {
-    const assignee = (avatarStyleId: string) => ({
-      type: "sokoBot" as const,
-      id: "bot-2",
-      sokoBot: {
-        id: "bot-2",
-        name: "Joseph",
-        avatarSeed: null,
-        avatarImageUrl: "https://blob.example/cat.png",
-        avatarStyleId,
-        owner: null,
-      },
-    });
-    const { unmount } = renderTaskMetadata({
-      task: createTask({ assignee: assignee("crafted-desk") }),
-    });
-    expect(screen.getByRole("img", { name: "Joseph" }).className).toContain(
-      "size-[240%]",
-    );
-    unmount();
-
-    renderTaskMetadata({ task: createTask({ assignee: assignee("mascot") }) });
-    expect(
-      screen.queryByRole("img", { name: "Joseph" })?.className ?? "",
-    ).not.toContain("size-[240%]");
   });
 
   it("renders an sokoBot assignee with the assistant orb", () => {

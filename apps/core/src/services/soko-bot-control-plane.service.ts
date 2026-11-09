@@ -230,6 +230,8 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
+  /** IANA timezone for a new bot's day; an existing bot keeps its own. */
+  timezone?: string;
 }
 
 /**
@@ -1273,14 +1275,7 @@ export class SokoBotControlPlane {
             },
           });
         }
-        if (input.avatarId) {
-          // Recorded for the daily keep cap, never refused by it: creating a bot
-          // must not fail because of a limit on how often looks are kept.
-          await claimAvatar(updated.id, input.avatarId, {
-            tx,
-            keptBy: input.userId,
-          });
-        }
+        if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
 
@@ -1295,6 +1290,7 @@ export class SokoBotControlPlane {
           // what each bot actually runs, and an older bot keeps its version
           // when the default moves on.
           versionId: defaultVersionId,
+          ingestTimezone: input.timezone,
           avatarSeed: input.avatarSeed,
           personalityTone: input.personalityTone,
           personalityDetail: input.personalityDetail,
@@ -1312,12 +1308,7 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      if (input.avatarId) {
-        await claimAvatar(bot.id, input.avatarId, {
-          tx,
-          keptBy: input.userId,
-        });
-      }
+      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
     const { ensureSystemSchedules } = await import(

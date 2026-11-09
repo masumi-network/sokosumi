@@ -30,20 +30,12 @@ Optional, per network:
 - `COMPOSIO_API_KEY` — brokers OAuth for Gmail, Outlook and Calendar
   integrations. Without it, integrations are unavailable and the rest of the
   bot still works.
-- Avatars: the pool and the studio draw through `AI_GATEWAY_API_KEY` and store
-  to `BLOB_READ_WRITE_TOKEN`. Without either the pool stays empty, the picker
+- Avatars: the pool draws through `AI_GATEWAY_API_KEY` and stores to
+  `BLOB_READ_WRITE_TOKEN`. Without either the pool stays empty, the picker
   offers no pictures and the sidebar shows a plain icon.
-  `/sync/soko-bot-avatars` keeps the pool topped up every 30 minutes and is a
-  no-op while they are unset; `/sync/soko-bot-avatar-renders` renders kept looks
-  every minute.
-- `AVATAR_FFMPEG_URL` and `AVATAR_FFMPEG_SHA256` (set together) — where a
-  deployed instance fetches the ffmpeg that encodes avatar loops: a gzip of a
-  static linux-x64 build and its sha256. The function does not ship ffmpeg (80 MB
-  unzipped); each instance unpacks it into `/tmp` on first use and refuses a
-  download that does not match the hash. Unset, it uses `DEFAULT_FFMPEG_BUILD`
-  in `apps/core/src/lib/soko-bot-avatar/media.ts`: our copy of the pinned
-  ffmpeg-static release in the public mainnet Blob store, so runtime does not
-  depend on GitHub.
+  There is no avatar cron: opening the picker draws new avatars with
+  `google/gemini-3.1-flash-image` when the pool runs low, capped at 24 per user
+  per hour.
 - `AI_GATEWAY_API_KEY` — also routes every turn. Jev (`typesafe-ai/jev`)
   picks the route through the Gateway evaluation API. It has no EU region, so
   this is an owner-approved exception to the EU-only model policy; requests set
@@ -93,12 +85,14 @@ copy/delete-legacy steps below are leftover Blob cleanup if objects still
 exist under `soko-bot-avatars/` — not a first-run step on every deploy.
 Confirm DB URLs and the Blob listing before deleting.
 
-The mascot pool in Vercel Blob is `soko-bots/avatars/{key}-{hash12}.png`.
-Older objects used `soko-bot-avatars/`. Chat files stay under
-`soko-bots/{uuid}/chats/`.
+The Soko Bot avatar pool in Vercel Blob has two paths. Avatars already in use
+keep `soko-bots/avatars/{key}-{hash12}.png`; new ones are stored as
+`soko-bots/avatars/original/{key}-{hash12}.webp`. Older objects used
+`soko-bot-avatars/`. Chat files stay under `soko-bots/{uuid}/chats/`.
 
 `GET /v1/soko-bots/avatars` is the picker HTTP API. It is not the Blob folder.
-The cron that tops up the pool stays at `/sync/soko-bot-avatars`.
+No cron tops up the pool: the picker's top-up draws new avatars through the
+AI Gateway (`AI_GATEWAY_API_KEY`) on demand.
 
 If Blob still has objects under `soko-bot-avatars/`, copy them, then delete
 the old prefix after DB URLs are clean:

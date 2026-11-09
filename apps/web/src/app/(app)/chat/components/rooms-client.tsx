@@ -1297,6 +1297,7 @@ function RoomView({
     activeStreamParentMessageId,
     sendStreamMessage,
     consumePendingStreamMessage,
+    retryFailedStreamMessage,
   } = useCoworkerDirectRoomStream({
     room: selectedRoom,
     enabled: isCoworkerStreamRoom,
@@ -1827,7 +1828,6 @@ function RoomView({
           name: sokoBot.name,
           slug,
           image: sokoBot.image,
-          avatarStyleId: sokoBot.avatarStyleId,
         };
         return [
           sokoBot.id,
@@ -2900,6 +2900,10 @@ function RoomView({
   }
 
   function handleRetryOutbound(message: ChatRoomMessage) {
+    if (isCoworkerStreamRoom) {
+      retryFailedStreamMessage();
+      return;
+    }
     const clientTurnId = readClientTurnId(message);
     if (!clientTurnId || !selectedRoom) {
       return;
@@ -3355,7 +3359,9 @@ function RoomView({
                   ? stableMessageHandlers.onRetryMention
                   : undefined
               }
-              onRemoveOutbound={handleRemoveOutbound}
+              onRemoveOutbound={
+                isCoworkerStreamRoom ? undefined : handleRemoveOutbound
+              }
               onJumpToQuotedMessage={
                 stableMessageHandlers.onJumpToQuotedMessage
               }
@@ -3635,7 +3641,9 @@ function RoomView({
                 }
                 onRetryOutbound={stableMessageHandlers.onRetryOutbound}
                 onRetryMention={stableMessageHandlers.onRetryMention}
-                onRemoveOutbound={handleRemoveOutbound}
+                onRemoveOutbound={
+                  isCoworkerStreamRoom ? undefined : handleRemoveOutbound
+                }
                 onJumpToQuotedMessage={
                   stableMessageHandlers.onJumpToQuotedMessage
                 }

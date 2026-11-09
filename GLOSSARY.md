@@ -40,6 +40,10 @@ _Avoid_: Permission, workspace access (when meaning this)
 A user-owned, first-party personal project manager. It helps one user operate Sokosumi, normally by delegating Tasks to Coworkers or hiring Agents to run Jobs. It is neither an Agent nor a Coworker.
 _Avoid_: Hermes, orchestrator, Agent, Coworker, bot (when meaning a generic AI actor)
 
+**Soko Bot avatar**:
+The picture that stands for one Soko Bot wherever it appears. Each one belongs to at most one Soko Bot.
+_Avoid_: Mascot (that is Cuso), look, crafted avatar
+
 **Delegation**:
 Creating, assigning, or managing a Task for a Coworker on the user's behalf. Distinct from hiring an Agent to start a Job.
 _Avoid_: Hire (Task → Coworker), execute (the Coworker executes the Task)

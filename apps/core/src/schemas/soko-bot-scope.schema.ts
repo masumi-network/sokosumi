@@ -2,10 +2,6 @@ import { z } from "@hono/zod-openapi";
 import { isValidTimezone } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { sokoBotSchema, sokoBotStatusSchema } from "./soko-bot.schema";
-import {
-  sokoBotAvatarOrNullSchema,
-  sokoBotAvatarStateSchema,
-} from "./soko-bot-avatar.schema";
 
 /** Personal (one owner), project or workspace (shared by the organization). */
 export const sokoBotScopeSchema = z
@@ -18,23 +14,14 @@ export const createSokoBotRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(80),
     avatarSeed: z.string().max(200).nullable().optional(),
-    /** Mascot from the avatar pool to claim for this bot. */
+    /** Soko Bot avatar from the pool to claim for this bot. */
     avatarId: z.string().uuid().nullable().optional(),
     personalityTone: z.number().int().min(0).max(100).nullable().optional(),
     personalityDetail: z.number().int().min(0).max(100).nullable().optional(),
     personalityStyle: z.number().int().min(0).max(100).nullable().optional(),
-  })
-  .strict()
-  .openapi("CreateSokoBotRequest");
-
-export const createScopedSokoBotRequestSchema = createSokoBotRequestSchema
-  .extend({
-    scope: sokoBotScopeSchema,
-    /** Required for `project`, refused otherwise. */
-    projectId: z.string().uuid().nullable().optional(),
     /**
-     * IANA timezone for a project or workspace bot's day, usually the
-     * creator's browser timezone. A personal bot ignores it.
+     * IANA timezone for the bot's day, usually the creator's browser
+     * timezone. Set on a new bot only; reactivation keeps the bot's own.
      */
     timezone: z
       .string()
@@ -42,6 +29,21 @@ export const createScopedSokoBotRequestSchema = createSokoBotRequestSchema
       .max(64)
       .refine(isValidTimezone, "Unknown timezone")
       .optional(),
+  })
+  .strict()
+  .openapi("CreateSokoBotRequest");
+
+/** A new name, held to the same rule as the name a bot is created with. */
+export const renameSokoBotRequestSchema = createSokoBotRequestSchema
+  .pick({ name: true })
+  .strict()
+  .openapi("RenameSokoBotRequest");
+
+export const createScopedSokoBotRequestSchema = createSokoBotRequestSchema
+  .extend({
+    scope: sokoBotScopeSchema,
+    /** Required for `project`, refused otherwise. */
+    projectId: z.string().uuid().nullable().optional(),
   })
   .strict()
   .refine((body) => (body.scope === "project") === Boolean(body.projectId), {
@@ -63,10 +65,6 @@ export const sharedSokoBotSummarySchema = z
     projectId: z.string().uuid().nullable(),
     avatarSeed: z.string().nullable(),
     avatarImageUrl: z.string().nullable(),
-    // Always sent. Optional in the contract so clients written before them
-    // keep compiling; tighten once every consumer reads them.
-    avatarState: sokoBotAvatarStateSchema.optional(),
-    avatar: sokoBotAvatarOrNullSchema.optional(),
     status: sokoBotStatusSchema,
     archivedAt: dateTimeSchema.nullable(),
     /** The room every member shares with this bot. */

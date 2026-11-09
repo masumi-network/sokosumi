@@ -1,6 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { channelLabel, SOCIAL_PROVIDERS } from "./calendar";
+import { channelLabel, isSocialProvider } from "./calendar";
 
 /**
  * "Plausible Analytics: privacy-friendly stats" → "Plausible Analytics".
@@ -21,9 +21,7 @@ export function changeIdeas(overview: CmoOverview): string[] {
   if (!strategy) return [];
   const social = strategy.channels
     .map((channel) => channel.channel)
-    .filter((channel) =>
-      (SOCIAL_PROVIDERS as readonly string[]).includes(channel),
-    );
+    .filter(isSocialProvider);
   const ideas: string[] = [];
   const [more, less] = [social[0], social.at(-1)];
   if (more && less && more !== less) {

@@ -1,11 +1,11 @@
-import { SokoBotAvatarState, SokoBotStatus } from "@sokosumi/core-client";
+import { SokoBotStatus } from "@sokosumi/core-client";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
 const ACTIVITY_ENDPOINT = "/api/personal-assistant/activity";
 /**
  * Slower than the console's 2.5 s probe: this row is on every page, and a turn
- * that starts and ends between two asks still leaves "Done" behind it.
+ * that starts and ends between two asks still leaves its last activity behind.
  */
 const POLL_MS = 5_000;
 const PROBE_TIMEOUT_MS = 8_000;
@@ -13,7 +13,6 @@ const PROBE_TIMEOUT_MS = 8_000;
 const activityResponseSchema = z.object({
   activity: z.object({
     status: z.enum(SokoBotStatus),
-    avatarState: z.enum(SokoBotAvatarState),
     // Optional until every Core answers with it; a missing one keeps the
     // rendered time.
     lastActivityAt: z.coerce.date().nullable().optional(),
@@ -26,7 +25,7 @@ type LiveFields = Omit<
 > & { lastActivityAt: Date | null };
 
 /**
- * Your bot as the server rendered it, kept current: state, status and when it
+ * Your bot as the server rendered it, kept current: its status and when it
  * was last active. The layout renders once and stays mounted across
  * navigation, so without this the row never changes.
  * Asks only while the tab is visible, and a failed ask keeps what it knows.

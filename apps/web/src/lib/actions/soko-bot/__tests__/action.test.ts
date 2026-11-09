@@ -6,11 +6,9 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
   () => {
     class MockCoreApiRequestError extends Error {
       status?: number;
-      kind?: string;
-      constructor(message: string, status?: number, kind?: string) {
+      constructor(message: string, status?: number) {
         super(message);
         this.status = status;
-        this.kind = kind;
       }
     }
     return {
@@ -21,13 +19,11 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
         resolveDecision: vi.fn(),
         createSchedule: vi.fn(),
         topUpAvatars: vi.fn(),
-        createAvatarDraft: vi.fn(),
-        discardAvatarDrafts: vi.fn(),
-        regenerateAvatarState: vi.fn(),
         createScoped: vi.fn(),
         archive: vi.fn(),
         reactivate: vi.fn(),
         resetMemory: vi.fn(),
+        rename: vi.fn(),
       },
       revalidatePathMock: vi.fn(),
       MockCoreApiRequestError,
@@ -61,9 +57,6 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
-  SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE,
-  SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE,
-  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOT_ROUTE,
   SOKO_BOTS_ROUTE,
@@ -73,18 +66,14 @@ import {
   archiveSokoBotAction,
   createScopedSokoBotAction,
   createSokoBotAction,
-  createSokoBotAvatarDraftAction,
   createSokoBotScheduleAction,
-  discardSokoBotAvatarDraftsAction,
   reactivateSokoBotAction,
-  regenerateSokoBotAvatarStateAction,
+  renameSokoBotAction,
   resetSokoBotMemoryAction,
   resolveSokoBotDecisionAction,
   startSokoBotTurnAction,
   topUpSokoBotAvatarsAction,
 } from "../action";
-
-const BOT_ID = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
 
 describe("soko-bot actions", () => {
   beforeEach(() => {
@@ -121,118 +110,6 @@ describe("soko-bot actions", () => {
     if (!result.ok) {
       expect(result.error.code).toBe(SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE);
     }
-  });
-
-  it("regenerateSokoBotAvatarStateAction redoes one state of the named bot", async () => {
-    const studio = { draft: null };
-    serviceMock.regenerateAvatarState.mockResolvedValue(studio);
-
-    const result = await regenerateSokoBotAvatarStateAction({
-      state: "working",
-      botId: BOT_ID,
-    });
-
-    expect(serviceMock.regenerateAvatarState).toHaveBeenCalledWith(
-      "working",
-      BOT_ID,
-    );
-    expect(result).toEqual({ ok: true, value: studio });
-  });
-
-  it("regenerateSokoBotAvatarStateAction rejects a state Core does not know", async () => {
-    const result = await regenerateSokoBotAvatarStateAction({
-      state: "asleep",
-    });
-
-    expect(result.ok).toBe(false);
-    expect(serviceMock.regenerateAvatarState).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    [
-      "avatar_regenerate_rate_limited",
-      429,
-      SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE,
-    ],
-    ["avatar_state_rendering", 409, SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE],
-  ])(
-    "regenerateSokoBotAvatarStateAction maps %s to its own code",
-    async (kind, status, code) => {
-      serviceMock.regenerateAvatarState.mockRejectedValue(
-        new MockCoreApiRequestError("no", status, kind),
-      );
-
-      const result = await regenerateSokoBotAvatarStateAction({
-        state: "idle",
-      });
-
-      expect(result).toMatchObject({ ok: false, error: { code } });
-    },
-  );
-
-  it("discardSokoBotAvatarDraftsAction hands back the studio with the kept look", async () => {
-    const studio = { draft: null };
-    serviceMock.discardAvatarDrafts.mockResolvedValue(studio);
-
-    const result = await discardSokoBotAvatarDraftsAction({ botId: BOT_ID });
-
-    expect(serviceMock.discardAvatarDrafts).toHaveBeenCalledWith(BOT_ID);
-    expect(result).toEqual({ ok: true, value: studio });
-  });
-
-  it("discardSokoBotAvatarDraftsAction targets the caller's own bot without an id", async () => {
-    serviceMock.discardAvatarDrafts.mockResolvedValue({ draft: null });
-
-    await discardSokoBotAvatarDraftsAction({});
-
-    expect(serviceMock.discardAvatarDrafts).toHaveBeenCalledWith(undefined);
-  });
-
-  it("discardSokoBotAvatarDraftsAction rejects a bot id that is not a uuid", async () => {
-    const result = await discardSokoBotAvatarDraftsAction({ botId: "nope" });
-
-    expect(result.ok).toBe(false);
-    expect(serviceMock.discardAvatarDrafts).not.toHaveBeenCalled();
-  });
-
-  it("discardSokoBotAvatarDraftsAction maps a Core failure to an action error", async () => {
-    serviceMock.discardAvatarDrafts.mockRejectedValue(new Error("down"));
-
-    const result = await discardSokoBotAvatarDraftsAction({ botId: BOT_ID });
-
-    expect(result).toMatchObject({ ok: false, error: { message: "down" } });
-  });
-
-  it("createSokoBotAvatarDraftAction says drawing is off, not to try again", async () => {
-    serviceMock.createAvatarDraft.mockRejectedValue(
-      new MockCoreApiRequestError(
-        "Avatar drawing is not available right now.",
-        503,
-        "avatar_drawing_unavailable",
-      ),
-    );
-    const result = await createSokoBotAvatarDraftAction({
-      input: { change: { kind: "shuffle" } },
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe(SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE);
-    }
-  });
-
-  it("createSokoBotAvatarDraftAction keeps a failed draw generic", async () => {
-    serviceMock.createAvatarDraft.mockRejectedValue(
-      new MockCoreApiRequestError(
-        "The look could not be drawn. Try again.",
-        503,
-        "avatar_draw_failed",
-      ),
-    );
-    const result = await createSokoBotAvatarDraftAction({
-      input: { change: { kind: "shuffle" } },
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("INTERNAL_SERVER_ERROR");
   });
 
   it("topUpSokoBotAvatarsAction leaves other Core failures generic", async () => {
@@ -362,6 +239,42 @@ describe("soko-bot actions", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
       expect(serviceMock.resetMemory).not.toHaveBeenCalled();
+    });
+
+    it("renames a shared bot with the trimmed name and refreshes its pages", async () => {
+      serviceMock.rename.mockResolvedValue({ id: BOT_ID, name: "Atlas" });
+      const result = await renameSokoBotAction({
+        name: "  Atlas  ",
+        botId: BOT_ID,
+      });
+      expect(result.ok).toBe(true);
+      expect(serviceMock.rename).toHaveBeenCalledWith("Atlas", BOT_ID);
+      expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOTS_ROUTE);
+    });
+
+    it("renames the caller's own bot without a botId", async () => {
+      serviceMock.rename.mockResolvedValue({ id: BOT_ID, name: "Atlas" });
+      await renameSokoBotAction({ name: "Atlas" });
+      expect(serviceMock.rename).toHaveBeenCalledWith("Atlas", undefined);
+      expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOT_ROUTE);
+    });
+
+    it.each([
+      ["a blank name", "   "],
+      ["a name over 80 characters", "x".repeat(81)],
+      ["no name", undefined],
+    ])("refuses %s before calling Core", async (_label, name) => {
+      const result = await renameSokoBotAction({ name });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+      expect(serviceMock.rename).not.toHaveBeenCalled();
+    });
+
+    it("returns Core's refusal to rename", async () => {
+      serviceMock.rename.mockRejectedValue(new Error("Forbidden"));
+      const result = await renameSokoBotAction({ name: "X", botId: BOT_ID });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.message).toBe("Forbidden");
     });
 
     it("passes botId through to a schedule", async () => {

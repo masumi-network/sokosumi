@@ -3,6 +3,7 @@ import { ArrowRight, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -12,7 +13,6 @@ import {
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
-import { BotFace } from "./bot-face";
 import {
   CreateSokoBotDialog,
   type CreateSokoBotProject,
@@ -73,7 +73,11 @@ function SharedBotCard({
           "focus-visible:ring-ring -m-1 flex min-w-0 items-center gap-3 rounded-md p-1 outline-none focus-visible:ring-2",
         )}
       >
-        <BotFace bot={bot} ownerId={bot.id} className="size-10" />
+        <BotFace
+          imageUrl={bot.avatarImageUrl}
+          seed={botFaceSeed(bot)}
+          className="size-10"
+        />
         <span className="min-w-0 flex-1">
           <span className="text-foreground block truncate font-medium">
             {name}
