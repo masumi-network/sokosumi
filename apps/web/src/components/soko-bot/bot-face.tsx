@@ -4,13 +4,14 @@ import { cn } from "@/lib/utils";
 
 /**
  * The orb seed `BotFace` draws for a bot: its own seed, or the default orb of
- * `ownerId` (the user it belongs to, or the bot's id when it has none).
+ * `ownerId` (the user it belongs to). A bot with no owner, or one whose owner
+ * the caller does not have, falls back to the bot's own id.
  */
 export function botFaceSeed(
-  bot: { avatarSeed?: string | null },
-  ownerId: string,
+  bot: { id: string; avatarSeed?: string | null },
+  ownerId?: string | null,
 ): string {
-  return bot.avatarSeed ?? defaultOrbSeed(ownerId);
+  return bot.avatarSeed ?? defaultOrbSeed(ownerId ?? bot.id);
 }
 
 /**

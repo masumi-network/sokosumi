@@ -247,11 +247,14 @@ export function SokoBotConsole({
   }, [integrationOutcome, router, t, consoleRoute]);
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
-  // Same seed Core hands chat participants, so console and room match.
+  // Same seed Core hands chat participants, so console and room match. Not
+  // `botFaceSeed`: that derives a `defaultOrbSeed`, and Core's fallback is the
+  // raw `orb:` id, so the two would draw different orbs for the same bot.
   const seed = bot.avatarSeed ?? `orb:${bot.userId ?? bot.id}`;
   const [isOpeningChat, startOpeningChat] = useTransition();
   const [pickedAvatar, setPickedAvatar] = useState<SokoBotAvatar | null>(null);
-  const [loadingAvatars, setLoadingAvatars] = useState(false);
+  // The picker mounts loading its first set; start there so saving is held.
+  const [loadingAvatars, setLoadingAvatars] = useState(true);
   const [isSavingAvatar, startSavingAvatar] = useTransition();
   const [editingPicture, setEditingPicture] = useState(false);
   // A shared bot's `botId` is set; the personal bot's is not.
@@ -305,7 +308,15 @@ export function SokoBotConsole({
                 imageUrl={bot.avatarImageUrl}
                 // Only the owner changes their own bot's picture here; shared
                 // bots get theirs from admin.
-                onEdit={ownsBot ? () => setEditingPicture(true) : null}
+                onEdit={
+                  ownsBot
+                    ? () => {
+                        // Each opening mounts a picker loading a fresh set.
+                        setLoadingAvatars(true);
+                        setEditingPicture(true);
+                      }
+                    : null
+                }
               />
               {ownsBot ? (
                 <Dialog

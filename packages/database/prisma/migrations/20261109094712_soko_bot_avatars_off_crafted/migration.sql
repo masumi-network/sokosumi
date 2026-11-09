@@ -17,8 +17,14 @@ BEGIN;
 -- keeps claiming avatars while this runs. Lock both tables first, so no claim
 -- lands between reading the pool and handing it out: one avatar never goes to
 -- two bots, and the bots read here are the ones that hold a crafted-style
--- avatar at commit. EXCLUSIVE mode blocks writes and `FOR UPDATE` row locks
--- but lets plain reads through.
+-- avatar at commit. EXCLUSIVE mode lets plain reads through but blocks more
+-- than writes: it also blocks `FOR UPDATE` and the ROW SHARE lock Postgres
+-- takes on `soko_bot` for a foreign-key check from a child table, so an insert
+-- of any row that references `soko_bot` waits for this (milliseconds-long)
+-- migration too. SHARE ROW EXCLUSIVE would let those through, but it is not
+-- enough on `soko_bot`: a still-serving transaction that holds a bot row
+-- `FOR UPDATE` and then updates `soko_bot` would deadlock with the `UPDATE`
+-- below under that weaker mode.
 --
 -- The app writes these tables in both orders (a claim writes the avatar, then
 -- the bot; creating or reactivating a bot writes the bot, then claims), so no

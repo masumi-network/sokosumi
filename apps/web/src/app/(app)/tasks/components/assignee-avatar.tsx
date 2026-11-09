@@ -25,7 +25,7 @@ export function AssigneeAvatar({
   ) {
     return (
       <AssistantOrb
-        seed={botFaceSeed(assignee, assignee.id)}
+        seed={botFaceSeed(assignee)}
         expression="idle"
         animate={false}
         size={orbSize}

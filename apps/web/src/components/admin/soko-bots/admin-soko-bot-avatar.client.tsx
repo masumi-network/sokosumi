@@ -21,7 +21,8 @@ export function AdminSokoBotAvatar({
   const t = useTranslations("App.Admin.SokoBots.Avatar");
   const router = useRouter();
   const [picked, setPicked] = useState<SokoBotAvatar | null>(null);
-  const [loadingAvatars, setLoadingAvatars] = useState(false);
+  // The picker mounts loading its first set; start there so Apply is held.
+  const [loadingAvatars, setLoadingAvatars] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   function apply() {

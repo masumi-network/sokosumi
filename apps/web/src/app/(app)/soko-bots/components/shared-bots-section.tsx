@@ -75,7 +75,7 @@ function SharedBotCard({
       >
         <BotFace
           imageUrl={bot.avatarImageUrl}
-          seed={botFaceSeed(bot, bot.id)}
+          seed={botFaceSeed(bot)}
           className="size-10"
         />
         <span className="min-w-0 flex-1">

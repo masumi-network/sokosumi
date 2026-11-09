@@ -3,9 +3,10 @@
 import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { Check, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { topUpSokoBotAvatarsAction } from "@/lib/actions/soko-bot/action";
 import { SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,12 @@ interface AvatarPickerProps {
   onChange: (avatar: SokoBotAvatar | null) => void;
   /** The bot's current picture, shown as an always-available option. */
   currentImageUrl?: string | null;
-  /** True while a set loads and nothing can be picked; hold saving meanwhile. */
+  /**
+   * True while a set loads and nothing can be picked; hold saving meanwhile.
+   * The picker mounts loading its first set, so start (or, on opening it,
+   * reset) the mirrored state at `true`: this reports only from `load()`, so
+   * the first render would otherwise disagree.
+   */
   onLoadingChange?: (loading: boolean) => void;
 }
 
@@ -112,9 +118,11 @@ function AvatarPickerSet({
     setLoaded(true);
   }
 
-  useEffect(() => {
+  // The first set. The parent already starts loading, so the `true` from
+  // `load()` confirms it and its `false` releases saving.
+  useMountEffect(() => {
     load([]);
-  }, []);
+  });
 
   return (
     <div className="space-y-3">

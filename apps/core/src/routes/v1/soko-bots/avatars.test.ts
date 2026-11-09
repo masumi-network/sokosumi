@@ -310,8 +310,9 @@ describe("Soko Bot avatar picker", () => {
       expect((await topUp(6, seen)).avatars).toHaveLength(6);
     });
 
-    it("logs a background draw that fails instead of failing the refresh", async () => {
+    it("keeps a refresh answered when its background draw fails", async () => {
       const seen = [store.seed().id];
+      // Quiet the failure's log line; the outcome is what is checked.
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
       generateTextMock.mockRejectedValue(new Error("gateway down"));
 
@@ -320,8 +321,37 @@ describe("Soko Bot avatar picker", () => {
       expect(status).toBe(200);
       expect(avatars).toEqual([]);
       await expect(runDeferred()).resolves.toBeUndefined();
-      expect(error).toHaveBeenCalled();
+      // Only the probe was tried, and nothing blank is offered.
+      expect(generateTextMock).toHaveBeenCalledTimes(1);
+      await expect(list()).resolves.toEqual({ status: 200, ids: seen });
       error.mockRestore();
+    });
+
+    it("buys one draw for quick refreshes while that draw is in flight", async () => {
+      const seen = [store.seed().id];
+      let release: () => void = () => {};
+      const drawing = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      generateTextMock.mockImplementation(async () => {
+        await drawing;
+        return { files: [{ mediaType: "image/png", uint8Array: drawnPng }] };
+      });
+
+      // "Show others" four times before the first draw lands.
+      for (let i = 0; i < 4; i += 1) {
+        expect((await topUp(6, seen)).status).toBe(200);
+      }
+      release();
+      await runDeferred();
+
+      const paid = store.avatars.filter(
+        (row) => row.requestedByUserId === USER_ID,
+      );
+      expect(paid).toHaveLength(6);
+      expect(generateTextMock).toHaveBeenCalledTimes(6);
+      // The one draw fills the next refresh, and allowance is left over.
+      expect((await topUp(6, seen)).avatars).toHaveLength(6);
     });
 
     it("keeps concurrent background draws under the hourly cap", async () => {
@@ -349,7 +379,8 @@ describe("Soko Bot avatar picker", () => {
       expect(status).toBe(200);
       expect(avatars).toHaveLength(6);
       expect(generateTextMock).toHaveBeenCalledTimes(5);
-      expect(deferred).toHaveLength(0);
+      // Drawn before the answer: nothing is left in flight behind it.
+      expect(store.avatars.every((row) => row.reservedAt === null)).toBe(true);
     });
 
     it("draws only what is left of the user's hourly allowance", async () => {
