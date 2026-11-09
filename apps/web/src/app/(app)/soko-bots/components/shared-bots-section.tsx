@@ -3,14 +3,13 @@ import { ArrowRight, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { BotFace } from "@/components/soko-bot/bot-face";
+import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
   HOLDER_ITEM_HOVER_CLASS,
 } from "@/components/ui/holder-surface";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +75,7 @@ function SharedBotCard({
       >
         <BotFace
           imageUrl={bot.avatarImageUrl}
-          seed={bot.avatarSeed ?? defaultOrbSeed(bot.id)}
+          seed={botFaceSeed(bot, bot.id)}
           className="size-10"
         />
         <span className="min-w-0 flex-1">
