@@ -5,25 +5,25 @@
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "computedHash": "79add54dd6de82a262a88c94744d7decde000159c1d7f67c78eb9d4e523d54bb"
+      "computedHash": "60a9cbe5af176150582c019e16e5d3703a41bb02d88438e881349876120d7944"
     },
     "agent-desktop": {
       "source": "vercel-labs/agent-desktop",
       "sourceType": "github",
       "skillPath": "skills/agent-desktop/SKILL.md",
-      "computedHash": "1518d19219dcdbf863bdd32f7b8850e7de1318964bff1ced00615800cf872278"
+      "computedHash": "2d108c00ab812928464c7cda3857c12be0cf3c3148f3677621b5f9e99c6e9f6c"
     },
     "ai-sdk": {
       "source": "vercel/ai",
       "sourceType": "github",
       "skillPath": "skills/use-ai-sdk/SKILL.md",
-      "computedHash": "aee5bf7ecb066b54eae76799610fa8a9be9ff1ca9a000ea92d17c14ec862938b"
+      "computedHash": "d6910e7d8bb527d2823ba58b6225b304ae649c135fc7e43ec2d2152251c218db"
     },
     "debugging-with-ably-cli": {
       "source": "ably/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/debugging-with-ably-cli/SKILL.md",
-      "computedHash": "5448f564e4b8d33e63b758e403afef30049a5d9285355a903c629af8db49f479"
+      "computedHash": "2b215a529351dded6b827844cf348f1536dcd93153d4cf570981bd99ad2deb2e"
     },
     "gh-stack": {
       "source": "github/gh-stack",
@@ -46,14 +46,14 @@
       "source": "vercel-labs/portless",
       "sourceType": "github",
       "skillPath": "skills/portless/SKILL.md",
-      "computedHash": "b2642f023bb321fb7eceb6d5e4d24262771c90d7405dd467dbff8b9492bdc342"
+      "computedHash": "f5470113b886cd5efaf128bf4f22c9078be3871593b90d7498f4905982cbabaa"
     },
     "sentry-cli": {
       "source": "cli.sentry.dev",
       "sourceUrl": "https://cli.sentry.dev",
       "sourceType": "well-known",
-      "computedHash": "5c4ad508ccc3d980158604271847da68c00f832d02a48688ffcfb342f6888db9",
-      "wellKnownDigest": "sha256:51cf883c6b5bab2e089db992c3f3b999a6b0e50a4df05e5097de9288d6e86b5e"
+      "computedHash": "3a42e868615d1abd8ecf6ac87bbb60048ce0a33c78c34b967ee22193c00e530e",
+      "wellKnownDigest": "sha256:4f58eeb2804e095c500cc9ade9d362e4b10f9ccf50e8f50507a5794bb51d0adc"
     },
     "steward": {
       "source": ".",
@@ -69,13 +69,13 @@
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
-      "computedHash": "9681d8dfeb5e6cdff767f1bcaba5d7ac55732a9d6c02ee120f44229f8ec25e7e"
+      "computedHash": "c83a6ff75c62092f71da91408164ed3426f11749b032fd23ecc855e27c2fb538"
     },
     "using-ably": {
       "source": "ably/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/using-ably/SKILL.md",
-      "computedHash": "6c7a24d3b16ecfbefc9d3ceb9d5ba53ab228c0028b0429a028909b4f5747d759"
+      "computedHash": "d0a8171de22aa44e6fc6b71ec931997fd301703f8f2fec9fd3d14c09c6d34a7a"
     }
   }
 }

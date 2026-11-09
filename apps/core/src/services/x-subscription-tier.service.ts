@@ -7,6 +7,7 @@ import {
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import prisma from "@/lib/db/prisma";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { projectExecutorUserId } from "@/services/project-social-connections.service";
 
 export const X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS = 3_000;
@@ -107,7 +108,15 @@ export async function resolveProjectXSubscriptionTypes(
   projectId: string,
 ): Promise<Map<string, string | null>> {
   const connections = await prisma.projectSocialConnection.findMany({
-    where: { projectId, provider: "x", status: "active" },
+    where: {
+      projectId,
+      provider: "x",
+      status: "active",
+      // The eval world's stand-in accounts have no Composio account to read.
+      composioConnectedAccountId: {
+        not: { startsWith: EVAL_CONNECTED_ACCOUNT_PREFIX },
+      },
+    },
     select: {
       id: true,
       projectId: true,

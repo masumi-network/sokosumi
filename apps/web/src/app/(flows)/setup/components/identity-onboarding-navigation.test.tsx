@@ -98,7 +98,7 @@ async function openCreatedWizard() {
 }
 async function reachReady() {
   const user = await openCreatedWizard();
-  await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+  await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
   await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
   return user;
 }
@@ -310,7 +310,9 @@ describe("IdentityOnboardingForm navigation", () => {
     await act(() =>
       creation.resolve({ ok: true, value: { organizationId: "org-1" } }),
     );
-    expect(screen.getByRole("button", { name: /Nav.next/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Nav.skipForNow/i }),
+    ).toBeTruthy();
   });
   it("blocks retrying a failed invite link after Finish, including before render", async () => {
     mocks.mint.mockResolvedValue({ ok: false });

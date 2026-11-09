@@ -59,12 +59,12 @@ export const formatTelPatternValidationSchema = z.object({
   value: formatTelPatternValidationValueSchema,
 });
 
-export const stepValidationSchema = z.object({
+const stepValidationSchema = z.object({
   validation: z.enum([InputValidation.STEP]),
   value: z.coerce.number().min(0),
 });
 
-export const validationSchema = optionalValidationSchema
+const validationSchema = optionalValidationSchema
   .or(minValidationSchema)
   .or(maxValidationSchema)
   .or(formatUrlValidationSchema)
