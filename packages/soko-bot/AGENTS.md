@@ -23,6 +23,7 @@ The live tree is `src/`. One main export in `package.json`. `prepare` compiles `
 | `result-previews.ts`                                                                     | Chat result preview reference schema and limit                          |
 | `project-marketing.ts`                                                                   | Brand Brain, marketing-strategy, and social-post JSON shapes (ADR 0062) |
 | `cmo.ts`                                                                                 | Cuso profile: brand sections and CMO tools on a `cmo-*` version         |
+| `writing-skills/`                                                                        | Per-network writing skills, checklists, and `writingSkillsBrief`        |
 | `memory.ts`, `persona.ts`, `proactive.ts`, `judge.ts`, `scenarios.ts`, `integrations.ts` | Shared policy and admin-lab contracts                                   |
 
 The loop runs in each bot's Vercel Sandbox (`apps/core/src/soko-bot-runner`). The runner calls Core at `/v1/soko-bot-runtime` (`apps/core/src/routes/v1/soko-bot-runtime`). Evaluation runs stay in-process (`apps/core/src/lib/soko-bot/in-process-runtime.ts`). There is no `apps/soko-bot`.
