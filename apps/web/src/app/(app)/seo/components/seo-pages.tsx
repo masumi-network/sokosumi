@@ -203,7 +203,11 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                       ) : null}
                       <SeoPageLink url={page.url} />
                     </div>
-                    <SeoState>{t(page.relationship)}</SeoState>
+                    {/* A lone page is the primary page; the badge would say nothing. */}
+                    {model.data.pages.length > 1 ||
+                    page.relationship !== "primary" ? (
+                      <SeoState>{t(page.relationship)}</SeoState>
+                    ) : null}
                   </div>
                   {page.relatedToPageId ? (
                     <p className="text-muted-foreground text-sm">

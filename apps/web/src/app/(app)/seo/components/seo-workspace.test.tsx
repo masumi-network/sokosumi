@@ -343,6 +343,17 @@ describe("SEO workspace integration", () => {
     expect(screen.getByLabelText("Activity from")).toBe(from);
   });
 
+  it("leaves the Primary page badge off a lone page", () => {
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=pages");
+    expect(screen.getByText("https://example.com/")).toBeVisible();
+    expect(screen.queryByText("Primary page")).toBeNull();
+  });
+
   it("hides the page picker when the only page is the one selected", () => {
     const workspace = seoTestWorkspace();
     workspace.scopes = [];
@@ -761,6 +772,8 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     // One note under the tiles, not one per tile.
     expect(screen.queryByText("Not enough days to compare")).toBeNull();
+    // Search Console is Google search only; the subtitle does not repeat it.
+    expect(screen.queryByText(/Organic search/)).toBeNull();
     expect(
       screen.getAllByText(/^Too few impressions to compare weeks/),
     ).toHaveLength(1);

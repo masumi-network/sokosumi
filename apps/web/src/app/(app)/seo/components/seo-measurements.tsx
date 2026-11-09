@@ -145,12 +145,15 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         active ? (
           <>
             {t(`statistics.${active.source}`)} ·{" "}
-            <SeoPeriod from={active.from} to={reported?.to ?? active.to} /> ·{" "}
-            {t(
-              active.channel === "organic"
-                ? "statistics.channelOrganic"
-                : "statistics.channelAll",
-            )}
+            <SeoPeriod from={active.from} to={reported?.to ?? active.to} />
+            {/* Search Console only counts Google search, so its channel says nothing. */}
+            {active.source === "search_console"
+              ? null
+              : ` · ${t(
+                  active.channel === "organic"
+                    ? "statistics.channelOrganic"
+                    : "statistics.channelAll",
+                )}`}
           </>
         ) : undefined
       }
