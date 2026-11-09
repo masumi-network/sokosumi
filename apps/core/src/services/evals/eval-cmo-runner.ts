@@ -299,7 +299,9 @@ async function pollMonth(
   const review = parseCmoMonthReview(version.monthReview);
   const reviewed = review && (review.round === 2 || !review.rewriteRunId);
   const timedOut = Date.now() - context.startedAt.getTime() >= MONTH_TIMEOUT_MS;
-  if (!reviewed && !timedOut) return { kind: "waiting" };
+  // Stuck: today's runs ended with pieces missing; the cron would try tomorrow.
+  if (!reviewed && !timedOut && production.state !== "stuck")
+    return { kind: "waiting" };
 
   const turns = await prisma.sokoBotTurn.findMany({
     where: {

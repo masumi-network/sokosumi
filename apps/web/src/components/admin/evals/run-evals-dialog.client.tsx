@@ -74,6 +74,7 @@ export function RunEvalsDialog() {
               <Label>{t("suites")}</Label>
               <ToggleGroup
                 type="single"
+                aria-label={t("suites")}
                 value={suites}
                 onValueChange={(value) => value && setSuites(value as Suites)}
                 className="w-full"
@@ -89,6 +90,7 @@ export function RunEvalsDialog() {
               <Label>{t("repeats")}</Label>
               <ToggleGroup
                 type="single"
+                aria-label={t("repeats")}
                 value={repeats}
                 onValueChange={(value) => value && setRepeats(value)}
               >

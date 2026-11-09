@@ -58,7 +58,6 @@ const SIMULATED: Record<string, (input: unknown) => Record<string, unknown>> = {
   import_newsletter_subscribers: () => ({ added: 0, skipped: 0 }),
   add_newsletter_subscribers_from_contacts: () => ({ added: 0, skipped: 0 }),
   publish_social_post: () => ({ status: "PUBLISHED" }),
-  schedule_social_post: () => ({ status: "SCHEDULED" }),
   create_ad_campaign: () => ({ status: "PAUSED", campaignId: null }),
   update_ad_campaign: () => ({ updated: true }),
   edit_ad_campaign: () => ({ updated: true }),

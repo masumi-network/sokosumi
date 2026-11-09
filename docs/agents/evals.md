@@ -45,7 +45,7 @@ In development, run the few cases your change touches with `--repeats 1` while y
 Eval bots run on mainnet, so nothing they do may leave their organization (`lib/evals/eval-guard.ts`):
 
 - Global Coworkers are not offered to them and cannot be assigned or asked: they would do real, paid work.
-- Hires, newsletter subscriber adds, publishing and scheduling posts, ad campaigns and comment replies answer as if they worked without running. The tool call is still recorded, so cases still check whether the bot tried.
+- Hires, newsletter subscriber adds, publishing a post now, ad campaigns and comment replies answer as if they worked without running. The tool call is still recorded, so cases still check whether the bot tried. Scheduling runs for real, because a month counts a post as made once it is scheduled; the publisher never picks up a post on an eval account.
 - The stand-in social accounts carry an `eval:` Composio id, and the social syncs skip them.
 - Their bots are paused for unprompted work between runs, and eval turns start with `lab:`, which keeps them out of allowances and fleet statistics.
 
