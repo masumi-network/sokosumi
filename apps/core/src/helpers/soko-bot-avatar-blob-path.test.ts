@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildOriginalSokoBotAvatarBlobPathname,
+  isCraftedStyleAvatarBlobPathname,
   rewriteLegacySokoBotAvatarBlobPath,
   SOKO_BOT_AVATAR_BLOB_DIR,
   SOKO_BOT_AVATAR_LEGACY_BLOB_DIR,
@@ -58,5 +59,48 @@ describe("soko-bot avatar blob path", () => {
     ).toBe(
       "soko-bots/11111111-1111-1111-1111-111111111111/chats/room/file.png",
     );
+  });
+});
+
+describe("crafted-style avatar blob cleanup selection", () => {
+  it("selects crafted-style avatar stills and loops directly under soko-bots/avatars/", () => {
+    for (const pathname of [
+      `soko-bots/avatars/owl-3-${HASH12}.webp`,
+      `soko-bots/avatars/draft-0190a1b2-${HASH12}.webp`,
+      `soko-bots/avatars/0190a1b2-idle-${HASH12}.webp`,
+      `soko-bots/avatars/0190a1b2-working-loop-${HASH12}.mp4`,
+      `soko-bots/avatars/0190a1b2-working-loop-large-${HASH12}.mp4`,
+    ]) {
+      expect(isCraftedStyleAvatarBlobPathname(pathname), pathname).toBe(true);
+    }
+  });
+
+  it("selects the vendored ffmpeg copy", () => {
+    expect(
+      isCraftedStyleAvatarBlobPathname(
+        "vendor/ffmpeg-static/b6.1.1/ffmpeg-linux-x64-Kat8TFEc5GgKu9hryOAPTb3VpUHuG9.gz",
+      ),
+    ).toBe(true);
+  });
+
+  it("never selects a .png, an original-style WebP, or anything else", () => {
+    for (const pathname of [
+      `soko-bots/avatars/round-helper-robot-3-${HASH12}.png`,
+      `soko-bot-avatars/round-helper-robot-3-${HASH12}.png`,
+      `soko-bots/avatars/original/owl-1-${HASH12}.webp`,
+      `soko-bots/avatars/original/nested/owl-1-${HASH12}.webp`,
+      `soko-bots/avatars/other/clip-${HASH12}.mp4`,
+      `soko-bot-avatars/owl-${HASH12}.webp`,
+      "soko-bots/11111111-1111-1111-1111-111111111111/chats/room/file.webp",
+      "vendor/other/ffmpeg.gz",
+      `vendor/ffmpeg-static/owl-${HASH12}.png`,
+      `vendor/ffmpeg-static/b6.1.1/owl-${HASH12}.png`,
+      "vendor/ffmpeg-static/b6.1.1/ffmpeg-linux-x64-Kat8TFEc5GgKu9hryOAPTb3VpUHuG9.gz.png",
+      "vendor/ffmpeg-static/b6.1.1/readme.txt",
+      "vendor/ffmpeg-static/b6.1.1/nested/ffmpeg-linux-x64.gz",
+      "soko-bots/avatars/owl.webp.png",
+    ]) {
+      expect(isCraftedStyleAvatarBlobPathname(pathname), pathname).toBe(false);
+    }
   });
 });

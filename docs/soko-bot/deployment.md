@@ -116,6 +116,25 @@ the old prefix after DB URLs are clean:
    pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --delete-legacy --confirm-delete-legacy
    ```
 
+## Delete crafted-style avatar files
+
+Crafted-style avatars (ADR 0064) left `.webp` stills and `.mp4` loops directly
+under `soko-bots/avatars/`, plus a vendored ffmpeg under `vendor/ffmpeg-static/`.
+Delete them once per Blob store (each network has its own), after migration
+`20261109110512_soko_bot_avatar_drop_crafted` has run in that network's
+production. The script never touches a `.png` or `soko-bots/avatars/original/`.
+
+It reads `BLOB_READ_WRITE_TOKEN` from `apps/core/.env`; a token exported in the
+shell wins. Check the store id it prints first, then dry-run and apply:
+
+```sh
+pnpm --filter @sokosumi/core soko-bot:delete-crafted-style-avatar-blobs
+pnpm --filter @sokosumi/core soko-bot:delete-crafted-style-avatar-blobs -- --apply --confirm-delete
+```
+
+If a batch fails, it reports how many it deleted and how many remain and exits
+non-zero; rerun it.
+
 ## Runtime shape
 
 - `SOKO_BOT_RUNTIME_ADAPTER` defaults to `sandbox`: each turn runs in a fresh
