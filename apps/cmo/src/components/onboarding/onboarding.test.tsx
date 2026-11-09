@@ -413,7 +413,7 @@ describe("Plan", () => {
       /<h1 class="ob-goal-headline">More marketing teams starting Free<\/h1>/,
     );
     expect(html).toContain(
-      `<p class="ob-goal-statement">${sentence.replace("'", "&#x27;")}</p>`,
+      `<p class="ob-goal-statement">${sentence.replaceAll("'", "&#x27;")}</p>`,
     );
   });
 
