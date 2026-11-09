@@ -100,7 +100,7 @@ export const patchTaskRequestSchema = z
     }),
     dueOn: calendarDateSchema.nullish().openapi({
       description:
-        "The day the Task should be done by (YYYY-MM-DD); null clears it. A request that changes only dueOn works in every status, not just draft, queued or ready.",
+        "The day the Task should be done by (YYYY-MM-DD); null clears it. A request that changes only dueOn also works outside draft, queued and ready, except on a Task parked in GRANT_PENDING.",
       example: "2026-11-20",
     }),
   })

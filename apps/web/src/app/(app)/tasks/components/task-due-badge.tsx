@@ -30,7 +30,11 @@ export function TaskDueBadge({
 }: TaskDueBadgeProps) {
   const t = useTranslations("App.Tasks.Due");
   const formatter = useFormatter();
-  const today = dayInTimeZone(useNow(), useTimeZone());
+  // Ticks so Due turns Overdue at midnight on a page left open.
+  const today = dayInTimeZone(
+    useNow({ updateInterval: 60_000 }),
+    useTimeZone(),
+  );
   const date = formatter.dateTime(dueDayDate(dueOn), DUE_DAY_FORMAT);
   const overdue = isTaskOverdue(dueOn, status, today);
   const Icon = overdue ? CalendarX : CalendarCheck;

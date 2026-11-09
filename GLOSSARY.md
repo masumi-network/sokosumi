@@ -133,7 +133,7 @@ The one time a Task is set to start, instead of now. A Task has at most one; it 
 _Avoid_: Schedule, scheduled task (for a single Task), once mode
 
 **Due date**:
-The day a Task should be done by: a calendar day with no time, set on the Task page in any status. Past that day, by the reader's own time zone, an unfinished Task reads **Overdue**; a Completed or Canceled one never does. It does not start, remind or move the Task, and a duplicate does not copy it. Distinct from Run at, which is when the Task starts.
+The day a Task should be done by: a calendar day with no time, set on the Task page in any status except Grant pending (Web only for now; the CLI and Apple apps do not show it). Past that day, by the reader's own time zone, an unfinished Task reads **Overdue**; a Completed or Canceled one never does. It does not start, remind or move the Task, and a duplicate does not copy it. Distinct from Run at, which is when the Task starts.
 _Avoid_: Deadline (in UI copy), due time
 
 **Task Schedule**:

@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createFormats } from "@/i18n/time-format";
 import en from "@/messages/en.json";
@@ -55,5 +55,38 @@ describe("TaskDueBadge", () => {
     render(intl(<TaskDueBadge dueOn="2026-11-01" status="COMPLETED" />));
 
     expect(screen.getByText("Due Nov 1")).toBeInTheDocument();
+  });
+});
+
+describe("TaskDueBadge on a page left open", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("turns Overdue after midnight, still never on finished work", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-09T23:59:30.000Z"));
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={{ App: { Tasks: { Due: en.App.Tasks.Due } } }}
+      >
+        <TaskDueBadge dueOn="2026-11-09" status="RUNNING" />
+        <TaskDueBadge dueOn="2026-11-08" status="COMPLETED" />
+        <TaskDueBadge dueOn="2026-11-08" status="CANCELED" />
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByText("Due Nov 9")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+
+    expect(screen.getByText("Overdue · Nov 9")).toBeInTheDocument();
+    expect(screen.getAllByText("Due Nov 8")).toHaveLength(2);
+    expect(screen.queryByText("Overdue · Nov 8")).not.toBeInTheDocument();
   });
 });
