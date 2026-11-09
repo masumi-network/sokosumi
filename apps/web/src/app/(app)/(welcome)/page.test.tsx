@@ -7,13 +7,23 @@ const listMessages = vi.fn();
 const sokoBotHome = vi.fn();
 const needsYouPanel = vi.fn();
 const chatLanding = vi.fn();
+const getWorkspaceAccess = vi.fn();
+const redirect = vi.fn((path: string) => {
+  throw new Error(`NEXT_REDIRECT ${path}`);
+});
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
+vi.mock("next/navigation", () => ({
+  redirect: (path: string) => redirect(path),
+}));
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: async () => ({ user: { id: "user-1", name: "Alice Doe" } }),
 }));
 vi.mock("@/lib/services/user.service", () => ({
-  userService: { getActiveOrganizationId: async () => null },
+  userService: {
+    getActiveOrganizationId: async () => null,
+    getWorkspaceAccess: () => getWorkspaceAccess(),
+  },
 }));
 vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: { getMine: () => getMine() },
@@ -86,6 +96,7 @@ async function renderPage() {
 
 describe("WelcomePage", () => {
   beforeEach(() => {
+    getWorkspaceAccess.mockResolvedValue({ gate: "ready" });
     listRooms.mockResolvedValue({
       rooms: [
         {
@@ -113,6 +124,15 @@ describe("WelcomePage", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it("sends an account without a workspace to setup before reading", async () => {
+    getWorkspaceAccess.mockResolvedValue({ gate: "identity-onboarding" });
+    getMine.mockResolvedValue(null);
+
+    await expect(renderPage()).rejects.toThrow("NEXT_REDIRECT /setup");
+    expect(chatLanding).not.toHaveBeenCalled();
+    expect(needsYouPanel).not.toHaveBeenCalled();
   });
 
   it("keeps the coworker welcome without a Soko Bot", async () => {

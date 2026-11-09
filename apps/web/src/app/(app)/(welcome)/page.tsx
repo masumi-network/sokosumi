@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
@@ -18,6 +19,7 @@ import { notificationService } from "@/lib/services/notification.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
+import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
@@ -60,12 +62,20 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, session, activeOrganizationId, sokoBot] = await Promise.all([
-    searchParams,
-    getSession(),
-    userService.getActiveOrganizationId(),
-    sokoBotService.getMine().catch(() => null),
-  ]);
+  const [query, session, activeOrganizationId, sokoBot, access] =
+    await Promise.all([
+      searchParams,
+      getSession(),
+      userService.getActiveOrganizationId(),
+      sokoBotService.getMine().catch(() => null),
+      userService.getWorkspaceAccess().catch(() => null),
+    ]);
+  // The app shell's loading fallback renders this page before the frame's
+  // workspace gate redirects, so a brand-new account (sign-up lands here)
+  // would read coworkers and tasks it has no workspace for. Leave first.
+  if (!isWorkspaceReady(access?.gate)) {
+    redirect(WORKSPACE_GATE_PATH);
+  }
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
