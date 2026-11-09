@@ -650,7 +650,16 @@ describe("WorkspaceCalendar editing", () => {
     });
     renderCalendar({ items: [RELEASED_ITEM, ITEM] });
 
-    await user.click(screen.getByRole("button", { name: "event.moreActions" }));
+    // The menu is a column of its own beside the Task card: 40px below md,
+    // 32px from md up, never laid over the card's navigation.
+    const trigger = screen.getByRole("button", { name: "event.moreActions" });
+    const card = screen.getAllByTestId("calendar-event")[0];
+    expect(card).not.toContainElement(trigger);
+    expect(trigger.parentElement).toBe(card.parentElement);
+    expect(trigger).toHaveClass("min-h-10", "w-10", "md:min-h-8", "md:w-8");
+    expect(trigger).not.toHaveClass("absolute");
+
+    await user.click(trigger);
     await user.click(screen.getByRole("menuitem", { name: "event.download" }));
 
     expect(pushMock).not.toHaveBeenCalled();

@@ -451,15 +451,10 @@ function CalendarEvent({
     <DropdownMenuTrigger asChild>
       <button
         aria-describedby={peopleNames ? peopleId : undefined}
-        aria-label={
-          // A card with a Task is its own button; the menu needs another name.
-          taskId
-            ? t("event.moreActions", { task: item.taskName })
-            : t("event.accessibleName", {
-                source: sourceName,
-                task: item.taskName,
-              })
-        }
+        aria-label={t("event.accessibleName", {
+          source: sourceName,
+          task: item.taskName,
+        })}
         className="text-muted-foreground press hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
         // Radix already toggled on pointerdown; the click must not reach the
         // card's own open handler.
@@ -552,28 +547,37 @@ function CalendarEvent({
   );
 
   // A card with a Task (a released Run or a Run at) opens that Task; its
-  // menu button sits beside it, never inside the card's button.
+  // menu has its own column beside it, so neither target overlaps the other.
   if (taskId) {
     return (
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <div className="relative w-full min-w-0">
+        <div className="bg-background border-border flex w-full min-w-0 overflow-hidden rounded border">
           <button
             aria-describedby={peopleNames ? peopleId : undefined}
             aria-label={t("event.accessibleName", {
               source: sourceName,
               task: item.taskName,
             })}
-            className={cardClassName}
+            className={cn(
+              cardClassName,
+              "min-w-0 flex-1 rounded-none border-0",
+            )}
             data-testid="calendar-event"
             onClick={onTap(() => onOpen(`/tasks/${taskId}`))}
             type="button"
             {...dragAttemptHandlers}
           >
-            {cardContent(
-              <span aria-hidden className="ml-auto size-5 shrink-0" />,
-            )}
+            {cardContent(null)}
           </button>
-          <span className="absolute right-1.5 bottom-1 flex">{menuButton}</span>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label={t("event.moreActions", { task: item.taskName })}
+              className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring flex min-h-10 w-10 shrink-0 cursor-pointer items-center justify-center outline-none focus-visible:ring-2 md:min-h-8 md:w-8"
+              type="button"
+            >
+              <Ellipsis aria-hidden className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
         </div>
         <DropdownMenuContent align="end">
           {downloadMenuItem}
