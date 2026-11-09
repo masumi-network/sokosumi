@@ -10674,10 +10674,9 @@
         "ruleIds": "Rule IDs: {ids}",
         "rulesOnly": "Rule IDs",
         "toolRanges": "Ranges SEO tools use: {ranges}",
-        "askAboutMeasure": "A check measured “{name}” on my page as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Should I change it?",
-        "askAboutMeasureOnPage": "A check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Should I change it?",
         "positionHint": "1 is the top result",
-        "noteFound": "Found: {found}"
+        "noteFound": "Found: {found}",
+        "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -11094,8 +11093,8 @@
           },
           "keyword": "Search Console lists no searches for “{keyword}” on {pages, plural, one {your page} other {your pages}} yet. The agent can draft a plan to rank for it.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches.",
-          "measure": "{name}: {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve.",
-          "measureOnPage": "{name} on {url}: {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve."
+          "measure": "Suggestion: {name} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve.",
+          "measureOnPage": "Suggestion: {name} on {url} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve."
         },
         "prompts": {
           "first": "What should I do first?",
@@ -11118,7 +11117,8 @@
         "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
         "askShort": "Ask",
         "openTraffic": "Open Traffic",
-        "draftFix": "Draft a fix"
+        "draftFix": "Draft a fix",
+        "suggestions": "{count, plural, one {# suggestion, not an error.} other {# suggestions, not errors.}}"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

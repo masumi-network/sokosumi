@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   checkName,
+  measuresOutsideToolRanges,
   measureValue,
   noteFinding,
   pageDetailGuidance,
@@ -196,21 +197,15 @@ function PageDetail({
               }
               onClick={() =>
                 ask(
+                  // The same request as the Agent tab's "Draft a fix" step.
                   measure
-                    ? showPage
-                      ? t("overview.askAboutMeasureOnPage", {
-                          name,
-                          value: value ?? "",
-                          tools: format.list(fit?.outside ?? []),
-                          count: fit?.outside.length ?? 0,
-                          url: finding.pageUrl,
-                        })
-                      : t("overview.askAboutMeasure", {
-                          name,
-                          value: value ?? "",
-                          tools: format.list(fit?.outside ?? []),
-                          count: fit?.outside.length ?? 0,
-                        })
+                    ? t("agent.prompts.measure", {
+                        name,
+                        value: value ?? "",
+                        tools: format.list(fit?.outside ?? []),
+                        count: fit?.outside.length ?? 0,
+                        url: finding.pageUrl,
+                      })
                     : showPage
                       ? t("overview.askAboutNoteOnPage", {
                           name,
@@ -220,7 +215,7 @@ function PageDetail({
                 )
               }
             >
-              {t("overview.askAgent")}
+              {t(measure ? "agent.draftFix" : "overview.askAgent")}
             </Button>
           ) : null}
           {showPage ? (
@@ -275,6 +270,8 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
     (finding) => finding.severity !== "measure",
   );
   const flagged = notes.length;
+  // The Agent tab counts the same suggestions.
+  const suggestions = measuresOutsideToolRanges(overview.diagnostics).length;
   const references = pageDetailReferences(
     overview.diagnostics.map((finding) => ({
       name: checkName(finding.title),
@@ -397,6 +394,12 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
             <h2 className="inline text-sm font-semibold">
               {t("overview.diagnostics")}
             </h2>
+            {suggestions ? (
+              <span className="text-muted-foreground text-sm whitespace-nowrap">
+                {" "}
+                · {t("overview.suggestionCount", { count: suggestions })}
+              </span>
+            ) : null}
             {flagged ? (
               <span className="text-muted-foreground text-sm whitespace-nowrap">
                 {" "}

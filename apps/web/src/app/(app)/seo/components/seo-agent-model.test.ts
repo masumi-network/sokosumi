@@ -187,7 +187,7 @@ describe("SEO agent brief", () => {
     ).not.toContain("keyword");
   });
 
-  it("turns a measured value outside a tool range into the first free step", () => {
+  it("turns a measured value outside a tool range into a suggestion after the keyword step", () => {
     const workspace = connected();
     const measured = (id: string, evidence: string) => ({
       id,
@@ -228,8 +228,10 @@ describe("SEO agent brief", () => {
     workspace.searchQueries = {
       rows: [],
     } as unknown as ProjectSeoWorkspace["searchQueries"];
-    const steps = seoAgentBrief(workspace, synced).steps;
-    // Only the value outside a range becomes a step, and it leads the keyword step.
+    const brief = seoAgentBrief(workspace, synced);
+    const steps = brief.steps;
+    // Only the value outside a range becomes a step; the verdict counts it once.
+    expect(brief.suggestions).toBe(1);
     expect(steps.filter((step) => step.kind === "measure")).toEqual([
       {
         kind: "measure",
@@ -239,9 +241,10 @@ describe("SEO agent brief", () => {
         pageUrl: "https://example.com/",
       },
     ]);
+    // A suggestion is not an error: the keyword plan comes first.
     expect(steps.map((step) => step.kind).slice(0, 2)).toEqual([
-      "measure",
       "keyword",
+      "measure",
     ]);
     // A value fixed since: the newest check is in range, so an older value outside it is no step.
     workspace.findings = [
@@ -252,8 +255,8 @@ describe("SEO agent brief", () => {
         observationId: "older-check",
       },
     ] as ProjectSeoWorkspace["findings"];
-    expect(
-      seoAgentBrief(workspace, synced).steps.map((step) => step.kind),
-    ).not.toContain("measure");
+    const fixed = seoAgentBrief(workspace, synced);
+    expect(fixed.steps.map((step) => step.kind)).not.toContain("measure");
+    expect(fixed.suggestions).toBe(0);
   });
 });

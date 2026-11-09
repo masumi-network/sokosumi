@@ -312,6 +312,9 @@ function SeoAgentPanel({
                 checked: brief.lastCheck.checked,
                 pages: brief.lastCheck.pages,
               })}
+              {brief.suggestions
+                ? ` ${t("agent.suggestions", { count: brief.suggestions })}`
+                : null}
             </p>
           ) : null}
           {traffic ? (

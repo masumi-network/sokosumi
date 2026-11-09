@@ -10674,10 +10674,9 @@
         "ruleIds": "Regel-IDs: {ids}",
         "rulesOnly": "Regel-IDs",
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
-        "askAboutMeasure": "Eine Prüfung hat „{name}“ auf meiner Seite mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Sollte ich das ändern?",
-        "askAboutMeasureOnPage": "Eine Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Sollte ich das ändern?",
         "positionHint": "1 ist das oberste Ergebnis",
-        "noteFound": "Gefunden: {found}"
+        "noteFound": "Gefunden: {found}",
+        "suggestionCount": "{count, plural, one {# Vorschlag} other {# Vorschläge}}"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -11094,8 +11093,8 @@
           },
           "keyword": "Search Console listet noch keine Suchen nach „{keyword}“ für {pages, plural, one {deine Seite} other {deine Seiten}}. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden.",
-          "measure": "{name}: {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst.",
-          "measureOnPage": "{name} auf {url}: {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst."
+          "measure": "Vorschlag: {name} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst.",
+          "measureOnPage": "Vorschlag: {name} auf {url} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst."
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
@@ -11118,7 +11117,8 @@
         "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
         "askShort": "Agent fragen",
         "openTraffic": "Zugriffe öffnen",
-        "draftFix": "Korrektur entwerfen"
+        "draftFix": "Korrektur entwerfen",
+        "suggestions": "{count, plural, one {# Vorschlag, kein Fehler.} other {# Vorschläge, keine Fehler.}}"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",

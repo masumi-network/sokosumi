@@ -419,6 +419,10 @@ describe("SEO workspace integration", () => {
           (link) => link.getAttribute("href") === "https://example.com/old",
         ),
     ).toBe(true);
+    // The fold counts suggestions apart from notes, as the Agent tab does.
+    expect(details.querySelector("summary")).toHaveTextContent(
+      /· 1 suggestion · 2 notes$/,
+    );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/From the check on/)).toBeNull();
     expect(details.querySelectorAll("time")).toHaveLength(4);
@@ -448,10 +452,13 @@ describe("SEO workspace integration", () => {
       "aria-expanded",
       "true",
     );
-    // Each note offers a question to the agent; a measurement only when a tool range leaves it out.
+    // Each note offers a question to the agent; a measurement offers a fix only when a tool range leaves it out.
     expect(
       screen.getAllByRole("button", { name: "Ask the agent" }),
-    ).toHaveLength(3);
+    ).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Draft a fix" })).toHaveLength(
+      1,
+    );
     // Provenance folds once: a line every row shares is listed once, without row names.
     const reference = screen.getByText(
       "Source: raw HTML; the rendered DOM was not requested.",
@@ -474,10 +481,10 @@ describe("SEO workspace integration", () => {
     );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    // A measurement's question carries its value; the unsent draft keeps the earlier question.
+    // A measurement's request is the Agent tab's; the unsent draft keeps the earlier question.
     await user.click(
       screen.getByRole("button", {
-        name: "Ask the agent",
+        name: "Draft a fix",
         description: "Title length: https://example.com/old",
       }),
     );
@@ -485,7 +492,7 @@ describe("SEO workspace integration", () => {
       "Your question",
     ) as HTMLTextAreaElement;
     expect(question.value).toMatch(
-      /\n\nA check measured “Title length” on https:\/\/example\.com\/old as 80 characters, outside the range of Ahrefs\. Should I change it\?$/,
+      /\n\nThe check measured “Title length” on https:\/\/example\.com\/old as 80 characters, outside the range of Ahrefs\. Draft a change and suggest it as an action I can approve\.$/,
     );
   });
 
@@ -2447,6 +2454,23 @@ describe("SEO workspace integration", () => {
   it("offers a fix for a measured value outside a tool range as the primary step", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    // The check passed: the measured value is a suggestion, not an issue.
+    workspace.observations.push({
+      id: "check-description",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
     workspace.findings.push({
       id: "measured-description",
       observationId: "check-description",
@@ -2484,13 +2508,23 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     expect(
       await screen.findByText(
-        "Meta description length: 163 characters, outside the range of Ahrefs. The agent can draft a change for you to approve.",
+        "Suggestion: Meta description length is 163 characters, outside the range of Ahrefs. The agent can draft a change for you to approve.",
+      ),
+    ).toBeVisible();
+    // The verdict counts it as a suggestion, so a passed check does not read as broken.
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          /^Last check .+ · 12 tests on 1 page\. 1 suggestion, not an error\.$/.test(
+            element.textContent ?? "",
+          ),
       ),
     ).toBeVisible();
     // The step with page evidence carries the one primary button.
     const draft = screen.getByRole("button", {
       name: "Draft a fix",
-      description: /^Meta description length: 163 characters/,
+      description: /^Suggestion: Meta description length is 163 characters/,
     });
     expect(draft).toHaveClass("bg-primary");
     await user.click(draft);
@@ -2503,7 +2537,7 @@ describe("SEO workspace integration", () => {
     // Without the agent chat the step has no button, so the next step keeps the primary one.
     renderWorkspace({ ...workspace, auditId: null });
     expect(
-      await screen.findByText(/^Meta description length: 163 characters/),
+      await screen.findByText(/^Suggestion: Meta description length is 163/),
     ).toBeVisible();
     expect(screen.queryByRole("button", { name: "Draft a fix" })).toBeNull();
     const pagesStep = screen

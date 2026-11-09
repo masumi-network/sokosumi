@@ -67,12 +67,6 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   const steps: SeoAgentStep[] = [...fixes, ...opportunities]
     .slice(0, SEO_AGENT_ACTION_LIMIT)
     .map((action) => ({ kind: "action", action }));
-  // A measured value outside the tools' ranges is evidence on the page; it leads the free SEO work.
-  for (const measure of measuresOutsideToolRanges(overview.diagnostics).slice(
-    0,
-    SEO_AGENT_ACTION_LIMIT,
-  ))
-    steps.push({ kind: "measure", ...measure });
   // SEO work from free saved data comes before account upkeep.
   // A cut list cannot prove Google left a keyword out.
   const listed =
@@ -85,6 +79,10 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
       )
     : undefined;
   if (unseen) steps.push({ kind: "keyword", keyword: unseen.keyword });
+  // A value outside the tools' ranges is a suggestion, not an error: it follows the search work.
+  const suggestions = measuresOutsideToolRanges(overview.diagnostics);
+  for (const measure of suggestions.slice(0, SEO_AGENT_ACTION_LIMIT))
+    steps.push({ kind: "measure", ...measure });
   if (workspace.availableActions.canEdit && workspace.pages.length === 1)
     steps.push({ kind: "pages" });
   if (refresh && (staleSearch || !workspace.searchQueries))
@@ -116,6 +114,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
         }
       : null,
     issues: overview.issues.length,
+    suggestions: suggestions.length,
     emptyState: overview.emptyState,
     fixes: fixes.length,
     opportunities: opportunities.length,

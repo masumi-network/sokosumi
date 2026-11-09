@@ -10674,10 +10674,9 @@
         "ruleIds": "ID de reglas: {ids}",
         "rulesOnly": "ID de reglas",
         "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
-        "askAboutMeasure": "Una comprobación midió «{name}» en mi página: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. ¿Debería cambiarlo?",
-        "askAboutMeasureOnPage": "Una comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. ¿Debería cambiarlo?",
         "positionHint": "1 es el primer resultado",
-        "noteFound": "Encontrado: {found}"
+        "noteFound": "Encontrado: {found}",
+        "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -11094,8 +11093,8 @@
           },
           "keyword": "Search Console aún no muestra búsquedas de «{keyword}» para {pages, plural, one {tu página} other {tus páginas}}. El agente puede preparar un plan para que aparezcas en esa búsqueda.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas.",
-          "measure": "{name}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes.",
-          "measureOnPage": "{name} en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes."
+          "measure": "Sugerencia: {name} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes.",
+          "measureOnPage": "Sugerencia: {name} en {url} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes."
         },
         "prompts": {
           "first": "¿Qué debo hacer primero?",
@@ -11118,7 +11117,8 @@
         "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
         "askShort": "Preguntar",
         "openTraffic": "Abrir tráfico",
-        "draftFix": "Preparar un arreglo"
+        "draftFix": "Preparar un arreglo",
+        "suggestions": "{count, plural, one {# sugerencia, no un error.} other {# sugerencias, no errores.}}"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
