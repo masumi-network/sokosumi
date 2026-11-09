@@ -188,4 +188,62 @@ describe("GET /chats/saved-messages", () => {
       }),
     ]);
   });
+
+  it("pages by position, so a removed boundary save keeps the rest", async () => {
+    const savedAt = new Date("2026-11-09T08:00:00.000Z");
+    const boundary = "550e8400-e29b-41d4-a716-446655440009";
+
+    const response = await createApp().request(
+      `/?cursor=${savedAt.toISOString()}_${boundary}&limit=20`,
+    );
+
+    expect(response.status).toBe(200);
+    const findArgs = db.chatRoomSavedMessage.findMany.mock.calls[0][0];
+    expect(findArgs.cursor).toBeUndefined();
+    expect(findArgs.skip).toBeUndefined();
+    expect(findArgs.where).toMatchObject({
+      userId: USER_ID,
+      OR: [{ savedAt: { lt: savedAt } }, { savedAt, id: { lt: boundary } }],
+    });
+  });
+
+  it("returns the last row's position as the next cursor", async () => {
+    const rows = Array.from({ length: 2 }, (_, index) => ({
+      id: `550e8400-e29b-41d4-a716-44665544000${index + 2}`,
+      messageId: MESSAGE_ID,
+      savedAt: new Date(`2026-11-0${9 - index}T08:00:00.000Z`),
+      message: {
+        id: MESSAGE_ID,
+        roomId: ROOM_ID,
+        parentMessageId: null,
+        content: "x",
+        createdAt: new Date("2026-11-01T08:00:00.000Z"),
+        deletedAt: null,
+        editedAt: null,
+        metadata: null,
+        senderUser: null,
+        senderCoworker: null,
+        mentionsAsSource: [],
+        reactions: [],
+        replies: [],
+        pins: [],
+      },
+    }));
+    db.chatRoomSavedMessage.findMany.mockResolvedValue(rows);
+    db.chatRoomSavedMessage.count.mockResolvedValue(5);
+
+    const response = await createApp().request("/?limit=1");
+
+    const body = await response.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.meta.pagination.nextCursor).toBe(
+      `2026-11-09T08:00:00.000Z_${rows[0].id}`,
+    );
+  });
+
+  it("rejects a malformed cursor", async () => {
+    const response = await createApp().request("/?cursor=not-a-cursor");
+    expect(response.status).toBe(400);
+    expect(db.chatRoomSavedMessage.findMany).not.toHaveBeenCalled();
+  });
 });

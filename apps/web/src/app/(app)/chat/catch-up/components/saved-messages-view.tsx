@@ -4,7 +4,7 @@ import type { ChatRoom, ChatSavedMessageListItem } from "@sokosumi/core-client";
 import { Bookmark, BookmarkX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listSavedMessagesAction,
@@ -49,12 +49,38 @@ export function SavedMessagesView({
   const tChannels = useTranslations("App.Channels");
   const roomDisplayName = useRoomDisplayName();
   const { formatTimeAgo } = useLocalizedDateTime();
-  const rooms = useLiveChatRooms() ?? initialRooms;
+  // As the Threads view does: once a live read has landed, null is that read
+  // being dropped (a workspace switch), so the page's rooms must not return.
+  const liveRooms = useLiveChatRooms();
+  const sawLiveRooms = useRef(false);
+  if (liveRooms !== null) {
+    sawLiveRooms.current = true;
+  }
+  const rooms = liveRooms ?? (sawLiveRooms.current ? [] : initialRooms);
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
+
+  // A new first page from the server (workspace switch, refresh) replaces
+  // the list and its cursor; nothing from the old scope stays.
+  const [page, setPage] = useState(initialPage);
   const [items, setItems] = useState(initialPage?.items ?? []);
   const [nextCursor, setNextCursor] = useState(initialPage?.nextCursor ?? null);
+  if (page !== initialPage) {
+    setPage(initialPage);
+    setItems(initialPage?.items ?? []);
+    setNextCursor(initialPage?.nextCursor ?? null);
+  }
+  const currentPage = useRef(initialPage);
+  useEffect(() => {
+    currentPage.current = initialPage;
+  }, [initialPage]);
+
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  // Live rooms are the reader's access now: a row whose room left the
+  // sidebar (membership lost) goes at once, before Core is asked again.
+  const visibleItems = sawLiveRooms.current
+    ? items.filter((item) => roomsById.has(item.message.roomId))
+    : items;
 
   async function handleRemove(messageId: string) {
     setRemovingId(messageId);
@@ -72,9 +98,12 @@ export function SavedMessagesView({
 
   async function handleLoadOlder() {
     if (!nextCursor) return;
+    const startedOn = initialPage;
     setLoadingOlder(true);
     const result = await listSavedMessagesAction(nextCursor);
     setLoadingOlder(false);
+    // The scope changed while this page was out: it belongs to the old list.
+    if (currentPage.current !== startedOn) return;
     if (!result.ok) {
       toast.error(result.error.message);
       return;
@@ -95,7 +124,7 @@ export function SavedMessagesView({
             <p className="text-muted-foreground px-2 py-6 text-center text-sm">
               {t("error")}
             </p>
-          ) : items.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <div
               className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
               data-testid="saved-messages-empty"
@@ -110,7 +139,7 @@ export function SavedMessagesView({
             </div>
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="saved-messages">
-              {items.map(({ messageId, savedAt, message }) => {
+              {visibleItems.map(({ messageId, savedAt, message }) => {
                 const room = roomsById.get(message.roomId);
                 const roomName = room
                   ? room.kind === "channel"
