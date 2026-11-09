@@ -10771,7 +10771,6 @@
         "empty": "No checks or changes for these pages yet",
         "emptyBody": "Checks, page selections, tasks and failed syncs will appear here.",
         "details": "Work details",
-        "rulebook": "Rulebook {version}",
         "graphLabel": "SEO activity, newest first",
         "auditRun": "Audit results",
         "checkRun": "Check results",
@@ -10781,7 +10780,7 @@
         "actionLinked": "Action Task linked",
         "scopeChanged": "Page selection changed",
         "pageChanged": "Page change recorded",
-        "checkSummary": "{checked} rules checked",
+        "checkSummary": "{checked, plural, one {# test} other {# tests}}",
         "sourceDetails": "Details",
         "resultsSaved": "Results saved",
         "incomplete": "Some requested work could not be completed.",
@@ -10790,12 +10789,10 @@
         "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}",
         "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
         "cleanChecks": "No issues in {count} checks",
-        "earlierRules": "Earlier checks covered {counts} rules.",
-        "rulesRan": "{count, plural, one {# rule checked} other {# rules checked}}",
+        "earlierRules": "Earlier checks ran {counts} tests.",
         "rulesSkipped": "{count} not checked",
         "rulesUnavailable": "{count} unavailable",
-        "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}",
-        "optionalNotRequested": "{count, plural, =0 {all optional checks requested} one {# optional check not requested} other {# optional checks not requested}}"
+        "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}"
       },
       "analysis": {
         "title": "Run a check",
@@ -11052,7 +11049,7 @@
       "agent": {
         "ask": "Ask the SEO agent",
         "title": "SEO agent",
-        "lastCheck": "{checked, plural, one {# rule} other {# rules}} checked on {pages, plural, one {# page} other {# pages}}.",
+        "lastCheck": "{checked, plural, one {# test} other {# tests}} on {pages, plural, one {# page} other {# pages}}.",
         "refreshing": "The agent is refreshing Search Console.",
         "refreshFailed": "Search Console could not be refreshed. Try again from Next steps.",
         "nextTitle": "Next steps",

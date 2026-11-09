@@ -56,12 +56,11 @@ export function SeoTimeline({
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
-  // A check's own row says what it covered, in plain words; a gap is named only when there is one.
-  function coverageText(
+  // A gap in a check is named only when there is one; the row already says how much ran.
+  function gapText(
     coverage: ProjectSeoWorkspace["observations"][number]["coverage"],
   ) {
     return [
-      t("timeline.rulesRan", { count: coverage.checked }),
       coverage.skipped
         ? t("timeline.rulesSkipped", { count: coverage.skipped })
         : null,
@@ -75,6 +74,14 @@ export function SeoTimeline({
       .filter(Boolean)
       .join(" · ");
   }
+  const taskLink = (taskId: string) => (
+    <Link
+      href={`/tasks/${encodeURIComponent(taskId)}`}
+      className="inline-block py-3 text-foreground underline underline-offset-4"
+    >
+      {t("openTask")}
+    </Link>
+  );
   const taskStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const [showAll, setShowAll] = useState(false);
   // The button unmounts on click; move focus to the first event it revealed.
@@ -292,90 +299,68 @@ export function SeoTimeline({
                         {t("timeline.incomplete")}
                       </p>
                     ) : null}
+                    {observation &&
+                    !earlier.length &&
+                    gapText(observation.coverage) ? (
+                      <p className="text-muted-foreground text-xs">
+                        {gapText(observation.coverage)}
+                      </p>
+                    ) : null}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-                      <details className="text-muted-foreground">
-                        <summary className="cursor-pointer py-3 underline-offset-4 hover:underline">
-                          {t("timeline.sourceDetails")}
-                        </summary>
-                        <div className="space-y-2 pt-2">
-                          {/* A check's server detail repeats its coverage counts; the translated line below replaces it. */}
-                          {observation ? null : (
-                            <p className="whitespace-pre-wrap break-words">
-                              {event.detail}
-                            </p>
-                          )}
-                          {observation ? (
-                            <p>
-                              {/* A folded range hides the newest check's time; its line names it like the earlier ones. */}
-                              {earlier.length ? (
-                                <>
-                                  <SeoDate value={at} />
-                                  {" · "}
-                                </>
-                              ) : null}
-                              {coverageText(observation.coverage)}
-                              {event.taskId ? (
-                                <>
-                                  {" · "}
-                                  <Link
-                                    href={`/tasks/${encodeURIComponent(event.taskId)}`}
-                                    className="inline-block py-3 text-foreground underline underline-offset-4"
-                                  >
-                                    {t("openTask")}
-                                  </Link>
-                                </>
-                              ) : null}
-                            </p>
-                          ) : null}
-                          {observation ? (
-                            <p>
-                              {t("timeline.rulebook", {
-                                version: observation.rulebookVersion,
-                              })}
-                              {observation.coverage.modules?.notRequested
-                                ? ` · ${t("timeline.optionalNotRequested", { count: observation.coverage.modules.notRequested })}`
-                                : ""}
-                            </p>
-                          ) : null}
-                          {earlier.map((check) => (
-                            <p key={check.event.id}>
-                              <SeoDate value={check.at} />
-                              {check.observation
-                                ? ` · ${coverageText(check.observation.coverage)}`
-                                : ""}
-                              {/* Folding ignores optional checks; name a count that differs from the newest. */}
-                              {/* No module record is no data, not "all requested". */}
-                              {check.observation?.coverage.modules &&
-                              (check.observation.coverage.modules
-                                ?.notRequested ?? 0) !==
-                                (observation?.coverage.modules?.notRequested ??
-                                  0)
-                                ? ` · ${t("timeline.optionalNotRequested", { count: check.observation.coverage.modules?.notRequested ?? 0 })}`
-                                : ""}
-                              {check.event.taskId ? (
-                                <>
-                                  {" · "}
-                                  <Link
-                                    href={`/tasks/${encodeURIComponent(check.event.taskId)}`}
-                                    className="inline-block py-3 text-foreground underline underline-offset-4"
-                                  >
-                                    {t("openTask")}
-                                  </Link>
-                                </>
-                              ) : null}
-                            </p>
-                          ))}
-                          {/* A check's Task ends its coverage line above. */}
-                          {event.taskId && !observation ? (
-                            <Link
-                              href={`/tasks/${encodeURIComponent(event.taskId)}`}
-                              className="inline-block py-3 text-foreground underline underline-offset-4"
-                            >
-                              {t("openTask")}
-                            </Link>
-                          ) : null}
-                        </div>
-                      </details>
+                      {observation && !earlier.length ? (
+                        // One check needs no details: its Task is the record behind the row.
+                        event.taskId ? (
+                          taskLink(event.taskId)
+                        ) : null
+                      ) : (
+                        <details className="text-muted-foreground">
+                          <summary className="cursor-pointer py-3 underline-offset-4 hover:underline">
+                            {t("timeline.sourceDetails")}
+                          </summary>
+                          <div className="space-y-2 pt-2">
+                            {observation ? (
+                              // Folded checks, newest first: each keeps its time, its gaps and its Task.
+                              [
+                                {
+                                  id: event.id,
+                                  at,
+                                  observation,
+                                  taskId: event.taskId,
+                                },
+                                ...earlier.map((check) => ({
+                                  id: check.event.id,
+                                  at: check.at,
+                                  observation: check.observation,
+                                  taskId: check.event.taskId,
+                                })),
+                              ].map((check) => {
+                                const gaps = check.observation
+                                  ? gapText(check.observation.coverage)
+                                  : "";
+                                return (
+                                  <p key={check.id}>
+                                    <SeoDate value={check.at} />
+                                    {gaps ? ` · ${gaps}` : ""}
+                                    {check.taskId ? (
+                                      <>
+                                        {" · "}
+                                        {taskLink(check.taskId)}
+                                      </>
+                                    ) : null}
+                                  </p>
+                                );
+                              })
+                            ) : (
+                              <>
+                                <p className="whitespace-pre-wrap break-words">
+                                  {event.detail}
+                                </p>
+                                {event.taskId ? taskLink(event.taskId) : null}
+                              </>
+                            )}
+                          </div>
+                        </details>
+                      )}
                       {failed && event.kind === "check" && onRetry ? (
                         <Button variant="outline" size="sm" onClick={onRetry}>
                           {t("timeline.runNewCheck")}

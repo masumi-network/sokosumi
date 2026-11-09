@@ -10771,7 +10771,6 @@
         "empty": "Aún no hay comprobaciones ni cambios para estas páginas",
         "emptyBody": "Aquí aparecerán las comprobaciones, selecciones de páginas, tareas y sincronizaciones fallidas.",
         "details": "Detalles del trabajo",
-        "rulebook": "Reglas {version}",
         "graphLabel": "Actividad SEO, lo más reciente primero",
         "auditRun": "Resultados de la auditoría",
         "checkRun": "Resultados de la comprobación",
@@ -10781,7 +10780,7 @@
         "actionLinked": "Tarea de acción vinculada",
         "scopeChanged": "Selección de páginas cambiada",
         "pageChanged": "Cambio de página registrado",
-        "checkSummary": "{checked} reglas comprobadas",
+        "checkSummary": "{checked, plural, one {# prueba} other {# pruebas}}",
         "sourceDetails": "Detalles",
         "resultsSaved": "Resultados guardados",
         "incomplete": "No se pudo completar parte del trabajo solicitado.",
@@ -10790,12 +10789,10 @@
         "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}",
         "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}",
         "cleanChecks": "Sin problemas en {count} comprobaciones",
-        "earlierRules": "Las comprobaciones anteriores cubrieron {counts} reglas.",
-        "rulesRan": "{count, plural, one {# regla comprobada} other {# reglas comprobadas}}",
+        "earlierRules": "Las comprobaciones anteriores hicieron {counts} pruebas.",
         "rulesSkipped": "{count} sin comprobar",
         "rulesUnavailable": "{count, plural, one {# no disponible} other {# no disponibles}}",
-        "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
-        "optionalNotRequested": "{count, plural, =0 {todas las comprobaciones opcionales solicitadas} one {# comprobación opcional no solicitada} other {# comprobaciones opcionales no solicitadas}}"
+        "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}"
       },
       "analysis": {
         "title": "Iniciar comprobación",
@@ -11052,7 +11049,7 @@
       "agent": {
         "ask": "Preguntar al agente SEO",
         "title": "Agente SEO",
-        "lastCheck": "{checked, plural, one {# regla comprobada} other {# reglas comprobadas}} en {pages, plural, one {# página} other {# páginas}}.",
+        "lastCheck": "{checked, plural, one {# prueba} other {# pruebas}} en {pages, plural, one {# página} other {# páginas}}.",
         "refreshing": "El agente está actualizando Search Console.",
         "refreshFailed": "No se pudo actualizar Search Console. Inténtalo de nuevo en Siguientes pasos.",
         "nextTitle": "Siguientes pasos",

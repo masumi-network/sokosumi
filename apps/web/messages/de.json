@@ -10771,7 +10771,6 @@
         "empty": "Noch keine Prüfungen oder Änderungen für diese Seiten",
         "emptyBody": "Prüfungen, Seitenauswahl, Aufgaben und fehlgeschlagene Synchronisierungen erscheinen hier.",
         "details": "Arbeitsdetails",
-        "rulebook": "Regelwerk {version}",
         "graphLabel": "SEO-Aktivität, neueste zuerst",
         "auditRun": "Audit-Ergebnisse",
         "checkRun": "Prüfergebnisse",
@@ -10781,7 +10780,7 @@
         "actionLinked": "Aktionsaufgabe verknüpft",
         "scopeChanged": "Seitenauswahl geändert",
         "pageChanged": "Seitenänderung erfasst",
-        "checkSummary": "{checked} Regeln geprüft",
+        "checkSummary": "{checked, plural, one {# Test} other {# Tests}}",
         "sourceDetails": "Details",
         "resultsSaved": "Ergebnisse gespeichert",
         "incomplete": "Einige angeforderte Arbeiten konnten nicht abgeschlossen werden.",
@@ -10790,12 +10789,10 @@
         "metricsFailedTimes": "{count, plural, one {Statistik-Synchronisierung fehlgeschlagen} other {Statistik-Synchronisierung # Mal fehlgeschlagen}}",
         "result": "{count, plural, =0 {Keine Probleme gefunden} one {# Problem gefunden} other {# Probleme gefunden}}",
         "cleanChecks": "Keine Probleme in {count} Prüfungen",
-        "earlierRules": "Frühere Prüfungen umfassten {counts} Regeln.",
-        "rulesRan": "{count, plural, one {# Regel geprüft} other {# Regeln geprüft}}",
+        "earlierRules": "Frühere Prüfungen liefen mit {counts} Tests.",
         "rulesSkipped": "{count} nicht geprüft",
         "rulesUnavailable": "{count} nicht verfügbar",
-        "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}",
-        "optionalNotRequested": "{count, plural, =0 {alle optionalen Prüfungen angefordert} one {# optionale Prüfung nicht angefordert} other {# optionale Prüfungen nicht angefordert}}"
+        "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}"
       },
       "analysis": {
         "title": "Prüfung starten",
@@ -11052,7 +11049,7 @@
       "agent": {
         "ask": "SEO-Agent fragen",
         "title": "SEO-Agent",
-        "lastCheck": "{checked, plural, one {# Regel} other {# Regeln}} auf {pages, plural, one {# Seite} other {# Seiten}} geprüft.",
+        "lastCheck": "{checked, plural, one {# Test} other {# Tests}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
         "refreshing": "Der Agent aktualisiert die Search Console.",
         "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es unter Nächste Schritte erneut.",
         "nextTitle": "Nächste Schritte",

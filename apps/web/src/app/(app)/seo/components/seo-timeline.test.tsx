@@ -54,7 +54,7 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getAllByText(/12 rules checked/)[0]).toBeVisible();
+    expect(screen.getByText("12 tests · Desktop · 1 page")).toBeVisible();
     expect(
       screen.queryByText("Some requested work could not be completed."),
     ).toBeNull();
@@ -169,7 +169,9 @@ describe("SEO timeline recovery", () => {
     expect(within(recheck).queryByText("Saved")).toBeNull();
     const task = within(recheck).getByRole("link", { name: "Open task" });
     expect(task).toHaveAttribute("href", "/tasks/second-task");
-    expect(task.closest("details")).not.toBeNull();
+    // One check needs no Details: its Task sits on the row.
+    expect(task).toBeVisible();
+    expect(task.closest("details")).toBeNull();
   });
 
   it("folds back-to-back clean checks of the same pages into one row", () => {
@@ -226,10 +228,10 @@ describe("SEO timeline recovery", () => {
     const [clean, issues] = rows;
     expect(within(clean).getByText("No issues in 3 checks")).toBeVisible();
     expect(
-      within(clean).getByText("24 rules checked · Desktop · 1 page"),
+      within(clean).getByText("24 tests · Desktop · 1 page"),
     ).toBeVisible();
     expect(
-      within(clean).getByText("Earlier checks covered 12 rules."),
+      within(clean).getByText("Earlier checks ran 12 tests."),
     ).toBeVisible();
     // Every folded check keeps its Task, on its own line, newest first.
     expect(
@@ -248,18 +250,14 @@ describe("SEO timeline recovery", () => {
       within(clean).getByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov 4, 2026.* · 24 rules checked · Open task$/.test(
-            element.textContent ?? "",
-          ),
+          /^Nov 4, 2026.* · Open task$/.test(element.textContent ?? ""),
       ),
     ).toBeInTheDocument();
     expect(
       within(clean).getAllByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov \d, 2026.* · 12 rules checked · Open task$/.test(
-            element.textContent ?? "",
-          ),
+          /^Nov [23], 2026.* · Open task$/.test(element.textContent ?? ""),
       ),
     ).toHaveLength(2);
     // The server detail says the same in English; it is not shown twice.
@@ -267,9 +265,9 @@ describe("SEO timeline recovery", () => {
     expect(within(issues).getByText("3 issues found")).toBeVisible();
   });
 
-  it("leaves out an empty device list and names an earlier check's own optional count", () => {
+  it("leaves out an empty device list", () => {
     const workspace = seoTestWorkspace();
-    const check = (id: string, day: number, notRequested: number) => ({
+    const check = (id: string, day: number) => ({
       id,
       kind: "page_check",
       source: "agent",
@@ -283,18 +281,9 @@ describe("SEO timeline recovery", () => {
       rulebookVersion: "test-rules",
       artifactHash: id,
       issues: 0,
-      coverage: {
-        checked: 12,
-        skipped: 0,
-        failed: 0,
-        modules: { notRequested, failed: 0 },
-      },
+      coverage: { checked: 12, skipped: 0, failed: 0 },
     });
-    workspace.observations = [
-      check("older", 2, 0),
-      check("newer", 3, 3),
-      check("newest", 4, 3),
-    ];
+    workspace.observations = [check("only", 2)];
     workspace.timeline = workspace.observations.map((observation) => ({
       id: observation.id,
       kind: "check",
@@ -316,24 +305,7 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText("12 rules checked · 1 page")).toBeVisible();
-    expect(
-      screen.getByText(
-        (_, element) =>
-          element?.tagName === "P" &&
-          /^Nov 2, 2026.* · 12 rules checked · all optional checks requested$/.test(
-            element.textContent ?? "",
-          ),
-      ),
-    ).toBeInTheDocument();
-    // The same count as the newest check is not repeated.
-    expect(
-      screen.getByText(
-        (_, element) =>
-          element?.tagName === "P" &&
-          /^Nov 3, 2026.* · 12 rules checked$/.test(element.textContent ?? ""),
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("12 tests · 1 page")).toBeVisible();
   });
 
   it("keeps clean checks for another market as their own rows", () => {
