@@ -43,6 +43,7 @@ import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoCompetitors } from "./seo-competitors";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImportDialog } from "./seo-import-dialog";
+import { SeoIndexStatus } from "./seo-index-status";
 import { SeoKeywords } from "./seo-keywords";
 import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
@@ -383,7 +384,8 @@ export function SeoWorkspace({
               <SeoKeywords model={model} />
               <SeoCompetitors model={model} />
             </TabsContent>
-            <TabsContent value="health">
+            <TabsContent value="health" className="space-y-8">
+              <SeoIndexStatus model={model} />
               <SeoHealth model={model} />
             </TabsContent>
             <TabsContent value="actions">

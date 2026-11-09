@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
 } from "@sokosumi/utils";
@@ -12,6 +13,11 @@ import {
   gscBreakdownArguments,
   normalizeGscBreakdown,
 } from "@/lib/seo/native-gsc-breakdown";
+import {
+  GSC_INSPECT_TOOL,
+  gscInspectionArguments,
+  normalizeGscInspection,
+} from "@/lib/seo/native-gsc-inspection";
 import {
   gscKeywordSeriesArguments,
   gscQueryArguments,
@@ -347,6 +353,29 @@ export async function syncProjectSeoStatistics(
           ),
         )
       : null;
+  // One URL Inspection per page. A page Google did not answer for is left out, never guessed.
+  const collectIndexedPages = async () => {
+    if (input.provider !== "search_console") return null;
+    const inspect = await toolFor(integration, GSC_INSPECT_TOOL);
+    const results = await Promise.allSettled(
+      pageUrls.map(async (pageUrl) =>
+        normalizeGscInspection(
+          pageUrl,
+          unwrapNativeStatistics(
+            await read(
+              integration,
+              inspect,
+              gscInspectionArguments(input.propertyId, pageUrl),
+            ),
+            ["inspectionResult"],
+          ),
+        ),
+      ),
+    );
+    return results.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : [],
+    );
+  };
   const tracked =
     input.provider === "search_console"
       ? selectTrackedKeywords(workspace.keywords)
@@ -378,16 +407,25 @@ export async function syncProjectSeoStatistics(
       };
     };
   // Independent reads: native aggregate totals, the daily series, Search Console query rows and tracked keyword days. Distinct users are never summed.
-  const [period, daily, queries, keywordSeries, previous, byCountry, byDevice] =
-    await Promise.allSettled([
-      collect(false),
-      collect(true),
-      collectQueries(),
-      collectKeywordSeries(),
-      collectPrevious(),
-      collectBreakdown("country"),
-      collectBreakdown("device"),
-    ]);
+  const [
+    period,
+    daily,
+    queries,
+    keywordSeries,
+    previous,
+    byCountry,
+    byDevice,
+    indexed,
+  ] = await Promise.allSettled([
+    collect(false),
+    collect(true),
+    collectQueries(),
+    collectKeywordSeries(),
+    collectPrevious(),
+    collectBreakdown("country"),
+    collectBreakdown("device"),
+    collectIndexedPages(),
+  ]);
   if (period.status === "rejected" && daily.status === "rejected") {
     await recordSeoConnectionFailure(actor, input.provider, integration);
     throw unprocessableEntity(
@@ -439,6 +477,13 @@ export async function syncProjectSeoStatistics(
       metrics.devices = byDevice.value;
     if (byCountry.status === "rejected" || byDevice.status === "rejected")
       metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
+    if (indexed.status === "fulfilled" && indexed.value?.length)
+      metrics.indexedPages = indexed.value;
+    if (
+      indexed.status === "rejected" ||
+      (indexed.value?.length ?? 0) < pageUrls.length
+    )
+      metrics.notes.push(SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE);
     if (tracked.leftOut.length)
       metrics.notes.push(keywordSeriesLeftOutNote(tracked.leftOut));
   }

@@ -451,6 +451,33 @@ export const seoSearchBreakdownSchema = z
   })
   .strict()
   .openapi("ProjectSeoSearchBreakdown");
+/** Google's index verdict for one page from Search Console URL Inspection. */
+export const seoIndexedPageSchema = z
+  .object({
+    pageUrl: seoUrlSchema,
+    verdict: z.enum([
+      "PASS",
+      "PARTIAL",
+      "FAIL",
+      "NEUTRAL",
+      "VERDICT_UNSPECIFIED",
+    ]),
+    /** Google's own words, for example "Submitted and indexed". */
+    coverageState: z.string().max(500).nullable(),
+    robotsTxtState: z.string().max(100).nullable(),
+    lastCrawlTime: z.string().datetime({ offset: true }).nullable(),
+    googleCanonical: z.string().max(2048).nullable(),
+    userCanonical: z.string().max(2048).nullable(),
+  })
+  .strict()
+  .openapi("ProjectSeoIndexedPage");
+export const seoIndexStatusSchema = z
+  .object({
+    observationId: seoIdSchema,
+    observedAt: dateTimeSchema,
+    pages: z.array(seoIndexedPageSchema).max(SEO_MAX_PAGES),
+  })
+  .openapi("ProjectSeoIndexStatus");
 export const seoSearchQueriesSchema = z
   .object({
     observationId: seoIdSchema,
@@ -564,6 +591,8 @@ export const projectSeoWorkspaceSchema = z
     ]),
     metrics: z.array(seoMetricSchema),
     searchQueries: z.union([seoSearchQueriesSchema, z.null()]),
+    /** Google's index verdict per page from the newest Search Console sync that inspected them. */
+    indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     timeline: z.array(seoTimelineSchema),
     analyses: z.array(seoJobSchema),
     monitors: z.array(seoMonitorSchema),
@@ -623,6 +652,8 @@ export const nativeSeoMetricsSchema = z
     /** Search Console totals by country and by device. Absent when the read failed. */
     countries: seoSearchBreakdownSchema.optional(),
     devices: seoSearchBreakdownSchema.optional(),
+    /** URL Inspection results for the selected pages Google answered for. Absent when none answered. */
+    indexedPages: z.array(seoIndexedPageSchema).max(SEO_MAX_PAGES).optional(),
   })
   .strict()
   .refine((input) => input.from <= input.to, "Period ends before it starts")
@@ -642,5 +673,6 @@ export type SeoActor = {
 };
 export type NativeSeoMetrics = z.infer<typeof nativeSeoMetricsSchema>;
 export type SeoSearchBreakdown = z.infer<typeof seoSearchBreakdownSchema>;
+export type SeoIndexedPage = z.infer<typeof seoIndexedPageSchema>;
 export type SeoWorkspaceQuery = z.infer<typeof seoWorkspaceQuerySchema>;
 export type RequestSeoAnalysis = z.infer<typeof requestSeoAnalysisSchema>;

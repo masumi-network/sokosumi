@@ -1210,6 +1210,55 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText(/: 140 · week before: 140$/)).toBeVisible();
   });
 
+  it("says whether Google indexes the page in view and names another canonical", () => {
+    const workspace = seoTestWorkspace();
+    const url = workspace.pages[0].url;
+    workspace.indexStatus = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      observedAt: new Date("2026-11-01T10:00:00Z"),
+      pages: [
+        {
+          pageUrl: url,
+          verdict: "NEUTRAL",
+          coverageState: "Alternate page with proper canonical tag",
+          robotsTxtState: "ALLOWED",
+          lastCrawlTime: new Date("2026-10-30T08:15:00Z"),
+          googleCanonical: "https://example.com/other",
+          userCanonical: null,
+        },
+        // A page outside the scope stays out of view.
+        {
+          pageUrl: "https://elsewhere.example/",
+          verdict: "PASS",
+          coverageState: "Submitted and indexed",
+          robotsTxtState: null,
+          lastCrawlTime: null,
+          googleCanonical: null,
+          userCanonical: null,
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    const section = screen
+      .getByRole("heading", { name: "Google index" })
+      .closest("section");
+    if (!section) throw new Error("Index section missing");
+    expect(within(section).getByText("Not indexed")).toBeVisible();
+    expect(within(section).queryByText("Indexed")).toBeNull();
+    expect(
+      within(section).getByText(
+        "Google says: “Alternate page with proper canonical tag”",
+      ),
+    ).toBeVisible();
+    expect(
+      within(section).getByRole("link", { name: "https://example.com/other" }),
+    ).toBeVisible();
+  });
+
   it("lists search totals by country and device, folding countries past ten", () => {
     const workspace = seoTestWorkspace();
     const row = (key: string, clicks: number) => ({

@@ -11144,6 +11144,20 @@
         },
         "more": "{count, plural, one {# more country} other {# more countries}} with fewer clicks.",
         "truncated": "Only the first {count} rows by clicks were read. More can exist."
+      },
+      "index": {
+        "title": "Google index",
+        "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
+        "checked": "Checked",
+        "state": {
+          "indexed": "Indexed",
+          "warnings": "Indexed, with warnings",
+          "notIndexed": "Not indexed",
+          "unknown": "Index status unknown"
+        },
+        "google": "Google says: “{words}”",
+        "lastCrawl": "Last crawl:",
+        "otherCanonical": "Google chose another canonical page:"
       }
     }
   },

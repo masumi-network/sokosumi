@@ -9899,6 +9899,7 @@ export type ProjectSeoWorkspace = {
     metricsStatus: 'not_connected' | 'available' | 'partial' | 'unavailable';
     metrics: Array<ProjectSeoMetric>;
     searchQueries: ProjectSeoSearchQueries | null;
+    indexStatus?: ProjectSeoIndexStatus | null;
     timeline: Array<ProjectSeoTimelineItem>;
     analyses: Array<ProjectSeoAnalysis>;
     monitors: Array<ProjectSeoMonitor>;
@@ -10100,6 +10101,22 @@ export type ProjectSeoSearchBreakdown = {
         ctr: number;
         averagePosition: number;
     }>;
+};
+
+export type ProjectSeoIndexStatus = {
+    observationId: string;
+    observedAt: Date;
+    pages: Array<ProjectSeoIndexedPage>;
+};
+
+export type ProjectSeoIndexedPage = {
+    pageUrl: string;
+    verdict: 'PASS' | 'PARTIAL' | 'FAIL' | 'NEUTRAL' | 'VERDICT_UNSPECIFIED';
+    coverageState: string | null;
+    robotsTxtState: string | null;
+    lastCrawlTime: Date | null;
+    googleCanonical: string | null;
+    userCanonical: string | null;
 };
 
 export type ProjectSeoTimelineItem = {

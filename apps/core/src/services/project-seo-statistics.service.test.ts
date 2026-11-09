@@ -1,5 +1,6 @@
 import {
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   seoStatisticsLostData,
 } from "@sokosumi/utils";
@@ -128,6 +129,14 @@ vi.mock(
         slug: "GOOGLE_SEARCH_CONSOLE_LIST_SITES",
         readOnly: true,
         inputSchema: { properties: {} },
+      },
+      {
+        slug: "GOOGLE_SEARCH_CONSOLE_INSPECT_URL",
+        readOnly: true,
+        inputSchema: {
+          properties: { site_url: {}, inspection_url: {}, language_code: {} },
+          required: ["site_url", "inspection_url"],
+        },
       },
       {
         slug: "GOOGLE_SEARCH_CONSOLE_SEARCH_ANALYTICS_QUERY",
@@ -346,6 +355,15 @@ describe("Search Console query rows", () => {
             { siteUrl: "sc-domain:example.test", permissionLevel: "siteOwner" },
           ],
         };
+      if (slug.endsWith("INSPECT_URL"))
+        return {
+          inspectionResult: {
+            indexStatusResult: {
+              verdict: "PASS",
+              coverageState: "Submitted and indexed",
+            },
+          },
+        };
       const dimensions = args.dimensions as string[];
       if (dimensions.join() === "country")
         return { rows: [{ keys: ["deu"], ...metric }] };
@@ -460,6 +478,54 @@ describe("Search Console query rows", () => {
     expect(payload.notes).not.toContain(
       SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
     );
+  });
+
+  it("stores Google's index verdict for each page and hands it to the workspace", async () => {
+    state.answer = gsc({ rows: [] });
+    const workspace = await syncProjectSeoStatistics(actor, gscInput);
+    const inspection = state.reads.find((read) =>
+      read.slug.endsWith("INSPECT_URL"),
+    );
+    expect(inspection?.args).toEqual({
+      site_url: gscInput.propertyId,
+      inspection_url: state.pageUrl,
+    });
+    expect(workspace.indexStatus?.pages).toEqual([
+      {
+        pageUrl: state.pageUrl,
+        verdict: "PASS",
+        coverageState: "Submitted and indexed",
+        robotsTxtState: null,
+        lastCrawlTime: null,
+        googleCanonical: null,
+        userCanonical: null,
+      },
+    ]);
+    const payload = state.observations[0].payload as { notes: string[] };
+    expect(payload.notes).not.toContain(
+      SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
+    );
+  });
+
+  it("stores no verdict and says so when Google does not answer the inspection", async () => {
+    const current = gsc({ rows: [] });
+    state.answer = (slug, args) =>
+      slug.endsWith("INSPECT_URL")
+        ? { successful: false, error: "quota" }
+        : current(slug, args);
+    const workspace = await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      notes: string[];
+      indexedPages?: unknown;
+      metrics: Array<{ value: number | null }>;
+    };
+    expect(payload.indexedPages).toBeUndefined();
+    expect(workspace.indexStatus).toBeNull();
+    expect(payload.metrics[0].value).toBe(1);
+    expect(payload.notes).toContain(
+      SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
+    );
+    expect(seoStatisticsLostData(payload.notes)).toBe(false);
   });
 
   it("keeps the other reads and says so when the device read fails", async () => {

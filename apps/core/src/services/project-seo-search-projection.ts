@@ -33,8 +33,18 @@ export function projectSearchEvidence(
   taskStatuses: Map<string, string>,
 ): {
   searchQueries: ProjectSeoWorkspace["searchQueries"];
+  indexStatus: ProjectSeoWorkspace["indexStatus"];
   actions: ProjectSeoWorkspace["actions"];
 } {
+  // Index status stands apart from query rows: a page Google does not index has none.
+  const inspected = sources.find((source) => source.data.indexedPages?.length);
+  const indexStatus = inspected?.data.indexedPages
+    ? {
+        observationId: inspected.row.id,
+        observedAt: inspected.row.observedAt.toISOString(),
+        pages: inspected.data.indexedPages,
+      }
+    : null;
   const byId = new Map(sources.map((source) => [source.row.id, source]));
   const actions: ProjectSeoWorkspace["actions"] = [];
   const seen = new Set<string>();
@@ -59,7 +69,8 @@ export function projectSearchEvidence(
     });
   }
   const current = sources.find((source) => source.data.queries);
-  if (!current?.data.queries) return { searchQueries: null, actions };
+  if (!current?.data.queries)
+    return { searchQueries: null, indexStatus, actions };
   // A Task linked from an observation outside this scope still covers the same opportunity.
   const linkByAction = new Map<string, ProjectSeoActionTask>();
   for (const link of [...actionTasks].sort(
@@ -98,6 +109,7 @@ export function projectSearchEvidence(
       countries: current.data.countries,
       devices: current.data.devices,
     },
+    indexStatus,
     actions,
   };
 }

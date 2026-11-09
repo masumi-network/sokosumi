@@ -11144,6 +11144,20 @@
         },
         "more": "{count, plural, one {# país más} other {# países más}} con menos clics.",
         "truncated": "Solo se leyeron las primeras {count} filas por clics. Puede haber más."
+      },
+      "index": {
+        "title": "Índice de Google",
+        "help": "Si Google mantiene cada página en su índice de búsqueda, según la inspección de URL de Search Console.",
+        "checked": "Comprobado",
+        "state": {
+          "indexed": "Indexada",
+          "warnings": "Indexada, con advertencias",
+          "notIndexed": "No indexada",
+          "unknown": "Estado de índice desconocido"
+        },
+        "google": "Google indica: «{words}»",
+        "lastCrawl": "Último rastreo:",
+        "otherCanonical": "Google eligió otra página canónica:"
       }
     }
   },

@@ -36954,6 +36954,16 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        indexStatus: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoIndexStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         timeline: {
             type: 'array',
             items: {
@@ -38035,6 +38045,99 @@ export const ProjectSeoSearchBreakdownSchema = {
         'rowLimit',
         'truncated',
         'rows'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexStatusSchema = {
+    type: 'object',
+    properties: {
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        pages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexedPage'
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'observationId',
+        'observedAt',
+        'pages'
+    ]
+} as const;
+
+export const ProjectSeoIndexedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        verdict: {
+            type: 'string',
+            enum: [
+                'PASS',
+                'PARTIAL',
+                'FAIL',
+                'NEUTRAL',
+                'VERDICT_UNSPECIFIED'
+            ]
+        },
+        coverageState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        robotsTxtState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        lastCrawlTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        googleCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        userCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        }
+    },
+    required: [
+        'pageUrl',
+        'verdict',
+        'coverageState',
+        'robotsTxtState',
+        'lastCrawlTime',
+        'googleCanonical',
+        'userCanonical'
     ],
     additionalProperties: false
 } as const;

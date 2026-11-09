@@ -11144,6 +11144,20 @@
         },
         "more": "{count, plural, one {# weiteres Land} other {# weitere Länder}} mit weniger Klicks.",
         "truncated": "Nur die ersten {count} Zeilen nach Klicks wurden gelesen. Es kann mehr geben."
+      },
+      "index": {
+        "title": "Google-Index",
+        "help": "Ob Google jede Seite im Suchindex führt, laut URL-Prüfung in der Search Console.",
+        "checked": "Geprüft",
+        "state": {
+          "indexed": "Indexiert",
+          "warnings": "Indexiert, mit Warnungen",
+          "notIndexed": "Nicht indexiert",
+          "unknown": "Indexstatus unbekannt"
+        },
+        "google": "Google meldet: „{words}“",
+        "lastCrawl": "Letzter Crawl:",
+        "otherCanonical": "Google hat eine andere kanonische Seite gewählt:"
       }
     }
   },

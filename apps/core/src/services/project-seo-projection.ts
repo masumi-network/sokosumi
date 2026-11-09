@@ -565,6 +565,7 @@ export function projectSeoProjection(
     actions,
     metrics,
     searchQueries: search.searchQueries,
+    indexStatus: search.indexStatus,
     metricsStatus: !metrics.length
       ? "unavailable"
       : metrics.some((metric) => metric.coverage !== "complete")
