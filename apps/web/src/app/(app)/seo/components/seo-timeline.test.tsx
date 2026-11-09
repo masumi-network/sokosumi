@@ -242,6 +242,50 @@ describe("SEO timeline recovery", () => {
     expect(within(issues).getByText("3 issues found")).toBeVisible();
   });
 
+  it("keeps clean checks for another market as their own rows", () => {
+    const workspace = seoTestWorkspace();
+    const check = (id: string, day: number, countryCode: string) => ({
+      id,
+      kind: "page_check",
+      source: "agent",
+      observedAt: new Date(`2026-11-0${day}T10:00:00Z`),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 0,
+      sourceTaskId: null,
+      countryCode,
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "test-rules",
+      artifactHash: id,
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    workspace.observations = [check("us", 1, "US"), check("gb", 2, "GB")];
+    workspace.timeline = workspace.observations.map((observation) => ({
+      id: observation.id,
+      kind: "check",
+      title: "SEO check results imported",
+      status: "completed",
+      detail: "",
+      at: observation.observedAt,
+      pageIds: observation.pageIds,
+      taskId: null,
+      observationId: observation.id,
+    }));
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getAllByText("No issues found")).toHaveLength(2);
+    expect(screen.getByText(/GB \/ en/)).toBeVisible();
+  });
+
   it("does not claim no issues for an incomplete check", () => {
     const workspace = seoTestWorkspace();
     const observation = {

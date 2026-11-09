@@ -41,15 +41,15 @@ function dateOf(day: number) {
   return new Date(day * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** Impressions each week needs before a click-through rate or position change means anything. */
+export const SEO_MIN_COMPARE_IMPRESSIONS = 100;
+
 /**
  * The 7 days up to the newest reported day against the 7 before, from one sync's
  * daily points. Counts are sums; CTR is clicks over impressions; position is
  * weighted by impressions, as Search Console weights it. A side is null unless
  * all 7 of its days are reported, so a gap never reads as a drop.
  */
-/** Impressions each week needs before a click-through rate or position change means anything. */
-export const SEO_MIN_COMPARE_IMPRESSIONS = 100;
-
 export function seoWeekOverWeek(metrics: ProjectSeoMetric[]) {
   const byKey = new Map(metrics.map((metric) => [metric.key, metric.points]));
   const dates = metrics

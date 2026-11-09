@@ -10700,7 +10700,7 @@
         "backlinks": "Enlaces entrantes",
         "domains": "Dominios de referencia",
         "excluded": "No se puede confirmar este candidato.",
-        "help": "Páginas que compiten con las suyas en las mismas búsquedas. Compare una con su página o quítela de la lista.",
+        "help": "Páginas que compiten con las tuyas en las mismas búsquedas. Compara una con tu página o quítala de la lista.",
         "yourPage": "Tu página",
         "compare": "Comparar con mi página",
         "compareDraft": "Compara mi página con {url}. ¿Qué hace mejor para las mismas búsquedas y qué debería cambiar primero?"

@@ -140,8 +140,15 @@ export function foldCleanChecks<T extends SeoTimelineNode>(
   nodes: T[],
   clean: (node: T) => boolean,
 ) {
-  const pages = (node: T) =>
-    [...(node.observation?.pageIds ?? [])].sort().join(",");
+  // Only checks that differ in nothing but time and rule count fold together.
+  const sameRun = (node: T) =>
+    JSON.stringify([
+      node.event.kind,
+      node.observation?.countryCode,
+      node.observation?.languageCode,
+      [...(node.observation?.devices ?? [])].sort(),
+      [...(node.observation?.pageIds ?? [])].sort(),
+    ]);
   const folded: (T & { earlier: T[] })[] = [];
   for (const node of nodes) {
     const previous = folded.at(-1);
@@ -149,7 +156,7 @@ export function foldCleanChecks<T extends SeoTimelineNode>(
       previous &&
       clean(previous) &&
       clean(node) &&
-      pages(previous) === pages(node)
+      sameRun(previous) === sameRun(node)
     )
       previous.earlier.push(node);
     else folded.push({ ...node, earlier: [] });

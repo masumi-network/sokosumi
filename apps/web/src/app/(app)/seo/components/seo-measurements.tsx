@@ -74,7 +74,16 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   ) {
     if (week.current === null || week.previous === null) return null;
     if ((key === "ctr" || key === "position") && !enoughImpressions)
-      return { text: t("overview.tooFewToCompare"), Icon: null, muted: true };
+      // Unmeasured impressions are not "too few"; the comparison is just missing.
+      return {
+        text: t(
+          weekImpressions?.current == null || weekImpressions.previous == null
+            ? "overview.noComparison"
+            : "overview.tooFewToCompare",
+        ),
+        Icon: null,
+        muted: true,
+      };
     // Judge the change between the values as shown: equal shown values are no change.
     const scale = 10 ** (unit === "count" ? 0 : unit === "ratio" ? 3 : 1);
     const shown = (value: number) => Math.round(value * scale) / scale;
