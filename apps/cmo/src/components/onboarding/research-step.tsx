@@ -243,7 +243,7 @@ export function ResearchStep({
                   ? "Your next four weeks: every post, ad, email and website change Cuso will make, and when. About two minutes."
                   : finished
                     ? "Your Brand Brain is ready. Check it, fix anything that's off, then he plans your month."
-                    : "He reads your site, your reviews and your competitors. About three minutes."}
+                    : "He reads your site, your reviews and your competitors. About ten minutes."}
           </p>
         )}
         {running ? (
