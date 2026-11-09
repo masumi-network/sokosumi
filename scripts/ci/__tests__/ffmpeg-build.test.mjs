@@ -36,6 +36,15 @@ describe("ffmpeg build", () => {
     assert.match(setup, new RegExp(`FFMPEG_SHA256: ${sha256}\\n`));
   });
 
+  it("Core's Vercel install skips the GitHub download", async () => {
+    // Core fetches the Blob copy when it runs; GitHub Releases failing
+    // (2026-11-09) otherwise failed every Core deploy in pnpm install.
+    const vercel = JSON.parse(
+      await readRepoFile("apps", "core", "vercel.json"),
+    );
+    assert.match(vercel.installCommand, /^FFMPEG_BIN=\/bin\/sh pnpm install /);
+  });
+
   it("only Test Core asks Setup for ffmpeg", async () => {
     const ci = await readRepoFile(".github", "workflows", "ci.yml");
     assert.equal(ci.match(/ffmpeg: "true"/g)?.length, 1);

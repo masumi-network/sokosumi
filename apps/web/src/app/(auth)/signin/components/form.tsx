@@ -272,6 +272,8 @@ export default function SignInForm({
                 if (!isPending) formRef.current?.requestSubmit();
               }}
               onBlur={field.onBlur}
+              // The chip above cuts a long address off; this line shows it whole.
+              email={email}
               error={fieldState.error?.message}
               notice={handoverNotice}
               unsent={isCodeUnsent}
