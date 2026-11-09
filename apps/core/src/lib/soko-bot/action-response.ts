@@ -58,6 +58,7 @@ export const ACTION_LABELS: Record<string, string> = {
   provide_job_input: "Submitted job input",
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
+  generate_voiceover: "Made voice-over",
   move_file: "Moved file",
   delete_file: "Deleted file",
   update_emails: "Updated mail",
@@ -283,7 +284,10 @@ function actionTarget(
     if (studio.success)
       return `([Open in Content Studio](${studio.data.studioUrl}))`;
   }
-  if (call.capability === "upload_file") {
+  if (
+    call.capability === "upload_file" ||
+    call.capability === "generate_voiceover"
+  ) {
     const file = z
       .object({ filename: z.string().min(1) })
       .safeParse(call.result);

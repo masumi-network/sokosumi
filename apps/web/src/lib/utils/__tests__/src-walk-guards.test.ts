@@ -1748,7 +1748,6 @@ const INSTANT_WORKLIST = new Set([
   "(app)/projects/[projectId]/edit/page.tsx",
   "(app)/projects/[projectId]/layout.tsx",
   "(app)/projects/[projectId]/page.tsx",
-  "(app)/tasks/[taskId]/@modal/(.)edit/page.tsx",
   "(app)/tasks/[taskId]/edit/page.tsx",
   "(app)/tasks/[taskId]/page.tsx",
 ]);
@@ -1911,6 +1910,19 @@ function segmentedLookOverrides(relSrc: string, text: string): string[] {
   }
   return hits;
 }
+
+describe("task edit route", () => {
+  // Saving from an intercepted `@modal/(.)edit` left the dialog open on
+  // `/edit` (the Save server action re-renders the non-intercepted page and
+  // the close navigation is lost). Edit must open the real edit page.
+  it("has no intercepted modal under the task detail", () => {
+    const intercepted = routeFiles()
+      .map((file) => file.rel)
+      .filter((rel) => rel.startsWith("(app)/tasks/[taskId]/@modal/"));
+
+    expect(intercepted).toEqual([]);
+  });
+});
 
 describe("segmented controls", () => {
   it("leaves the look to the shared segmented-control classes", () => {

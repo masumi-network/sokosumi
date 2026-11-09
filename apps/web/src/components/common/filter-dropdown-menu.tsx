@@ -1,13 +1,14 @@
 "use client";
 
 import { Check, ListFilter, type LucideIcon } from "lucide-react";
-import { type ReactElement, useMemo, useState } from "react";
+import { type ReactElement, type ReactNode, useMemo, useState } from "react";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
+  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -43,6 +44,8 @@ export interface FilterDropdownMenuOption {
   image?: string | null;
   useAgentIcon?: boolean;
   searchKeywords?: string[];
+  /** Heading for a run of options; searching its words finds them too. */
+  group?: string;
 }
 
 export interface FilterDropdownMenuSectionPagination {
@@ -227,7 +230,8 @@ function FilterDropdownMenuSectionItem({
       section.options.find((option) => option.value === section.value) ?? null,
     [section.options, section.value],
   );
-  const optionItems = useMemo(() => {
+  const hasGroups = section.options.some((option) => option.group);
+  const optionItems = useMemo<FilterDropdownMenuOption[]>(() => {
     if (!section.allLabel) {
       return section.options;
     }
@@ -265,51 +269,62 @@ function FilterDropdownMenuSectionItem({
         </DropdownMenuSubTrigger>
       </FilterDropdownMenuSelectionTooltip>
       <DropdownMenuSubContent className="w-72 p-0">
-        <Command className="**:data-[slot=command-list]:max-h-72" shouldFilter>
+        <Command
+          className="**:data-[slot=command-list]:max-h-72"
+          shouldFilter
+          filter={hasGroups ? matchGroupedOption : undefined}
+        >
           <CommandInput autoFocus placeholder={searchPlaceholder} />
           <CommandList>
             <CommandEmpty>{emptyResultsLabel}</CommandEmpty>
-            {optionItems.map((option) => {
-              const isAllOption = option.value === ALL_FILTER_VALUE;
-              const isSelected = isAllOption
-                ? section.value === null
-                : option.value === section.value;
-              const filterKeywords = [
-                option.label,
-                ...(option.searchKeywords ?? []),
-              ];
+            {groupFilterOptions(optionItems).map(
+              ({ group, options }, index) => (
+                <FilterOptionGroup key={group ?? ""} heading={group}>
+                  {options.map((option) => {
+                    const isAllOption = option.value === ALL_FILTER_VALUE;
+                    const isSelected = isAllOption
+                      ? section.value === null
+                      : option.value === section.value;
+                    const filterKeywords = [
+                      option.label,
+                      ...(option.group ? [option.group] : []),
+                      ...(option.searchKeywords ?? []),
+                    ];
 
-              return (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  keywords={filterKeywords}
-                  className="min-w-0"
-                  onSelect={() => {
-                    section.onChange(isAllOption ? null : option.value);
-                    onSelect();
-                  }}
-                >
-                  <FilterDropdownMenuOptionAvatar option={option} />
-                  <span
-                    className={
-                      option.shortLabel
-                        ? "min-w-0 flex-1 whitespace-normal break-words"
-                        : FILTER_DROPDOWN_OPTION_LABEL_CLASS
-                    }
-                  >
-                    {option.label}
-                  </span>
-                  <Check
-                    className={cn(
-                      "size-4 shrink-0",
-                      isSelected ? "opacity-100" : "opacity-0",
-                    )}
-                    aria-hidden
-                  />
-                </CommandItem>
-              );
-            })}
+                    return (
+                      <CommandItem
+                        key={option.value}
+                        value={option.value}
+                        keywords={filterKeywords}
+                        className="min-w-0"
+                        onSelect={() => {
+                          section.onChange(isAllOption ? null : option.value);
+                          onSelect();
+                        }}
+                      >
+                        <FilterDropdownMenuOptionAvatar option={option} />
+                        <span
+                          className={
+                            option.shortLabel
+                              ? "min-w-0 flex-1 whitespace-normal break-words"
+                              : FILTER_DROPDOWN_OPTION_LABEL_CLASS
+                          }
+                        >
+                          {option.label}
+                        </span>
+                        <Check
+                          className={cn(
+                            "size-4 shrink-0",
+                            isSelected ? "opacity-100" : "opacity-0",
+                          )}
+                          aria-hidden
+                        />
+                      </CommandItem>
+                    );
+                  })}
+                </FilterOptionGroup>
+              ),
+            )}
             {section.pagination?.nextCursor ? (
               <CommandItem
                 key={`${section.id}-load-more`}
@@ -328,6 +343,55 @@ function FilterDropdownMenuSectionItem({
         </Command>
       </DropdownMenuSubContent>
     </DropdownMenuSub>
+  );
+}
+
+/**
+ * Grouped sections match each typed word anywhere in an option's label or
+ * group, so a group name finds its options. cmdk's default fuzzy score would
+ * also list stray letter matches first ("Done" hit "Authentication
+ * required"), because cmdk 1.1.1 never re-sorts groups by score.
+ */
+function matchGroupedOption(
+  _value: string,
+  search: string,
+  keywords: string[] = [],
+): number {
+  const text = keywords.join(" ").toLocaleLowerCase();
+  return search
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .every((word) => text.includes(word))
+    ? 1
+    : 0;
+}
+
+/** Splits options into runs that share a `group`, keeping their order. */
+function groupFilterOptions(options: FilterDropdownMenuOption[]) {
+  const runs: { group?: string; options: FilterDropdownMenuOption[] }[] = [];
+  for (const option of options) {
+    const last = runs.at(-1);
+    if (last && last.group === option.group) {
+      last.options.push(option);
+    } else {
+      runs.push({ group: option.group, options: [option] });
+    }
+  }
+  return runs;
+}
+
+function FilterOptionGroup({
+  heading,
+  children,
+}: {
+  heading?: string;
+  children: ReactNode;
+}) {
+  if (!heading) return children;
+  return (
+    <CommandGroup heading={heading} className="p-0">
+      {children}
+    </CommandGroup>
   );
 }
 
@@ -409,7 +473,8 @@ function FilterDropdownMenuSectionMobile({
       section.options.find((option) => option.value === section.value) ?? null,
     [section.options, section.value],
   );
-  const optionItems = useMemo(() => {
+  const hasGroups = section.options.some((option) => option.group);
+  const optionItems = useMemo<FilterDropdownMenuOption[]>(() => {
     if (!section.allLabel) {
       return section.options;
     }
@@ -450,51 +515,59 @@ function FilterDropdownMenuSectionMobile({
           <Command
             className="min-w-0 w-full overflow-hidden **:data-[slot=command-list]:max-h-[40dvh]"
             shouldFilter
+            filter={hasGroups ? matchGroupedOption : undefined}
           >
             <CommandInput autoFocus placeholder={searchPlaceholder} />
             <CommandList>
               <CommandEmpty>{emptyResultsLabel}</CommandEmpty>
-              {optionItems.map((option) => {
-                const isAllOption = option.value === ALL_FILTER_VALUE;
-                const isSelected = isAllOption
-                  ? section.value === null
-                  : option.value === section.value;
-                const filterKeywords = [
-                  option.label,
-                  ...(option.searchKeywords ?? []),
-                ];
+              {groupFilterOptions(optionItems).map(
+                ({ group, options }, index) => (
+                  <FilterOptionGroup key={group ?? ""} heading={group}>
+                    {options.map((option) => {
+                      const isAllOption = option.value === ALL_FILTER_VALUE;
+                      const isSelected = isAllOption
+                        ? section.value === null
+                        : option.value === section.value;
+                      const filterKeywords = [
+                        option.label,
+                        ...(option.group ? [option.group] : []),
+                        ...(option.searchKeywords ?? []),
+                      ];
 
-                return (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    keywords={filterKeywords}
-                    className="min-w-0 overflow-hidden"
-                    onSelect={() => {
-                      section.onChange(isAllOption ? null : option.value);
-                      onSelect();
-                    }}
-                  >
-                    <FilterDropdownMenuOptionAvatar option={option} />
-                    <span
-                      className={
-                        option.shortLabel
-                          ? "min-w-0 flex-1 whitespace-normal break-words"
-                          : FILTER_DROPDOWN_OPTION_LABEL_CLASS
-                      }
-                    >
-                      {option.label}
-                    </span>
-                    <Check
-                      className={cn(
-                        "size-4",
-                        isSelected ? "opacity-100" : "opacity-0",
-                      )}
-                      aria-hidden
-                    />
-                  </CommandItem>
-                );
-              })}
+                      return (
+                        <CommandItem
+                          key={option.value}
+                          value={option.value}
+                          keywords={filterKeywords}
+                          className="min-w-0 overflow-hidden"
+                          onSelect={() => {
+                            section.onChange(isAllOption ? null : option.value);
+                            onSelect();
+                          }}
+                        >
+                          <FilterDropdownMenuOptionAvatar option={option} />
+                          <span
+                            className={
+                              option.shortLabel
+                                ? "min-w-0 flex-1 whitespace-normal break-words"
+                                : FILTER_DROPDOWN_OPTION_LABEL_CLASS
+                            }
+                          >
+                            {option.label}
+                          </span>
+                          <Check
+                            className={cn(
+                              "size-4",
+                              isSelected ? "opacity-100" : "opacity-0",
+                            )}
+                            aria-hidden
+                          />
+                        </CommandItem>
+                      );
+                    })}
+                  </FilterOptionGroup>
+                ),
+              )}
               {section.pagination?.nextCursor ? (
                 <CommandItem
                   key={`${section.id}-load-more`}

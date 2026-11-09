@@ -75,6 +75,7 @@ import {
   type CmoMediaPiece,
   cmoImagePrompt,
   cmoMediaState,
+  cmoPieceSlides,
   cmoSlotAction,
   cmoVisualKey,
 } from "./cmo-media-maker.service";
@@ -180,6 +181,41 @@ describe("cmoImagePrompt", () => {
     expect(prompt).toContain("keep what they show of the brand");
     expect(prompt).toContain("Never a real, named person.");
   });
+
+  it("makes as many slides as Cuso described, each from its own line", () => {
+    const slides = [
+      "The hook",
+      "Step 1: upload",
+      "Step 2: price",
+      "Step 3: mint",
+    ];
+    const carousel = piece({
+      channel: "instagram",
+      format: "carousel",
+      slides,
+    });
+    expect(cmoPieceSlides(carousel)).toBe(4);
+    expect(cmoPieceSlides({ ...carousel, slides: undefined })).toBe(3);
+    expect(
+      cmoImagePrompt({
+        piece: carousel,
+        slot: 2,
+        businessName: "NMKR",
+        references: 0,
+      }),
+    ).toContain("Slide 3 of 4 of one Instagram carousel");
+    expect(
+      cmoImagePrompt({
+        piece: carousel,
+        slot: 2,
+        businessName: "NMKR",
+        references: 0,
+      }),
+    ).toContain("This slide: Step 2: price");
+    expect(cmoVisualKey(carousel)).not.toBe(
+      cmoVisualKey({ ...carousel, slides: undefined }),
+    );
+  });
 });
 
 describe("advanceCmoMedia", () => {
@@ -270,6 +306,61 @@ describe("advanceCmoMedia", () => {
     expect(updateSocialPost).toHaveBeenCalledWith(
       expect.objectContaining({ postId: "b" }),
     );
+  });
+
+  it("schedules a post that went back to a draft after its picture went on", async () => {
+    const at = new Date(Date.now() + 86_400_000);
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "x",
+      text: "Rewritten words after the picture.",
+      revision: 10,
+      status: "DRAFT",
+      scheduledAt: at,
+      planning: { title: "Book.io's 130,000 NFT books" },
+    });
+    await advanceCmoMedia(context, [piece({ media: ["file-1"] })]);
+    expect(scheduleSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: "post-1",
+        revision: 10,
+        scheduledAt: at,
+      }),
+    );
+    expect(createImageJob).not.toHaveBeenCalled();
+  });
+
+  it("puts slides on in order and hands back a carousel whose cover failed twice", async () => {
+    const carousel = piece({
+      channel: "instagram",
+      format: "carousel",
+      slides: ["Cover", "Step one", "Step two"],
+    });
+    const key = cmoVisualKey(carousel);
+    const row = (slot: number, attempt: number, status: string) => ({
+      id: `job-${slot}-${attempt}`,
+      idempotencyKey: `cmo-media:version-1:post-1:${slot}:image:${key}:${attempt}`,
+      status,
+      prompt: "prompt",
+      asset: status === "SUCCEEDED" ? { id: `asset-${slot}` } : null,
+    });
+    jobFindMany.mockResolvedValue([
+      row(0, 1, "FAILED"),
+      row(1, 1, "SUCCEEDED"),
+      row(2, 1, "SUCCEEDED"),
+      row(0, 2, "FAILED"),
+    ]);
+    await advanceCmoMedia(context, [carousel]);
+    // Slides 2 and 3 wait for the cover; nothing goes on out of order.
+    expect(updateSocialPost).not.toHaveBeenCalled();
+    expect(
+      cmoMediaState(carousel, [
+        job({ visualKey: key, status: "FAILED", assetId: null }),
+        job({ visualKey: key, status: "FAILED", assetId: null }),
+        job({ visualKey: key, slot: 1 }),
+        job({ visualKey: key, slot: 2 }),
+      ]),
+    ).toBe("failed");
   });
 
   it("puts a finished picture on its post and schedules it on a connected network", async () => {

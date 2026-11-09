@@ -65,6 +65,8 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import {
   nearDuplicatePost,
   socialPostFormattingError,
+  stackedCaveatsProblem,
+  tagOwnLinks,
 } from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
@@ -501,9 +503,34 @@ async function requireScopedPost(
     include: socialPostInclude,
   });
   if (!post) {
-    throw notFound("Social post not found");
+    const near = await nearPostId(input, tx);
+    throw notFound(
+      near
+        ? `Social post not found. Did you mean ${near}?`
+        : "Social post not found",
+    );
   }
   return post;
+}
+
+/**
+ * The one post in the scope whose id ends like the one asked for: a bot
+ * once copied "b3d8" for "b3d9" in a month of near-identical ids and
+ * retried the wrong id until its runs ran out.
+ */
+async function nearPostId(
+  input: GetSocialPostInput,
+  tx: Prisma.TransactionClient,
+): Promise<string | null> {
+  const tail = input.postId.match(/-([0-9a-f]{12})$/i)?.[1]?.toLowerCase();
+  if (!tail) return null;
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    SELECT id::text AS id FROM social_post
+    WHERE "projectId" = ${input.projectId}::uuid
+      AND "workspaceId" = ${input.workspaceId}::uuid
+      AND id::text LIKE ${`%-${tail}`}
+    LIMIT 2`;
+  return rows.length === 1 ? (rows[0]?.id ?? null) : null;
 }
 
 function isSocialPostProvider(value: string): value is SocialPostProvider {
@@ -588,6 +615,32 @@ function requireBotFormatting(
 }
 
 /**
+ * What a Soko Bot's post in a marketing month does to its links: those to
+ * the business's own site get UTM tags (network, social, cmo-YYYY-MM), so
+ * analytics can tell the visits Cuso brought. Every other text stays as is.
+ */
+async function cmoLinkTags(
+  tx: Prisma.TransactionClient,
+  input: { sokoBotId?: string | null },
+  post: {
+    projectId: string;
+    marketingStrategyId: string | null;
+    scheduledAt: Date | null;
+  },
+  provider: SocialPostProvider,
+): Promise<(text: string) => string> {
+  if (!input.sokoBotId || !post.marketingStrategyId) return (text) => text;
+  const project = await tx.project.findUnique({
+    where: { id: post.projectId },
+    select: { websiteUrl: true },
+  });
+  const siteUrl = project?.websiteUrl;
+  if (!siteUrl) return (text) => text;
+  const campaign = `cmo-${(post.scheduledAt ?? new Date()).toISOString().slice(0, 7)}`;
+  return (text) => tagOwnLinks(text, { siteUrl, source: provider, campaign });
+}
+
+/**
  * A Soko Bot's post in a marketing month says its own thing with its own
  * pictures: a month once repeated four messages across 45 posts, and one
  * picture went on three of them.
@@ -617,6 +670,8 @@ async function requireOwnInMonth(
       );
   }
   if (change.text === null) return;
+  const caveats = stackedCaveatsProblem(change.text);
+  if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
     const planning = sibling.planning as { brief?: unknown; title?: unknown };
@@ -626,6 +681,31 @@ async function requireOwnInMonth(
   if (repeated)
     throw badRequest(
       `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`,
+    );
+}
+
+/**
+ * A bot schedules a month post with a picture only once Core put the
+ * picture on it: Core attaches pictures to drafts alone, so an X post Cuso
+ * scheduled early would have gone out without its image.
+ */
+export async function requireMonthPostPicture(
+  tx: Prisma.TransactionClient,
+  input: { postId: string; workspaceId: string },
+): Promise<void> {
+  const post = await tx.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true, planning: true, media: true },
+  });
+  const visual = (post?.planning as { visual?: unknown } | null)?.visual;
+  if (
+    post?.marketingStrategyId &&
+    typeof visual === "string" &&
+    visual.trim() &&
+    parseSocialPostMedia(post.media, input.postId).length === 0
+  )
+    throw badRequest(
+      "Leave this post as a draft: Core is making its picture and schedules it once the picture is on it.",
     );
 }
 
@@ -1189,8 +1269,9 @@ export async function updateSocialPost(
     });
     data.media = mediaJson(media);
   }
+  const tag = await cmoLinkTags(tx, input, post, provider);
   const text = requireTextWithinLimit(
-    input.text ?? post.text,
+    input.text !== undefined ? tag(input.text) : post.text,
     provider,
     media.length > 0,
     subscriptionType,
@@ -1218,7 +1299,9 @@ export async function updateSocialPost(
   }
 
   const firstComment = requireFirstCommentWithinLimit(
-    input.firstComment !== undefined ? input.firstComment : post.firstComment,
+    input.firstComment !== undefined
+      ? input.firstComment && tag(input.firstComment)
+      : post.firstComment,
     provider,
     subscriptionType,
   );

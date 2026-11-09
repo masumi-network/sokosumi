@@ -16,7 +16,7 @@ X is fast and conversational. People read one line and decide. A good post is on
 
 - One idea per post. If you have two, that is two posts.
 - Short: most good posts are one to three lines, well under the limit. The account's limit is in \`list_project_social_accounts\`; a standard account allows 280 characters.
-- Concrete beats clever: a number, a name, a before and after.
+- Concrete beats clever: a number, a name, a before and after. Writing for a business, the concrete thing comes from the Brand Brain: a feature by its name and what it does, a price, a customer, a number. General advice that fits every product in the category ("Give each issue an owner and a next step") is not concrete; name what this product does about it.
 - Write to start replies: take a position, share a result, ask a question people can answer.
 - A native image beats a link preview. Keep links out of the post.
 - At most 2 hashtags, only when they name a topic people follow. Usually none.
@@ -79,9 +79,9 @@ LinkedIn rewards posts that teach something from real experience: a lesson, a re
 
 ## What works
 
-- **The first two lines are the hook.** They must make someone tap "see more". Put the most surprising true thing there.
+- **The first two lines are the hook.** They must make someone tap "see more". Put the most surprising true thing there: a result with its number, a named customer and what they did, a decision that sounds wrong at first. Advice or a definition is not a hook: "A launch budget should start with scope" makes nobody tap; "A dental practice cut its no-shows in half with one text message" does.
 - **Short paragraphs**: one or two sentences, a blank line between each. Never a block of text.
-- **Experience over advice**: "We tried X, this happened, here is what we do now" beats "5 tips for X".
+- **Experience over advice**: "We tried X, this happened, here is what we do now" beats "5 tips for X". Writing for a business, the experience is the business's own or a named customer's, from the Brand Brain: the piece's story when the brief gives one. A customer's result told plainly counts ("Studio Lena moved 300 clients off paper forms in a weekend. Here is the step that mattered."). A checklist of what readers should check is not an experience.
 - **One idea**, taken all the way: what happened, why, what the reader can take from it.
 - **End with a question or a one-line takeaway.**
 - **Length**: a text post reads best at 800 to 1,500 characters. Shorter is fine when the idea is done.
@@ -148,13 +148,13 @@ What would you stop making if you looked at your numbers?
 - A link in the post body`,
     checklist: [
       {
-        rule: "The first two lines (about 140 characters) are a hook that makes people tap 'see more'.",
+        rule: "The first two lines (about 140 characters) are a hook that makes people tap 'see more': a result, a number, a named customer or a surprising decision, not advice or a definition.",
       },
       {
         rule: "Short paragraphs of one or two sentences with blank lines between them.",
       },
       {
-        rule: "It is built on one real experience, result or decision, not generic tips.",
+        rule: "It is built on one real experience, result or decision, the business's or a named customer's, not generic tips or a list of things to check.",
       },
       {
         rule: "It ends with a question or a one-line takeaway, not 'Agree?' or 'Thoughts?'.",
@@ -202,7 +202,7 @@ On Instagram the picture or video does the stopping; the caption makes people st
 - The last slide closes: the takeaway and one action ("Save this for your next bake.").
 - The caption repeats the hook in words and adds what the slides cannot.
 
-**reel** (short vertical video): the point in the first second; most people watch muted, so put the key words on screen. The caption is one to three lines: the hook, the keywords, one action.
+**reel** (short vertical video): Core makes it, five seconds with no words in the picture, and most people watch muted, so the caption carries the message. The caption is one to three lines: the hook in the first, the keywords, one action.
 
 ## Example shape
 

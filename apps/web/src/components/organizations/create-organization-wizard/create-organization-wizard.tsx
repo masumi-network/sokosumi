@@ -60,12 +60,12 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
@@ -234,6 +234,7 @@ export function CreateOrganizationWizard({
   const [isSendingInvites, setIsSendingInvites] = useState(false);
   /** Shared error id for the details step (message lives outside FormField). */
   const detailsErrorId = useId();
+  const inviteFieldsId = useId();
 
   const logoStartedRef = useRef(false);
   const brandStartedRef = useRef(false);
@@ -994,18 +995,21 @@ export function CreateOrganizationWizard({
                 </p>
 
                 <div className="mx-auto mt-5 w-full max-w-md">
+                  <Label htmlFor={`${inviteFieldsId}-link`} className="mb-2">
+                    {t("Invite.linkLabel")}
+                  </Label>
                   <div className="bg-card-background has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
                     <Link2 className="text-muted-foreground size-4 shrink-0" />
-                    {isCreatingLink ? (
-                      <Skeleton className="h-4 w-56 rounded-sm" />
-                    ) : (
-                      <Input
-                        readOnly
-                        value={inviteLink ?? ""}
-                        onFocus={(event) => event.currentTarget.select()}
-                        className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono shadow-none focus-visible:ring-0"
-                      />
-                    )}
+                    <Input
+                      id={`${inviteFieldsId}-link`}
+                      name="inviteLink"
+                      aria-describedby={`${inviteFieldsId}-link-hint`}
+                      aria-busy={isCreatingLink}
+                      readOnly
+                      value={inviteLink ?? ""}
+                      onFocus={(event) => event.currentTarget.select()}
+                      className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono shadow-none focus-visible:ring-0"
+                    />
                     {linkFailed && !inviteLink ? (
                       <Button
                         type="button"
@@ -1043,13 +1047,22 @@ export function CreateOrganizationWizard({
                       </Button>
                     )}
                   </div>
-                  <p className="text-muted-foreground mt-2 text-left text-sm">
+                  <p
+                    id={`${inviteFieldsId}-link-hint`}
+                    className="text-muted-foreground mt-2 text-left text-sm"
+                  >
                     {t("Invite.linkHint")}
                   </p>
 
                   <div className="bg-border my-3 h-px w-full" />
 
+                  <Label htmlFor={`${inviteFieldsId}-emails`} className="mb-2">
+                    {t("Invite.emailsLabel")}
+                  </Label>
                   <Textarea
+                    id={`${inviteFieldsId}-emails`}
+                    name="inviteEmails"
+                    aria-describedby={`${inviteFieldsId}-emails-hint`}
                     rows={2}
                     disabled={isLeaving}
                     value={emails}
@@ -1058,7 +1071,10 @@ export function CreateOrganizationWizard({
                     className="bg-card-background dark:bg-card-background min-h-14 resize-none rounded-xl border px-4 py-3 shadow-none"
                   />
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <p className="text-muted-foreground text-left text-sm">
+                    <p
+                      id={`${inviteFieldsId}-emails-hint`}
+                      className="text-muted-foreground text-left text-sm"
+                    >
                       {t("Invite.emailsHint")}
                     </p>
                     <Button

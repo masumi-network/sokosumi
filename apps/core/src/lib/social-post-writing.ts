@@ -55,14 +55,32 @@ const BANNED_COPY: readonly { pattern: RegExp; problem: string }[] = [
     problem: "uses \"it's not X, it's Y\"",
   },
   {
+    pattern: /\bnot just\b[^.!?\n]{1,40}\bbut\b/i,
+    problem: 'uses "not just X, but Y"',
+  },
+  {
     pattern:
-      /\b(game[- ]changer|unlock|elevate|seamless|say goodbye to|reimagined|in today's fast-paced world)\b/i,
+      /\b(game[- ]changer|unlock|elevate|seamless|say goodbye to|reimagined|in today's fast-paced world|delve|leverag(e|es|ing))\b/i,
     problem:
-      "uses a stock phrase (game-changer, unlock, elevate, seamless, say goodbye to, reimagined)",
+      "uses a stock phrase (game-changer, unlock, elevate, seamless, say goodbye to, reimagined, delve, leverage)",
   },
   {
     pattern: /\b(agree|thoughts)\?\s*$/im,
     problem: 'ends on engagement bait ("Agree?", "Thoughts?")',
+  },
+  {
+    pattern: /\btag (a friend|someone|a mate)\b/i,
+    problem: "asks people to tag someone, which networks treat as bait",
+  },
+  {
+    pattern:
+      /\b(the (result|answer|secret|catch|twist)\?|here'?s the thing|let that sink in)/i,
+    problem:
+      'asks a question it answers itself or pauses for effect ("The result?", "Here\'s the thing", "Let that sink in")',
+  },
+  {
+    pattern: /🧵|^\s*(a )?thread:/im,
+    problem: 'labels itself ("Thread:", 🧵) instead of opening with the point',
   },
   { pattern: /—/, problem: "has an em dash" },
   {
@@ -78,11 +96,67 @@ const BANNED_COPY: readonly { pattern: RegExp; problem: string }[] = [
   },
 ];
 
+/** Lines that start with an emoji before an emoji-bulleted post is flagged. */
+const MAX_EMOJI_LINES = 2;
+const EMOJI_START = /^\s*\p{Extended_Pictographic}/u;
+/** Paragraphs that are each one short sentence before a post reads as broetry. */
+const MIN_BROETRY_PARAGRAPHS = 6;
+const BROETRY_LINE_CHARS = 90;
+
+/** Every paragraph one short line: one sentence per line for a whole post. */
+function isBroetry(text: string): boolean {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  return (
+    paragraphs.length >= MIN_BROETRY_PARAGRAPHS &&
+    paragraphs.every(
+      (paragraph) =>
+        !paragraph.includes("\n") &&
+        !/[.!?]\s+\S/.test(paragraph) &&
+        paragraph.length <= BROETRY_LINE_CHARS,
+    )
+  );
+}
+
+/** Phrases that qualify a fact instead of stating it. */
+const CAVEATS = [
+  /\bdepends? on\b/i,
+  /\b(can|may|might) (differ|vary|change)\b/i,
+  /\bnot every\b/i,
+  /\b(confirm|check|verify) (the |its |their |your )?(current|latest)\b/i,
+  /\bdoes not (make|mean)\b/i,
+  /\bsubject to\b/i,
+];
+/** Caveats one post may hold; a month once hedged every LinkedIn post three times. */
+const MAX_CAVEATS = 1;
+
+/** A post that stacks caveats, as a problem; null when it states its facts. */
+export function stackedCaveatsProblem(text: string): string | null {
+  const found = CAVEATS.map((pattern) => text.match(pattern)?.[0]).filter(
+    (match): match is string => Boolean(match),
+  );
+  return found.length > MAX_CAVEATS
+    ? `stacks caveats (${found.map((match) => `"${match}"`).join(", ")}): state each fact once, plainly, with at most one condition`
+    : null;
+}
+
 /** What a text breaks of the copy rules every bot's writing guide states. */
 export function bannedCopyProblems(text: string): string[] {
-  return BANNED_COPY.filter(({ pattern }) => pattern.test(text)).map(
+  const problems = BANNED_COPY.filter(({ pattern }) => pattern.test(text)).map(
     ({ problem }) => problem,
   );
+  if (
+    text.split("\n").filter((line) => EMOJI_START.test(line)).length >
+    MAX_EMOJI_LINES
+  )
+    problems.push("uses emoji as bullets; start lines with words or '-'");
+  if (isBroetry(text))
+    problems.push(
+      "puts every sentence on its own line; join related sentences into short paragraphs",
+    );
+  return problems;
 }
 
 const FILLER_WORDS = new Set(
@@ -232,4 +306,57 @@ export function socialPostFormattingError(
       ? " A link the owner gave you still goes in firstComment; pass linkInPost true only when they said in words to put it in the post itself."
       : ""
   }`;
+}
+
+const LINK = /https?:\/\/[^\s<>"]+/g;
+const TRAILING_PUNCTUATION = /[.,!?;:'"]$/;
+
+/** How much of a matched link is prose punctuation after it: a stop, a quote, or a ")" it never opened. */
+function trailingLength(raw: string): number {
+  let end = raw.length;
+  for (;;) {
+    const last = raw[end - 1] ?? "";
+    const link = raw.slice(0, end);
+    const unopened =
+      last === ")" &&
+      (link.match(/\)/g) ?? []).length > (link.match(/\(/g) ?? []).length;
+    if (!TRAILING_PUNCTUATION.test(last) && !unopened) break;
+    end -= 1;
+  }
+  return raw.length - end;
+}
+
+/**
+ * Adds UTM tags to the links in a text that point at the business's own
+ * site, so its analytics shows those visits by network instead of as
+ * direct. A link that already carries UTM tags, or goes elsewhere, stays.
+ */
+export function tagOwnLinks(
+  text: string,
+  input: { siteUrl: string; source: string; campaign: string },
+): string {
+  let site: string;
+  try {
+    site = new globalThis.URL(input.siteUrl).hostname.replace(/^www\./, "");
+  } catch {
+    return text;
+  }
+  return text.replace(LINK, (raw) => {
+    const link = raw.slice(0, raw.length - trailingLength(raw));
+    const trailing = raw.slice(link.length);
+    let url: URL;
+    try {
+      url = new globalThis.URL(link);
+    } catch {
+      return raw;
+    }
+    const host = url.hostname.replace(/^www\./, "");
+    if (host !== site && !host.endsWith(`.${site}`)) return raw;
+    if ([...url.searchParams.keys()].some((key) => key.startsWith("utm_")))
+      return raw;
+    url.searchParams.set("utm_source", input.source);
+    url.searchParams.set("utm_medium", "social");
+    url.searchParams.set("utm_campaign", input.campaign);
+    return `${url.toString()}${trailing}`;
+  });
 }

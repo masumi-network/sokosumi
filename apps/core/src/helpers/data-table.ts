@@ -5,12 +5,13 @@ import {
   createDataTableSchema,
   tableBatchSchema,
   tableEvidenceSchema,
+  tableInsertRowSchema,
   tableMutationSchema,
   tableQuerySchema,
   tableValuesSchema,
   tableViewDefinitionSchema,
 } from "@sokosumi/utils";
-import type { z } from "zod";
+import { z } from "zod";
 import { validateTableValues } from "@/helpers/data-table-values";
 import {
   conflict,
@@ -322,12 +323,26 @@ function assertFilterable(
     throw unprocessableEntity("A Last updated column cannot be filtered");
 }
 
+/** Rows one table creation may carry when Core itself fills it (an export). */
+export const MAX_CREATED_TABLE_ROWS = 1_000;
+
 export async function createDataTable(
   actor: TableActor,
   input: z.infer<typeof createDataTableSchema>,
   complete?: TableOperationCompletion,
+  /** Core-built tables (an export) may carry up to MAX_CREATED_TABLE_ROWS. */
+  options: { manyRows?: boolean } = {},
 ) {
-  const body = createDataTableSchema.parse(input);
+  const body = (
+    options.manyRows
+      ? createDataTableSchema.extend({
+          rows: z
+            .array(tableInsertRowSchema)
+            .max(MAX_CREATED_TABLE_ROWS)
+            .default([]),
+        })
+      : createDataTableSchema
+  ).parse(input);
   if (actor.actorKind !== "user" && !actor.ownerChat && !actor.taskId)
     throw forbidden("Creating a table requires an assigned task context");
   if (actor.taskId) await scopeForTask(actor, "", prisma);
@@ -376,12 +391,22 @@ export async function createDataTable(
         },
         include: tableInclude,
       });
-      for (const row of body.rows) {
+      for (const row of body.rows)
         validateTableValues(columns, row.values, row.evidence);
-        const created = await tx.tableRow.create({
-          data: { ...row, tableId: table.id },
+      // Bounded bulk inserts: a Core-built table of a thousand rows stays a
+      // handful of statements inside the one transaction.
+      for (let start = 0; start < body.rows.length; start += 200) {
+        const created = await tx.tableRow.createManyAndReturn({
+          data: body.rows
+            .slice(start, start + 200)
+            .map((row) => ({ ...row, tableId: table.id })),
         });
-        await change(tx, actor, table.id, batchId, null, created, created.id);
+        await persistChanges(
+          tx,
+          created.map((row) =>
+            changeData(actor, table.id, batchId, null, row, row.id),
+          ),
+        );
       }
       const result = dataTableSchema.parse(table);
       await change(tx, actor, table.id, batchId, null, result);

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import en from "@/messages/en.json";
 
 import { CreateState } from "./create-state.client";
+import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
 
 const pushMock = vi.fn();
 const createMock = vi.fn();
@@ -34,6 +35,13 @@ function renderCreate() {
 }
 
 describe("CreateState", () => {
+  it("hides the mobile tab bar while the flow is open", () => {
+    const { unmount } = renderCreate();
+    expect(document.body.dataset.sokoBotCreating).toBe("true");
+    unmount();
+    expect(document.body.dataset.sokoBotCreating).toBeUndefined();
+  });
+
   it("asks for the name first, then the picture, with the steps shown", async () => {
     const user = userEvent.setup();
     renderCreate();
@@ -101,5 +109,7 @@ describe("CreateState", () => {
       input: { name: "Atlas", avatarId: null },
     });
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
+    // Opened from Soko Bots, not setup: the bot still says hello in its room.
+    expect(openNewSokoBotRoom).toHaveBeenCalledWith("bot-1");
   });
 });

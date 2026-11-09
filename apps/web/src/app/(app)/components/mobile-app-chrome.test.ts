@@ -105,12 +105,23 @@ describe("mobile-app-chrome", () => {
       });
     });
 
+    it("sends an agent's jobs back to that agent, not the catalog", () => {
+      expect(resolveMobileAppBackTarget("/agents/a1/jobs")).toEqual({
+        href: "/agents/a1",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/agents/a1/jobs/j1")).toEqual({
+        href: "/agents/a1",
+        labelKey: "back",
+      });
+    });
+
     it("sends nested pages back to their list root", () => {
       expect(resolveMobileAppBackTarget("/tasks/t1")).toEqual({
         href: "/tasks",
         labelKey: "back",
       });
-      expect(resolveMobileAppBackTarget("/agents/a1/jobs")).toEqual({
+      expect(resolveMobileAppBackTarget("/agents/a1")).toEqual({
         href: "/agents",
         labelKey: "back",
       });
