@@ -138,7 +138,7 @@ describe("findCusoForUser", () => {
     expect(cusoFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          versionId: CMO_SOKO_BOT_VERSION_ID,
+          versionId: { in: [CMO_SOKO_BOT_VERSION_ID] },
           userId: null,
           projectId: { not: null },
           deletedAt: null,
@@ -199,7 +199,7 @@ describe("findCusoForBot", () => {
       expect.objectContaining({
         where: {
           id: "bot-1",
-          versionId: CMO_SOKO_BOT_VERSION_ID,
+          versionId: { in: [CMO_SOKO_BOT_VERSION_ID] },
           userId: null,
           projectId: { not: null },
         },

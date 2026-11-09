@@ -10,6 +10,7 @@
 import { waitUntil } from "@vercel/functions";
 import { err, ok, type Result } from "neverthrow";
 import prisma from "@/lib/db/prisma";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { socialAccountStatisticsSchema } from "@/schemas/social-account-statistics.schema";
 import {
   backfillLinkedInAccountProfile,
@@ -189,6 +190,10 @@ export async function runDueSocialAccountSync(
   const accounts = await prisma.projectSocialConnection.findMany({
     where: {
       status: "active",
+      // The eval world's stand-in accounts have no Composio account to read.
+      composioConnectedAccountId: {
+        not: { startsWith: EVAL_CONNECTED_ACCOUNT_PREFIX },
+      },
       ...(input.connectionId ? { id: input.connectionId } : {}),
       OR: [
         { performanceRefreshRequestedAt: { not: null } },

@@ -80,6 +80,9 @@ describe("CMO version", () => {
     expect(prompt).toContain("# Truth");
     expect(prompt).toContain("When the owner forbids or defers an action");
     expect(prompt).toContain("# You are Cuso");
+    expect(prompt).toContain(
+      "Answer in the language of the owner's latest message",
+    );
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
         "social-posting-instructions",
@@ -442,5 +445,34 @@ describe("CMO scenarios", () => {
       ),
     );
     expect(result.checks.filter((check) => !check.pass)).toEqual([]);
+  });
+});
+
+describe("Brand Brain research", () => {
+  it("looks for the brand's own story, prices on shop pages, and keeps sister brands out of competitors", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-brand-brain");
+    expect(skill?.content).toContain("What it is famous for");
+    expect(skill?.content).toContain("open one before you give up");
+    expect(skill?.content).toContain(
+      "(a sister brand), a supplier and a partner are never competitors",
+    );
+    expect(skill?.content).toContain(
+      "never a page title or a product name alone",
+    );
+  });
+});
+
+describe("launch videos", () => {
+  it("builds every scene from the brand's real pictures and evens the sound out", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-launch-video");
+    expect(skill?.content).toContain("Never draw a logo or use a placeholder");
+    expect(skill?.content).toContain(
+      "Every scene shows one of those real pictures",
+    );
+    expect(skill?.content).toContain("loudnorm=I=-14");
+    expect(skill?.content).toContain('grep -E "^\\s+I:"');
+    expect(skill?.content).toContain('workspacePath "video/out/final.mp4"');
   });
 });

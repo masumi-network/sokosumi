@@ -14,46 +14,35 @@
  *
  * Local database only: each slot is a local test account that works with a
  * Cuso, and the lab rewrites his Project's website, Brand Brain and strategy.
- * Brands and their main offers: scripts/fixtures/cmo-lab-brands.json.
+ * Brands and their main offers: src/services/evals/fixtures/cmo-brands.json,
+ * which the CMO eval cases use too.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import type { SokoBotTurnStatus } from "@sokosumi/database";
-import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
-import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   findCusoForUser,
   startCmoProductionForProject,
 } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
-import { cmoPlanProblems } from "@/services/cmo-plan-review.service";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
+import {
+  brandBrainChecks,
+  findings,
+  strategyChecks,
+} from "@/services/evals/cmo-brand-checks";
+import {
+  CMO_EVAL_BRANDS,
+  type CmoEvalBrand,
+} from "@/services/evals/eval-cmo-cases";
 import {
   approveMarketingStrategy,
   newestMarketingStrategy,
-  parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 
-interface Brand {
-  name: string;
-  url: string;
-  goal: string;
-  /** What the brand sells, as a pattern the plan's headline parts must match. */
-  main: string;
-  /** What the Brand Brain must name, when it differs from the plan (a launch). */
-  brain?: string;
-  /** A side product the plan must not be about. */
-  avoid?: string;
-  /** The language its posts must be written in. */
-  contentLanguage?: string;
-  /** Words the plan's summary uses when it must not be in English. */
-  planLanguage?: string;
-  /** A business with many product lines lists at least this many offers. */
-  minOffers?: number;
-  why?: string;
-}
+type Brand = CmoEvalBrand;
 
 const args = process.argv.slice(2);
 function flag(name: string): string | undefined {
@@ -81,14 +70,9 @@ if (slots.length === 0) {
   );
 }
 
-const brands = (
-  JSON.parse(
-    await readFile(
-      new URL("./fixtures/cmo-lab-brands.json", import.meta.url),
-      "utf8",
-    ),
-  ) as Brand[]
-).filter((brand) => !only || only.includes(brand.name));
+const brands = CMO_EVAL_BRANDS.filter(
+  (brand) => !only || only.includes(brand.name),
+);
 
 const ACTIVE: SokoBotTurnStatus[] = [
   "QUEUED",
@@ -251,53 +235,18 @@ function judge(
   offer?: string;
   read?: Record<string, unknown>;
 } {
-  const brain = parseBrandBrain(saved.brandBrain);
-  const strategy = parseMarketingPlan(
-    saved.strategy,
-  ) as MarketingStrategyPlan | null;
-  const findings: string[] = [];
-  if (!brain) findings.push("no Brand Brain");
-  else if (!new RegExp(brand.brain ?? brand.main, "i").test(brain.summary))
-    findings.push(
-      `Brand Brain misses the main offer: ${brain.summary.slice(0, 140)}`,
-    );
-  if (brain && brand.minOffers && brain.offers.length < brand.minOffers)
-    findings.push(
-      `Brand Brain lists ${brain.offers.length} offers, not every product line: ${brain.offers.map((offer) => offer.name).join(", ")}`,
-    );
-  if (!strategy) return { pass: false, findings: [...findings, "no strategy"] };
-  const head = [
-    strategy.summary,
-    strategy.offer?.what ?? "",
-    ...strategy.pillars.map((pillar) => pillar.name),
-  ].join(" ");
-  if (!new RegExp(brand.main, "i").test(head))
-    findings.push("the plan does not sell the main offer");
-  if (
-    brand.avoid &&
-    // What the plan sells; the summary may name the side product as one part.
-    new RegExp(brand.avoid, "i").test(strategy.offer?.what ?? "")
-  )
-    findings.push(`the plan sells a side product: ${strategy.offer?.what}`);
-  if (
-    brand.contentLanguage &&
-    !new RegExp(brand.contentLanguage, "i").test(strategy.contentLanguage ?? "")
-  )
-    findings.push(
-      `posts in "${strategy.contentLanguage ?? "no language"}", not ${brand.contentLanguage}`,
-    );
-  if (
-    brand.planLanguage &&
-    !new RegExp(brand.planLanguage, "i").test(strategy.summary)
-  )
-    findings.push("the plan is not in the owner's language");
-  findings.push(...cmoPlanProblems(strategy));
+  const learned = brandBrainChecks(brand, saved.brandBrain);
+  const planned = strategyChecks(brand, saved.strategy);
+  const failed = findings([...learned.checks, ...planned.checks]);
+  const brain = learned.brain;
+  const strategy = planned.strategy;
+  if (!strategy) return { pass: false, findings: failed };
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
   );
   return {
-    pass: findings.length === 0,
-    findings,
+    pass: failed.length === 0,
+    findings: failed,
     summary: strategy.summary,
     offer: strategy.offer?.what,
     read: {
