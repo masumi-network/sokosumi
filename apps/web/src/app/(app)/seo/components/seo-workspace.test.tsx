@@ -298,6 +298,31 @@ describe("SEO workspace integration", () => {
     expect(evidence).toBeVisible();
   });
 
+  it("hides the page picker when the only page is the one selected", () => {
+    const workspace = seoTestWorkspace();
+    workspace.scopes = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const { unmount } = renderWorkspace(
+      workspace,
+      `?pageId=${workspace.pages[0].id}`,
+    );
+    // One page is all pages; the picker would only repeat it.
+    expect(screen.queryByRole("combobox", { name: "Pages" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Pages and filters/ }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Filter by date" }),
+    ).toBeVisible();
+    unmount();
+    // A page the Audit no longer has stays visible, so the filter can be cleared.
+    renderWorkspace(workspace, "?pageId=removed-page");
+    expect(screen.getByRole("combobox", { name: "Pages" })).toBeVisible();
+  });
+
   it.each([true, false])(
     "lists a check under Check details only when it has no Timeline row: %s",
     (onTimeline) => {

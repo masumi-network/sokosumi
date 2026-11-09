@@ -16,6 +16,30 @@ import {
 import { SeoSelect } from "./seo-form-fields";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+/**
+ * Which filters offer a real choice. With one page, that page is the same as all pages,
+ * so the picker shows only for a saved selection or a page the Audit no longer has.
+ * Search Console is organic only; the traffic choice matters once Google Analytics data
+ * exists, and a chosen channel always shows so it can be cleared.
+ */
+export function seoScopeControls({
+  data,
+  filters,
+}: Pick<SeoWorkspaceModel, "data" | "filters">) {
+  const knownPage =
+    !filters.pageId || data.pages.some((page) => page.id === filters.pageId);
+  return {
+    pages:
+      data.pages.length > 1 ||
+      data.scopes.length > 0 ||
+      Boolean(filters.scopeId) ||
+      !knownPage,
+    channel:
+      Boolean(filters.channel) ||
+      data.metrics.some((metric) => metric.source === "ga4"),
+  };
+}
+
 export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const { data, filters, setFilters } = model;
@@ -24,20 +48,14 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
     : filters.pageId
       ? `page:${filters.pageId}`
       : "all";
-  // A picker with one page and no saved selection has nothing to choose.
-  const canChoose = data.pages.length > 1 || data.scopes.length > 0;
+  const controls = seoScopeControls(model);
   // Dates narrow every check and finding shown; keep them folded until someone asks.
   const [opened, setDatesOpen] = useState(Boolean(filters.from || filters.to));
   // An active date filter always shows, also when a link or Back sets it later.
   const datesOpen = opened || Boolean(filters.from || filters.to);
-  // Search Console is organic only; the traffic choice matters once Google Analytics data exists.
-  // A chosen channel always shows, so it can be cleared.
-  const channelMatters =
-    Boolean(filters.channel) ||
-    data.metrics.some((metric) => metric.source === "ga4");
   return (
     <div className="flex flex-wrap items-end gap-3">
-      {canChoose || selected !== "all" ? (
+      {controls.pages ? (
         <div className="min-w-48 flex-1 space-y-2">
           <Label htmlFor="seo-scope">{t("scope")}</Label>
           <Select
@@ -69,7 +87,7 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
           </Select>
         </div>
       ) : null}
-      {channelMatters ? (
+      {controls.channel ? (
         <div className="min-w-48 space-y-2">
           <Label htmlFor="seo-channel">{t("statistics.channel")}</Label>
           <SeoSelect

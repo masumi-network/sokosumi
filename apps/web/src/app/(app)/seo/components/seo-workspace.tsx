@@ -48,7 +48,7 @@ import { SeoOverview } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoPages } from "./seo-pages";
-import { SeoScopeBar } from "./seo-scope-bar";
+import { SeoScopeBar, seoScopeControls } from "./seo-scope-bar";
 import { SeoEmpty } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { useSeoWorkspace } from "./use-seo-workspace";
@@ -61,6 +61,9 @@ export function SeoWorkspace({
   const t = useTranslations("App.Seo");
   const model = useSeoWorkspace(workspace);
   // Phones show the agent first; pages and filters open on demand (always open from md up).
+  // With only the date filter left, its own button is enough and needs no fold.
+  const controls = seoScopeControls(model);
+  const foldFilters = controls.pages || controls.channel;
   const [filtersOpen, setFiltersOpen] = useState(
     Boolean(model.filters.from || model.filters.to),
   );
@@ -231,35 +234,40 @@ export function SeoWorkspace({
           </DropdownMenu>
         </div>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="md:hidden"
-        aria-expanded={filtersOpen}
-        aria-controls="seo-scope-filters"
-        onClick={() => setFiltersOpen((open) => !open)}
-      >
-        {t("scopeFilters")}
-        {model.filters.channel ? (
-          <span className="text-muted-foreground">
-            {t(
-              model.filters.channel === "organic"
-                ? "statistics.channelOrganic"
-                : "statistics.channelAll",
+      {foldFilters ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="md:hidden"
+          aria-expanded={filtersOpen}
+          aria-controls="seo-scope-filters"
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
+          {t("scopeFilters")}
+          {model.filters.channel ? (
+            <span className="text-muted-foreground">
+              {t(
+                model.filters.channel === "organic"
+                  ? "statistics.channelOrganic"
+                  : "statistics.channelAll",
+              )}
+            </span>
+          ) : null}
+          <ChevronDown
+            className={cn(
+              "size-4 transition-transform",
+              filtersOpen && "rotate-180",
             )}
-          </span>
-        ) : null}
-        <ChevronDown
-          className={cn(
-            "size-4 transition-transform",
-            filtersOpen && "rotate-180",
-          )}
-          aria-hidden
-        />
-      </Button>
+            aria-hidden
+          />
+        </Button>
+      ) : null}
       <div
         id="seo-scope-filters"
-        className={cn("space-y-3 md:block", filtersOpen ? "block" : "hidden")}
+        className={cn(
+          "space-y-3 md:block",
+          filtersOpen || !foldFilters ? "block" : "hidden",
+        )}
       >
         <SeoScopeBar model={model} />
         {model.data.scope.id && model.data.availableActions.canEdit ? (
