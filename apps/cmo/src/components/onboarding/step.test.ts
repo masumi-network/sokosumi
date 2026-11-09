@@ -194,6 +194,26 @@ describe("onboardingStep", () => {
         },
       }),
     ).toBe(false);
+    // A later no after a revision clears changes in Core, so Update plan
+    // shows again instead of Approve.
+    expect(
+      planUnfitted({
+        ...overview,
+        strategy: {
+          ...answered,
+          questions: [
+            ...answered.questions,
+            {
+              id: "c",
+              question: "Again?",
+              statement: "Again",
+              answer: "no",
+            },
+          ],
+          changes: [],
+        },
+      }),
+    ).toBe(true);
   });
 
   it("stays on Plan for a viewer who cannot approve", () => {

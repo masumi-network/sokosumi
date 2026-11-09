@@ -46,7 +46,12 @@ function unansweredBrandQuestions(overview: CmoOverview) {
   );
 }
 
-/** A no on the plan's checks that Cuso has not fitted the plan to yet. */
+/**
+ * A no on the plan's checks that Cuso has not fitted the plan to yet.
+ * A non-empty `changes` list means the last revision already fitted the
+ * nos of that round; Core clears `changes` when a new or changed no lands
+ * so Update plan shows again.
+ */
 export function planUnfitted(overview: CmoOverview): boolean {
   const strategy = overview.strategy;
   return (

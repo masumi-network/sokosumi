@@ -223,9 +223,14 @@ export function OnboardingFlow({
   };
   const request = async (note?: string) => {
     setPlanRequested(true);
-    const refused = settle(await actions.requestStrategy(note));
-    if (refused) setPlanRequested(false);
-    return refused;
+    try {
+      const refused = settle(await actions.requestStrategy(note));
+      if (refused) setPlanRequested(false);
+      return refused;
+    } catch (error) {
+      setPlanRequested(false);
+      throw error;
+    }
   };
   const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));

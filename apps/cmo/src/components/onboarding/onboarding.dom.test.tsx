@@ -571,6 +571,29 @@ it("offers Write my plan again when the request is refused", async () => {
   expect(text()).toContain("Write my plan");
 });
 
+it("offers Write my plan again when the request throws", async () => {
+  const actions = actionsFor({
+    requestStrategy: vi.fn(async () => {
+      throw new Error("connection lost");
+    }),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft({ strategy: null })}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  expect(text()).toContain("Write my plan");
+  await press("Write my plan");
+  expect(text()).toContain("Write my plan");
+  expect(text()).toContain("That didn't go through");
+  expect(text()).not.toContain("Writing your plan");
+});
+
 // Revisiting a finished step from the markers.
 
 const markerButtons = () =>

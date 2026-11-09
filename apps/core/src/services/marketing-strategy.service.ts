@@ -27,7 +27,7 @@ import {
   notFound,
 } from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
-import { answerNote } from "@/helpers/question-answers";
+import { answerNote, changesAfterPlanAnswer } from "@/helpers/question-answers";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { organizationRoleInWorkspace } from "@/helpers/soko-bot-management";
 import {
@@ -785,7 +785,10 @@ export async function answerMarketingStrategyQuestion(input: {
     if (!plan) {
       throw internalServerError("Marketing strategy version has no valid plan");
     }
-    if (!plan.questions.some((question) => question.id === input.questionId)) {
+    const previous = plan.questions.find(
+      (question) => question.id === input.questionId,
+    );
+    if (!previous) {
       throw notFound("That question is not in the plan");
     }
     const note = answerNote(input.answer, input.note);
@@ -794,6 +797,12 @@ export async function answerMarketingStrategyQuestion(input: {
       data: {
         plan: {
           ...plan,
+          changes: changesAfterPlanAnswer({
+            changes: plan.changes,
+            previous,
+            answer: input.answer,
+            note,
+          }),
           questions: plan.questions.map((question) =>
             question.id === input.questionId
               ? { ...question, answer: input.answer, note }
