@@ -304,7 +304,8 @@ export function coworkerStreamErrorMessage(error: Error): string | null {
  * After a failed turn: cut any partial reply and show the user's message as a
  * failed outbound row (reason + Retry). Core may already have saved it, so the
  * row states the reason, not "not sent". Its UI message id is the Core
- * `client_message_id`, so Retry resends it without a second saved row.
+ * `client_message_id`, so Retry resends it without a second saved row, and
+ * `mergeMessagesWithStreamOverlay` moves the mark onto that saved row.
  */
 export function markFailedCoworkerTurn(
   rows: ChatRoomMessage[],
@@ -485,8 +486,9 @@ export function useCoworkerDirectRoomStream({
       }
       autoStreamStartedRoomIds.delete(settledRoomId);
       if (isError) {
-        // Refresh only: the failed overlay row stays (and hides Core's saved
-        // copy of the same text) until Retry or the next send.
+        // Refresh only: the failed overlay row stays until Retry or the next
+        // send. If Core saved the message, the merge marks that saved row
+        // (matched by client_message_id) instead, keeping its quote.
         await onStreamSettledRef.current(settledRoomId);
         return;
       }
