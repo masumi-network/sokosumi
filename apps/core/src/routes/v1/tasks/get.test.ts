@@ -888,6 +888,25 @@ describe("GET /tasks", () => {
       });
     });
 
+    it("continues the due list from a cursor with the same filter", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=mine&dueOnTo=2026-11-10&sort=dueOn&limit=5&cursor=tsk_e",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [{ ownerId: "user_123" }, { assigneeUserId: "user_123" }],
+            dueOn: { lte: new Date("2026-11-10T00:00:00.000Z") },
+          }),
+          cursor: { id: "tsk_e" },
+          skip: 1,
+          orderBy: [{ dueOn: "asc" }, { id: "asc" }],
+        }),
+      );
+    });
+
     it("rejects a dueOnTo that is not a calendar day", async () => {
       const response = await createApp().request(
         "http://localhost/?dueOnTo=2026-02-30",

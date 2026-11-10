@@ -88,9 +88,10 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   const userId = session?.user.id;
   // The reader's Tasks due today or overdue, by their own calendar day. One
   // rendered promise shared by both compositions, like Needs you below.
+  const today = dayInTimeZone(now, timeZone);
   const myDay = (
     <Suspense fallback={null}>
-      {MyDay({ feed: loadMyDay(dayInTimeZone(now, timeZone)) })}
+      {MyDay({ feed: loadMyDay(today), today })}
     </Suspense>
   );
   // What waits on the reader, as the quiet list under either welcome. One

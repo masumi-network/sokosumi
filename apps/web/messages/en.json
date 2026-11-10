@@ -1620,7 +1620,8 @@
         },
         "MyDay": {
           "title": "My day",
-          "more": "{count, plural, one {# more due} other {# more due}}"
+          "more": "{count, plural, one {Show # more} other {Show # more}}",
+          "error": "Couldn't load more. Try again."
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",

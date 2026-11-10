@@ -1620,7 +1620,8 @@
         },
         "MyDay": {
           "title": "Mi día",
-          "more": "{count, plural, one {# más vence} other {# más vencen}}"
+          "more": "{count, plural, one {Mostrar # más} other {Mostrar # más}}",
+          "error": "No se pudieron cargar más. Inténtalo de nuevo."
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
