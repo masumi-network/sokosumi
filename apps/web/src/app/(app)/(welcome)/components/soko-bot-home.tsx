@@ -24,6 +24,8 @@ interface SokoBotHomeProps {
   summary: TaskActivitySummary | null;
   /** Tasks the team moved in the last 24 hours, newest first. */
   teamTasks: SokoBotHomeTask[];
+  /** The reader's Tasks due today or overdue, first; nothing when none are. */
+  myDay?: ReactNode;
   /** What waits on the reader, above the team's day; one line when nothing
    * does. */
   needsYou?: ReactNode;
@@ -43,6 +45,7 @@ export async function SokoBotHome({
   userName,
   summary,
   teamTasks,
+  myDay,
   needsYou,
 }: SokoBotHomeProps) {
   const [t, tStats, tStatus, format] = await Promise.all([
@@ -109,6 +112,7 @@ export async function SokoBotHome({
       }
     >
       <div className="flex flex-col gap-10">
+        {myDay}
         {needsYou}
         <section aria-labelledby="soko-bot-home-day">
           <h2
