@@ -8,6 +8,7 @@ import {
   approveProjectMarketingStrategy,
   type CmoAdCampaigns,
   type CmoAdsFinalized,
+  type CmoCuso,
   type CmoMeasurement,
   type CmoOverview,
   chooseCmoAdAccountForProject,
@@ -19,12 +20,12 @@ import {
   finalizeCmoMeasurementForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
-  getCmoOverview,
   getCmoOverviewForProject,
   getContactLists,
   launchCmoSearchAdForProject,
   listCmoAdCampaignsForProject,
   listCmoAdChoicesForProject,
+  listCmoCusos,
   pauseCmoCalendarEntryForProject,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
@@ -41,7 +42,7 @@ import {
   startCmoOverForProject,
   updateProjectBrandBrain,
 } from "@sokosumi/core-client";
-import { normalizeWebsiteUrl } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -49,6 +50,7 @@ import { AGENT_NAME } from "../lib/agent";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
+import { lastCusoCookie } from "../lib/last-cuso";
 import {
   readSkippedSteps,
   SKIPPED_STEPS_MAX_AGE,
@@ -79,31 +81,33 @@ async function withSkipped(overview: CmoOverview): Promise<CmoOverview> {
 }
 
 /**
- * The Cuso the home page opens (Core's default: the preferred organization's,
- * else the newest), or null before they hire him. Every action after it names
- * his Project. A continuation can also open a specific Project directly.
+ * The Cuso of this Project, or null when it has none or the person may no
+ * longer use it. Every action after it names his Project.
  */
 export async function loadOverview(
-  projectId?: string,
+  projectId: string,
 ): Promise<CmoOverview | null> {
   return overviewOf(await requireCore(), projectId);
 }
 
-/**
- * The Cuso of the Project the page rendered, or null when that Project has
- * none (or the person may no longer see it). Without a Project, use the default.
- */
 async function overviewOf(
   core: Awaited<ReturnType<typeof requireCore>>,
-  projectId?: string,
+  projectId: string,
 ): Promise<CmoOverview | null> {
-  const { data, response } =
-    projectId !== undefined
-      ? await getCmoOverviewForProject({ ...core, path: { projectId } })
-      : await getCmoOverview(core);
+  const { data, response } = await getCmoOverviewForProject({
+    ...core,
+    path: { projectId },
+  });
   if (response?.status === 404) return null;
   if (!data) throw new Error("Could not load CMO");
   return withSkipped(data.data);
+}
+
+/** Every Cuso the person can work with, newest first, for the Cuso picker. */
+export async function loadCusos(): Promise<CmoCuso[]> {
+  const { data } = await listCmoCusos(await requireCore());
+  if (!data) throw new Error("Could not list the Cusos");
+  return data.data;
 }
 
 /** Remembers a skipped hiring step in CMO's cookie for this Cuso. */
@@ -140,21 +144,38 @@ export interface OnboardFormState {
   /** Counts submits, so the form remounts with the values below. */
   attempt: number;
   websiteUrl: string;
+  /** Where Cuso goes: an organization's id, or "" for a new organization. */
+  organizationId?: string;
   errors: { websiteUrl?: string; form?: string };
   /** Out of credits: where to top up before starting again. */
   topUpUrl?: string;
 }
 
+/** What the start form says for each refusal Core declares, by its kind. */
+const HIRE_REFUSALS: Record<string, string> = {
+  [CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED]: `You need a Seat in that organization to hire ${AGENT_NAME}. Ask its owner for one, or choose another organization.`,
+  [CORE_API_ERROR_KINDS.ORGANIZATION_LIMIT_REACHED]:
+    "You've reached the organization limit. Choose one of your organizations instead.",
+  [CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED]:
+    "You're no longer a member of that organization. Choose another one.",
+};
+
 /**
- * Hiring Cuso's start form: the website, then Core hires Cuso into a new
- * organization named after it.
+ * Hiring Cuso's start form: the website and where he goes, a new
+ * organization named after it ("") or one the person belongs to. Opens the
+ * hired Cuso and remembers him on this device.
  */
 export async function onboard(
   previous: OnboardFormState,
   formData: FormData,
 ): Promise<OnboardFormState> {
   const typed = String(formData.get("websiteUrl") ?? "").trim();
-  const result = { attempt: previous.attempt + 1, websiteUrl: typed };
+  const organizationId = String(formData.get("organizationId") ?? "");
+  const result = {
+    attempt: previous.attempt + 1,
+    websiteUrl: typed,
+    organizationId,
+  };
 
   const websiteUrl = normalizeWebsiteUrl(typed);
   if (!websiteUrl) {
@@ -165,24 +186,34 @@ export async function onboard(
   }
 
   const core = await requireCore();
-  const { error } = await startCmoOnboarding({
+  const { data, error } = await startCmoOnboarding({
     ...core,
-    body: { websiteUrl },
+    body: organizationId ? { websiteUrl, organizationId } : { websiteUrl },
   });
-  if (error) {
-    if (/credits/i.test(errorText(error, ""))) {
+  if (!data) {
+    const kind =
+      error && typeof error === "object" && "kind" in error
+        ? String(error.kind)
+        : undefined;
+    if (kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE) {
       return {
         ...result,
         errors: {
-          form: "You're out of credits. Top up on Sokosumi, then press Start again.",
+          form: "That organization is out of credits. Top up on Sokosumi, then press Start again.",
         },
         topUpUrl: `${readSokosumiAppBaseUrl()}/billing`,
       };
     }
-    return { ...result, errors: { form: "That did not work. Try again." } };
+    const refusal = kind ? HIRE_REFUSALS[kind] : undefined;
+    return {
+      ...result,
+      errors: { form: refusal ?? "That did not work. Try again." },
+    };
   }
+  const { projectId } = data.data;
+  (await cookies()).set(...lastCusoCookie(projectId));
   revalidatePath("/");
-  return { ...result, errors: {} };
+  redirect(`/?project=${encodeURIComponent(projectId)}`);
 }
 
 /**
@@ -474,15 +505,13 @@ export async function skipBrandQuestions(
 }
 
 /**
- * Archives the Cuso this person works with and opens the hiring form, to hire
- * him for another website. A refusal (not an owner or admin) comes back as text.
- * Core names the Project CMO goes on with: the person's next default Cuso,
- * which the home page opens directly, or none, and the home page shows the
- * hiring form.
+ * Archives the Cuso on screen and opens the hire form, with a new
+ * organization selected, even when other Cusos remain (ADR 0065). A refusal
+ * (not an owner or admin) comes back as text.
  */
 export async function startOver(projectId: string): Promise<string | null> {
   const core = await requireCore();
-  const { data, error } = await startCmoOverForProject({
+  const { error } = await startCmoOverForProject({
     ...core,
     path: { projectId },
   });
@@ -492,8 +521,7 @@ export async function startOver(projectId: string): Promise<string | null> {
       : "Could not start over";
   }
   revalidatePath("/");
-  const nextProject = data?.data.projectId;
-  redirect(nextProject ? `/?project=${encodeURIComponent(nextProject)}` : "/");
+  redirect("/?hire=1");
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */

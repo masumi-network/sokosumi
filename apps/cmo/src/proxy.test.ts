@@ -51,6 +51,26 @@ it("renders the app for a visitor with a session", async () => {
   expect(response.headers.has("x-middleware-rewrite")).toBe(false);
 });
 
+it("remembers on this device the Cuso an address opens", async () => {
+  vi.mocked(hasSessionCookie).mockReturnValue(true);
+  vi.mocked(renewSession).mockResolvedValue(
+    new Response(null, { status: 204 }),
+  );
+
+  const opened = await proxy(
+    new NextRequest("https://app.cmo.xyz/strategy?project=project-2"),
+  );
+  expect(opened.cookies.get("cmo-last-cuso")).toMatchObject({
+    value: "project-2",
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 365,
+  });
+
+  const plain = await proxy(new NextRequest("https://app.cmo.xyz/strategy"));
+  expect(plain.cookies.get("cmo-last-cuso")).toBeUndefined();
+  vi.mocked(hasSessionCookie).mockReturnValue(false);
+});
+
 const BRANCH_ALIAS = "https://sokosumi-cmo-git-sok-1-fix.preview.cmo.xyz";
 
 it("moves a preview's deployment URL to its branch alias, where sign in lands", async () => {

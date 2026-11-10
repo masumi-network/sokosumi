@@ -1,6 +1,8 @@
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CmoApp } from "../components/app/cmo-app";
+import { CusoPicker } from "../components/cuso-picker";
 import { NameSetup } from "../components/name-setup";
 import { Onboarding } from "../components/onboarding";
 import { SignedIn } from "../components/signed-in";
@@ -8,9 +10,18 @@ import { SignedIn } from "../components/signed-in";
 const getSession = vi.fn();
 const getUsersById = vi.fn();
 const getUsersByIdSignUp = vi.fn();
+const getUsersByIdOrganizations = vi.fn();
 const loadOverview = vi.fn();
+const loadCusos = vi.fn();
+const cookieJar = new Map<string, string>();
 
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { name, value: cookieJar.get(name) } : undefined,
+  }),
+}));
 
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
@@ -28,6 +39,7 @@ vi.mock("../lib/core", () => ({
 
 vi.mock("@sokosumi/core-client", () => ({
   getUsersById,
+  getUsersByIdOrganizations,
   getUsersByIdSignUp,
 }));
 
@@ -38,15 +50,42 @@ vi.mock("./name-actions", () => ({ saveName: vi.fn() }));
 vi.mock("./cmo-actions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./cmo-actions")>()),
   loadOverview,
+  loadCusos,
+  loadMessages: async () => [],
+  skippedSteps: async () => [],
 }));
 
 const { default: HomePage } = await import("./page");
 
-function render(
-  error?: string | string[],
-): Promise<ReactElement<{ websiteUrl?: string }>> {
+type Page = ReactElement<{
+  websiteUrl?: string;
+  organizations?: { id: string; name: string }[];
+  cusos?: { projectId: string }[];
+  overview?: { projectId: string };
+}>;
+
+function render(error?: string | string[]): Promise<Page> {
   return HomePage({ searchParams: Promise.resolve({ error }) });
 }
+
+function open(params: Record<string, string>): Promise<Page> {
+  return HomePage({ searchParams: Promise.resolve(params) }) as Promise<Page>;
+}
+
+/** A hired Cuso as Core lists him, and his overview once opened. */
+function cuso(projectId: string) {
+  return {
+    projectId,
+    businessName: `${projectId}.io`,
+    websiteUrl: `https://${projectId}.io`,
+    projectLogo: null,
+    organizationId: "org-1",
+    organizationName: "Agency",
+    hiring: false,
+    createdAt: new Date(),
+  };
+}
+const hired = (projectId: string) => ({ projectId, onboardingStep: "done" });
 
 function userAnswer(firstName: string | null, lastName: string | null) {
   return {
@@ -73,8 +112,18 @@ describe("CMO home page", () => {
       error: { error: "Not Found" },
       response: new Response(null, { status: 404 }),
     });
+    getUsersByIdOrganizations.mockResolvedValue({
+      data: { data: [] },
+      response: new Response(null, { status: 200 }),
+    });
+    cookieJar.clear();
     // Not hired yet.
-    loadOverview.mockResolvedValue(null);
+    loadCusos.mockResolvedValue([]);
+    loadOverview.mockImplementation(async (projectId: string) =>
+      ["project-1", "project-2", "project-3"].includes(projectId)
+        ? hired(projectId)
+        : null,
+    );
   });
 
   afterEach(() => {
@@ -93,13 +142,87 @@ describe("CMO home page", () => {
     expect(getUsersById).not.toHaveBeenCalled();
   });
 
-  it("loads only the named Project when resuming a flow", async () => {
-    const page = await HomePage({
-      searchParams: Promise.resolve({ project: "project-2" }),
+  it("opens the Cuso the address names, over the one last opened", async () => {
+    cookieJar.set("cmo-last-cuso", "project-1");
+    const page = await open({ project: "project-2" });
+
+    expect(page.type).toBe(CmoApp);
+    expect(page.props.overview?.projectId).toBe("project-2");
+    expect(loadOverview).toHaveBeenCalledExactlyOnceWith("project-2");
+    expect(loadCusos).not.toHaveBeenCalled();
+  });
+
+  it("opens the Cuso last opened on this device", async () => {
+    cookieJar.set("cmo-last-cuso", "project-1");
+    loadCusos.mockResolvedValue([cuso("project-2"), cuso("project-1")]);
+
+    const page = await render();
+
+    expect(page.props.overview?.projectId).toBe("project-1");
+    expect(loadCusos).not.toHaveBeenCalled();
+  });
+
+  it("opens the only Cuso directly", async () => {
+    loadCusos.mockResolvedValue([cuso("project-3")]);
+
+    const page = await render();
+
+    expect(page.type).toBe(CmoApp);
+    expect(page.props.overview?.projectId).toBe("project-3");
+  });
+
+  it("shows the Cuso picker for several Cusos and none opened here before", async () => {
+    loadCusos.mockResolvedValue([cuso("project-2"), cuso("project-1")]);
+
+    const page = await render();
+
+    expect(page.type).toBe(CusoPicker);
+    expect(page.props.cusos?.map((item) => item.projectId)).toEqual([
+      "project-2",
+      "project-1",
+    ]);
+  });
+
+  it.each([
+    ["a Project the person can no longer use", { project: "project-gone" }],
+    ["a remembered Cuso that was archived", {}],
+  ])("falls through to the picker from %s", async (_label, params) => {
+    cookieJar.set("cmo-last-cuso", "project-gone");
+    loadCusos.mockResolvedValue([cuso("project-2"), cuso("project-1")]);
+
+    expect((await open(params)).type).toBe(CusoPicker);
+  });
+
+  it("falls through to the hire form from a Project the person can no longer use and no Cuso", async () => {
+    expect((await open({ project: "project-gone" })).type).toBe(Onboarding);
+  });
+
+  it("shows the Cuso picker the account menu asks for, even for one Cuso", async () => {
+    loadCusos.mockResolvedValue([cuso("project-3")]);
+
+    expect((await open({ cusos: "1" })).type).toBe(CusoPicker);
+  });
+
+  it("opens the hire form after Start over, even when Cusos remain", async () => {
+    cookieJar.set("cmo-last-cuso", "project-1");
+    loadCusos.mockResolvedValue([cuso("project-1")]);
+
+    const page = await open({ hire: "1" });
+
+    expect(page.type).toBe(Onboarding);
+    expect(loadOverview).not.toHaveBeenCalled();
+  });
+
+  it("asks where Cuso goes for a person with organizations", async () => {
+    getUsersByIdOrganizations.mockResolvedValue({
+      data: { data: [{ id: "org-1", name: "Agency", slug: "agency" }] },
+      response: new Response(null, { status: 200 }),
     });
 
-    expect(loadOverview).toHaveBeenCalledExactlyOnceWith("project-2");
-    expect(page.type).not.toBe(Onboarding);
+    const page = await render();
+
+    expect(page.type).toBe(Onboarding);
+    expect(page.props.organizations).toEqual([{ id: "org-1", name: "Agency" }]);
   });
 
   it("goes straight to hiring Cuso, with no workspace question", async () => {
@@ -107,6 +230,7 @@ describe("CMO home page", () => {
 
     expect(page.type).toBe(Onboarding);
     expect(page.props.websiteUrl).toBeUndefined();
+    expect(page.props.organizations).toEqual([]);
     expect(getUsersById).toHaveBeenCalledWith(
       expect.objectContaining({
         path: { id: "me" },
@@ -174,8 +298,8 @@ describe("CMO home page", () => {
     },
   );
 
-  it("keeps the signed-in shell when Core cannot load Cuso", async () => {
-    loadOverview.mockRejectedValue(new Error("down"));
+  it("keeps the signed-in shell when Core cannot list the Cusos", async () => {
+    loadCusos.mockRejectedValue(new Error("down"));
 
     expect((await render()).type).toBe(SignedIn);
   });

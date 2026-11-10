@@ -145,6 +145,7 @@ body:has(.ob) .site-header {
   font: inherit;
   font-size: 0.75rem;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -1861,4 +1862,50 @@ body:has(.ob) .site-header {
 .ob-more > summary:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+/* ── Cuso picker ── */
+.ob-main:has(> .ob-picker) {
+  max-width: 640px;
+}
+
+.ob-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ob-picker-row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ob-picker-row:hover b,
+.ob-picker-row:hover .grow {
+  text-decoration: underline;
+}
+
+/* ── Hire form: where Cuso goes ── */
+.ob-where {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ob-where legend {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.ob-where label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

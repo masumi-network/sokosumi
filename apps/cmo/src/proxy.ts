@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { getAuth, hasSessionCookie, renewSession } from "./lib/auth";
+import { lastCusoCookie } from "./lib/last-cuso";
 import { CMO_SIGN_IN_ERROR } from "./lib/sign-in-errors";
 
 /**
@@ -51,9 +52,16 @@ export async function proxy(request: NextRequest) {
   }
   const cookies = renewal.headers.getSetCookie();
   if (cookies.length === 0) {
-    return showsLanding(request.nextUrl, hasSessionCookie(auth, request))
-      ? NextResponse.rewrite(new URL(LANDING_PATH, request.url))
-      : NextResponse.next();
+    if (showsLanding(request.nextUrl, hasSessionCookie(auth, request))) {
+      return NextResponse.rewrite(new URL(LANDING_PATH, request.url));
+    }
+    const response = NextResponse.next();
+    // An address that names a Cuso's Project (the picker, a shared link, a
+    // provider callback) opens him; this device opens him next time too.
+    // Pages render as Server Components, which cannot set cookies.
+    const project = request.nextUrl.searchParams.get("project");
+    if (project) response.cookies.set(...lastCusoCookie(project));
+    return response;
   }
 
   const target = request.nextUrl.clone();

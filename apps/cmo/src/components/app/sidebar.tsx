@@ -10,6 +10,7 @@ import {
   Settings,
   Share2,
   Target,
+  Users,
 } from "lucide-react";
 import { AGENT_NAME } from "../../lib/agent";
 import { VIEW_PATHS, type View } from "../../lib/views";
@@ -44,7 +45,7 @@ interface SidebarProps {
   now?: Date;
 }
 
-/** The app's sidebar: workspace, pages, Cuso's status and the person. */
+/** The app's sidebar: the Business, pages, the Cuso picker, Cuso's status and the person. */
 export function Sidebar({
   overview,
   view,
@@ -85,6 +86,11 @@ export function Sidebar({
             <span>{label}</span>
           </a>
         ))}
+        {/* The Cuso picker: switch Business or hire another (ADR 0065). */}
+        <a href="/?cusos=1">
+          <Users size={16} aria-hidden="true" />
+          <span>Your {AGENT_NAME}s</span>
+        </a>
       </div>
       <div className="grow" />
       <CusoStatus

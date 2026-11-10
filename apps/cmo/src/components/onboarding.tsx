@@ -54,6 +54,8 @@ function aimLabels(stage: HTMLElement) {
 interface OnboardingProps {
   /** The website a CMO sign-up link carried, to start the field with. */
   websiteUrl?: string | undefined;
+  /** The person's organizations, which Cuso may go into instead of a new one. */
+  organizations?: { id: string; name: string }[];
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -61,10 +63,15 @@ interface OnboardingProps {
 }
 
 /**
- * Hiring Cuso, step one: the website. An error sits by it and what was
+ * Hiring Cuso, step one: the website, then where he goes when the person
+ * belongs to an organization (ADR 0065). An error sits by it and what was
  * typed stays.
  */
-export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
+export function Onboarding({
+  websiteUrl,
+  organizations = [],
+  onboard,
+}: OnboardingProps) {
   const [state, formAction] = useActionState(onboard, {
     attempt: 0,
     websiteUrl: websiteUrl ?? "",
@@ -149,6 +156,30 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
                 </span>
               )}
             </div>
+            {organizations.length > 0 ? (
+              <fieldset className="ob-where">
+                <legend>Where</legend>
+                {[
+                  {
+                    id: "",
+                    name: "New organization (named after your website)",
+                  },
+                  ...organizations,
+                ].map((organization) => (
+                  <label key={organization.id}>
+                    <input
+                      type="radio"
+                      name="organizationId"
+                      value={organization.id}
+                      defaultChecked={
+                        organization.id === (state.organizationId ?? "")
+                      }
+                    />
+                    {organization.name}
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
             <StatRow stats={STATS} />
           </form>
           <div className="panel ob-hire-stage">

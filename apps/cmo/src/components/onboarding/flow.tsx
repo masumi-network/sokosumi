@@ -3,9 +3,10 @@
 import "./onboarding.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown, LogOut, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { AGENT_NAME } from "../../lib/agent";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { adsReturnError } from "../ads";
@@ -40,7 +41,10 @@ interface AccountMenuProps {
   signOut: () => Promise<void>;
 }
 
-/** Who is signed in, with the way out; closes on a click outside or Escape. */
+/**
+ * Who is signed in, the Cuso picker and the way out; closes on a click
+ * outside or Escape.
+ */
 function AccountMenu({ overview, startOver, signOut }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -81,6 +85,10 @@ function AccountMenu({ overview, startOver, signOut }: AccountMenuProps) {
       {open ? (
         <div className="ob-who-menu" role="menu">
           <ThemeToggle className="ob-who-item" role="menuitem" withLabel />
+          <a className="ob-who-item" role="menuitem" href="/?cusos=1">
+            <Users size={14} aria-hidden="true" />
+            Your {AGENT_NAME}s
+          </a>
           <StartOver className="ob-who-item" startOver={startOver} />
           <form action={signOut}>
             <button type="submit" role="menuitem" className="ob-who-item">
