@@ -7,6 +7,8 @@ vi.mock("next-intl", () => ({
 }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 const api = vi.hoisted(() => ({
   createDataRoom: vi.fn(),
   closeDataRoom: vi.fn(),
@@ -38,7 +40,7 @@ const room = {
 describe("DriveDataRoomDialog", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("makes the folder a data room", async () => {
+  it("makes the folder a data room and opens it to invite people", async () => {
     api.createDataRoom.mockResolvedValue({ ...room, storage: "moving_in" });
     const onChanged = vi.fn();
     render(
@@ -57,6 +59,9 @@ describe("DriveDataRoomDialog", () => {
     });
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(toast.success).toHaveBeenCalledWith("made");
+    expect(router.push).toHaveBeenCalledWith(
+      "/drive/data-rooms/room-1?invite=1",
+    );
   });
 
   it("shows Core's reason when the folder cannot be a room", async () => {
@@ -77,6 +82,7 @@ describe("DriveDataRoomDialog", () => {
         "This folder holds a data room; a room cannot hold another",
       ),
     );
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("closes a room only after the owner confirms", async () => {
