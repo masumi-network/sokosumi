@@ -383,7 +383,7 @@ export async function getCmoOverview(
     media,
     learning,
     work,
-    research: cmoResearch(cuso.brandBrain),
+    research: cmoResearch(cuso.brandBrain, brandBrain),
     brandVisual,
     brandMedia,
     projectLogo: project.logo,

@@ -572,12 +572,26 @@ describe("SokoBotControlPlane lifecycle", () => {
   );
 
   it.each([
-    { clientTurnId: "cmo:onboarding:bot_1:1", starts: true },
-    { clientTurnId: "cmo:strategy:bot_1:1", starts: false },
-    { clientTurnId: null, starts: false },
-  ])(
-    "starts Cuso's plan when his research turn settles: $clientTurnId",
-    async ({ clientTurnId, starts }) => {
+    {
+      clientTurnId: "cmo:onboarding:bot_1:1",
+      status: "COMPLETED",
+      starts: true,
+    },
+    { clientTurnId: "cmo:onboarding:bot_1:1", status: "FAILED", starts: true },
+    {
+      clientTurnId: "cmo:onboarding:bot_1:1",
+      status: "CANCELLED",
+      starts: false,
+    },
+    {
+      clientTurnId: "cmo:strategy:bot_1:1",
+      status: "COMPLETED",
+      starts: false,
+    },
+    { clientTurnId: null, status: "COMPLETED", starts: false },
+  ] as const)(
+    "starts Cuso's plan when his research turn settles: $clientTurnId $status",
+    async ({ clientTurnId, status, starts }) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
         clientTurnId,
@@ -592,7 +606,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       });
       await new SokoBotControlPlane()["settleTurn"]({
         turnId: "turn_1",
-        status: "COMPLETED",
+        status,
       });
       await vi.waitFor(() =>
         starts

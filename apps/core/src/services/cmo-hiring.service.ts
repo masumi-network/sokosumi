@@ -1,4 +1,5 @@
 import {
+  type BrandBrain,
   CMO_BRAND_SECTION_KEYS,
   CMO_BRAND_SECTIONS,
   CMO_SOKO_BOT_VERSION_ID,
@@ -369,9 +370,13 @@ export interface CmoResearch {
  * Each group is done once all its sections are saved; the essentials end
  * the research, so they mark every group done.
  */
-export function cmoResearch(brandBrain: unknown): CmoResearch {
+export function cmoResearch(
+  brandBrain: unknown,
+  /** The essentials, when the caller already parsed them. */
+  essentials: BrandBrain | null = parseBrandBrain(brandBrain),
+): CmoResearch {
   const saved = new Set(brandBrainSectionsSaved(brandBrain));
-  const finished = parseBrandBrain(brandBrain) !== null;
+  const finished = essentials !== null;
   return {
     groups: CMO_RESEARCH_GROUPS.map(({ key, label, sections }) => ({
       key,
@@ -381,7 +386,7 @@ export function cmoResearch(brandBrain: unknown): CmoResearch {
           ? "done"
           : "running",
     })),
-    preview: brandBrainPreview(brandBrain),
+    preview: finished ? null : brandBrainPreview(brandBrain),
   };
 }
 

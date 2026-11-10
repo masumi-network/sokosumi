@@ -1577,7 +1577,11 @@ export class SokoBotControlPlane {
         },
       });
       if (settled.count === 0) return false;
-      if (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)) {
+      // A research the owner stopped starts no plan.
+      if (
+        settledStatus !== "CANCELLED" &&
+        turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)
+      ) {
         cmoResearchEnded = {
           sokoBotId: turn.sokoBotId,
           userId: turn.requestedByUserId,
