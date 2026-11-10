@@ -1,6 +1,7 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getNow, getTimeZone } from "next-intl/server";
+import { getNow, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
@@ -28,6 +29,8 @@ import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
   SOKO_BOT_HOME_TASK_LIMIT,
+  type SokoBotHomeChat,
+  toSokoBotChats,
   toTeamDay,
 } from "./components/soko-bot-home-data";
 
@@ -37,12 +40,34 @@ interface WelcomePageProps {
   }>;
 }
 
-/** The bot's Direct, or null when it has none yet or the read fails. */
-async function loadSokoBotRoomId(sokoBotId: string): Promise<string | null> {
-  const { rooms } = await chatRoomService
-    .listRooms("direct")
-    .catch(() => ({ rooms: [] }));
-  return findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null;
+// Without its own title the landing page kept the layout's marketing line.
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Metadata");
+  return { title: t("home") };
+}
+
+/**
+ * The bot's Direct (null when it has none yet or the read fails) and the
+ * chats with a Soko Bot the reader took part in during the last day. Core
+ * picks those chats; the room list is the sidebar's cached one.
+ */
+async function loadSokoBotChats(
+  sokoBotId: string,
+): Promise<{ roomId: string | null; chats: SokoBotHomeChat[] }> {
+  const [{ rooms }, recent, tChannels] = await Promise.all([
+    chatRoomService.listRooms().catch(() => ({ rooms: [] })),
+    chatRoomService.listRecentSokoBotMessages().catch(() => []),
+    getTranslations("App.Channels"),
+  ]);
+  return {
+    roomId: findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null,
+    chats: toSokoBotChats(
+      recent,
+      rooms,
+      tChannels("MentionAll.label"),
+      tChannels("SavedMessages.untitled"),
+    ),
+  };
 }
 
 /**
@@ -112,8 +137,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   if (sokoBot && userId) {
     // In an org the day is the team's; in a personal workspace, the user's.
     const scope = activeOrganizationId ? "workspace" : "owned";
-    const [roomId, summary, recent] = await Promise.all([
-      loadSokoBotRoomId(sokoBot.id),
+    const [{ roomId, chats }, summary, recent] = await Promise.all([
+      loadSokoBotChats(sokoBot.id),
       taskService.getActivitySummary({ scope }),
       taskService
         .listTasks({
@@ -138,6 +163,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           userName={resolveLandingGreetingName(session?.user.name)}
           summary={summary ?? null}
           teamTasks={toTeamDay(recent.tasks, new Date())}
+          chats={chats}
           myDay={myDay}
           needsYou={needsYou}
         />
