@@ -16,6 +16,8 @@ export const CORE_API_ERROR_KINDS = {
   CONTACT_VERSION_CONFLICT: "contact_version_conflict",
   /** A coworker must send `X-Context-Organization-Id`: the context user has no personal workspace. */
   CONTEXT_ORGANIZATION_REQUIRED: "context_organization_required",
+  /** A file or folder in a data room gets no share link; invite people to the room instead. */
+  DRIVE_SHARE_IN_DATA_ROOM: "drive_share_in_data_room",
   INTEGRATION_NOT_CONFIGURED: "integration_not_configured",
   INVOICE_INVALID: "invoice_invalid",
   INVOICE_NOT_FOUND: "invoice_not_found",
