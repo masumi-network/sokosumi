@@ -133,6 +133,23 @@ describe("native SEO audit entry", () => {
     expect(m.coworkers).not.toHaveBeenCalled();
   });
 
+  it("opens the form for a new Audit from the workspace switch prompt's link", async () => {
+    m.listAudits.mockResolvedValue({
+      audits: [
+        {
+          id: SEO_TEST_AUDIT,
+          name: "Launch pages",
+          projectId: null,
+          pageCount: 1,
+          createdAt: new Date("2026-01-02T12:00:00Z"),
+        },
+      ],
+      pagination: { nextCursor: null },
+    });
+    await show({ add: "1" });
+    expect(screen.getByRole("dialog", { name: "Create audit" })).toBeVisible();
+  });
+
   it("creates an audit with its first page and navigates by auditId without a Project ID", async () => {
     const user = userEvent.setup();
     await show();

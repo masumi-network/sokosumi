@@ -49,6 +49,8 @@ export const seoPageQuerySchema = seoFilterQuerySchema.safeExtend({
   // The header's Project scope. It sits beside an open Audit: the page moves a mismatch to the Audit's Project.
   projectId: z.uuid().optional(),
   cursor: z.string().max(200).optional(),
+  // On the audit list, opens the form for a new Audit.
+  add: z.literal("1").optional(),
   // With `projectId`, opens the Project's own SEO workspace instead of its Audit list.
   view: z.literal("project").optional(),
   tab: z

@@ -8,6 +8,7 @@ import {
   CHAT_WELCOME_PATH,
   roomIdFromPath,
 } from "@/app/chat/utils/chat-route-base";
+import { PROJECT_SCOPE_PARAM } from "@/app/components/project-scope/project-scope-href";
 import {
   activateOrganizationWorkspace,
   isUserNotMemberOfOrganizationError,
@@ -34,9 +35,19 @@ export function getTaskDetailBasePath(pathname: string): string | null {
   return "/tasks";
 }
 
-/** An Audit and a Project belong to one workspace, so the selection in the SEO page's query does not survive a switch. */
-export function getSeoBasePath(pathname: string): string | null {
-  return pathname === "/seo" ? "/seo" : null;
+/**
+ * An Audit and a Project belong to one workspace, so the selection in the SEO
+ * page's query does not survive a switch. An open Audit stays in the address
+ * with its tab and filters, without its Project: its page then asks whether to
+ * switch back or to start in the new workspace.
+ */
+export function getSeoBasePath(pathname: string, search = ""): string | null {
+  if (pathname !== "/seo") return null;
+  const params = new URLSearchParams(search);
+  if (!params.has("auditId")) return "/seo";
+  // The header clears a Project the new workspace cannot see, and would open the list.
+  params.delete(PROJECT_SCOPE_PARAM);
+  return `/seo?${params}`;
 }
 
 export function getOrganizationSettingsPath(
@@ -62,7 +73,6 @@ export function getOrganizationSettingsPath(
 export interface WorkspaceSwitchChoices {
   shouldRedirectAgentJobsBasePath?: boolean;
   shouldRedirectTaskDetailPath?: boolean;
-  shouldRedirectSeoPath?: boolean;
   shouldRedirectOrganizationSettingsPath?: boolean;
   successMessage?: string;
 }
@@ -152,11 +162,12 @@ export async function switchOrganizationWorkspace(
     }
   }
 
-  // A switch prompt for an Audit link skips this: the link's Audit is in the new workspace.
-  const shouldRedirectSeoPath = options?.shouldRedirectSeoPath ?? true;
-  if (shouldRedirectSeoPath && options?.router && options?.pathname) {
-    // Without this the old Audit stays in the address and the page says it is unavailable.
-    const seoBasePath = getSeoBasePath(options.pathname);
+  if (options?.router && options?.pathname) {
+    // Without this a Project of the old workspace stays in the address and the page says it is unavailable.
+    const seoBasePath = getSeoBasePath(
+      options.pathname,
+      window.location.search,
+    );
     if (seoBasePath) {
       runRouterTransition(() => {
         options.router?.replace(seoBasePath);

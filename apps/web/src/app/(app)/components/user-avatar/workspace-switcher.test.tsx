@@ -62,6 +62,7 @@ function WorkspaceSwitcherTestComponent() {
 describe("workspace switcher", () => {
   beforeEach(() => {
     pathnameMock = "/";
+    window.history.replaceState(null, "", "/");
     replaceMock.mockClear();
     refreshMock.mockClear();
     vi.mocked(authClient.organization.setActive).mockReset();
@@ -95,6 +96,11 @@ describe("workspace switcher", () => {
   describe("getSeoBasePath", () => {
     it("returns the SEO page for the SEO page only", () => {
       expect(getSeoBasePath("/seo")).toBe("/seo");
+      expect(getSeoBasePath("/seo", "?projectId=p1&view=project")).toBe("/seo");
+      // An open Audit stays, without its Project: its page asks what to do in the new workspace.
+      expect(
+        getSeoBasePath("/seo", "?projectId=p1&auditId=a1&tab=health"),
+      ).toBe("/seo?auditId=a1&tab=health");
       expect(getSeoBasePath("/seo/connections/return")).toBeNull();
       expect(getSeoBasePath("/tasks")).toBeNull();
     });
@@ -277,9 +283,40 @@ describe("workspace switcher", () => {
     });
   });
 
-  it("opens the new workspace's SEO audit list when the current route is the SEO page", async () => {
-    // The open Audit sits in the query, which the pathname does not carry.
+  it("keeps an open Audit in the address after a switch on the SEO page", async () => {
     pathnameMock = "/seo";
+    window.history.replaceState(
+      null,
+      "",
+      "/seo?projectId=p1&auditId=a1&tab=health",
+    );
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        organizationId: "org-1",
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    // The page then shows the prompt: switch back, or add a new page here.
+    // The Project goes: the header would clear it and open the list.
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+    expect(replaceMock).toHaveBeenCalledExactlyOnceWith(
+      "/seo?auditId=a1&tab=health",
+    );
+  });
+
+  it("opens the new workspace's SEO audit list when no Audit is open on the SEO page", async () => {
+    pathnameMock = "/seo";
+    window.history.replaceState(null, "", "/seo?projectId=p1&view=project");
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,

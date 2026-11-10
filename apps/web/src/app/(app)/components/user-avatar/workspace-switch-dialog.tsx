@@ -38,10 +38,14 @@ export interface WorkspaceSwitchAccounts {
 interface WorkspaceSwitchDialogProps extends WorkspaceSwitchAccounts {
   title: string;
   description: ReactNode;
-  /** Where "Stay here" goes when there is no earlier page to go back to. */
+  /** Where the second button goes. With `stayBack`, only when there is no earlier page to go back to. */
   stayHref: string;
+  /** The second button goes back to the earlier page when there is one. */
+  stayBack?: boolean;
+  /** The second button's text, when "Stay here" does not say what it opens. */
+  stayLabel?: string;
   /** The path redirects of a switch to skip, so the opened link stays in the address. */
-  switchChoices: WorkspaceSwitchChoices;
+  switchChoices?: WorkspaceSwitchChoices;
   /** Sentry tag for a failed switch. */
   errorContext: string;
   errorExtra?: Record<string, unknown>;
@@ -64,6 +68,8 @@ export function WorkspaceSwitchDialog({
   title,
   description,
   stayHref,
+  stayBack = true,
+  stayLabel,
   switchChoices,
   errorContext,
   errorExtra,
@@ -74,7 +80,7 @@ export function WorkspaceSwitchDialog({
   const { handleSelectWorkspace, isPending } = useWorkspaceSwitcher();
 
   const handleCancel = () => {
-    if (window.history.length > 1) {
+    if (stayBack && window.history.length > 1) {
       router.back();
       return;
     }
@@ -130,7 +136,7 @@ export function WorkspaceSwitchDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending} onClick={handleCancel}>
-            {t("cancel")}
+            {stayLabel ?? t("cancel")}
           </AlertDialogCancel>
           <Button loading={isPending} onClick={handleSwitchWorkspace}>
             {t("confirm")}

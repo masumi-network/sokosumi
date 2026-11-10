@@ -11372,7 +11372,8 @@
       "notHereBody": "Puede pertenecer a otro espacio de trabajo. Cambia de espacio de trabajo en la barra lateral o abre las auditorías de este espacio de trabajo.",
       "workspaceSwitchPrompt": {
         "title": "Esta auditoría está en otro espacio de trabajo",
-        "description": "“{auditName}” está en el espacio de trabajo <accountName>{account}</accountName>. Cambia de espacio de trabajo para abrirla."
+        "description": "“{auditName}” está en el espacio de trabajo <accountName>{account}</accountName>. Cambia de espacio de trabajo para abrirla, o añade una página nueva en este espacio de trabajo.",
+        "stay": "Añadir una página nueva"
       },
       "openAllPages": "Abrir todas las páginas",
       "queries": {

@@ -35,6 +35,14 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     "/history": {},
   };
 
+/**
+ * The param that names the one item a scoped page has open. Its page answers
+ * for another workspace itself, so clearing a stale scope keeps the item.
+ */
+const SCOPED_PAGE_ITEM: Readonly<Record<string, string>> = {
+  "/seo": "auditId",
+};
+
 const PROJECT_PAGE = /^\/projects\/([^/]+)/;
 
 /**
@@ -108,6 +116,23 @@ export function scopedHref(href: string, projectId: string | null): string {
   // The workspace view keeps plain links: `/drive` opens Recents.
   if (!projectId || !isProjectScopedPath(href)) return href;
   return scopedPageHref(href, projectId);
+}
+
+/**
+ * A scoped page without the project this workspace cannot see. The page's
+ * open item stays: only that page knows which workspace holds it.
+ */
+export function clearedScopeHref(
+  pathname: string,
+  searchParams: SearchParamsReader & { toString(): string },
+): string {
+  const param = SCOPED_PAGE_ITEM[pathname];
+  if (!param || !searchParams.get(param))
+    return switchScopeHref(pathname, null);
+  // The item's own tab and filters stay with it.
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete(PROJECT_SCOPE_PARAM);
+  return `${pathname}?${params}`;
 }
 
 /**

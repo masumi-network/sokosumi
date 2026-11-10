@@ -11372,7 +11372,8 @@
       "notHereBody": "Es gehört möglicherweise zu einem anderen Workspace. Wechsle den Workspace in der Seitenleiste oder öffne die Audits dieses Workspace.",
       "workspaceSwitchPrompt": {
         "title": "Dieses Audit liegt in einem anderen Arbeitsbereich",
-        "description": "„{auditName}“ liegt im Arbeitsbereich <accountName>{account}</accountName>. Wechsle den Arbeitsbereich, um es zu öffnen."
+        "description": "„{auditName}“ liegt im Arbeitsbereich <accountName>{account}</accountName>. Wechsle den Arbeitsbereich, um es zu öffnen, oder füge in diesem Arbeitsbereich eine neue Seite hinzu.",
+        "stay": "Neue Seite hinzufügen"
       },
       "openAllPages": "Alle Seiten öffnen",
       "queries": {

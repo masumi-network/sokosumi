@@ -7,6 +7,9 @@ export function seoIndexHref(projectId: string | null, cursor?: string) {
   return query ? `/seo?${query}` : "/seo";
 }
 
+/** The audit list with its form for a new Audit open. */
+export const SEO_ADD_PAGE_HREF = "/seo?add=1";
+
 /** An Audit opens in its own Project's scope, so the header names that Project. */
 export function seoAuditHref(auditId: string, projectId: string | null) {
   const params = new URLSearchParams();

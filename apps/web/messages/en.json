@@ -11372,7 +11372,8 @@
       "notHereBody": "It may belong to another workspace. Switch workspace in the sidebar, or open the audits of this workspace.",
       "workspaceSwitchPrompt": {
         "title": "This audit is in another workspace",
-        "description": "\"{auditName}\" is in the <accountName>{account}</accountName> workspace. Switch workspace to open it."
+        "description": "\"{auditName}\" is in the <accountName>{account}</accountName> workspace. Switch workspace to open it, or add a new page in this workspace.",
+        "stay": "Add a new page"
       },
       "openAllPages": "Open all pages",
       "queries": {

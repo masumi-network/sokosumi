@@ -27,14 +27,18 @@ export function SeoAuditIndex({
   audits,
   nextCursor,
   projectId,
+  addOpen = false,
 }: {
   audits: SeoAuditSummary[];
   nextCursor: string | null;
   /** The header's Project scope; a new Audit links to it. */
   projectId: string | null;
+  /** The link asked for a new Audit, so its form starts open. */
+  addOpen?: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const form = useCreateSeoAudit(projectId);
+  // An empty list already shows the form in the page, so only a filled list opens the dialog.
+  const form = useCreateSeoAudit(projectId, addOpen && audits.length > 0);
   return (
     <div className="space-y-6">
       {audits.length ? (

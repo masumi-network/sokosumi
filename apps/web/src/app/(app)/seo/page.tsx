@@ -35,7 +35,15 @@ export default async function SeoPage({
         <SeoPageError invalidFilters resetHref="/seo" />
       </WorkspacePageShell>
     );
-  const { auditId, projectId, cursor, view, tab: _tab, ...query } = parsed.data;
+  const {
+    auditId,
+    projectId,
+    cursor,
+    view,
+    add,
+    tab: _tab,
+    ...query
+  } = parsed.data;
   // `projectId` is the header's Project scope: it filters the Audit list. With `view=project` it opens the
   // Project's own SEO workspace, where its Soko Bot keeps pages outside any Audit.
   const owner: SeoOwner | undefined = auditId
@@ -52,6 +60,7 @@ export default async function SeoPage({
             audits={index.audits}
             projectId={projectId ?? null}
             nextCursor={index.pagination?.nextCursor ?? null}
+            addOpen={add === "1"}
           />
         </WorkspacePageShell>
       );

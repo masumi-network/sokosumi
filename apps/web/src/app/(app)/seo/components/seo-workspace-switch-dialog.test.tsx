@@ -25,7 +25,8 @@ vi.mock("@/lib/actions/organization/action", () => ({
 }));
 
 const TARGET = "org_globex";
-function show() {
+function show(search = "?auditId=a1&tab=rankings") {
+  window.history.replaceState(null, "", `/seo${search}`);
   return render(
     <NextIntlClientProvider locale="en" timeZone="UTC" messages={messages}>
       <SeoWorkspaceSwitchDialog
@@ -81,15 +82,22 @@ describe("SEO workspace switch prompt", () => {
     expect(authClient.organization.setActive).toHaveBeenCalledWith({
       organizationId: TARGET,
     });
-    // A switch on the SEO page opens the audit list. Here the Audit is the reason for the switch.
-    expect(router.replace).not.toHaveBeenCalled();
+    // The Audit stays in the address: it is the reason for the switch.
+    // Its tab stays with it.
+    expect(router.replace).toHaveBeenCalledExactlyOnceWith(
+      "/seo?auditId=a1&tab=rankings",
+    );
   });
 
-  it("opens the audit list on Stay here when there is no earlier page", async () => {
-    historyLength(1);
+  it("opens the form for a new Audit in this workspace, never the earlier page", async () => {
+    // After a switch in the sidebar the earlier page is this same Audit.
+    historyLength(3);
     show();
-    await userEvent.click(screen.getByRole("button", { name: "Stay here" }));
-    expect(router.push).toHaveBeenCalledExactlyOnceWith("/seo");
+    expect(screen.queryByRole("button", { name: "Stay here" })).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add a new page" }),
+    );
+    expect(router.push).toHaveBeenCalledExactlyOnceWith("/seo?add=1");
     expect(router.back).not.toHaveBeenCalled();
     expect(authClient.organization.setActive).not.toHaveBeenCalled();
   });
