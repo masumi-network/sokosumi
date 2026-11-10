@@ -224,10 +224,6 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
             >
               {t("runAnalysis")}
             </Button>
-          ) : model.data.availableActions.canEdit ? (
-            <Button variant="outline" onClick={() => model.setDialog("import")}>
-              {t("importAudit")}
-            </Button>
           ) : null}
         </SeoEmpty>
       )}

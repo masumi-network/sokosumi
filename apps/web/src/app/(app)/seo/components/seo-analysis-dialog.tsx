@@ -298,15 +298,6 @@ export function SeoAnalysisDialog({
                     : "analysis.serviceUnavailable",
                 )}
               </p>
-              {form.workspace.availableActions.canEdit ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => model.setDialog("import")}
-                >
-                  {t("import.submit")}
-                </Button>
-              ) : null}
             </div>
           ) : null}
           <p className="text-muted-foreground text-sm">

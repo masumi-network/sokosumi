@@ -5,7 +5,6 @@ import {
   BarChart3,
   CalendarClock,
   ChevronDown,
-  Download,
   MessageSquare,
   MoreHorizontal,
   PencilLine,
@@ -43,7 +42,6 @@ import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoCompetitors } from "./seo-competitors";
 import { SeoEditDialog } from "./seo-edit-dialog";
-import { SeoImportDialog } from "./seo-import-dialog";
 import { SeoIndexStatus } from "./seo-index-status";
 import { SeoKeywords } from "./seo-keywords";
 import { SeoHealth } from "./seo-overview";
@@ -205,13 +203,6 @@ export function SeoWorkspace({
               ) : null}
               {model.data.availableActions.canEdit ? (
                 <>
-                  <DropdownMenuItem
-                    disabled={unavailable}
-                    onSelect={() => model.setDialog("import")}
-                  >
-                    <Download className="size-4" />
-                    {t("importAudit")}
-                  </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={unavailable}
                     onSelect={() => model.setDialog("page")}
@@ -405,9 +396,6 @@ export function SeoWorkspace({
               model={model}
               monitor={model.dialog === "monitor"}
             />
-          ) : null}
-          {model.dialog === "import" ? (
-            <SeoImportDialog key={dialogKey} model={model} />
           ) : null}
           {model.dialog === "page_change" ? (
             <SeoPageChangeDialog key={dialogKey} model={model} />

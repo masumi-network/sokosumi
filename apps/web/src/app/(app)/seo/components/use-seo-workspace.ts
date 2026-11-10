@@ -50,7 +50,6 @@ export type SeoDialog =
   | "page"
   | "scope"
   | "edit_scope"
-  | "import"
   | "analysis"
   | "monitor"
   | "page_change"

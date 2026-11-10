@@ -26,7 +26,6 @@ const ACTION_LABELS = {
   page: "addPage",
   keyword: "keywords.add",
   competitor: "competitors.add",
-  import: "importAudit",
   analysis: "runAnalysis",
   statistics: "syncStatistics",
   page_change: "pageChange.title",
@@ -123,9 +122,11 @@ function ChatActions({
             </Button>
           ) : null;
         }
+        // Older replies may still suggest the removed report import.
         if (
-          action.dialog === "analysis" &&
-          !model.data.availableActions.canRequestAnalysis
+          action.dialog === "import" ||
+          (action.dialog === "analysis" &&
+            !model.data.availableActions.canRequestAnalysis)
         )
           return null;
         return (

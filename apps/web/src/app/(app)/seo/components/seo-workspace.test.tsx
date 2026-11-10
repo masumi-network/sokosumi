@@ -17,7 +17,6 @@ import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
-import { SEO_VIEWER_HEADER } from "@/lib/seo/owner";
 import messages from "../../../../../messages/en.json";
 import { SeoAutomation } from "./seo-monitors";
 import {
@@ -2129,7 +2128,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
     expect(
       screen.queryByText(
-        "Run a page check or import a completed report. Add related pages to compare them in one audit.",
+        "Run a page check to find issues. Add related pages to compare them in one audit.",
       ),
     ).toBeNull();
     // "All audits" goes back to the Audit's Project scope.
@@ -2140,10 +2139,10 @@ describe("SEO workspace integration", () => {
     expect(
       screen.queryByRole("link", { name: /bot|coworker|assistant/i }),
     ).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Import a report" }));
-    expect(
-      screen.getByRole("dialog", { name: "Import an audit" }),
-    ).toBeVisible();
+    // Report import is gone: adding a page is the first step without checks.
+    expect(screen.queryByRole("button", { name: /import/i })).toBeNull();
+    await user.click(screen.getAllByRole("button", { name: "Add a page" })[0]);
+    expect(screen.getByRole("dialog")).toBeVisible();
   });
 
   it("schedules finite native monitoring with its market and per-run budget", async () => {
@@ -2365,95 +2364,6 @@ describe("SEO workspace integration", () => {
           note: "Published in CMS",
           idempotencyKey: expect.any(String),
         },
-      },
-    });
-  });
-
-  it("retries selected report details without losing the Task or viewer binding", async () => {
-    const user = userEvent.setup();
-    const workspace = {
-      ...seoTestWorkspace(),
-      auditId: SEO_TEST_AUDIT,
-      auditName: "Launch pages",
-    };
-    const task = {
-      id: "report-task",
-      name: "Completed SEO check",
-      assignee: { type: "coworker", id: "seo-coworker" },
-      files: [
-        {
-          id: "ready-report",
-          name: "seo-report-report-task.json",
-          status: "READY",
-          mimeType: "application/json",
-          uploader: { type: "coworker", id: "seo-coworker" },
-        },
-      ],
-    };
-    const reads: Array<{ url: string; viewer: string | null }> = [];
-    let detailReads = 0;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.endsWith("/chat")) return Response.json({ turns: [] });
-        if (!url.includes("/imports?")) return Response.json(workspace);
-        reads.push({
-          url,
-          viewer: new Headers(init?.headers).get(SEO_VIEWER_HEADER),
-        });
-        if (url.includes("taskId=") && ++detailReads === 1)
-          return Response.json(
-            { message: "Temporary source failure" },
-            { status: 503 },
-          );
-        return Response.json(
-          url.includes("taskId=")
-            ? { task }
-            : { tasks: [task], nextCursor: null },
-        );
-      }),
-    );
-    mutate.mockResolvedValue({ ok: true, value: null });
-    renderWorkspace(workspace);
-    await user.click(
-      screen.getAllByRole("button", { name: "Import a report" })[0],
-    );
-    const dialog = screen.getByRole("dialog", { name: "Import an audit" });
-    await user.click(
-      await within(dialog).findByRole("combobox", { name: "Completed task" }),
-    );
-    await user.click(screen.getByRole("option", { name: task.name }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "Failed to load audit sources",
-    );
-    await user.click(within(dialog).getByRole("button", { name: "Try again" }));
-    expect(
-      within(dialog).getByRole("combobox", { name: "Completed task" }),
-    ).toHaveTextContent(task.name);
-    await user.click(
-      await within(dialog).findByRole("combobox", { name: "SEO report" }),
-    );
-    await user.click(screen.getByRole("option", { name: task.files[0].name }));
-    expect(reads).toEqual([
-      { url: `/api/seo/audits/${SEO_TEST_AUDIT}/imports?q=`, viewer: "owner" },
-      {
-        url: `/api/seo/audits/${SEO_TEST_AUDIT}/imports?taskId=${task.id}`,
-        viewer: "owner",
-      },
-      {
-        url: `/api/seo/audits/${SEO_TEST_AUDIT}/imports?taskId=${task.id}`,
-        viewer: "owner",
-      },
-    ]);
-    await user.click(
-      within(dialog).getByRole("button", { name: "Import report" }),
-    );
-    await waitFor(() => expect(mutate).toHaveBeenCalled());
-    expect(mutate).toHaveBeenCalledWith({
-      owner: { kind: "audit", id: SEO_TEST_AUDIT },
-      command: {
-        kind: "import_audit",
-        body: { taskId: task.id, fileId: task.files[0].id },
       },
     });
   });

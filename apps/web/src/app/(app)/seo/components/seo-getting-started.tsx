@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Play, Plus } from "lucide-react";
+import { Play, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -59,12 +59,8 @@ export function SeoGettingStarted({ model }: { model: SeoWorkspaceModel }) {
           variant={
             data.availableActions.canRequestAnalysis ? "outline" : "default"
           }
-          onClick={() => model.setDialog("import")}
+          onClick={() => model.setDialog("page")}
         >
-          <Download className="size-4" />
-          {t("importAudit")}
-        </Button>
-        <Button variant="ghost" onClick={() => model.setDialog("page")}>
           <Plus className="size-4" />
           {t("addPage")}
         </Button>
