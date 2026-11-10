@@ -1,6 +1,6 @@
 import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
-import { head } from "@vercel/blob";
 
+import { publicDriveUrl } from "@/lib/drive-blob";
 import type { FileActor } from "@/lib/files/actor";
 import { loadLiveResources } from "@/services/file-search.service";
 import type { MarketingStrategyPost } from "@/services/marketing-strategy.service";
@@ -50,9 +50,7 @@ export async function cmoCalendarMedia(input: {
   const blobUrl = async (fileId: string) => {
     const file = files.find((item) => item.id === fileId);
     if (!file?.mimeType?.startsWith("image/")) return null;
-    return await head(file.sourceId)
-      .then((blob) => blob.url)
-      .catch(() => null);
+    return await publicDriveUrl(file.sourceId).catch(() => null);
   };
   const media = await Promise.all(
     attached.map(async (entry): Promise<CmoCalendarMedia | null> => {
@@ -64,9 +62,8 @@ export async function cmoCalendarMedia(input: {
           ? "image"
           : null;
       if (!file || !kind) return null;
-      const url = await head(file.sourceId)
-        .then((blob) => blob.url)
-        .catch(() => null);
+      // Null for a data room's file: its bytes are private.
+      const url = await publicDriveUrl(file.sourceId).catch(() => null);
       if (!url) return null;
       const slides = (
         await Promise.all((entry.slideFileIds ?? []).map(blobUrl))

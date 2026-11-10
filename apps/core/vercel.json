@@ -106,6 +106,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/data-rooms",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/calendar-invalidations",
       "schedule": "* * * * *"
     },

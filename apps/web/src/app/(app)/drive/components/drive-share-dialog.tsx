@@ -1,6 +1,7 @@
 "use client";
 
 import type { DriveShare } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Check, Copy, Link2, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
@@ -78,8 +79,13 @@ export function DriveShareDialog({
       setShare(await action());
       setPassword("");
       toast.success(done);
-    } catch {
-      toast.error(t("saveFailed"));
+    } catch (error) {
+      // A file or folder in a data room never gets a link: say so, in the
+      // reader's language, instead of a bare "could not save".
+      const inDataRoom =
+        (error as { kind?: unknown } | null)?.kind ===
+        CORE_API_ERROR_KINDS.DRIVE_SHARE_IN_DATA_ROOM;
+      toast.error(inDataRoom ? t("inDataRoom") : t("saveFailed"));
     } finally {
       setBusy(false);
     }

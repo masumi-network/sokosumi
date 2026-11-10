@@ -1707,6 +1707,7 @@ const URL_DATA_PROP = /(?:^|[\s,{(])(?:params|searchParams)\s*:\s*Promise</m;
  */
 const SUSPENSE_WRAPPED = new Set([
   "(app)/admin/enterprise-contracts/page.tsx",
+  "(app)/drive/data-rooms/[id]/page.tsx",
   "(app)/drive/files/[resourceId]/page.tsx",
   "(app)/agents/[agentId]/jobs/layout.tsx",
   "(app)/chat/rooms/[roomId]/page.tsx",

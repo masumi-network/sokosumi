@@ -14,7 +14,7 @@ import {
   convertCreditsToCents,
   readImageDimensionsFromBytes,
 } from "@sokosumi/utils";
-import { head, put } from "@vercel/blob";
+import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 
 import { HTTPException } from "hono/http-exception";
@@ -33,6 +33,7 @@ import {
 } from "@/helpers/task-credits";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { driveHead, driveReadUrl } from "@/lib/drive-blob";
 import {
   requireProjectAccess,
   requireProjectAccessForUser,
@@ -530,15 +531,19 @@ async function uploadFileReference(
   });
   if (!file?.mimeType?.startsWith("image/"))
     throw notFound("A reference image was not found in this workspace");
-  const blob = await head(file.sourceId);
+  const blob = await driveHead(file.sourceId);
+  if (!blob) throw new DriveFileDownloadError("unavailable");
   if (blob.size > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
     throw new DriveFileDownloadError("too_large");
+  // A data room's picture is private: a short-lived signed address instead.
+  const url =
+    blob.access === "public" ? blob.url : await driveReadUrl(file.sourceId);
   // The address comes from our own blob store, never from a person, so it
   // needs no SSRF guard; and the store's bot check answered the guarded
   // client 403 after its first request, failing every brand picture after
   // the first.
   const download = async () => {
-    const response = await fetch(blob.url, {
+    const response = await fetch(url, {
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new DriveFileDownloadError("unavailable");

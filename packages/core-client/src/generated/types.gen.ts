@@ -3013,6 +3013,17 @@ export type ChatPerson = {
     image: string | null;
 };
 
+export type ChatRecentSokoBotMessage = {
+    roomId: string;
+    messageId: string;
+    /**
+     * The Thread's parent when the message is a reply.
+     */
+    parentMessageId: string | null;
+    content: string;
+    createdAt: Date;
+};
+
 export type ChatRoom = {
     /**
      * Room ID
@@ -4665,6 +4676,196 @@ export type FileCollection = {
     isOwner: boolean;
 };
 
+export type DataRooms = Array<DataRoom>;
+
+export type DataRoom = {
+    id: string;
+    folderPath: string;
+    /**
+     * moving_in while its files go to the private store, private once they all are, moving_out after it was closed.
+     */
+    storage: 'moving_in' | 'private' | 'moving_out';
+    /**
+     * The room's address: /share/rooms/{token}
+     */
+    token: string;
+    title: string | null;
+    logoFileId: string | null;
+    allowedDomains: Array<string>;
+    expiresAt: string | null;
+    allowDownload: boolean;
+    watermark: boolean;
+    notifyOnFirstVisit: boolean;
+    createdByUserId: string;
+    createdAt: string;
+};
+
+export type CreateDataRoomRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    /**
+     * Folder to turn into a data room, e.g. "Series A".
+     */
+    folderPath: string;
+};
+
+export type DataRoomDetail = {
+    room: DataRoom;
+    members: Array<DataRoomMember>;
+    rows: Array<DataRoomTreeRow>;
+    /**
+     * Organization members let in besides the maker and the organization's owners and admins. Null for a personal room, which is its owner's alone.
+     */
+    colleagues: Array<DataRoomColleague> | null;
+    /**
+     * True for the room's maker and the organization's owners and admins.
+     */
+    canChooseColleagues: boolean;
+};
+
+export type DataRoomMember = {
+    id: string;
+    email: string;
+    name: string | null;
+    /**
+     * Invited by name; false when let in by an allowed domain.
+     */
+    invited: boolean;
+    expiresAt: string | null;
+    revokedAt: string | null;
+    /**
+     * Folders of the room this person may see; empty is all.
+     */
+    folderPaths: Array<string>;
+    firstVisitAt: string | null;
+    lastVisitAt: string | null;
+    views: number;
+    downloads: number;
+};
+
+export type DataRoomTreeRow = {
+    kind: 'folder' | 'file';
+    path: string;
+    name: string;
+    depth: number;
+    number: string;
+    resourceId: string | null;
+    sizeBytes: number | null;
+    mimeType: string | null;
+    updatedAt: string | null;
+    isNew: boolean;
+};
+
+export type DataRoomColleague = {
+    userId: string;
+    name: string;
+    email: string;
+};
+
+export type UpdateDataRoomRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    title?: string | null;
+    logoFileId?: string | null;
+    allowedDomains?: Array<string>;
+    expiresAt?: Date | null;
+    allowDownload?: boolean;
+    watermark?: boolean;
+    notifyOnFirstVisit?: boolean;
+};
+
+export type InviteDataRoomMembersRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    emails: Array<string>;
+    name?: string | null;
+    expiresAt?: Date | null;
+    folderPaths?: Array<string>;
+};
+
+export type UpdateDataRoomMemberRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    name?: string | null;
+    expiresAt?: Date | null;
+    folderPaths?: Array<string>;
+};
+
+export type DataRoomEvents = {
+    events: Array<DataRoomEvent>;
+    nextBefore: string | null;
+};
+
+export type DataRoomEvent = {
+    id: string;
+    createdAt: string;
+    kind: 'enter' | 'view' | 'download' | 'download_all' | 'ask';
+    path: string | null;
+    memberId: string | null;
+    email: string | null;
+    name: string | null;
+};
+
+export type DataRoomQuestions = Array<DataRoomQuestion>;
+
+export type DataRoomQuestion = {
+    id: string;
+    createdAt: string;
+    path: string;
+    body: string;
+    answer: string | null;
+    answeredAt: string | null;
+    email: string;
+    name: string | null;
+};
+
+export type AnswerDataRoomQuestionRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    answer: string;
+};
+
+export type SetDataRoomOrderRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    entries: Array<{
+        path: string;
+        position: number;
+    }>;
+};
+
+export type DataRoomColleagues = Array<DataRoomColleague>;
+
+export type SetDataRoomColleaguesRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    /**
+     * Every colleague who should be in the room; anyone left out loses access.
+     */
+    userIds: Array<string>;
+};
+
 export type DriveFileUploadSession = {
     /**
      * Presigned Blob PUT URL (time-scoped, path-scoped)
@@ -4675,9 +4876,9 @@ export type DriveFileUploadSession = {
      */
     pathname: string;
     /**
-     * Blob access level for the upload
+     * Blob access level for the upload: private inside a data room.
      */
-    access: 'public';
+    access: 'public' | 'private';
     /**
      * HTTP method for the client upload request
      */
@@ -4750,6 +4951,10 @@ export type DriveFolder = {
      * Relative folder path from current folder (single segment)
      */
     path: string;
+    /**
+     * This folder is a data room, or is inside one.
+     */
+    dataRoom: boolean;
 };
 
 export type DriveFileItem = DriveFile & {
@@ -4780,6 +4985,10 @@ export type DriveFile = {
      * When the file was uploaded to Blob storage
      */
     uploadedAt: Date;
+    /**
+     * In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.
+     */
+    dataRoom: boolean;
 };
 
 export type DrivePaginationMetadata = {
@@ -4949,6 +5158,10 @@ export type DriveRecentsDriveFileItem = {
         labelId: string;
         displayName: string;
     }>;
+    /**
+     * In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.
+     */
+    dataRoom: boolean;
 };
 
 export type DriveRecentsTaskOutputItem = {
@@ -10590,6 +10803,37 @@ export type UnlockDriveShareRequest = {
 
 export type DriveShareDownload = {
     url: string;
+};
+
+export type DataRoomView = {
+    state: 'in' | 'out' | 'closed' | 'expired';
+    title: string;
+    hasLogo: boolean;
+    allowDownload: boolean;
+    watermark: boolean;
+    viewer: {
+        email: string;
+        name: string | null;
+    } | null;
+    rows: Array<DataRoomTreeRow>;
+};
+
+export type DataRoomCodeRequest = {
+    email: string;
+};
+
+export type DataRoomSession = {
+    session: string;
+};
+
+export type DataRoomSessionRequest = {
+    email: string;
+    code: string;
+};
+
+export type AskDataRoomQuestionRequest = {
+    resourceId: string;
+    body: string;
 };
 
 export type PublicSharedResourceResponse = ({
@@ -23248,6 +23492,85 @@ export type ListChatPeopleResponses = {
 };
 
 export type ListChatPeopleResponse = ListChatPeopleResponses[keyof ListChatPeopleResponses];
+
+export type GetChatsRecentData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/recent';
+};
+
+export type GetChatsRecentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRecentError = GetChatsRecentErrors[keyof GetChatsRecentErrors];
+
+export type GetChatsRecentResponses = {
+    /**
+     * The caller's recent Soko Bot chats
+     */
+    200: {
+        data: Array<ChatRecentSokoBotMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRecentResponse = GetChatsRecentResponses[keyof GetChatsRecentResponses];
 
 export type GetChatsRoomsData = {
     body?: never;
@@ -37224,6 +37547,1382 @@ export type PatchDriveCollectionsByIdResponses = {
 
 export type PatchDriveCollectionsByIdResponse = PatchDriveCollectionsByIdResponses[keyof PatchDriveCollectionsByIdResponses];
 
+export type GetDriveDataRoomsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/data-rooms';
+};
+
+export type GetDriveDataRoomsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveDataRoomsError = GetDriveDataRoomsErrors[keyof GetDriveDataRoomsErrors];
+
+export type GetDriveDataRoomsResponses = {
+    /**
+     * Data rooms
+     */
+    200: {
+        data: DataRooms;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveDataRoomsResponse = GetDriveDataRoomsResponses[keyof GetDriveDataRoomsResponses];
+
+export type PostDriveDataRoomsData = {
+    body: CreateDataRoomRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/data-rooms';
+};
+
+export type PostDriveDataRoomsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveDataRoomsError = PostDriveDataRoomsErrors[keyof PostDriveDataRoomsErrors];
+
+export type PostDriveDataRoomsResponses = {
+    /**
+     * Data room
+     */
+    201: {
+        data: DataRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveDataRoomsResponse = PostDriveDataRoomsResponses[keyof PostDriveDataRoomsResponses];
+
+export type DeleteDriveDataRoomsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/data-rooms/{id}';
+};
+
+export type DeleteDriveDataRoomsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveDataRoomsByIdError = DeleteDriveDataRoomsByIdErrors[keyof DeleteDriveDataRoomsByIdErrors];
+
+export type DeleteDriveDataRoomsByIdResponses = {
+    /**
+     * Data room closing
+     */
+    204: void;
+};
+
+export type DeleteDriveDataRoomsByIdResponse = DeleteDriveDataRoomsByIdResponses[keyof DeleteDriveDataRoomsByIdResponses];
+
+export type GetDriveDataRoomsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/data-rooms/{id}';
+};
+
+export type GetDriveDataRoomsByIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveDataRoomsByIdError = GetDriveDataRoomsByIdErrors[keyof GetDriveDataRoomsByIdErrors];
+
+export type GetDriveDataRoomsByIdResponses = {
+    /**
+     * Data room
+     */
+    200: {
+        data: DataRoomDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveDataRoomsByIdResponse = GetDriveDataRoomsByIdResponses[keyof GetDriveDataRoomsByIdResponses];
+
+export type PatchDriveDataRoomsByIdData = {
+    body: UpdateDataRoomRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/data-rooms/{id}';
+};
+
+export type PatchDriveDataRoomsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveDataRoomsByIdError = PatchDriveDataRoomsByIdErrors[keyof PatchDriveDataRoomsByIdErrors];
+
+export type PatchDriveDataRoomsByIdResponses = {
+    /**
+     * Data room
+     */
+    200: {
+        data: DataRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveDataRoomsByIdResponse = PatchDriveDataRoomsByIdResponses[keyof PatchDriveDataRoomsByIdResponses];
+
+export type PostDriveDataRoomsByIdMembersData = {
+    body: InviteDataRoomMembersRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/data-rooms/{id}/members';
+};
+
+export type PostDriveDataRoomsByIdMembersErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveDataRoomsByIdMembersError = PostDriveDataRoomsByIdMembersErrors[keyof PostDriveDataRoomsByIdMembersErrors];
+
+export type PostDriveDataRoomsByIdMembersResponses = {
+    /**
+     * People let in
+     */
+    201: {
+        data: Array<DataRoomMember>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveDataRoomsByIdMembersResponse = PostDriveDataRoomsByIdMembersResponses[keyof PostDriveDataRoomsByIdMembersResponses];
+
+export type DeleteDriveDataRoomsByIdMembersByMemberIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        memberId: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/data-rooms/{id}/members/{memberId}';
+};
+
+export type DeleteDriveDataRoomsByIdMembersByMemberIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveDataRoomsByIdMembersByMemberIdError = DeleteDriveDataRoomsByIdMembersByMemberIdErrors[keyof DeleteDriveDataRoomsByIdMembersByMemberIdErrors];
+
+export type DeleteDriveDataRoomsByIdMembersByMemberIdResponses = {
+    /**
+     * Access removed
+     */
+    204: void;
+};
+
+export type DeleteDriveDataRoomsByIdMembersByMemberIdResponse = DeleteDriveDataRoomsByIdMembersByMemberIdResponses[keyof DeleteDriveDataRoomsByIdMembersByMemberIdResponses];
+
+export type PatchDriveDataRoomsByIdMembersByMemberIdData = {
+    body: UpdateDataRoomMemberRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/drive/data-rooms/{id}/members/{memberId}';
+};
+
+export type PatchDriveDataRoomsByIdMembersByMemberIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveDataRoomsByIdMembersByMemberIdError = PatchDriveDataRoomsByIdMembersByMemberIdErrors[keyof PatchDriveDataRoomsByIdMembersByMemberIdErrors];
+
+export type PatchDriveDataRoomsByIdMembersByMemberIdResponses = {
+    /**
+     * Person
+     */
+    200: {
+        data: DataRoomMember;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveDataRoomsByIdMembersByMemberIdResponse = PatchDriveDataRoomsByIdMembersByMemberIdResponses[keyof PatchDriveDataRoomsByIdMembersByMemberIdResponses];
+
+export type GetDriveDataRoomsByIdEventsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        memberId?: string;
+        before?: Date;
+    };
+    url: '/drive/data-rooms/{id}/events';
+};
+
+export type GetDriveDataRoomsByIdEventsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveDataRoomsByIdEventsError = GetDriveDataRoomsByIdEventsErrors[keyof GetDriveDataRoomsByIdEventsErrors];
+
+export type GetDriveDataRoomsByIdEventsResponses = {
+    /**
+     * Activity
+     */
+    200: {
+        data: DataRoomEvents;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveDataRoomsByIdEventsResponse = GetDriveDataRoomsByIdEventsResponses[keyof GetDriveDataRoomsByIdEventsResponses];
+
+export type GetDriveDataRoomsByIdQuestionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/data-rooms/{id}/questions';
+};
+
+export type GetDriveDataRoomsByIdQuestionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveDataRoomsByIdQuestionsError = GetDriveDataRoomsByIdQuestionsErrors[keyof GetDriveDataRoomsByIdQuestionsErrors];
+
+export type GetDriveDataRoomsByIdQuestionsResponses = {
+    /**
+     * Questions
+     */
+    200: {
+        data: DataRoomQuestions;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveDataRoomsByIdQuestionsResponse = GetDriveDataRoomsByIdQuestionsResponses[keyof GetDriveDataRoomsByIdQuestionsResponses];
+
+export type PatchDriveDataRoomsByIdQuestionsByQuestionIdData = {
+    body: AnswerDataRoomQuestionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        questionId: string;
+    };
+    query?: never;
+    url: '/drive/data-rooms/{id}/questions/{questionId}';
+};
+
+export type PatchDriveDataRoomsByIdQuestionsByQuestionIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveDataRoomsByIdQuestionsByQuestionIdError = PatchDriveDataRoomsByIdQuestionsByQuestionIdErrors[keyof PatchDriveDataRoomsByIdQuestionsByQuestionIdErrors];
+
+export type PatchDriveDataRoomsByIdQuestionsByQuestionIdResponses = {
+    /**
+     * Answered
+     */
+    204: void;
+};
+
+export type PatchDriveDataRoomsByIdQuestionsByQuestionIdResponse = PatchDriveDataRoomsByIdQuestionsByQuestionIdResponses[keyof PatchDriveDataRoomsByIdQuestionsByQuestionIdResponses];
+
+export type PutDriveDataRoomsByIdOrderData = {
+    body: SetDataRoomOrderRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/data-rooms/{id}/order';
+};
+
+export type PutDriveDataRoomsByIdOrderErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutDriveDataRoomsByIdOrderError = PutDriveDataRoomsByIdOrderErrors[keyof PutDriveDataRoomsByIdOrderErrors];
+
+export type PutDriveDataRoomsByIdOrderResponses = {
+    /**
+     * Order saved
+     */
+    204: void;
+};
+
+export type PutDriveDataRoomsByIdOrderResponse = PutDriveDataRoomsByIdOrderResponses[keyof PutDriveDataRoomsByIdOrderResponses];
+
+export type PutDriveDataRoomsByIdColleaguesData = {
+    body: SetDataRoomColleaguesRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/data-rooms/{id}/colleagues';
+};
+
+export type PutDriveDataRoomsByIdColleaguesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutDriveDataRoomsByIdColleaguesError = PutDriveDataRoomsByIdColleaguesErrors[keyof PutDriveDataRoomsByIdColleaguesErrors];
+
+export type PutDriveDataRoomsByIdColleaguesResponses = {
+    /**
+     * Colleagues let in
+     */
+    200: {
+        data: DataRoomColleagues;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutDriveDataRoomsByIdColleaguesResponse = PutDriveDataRoomsByIdColleaguesResponses[keyof PutDriveDataRoomsByIdColleaguesResponses];
+
 export type GetDriveFilesData = {
     body?: never;
     headers?: {
@@ -37676,6 +39375,104 @@ export type PostDriveFilesFinalizeResponses = {
 };
 
 export type PostDriveFilesFinalizeResponse = PostDriveFilesFinalizeResponses[keyof PostDriveFilesFinalizeResponses];
+
+export type GetDriveFilesContentData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        pathname: string;
+        download?: 'true' | 'false';
+    };
+    url: '/drive/files/content';
+};
+
+export type GetDriveFilesContentErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveFilesContentError = GetDriveFilesContentErrors[keyof GetDriveFilesContentErrors];
+
+export type GetDriveFilesContentResponses = {
+    /**
+     * File bytes
+     */
+    200: Blob | File;
+};
+
+export type GetDriveFilesContentResponse = GetDriveFilesContentResponses[keyof GetDriveFilesContentResponses];
 
 export type PatchDriveFilesMoveData = {
     body: MoveDriveItemRequest;
@@ -69925,6 +71722,583 @@ export type GetShareDriveByTokenDownloadResponses = {
 
 export type GetShareDriveByTokenDownloadResponse = GetShareDriveByTokenDownloadResponses[keyof GetShareDriveByTokenDownloadResponses];
 
+export type GetShareRoomsByTokenData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/rooms/{token}';
+};
+
+export type GetShareRoomsByTokenErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareRoomsByTokenError = GetShareRoomsByTokenErrors[keyof GetShareRoomsByTokenErrors];
+
+export type GetShareRoomsByTokenResponses = {
+    /**
+     * Data room
+     */
+    200: {
+        data: DataRoomView;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetShareRoomsByTokenResponse = GetShareRoomsByTokenResponses[keyof GetShareRoomsByTokenResponses];
+
+export type PostShareRoomsByTokenCodeData = {
+    body: DataRoomCodeRequest;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/rooms/{token}/code';
+};
+
+export type PostShareRoomsByTokenCodeErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Closed or expired
+     */
+    410: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostShareRoomsByTokenCodeError = PostShareRoomsByTokenCodeErrors[keyof PostShareRoomsByTokenCodeErrors];
+
+export type PostShareRoomsByTokenCodeResponses = {
+    /**
+     * If the email is let in, a code is on its way
+     */
+    204: void;
+};
+
+export type PostShareRoomsByTokenCodeResponse = PostShareRoomsByTokenCodeResponses[keyof PostShareRoomsByTokenCodeResponses];
+
+export type PostShareRoomsByTokenSessionData = {
+    body: DataRoomSessionRequest;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/rooms/{token}/session';
+};
+
+export type PostShareRoomsByTokenSessionErrors = {
+    /**
+     * Wrong or expired code
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Closed or expired
+     */
+    410: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostShareRoomsByTokenSessionError = PostShareRoomsByTokenSessionErrors[keyof PostShareRoomsByTokenSessionErrors];
+
+export type PostShareRoomsByTokenSessionResponses = {
+    /**
+     * Signed in
+     */
+    200: {
+        data: DataRoomSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostShareRoomsByTokenSessionResponse = PostShareRoomsByTokenSessionResponses[keyof PostShareRoomsByTokenSessionResponses];
+
+export type GetShareRoomsByTokenFilesByResourceIdData = {
+    body?: never;
+    path: {
+        token: string;
+        resourceId: string;
+    };
+    query?: {
+        download?: 'true' | 'false';
+    };
+    url: '/share/rooms/{token}/files/{resourceId}';
+};
+
+export type GetShareRoomsByTokenFilesByResourceIdErrors = {
+    /**
+     * Not signed in
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Downloads are off
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Closed or expired
+     */
+    410: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too large to stamp
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareRoomsByTokenFilesByResourceIdError = GetShareRoomsByTokenFilesByResourceIdErrors[keyof GetShareRoomsByTokenFilesByResourceIdErrors];
+
+export type GetShareRoomsByTokenFilesByResourceIdResponses = {
+    /**
+     * File bytes
+     */
+    200: Blob | File;
+};
+
+export type GetShareRoomsByTokenFilesByResourceIdResponse = GetShareRoomsByTokenFilesByResourceIdResponses[keyof GetShareRoomsByTokenFilesByResourceIdResponses];
+
+export type GetShareRoomsByTokenZipData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/rooms/{token}/zip';
+};
+
+export type GetShareRoomsByTokenZipErrors = {
+    /**
+     * Not signed in
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Downloads are off
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Closed or expired
+     */
+    410: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareRoomsByTokenZipError = GetShareRoomsByTokenZipErrors[keyof GetShareRoomsByTokenZipErrors];
+
+export type GetShareRoomsByTokenZipResponses = {
+    /**
+     * Zip
+     */
+    200: Blob | File;
+};
+
+export type GetShareRoomsByTokenZipResponse = GetShareRoomsByTokenZipResponses[keyof GetShareRoomsByTokenZipResponses];
+
+export type GetShareRoomsByTokenLogoData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/rooms/{token}/logo';
+};
+
+export type GetShareRoomsByTokenLogoErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareRoomsByTokenLogoError = GetShareRoomsByTokenLogoErrors[keyof GetShareRoomsByTokenLogoErrors];
+
+export type GetShareRoomsByTokenLogoResponses = {
+    /**
+     * Image
+     */
+    200: Blob | File;
+};
+
+export type GetShareRoomsByTokenLogoResponse = GetShareRoomsByTokenLogoResponses[keyof GetShareRoomsByTokenLogoResponses];
+
+export type GetShareRoomsByTokenQuestionsData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: {
+        resourceId?: string;
+    };
+    url: '/share/rooms/{token}/questions';
+};
+
+export type GetShareRoomsByTokenQuestionsErrors = {
+    /**
+     * Not signed in
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Closed or expired
+     */
+    410: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareRoomsByTokenQuestionsError = GetShareRoomsByTokenQuestionsErrors[keyof GetShareRoomsByTokenQuestionsErrors];
+
+export type GetShareRoomsByTokenQuestionsResponses = {
+    /**
+     * Questions
+     */
+    200: {
+        data: DataRoomQuestions;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetShareRoomsByTokenQuestionsResponse = GetShareRoomsByTokenQuestionsResponses[keyof GetShareRoomsByTokenQuestionsResponses];
+
+export type PostShareRoomsByTokenQuestionsData = {
+    body: AskDataRoomQuestionRequest;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/rooms/{token}/questions';
+};
+
+export type PostShareRoomsByTokenQuestionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not signed in
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Closed or expired
+     */
+    410: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostShareRoomsByTokenQuestionsError = PostShareRoomsByTokenQuestionsErrors[keyof PostShareRoomsByTokenQuestionsErrors];
+
+export type PostShareRoomsByTokenQuestionsResponses = {
+    /**
+     * Question
+     */
+    201: {
+        data: DataRoomQuestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostShareRoomsByTokenQuestionsResponse = PostShareRoomsByTokenQuestionsResponses[keyof PostShareRoomsByTokenQuestionsResponses];
+
 export type GetShareByTokenData = {
     body?: never;
     path: {
@@ -79057,17 +81431,17 @@ export type GetTasksData = {
          */
         status?: Array<TaskStatus>;
         /**
-         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, or 'mine' for tasks the caller owns or is assigned to as a workspace member.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'owned' | 'mine';
         /**
          * Filter tasks by project ID. Use the literal value 'null' to return tasks that are not assigned to a project.
          */
         projectId?: string | 'null';
         /**
-         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.
+         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last.
          */
-        sort?: 'createdAt' | 'updatedAt' | 'priority';
+        sort?: 'createdAt' | 'updatedAt' | 'priority' | 'dueOn';
         /**
          * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
          */
@@ -79076,6 +81450,10 @@ export type GetTasksData = {
          * Only the Tasks this Task Schedule created
          */
         scheduleId?: string;
+        /**
+         * Only Tasks due on or before this day (YYYY-MM-DD). Tasks without a due date are left out.
+         */
+        dueOnTo?: string;
         /**
          * Filter tasks by assignee coworker ID
          */

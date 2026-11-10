@@ -1,13 +1,15 @@
 import { createRoute } from "@hono/zod-openapi";
-import { BlobNotFoundError, del, head } from "@vercel/blob";
 
-import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import {
+  drivePathOf,
+  requireDriveFileAccess,
+} from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { notFound, serviceUnavailable } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import { driveDel, driveExists } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -55,12 +57,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
 
-    const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
-
     const { pathname } = body;
 
     const { scope, ownerId } = parseDriveFilePathname(
@@ -68,18 +64,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
     );
 
-    await requireDriveFileAccess(authContext, scope, ownerId);
+    await requireDriveFileAccess(authContext, scope, ownerId, {
+      changes: [drivePathOf(pathname)],
+    });
 
-    try {
-      await head(pathname, { token });
-    } catch (error) {
-      if (error instanceof BlobNotFoundError) {
-        throw notFound("Drive file not found");
-      }
-      throw error;
+    if (!(await driveExists(pathname))) {
+      throw notFound("Drive file not found");
     }
 
-    await del(pathname, { token });
+    await driveDel([pathname]);
 
     // Tombstone the catalog entry in the same request: a deleted document
     // must stop matching at once, not when a sweeper next runs.

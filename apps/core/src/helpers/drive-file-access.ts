@@ -2,7 +2,14 @@ import type { Organization } from "@sokosumi/database";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden, notFound } from "@/helpers/error";
+import {
+  hiddenDataRoomFolders,
+  insideHiddenRoom,
+  touchesHiddenRoom,
+} from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
+import { driveOwnerOf } from "@/lib/drive-blob";
+import { resolveFileActor } from "@/lib/files/actor";
 import type { AuthenticationContext, UserContext } from "@/middleware/auth";
 
 const PERSONAL_DRIVE_WORKSPACE_MESSAGE =
@@ -102,6 +109,7 @@ export async function requireUserDriveFileUploadAccess(
 export async function requireOrganizationDriveFileUploadAccess(
   authContext: AuthenticationContext,
   organizationId: string,
+  paths: DrivePathsReached = {},
 ): Promise<Organization> {
   const userContext = await requireAuthorizedUserContext(authContext);
   bindDriveStoreToWorkspace(userContext, "organization", organizationId);
@@ -122,19 +130,59 @@ export async function requireOrganizationDriveFileUploadAccess(
     throw notFound("Organization not found or you are not a member");
   }
 
+  await requireVisibleDrivePaths(userContext, organizationId, paths);
   return member.organization;
+}
+
+/** The path within its store of a Drive pathname, as the access gate takes it. */
+export function drivePathOf(pathname: string): string {
+  return driveOwnerOf(pathname)?.path ?? pathname;
+}
+
+/** Paths within a store that an operation reaches. */
+export interface DrivePathsReached {
+  /** Files or folders read, renamed, moved or deleted. */
+  changes?: readonly string[];
+  /** Folders something is written into. */
+  into?: readonly string[];
+}
+
+/**
+ * Refuses paths in organization data rooms this caller is not in: 404 inside
+ * one, so a room's files look like they are not there, and 403 for changing a
+ * folder that holds one, which cannot be moved or deleted around its people.
+ */
+async function requireVisibleDrivePaths(
+  userContext: UserContext,
+  organizationId: string,
+  paths: DrivePathsReached,
+): Promise<string[]> {
+  const hidden = await hiddenDataRoomFolders(
+    organizationId,
+    resolveFileActor(userContext, { organizationId }),
+  );
+  for (const path of [...(paths.changes ?? []), ...(paths.into ?? [])])
+    if (insideHiddenRoom(hidden, path)) throw notFound("File not found");
+  for (const path of paths.changes ?? [])
+    if (touchesHiddenRoom(hidden, path))
+      throw forbidden("This folder holds a data room you are not in");
+  return hidden;
 }
 
 /**
  * Require drive file access for operations (list, download, rename, delete).
  * Personal: owner only, and only in a personal workspace when the actor is bound.
- * Org: any member; bound actors must be in that organization workspace.
+ * Org: any member; bound actors must be in that organization workspace. A
+ * data room's folder is for its people only: `paths` are refused when they
+ * reach into one the caller is not in, and listings drop the returned
+ * `hiddenRoomFolders`.
  */
 export async function requireDriveFileAccess(
   authContext: AuthenticationContext,
   scope: "user" | "organization",
   ownerId: string,
-): Promise<void> {
+  paths: DrivePathsReached = {},
+): Promise<{ hiddenRoomFolders: string[] }> {
   const userContext = await requireAuthorizedUserContext(authContext);
   bindDriveStoreToWorkspace(userContext, scope, ownerId);
 
@@ -143,7 +191,7 @@ export async function requireDriveFileAccess(
     if (userContext.userId !== ownerId) {
       throw forbidden("You can only access your own personal drive files");
     }
-    return;
+    return { hiddenRoomFolders: [] };
   }
 
   // Organization drive: any member
@@ -161,4 +209,12 @@ export async function requireDriveFileAccess(
       "You can only access organization drive files if you are a member",
     );
   }
+
+  return {
+    hiddenRoomFolders: await requireVisibleDrivePaths(
+      userContext,
+      ownerId,
+      paths,
+    ),
+  };
 }

@@ -1,4 +1,8 @@
-import { issueSignedToken, presignUrl } from "@vercel/blob";
+import {
+  type BlobAccessType,
+  issueSignedToken,
+  presignUrl,
+} from "@vercel/blob";
 
 import { attachUploadToLogger } from "@/lib/evlog";
 
@@ -13,7 +17,7 @@ export interface CreateBlobUploadGrantInput {
   maximumSizeInBytes: number;
   /** Policy max returned to clients for messaging. */
   maxSizeBytes: number;
-  access: "public";
+  access: BlobAccessType;
   addRandomSuffix: boolean;
   /** Blob read-write token. */
   token: string;
@@ -34,7 +38,7 @@ export interface CreateBlobUploadGrantInput {
 export interface BlobUploadGrant {
   uploadUrl: string;
   pathname: string;
-  access: "public";
+  access: BlobAccessType;
   method: "PUT";
   headers: {
     "Content-Type": string;
