@@ -31,7 +31,7 @@ Preconditions:
 
 ## Gotchas
 
-- `DEFAULT_AUTHENTICATED_LANDING_PATH` is `/` (`landing-path.ts`). Proxy keeps authenticated `/` as Welcome — it does **not** hop to `/chat`.
+- `DEFAULT_AUTHENTICATED_LANDING_PATH` is `/` (`landing-path.ts`). The proxy does not choose that page: with a session cookie it continues, and it does **not** hop `/` to `/chat`. Anonymous users go to `/signin`.
 - A personal Soko Bot replaces the coworker greeting with Soko Bot home on the same URL. Cloud-agent fixture Alice has no personal bot, so the proved shell is **Welcome, Alice!** and the coworker picker (**Chat with Alex**). Do not fail that path for a missing bot home, and do not require the coworker greeting when home is the bot chat.
 - Ably placeholder keys make `POST /api/ably/auth` fail; that is an environment gap, not a routing regression.
 - Proving a chat **message** requires configured Ably — out of scope unless keys are set.
