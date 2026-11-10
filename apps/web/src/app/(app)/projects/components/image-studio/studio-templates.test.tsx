@@ -54,6 +54,21 @@ const mocks = vi.hoisted(() => ({
   prepareWebsiteDraft: vi.fn(),
   loadProducts: vi.fn(),
   saveProducts: vi.fn(),
+  loadConnection: vi.fn(),
+  createConnection: vi.fn(),
+  revokeConnection: vi.fn(),
+  copyConnectionToken: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/image-studio/connection", () => ({
+  getStudioConnection: mocks.loadConnection,
+  createStudioConnection: mocks.createConnection,
+  revokeStudioConnection: mocks.revokeConnection,
+}));
+
+vi.mock("@/hooks/use-clipboard", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/use-clipboard")>()),
+  copyTextWithToast: mocks.copyConnectionToken,
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
@@ -138,6 +153,53 @@ describe("starting from a template", () => {
     const kit = screen.getByRole("link", { name: "brandKitNewTab" });
     expect(kit).toHaveAttribute("href", "/projects/p/design-md");
     expect(kit).toHaveAttribute("target", "_blank");
+  });
+
+  it("issues an external connection for the current project and shows the token once", async () => {
+    const url = "https://core.example.test/v1/image-studio-mcp";
+    const expiresAt = new Date(Date.now() + 3_600_000);
+    const token = "studio_fixture_token";
+    mocks.loadConnection
+      .mockResolvedValueOnce({ url, expiresAt: null })
+      .mockResolvedValueOnce({ url, expiresAt });
+    mocks.createConnection.mockResolvedValueOnce({ url, expiresAt, token });
+    mocks.revokeConnection.mockResolvedValueOnce(undefined);
+    mount();
+
+    const trigger = screen.getByRole("button", { name: "trigger" });
+    fireEvent.click(trigger);
+    const issue = await screen.findByRole("button", { name: "createToken" });
+    expect(mocks.createConnection).not.toHaveBeenCalled();
+    fireEvent.click(issue);
+    const secret = await screen.findByLabelText("token");
+    expect(secret).toHaveAttribute("type", "password");
+    expect(mocks.createConnection).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "copyToken" }));
+    expect(mocks.copyConnectionToken).toHaveBeenCalledExactlyOnceWith(token, {
+      copySuccessMessage: "tokenCopied",
+      copyErrorMessage: "tokenCopyError",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "showToken" }));
+    expect(secret).toHaveAttribute("type", "text");
+    expect(secret).toHaveValue(token);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    fireEvent.click(trigger);
+    const disconnect = await screen.findByRole("button", {
+      name: "disconnect",
+    });
+    expect(screen.queryByLabelText("token")).toBeNull();
+    expect(mocks.loadConnection.mock.calls).toEqual([
+      [{ projectId: "p" }],
+      [{ projectId: "p" }],
+    ]);
+    fireEvent.click(disconnect);
+    await screen.findByText("inactive");
+    expect(mocks.revokeConnection).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+    });
   });
 
   it("shows the extracted style and saves reviewed copy for the current project", async () => {

@@ -17,8 +17,12 @@ request, or a merge to `main` for production.
 
 ## External assistant connection
 
+Open a project in Content Studio and select **Connect assistant** to see the
+server URL, create a token, or disconnect. Copy the token before closing the
+dialog.
+
 The Core `/v1/image-studio-mcp` endpoint serves Streamable HTTP. An interactive
-project member can issue a connection from
+project member can also issue a connection from
 `POST /v1/projects/{projectId}/image-studio/connection`. Its response contains
 the endpoint URL, a token shown once, and the expiry. Use the same project
 route with `GET` to check the expiry and `DELETE` to disconnect. Issuing a

@@ -1,15 +1,18 @@
 import {
   attachStudioProductPhoto as coreAttachStudioProductPhoto,
+  createStudioConnection as coreCreateStudioConnection,
   findStudioWebsiteLogo as coreFindStudioWebsiteLogo,
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   getStudioBrandKit as coreGetStudioBrandKit,
+  getStudioConnection as coreGetStudioConnection,
   getStudioProductCatalog as coreGetStudioProductCatalog,
   getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
   importStudioProductCatalog as coreImportStudioProductCatalog,
   listStudioBatchAssets as coreListStudioBatchAssets,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
+  revokeStudioConnection as coreRevokeStudioConnection,
   saveStudioAdHeadline as coreSaveStudioAdHeadline,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   saveStudioBrandLook as coreSaveStudioBrandLook,
@@ -4172,6 +4175,31 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getStudioConnection(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioConnection({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch the Studio connection",
+    );
+  }
+
+  async function createStudioConnection(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreCreateStudioConnection({ client, path: { id } }),
+      "Failed to create a Studio connection",
+    );
+  }
+
+  async function revokeStudioConnection(id: string) {
+    await executeCoreOperation(
+      getClient,
+      (client) => coreRevokeStudioConnection({ client, path: { id } }),
+      "Failed to revoke the Studio connection",
+    );
+  }
+
   async function saveStudioBrandCopy(id: string, body: SaveStudioBrandCopy) {
     return executeCoreOperation(
       getClient,
@@ -7125,6 +7153,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     attachStudioProductPhoto,
     getStudioProductCatalog,
     getStudioBrandKit,
+    getStudioConnection,
+    createStudioConnection,
+    revokeStudioConnection,
     getStudioWebsiteCopy,
     prepareStudioWebsiteDraft,
     listStudioBatchAssets,

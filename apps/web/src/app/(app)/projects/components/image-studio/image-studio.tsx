@@ -76,6 +76,7 @@ import {
   STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
+import { StudioConnectionDialog } from "./studio-connection-dialog";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
@@ -1137,6 +1138,10 @@ export function ImageStudio({
             onUseBatch={useProductBatch}
             projectId={activeProjectId}
             websiteUrl={websiteUrl}
+          />
+          <StudioConnectionDialog
+            key={`connection:${activeProjectId}`}
+            projectId={activeProjectId}
           />
           <Button
             aria-controls={assistant ? "studio-assistant-panel" : undefined}

@@ -70,6 +70,18 @@ export const imageStudioService = {
     return (await coreClient.getStudioBrandKit(projectId)).data;
   },
 
+  async getConnection(projectId: string) {
+    return (await coreClient.getStudioConnection(projectId)).data;
+  },
+
+  async createConnection(projectId: string) {
+    return (await coreClient.createStudioConnection(projectId)).data;
+  },
+
+  async revokeConnection(projectId: string) {
+    await coreClient.revokeStudioConnection(projectId);
+  },
+
   async getWebsiteCopy(projectId: string) {
     return (await coreClient.getStudioWebsiteCopy(projectId)).data;
   },
