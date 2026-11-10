@@ -41,7 +41,9 @@ export function ContactTasks({
   const items = tasks.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <div className="grid gap-3">
+    // Not a grid: its auto column would grow to a long Task name and scroll
+    // the sheet sideways on a phone instead of truncating it.
+    <div className="flex flex-col gap-3">
       {tasks.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : tasks.isError ? (
