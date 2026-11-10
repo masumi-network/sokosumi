@@ -1,6 +1,7 @@
 "use server";
 
 import type {
+  CreateStudioConnectionRequest,
   IssuedStudioConnection,
   StudioConnection,
 } from "@sokosumi/core-client";
@@ -20,9 +21,11 @@ export const getStudioConnection = withSession<ProjectInput, StudioConnection>(
 );
 
 export const createStudioConnection = withSession<
-  ProjectInput,
+  ProjectInput & CreateStudioConnectionRequest,
   IssuedStudioConnection
->(({ projectId }) => imageStudioService.createConnection(projectId));
+>(({ projectId, generationCreditLimit }) =>
+  imageStudioService.createConnection(projectId, { generationCreditLimit }),
+);
 
 export const revokeStudioConnection = withSession<ProjectInput, void>(
   ({ projectId }) => imageStudioService.revokeConnection(projectId),

@@ -10450,11 +10450,17 @@ export type StudioBrandLook = {
 export type StudioConnection = {
     url: string;
     expiresAt: Date | null;
+    generationCreditLimit?: number;
+    generationCreditsRemaining?: number;
 };
 
 export type IssuedStudioConnection = StudioConnection & {
     expiresAt?: Date;
     token: string;
+};
+
+export type CreateStudioConnectionRequest = {
+    generationCreditLimit?: number;
 };
 
 export type CreateProjectImageJobRequest = {
@@ -68727,7 +68733,7 @@ export type GetStudioConnectionResponses = {
 export type GetStudioConnectionResponse = GetStudioConnectionResponses[keyof GetStudioConnectionResponses];
 
 export type CreateStudioConnectionData = {
-    body?: never;
+    body?: CreateStudioConnectionRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -68776,6 +68782,21 @@ export type CreateStudioConnectionErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

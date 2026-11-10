@@ -4027,7 +4027,7 @@
       "Connection": {
         "trigger": "Assistenten verbinden",
         "title": "Externen Assistenten verbinden",
-        "description": "Gib einem Assistenten eine Stunde Lesezugriff auf das Marken-Kit, die Produkte und die Website-Recherche dieses Projekts.",
+        "description": "Gib einem Assistenten eine Stunde Zugriff auf das Marken-Kit, die Produkte und die Website-Recherche dieses Projekts. Du kannst auch die Anzeigenerstellung bis zu einem Guthabenlimit erlauben.",
         "readOnly": "Lesezugriff",
         "inactive": "Kein aktiver Token",
         "expires": "Token läuft ab am {time}",
@@ -4048,7 +4048,12 @@
         "revokeError": "Die Verbindung konnte nicht getrennt werden. Versuch es erneut.",
         "retry": "Erneut versuchen",
         "tokenCopied": "Verbindungstoken kopiert.",
-        "tokenCopyError": "Der Token konnte nicht kopiert werden. Wähle „Token anzeigen“, um ihn manuell zu kopieren."
+        "tokenCopyError": "Der Token konnte nicht kopiert werden. Wähle „Token anzeigen“, um ihn manuell zu kopieren.",
+        "generationBudget": "Limit für Anzeigenerstellung (optional)",
+        "budgetHelp": "Lege ein Guthabenlimit für Anzeigen fest, die mit diesem Token erstellt werden. Lass das Feld für reinen Lesezugriff leer. Angenommene Anfragen zählen zum Limit. Studio berechnet nur gelieferte Anzeigen.",
+        "budgetInvalid": "Gib eine ganze Zahl zwischen 0 und {max} ein.",
+        "generationAllowed": "Bis zu {credits} Credits",
+        "createPaidToken": "Token mit Anzeigenerstellung erstellen"
       },
       "WebsiteDraft": {
         "preparing": "Vorschläge für Marke und Produkte werden anhand der Website vorbereitet …",

@@ -21,6 +21,13 @@ Open a project in Content Studio and select **Connect assistant** to see the
 server URL, create a token, or disconnect. Copy the token before closing the
 dialog.
 
+Leave **Ad generation limit** blank to issue a read-only token. A positive
+limit enables `get_ad_options` and `generate_ad`. Each accepted generation
+counts against the connection's limit at the quoted price. Studio charges the
+project only when it delivers the image. Use the same `requestId` to retry one
+ad and the same `campaignId` to group multiple ads. `get_ad_status` links to the
+result in the project's Studio.
+
 The Core `/v1/image-studio-mcp` endpoint serves Streamable HTTP. An interactive
 project member can also issue a connection from
 `POST /v1/projects/{projectId}/image-studio/connection`. Its response contains

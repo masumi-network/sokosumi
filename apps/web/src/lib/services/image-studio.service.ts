@@ -3,6 +3,7 @@ import "server-only";
 import type {
   CreateProjectImageJobRequest,
   CreateProjectVideoJobRequest,
+  CreateStudioConnectionRequest,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
@@ -74,8 +75,11 @@ export const imageStudioService = {
     return (await coreClient.getStudioConnection(projectId)).data;
   },
 
-  async createConnection(projectId: string) {
-    return (await coreClient.createStudioConnection(projectId)).data;
+  async createConnection(
+    projectId: string,
+    input: CreateStudioConnectionRequest,
+  ) {
+    return (await coreClient.createStudioConnection(projectId, input)).data;
   },
 
   async revokeConnection(projectId: string) {

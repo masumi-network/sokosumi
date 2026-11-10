@@ -4027,7 +4027,7 @@
       "Connection": {
         "trigger": "Conectar asistente",
         "title": "Conectar un asistente externo",
-        "description": "Da a un asistente una hora de acceso de lectura al kit de marca, los productos y la investigación web de este proyecto.",
+        "description": "Da a un asistente una hora de acceso al kit de marca, los productos y la investigación web de este proyecto. También puedes permitir que genere anuncios con un límite de créditos.",
         "readOnly": "Solo lectura",
         "inactive": "Sin token activo",
         "expires": "El token vence el {time}",
@@ -4048,7 +4048,12 @@
         "revokeError": "No se pudo desconectar el asistente. Inténtalo de nuevo.",
         "retry": "Reintentar",
         "tokenCopied": "Token de conexión copiado.",
-        "tokenCopyError": "No se pudo copiar el token. Selecciona Mostrar token para copiarlo manualmente."
+        "tokenCopyError": "No se pudo copiar el token. Selecciona Mostrar token para copiarlo manualmente.",
+        "generationBudget": "Límite de generación de anuncios (opcional)",
+        "budgetHelp": "Fija un límite de créditos para los anuncios creados con este token. Déjalo en blanco para dar acceso de solo lectura. Las solicitudes aceptadas cuentan para el límite. Studio cobra solo por los anuncios entregados.",
+        "budgetInvalid": "Introduce un número entero entre 0 y {max}.",
+        "generationAllowed": "Hasta {credits} créditos",
+        "createPaidToken": "Crear token con generación"
       },
       "WebsiteDraft": {
         "preparing": "Preparando sugerencias de marca y productos a partir del sitio web…",

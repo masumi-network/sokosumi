@@ -22,6 +22,7 @@ import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import { DriveFileDownloadError } from "@/helpers/drive-file-download";
 import {
+  forbidden,
   notFound,
   tooManyRequests,
   unprocessableEntity,
@@ -163,6 +164,8 @@ export interface CreateImageJobInput {
   /** The version being refined, when the user started from a selection. */
   parentAssetId: string | null;
   idempotencyKey: string;
+  /** Budget authorization for an external Studio assistant. */
+  studioConnectionKeyHash?: string;
 }
 
 function readSettings(value: Prisma.JsonValue): ImageJobSettings {
@@ -469,6 +472,25 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       chargedCents,
       tx,
     });
+    if (input.studioConnectionKeyHash) {
+      const reserved = await tx.projectStudioConnection.updateMany({
+        where: {
+          keyHash: input.studioConnectionKeyHash,
+          projectId: input.projectId,
+          userId: input.userId,
+          expiresAt: { gt: new Date() },
+          generationCreditLimit: { gt: 0 },
+          generationCreditsRemaining: { gte: input.chargedCredits },
+        },
+        data: {
+          generationCreditsRemaining: { decrement: input.chargedCredits },
+        },
+      });
+      if (reserved.count !== 1)
+        throw forbidden(
+          "The Studio connection expired, was replaced, or has insufficient generation credits.",
+        );
+    }
 
     // A unique violation here aborts this transaction. It is caught by the
     // caller, on a fresh connection, because the aborted one cannot answer

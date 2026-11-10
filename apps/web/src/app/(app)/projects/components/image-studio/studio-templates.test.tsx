@@ -175,6 +175,7 @@ describe("starting from a template", () => {
     expect(secret).toHaveAttribute("type", "password");
     expect(mocks.createConnection).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
+      generationCreditLimit: 0,
     });
     fireEvent.click(screen.getByRole("button", { name: "copyToken" }));
     expect(mocks.copyConnectionToken).toHaveBeenCalledExactlyOnceWith(token, {
@@ -199,6 +200,24 @@ describe("starting from a template", () => {
     await screen.findByText("inactive");
     expect(mocks.revokeConnection).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
+    });
+    mocks.createConnection.mockResolvedValueOnce({
+      url,
+      expiresAt,
+      token,
+      generationCreditLimit: 24,
+    });
+    const budget = screen.getByLabelText("generationBudget");
+    fireEvent.change(budget, { target: { value: "1001" } });
+    expect(
+      screen.getByRole("button", { name: "createPaidToken" }),
+    ).toBeDisabled();
+    fireEvent.change(budget, { target: { value: "24" } });
+    fireEvent.click(screen.getByRole("button", { name: "createPaidToken" }));
+    await screen.findByText("generationAllowed");
+    expect(mocks.createConnection).toHaveBeenLastCalledWith({
+      projectId: "p",
+      generationCreditLimit: 24,
     });
   });
 
@@ -291,7 +310,9 @@ describe("starting from a template", () => {
     expect(screen.getByText("#23453c")).toBeInTheDocument();
     expect(screen.getByText("Georgia")).toBeInTheDocument();
     expect(tone).toHaveValue("Clear and warm");
-    fireEvent.click(screen.getByRole("button", { name: "BrandKit.resetLook" }));
+    const reset = screen.getByRole("button", { name: "BrandKit.resetLook" });
+    await waitFor(() => expect(reset).toBeEnabled());
+    fireEvent.click(reset);
     await screen.findByText("BrandKit.lookReset");
     expect(screen.getByText("#a33421")).toBeInTheDocument();
     expect(tone).toHaveValue("Clear and warm");

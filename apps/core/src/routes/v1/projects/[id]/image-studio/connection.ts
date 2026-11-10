@@ -9,6 +9,7 @@ import {
 import { requireProjectAccess } from "@/lib/image-studio/access";
 import {
   createStudioConnection,
+  MAX_STUDIO_CONNECTION_CREDITS,
   readStudioConnection,
   revokeStudioConnection,
 } from "@/lib/image-studio/studio-connection";
@@ -29,11 +30,24 @@ const connection = z
   .object({
     url: z.string().url(),
     expiresAt: z.string().datetime().nullable(),
+    generationCreditLimit: z.number().int().nonnegative().optional(),
+    generationCreditsRemaining: z.number().int().nonnegative().optional(),
   })
   .openapi("StudioConnection");
 const issuedConnection = connection
   .extend({ token: z.string(), expiresAt: z.string().datetime() })
   .openapi("IssuedStudioConnection");
+const issueRequest = z
+  .object({
+    generationCreditLimit: z
+      .number()
+      .int()
+      .min(0)
+      .max(MAX_STUDIO_CONNECTION_CREDITS)
+      .optional(),
+  })
+  .strict()
+  .openapi("CreateStudioConnectionRequest");
 
 const getRoute = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -54,12 +68,16 @@ const postRoute = withOrganizationSlugHeaderParameter(
     path,
     operationId: "createStudioConnection",
     description:
-      "Issue a one-hour connection token for this project. Replaces any current token belonging to the caller.",
+      "Issue a one-hour connection token for this project. Zero credits makes the token read-only. Replaces any current token belonging to the caller.",
     tags,
-    request,
+    request: {
+      ...request,
+      body: { content: { "application/json": { schema: issueRequest } } },
+    },
     responses: {
       201: jsonSuccessResponse(issuedConnection, "Studio connection created"),
       ...errors,
+      422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
 );
@@ -102,7 +120,13 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
       c.req.valid("param").id,
     );
     c.header("Cache-Control", "no-store");
-    return created(c, await createStudioConnection(owner));
+    return created(
+      c,
+      await createStudioConnection(
+        owner,
+        c.req.valid("json")?.generationCreditLimit,
+      ),
+    );
   });
   app.openapi(deleteRoute, async (c) => {
     const owner = await authorize(

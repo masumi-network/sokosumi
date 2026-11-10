@@ -4027,7 +4027,7 @@
       "Connection": {
         "trigger": "Connect assistant",
         "title": "Connect an external assistant",
-        "description": "Give an assistant one hour of read access to this project’s Brand Kit, products, and website research.",
+        "description": "Give an assistant one hour of access to this project’s Brand Kit, products, and website research. You can also allow ad generation within a credit limit.",
         "readOnly": "Read only",
         "inactive": "No active token",
         "expires": "Token expires {time}",
@@ -4048,7 +4048,12 @@
         "revokeError": "Couldn’t disconnect the assistant. Try again.",
         "retry": "Try again",
         "tokenCopied": "Connection token copied.",
-        "tokenCopyError": "Couldn’t copy the token. Select Show token to copy it manually."
+        "tokenCopyError": "Couldn’t copy the token. Select Show token to copy it manually.",
+        "generationBudget": "Ad generation limit (optional)",
+        "budgetHelp": "Set a credit limit for ads made through this token. Leave it blank for read-only access. Accepted requests count toward the limit. Studio charges only for delivered ads.",
+        "budgetInvalid": "Enter a whole number from 0 to {max}.",
+        "generationAllowed": "Up to {credits} credits",
+        "createPaidToken": "Create token with generation"
       },
       "WebsiteDraft": {
         "preparing": "Preparing brand and product suggestions from the website…",

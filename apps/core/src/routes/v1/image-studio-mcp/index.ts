@@ -11,9 +11,19 @@ import {
 import { requireStudioConnection } from "@/lib/image-studio/studio-connection";
 import { readStudioProductCatalog } from "@/services/studio-product-catalog.service";
 
-async function studioTool(read: () => Promise<Record<string, unknown>>) {
+import {
+  generateStudioAd,
+  generationInput,
+  readStudioAdStatus,
+  type StudioConnectionAccess,
+  studioAdOptions,
+} from "./generation";
+
+async function studioTool(
+  run: () => Record<string, unknown> | Promise<Record<string, unknown>>,
+) {
   try {
-    const data = await read();
+    const data = await run();
     return {
       content: [{ type: "text" as const, text: JSON.stringify(data) }],
       structuredContent: data,
@@ -35,7 +45,8 @@ async function studioTool(read: () => Promise<Record<string, unknown>>) {
   }
 }
 
-function projectServer(projectId: string) {
+function projectServer(access: StudioConnectionAccess) {
+  const { projectId } = access;
   const server = new McpServer({
     name: "sokosumi-content-studio",
     version: "1.0.0",
@@ -87,6 +98,43 @@ function projectServer(projectId: string) {
     },
     () => studioTool(() => prepareStudioWebsiteDraft(projectId)),
   );
+  if (access.generationCreditLimit > 0) {
+    server.registerTool(
+      "get_ad_options",
+      {
+        description:
+          "Read available ad placements, the credit quote for each, and the connection's remaining generation allowance.",
+        inputSchema: z.object({}).strict(),
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      () => studioTool(() => studioAdOptions(access)),
+    );
+    server.registerTool(
+      "generate_ad",
+      {
+        description:
+          "Generate one paid ad for a saved product in the connected project. Use only when the user requests generation. Read get_ad_options for prices first and use a new request ID per ad. Approved headlines must exactly match a line in Brand Kit.",
+        inputSchema: generationInput,
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      (input) => studioTool(() => generateStudioAd(access, input)),
+    );
+  }
+  server.registerTool(
+    "get_ad_status",
+    {
+      description:
+        "Check an ad requested by this user through the connector and open the result in Studio.",
+      inputSchema: z.object({ jobId: z.uuid() }).strict(),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    ({ jobId }) => studioTool(() => readStudioAdStatus(access, jobId)),
+  );
   return server;
 }
 
@@ -99,9 +147,9 @@ app.on(["GET", "POST", "DELETE"], "/", async (c) => {
   if (c.req.raw.headers.has("origin"))
     throw forbidden("Browser origins are not allowed.");
   c.header("WWW-Authenticate", "Bearer");
-  const { projectId } = await requireStudioConnection(c.req.raw);
+  const access = await requireStudioConnection(c.req.raw);
   c.header("WWW-Authenticate", undefined);
-  const handler = createMcpHandler(() => projectServer(projectId), {
+  const handler = createMcpHandler(() => projectServer(access), {
     maxRequestBodySize: 32 * 1024,
   });
   return handler.fetch(c.req.raw);

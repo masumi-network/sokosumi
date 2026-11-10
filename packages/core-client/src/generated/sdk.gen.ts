@@ -4923,12 +4923,16 @@ export const getStudioConnection = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Issue a one-hour connection token for this project. Replaces any current token belonging to the caller.
+ * Issue a one-hour connection token for this project. Zero credits makes the token read-only. Replaces any current token belonging to the caller.
  */
 export const createStudioConnection = <ThrowOnError extends boolean = false>(options: Options<CreateStudioConnectionData, ThrowOnError>): RequestResult<CreateStudioConnectionResponses, CreateStudioConnectionErrors, ThrowOnError> => (options.client ?? client).post<CreateStudioConnectionResponses, CreateStudioConnectionErrors, ThrowOnError>({
     responseTransformer: createStudioConnectionResponseTransformer,
     url: '/projects/{id}/image-studio/connection',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

@@ -39294,6 +39294,14 @@ export const StudioConnectionSchema = {
                 'null'
             ],
             format: 'date-time'
+        },
+        generationCreditLimit: {
+            type: 'integer',
+            minimum: 0
+        },
+        generationCreditsRemaining: {
+            type: 'integer',
+            minimum: 0
         }
     },
     required: [
@@ -39323,6 +39331,18 @@ export const IssuedStudioConnectionSchema = {
             ]
         }
     ]
+} as const;
+
+export const CreateStudioConnectionRequestSchema = {
+    type: 'object',
+    properties: {
+        generationCreditLimit: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 1000
+        }
+    },
+    additionalProperties: false
 } as const;
 
 export const CreateProjectImageJobRequestSchema = {

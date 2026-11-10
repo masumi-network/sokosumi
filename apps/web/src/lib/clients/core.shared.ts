@@ -1,4 +1,5 @@
 import {
+  type CreateStudioConnectionRequest,
   attachStudioProductPhoto as coreAttachStudioProductPhoto,
   createStudioConnection as coreCreateStudioConnection,
   findStudioWebsiteLogo as coreFindStudioWebsiteLogo,
@@ -4184,10 +4185,13 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function createStudioConnection(id: string) {
+  async function createStudioConnection(
+    id: string,
+    body: CreateStudioConnectionRequest,
+  ) {
     return executeCoreOperation(
       getClient,
-      (client) => coreCreateStudioConnection({ client, path: { id } }),
+      (client) => coreCreateStudioConnection({ client, path: { id }, body }),
       "Failed to create a Studio connection",
     );
   }

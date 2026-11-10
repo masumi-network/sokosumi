@@ -1,4 +1,5 @@
 import type { StudioConnection } from "@sokosumi/core-client";
+import { CreateStudioConnectionRequestSchema } from "@sokosumi/core-client/schemas";
 import { Copy, Plug } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
@@ -25,20 +26,30 @@ import {
 } from "@/lib/actions/image-studio/connection";
 
 type Operation = "load" | "create" | "revoke";
+const MAX_CREDITS =
+  CreateStudioConnectionRequestSchema.properties.generationCreditLimit.maximum;
 
 export function StudioConnectionDialog({ projectId }: { projectId: string }) {
   const t = useTranslations("App.Studio.Connection");
   const format = useFormatter();
   const tokenId = useId();
+  const budgetId = useId();
   const [open, setOpen] = useState(false);
   const [connection, setConnection] = useState<
     (StudioConnection & { token?: string }) | null
   >(null);
   const [showToken, setShowToken] = useState(false);
+  const [budgetDraft, setBudgetDraft] = useState("");
   const [pending, setPending] = useState<Operation | null>(null);
   const [error, setError] = useState<Operation | null>(null);
   const expiresAt = connection?.expiresAt;
   const token = connection?.token;
+  const activeLimit = connection?.generationCreditLimit ?? 0;
+  const generationCreditLimit = Number(budgetDraft);
+  const invalidBudget =
+    !Number.isInteger(generationCreditLimit) ||
+    generationCreditLimit < 0 ||
+    generationCreditLimit > MAX_CREDITS;
 
   useEffect(() => {
     if (!open || !expiresAt) return;
@@ -75,10 +86,14 @@ export function StudioConnectionDialog({ projectId }: { projectId: string }) {
   }
 
   function create() {
+    if (invalidBudget) return;
     return run("create", async () => {
       setShowToken(false);
       setConnection((current) => current && { ...current, token: undefined });
-      setConnection(await createStudioConnection({ projectId }));
+      setConnection(
+        await createStudioConnection({ projectId, generationCreditLimit }),
+      );
+      setBudgetDraft("");
     });
   }
 
@@ -99,6 +114,7 @@ export function StudioConnectionDialog({ projectId }: { projectId: string }) {
         if (pending) return;
         setOpen(next);
         setConnection(null);
+        setBudgetDraft("");
         setShowToken(false);
         if (next) void load();
       }}
@@ -130,7 +146,11 @@ export function StudioConnectionDialog({ projectId }: { projectId: string }) {
         {connection ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{t("readOnly")}</Badge>
+              <Badge variant="secondary">
+                {activeLimit
+                  ? t("generationAllowed", { credits: activeLimit })
+                  : t("readOnly")}
+              </Badge>
               <p className="text-muted-foreground text-sm" role="status">
                 {expiresAt
                   ? t("expires", {
@@ -192,6 +212,30 @@ export function StudioConnectionDialog({ projectId }: { projectId: string }) {
                 {t("replacement")}
               </p>
             ) : null}
+            <div className="space-y-2">
+              <Label htmlFor={budgetId}>{t("generationBudget")}</Label>
+              <Input
+                aria-describedby={`${budgetId}-help`}
+                aria-invalid={invalidBudget}
+                disabled={!!pending}
+                id={budgetId}
+                max={MAX_CREDITS}
+                min={0}
+                onChange={(event) => setBudgetDraft(event.currentTarget.value)}
+                placeholder="0"
+                step={1}
+                type="number"
+                value={budgetDraft}
+              />
+              <p
+                id={`${budgetId}-help`}
+                className="text-muted-foreground text-sm"
+              >
+                {t(invalidBudget ? "budgetInvalid" : "budgetHelp", {
+                  max: MAX_CREDITS,
+                })}
+              </p>
+            </div>
             <DialogFooter>
               {expiresAt ? (
                 <Button
@@ -205,12 +249,14 @@ export function StudioConnectionDialog({ projectId }: { projectId: string }) {
                 </Button>
               ) : null}
               <Button
-                disabled={pending === "revoke"}
+                disabled={pending === "revoke" || invalidBudget}
                 loading={pending === "create"}
                 onClick={create}
                 type="button"
               >
-                {t(expiresAt ? "newToken" : "createToken")}
+                {generationCreditLimit > 0
+                  ? t("createPaidToken")
+                  : t(expiresAt ? "newToken" : "createToken")}
               </Button>
             </DialogFooter>
           </>

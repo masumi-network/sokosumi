@@ -782,8 +782,13 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       }
       return response.json();
     }
-    async function connect() {
-      const response = await studio.request(connectionPath, { method: "POST" });
+    async function connect(generationCreditLimit?: number) {
+      const response = await studio.request(
+        connectionPath,
+        generationCreditLimit === undefined
+          ? { method: "POST" }
+          : json("POST", { generationCreditLimit }),
+      );
       expect(response.status).toBe(201);
       expect(response.headers.get("cache-control")).toBe("no-store");
       const { data } = await response.json();
@@ -825,6 +830,8 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       expect((await status.json()).data).toEqual({
         url: `https://core.example.test${endpoint}`,
         expiresAt,
+        generationCreditLimit: 0,
+        generationCreditsRemaining: 0,
       });
       expect(
         (
@@ -849,7 +856,12 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       const tools = await result(await mcp(token, "tools/list"));
       expect(
         tools.result.tools.map((tool: { name: string }) => tool.name).sort(),
-      ).toEqual(["get_brand_kit", "list_products", "research_website"]);
+      ).toEqual([
+        "get_ad_status",
+        "get_brand_kit",
+        "list_products",
+        "research_website",
+      ]);
       const brand = await result(
         await mcp(token, "tools/call", {
           name: "get_brand_kit",
@@ -891,6 +903,86 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         }),
       );
       expect(research.result.structuredContent.products).toHaveLength(2);
+
+      const generation = {
+        requestId: randomUUID(),
+        campaignId: randomUUID(),
+        productId,
+        placement: "9:16",
+        prompt: "Feature the travel mug on a clean cafe counter.",
+      };
+      const generate = async (credential: string, request = generation) =>
+        (
+          await result(
+            await mcp(credential, "tools/call", {
+              name: "generate_ad",
+              arguments: request,
+            }),
+          )
+        ).result;
+      const submissionsBefore = external.submit.mock.calls.length;
+      const readOnlyGeneration = await result(
+        await mcp(token, "tools/call", {
+          name: "generate_ad",
+          arguments: generation,
+        }),
+      );
+      expect(readOnlyGeneration.error).toBeDefined();
+      expect(external.submit.mock.calls.length).toBe(submissionsBefore);
+      const paid = await connect(1000);
+      const options = await result(
+        await mcp(paid.token, "tools/call", {
+          name: "get_ad_options",
+          arguments: {},
+        }),
+      );
+      const placement = options.result.structuredContent.placements.find(
+        (entry: { aspectRatio: string }) => entry.aspectRatio === "9:16",
+      );
+      expect(placement.credits).toBeGreaterThan(0);
+      const capped = await connect(placement.credits);
+      const competing = { ...generation, requestId: randomUUID() };
+      const first = await Promise.all([
+        generate(capped.token),
+        generate(capped.token, competing),
+      ]);
+      const accepted = first.findIndex((response) => !response.isError);
+      expect(accepted).toBeGreaterThanOrEqual(0);
+      expect(first[1 - accepted].isError).toBe(true);
+      expect(external.submit.mock.calls.length).toBe(submissionsBefore + 1);
+      expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
+        product.name,
+      );
+      expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
+        "Palette: #123456",
+      );
+      const { jobId } = first[accepted].structuredContent;
+      const job = await prisma.projectImageJob.findUniqueOrThrow({
+        where: { id: jobId },
+      });
+      expect(job).toMatchObject({
+        batchId: generation.campaignId,
+        transactionId: null,
+      });
+      await settleWithMedia(jobId, "https://fal.example/assistant-ad.png");
+      const replayed = await generate(
+        capped.token,
+        accepted === 0 ? generation : competing,
+      );
+      expect(replayed.structuredContent).toMatchObject({
+        jobId,
+        status: "SUCCEEDED",
+        credits: placement.credits,
+      });
+      expect(replayed.structuredContent.studioUrl).toContain(
+        `projectId=${project.id}&v=`,
+      );
+      expect(external.submit.mock.calls.length).toBe(submissionsBefore + 1);
+      const exhausted = await studio.request(connectionPath);
+      expect((await exhausted.json()).data).toMatchObject({
+        generationCreditLimit: placement.credits,
+        generationCreditsRemaining: 0,
+      });
 
       const next = await connect();
       expect((await mcp(token, "tools/list")).status).toBe(401);
