@@ -3,13 +3,12 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
-import type { CusoTarget } from "@/services/cmo-cuso.service";
+import { type CusoTarget } from "@/services/cmo-cuso.service";
 import { startCmoOver } from "@/services/cmo-hiring.service";
 
 import { rethrow } from "../helpers";
 
-const config = {
+export const config = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -31,15 +30,7 @@ const route = createRoute({
   operationId: "startCmoOver",
 });
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
-  path: "/projects/{projectId}/start-over",
-  operationId: "startCmoOverForProject",
-  request: { params: cmoProjectParamsSchema },
-});
-
-async function startOver(target: CusoTarget) {
+export async function startOver(target: CusoTarget) {
   await startCmoOver(target).catch(rethrow);
   return { startedOver: true as const };
 }
@@ -48,11 +39,5 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     return ok(c, await startOver({ userId }));
-  });
-
-  app.openapi(projectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    return ok(c, await startOver({ userId, projectId }));
   });
 }

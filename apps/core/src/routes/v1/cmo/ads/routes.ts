@@ -5,10 +5,7 @@ import { ok } from "@/helpers/response";
 import { AD_RANGES, type AdRange } from "@/lib/ads/campaigns";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import {
-  cmoOverviewSchema,
-  cmoProjectParamsSchema,
-} from "@/schemas/cmo.schema";
+import { cmoOverviewSchema } from "@/schemas/cmo.schema";
 import {
   adCampaignSchema,
   availableAdAccountSchema,
@@ -53,7 +50,7 @@ const errors = {
   503: jsonErrorResponse("Ads are not set up here"),
 };
 
-const connectConfig = {
+export const connectConfig = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -83,19 +80,7 @@ const connectRoute = createRoute({
   operationId: "connectCmoAds",
 });
 
-const connectProjectRoute = createRoute({
-  ...connectConfig,
-  path: "/projects/{projectId}/ads/{provider}/connect",
-  operationId: "connectCmoAdsForProject",
-  request: {
-    ...connectConfig.request,
-    params: cmoProjectParamsSchema.extend({
-      provider: z.enum(["google_ads", "meta_ads"]),
-    }),
-  },
-});
-
-const finalizeConfig = {
+export const finalizeConfig = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -133,14 +118,7 @@ const finalizeRoute = createRoute({
   operationId: "finalizeCmoAds",
 });
 
-const finalizeProjectRoute = createRoute({
-  ...finalizeConfig,
-  path: "/projects/{projectId}/ads/finalize",
-  operationId: "finalizeCmoAdsForProject",
-  request: { ...finalizeConfig.request, params: cmoProjectParamsSchema },
-});
-
-const choicesConfig = {
+export const choicesConfig = {
   method: "get" as const,
   tags: ["CMO"],
   description: "The ad accounts a connection reaches, for the owner to pick.",
@@ -160,19 +138,7 @@ const choicesRoute = createRoute({
   operationId: "listCmoAdChoices",
 });
 
-const choicesProjectRoute = createRoute({
-  ...choicesConfig,
-  path: "/projects/{projectId}/ads/connections/{adConnectionId}/choices",
-  operationId: "listCmoAdChoicesForProject",
-  request: {
-    ...choicesConfig.request,
-    params: cmoProjectParamsSchema.extend({
-      adConnectionId: z.string().uuid(),
-    }),
-  },
-});
-
-const chooseConfig = {
+export const chooseConfig = {
   method: "post" as const,
   tags: ["CMO"],
   description: "Attaches the ad account the owner picked to Cuso's Project.",
@@ -200,14 +166,7 @@ const chooseRoute = createRoute({
   operationId: "chooseCmoAdAccount",
 });
 
-const chooseProjectRoute = createRoute({
-  ...chooseConfig,
-  path: "/projects/{projectId}/ads/accounts",
-  operationId: "chooseCmoAdAccountForProject",
-  request: { ...chooseConfig.request, params: cmoProjectParamsSchema },
-});
-
-const campaignsConfig = {
+export const campaignsConfig = {
   method: "get" as const,
   tags: ["CMO"],
   description:
@@ -245,14 +204,7 @@ const campaignsRoute = createRoute({
   operationId: "listCmoAdCampaigns",
 });
 
-const campaignsProjectRoute = createRoute({
-  ...campaignsConfig,
-  path: "/projects/{projectId}/ads/campaigns",
-  operationId: "listCmoAdCampaignsForProject",
-  request: { ...campaignsConfig.request, params: cmoProjectParamsSchema },
-});
-
-const launchConfig = {
+export const launchConfig = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -278,14 +230,7 @@ const launchRoute = createRoute({
   operationId: "launchCmoSearchAd",
 });
 
-const launchProjectRoute = createRoute({
-  ...launchConfig,
-  path: "/projects/{projectId}/ads/launch",
-  operationId: "launchCmoSearchAdForProject",
-  request: { ...launchConfig.request, params: cmoProjectParamsSchema },
-});
-
-const statusConfig = {
+export const statusConfig = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -315,15 +260,8 @@ const statusRoute = createRoute({
   operationId: "setCmoAdCampaignStatus",
 });
 
-const statusProjectRoute = createRoute({
-  ...statusConfig,
-  path: "/projects/{projectId}/ads/campaigns/status",
-  operationId: "setCmoAdCampaignStatusForProject",
-  request: { ...statusConfig.request, params: cmoProjectParamsSchema },
-});
-
 /** Each ad route acts on the Cuso a CMO call names. */
-const adsActions = {
+export const adsActions = {
   connect: (
     target: CusoTarget,
     provider: "google_ads" | "meta_ads",
@@ -372,27 +310,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { returnUrl } = c.req.valid("json");
     return ok(c, await adsActions.connect({ userId }, provider, returnUrl));
   });
-  app.openapi(connectProjectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId, provider } = c.req.valid("param");
-    const { returnUrl } = c.req.valid("json");
-    return ok(
-      c,
-      await adsActions.connect({ userId, projectId }, provider, returnUrl),
-    );
-  });
 
   app.openapi(finalizeRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     return ok(c, await adsActions.finalize({ userId }, c.req.valid("json")));
-  });
-  app.openapi(finalizeProjectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    return ok(
-      c,
-      await adsActions.finalize({ userId, projectId }, c.req.valid("json")),
-    );
   });
 
   app.openapi(choicesRoute, async (c) => {
@@ -400,26 +321,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { adConnectionId } = c.req.valid("param");
     return ok(c, await adsActions.choices({ userId }, adConnectionId));
   });
-  app.openapi(choicesProjectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId, adConnectionId } = c.req.valid("param");
-    return ok(
-      c,
-      await adsActions.choices({ userId, projectId }, adConnectionId),
-    );
-  });
 
   app.openapi(chooseRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     return ok(c, await adsActions.choose({ userId }, c.req.valid("json")));
-  });
-  app.openapi(chooseProjectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    return ok(
-      c,
-      await adsActions.choose({ userId, projectId }, c.req.valid("json")),
-    );
   });
 
   app.openapi(campaignsRoute, async (c) => {
@@ -427,35 +332,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { range } = c.req.valid("query");
     return ok(c, await adsActions.campaigns({ userId }, range));
   });
-  app.openapi(campaignsProjectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    const { range } = c.req.valid("query");
-    return ok(c, await adsActions.campaigns({ userId, projectId }, range));
-  });
 
   app.openapi(launchRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { entryId } = c.req.valid("json");
     return ok(c, await adsActions.launch({ userId }, entryId));
   });
-  app.openapi(launchProjectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    const { entryId } = c.req.valid("json");
-    return ok(c, await adsActions.launch({ userId, projectId }, entryId));
-  });
 
   app.openapi(statusRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     return ok(c, await adsActions.status({ userId }, c.req.valid("json")));
-  });
-  app.openapi(statusProjectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    return ok(
-      c,
-      await adsActions.status({ userId, projectId }, c.req.valid("json")),
-    );
   });
 }

@@ -3,16 +3,13 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import {
-  cmoProjectParamsSchema,
-  cmoTurnStartedSchema,
-} from "@/schemas/cmo.schema";
+import { cmoTurnStartedSchema } from "@/schemas/cmo.schema";
 import type { CusoTarget } from "@/services/cmo-cuso.service";
 import { retryCmoOnboarding } from "@/services/cmo-hiring.service";
 
 import { rethrow } from "../../helpers";
 
-const config = {
+export const config = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -32,15 +29,7 @@ const route = createRoute({
   operationId: "retryCmoOnboarding",
 });
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
-  path: "/projects/{projectId}/onboarding/retry",
-  operationId: "retryCmoOnboardingForProject",
-  request: { params: cmoProjectParamsSchema },
-});
-
-async function retry(target: CusoTarget) {
+export async function retry(target: CusoTarget) {
   const started = await retryCmoOnboarding(target).catch(rethrow);
   return cmoTurnStartedSchema.parse(started);
 }
@@ -49,11 +38,5 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     return created(c, await retry({ userId }));
-  });
-
-  app.openapi(projectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    return created(c, await retry({ userId, projectId }));
   });
 }

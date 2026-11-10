@@ -3,16 +3,13 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import {
-  cmoMeasurementSchema,
-  cmoProjectParamsSchema,
-} from "@/schemas/cmo.schema";
+import { cmoMeasurementSchema } from "@/schemas/cmo.schema";
 import type { CusoTarget } from "@/services/cmo-cuso.service";
 import { connectCmoMeasurement } from "@/services/cmo-measurement.service";
 
 import { rethrow } from "../../../helpers";
 
-const config = {
+export const config = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -46,20 +43,11 @@ const route = createRoute({
   operationId: "connectCmoMeasurement",
 });
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
-  path: "/projects/{projectId}/measurement/{provider}/connect",
-  operationId: "connectCmoMeasurementForProject",
-  request: {
-    ...config.request,
-    params: cmoProjectParamsSchema.extend({
-      provider: cmoMeasurementSchema.shape.provider,
-    }),
-  },
-});
-
-function connect(target: CusoTarget, provider: string, returnUrl: string) {
+export function connect(
+  target: CusoTarget,
+  provider: string,
+  returnUrl: string,
+) {
   return connectCmoMeasurement({ ...target, provider, returnUrl }).catch(
     rethrow,
   );
@@ -71,12 +59,5 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { provider } = c.req.valid("param");
     const { returnUrl } = c.req.valid("json");
     return ok(c, await connect({ userId }, provider, returnUrl));
-  });
-
-  app.openapi(projectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId, provider } = c.req.valid("param");
-    const { returnUrl } = c.req.valid("json");
-    return ok(c, await connect({ userId, projectId }, provider, returnUrl));
   });
 }

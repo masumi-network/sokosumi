@@ -5346,12 +5346,6 @@ export const getCmoOverview = <ThrowOnError extends boolean = false>(options?: O
     ...options
 });
 
-export const getCmoOverviewForProject = <ThrowOnError extends boolean = false>(options: Options<GetCmoOverviewForProjectData, ThrowOnError>): RequestResult<GetCmoOverviewForProjectResponses, GetCmoOverviewForProjectErrors, ThrowOnError> => (options.client ?? client).get<GetCmoOverviewForProjectResponses, GetCmoOverviewForProjectErrors, ThrowOnError>({
-    responseTransformer: getCmoOverviewForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}',
-    ...options
-});
-
 export const startCmoOnboarding = <ThrowOnError extends boolean = false>(options?: Options<StartCmoOnboardingData, ThrowOnError>): RequestResult<StartCmoOnboardingResponses, StartCmoOnboardingErrors, ThrowOnError> => (options?.client ?? client).post<StartCmoOnboardingResponses, StartCmoOnboardingErrors, ThrowOnError>({
     responseTransformer: startCmoOnboardingResponseTransformer,
     url: '/cmo/onboarding',
@@ -5372,29 +5366,11 @@ export const retryCmoOnboarding = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Starts Cuso's first look at the business again after it failed or got stuck.
- */
-export const retryCmoOnboardingForProject = <ThrowOnError extends boolean = false>(options: Options<RetryCmoOnboardingForProjectData, ThrowOnError>): RequestResult<RetryCmoOnboardingForProjectResponses, RetryCmoOnboardingForProjectErrors, ThrowOnError> => (options.client ?? client).post<RetryCmoOnboardingForProjectResponses, RetryCmoOnboardingForProjectErrors, ThrowOnError>({
-    responseTransformer: retryCmoOnboardingForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/onboarding/retry',
-    ...options
-});
-
-/**
  * Archives the Cuso the caller works with and cancels his unsent posts, so they can hire Cuso for another website.
  */
 export const startCmoOver = <ThrowOnError extends boolean = false>(options?: Options<StartCmoOverData, ThrowOnError>): RequestResult<StartCmoOverResponses, StartCmoOverErrors, ThrowOnError> => (options?.client ?? client).post<StartCmoOverResponses, StartCmoOverErrors, ThrowOnError>({
     responseTransformer: startCmoOverResponseTransformer,
     url: '/cmo/start-over',
-    ...options
-});
-
-/**
- * Archives the Cuso the caller works with and cancels his unsent posts, so they can hire Cuso for another website.
- */
-export const startCmoOverForProject = <ThrowOnError extends boolean = false>(options: Options<StartCmoOverForProjectData, ThrowOnError>): RequestResult<StartCmoOverForProjectResponses, StartCmoOverForProjectErrors, ThrowOnError> => (options.client ?? client).post<StartCmoOverForProjectResponses, StartCmoOverForProjectErrors, ThrowOnError>({
-    responseTransformer: startCmoOverForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/start-over',
     ...options
 });
 
@@ -5405,16 +5381,6 @@ export const requestCmoStrategy = <ThrowOnError extends boolean = false>(options
     headers: {
         'Content-Type': 'application/json',
         ...options?.headers
-    }
-});
-
-export const requestCmoStrategyForProject = <ThrowOnError extends boolean = false>(options: Options<RequestCmoStrategyForProjectData, ThrowOnError>): RequestResult<RequestCmoStrategyForProjectResponses, RequestCmoStrategyForProjectErrors, ThrowOnError> => (options.client ?? client).post<RequestCmoStrategyForProjectResponses, RequestCmoStrategyForProjectErrors, ThrowOnError>({
-    responseTransformer: requestCmoStrategyForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/strategy',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
     }
 });
 
@@ -5432,33 +5398,11 @@ export const setCmoAdBudget = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it. Zero leaves paid ads out.
- */
-export const setCmoAdBudgetForProject = <ThrowOnError extends boolean = false>(options: Options<SetCmoAdBudgetForProjectData, ThrowOnError>): RequestResult<SetCmoAdBudgetForProjectResponses, SetCmoAdBudgetForProjectErrors, ThrowOnError> => (options.client ?? client).post<SetCmoAdBudgetForProjectResponses, SetCmoAdBudgetForProjectErrors, ThrowOnError>({
-    responseTransformer: setCmoAdBudgetForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/strategy/ads',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Cuso changes the plan where the owner's answers say an assumption was wrong.
  */
 export const applyCmoPlanAnswers = <ThrowOnError extends boolean = false>(options?: Options<ApplyCmoPlanAnswersData, ThrowOnError>): RequestResult<ApplyCmoPlanAnswersResponses, ApplyCmoPlanAnswersErrors, ThrowOnError> => (options?.client ?? client).post<ApplyCmoPlanAnswersResponses, ApplyCmoPlanAnswersErrors, ThrowOnError>({
     responseTransformer: applyCmoPlanAnswersResponseTransformer,
     url: '/cmo/strategy/answers/apply',
-    ...options
-});
-
-/**
- * Cuso changes the plan where the owner's answers say an assumption was wrong.
- */
-export const applyCmoPlanAnswersForProject = <ThrowOnError extends boolean = false>(options: Options<ApplyCmoPlanAnswersForProjectData, ThrowOnError>): RequestResult<ApplyCmoPlanAnswersForProjectResponses, ApplyCmoPlanAnswersForProjectErrors, ThrowOnError> => (options.client ?? client).post<ApplyCmoPlanAnswersForProjectResponses, ApplyCmoPlanAnswersForProjectErrors, ThrowOnError>({
-    responseTransformer: applyCmoPlanAnswersForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/strategy/answers/apply',
     ...options
 });
 
@@ -5472,15 +5416,6 @@ export const revertCmoUpdate = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Puts back the strategy a weekly review changed, from its report card: discards the version it wrote while that waits for approval, else approves the version before it again.
- */
-export const revertCmoUpdateForProject = <ThrowOnError extends boolean = false>(options: Options<RevertCmoUpdateForProjectData, ThrowOnError>): RequestResult<RevertCmoUpdateForProjectResponses, RevertCmoUpdateForProjectErrors, ThrowOnError> => (options.client ?? client).post<RevertCmoUpdateForProjectResponses, RevertCmoUpdateForProjectErrors, ThrowOnError>({
-    responseTransformer: revertCmoUpdateForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/updates/{id}/revert',
-    ...options
-});
-
-/**
  * Pauses one calendar entry's Social post: cancels it so it cannot go out. The approved plan stays as it is.
  */
 export const pauseCmoCalendarEntry = <ThrowOnError extends boolean = false>(options: Options<PauseCmoCalendarEntryData, ThrowOnError>): RequestResult<PauseCmoCalendarEntryResponses, PauseCmoCalendarEntryErrors, ThrowOnError> => (options.client ?? client).post<PauseCmoCalendarEntryResponses, PauseCmoCalendarEntryErrors, ThrowOnError>({
@@ -5490,29 +5425,11 @@ export const pauseCmoCalendarEntry = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Pauses one calendar entry's Social post: cancels it so it cannot go out. The approved plan stays as it is.
- */
-export const pauseCmoCalendarEntryForProject = <ThrowOnError extends boolean = false>(options: Options<PauseCmoCalendarEntryForProjectData, ThrowOnError>): RequestResult<PauseCmoCalendarEntryForProjectResponses, PauseCmoCalendarEntryForProjectErrors, ThrowOnError> => (options.client ?? client).post<PauseCmoCalendarEntryForProjectResponses, PauseCmoCalendarEntryForProjectErrors, ThrowOnError>({
-    responseTransformer: pauseCmoCalendarEntryForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/calendar/{id}/pause',
-    ...options
-});
-
-/**
  * The words of one approved calendar piece that lives in the Project's Files (an article, a page fix, ad copy, a newsletter issue).
  */
 export const getCmoCalendarEntryText = <ThrowOnError extends boolean = false>(options: Options<GetCmoCalendarEntryTextData, ThrowOnError>): RequestResult<GetCmoCalendarEntryTextResponses, GetCmoCalendarEntryTextErrors, ThrowOnError> => (options.client ?? client).get<GetCmoCalendarEntryTextResponses, GetCmoCalendarEntryTextErrors, ThrowOnError>({
     responseTransformer: getCmoCalendarEntryTextResponseTransformer,
     url: '/cmo/calendar/{id}/text',
-    ...options
-});
-
-/**
- * The words of one approved calendar piece that lives in the Project's Files (an article, a page fix, ad copy, a newsletter issue).
- */
-export const getCmoCalendarEntryTextForProject = <ThrowOnError extends boolean = false>(options: Options<GetCmoCalendarEntryTextForProjectData, ThrowOnError>): RequestResult<GetCmoCalendarEntryTextForProjectResponses, GetCmoCalendarEntryTextForProjectErrors, ThrowOnError> => (options.client ?? client).get<GetCmoCalendarEntryTextForProjectResponses, GetCmoCalendarEntryTextForProjectErrors, ThrowOnError>({
-    responseTransformer: getCmoCalendarEntryTextForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/calendar/{id}/text',
     ...options
 });
 
@@ -5530,19 +5447,6 @@ export const connectCmoMeasurement = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Starts connecting Google Analytics, Search Console or Shopify to Cuso so he can measure the funnel; the owner comes back to returnUrl on CMO.xyz.
- */
-export const connectCmoMeasurementForProject = <ThrowOnError extends boolean = false>(options: Options<ConnectCmoMeasurementForProjectData, ThrowOnError>): RequestResult<ConnectCmoMeasurementForProjectResponses, ConnectCmoMeasurementForProjectErrors, ThrowOnError> => (options.client ?? client).post<ConnectCmoMeasurementForProjectResponses, ConnectCmoMeasurementForProjectErrors, ThrowOnError>({
-    responseTransformer: connectCmoMeasurementForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/measurement/{provider}/connect',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Finishes connecting a measurement source once the owner is back from signing in.
  */
 export const finalizeCmoMeasurement = <ThrowOnError extends boolean = false>(options: Options<FinalizeCmoMeasurementData, ThrowOnError>): RequestResult<FinalizeCmoMeasurementResponses, FinalizeCmoMeasurementErrors, ThrowOnError> => (options.client ?? client).post<FinalizeCmoMeasurementResponses, FinalizeCmoMeasurementErrors, ThrowOnError>({
@@ -5552,33 +5456,11 @@ export const finalizeCmoMeasurement = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Finishes connecting a measurement source once the owner is back from signing in.
- */
-export const finalizeCmoMeasurementForProject = <ThrowOnError extends boolean = false>(options: Options<FinalizeCmoMeasurementForProjectData, ThrowOnError>): RequestResult<FinalizeCmoMeasurementForProjectResponses, FinalizeCmoMeasurementForProjectErrors, ThrowOnError> => (options.client ?? client).post<FinalizeCmoMeasurementForProjectResponses, FinalizeCmoMeasurementForProjectErrors, ThrowOnError>({
-    responseTransformer: finalizeCmoMeasurementForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/measurement/{provider}/finalize',
-    ...options
-});
-
-/**
  * Starts connecting the owner's Google Ads or Meta Ads account to Cuso's Project; the owner comes back to returnUrl on CMO.xyz.
  */
 export const connectCmoAds = <ThrowOnError extends boolean = false>(options: Options<ConnectCmoAdsData, ThrowOnError>): RequestResult<ConnectCmoAdsResponses, ConnectCmoAdsErrors, ThrowOnError> => (options.client ?? client).post<ConnectCmoAdsResponses, ConnectCmoAdsErrors, ThrowOnError>({
     responseTransformer: connectCmoAdsResponseTransformer,
     url: '/cmo/ads/{provider}/connect',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Starts connecting the owner's Google Ads or Meta Ads account to Cuso's Project; the owner comes back to returnUrl on CMO.xyz.
- */
-export const connectCmoAdsForProject = <ThrowOnError extends boolean = false>(options: Options<ConnectCmoAdsForProjectData, ThrowOnError>): RequestResult<ConnectCmoAdsForProjectResponses, ConnectCmoAdsForProjectErrors, ThrowOnError> => (options.client ?? client).post<ConnectCmoAdsForProjectResponses, ConnectCmoAdsForProjectErrors, ThrowOnError>({
-    responseTransformer: connectCmoAdsForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/ads/{provider}/connect',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -5600,33 +5482,11 @@ export const finalizeCmoAds = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * Finishes an ad connection once the owner is back: attaches its only ad account, or asks the owner to choose one.
- */
-export const finalizeCmoAdsForProject = <ThrowOnError extends boolean = false>(options: Options<FinalizeCmoAdsForProjectData, ThrowOnError>): RequestResult<FinalizeCmoAdsForProjectResponses, FinalizeCmoAdsForProjectErrors, ThrowOnError> => (options.client ?? client).post<FinalizeCmoAdsForProjectResponses, FinalizeCmoAdsForProjectErrors, ThrowOnError>({
-    responseTransformer: finalizeCmoAdsForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/ads/finalize',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * The ad accounts a connection reaches, for the owner to pick.
  */
 export const listCmoAdChoices = <ThrowOnError extends boolean = false>(options: Options<ListCmoAdChoicesData, ThrowOnError>): RequestResult<ListCmoAdChoicesResponses, ListCmoAdChoicesErrors, ThrowOnError> => (options.client ?? client).get<ListCmoAdChoicesResponses, ListCmoAdChoicesErrors, ThrowOnError>({
     responseTransformer: listCmoAdChoicesResponseTransformer,
     url: '/cmo/ads/connections/{adConnectionId}/choices',
-    ...options
-});
-
-/**
- * The ad accounts a connection reaches, for the owner to pick.
- */
-export const listCmoAdChoicesForProject = <ThrowOnError extends boolean = false>(options: Options<ListCmoAdChoicesForProjectData, ThrowOnError>): RequestResult<ListCmoAdChoicesForProjectResponses, ListCmoAdChoicesForProjectErrors, ThrowOnError> => (options.client ?? client).get<ListCmoAdChoicesForProjectResponses, ListCmoAdChoicesForProjectErrors, ThrowOnError>({
-    responseTransformer: listCmoAdChoicesForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/ads/connections/{adConnectionId}/choices',
     ...options
 });
 
@@ -5640,6 +5500,54 @@ export const chooseCmoAdAccount = <ThrowOnError extends boolean = false>(options
     headers: {
         'Content-Type': 'application/json',
         ...options?.headers
+    }
+});
+
+/**
+ * Every ad account on Cuso's Project with its campaigns and their numbers over the range.
+ */
+export const listCmoAdCampaigns = <ThrowOnError extends boolean = false>(options?: Options<ListCmoAdCampaignsData, ThrowOnError>): RequestResult<ListCmoAdCampaignsResponses, ListCmoAdCampaignsErrors, ThrowOnError> => (options?.client ?? client).get<ListCmoAdCampaignsResponses, ListCmoAdCampaignsErrors, ThrowOnError>({
+    responseTransformer: listCmoAdCampaignsResponseTransformer,
+    url: '/cmo/ads/campaigns',
+    ...options
+});
+
+/**
+ * Launches a search ad Cuso wrote: builds the Google Ads campaign from it with a share of the plan's daily ad budget, then starts it. Refused past the plan's ad budget.
+ */
+export const launchCmoSearchAd = <ThrowOnError extends boolean = false>(options?: Options<LaunchCmoSearchAdData, ThrowOnError>): RequestResult<LaunchCmoSearchAdResponses, LaunchCmoSearchAdErrors, ThrowOnError> => (options?.client ?? client).post<LaunchCmoSearchAdResponses, LaunchCmoSearchAdErrors, ThrowOnError>({
+    responseTransformer: launchCmoSearchAdResponseTransformer,
+    url: '/cmo/ads/launch',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Pauses or starts a campaign in Cuso's Project's ad account. Starting is refused past the plan's ad budget.
+ */
+export const setCmoAdCampaignStatus = <ThrowOnError extends boolean = false>(options?: Options<SetCmoAdCampaignStatusData, ThrowOnError>): RequestResult<SetCmoAdCampaignStatusResponses, SetCmoAdCampaignStatusErrors, ThrowOnError> => (options?.client ?? client).post<SetCmoAdCampaignStatusResponses, SetCmoAdCampaignStatusErrors, ThrowOnError>({
+    responseTransformer: setCmoAdCampaignStatusResponseTransformer,
+    url: '/cmo/ads/campaigns/status',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Starts connecting the owner's Google Ads or Meta Ads account to Cuso's Project; the owner comes back to returnUrl on CMO.xyz.
+ */
+export const connectCmoAdsForProject = <ThrowOnError extends boolean = false>(options: Options<ConnectCmoAdsForProjectData, ThrowOnError>): RequestResult<ConnectCmoAdsForProjectResponses, ConnectCmoAdsForProjectErrors, ThrowOnError> => (options.client ?? client).post<ConnectCmoAdsForProjectResponses, ConnectCmoAdsForProjectErrors, ThrowOnError>({
+    responseTransformer: connectCmoAdsForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/ads/{provider}/connect',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
     }
 });
 
@@ -5659,15 +5567,6 @@ export const chooseCmoAdAccountForProject = <ThrowOnError extends boolean = fals
 /**
  * Every ad account on Cuso's Project with its campaigns and their numbers over the range.
  */
-export const listCmoAdCampaigns = <ThrowOnError extends boolean = false>(options?: Options<ListCmoAdCampaignsData, ThrowOnError>): RequestResult<ListCmoAdCampaignsResponses, ListCmoAdCampaignsErrors, ThrowOnError> => (options?.client ?? client).get<ListCmoAdCampaignsResponses, ListCmoAdCampaignsErrors, ThrowOnError>({
-    responseTransformer: listCmoAdCampaignsResponseTransformer,
-    url: '/cmo/ads/campaigns',
-    ...options
-});
-
-/**
- * Every ad account on Cuso's Project with its campaigns and their numbers over the range.
- */
 export const listCmoAdCampaignsForProject = <ThrowOnError extends boolean = false>(options: Options<ListCmoAdCampaignsForProjectData, ThrowOnError>): RequestResult<ListCmoAdCampaignsForProjectResponses, ListCmoAdCampaignsForProjectErrors, ThrowOnError> => (options.client ?? client).get<ListCmoAdCampaignsForProjectResponses, ListCmoAdCampaignsForProjectErrors, ThrowOnError>({
     responseTransformer: listCmoAdCampaignsForProjectResponseTransformer,
     url: '/cmo/projects/{projectId}/ads/campaigns',
@@ -5675,15 +5574,37 @@ export const listCmoAdCampaignsForProject = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Launches a search ad Cuso wrote: builds the Google Ads campaign from it with a share of the plan's daily ad budget, then starts it. Refused past the plan's ad budget.
+ * Pauses or starts a campaign in Cuso's Project's ad account. Starting is refused past the plan's ad budget.
  */
-export const launchCmoSearchAd = <ThrowOnError extends boolean = false>(options?: Options<LaunchCmoSearchAdData, ThrowOnError>): RequestResult<LaunchCmoSearchAdResponses, LaunchCmoSearchAdErrors, ThrowOnError> => (options?.client ?? client).post<LaunchCmoSearchAdResponses, LaunchCmoSearchAdErrors, ThrowOnError>({
-    responseTransformer: launchCmoSearchAdResponseTransformer,
-    url: '/cmo/ads/launch',
+export const setCmoAdCampaignStatusForProject = <ThrowOnError extends boolean = false>(options: Options<SetCmoAdCampaignStatusForProjectData, ThrowOnError>): RequestResult<SetCmoAdCampaignStatusForProjectResponses, SetCmoAdCampaignStatusForProjectErrors, ThrowOnError> => (options.client ?? client).post<SetCmoAdCampaignStatusForProjectResponses, SetCmoAdCampaignStatusForProjectErrors, ThrowOnError>({
+    responseTransformer: setCmoAdCampaignStatusForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/ads/campaigns/status',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
+    }
+});
+
+/**
+ * The ad accounts a connection reaches, for the owner to pick.
+ */
+export const listCmoAdChoicesForProject = <ThrowOnError extends boolean = false>(options: Options<ListCmoAdChoicesForProjectData, ThrowOnError>): RequestResult<ListCmoAdChoicesForProjectResponses, ListCmoAdChoicesForProjectErrors, ThrowOnError> => (options.client ?? client).get<ListCmoAdChoicesForProjectResponses, ListCmoAdChoicesForProjectErrors, ThrowOnError>({
+    responseTransformer: listCmoAdChoicesForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/ads/connections/{adConnectionId}/choices',
+    ...options
+});
+
+/**
+ * Finishes an ad connection once the owner is back: attaches its only ad account, or asks the owner to choose one.
+ */
+export const finalizeCmoAdsForProject = <ThrowOnError extends boolean = false>(options: Options<FinalizeCmoAdsForProjectData, ThrowOnError>): RequestResult<FinalizeCmoAdsForProjectResponses, FinalizeCmoAdsForProjectErrors, ThrowOnError> => (options.client ?? client).post<FinalizeCmoAdsForProjectResponses, FinalizeCmoAdsForProjectErrors, ThrowOnError>({
+    responseTransformer: finalizeCmoAdsForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/ads/finalize',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
     }
 });
 
@@ -5701,29 +5622,108 @@ export const launchCmoSearchAdForProject = <ThrowOnError extends boolean = false
 });
 
 /**
- * Pauses or starts a campaign in Cuso's Project's ad account. Starting is refused past the plan's ad budget.
+ * Pauses one calendar entry's Social post: cancels it so it cannot go out. The approved plan stays as it is.
  */
-export const setCmoAdCampaignStatus = <ThrowOnError extends boolean = false>(options?: Options<SetCmoAdCampaignStatusData, ThrowOnError>): RequestResult<SetCmoAdCampaignStatusResponses, SetCmoAdCampaignStatusErrors, ThrowOnError> => (options?.client ?? client).post<SetCmoAdCampaignStatusResponses, SetCmoAdCampaignStatusErrors, ThrowOnError>({
-    responseTransformer: setCmoAdCampaignStatusResponseTransformer,
-    url: '/cmo/ads/campaigns/status',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers
-    }
+export const pauseCmoCalendarEntryForProject = <ThrowOnError extends boolean = false>(options: Options<PauseCmoCalendarEntryForProjectData, ThrowOnError>): RequestResult<PauseCmoCalendarEntryForProjectResponses, PauseCmoCalendarEntryForProjectErrors, ThrowOnError> => (options.client ?? client).post<PauseCmoCalendarEntryForProjectResponses, PauseCmoCalendarEntryForProjectErrors, ThrowOnError>({
+    responseTransformer: pauseCmoCalendarEntryForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/calendar/{id}/pause',
+    ...options
 });
 
 /**
- * Pauses or starts a campaign in Cuso's Project's ad account. Starting is refused past the plan's ad budget.
+ * The words of one approved calendar piece that lives in the Project's Files (an article, a page fix, ad copy, a newsletter issue).
  */
-export const setCmoAdCampaignStatusForProject = <ThrowOnError extends boolean = false>(options: Options<SetCmoAdCampaignStatusForProjectData, ThrowOnError>): RequestResult<SetCmoAdCampaignStatusForProjectResponses, SetCmoAdCampaignStatusForProjectErrors, ThrowOnError> => (options.client ?? client).post<SetCmoAdCampaignStatusForProjectResponses, SetCmoAdCampaignStatusForProjectErrors, ThrowOnError>({
-    responseTransformer: setCmoAdCampaignStatusForProjectResponseTransformer,
-    url: '/cmo/projects/{projectId}/ads/campaigns/status',
+export const getCmoCalendarEntryTextForProject = <ThrowOnError extends boolean = false>(options: Options<GetCmoCalendarEntryTextForProjectData, ThrowOnError>): RequestResult<GetCmoCalendarEntryTextForProjectResponses, GetCmoCalendarEntryTextForProjectErrors, ThrowOnError> => (options.client ?? client).get<GetCmoCalendarEntryTextForProjectResponses, GetCmoCalendarEntryTextForProjectErrors, ThrowOnError>({
+    responseTransformer: getCmoCalendarEntryTextForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/calendar/{id}/text',
+    ...options
+});
+
+export const getCmoOverviewForProject = <ThrowOnError extends boolean = false>(options: Options<GetCmoOverviewForProjectData, ThrowOnError>): RequestResult<GetCmoOverviewForProjectResponses, GetCmoOverviewForProjectErrors, ThrowOnError> => (options.client ?? client).get<GetCmoOverviewForProjectResponses, GetCmoOverviewForProjectErrors, ThrowOnError>({
+    responseTransformer: getCmoOverviewForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}',
+    ...options
+});
+
+/**
+ * Starts connecting Google Analytics, Search Console or Shopify to Cuso so he can measure the funnel; the owner comes back to returnUrl on CMO.xyz.
+ */
+export const connectCmoMeasurementForProject = <ThrowOnError extends boolean = false>(options: Options<ConnectCmoMeasurementForProjectData, ThrowOnError>): RequestResult<ConnectCmoMeasurementForProjectResponses, ConnectCmoMeasurementForProjectErrors, ThrowOnError> => (options.client ?? client).post<ConnectCmoMeasurementForProjectResponses, ConnectCmoMeasurementForProjectErrors, ThrowOnError>({
+    responseTransformer: connectCmoMeasurementForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/measurement/{provider}/connect',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Finishes connecting a measurement source once the owner is back from signing in.
+ */
+export const finalizeCmoMeasurementForProject = <ThrowOnError extends boolean = false>(options: Options<FinalizeCmoMeasurementForProjectData, ThrowOnError>): RequestResult<FinalizeCmoMeasurementForProjectResponses, FinalizeCmoMeasurementForProjectErrors, ThrowOnError> => (options.client ?? client).post<FinalizeCmoMeasurementForProjectResponses, FinalizeCmoMeasurementForProjectErrors, ThrowOnError>({
+    responseTransformer: finalizeCmoMeasurementForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/measurement/{provider}/finalize',
+    ...options
+});
+
+/**
+ * Starts Cuso's first look at the business again after it failed or got stuck.
+ */
+export const retryCmoOnboardingForProject = <ThrowOnError extends boolean = false>(options: Options<RetryCmoOnboardingForProjectData, ThrowOnError>): RequestResult<RetryCmoOnboardingForProjectResponses, RetryCmoOnboardingForProjectErrors, ThrowOnError> => (options.client ?? client).post<RetryCmoOnboardingForProjectResponses, RetryCmoOnboardingForProjectErrors, ThrowOnError>({
+    responseTransformer: retryCmoOnboardingForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/onboarding/retry',
+    ...options
+});
+
+/**
+ * Archives the Cuso the caller works with and cancels his unsent posts, so they can hire Cuso for another website.
+ */
+export const startCmoOverForProject = <ThrowOnError extends boolean = false>(options: Options<StartCmoOverForProjectData, ThrowOnError>): RequestResult<StartCmoOverForProjectResponses, StartCmoOverForProjectErrors, ThrowOnError> => (options.client ?? client).post<StartCmoOverForProjectResponses, StartCmoOverForProjectErrors, ThrowOnError>({
+    responseTransformer: startCmoOverForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/start-over',
+    ...options
+});
+
+/**
+ * The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it. Zero leaves paid ads out.
+ */
+export const setCmoAdBudgetForProject = <ThrowOnError extends boolean = false>(options: Options<SetCmoAdBudgetForProjectData, ThrowOnError>): RequestResult<SetCmoAdBudgetForProjectResponses, SetCmoAdBudgetForProjectErrors, ThrowOnError> => (options.client ?? client).post<SetCmoAdBudgetForProjectResponses, SetCmoAdBudgetForProjectErrors, ThrowOnError>({
+    responseTransformer: setCmoAdBudgetForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/strategy/ads',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Cuso changes the plan where the owner's answers say an assumption was wrong.
+ */
+export const applyCmoPlanAnswersForProject = <ThrowOnError extends boolean = false>(options: Options<ApplyCmoPlanAnswersForProjectData, ThrowOnError>): RequestResult<ApplyCmoPlanAnswersForProjectResponses, ApplyCmoPlanAnswersForProjectErrors, ThrowOnError> => (options.client ?? client).post<ApplyCmoPlanAnswersForProjectResponses, ApplyCmoPlanAnswersForProjectErrors, ThrowOnError>({
+    responseTransformer: applyCmoPlanAnswersForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/strategy/answers/apply',
+    ...options
+});
+
+export const requestCmoStrategyForProject = <ThrowOnError extends boolean = false>(options: Options<RequestCmoStrategyForProjectData, ThrowOnError>): RequestResult<RequestCmoStrategyForProjectResponses, RequestCmoStrategyForProjectErrors, ThrowOnError> => (options.client ?? client).post<RequestCmoStrategyForProjectResponses, RequestCmoStrategyForProjectErrors, ThrowOnError>({
+    responseTransformer: requestCmoStrategyForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/strategy',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Puts back the strategy a weekly review changed, from its report card: discards the version it wrote while that waits for approval, else approves the version before it again.
+ */
+export const revertCmoUpdateForProject = <ThrowOnError extends boolean = false>(options: Options<RevertCmoUpdateForProjectData, ThrowOnError>): RequestResult<RevertCmoUpdateForProjectResponses, RevertCmoUpdateForProjectErrors, ThrowOnError> => (options.client ?? client).post<RevertCmoUpdateForProjectResponses, RevertCmoUpdateForProjectErrors, ThrowOnError>({
+    responseTransformer: revertCmoUpdateForProjectResponseTransformer,
+    url: '/cmo/projects/{projectId}/updates/{id}/revert',
+    ...options
 });
 
 export const getSokoBotsByIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetSokoBotsByIdApiKeysData, ThrowOnError>): RequestResult<GetSokoBotsByIdApiKeysResponses, GetSokoBotsByIdApiKeysErrors, ThrowOnError> => (options.client ?? client).get<GetSokoBotsByIdApiKeysResponses, GetSokoBotsByIdApiKeysErrors, ThrowOnError>({

@@ -4503,12 +4503,6 @@ export const getCmoOverviewResponseTransformer = async (data: any): Promise<GetC
     return data;
 };
 
-export const getCmoOverviewForProjectResponseTransformer = async (data: any): Promise<GetCmoOverviewForProjectResponse> => {
-    data.data = cmoOverviewSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const startCmoOnboardingResponseTransformer = async (data: any): Promise<StartCmoOnboardingResponse> => {
     data.data = cmoOverviewSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
@@ -4520,17 +4514,7 @@ export const retryCmoOnboardingResponseTransformer = async (data: any): Promise<
     return data;
 };
 
-export const retryCmoOnboardingForProjectResponseTransformer = async (data: any): Promise<RetryCmoOnboardingForProjectResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const startCmoOverResponseTransformer = async (data: any): Promise<StartCmoOverResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const startCmoOverForProjectResponseTransformer = async (data: any): Promise<StartCmoOverForProjectResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -4540,17 +4524,7 @@ export const requestCmoStrategyResponseTransformer = async (data: any): Promise<
     return data;
 };
 
-export const requestCmoStrategyForProjectResponseTransformer = async (data: any): Promise<RequestCmoStrategyForProjectResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const setCmoAdBudgetResponseTransformer = async (data: any): Promise<SetCmoAdBudgetResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const setCmoAdBudgetForProjectResponseTransformer = async (data: any): Promise<SetCmoAdBudgetForProjectResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -4560,18 +4534,7 @@ export const applyCmoPlanAnswersResponseTransformer = async (data: any): Promise
     return data;
 };
 
-export const applyCmoPlanAnswersForProjectResponseTransformer = async (data: any): Promise<ApplyCmoPlanAnswersForProjectResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const revertCmoUpdateResponseTransformer = async (data: any): Promise<RevertCmoUpdateResponse> => {
-    data.data = cmoOverviewSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const revertCmoUpdateForProjectResponseTransformer = async (data: any): Promise<RevertCmoUpdateForProjectResponse> => {
     data.data = cmoOverviewSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
@@ -4583,28 +4546,12 @@ export const pauseCmoCalendarEntryResponseTransformer = async (data: any): Promi
     return data;
 };
 
-export const pauseCmoCalendarEntryForProjectResponseTransformer = async (data: any): Promise<PauseCmoCalendarEntryForProjectResponse> => {
-    data.data = cmoOverviewSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const getCmoCalendarEntryTextResponseTransformer = async (data: any): Promise<GetCmoCalendarEntryTextResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
 
-export const getCmoCalendarEntryTextForProjectResponseTransformer = async (data: any): Promise<GetCmoCalendarEntryTextForProjectResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const connectCmoMeasurementResponseTransformer = async (data: any): Promise<ConnectCmoMeasurementResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const connectCmoMeasurementForProjectResponseTransformer = async (data: any): Promise<ConnectCmoMeasurementForProjectResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -4615,18 +4562,7 @@ export const finalizeCmoMeasurementResponseTransformer = async (data: any): Prom
     return data;
 };
 
-export const finalizeCmoMeasurementForProjectResponseTransformer = async (data: any): Promise<FinalizeCmoMeasurementForProjectResponse> => {
-    data.data = cmoOverviewSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const connectCmoAdsResponseTransformer = async (data: any): Promise<ConnectCmoAdsResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const connectCmoAdsForProjectResponseTransformer = async (data: any): Promise<ConnectCmoAdsForProjectResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -4636,17 +4572,7 @@ export const finalizeCmoAdsResponseTransformer = async (data: any): Promise<Fina
     return data;
 };
 
-export const finalizeCmoAdsForProjectResponseTransformer = async (data: any): Promise<FinalizeCmoAdsForProjectResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const listCmoAdChoicesResponseTransformer = async (data: any): Promise<ListCmoAdChoicesResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const listCmoAdChoicesForProjectResponseTransformer = async (data: any): Promise<ListCmoAdChoicesForProjectResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -4657,29 +4583,12 @@ export const chooseCmoAdAccountResponseTransformer = async (data: any): Promise<
     return data;
 };
 
-export const chooseCmoAdAccountForProjectResponseTransformer = async (data: any): Promise<ChooseCmoAdAccountForProjectResponse> => {
-    data.data = cmoOverviewSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const listCmoAdCampaignsResponseTransformer = async (data: any): Promise<ListCmoAdCampaignsResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
 
-export const listCmoAdCampaignsForProjectResponseTransformer = async (data: any): Promise<ListCmoAdCampaignsForProjectResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const launchCmoSearchAdResponseTransformer = async (data: any): Promise<LaunchCmoSearchAdResponse> => {
-    data.data = cmoOverviewSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const launchCmoSearchAdForProjectResponseTransformer = async (data: any): Promise<LaunchCmoSearchAdForProjectResponse> => {
     data.data = cmoOverviewSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
@@ -4691,7 +4600,98 @@ export const setCmoAdCampaignStatusResponseTransformer = async (data: any): Prom
     return data;
 };
 
+export const connectCmoAdsForProjectResponseTransformer = async (data: any): Promise<ConnectCmoAdsForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const chooseCmoAdAccountForProjectResponseTransformer = async (data: any): Promise<ChooseCmoAdAccountForProjectResponse> => {
+    data.data = cmoOverviewSchemaResponseTransformer(data.data);
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const listCmoAdCampaignsForProjectResponseTransformer = async (data: any): Promise<ListCmoAdCampaignsForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
 export const setCmoAdCampaignStatusForProjectResponseTransformer = async (data: any): Promise<SetCmoAdCampaignStatusForProjectResponse> => {
+    data.data = cmoOverviewSchemaResponseTransformer(data.data);
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const listCmoAdChoicesForProjectResponseTransformer = async (data: any): Promise<ListCmoAdChoicesForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const finalizeCmoAdsForProjectResponseTransformer = async (data: any): Promise<FinalizeCmoAdsForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const launchCmoSearchAdForProjectResponseTransformer = async (data: any): Promise<LaunchCmoSearchAdForProjectResponse> => {
+    data.data = cmoOverviewSchemaResponseTransformer(data.data);
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const pauseCmoCalendarEntryForProjectResponseTransformer = async (data: any): Promise<PauseCmoCalendarEntryForProjectResponse> => {
+    data.data = cmoOverviewSchemaResponseTransformer(data.data);
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const getCmoCalendarEntryTextForProjectResponseTransformer = async (data: any): Promise<GetCmoCalendarEntryTextForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const getCmoOverviewForProjectResponseTransformer = async (data: any): Promise<GetCmoOverviewForProjectResponse> => {
+    data.data = cmoOverviewSchemaResponseTransformer(data.data);
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const connectCmoMeasurementForProjectResponseTransformer = async (data: any): Promise<ConnectCmoMeasurementForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const finalizeCmoMeasurementForProjectResponseTransformer = async (data: any): Promise<FinalizeCmoMeasurementForProjectResponse> => {
+    data.data = cmoOverviewSchemaResponseTransformer(data.data);
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const retryCmoOnboardingForProjectResponseTransformer = async (data: any): Promise<RetryCmoOnboardingForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const startCmoOverForProjectResponseTransformer = async (data: any): Promise<StartCmoOverForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const setCmoAdBudgetForProjectResponseTransformer = async (data: any): Promise<SetCmoAdBudgetForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const applyCmoPlanAnswersForProjectResponseTransformer = async (data: any): Promise<ApplyCmoPlanAnswersForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const requestCmoStrategyForProjectResponseTransformer = async (data: any): Promise<RequestCmoStrategyForProjectResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const revertCmoUpdateForProjectResponseTransformer = async (data: any): Promise<RevertCmoUpdateForProjectResponse> => {
     data.data = cmoOverviewSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;

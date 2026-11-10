@@ -177,7 +177,7 @@ export async function revertCmoUpdate(
   input: CusoTarget & {
     updateId: string;
   },
-): Promise<void> {
+): Promise<string> {
   const cuso = await requireCuso(input);
   const message = await prisma.chatRoomMessage.findFirst({
     where: { id: input.updateId, ...cmoReportMessageWhere(cuso.sokoBotId) },
@@ -187,7 +187,7 @@ export async function revertCmoUpdate(
   if (!message || !target?.previousVersionId || !target.versionId) {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
-  if (target.revertedAt) return;
+  if (target.revertedAt) return cuso.projectId;
   const written = await prisma.marketingStrategy.findFirst({
     where: { id: target.versionId, projectId: cuso.projectId },
     select: { approvedAt: true },
@@ -221,4 +221,5 @@ export async function revertCmoUpdate(
       }),
     },
   });
+  return cuso.projectId;
 }

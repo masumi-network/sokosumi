@@ -5,7 +5,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   cmoOverviewSchema,
-  cmoProjectParamsSchema,
   cmoReportIdParamsSchema,
 } from "@/schemas/cmo.schema";
 import type { CusoTarget } from "@/services/cmo-cuso.service";
@@ -13,7 +12,7 @@ import { revertCmoUpdate } from "@/services/cmo-reports.service";
 
 import { requireOverview, rethrow } from "../../../helpers";
 
-const config = {
+export const config = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -34,20 +33,11 @@ const route = createRoute({
   operationId: "revertCmoUpdate",
 });
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
-  path: "/projects/{projectId}/updates/{id}/revert",
-  operationId: "revertCmoUpdateForProject",
-  request: {
-    ...config.request,
-    params: cmoProjectParamsSchema.extend(cmoReportIdParamsSchema.shape),
-  },
-});
-
-async function revert(target: CusoTarget, updateId: string) {
-  await revertCmoUpdate({ ...target, updateId }).catch(rethrow);
-  return requireOverview(target);
+export async function revert(target: CusoTarget, updateId: string) {
+  const projectId = await revertCmoUpdate({ ...target, updateId }).catch(
+    rethrow,
+  );
+  return requireOverview({ userId: target.userId, projectId });
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -55,11 +45,5 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     return ok(c, await revert({ userId }, id));
-  });
-
-  app.openapi(projectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId, id } = c.req.valid("param");
-    return ok(c, await revert({ userId, projectId }, id));
   });
 }

@@ -5,7 +5,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   cmoAdBudgetRequestSchema,
-  cmoProjectParamsSchema,
   cmoTurnStartedSchema,
 } from "@/schemas/cmo.schema";
 import type { CusoTarget } from "@/services/cmo-cuso.service";
@@ -13,7 +12,7 @@ import { setCmoAdBudget } from "@/services/cmo-strategy.service";
 
 import { rethrow } from "../../helpers";
 
-const config = {
+export const config = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -38,15 +37,7 @@ const route = createRoute({
   operationId: "setCmoAdBudget",
 });
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
-  path: "/projects/{projectId}/strategy/ads",
-  operationId: "setCmoAdBudgetForProject",
-  request: { ...config.request, params: cmoProjectParamsSchema },
-});
-
-async function setBudget(
+export async function setBudget(
   target: CusoTarget,
   budget: { monthly: number; currency: string },
 ) {
@@ -58,14 +49,5 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     return created(c, await setBudget({ userId }, c.req.valid("json")));
-  });
-
-  app.openapi(projectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    return created(
-      c,
-      await setBudget({ userId, projectId }, c.req.valid("json")),
-    );
   });
 }

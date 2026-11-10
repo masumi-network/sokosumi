@@ -4,7 +4,6 @@ import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
-  cmoProjectParamsSchema,
   cmoStrategyRequestSchema,
   cmoTurnStartedSchema,
 } from "@/schemas/cmo.schema";
@@ -13,7 +12,7 @@ import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 
 import { rethrow } from "../helpers";
 
-const config = {
+export const config = {
   method: "post" as const,
   tags: ["CMO"],
   request: {
@@ -39,15 +38,7 @@ const route = createRoute({
   operationId: "requestCmoStrategy",
 });
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
-  path: "/projects/{projectId}/strategy",
-  operationId: "requestCmoStrategyForProject",
-  request: { ...config.request, params: cmoProjectParamsSchema },
-});
-
-async function request(target: CusoTarget, note: string | undefined) {
+export async function request(target: CusoTarget, note: string | undefined) {
   const started = await requestCmoStrategy({ ...target, note }).catch(rethrow);
   return cmoTurnStartedSchema.parse(started);
 }
@@ -57,12 +48,5 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { note } = c.req.valid("json");
     return created(c, await request({ userId }, note));
-  });
-
-  app.openapi(projectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = c.req.valid("param");
-    const { note } = c.req.valid("json");
-    return created(c, await request({ userId, projectId }, note));
   });
 }

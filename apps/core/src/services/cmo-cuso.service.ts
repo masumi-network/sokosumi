@@ -158,7 +158,8 @@ export async function findCusoForProject(
   where: { userId: string; projectId: string },
   db: Prisma.TransactionClient = prisma,
 ): Promise<Cuso | null> {
-  await requireProjectAccessForUser(where, db);
+  const { organizationId } = await requireProjectAccessForUser(where, db);
+  if (!organizationId) return null;
   const bot = await db.sokoBot.findFirst({
     where: { ...LIVE_CUSO_WHERE, projectId: where.projectId },
     select: CUSO_SELECT,

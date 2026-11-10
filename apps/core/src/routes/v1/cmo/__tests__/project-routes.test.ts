@@ -15,16 +15,18 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
  * not belong to and a Project of theirs without a Cuso. org-1 is preferred.
  */
 const world = vi.hoisted(() => {
-  const projects: Record<string, { organizationId: string }> = {
+  const projects: Record<string, { organizationId: string | null }> = {
     "aaaaaaaa-aaaa-4aaa-8aaa-000000000001": { organizationId: "org-1" },
     "aaaaaaaa-aaaa-4aaa-8aaa-000000000002": { organizationId: "org-2" },
     "aaaaaaaa-aaaa-4aaa-8aaa-000000000003": { organizationId: "org-3" },
     "aaaaaaaa-aaaa-4aaa-8aaa-000000000004": { organizationId: "org-1" },
+    "aaaaaaaa-aaaa-4aaa-8aaa-000000000005": { organizationId: null },
   };
   const bots: Record<string, string> = {
     "aaaaaaaa-aaaa-4aaa-8aaa-000000000001": "bot-1",
     "aaaaaaaa-aaaa-4aaa-8aaa-000000000002": "bot-2",
     "aaaaaaaa-aaaa-4aaa-8aaa-000000000003": "bot-3",
+    "aaaaaaaa-aaaa-4aaa-8aaa-000000000005": "bot-5",
   };
   return { projects, bots, memberships: new Set<string>() };
 });
@@ -59,7 +61,7 @@ vi.mock("@/lib/db/prisma", () => ({
               id: where.id,
               workspaceId: `ws-${project.organizationId}`,
               workspace: {
-                userId: null,
+                userId: project.organizationId ? null : "user-1",
                 organizationId: project.organizationId,
               },
             }
@@ -122,6 +124,7 @@ const PREFERRED = "aaaaaaaa-aaaa-4aaa-8aaa-000000000001";
 const OTHER = "aaaaaaaa-aaaa-4aaa-8aaa-000000000002";
 const STRANGER = "aaaaaaaa-aaaa-4aaa-8aaa-000000000003";
 const NO_CUSO = "aaaaaaaa-aaaa-4aaa-8aaa-000000000004";
+const PERSONAL = "aaaaaaaa-aaaa-4aaa-8aaa-000000000005";
 const UNKNOWN = "aaaaaaaa-aaaa-4aaa-8aaa-000000000009";
 
 function createApp() {
@@ -193,6 +196,13 @@ describe("CMO routes naming a Cuso by his Project", () => {
   it("answers 404 for a Project without a Cuso", async () => {
     const { status } = await readPiece(
       `/projects/${NO_CUSO}/calendar/article/text`,
+    );
+    expect(status).toBe(404);
+  });
+
+  it("answers 404 for a personal Project even when it has a matching bot", async () => {
+    const { status } = await readPiece(
+      `/projects/${PERSONAL}/calendar/article/text`,
     );
     expect(status).toBe(404);
   });

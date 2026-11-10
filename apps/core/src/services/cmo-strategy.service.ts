@@ -106,9 +106,8 @@ export async function setCmoAdBudget(
     throw new CmoConflictError("Cuso has not written the strategy yet");
   }
   const currency = input.currency.toUpperCase();
-  const started = await requestCmoStrategy({
+  const started = await requestStrategyForCuso(cuso, {
     userId: input.userId,
-    projectId: input.projectId,
     note:
       input.monthly > 0
         ? `My ad budget is ${currency} ${input.monthly} a month. Plan the ads around exactly that amount and say what it should bring.`
@@ -148,7 +147,13 @@ export async function requestCmoStrategy(
     note?: string;
   },
 ): Promise<{ turnId: string }> {
-  const cuso = await requireCuso(input);
+  return requestStrategyForCuso(await requireCuso(input), input);
+}
+
+async function requestStrategyForCuso(
+  cuso: Cuso,
+  input: { userId: string; note?: string },
+): Promise<{ turnId: string }> {
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
@@ -569,7 +574,7 @@ export async function applyCmoPlanAnswers(
     parseMarketingPlan(newest.plan)?.questions ?? [],
   );
   if (!note) throw new CmoConflictError("Your answers confirm the plan");
-  return requestCmoStrategy({ ...target, note });
+  return requestStrategyForCuso(cuso, { userId: target.userId, note });
 }
 
 /**

@@ -5,7 +5,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   cmoOverviewSchema,
-  cmoProjectParamsSchema,
   cmoUpdateIdParamsSchema,
 } from "@/schemas/cmo.schema";
 import type { CusoTarget } from "@/services/cmo-cuso.service";
@@ -13,7 +12,7 @@ import { pauseCmoCalendarEntry } from "@/services/cmo-strategy.service";
 
 import { requireOverview, rethrow } from "../../../helpers";
 
-const config = {
+export const config = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -36,18 +35,7 @@ const route = createRoute({
   operationId: "pauseCmoCalendarEntry",
 });
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
-  path: "/projects/{projectId}/calendar/{id}/pause",
-  operationId: "pauseCmoCalendarEntryForProject",
-  request: {
-    ...config.request,
-    params: cmoProjectParamsSchema.extend(cmoUpdateIdParamsSchema.shape),
-  },
-});
-
-async function pause(target: CusoTarget, entryId: string) {
+export async function pause(target: CusoTarget, entryId: string) {
   await pauseCmoCalendarEntry({ ...target, entryId }).catch(rethrow);
   return requireOverview(target);
 }
@@ -57,11 +45,5 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     return ok(c, await pause({ userId }, id));
-  });
-
-  app.openapi(projectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId, id } = c.req.valid("param");
-    return ok(c, await pause({ userId, projectId }, id));
   });
 }

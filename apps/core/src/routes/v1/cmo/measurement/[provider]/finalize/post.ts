@@ -3,17 +3,13 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import {
-  cmoMeasurementSchema,
-  cmoOverviewSchema,
-  cmoProjectParamsSchema,
-} from "@/schemas/cmo.schema";
+import { cmoMeasurementSchema, cmoOverviewSchema } from "@/schemas/cmo.schema";
 import type { CusoTarget } from "@/services/cmo-cuso.service";
 import { finalizeCmoMeasurement } from "@/services/cmo-measurement.service";
 
 import { requireOverview, rethrow } from "../../../helpers";
 
-const config = {
+export const config = {
   method: "post" as const,
   tags: ["CMO"],
   description:
@@ -36,20 +32,7 @@ const route = createRoute({
   operationId: "finalizeCmoMeasurement",
 });
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
-  path: "/projects/{projectId}/measurement/{provider}/finalize",
-  operationId: "finalizeCmoMeasurementForProject",
-  request: {
-    ...config.request,
-    params: cmoProjectParamsSchema.extend({
-      provider: cmoMeasurementSchema.shape.provider,
-    }),
-  },
-});
-
-async function finalize(target: CusoTarget, provider: string) {
+export async function finalize(target: CusoTarget, provider: string) {
   await finalizeCmoMeasurement({ ...target, provider }).catch(rethrow);
   return requireOverview(target);
 }
@@ -59,11 +42,5 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { provider } = c.req.valid("param");
     return ok(c, await finalize({ userId }, provider));
-  });
-
-  app.openapi(projectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId, provider } = c.req.valid("param");
-    return ok(c, await finalize({ userId, projectId }, provider));
   });
 }
