@@ -26,8 +26,38 @@ const states = (workspace = seoTestWorkspace()) =>
 
 describe("SEO first-run setup", () => {
   it("gives the primary button to the first step that is not done", () => {
-    expect(states()).toEqual(["page:done", "connect:next", "check:open"]);
-    expect(seoSetup(seoTestWorkspace())).toMatchObject({ done: 1, total: 3 });
+    expect(states()).toEqual([
+      "page:done",
+      "connect:next",
+      "sync:waiting",
+      "check:open",
+    ]);
+    expect(seoSetup(seoTestWorkspace())).toMatchObject({ done: 1, total: 4 });
+  });
+
+  it("gives the sync its own step once the account is connected", () => {
+    const setup = seoSetup(seoTestWorkspace(), undefined, "connected");
+    expect(setup?.steps.map((step) => `${step.kind}:${step.state}`)).toEqual([
+      "page:done",
+      "connect:done",
+      "sync:next",
+      "check:open",
+    ]);
+    expect(setup).toMatchObject({ done: 2, total: 4, next: "sync" });
+  });
+
+  it("does not call the account connected or missing before its state is read", () => {
+    const workspace = seoTestWorkspace();
+    expect(seoSetup(workspace, undefined, "checking")).toMatchObject({
+      checking: true,
+      next: "connect",
+    });
+    expect(seoSetup(workspace, undefined, "not_connected")?.checking).toBe(
+      false,
+    );
+    // Saved statistics already prove the account.
+    workspace.metrics = [SEARCH_METRIC];
+    expect(seoSetup(workspace, undefined, "checking")?.checking).toBe(false);
   });
 
   it("waits for a page before the other steps, without calling them unavailable", () => {
@@ -39,9 +69,10 @@ describe("SEO first-run setup", () => {
     expect(states(workspace)).toEqual([
       "page:next",
       "connect:waiting",
+      "sync:waiting",
       "check:waiting",
     ]);
-    expect(seoSetup(workspace)).toMatchObject({ done: 0, total: 3 });
+    expect(seoSetup(workspace)).toMatchObject({ done: 0, total: 4 });
   });
 
   it("leaves a step this workspace cannot do out of the progress count", () => {
@@ -50,6 +81,7 @@ describe("SEO first-run setup", () => {
     expect(states(workspace)).toEqual([
       "page:done",
       "connect:unavailable",
+      "sync:unavailable",
       "check:next",
     ]);
     expect(seoSetup(workspace)).toMatchObject({
@@ -59,16 +91,16 @@ describe("SEO first-run setup", () => {
     });
   });
 
-  it("skips the connect step in a workspace that cannot connect Google", () => {
+  it("skips the connect and sync steps in a workspace that cannot connect Google", () => {
     const workspace = seoTestWorkspace();
-    expect(seoSetup(workspace, undefined, false)).toMatchObject({
+    expect(seoSetup(workspace, undefined, "unavailable")).toMatchObject({
       done: 1,
       total: 2,
       next: "check",
     });
     // Nothing is left to do, so the card ends and the notice explains.
     workspace.availableActions.canRequestAnalysis = false;
-    expect(seoSetup(workspace, undefined, false)).toBeNull();
+    expect(seoSetup(workspace, undefined, "unavailable")).toBeNull();
   });
 
   it("ends when no step is left that the reader can do", () => {
@@ -91,6 +123,7 @@ describe("SEO first-run setup", () => {
     expect(states(workspace)).toEqual([
       "page:done",
       "connect:done",
+      "sync:done",
       "check:next",
     ]);
   });
@@ -126,11 +159,11 @@ describe("SEO first-run setup", () => {
       createdAt: new Date(date),
     });
     workspace.analyses = [analysis];
-    expect(states(workspace)?.[2]).toBe("check:running");
+    expect(states(workspace)?.[3]).toBe("check:running");
     expect(seoSetup(workspace)?.failed).toBe(false);
     // A check that Core accepted and has not started is in flight too.
     workspace.analyses = [{ ...analysis, status: "requested" }];
-    expect(states(workspace)?.[2]).toBe("check:running");
+    expect(states(workspace)?.[3]).toBe("check:running");
     // A newer failed check is no news while another check runs.
     workspace.analyses = [failedAt("2026-01-03T12:00:00Z"), analysis];
     expect(seoSetup(workspace)).toMatchObject({
@@ -146,6 +179,7 @@ describe("SEO first-run setup", () => {
     expect(states(workspace)).toEqual([
       "page:done",
       "connect:open",
+      "sync:waiting",
       "check:next",
     ]);
     expect(seoSetup(workspace)?.failed).toBe(true);

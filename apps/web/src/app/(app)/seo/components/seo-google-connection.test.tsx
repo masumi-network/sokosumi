@@ -30,7 +30,10 @@ type Status =
   | "failed"
   | "unavailable";
 
-function show(statuses: { search_console: Status; ga4: Status }) {
+function show(
+  statuses: { search_console: Status; ga4: Status },
+  { ownSyncStep = false } = {},
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
@@ -60,7 +63,10 @@ function show(statuses: { search_console: Status; ga4: Status }) {
   render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider locale="en" messages={messages}>
-        <SeoGoogleConnection onConnected={vi.fn()} onSync={onSync} />
+        <SeoGoogleConnection
+          onConnected={vi.fn()}
+          onSync={ownSyncStep ? undefined : onSync}
+        />
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -99,6 +105,44 @@ describe("SEO Google connection", () => {
     show({ search_console: "connected", ga4: "connected" });
     await screen.findByText("Google Analytics connected");
     expect(screen.queryByText(copy.analyticsOff)).toBeNull();
+    // One sync for the step and one line per account, in this order.
+    expect(
+      screen.getAllByRole("button").map((button) => button.textContent),
+    ).toEqual([
+      "Sync statistics",
+      "Search Console connected",
+      "Google Analytics connected",
+    ]);
+  });
+
+  it("keeps the Google Analytics control mounted when the Search Console status changes", async () => {
+    const statuses = {
+      search_console: "connected",
+      ga4: "connected",
+    } satisfies Record<string, Status>;
+    show(statuses);
+    const analytics = await screen.findByRole("button", {
+      name: "Google Analytics connected",
+    });
+    // A switch of the Search Console account that fails leaves it not connected.
+    (statuses as { search_console: Status }).search_console = "not_connected";
+    await clients.at(-1)?.invalidateQueries();
+    await screen.findByRole("button", { name: "Connect Search Console" });
+    // The same node: a remount would end an approval in flight and drop its error text.
+    expect(
+      screen.getByRole("button", { name: "Google Analytics connected" }),
+    ).toBe(analytics);
+  });
+
+  it("leaves the sync to a view that has its own sync step", async () => {
+    show(
+      { search_console: "connected", ga4: "connected" },
+      { ownSyncStep: true },
+    );
+    await screen.findByText("Google Analytics connected");
+    expect(
+      screen.queryByRole("button", { name: "Sync statistics" }),
+    ).toBeNull();
   });
 
   it("keeps the repair of a Google Analytics account in reach before Search Console is connected", async () => {

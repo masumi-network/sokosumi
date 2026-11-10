@@ -141,7 +141,11 @@ describe("SEO audit first run", () => {
     network(workspace);
     renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
-    expect(within(setup).getByText("Next: Connect Google")).toBeVisible();
+    // The account's state is not read yet: the card names no next step and no state.
+    expect(within(setup).queryByText(/^Next:/)).toBeNull();
+    expect(
+      within(setup).getByRole("heading", { name: "Google account" }),
+    ).toBeVisible();
     await within(setup).findByRole("button", { name: "Connect Google" });
     // Still so with the status read: the account is not connected.
     expect(within(setup).getByText("Next: Connect Google")).toBeVisible();
@@ -172,15 +176,26 @@ describe("SEO audit first run", () => {
     const setup = screen.getByTestId("seo-setup");
     await within(setup).findByText("Search Console connected");
     expect(primaryButtons(setup)).toEqual(["Sync statistics"]);
-    // The account is there, so the step asks for the sync and not for the account.
     expect(within(setup).getByText("Next: Sync statistics")).toBeVisible();
+    expect(within(setup).getByText("2 of 4 done")).toBeVisible();
+    const [, connect, sync] = within(setup).getAllByRole("listitem");
+    // The account step is done and quiet: one line per account, no account action in the row.
     expect(
-      within(setup).getByRole("heading", { name: "Sync statistics" }),
+      within(connect).getByRole("heading", { name: "Google connected (done)" }),
     ).toBeVisible();
-    expect(within(setup).getByText(copy.setup.syncBody)).toBeVisible();
-    expect(within(setup).queryByText("Next: Connect Google")).toBeNull();
+    expect(
+      within(connect)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Search Console connected", "Connect Google Analytics"]);
+    // The sync has its own step, and that step is the current one.
+    expect(sync).toHaveAttribute("aria-current", "step");
+    expect(
+      within(sync).getByRole("heading", { name: "Sync statistics" }),
+    ).toBeVisible();
+    expect(within(sync).getByText(copy.setup.syncBody)).toBeVisible();
     await user.click(
-      within(setup).getByRole("button", { name: "Sync statistics" }),
+      within(sync).getByRole("button", { name: "Sync statistics" }),
     );
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toBeVisible();
@@ -198,6 +213,46 @@ describe("SEO audit first run", () => {
         .getAllByRole("button", { pressed: true })
         .map((button) => button.textContent),
     ).toEqual(["Last 7 days"]);
+  });
+
+  it("does not ask for the account in a step that saved statistics have proved", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [
+      {
+        id: "search-clicks",
+        key: "clicks",
+        label: "Clicks",
+        unit: "count",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        value: 100,
+        from: "2026-09-01",
+        to: "2026-09-28",
+        timeZone: "UTC",
+        channel: "organic",
+        observedAt: new Date("2026-10-01T10:00:00Z"),
+        coverage: "complete",
+        points: [],
+        notes: [],
+      },
+    ];
+    // The connection is per reader: this one has no account, or removed it after the sync.
+    network(workspace);
+    renderWorkspace(workspace);
+    const setup = screen.getByTestId("seo-setup");
+    const [, connect, sync] = within(setup).getAllByRole("listitem");
+    await within(connect).findByRole("button", { name: "Connect Google" });
+    expect(
+      within(connect).getByRole("heading", { name: "Google account (done)" }),
+    ).toBeVisible();
+    expect(within(connect).queryByText(copy.setup.connectBody)).toBeNull();
+    expect(
+      within(sync).getByRole("heading", { name: "Statistics synced (done)" }),
+    ).toBeVisible();
+    expect(
+      within(sync).getByRole("button", { name: copy.agent.openTraffic }),
+    ).toBeVisible();
+    expect(primaryButtons(setup)).toEqual(["Run a check"]);
   });
 
   it("asks for the sync, not the account, on the Traffic tab once the account is connected", async () => {
@@ -298,10 +353,10 @@ describe("SEO audit first run", () => {
     renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
     const steps = within(setup).getAllByRole("listitem");
-    expect(within(steps[2]).getByText(copy.setup.checkFailed)).toBeVisible();
+    expect(within(steps[3]).getByText(copy.setup.checkFailed)).toBeVisible();
     await within(setup).findByRole("button", { name: "Connect Google" });
     expect(primaryButtons(setup)).toEqual(["Run a check"]);
-    expect(steps[2]).toHaveAttribute("aria-current", "step");
+    expect(steps[3]).toHaveAttribute("aria-current", "step");
   });
 
   it("keeps the sync in reach when a failed check holds the primary button", async () => {
@@ -327,19 +382,16 @@ describe("SEO audit first run", () => {
     });
     renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
-    // One per account: Search Console and Google Analytics.
-    await waitFor(() =>
-      expect(
-        within(setup).getAllByRole("button", { name: "Sync statistics" }),
-      ).toHaveLength(2),
-    );
-    // Same name twice, so each says which account it syncs.
+    await within(setup).findByText("Google Analytics connected");
+    // One sync, on its own step: the dialog has the choice of the source.
     expect(
-      within(setup)
-        .getAllByRole("button", { name: "Sync statistics" })
-        .map((button) => button.getAttribute("aria-describedby"))
-        .map((id) => document.getElementById(id ?? "")?.textContent),
-    ).toEqual(["Search Console connected", "Google Analytics connected"]);
+      within(within(setup).getAllByRole("listitem")[2]).getByRole("button", {
+        name: "Sync statistics",
+      }),
+    ).toBeEnabled();
+    expect(
+      within(setup).getAllByRole("button", { name: "Sync statistics" }),
+    ).toHaveLength(1);
     expect(primaryButtons(setup)).toEqual(["Run a check"]);
   });
 
@@ -361,6 +413,8 @@ describe("SEO audit first run", () => {
     expect(
       within(setup).getByText(copy.setup.connectUnavailable),
     ).toBeVisible();
+    expect(within(setup).getByText(copy.setup.syncUnavailable)).toBeVisible();
+    expect(within(setup).getByText("1 of 2 done")).toBeVisible();
     expect(primaryButtons(setup)).toEqual(["Run a check"]);
   });
 

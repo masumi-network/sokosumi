@@ -1,7 +1,16 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
-export type SeoSetupStepKind = "page" | "connect" | "check";
+export type SeoSetupStepKind = "page" | "connect" | "sync" | "check";
+/**
+ * What is known of the reader's Search Console account. checking: the read
+ * has no answer yet. unavailable: this workspace cannot connect Google.
+ */
+export type SeoSetupGoogle =
+  | "connected"
+  | "not_connected"
+  | "unavailable"
+  | "checking";
 /**
  * done: finished. next: the one step that carries the primary button.
  * open: can be done now, but an earlier step comes first. running: a check is in flight.
@@ -34,16 +43,16 @@ export type SeoSetupFilters = {
 };
 
 /**
- * The first-run steps of an Audit, in the order the audit list promises them:
- * add a page, connect Search Console, run the first check.
+ * The first-run steps of an Audit: add a page, connect Google, sync the
+ * search statistics, run the first check. The account and its sync are two
+ * steps: a connected account has saved nothing yet.
  * Null once a check has saved a result, when the reader cannot edit, when a
  * filter narrows the view, and when no step is left that the reader can do.
- * `connectable` is false when the workspace has no way to connect Google.
  */
 export function seoSetup(
   workspace: ProjectSeoWorkspace,
   filters?: SeoSetupFilters,
-  connectable = true,
+  google: SeoSetupGoogle = "not_connected",
 ) {
   const { canEdit, canSyncMetrics, canRequestAnalysis } =
     workspace.availableActions;
@@ -72,12 +81,24 @@ export function seoSetup(
         : latest,
     null,
   );
-  // With no page Core reports no sync and no check right, so both steps wait.
+  // With no page Core reports no sync and no check right, so the later steps wait.
   const blocked = (allowed: boolean) =>
     !hasPages ? "waiting" : allowed ? "todo" : "unavailable";
+  const syncable = canSyncMetrics && google !== "unavailable";
+  // Saved statistics came through an account, so they prove the connect step.
+  const connected = searchSaved || google === "connected";
   const states: [SeoSetupStepKind, SeoSetupState | "todo"][] = [
     ["page", hasPages ? "done" : "todo"],
-    ["connect", searchSaved ? "done" : blocked(canSyncMetrics && connectable)],
+    ["connect", connected ? "done" : blocked(syncable)],
+    [
+      "sync",
+      searchSaved
+        ? "done"
+        : // With a page and the right to sync, the step waits for the account.
+          connected || !hasPages || !syncable
+          ? blocked(syncable)
+          : "waiting",
+    ],
     ["check", running ? "running" : blocked(canRequestAnalysis)],
   ];
   const check = states.length - 1;
@@ -100,6 +121,8 @@ export function seoSetup(
     done: countable.filter((step) => step.state === "done").length,
     total: countable.length,
     failed,
+    // The connect step cannot say "connect" or "connected" yet.
+    checking: !connected && google === "checking" && syncable && hasPages,
   };
 }
 

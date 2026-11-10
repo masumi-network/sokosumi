@@ -2142,13 +2142,20 @@ describe("SEO workspace integration", () => {
     expect(
       within(addPage).getByRole("combobox", { name: "Related to" }),
     ).toHaveTextContent(workspace.pages[0].label || workspace.pages[0].url);
-    // With no pages, the copy asks for a page instead of calling checks unavailable.
+    // With no pages, the later steps wait as titles, and none is called unavailable.
     cleanup();
     workspace.scope.pageIds = [];
-    // Core reports no sync right for an empty scope either: both later steps wait.
+    // Core reports no sync right for an empty scope either: the later steps wait.
     workspace.availableActions.canSyncMetrics = false;
     renderWorkspace(workspace);
-    expect(screen.getAllByText(messages.App.Seo.setup.waiting)).toHaveLength(2);
+    expect(
+      within(screen.getByTestId("seo-setup"))
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Add a page"]);
+    expect(
+      screen.queryByText(messages.App.Seo.setup.syncUnavailable),
+    ).toBeNull();
     expect(
       screen.queryByText(messages.App.Seo.setup.checkUnavailable),
     ).toBeNull();
@@ -2166,21 +2173,24 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     const setup = screen.getByRole("region", { name: "Set up this audit" });
-    expect(within(setup).getByText("1 of 3 done")).toBeVisible();
+    expect(within(setup).getByText("1 of 4 done")).toBeVisible();
     const steps = within(
       within(setup).getByRole("list", { name: "Setup steps" }),
     ).getAllByRole("listitem");
-    // The page is saved, so connecting Google is the current step.
-    expect(steps.map((step) => step.getAttribute("aria-current"))).toEqual([
-      null,
-      "step",
-      null,
-    ]);
+    // The page is saved, so connecting Google is the current step once its state is read.
+    await waitFor(() =>
+      expect(steps.map((step) => step.getAttribute("aria-current"))).toEqual([
+        null,
+        "step",
+        null,
+        null,
+      ]),
+    );
     // The schedule offer and the old verdict wait until a check exists.
     expect(screen.queryByTestId("seo-automation")).toBeNull();
     expect(screen.queryByTestId("seo-agent-verdict")).toBeNull();
     await user.click(
-      within(steps[2]).getByRole("button", { name: "Run a check" }),
+      within(steps[3]).getByRole("button", { name: "Run a check" }),
     );
     expect(screen.getByRole("dialog")).toBeVisible();
     cleanup();
@@ -2555,12 +2565,14 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("combobox", { name: "Property" }),
     ).toBeVisible();
-    const disconnect = await screen.findByRole("button", {
-      name: "Disconnect Google Analytics",
-    });
-    expect(disconnect).toBeVisible();
+    // The account is one line; its two actions are in the line's menu.
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Google Analytics connected" }),
+    );
     // The question opens above the statistics dialog; Escape closes the question only.
-    await userEvent.click(disconnect);
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Disconnect" }),
+    );
     expect(await screen.findByRole("alertdialog")).toBeVisible();
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());

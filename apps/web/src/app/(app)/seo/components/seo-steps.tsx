@@ -37,7 +37,8 @@ export function SeoStep({
 }: {
   index: number;
   title: string;
-  body: ReactNode;
+  /** Left out where the controls say all there is to say. */
+  body?: ReactNode;
   mark: SeoStepMark;
   /** Read out for a finished step, where the number is replaced by a check. */
   doneLabel?: string;
@@ -100,9 +101,11 @@ export function SeoStep({
             <span className="sr-only"> ({doneLabel})</span>
           ) : null}
         </Heading>
-        <div className="text-muted-foreground max-w-prose text-sm text-pretty">
-          {body}
-        </div>
+        {body ? (
+          <div className="text-muted-foreground max-w-prose text-sm text-pretty">
+            {body}
+          </div>
+        ) : null}
         {children ? <div className="pt-3">{children}</div> : null}
       </div>
     </li>

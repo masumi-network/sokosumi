@@ -214,10 +214,16 @@ describe("native SEO connection consent", () => {
   it("disconnects through an explicit action and refreshes native status", async () => {
     m.status = "connected";
     show();
+    const account = await screen.findByRole("button", {
+      name: "Search Console connected",
+    });
+    // The rare account actions stay out of the row until the reader opens the menu.
+    expect(screen.getAllByRole("button")).toEqual([account]);
+    await userEvent.click(account);
     await userEvent.click(
-      await screen.findByRole("button", { name: "Disconnect Search Console" }),
+      await screen.findByRole("menuitem", { name: "Disconnect" }),
     );
-    // The icon only asks: the account stays until the reader confirms.
+    // The menu item only asks: the account stays until the reader confirms.
     const confirm = await screen.findByRole("alertdialog", {
       name: "Disconnect Search Console?",
     });
@@ -239,7 +245,10 @@ describe("native SEO connection consent", () => {
     m.status = "connected";
     show();
     await userEvent.click(
-      await screen.findByRole("button", { name: "Disconnect Search Console" }),
+      await screen.findByRole("button", { name: "Search Console connected" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Disconnect" }),
     );
     const confirm = await screen.findByRole("alertdialog");
     await userEvent.click(
@@ -247,11 +256,12 @@ describe("native SEO connection consent", () => {
     );
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(m.disconnect).not.toHaveBeenCalled();
-    // A keyboard reader continues where the question started.
-    expect(
-      screen.getByRole("button", { name: "Disconnect Search Console" }),
-    ).toHaveFocus();
-    expect(screen.getByText("Search Console connected")).toBeVisible();
+    // A keyboard reader continues on the account's line, where the question started.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Search Console connected" }),
+      ).toHaveFocus(),
+    );
   });
 
   it("resumes already redeemed approval without opening another Google consent window", async () => {
@@ -279,10 +289,12 @@ describe("native SEO connection consent", () => {
     m.callback.mockResolvedValue({ kind: "cancelled" });
     show();
     await userEvent.click(
-      await screen.findByRole("button", {
-        name: "Change Search Console account",
-      }),
+      await screen.findByRole("button", { name: "Search Console connected" }),
     );
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Switch account" }),
+    );
+    await waitFor(() => expect(m.callback).toHaveBeenCalled());
     expect(screen.getByText("Search Console connected")).toBeVisible();
     expect(m.disconnect).not.toHaveBeenCalled();
     expect(m.finalize).not.toHaveBeenCalled();

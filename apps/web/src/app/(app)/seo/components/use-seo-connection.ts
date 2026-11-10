@@ -55,6 +55,8 @@ export function useSeoConnectionStatus(
   return { status, queryKey };
 }
 
+export type SeoConnection = ReturnType<typeof useSeoConnection>;
+
 /**
  * True when the Search Console account is connected. Saved statistics are a
  * different fact: an account can be connected with nothing synced yet.
