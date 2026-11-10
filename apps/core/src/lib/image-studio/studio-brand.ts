@@ -123,7 +123,7 @@ export async function prepareStudioWebsiteDraft(
   const websiteUrl = await studioWebsiteUrl(projectId);
   const [brandCopy, products] = await Promise.allSettled([
     readWebsiteCopy(websiteUrl, profileWorkspaceId),
-    importStudioProducts(websiteUrl).then((found) =>
+    importStudioProducts(websiteUrl, profileWorkspaceId).then((found) =>
       studioProductImportSchema.parse({ products: found }),
     ),
   ]);

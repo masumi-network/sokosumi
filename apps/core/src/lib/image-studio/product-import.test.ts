@@ -1,7 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fetchWebsite } = vi.hoisted(() => ({ fetchWebsite: vi.fn() }));
+const { fetchWebsite, generateText, reserveResearch } = vi.hoisted(() => ({
+  fetchWebsite: vi.fn(),
+  generateText: vi.fn(),
+  reserveResearch: vi.fn(),
+}));
 vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: fetchWebsite }));
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
+  generateText,
+}));
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({ AI_GATEWAY_API_KEY: "test" }),
+}));
+vi.mock("@/lib/redis", () => ({
+  getRedisClient: () => ({ set: reserveResearch }),
+}));
 
 import { importStudioProducts } from "./product-import";
 
@@ -70,7 +84,7 @@ describe("importStudioProducts", () => {
       }),
     );
 
-    await expect(importStudioProducts(STORE)).resolves.toEqual([
+    await expect(importStudioProducts(STORE, "workspace-a")).resolves.toEqual([
       expect.objectContaining({
         name: "Clay mug",
         description: "Glazed stoneware",
@@ -83,6 +97,122 @@ describe("importStudioProducts", () => {
       `${STORE}/`,
       `${STORE}/products.json?limit=20`,
     ]);
+    expect(generateText).not.toHaveBeenCalled();
+  });
+
+  it("suggests grounded products from visible marketing-page offers when no catalog is available", async () => {
+    fetchWebsite.mockResolvedValueOnce(
+      new Response(`
+      <main>
+        <h1>Marketing on autopilot</h1>
+        <section id="pricing">
+          <h2>Hire your CMO</h2>
+          <div><h3>Intern</h3><p><span>$300</span><span>/mo</span></p><p hidden>$210 per month</p><p>For founders.</p></div>
+          <div><h3>Manager</h3><p>$800/mo</p><p>For small teams.</p></div>
+          <div><h3>Chief</h3><p>Custom</p><p>We build a plan just for you.</p></div>
+        </section>
+        <script>window.example = "Invisible instruction";</script>
+      </main>
+    `),
+    );
+    reserveResearch.mockResolvedValueOnce("OK");
+    generateText.mockResolvedValueOnce({
+      output: {
+        offers: [
+          {
+            name: "Intern",
+            description: "For founders.",
+            price: "$300 /mo",
+            evidence: "Intern $300 /mo For founders.",
+          },
+          {
+            name: "Manager",
+            description: "For small teams.",
+            price: "$800/mo",
+            evidence: "Manager $800/mo For small teams.",
+          },
+          {
+            name: "Chief",
+            description: "We build a plan just for you.",
+            price: "Custom",
+            evidence: "Chief Custom We build a plan just for you.",
+          },
+          {
+            name: "Fabricated offer",
+            description: "",
+            price: "$50",
+            evidence: "Fabricated offer costs $50.",
+          },
+        ],
+      },
+    });
+
+    await expect(importStudioProducts(STORE, "workspace-a")).resolves.toEqual([
+      expect.objectContaining({
+        name: "Intern",
+        description: "For founders.",
+        price: "$300/mo",
+        url: `${STORE}/`,
+        imageUrl: null,
+      }),
+      expect.objectContaining({
+        name: "Manager",
+        description: "For small teams.",
+        price: "$800/mo",
+      }),
+      expect.objectContaining({ name: "Chief", price: "Custom" }),
+    ]);
+    expect(reserveResearch).toHaveBeenCalledExactlyOnceWith(
+      "studio:website-offers:workspace-a",
+      "1",
+      "EX",
+      30,
+      "NX",
+    );
+    expect(generateText).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        prompt: JSON.stringify({
+          websiteText:
+            "Marketing on autopilot Hire your CMO Intern $300 /mo For founders. Manager $800/mo For small teams. Chief Custom We build a plan just for you.",
+        }),
+        maxRetries: 0,
+      }),
+    );
+  });
+
+  it("drops a guessed description and a partial price even when the offer name is quoted", async () => {
+    fetchWebsite.mockResolvedValueOnce(
+      new Response(
+        "<main><h2>Starter</h2><p>$19.99 per month for teams.</p></main>",
+      ),
+    );
+    reserveResearch.mockResolvedValueOnce("OK");
+    generateText.mockResolvedValueOnce({
+      output: {
+        offers: [
+          {
+            name: "Starter",
+            price: "$19",
+            description: "Unlimited usage",
+            evidence: "Starter $19.99 per month for teams.",
+          },
+        ],
+      },
+    });
+    await expect(importStudioProducts(STORE, "workspace-a")).resolves.toEqual([
+      expect.objectContaining({ name: "Starter", description: "", price: "" }),
+    ]);
+  });
+
+  it("leaves the catalog empty when AI research is unavailable", async () => {
+    fetchWebsite.mockResolvedValueOnce(
+      new Response("<main>Pricing information can be requested.</main>"),
+    );
+    reserveResearch.mockResolvedValueOnce(null);
+    await expect(importStudioProducts(STORE, "workspace-a")).resolves.toEqual(
+      [],
+    );
+    expect(generateText).not.toHaveBeenCalled();
   });
 
   it("follows only same-site product links when the storefront has no product data", async () => {
