@@ -21,12 +21,20 @@ import type { FileStore } from "@/lib/utils/file-search.client";
  * has already had once.
  */
 
-/** Rendered in place. Everything else is offered as a download instead. */
+/**
+ * Rendered in place. Everything else is offered as a download instead.
+ *
+ * SVG is safe here only because it is shown through `<img>`: the browser then
+ * runs it in secure static mode (no script, no external fetches, no
+ * navigation). Never inline it, embed it in `<object>`/`<iframe>`, or serve it
+ * `inline` from the content route; Core keeps it an attachment.
+ */
 const IMAGE_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/gif",
   "image/webp",
+  "image/svg+xml",
 ]);
 const TEXT_TYPES = new Set([
   "text/plain",
@@ -67,6 +75,11 @@ export function rendersAsMarkdown(type: string): boolean {
   return type === MARKDOWN_TYPE;
 }
 
+/** Whether the detail view shows this type through an `<img>`. */
+export function rendersAsImage(type: string): boolean {
+  return IMAGE_TYPES.has(type);
+}
+
 /** Text is read into the page, so it needs a ceiling of its own. */
 const MAX_TEXT_PREVIEW_BYTES = 512 * 1024;
 
@@ -104,6 +117,7 @@ const EXTENSION_TYPES: Record<string, string> = {
   md: "text/markdown",
   pdf: "application/pdf",
   png: "image/png",
+  svg: "image/svg+xml",
   txt: "text/plain",
   webp: "image/webp",
 };
@@ -205,7 +219,7 @@ export function DriveFilePreview({
         {actions}
       </div>
 
-      {IMAGE_TYPES.has(type) ? (
+      {rendersAsImage(type) ? (
         // Not `next/image`: the bytes come from an authorized route with a
         // per-request check, not from an optimizable public asset.
         // eslint-disable-next-line @next/next/no-img-element
