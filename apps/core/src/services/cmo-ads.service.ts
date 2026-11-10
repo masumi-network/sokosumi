@@ -62,12 +62,12 @@ function scopeOf(cuso: Cuso) {
 }
 
 /** Starts connecting an ad account; the owner comes back to returnUrl on CMO. */
-export async function connectCmoAds(input: {
-  userId: string;
-  projectId?: string;
-  provider: string;
-  returnUrl: string;
-}): Promise<{ redirectUrl: string }> {
+export async function connectCmoAds(
+  input: CusoTarget & {
+    provider: string;
+    returnUrl: string;
+  },
+): Promise<{ redirectUrl: string }> {
   if (!isProjectAdProvider(input.provider)) {
     throw new CmoNotFoundError("CMO connects Google Ads and Meta Ads only");
   }
@@ -96,12 +96,12 @@ export type CmoAdsFinalized =
  * callback, keeps the connection, and attaches its only ad account. Safe to
  * repeat after a reload.
  */
-export async function finalizeCmoAds(input: {
-  userId: string;
-  projectId?: string;
-  connectionId: string;
-  sessionUri: string | null;
-}): Promise<CmoAdsFinalized> {
+export async function finalizeCmoAds(
+  input: CusoTarget & {
+    connectionId: string;
+    sessionUri: string | null;
+  },
+): Promise<CmoAdsFinalized> {
   const cuso = await requireAdsOwner(input);
   const scope = scopeOf(cuso);
   const kept = await prisma.projectAdConnection.findUnique({
@@ -142,11 +142,11 @@ export async function finalizeCmoAds(input: {
 }
 
 /** The ad accounts a connection reaches, for the owner to pick one. */
-export async function listCmoAdChoices(input: {
-  userId: string;
-  projectId?: string;
-  adConnectionId: string;
-}): Promise<AvailableAdAccount[]> {
+export async function listCmoAdChoices(
+  input: CusoTarget & {
+    adConnectionId: string;
+  },
+): Promise<AvailableAdAccount[]> {
   const cuso = await requireAdsOwner(input);
   return listProjectAdConnectionChoices({
     ...scopeOf(cuso),
@@ -155,12 +155,12 @@ export async function listCmoAdChoices(input: {
 }
 
 /** Attaches the ad account the owner picked. */
-export async function chooseCmoAdAccount(input: {
-  userId: string;
-  projectId?: string;
-  adConnectionId: string;
-  externalAccountId: string;
-}): Promise<void> {
+export async function chooseCmoAdAccount(
+  input: CusoTarget & {
+    adConnectionId: string;
+    externalAccountId: string;
+  },
+): Promise<void> {
   const cuso = await requireAdsOwner(input);
   await attachProjectAdAccounts({
     ...scopeOf(cuso),
@@ -177,11 +177,11 @@ export interface CmoAdAccountCampaigns {
 }
 
 /** Every attached ad account with its campaigns and numbers over the range. */
-export async function listCmoAdCampaigns(input: {
-  userId: string;
-  projectId?: string;
-  range: AdRange;
-}): Promise<CmoAdAccountCampaigns[]> {
+export async function listCmoAdCampaigns(
+  input: CusoTarget & {
+    range: AdRange;
+  },
+): Promise<CmoAdAccountCampaigns[]> {
   const cuso = await requireCuso(input);
   const scope = scopeOf(cuso);
   const accounts = await listProjectAdAccounts(scope);
@@ -355,11 +355,11 @@ export function cmoMaxCpc(dailyBudget: number, cusoMaxCpc?: number): number {
  * plan's daily ad budget, then starts it. A piece launched before is started
  * again. Only an owner or admin launches.
  */
-export async function launchCmoSearchAd(input: {
-  userId: string;
-  projectId?: string;
-  entryId: string;
-}): Promise<void> {
+export async function launchCmoSearchAd(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<void> {
   const cuso = await requireAdsOwner(input);
   const scope = scopeOf(cuso);
   const budget = await dailyAdBudget(cuso);
@@ -449,13 +449,13 @@ export async function launchCmoSearchAd(input: {
  * Pauses or starts a campaign in the Project's ad account. Starting one is
  * held to the plan's daily ad budget.
  */
-export async function setCmoAdCampaignStatus(input: {
-  userId: string;
-  projectId?: string;
-  accountId: string;
-  campaignId: string;
-  status: "ACTIVE" | "PAUSED";
-}): Promise<void> {
+export async function setCmoAdCampaignStatus(
+  input: CusoTarget & {
+    accountId: string;
+    campaignId: string;
+    status: "ACTIVE" | "PAUSED";
+  },
+): Promise<void> {
   const cuso = await requireAdsOwner(input);
   const scope = scopeOf(cuso);
   if (input.status === "ACTIVE") {

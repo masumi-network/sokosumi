@@ -116,7 +116,7 @@ vi.mock(
   },
 );
 
-import cmoRouter from "./index";
+import cmoRouter from "../index";
 
 const PREFERRED = "aaaaaaaa-aaaa-4aaa-8aaa-000000000001";
 const OTHER = "aaaaaaaa-aaaa-4aaa-8aaa-000000000002";

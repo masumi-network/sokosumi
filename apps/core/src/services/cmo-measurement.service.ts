@@ -11,6 +11,7 @@ import {
   CmoConflictError,
   CmoNotFoundError,
   type Cuso,
+  type CusoTarget,
   requireCuso,
 } from "@/services/cmo-cuso.service";
 
@@ -74,12 +75,12 @@ export async function listCmoMeasurement(
  * Starts connecting a measurement source to Cuso's own bot (not the owner's
  * personal assistant): the owner authorizes it and comes back to returnUrl.
  */
-export async function connectCmoMeasurement(input: {
-  userId: string;
-  projectId?: string;
-  provider: string;
-  returnUrl: string;
-}): Promise<{ redirectUrl: string }> {
+export async function connectCmoMeasurement(
+  input: CusoTarget & {
+    provider: string;
+    returnUrl: string;
+  },
+): Promise<{ redirectUrl: string }> {
   if (!isCmoMeasurementSource(input.provider)) {
     throw new CmoNotFoundError("CMO does not measure with that source");
   }
@@ -113,11 +114,11 @@ export async function connectCmoMeasurement(input: {
 }
 
 /** Finishes a measurement connection once the owner is back from authorizing. */
-export async function finalizeCmoMeasurement(input: {
-  userId: string;
-  projectId?: string;
-  provider: string;
-}): Promise<void> {
+export async function finalizeCmoMeasurement(
+  input: CusoTarget & {
+    provider: string;
+  },
+): Promise<void> {
   if (!isCmoMeasurementSource(input.provider)) {
     throw new CmoNotFoundError("CMO does not measure with that source");
   }

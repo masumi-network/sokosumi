@@ -92,12 +92,12 @@ export function planWindow(now: Date = new Date()): {
  * plans the ads (and what they should bring) around exactly that amount.
  * Zero turns paid ads off.
  */
-export async function setCmoAdBudget(input: {
-  userId: string;
-  projectId?: string;
-  monthly: number;
-  currency: string;
-}): Promise<{ turnId: string }> {
+export async function setCmoAdBudget(
+  input: CusoTarget & {
+    monthly: number;
+    currency: string;
+  },
+): Promise<{ turnId: string }> {
   const cuso = await requireCuso(input);
   const strategy = parseMarketingPlan(
     (await newestMarketingStrategy(cuso.projectId))?.plan,
@@ -143,11 +143,11 @@ export async function setCmoAdBudget(input: {
  * Asks Cuso for a new one-month strategy: he writes a new version, which an
  * owner or admin approves; the approved one keeps running until then.
  */
-export async function requestCmoStrategy(input: {
-  userId: string;
-  projectId?: string;
-  note?: string;
-}): Promise<{ turnId: string }> {
+export async function requestCmoStrategy(
+  input: CusoTarget & {
+    note?: string;
+  },
+): Promise<{ turnId: string }> {
   const cuso = await requireCuso(input);
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
@@ -578,11 +578,11 @@ export async function applyCmoPlanAnswers(
  * refused (409). Any other piece is a Project file the owner uses
  * themselves, so nothing goes out to pause: it is refused too.
  */
-export async function pauseCmoCalendarEntry(input: {
-  userId: string;
-  projectId?: string;
-  entryId: string;
-}): Promise<void> {
+export async function pauseCmoCalendarEntry(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<void> {
   const cuso = await requireCuso(input);
   const post = UUID.test(input.entryId)
     ? await prisma.socialPost.findFirst({
@@ -608,11 +608,11 @@ export async function pauseCmoCalendarEntry(input: {
  * The words of one approved piece that lives in the Project's Files (an
  * article, a page fix, ad copy, a newsletter issue), for its sheet in CMO.
  */
-export async function readCmoPieceText(input: {
-  userId: string;
-  projectId?: string;
-  entryId: string;
-}): Promise<string> {
+export async function readCmoPieceText(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<string> {
   const cuso = await requireCuso(input);
   const approved = await approvedMarketingStrategy(cuso.projectId);
   const text = approved

@@ -323,7 +323,7 @@ const statusProjectRoute = createRoute({
 });
 
 /** Each ad route acts on the Cuso a CMO call names. */
-const ads = {
+const adsActions = {
   connect: (
     target: CusoTarget,
     provider: "google_ads" | "meta_ads",
@@ -370,80 +370,92 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { provider } = c.req.valid("param");
     const { returnUrl } = c.req.valid("json");
-    return ok(c, await ads.connect({ userId }, provider, returnUrl));
+    return ok(c, await adsActions.connect({ userId }, provider, returnUrl));
   });
   app.openapi(connectProjectRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId, provider } = c.req.valid("param");
     const { returnUrl } = c.req.valid("json");
-    return ok(c, await ads.connect({ userId, projectId }, provider, returnUrl));
+    return ok(
+      c,
+      await adsActions.connect({ userId, projectId }, provider, returnUrl),
+    );
   });
 
   app.openapi(finalizeRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    return ok(c, await ads.finalize({ userId }, c.req.valid("json")));
+    return ok(c, await adsActions.finalize({ userId }, c.req.valid("json")));
   });
   app.openapi(finalizeProjectRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
     return ok(
       c,
-      await ads.finalize({ userId, projectId }, c.req.valid("json")),
+      await adsActions.finalize({ userId, projectId }, c.req.valid("json")),
     );
   });
 
   app.openapi(choicesRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { adConnectionId } = c.req.valid("param");
-    return ok(c, await ads.choices({ userId }, adConnectionId));
+    return ok(c, await adsActions.choices({ userId }, adConnectionId));
   });
   app.openapi(choicesProjectRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId, adConnectionId } = c.req.valid("param");
-    return ok(c, await ads.choices({ userId, projectId }, adConnectionId));
+    return ok(
+      c,
+      await adsActions.choices({ userId, projectId }, adConnectionId),
+    );
   });
 
   app.openapi(chooseRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    return ok(c, await ads.choose({ userId }, c.req.valid("json")));
+    return ok(c, await adsActions.choose({ userId }, c.req.valid("json")));
   });
   app.openapi(chooseProjectRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
-    return ok(c, await ads.choose({ userId, projectId }, c.req.valid("json")));
+    return ok(
+      c,
+      await adsActions.choose({ userId, projectId }, c.req.valid("json")),
+    );
   });
 
   app.openapi(campaignsRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { range } = c.req.valid("query");
-    return ok(c, await ads.campaigns({ userId }, range));
+    return ok(c, await adsActions.campaigns({ userId }, range));
   });
   app.openapi(campaignsProjectRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
     const { range } = c.req.valid("query");
-    return ok(c, await ads.campaigns({ userId, projectId }, range));
+    return ok(c, await adsActions.campaigns({ userId, projectId }, range));
   });
 
   app.openapi(launchRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { entryId } = c.req.valid("json");
-    return ok(c, await ads.launch({ userId }, entryId));
+    return ok(c, await adsActions.launch({ userId }, entryId));
   });
   app.openapi(launchProjectRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
     const { entryId } = c.req.valid("json");
-    return ok(c, await ads.launch({ userId, projectId }, entryId));
+    return ok(c, await adsActions.launch({ userId, projectId }, entryId));
   });
 
   app.openapi(statusRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    return ok(c, await ads.status({ userId }, c.req.valid("json")));
+    return ok(c, await adsActions.status({ userId }, c.req.valid("json")));
   });
   app.openapi(statusProjectRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
-    return ok(c, await ads.status({ userId, projectId }, c.req.valid("json")));
+    return ok(
+      c,
+      await adsActions.status({ userId, projectId }, c.req.valid("json")),
+    );
   });
 }
