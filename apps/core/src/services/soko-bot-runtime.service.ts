@@ -5728,9 +5728,17 @@ export class SokoBotRuntimeService {
   ): Promise<CmoPlanReview | null> {
     const { strategy } = plan;
     if (!strategy || plan.approved) return null;
-    const saves = await prisma.sokoBotToolCall.count({
-      where: { turnId: authorized.turn.id, capability: "save_strategy" },
+    // Only saves that landed count: a refused save saved nothing to review,
+    // and a plan saved in parts would otherwise run out before its calendar.
+    const landed = await prisma.sokoBotToolCall.count({
+      where: {
+        turnId: authorized.turn.id,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: input.toolCallId },
+      },
     });
+    const saves = landed + 1;
     if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
     const bot = plan.planSent

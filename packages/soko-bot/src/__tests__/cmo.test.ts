@@ -348,6 +348,14 @@ describe("CMO strategy and rhythms", () => {
     expect(patch.calendar).toHaveLength(1);
   });
 
+  it("drops a patch field sent without a value, so it never wipes the plan's", () => {
+    const patch = parseCmoStrategySave({
+      part: "patch",
+      strategy: { summary: "Grow.", channels: undefined, calendar: undefined },
+    });
+    expect(Object.keys(patch)).toEqual(["summary"]);
+  });
+
   it("proposes only channels Cuso runs that the plan leaves out", () => {
     const proposing = (channel: string) => ({
       strategy: {

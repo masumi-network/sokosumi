@@ -568,7 +568,8 @@ export function parseCmoStrategySave(input: unknown): CmoStrategySave {
 
 /**
  * A patch keeps only what the call really sent: a field the model filled
- * with an empty list is filler, and the plan keeps its own.
+ * with an empty list or left without a value is filler, and the plan keeps
+ * its own.
  */
 function patchFields(
   sent: Record<string, unknown>,
@@ -577,7 +578,9 @@ function patchFields(
   return Object.fromEntries(
     Object.entries(strategy).filter(
       ([key, value]) =>
-        key in sent && !(Array.isArray(value) && value.length === 0),
+        key in sent &&
+        value !== undefined &&
+        !(Array.isArray(value) && value.length === 0),
     ),
   ) as CmoStrategySave;
 }

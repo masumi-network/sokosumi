@@ -1046,6 +1046,9 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
+      // A save that breaks a hard rule is refused so Cuso fixes it; the
+      // rubric still fails a turn that never saves.
+      allowFailedTools: ["save_strategy"],
       forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
     },
   },

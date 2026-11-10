@@ -12,13 +12,13 @@ export type CmoPlanOfferVerdict = "ok" | "drift" | "unavailable" | "skipped";
 
 /** One save's review, kept in the save_strategy result for the admin view. */
 export interface CmoPlanReview {
-  /** Which save_strategy call of the turn this was, from 1. */
+  /** Which save of the turn that landed this was, from 1. */
   save: number;
   mainOffer: CmoPlanOfferVerdict;
   problems: string[];
 }
 
-/** Saves in one planning turn the review answers; past them Cuso finishes as he is. */
+/** Saves that land in one planning turn the review answers; past them Cuso finishes as he is. */
 export const CMO_PLAN_REVIEWS_PER_TURN = 4;
 
 const MIN_PIECES = 16;

@@ -11056,6 +11056,47 @@ describe("CMO record saves", () => {
     expect(tx.marketingStrategy.create).not.toHaveBeenCalled();
   });
 
+  it("reviews the first four saves that landed, so refusals never use the reviews up", async () => {
+    const service = new SokoBotRuntimeService();
+    const review = (landedBefore: number) => {
+      toolCallCountMock.mockResolvedValueOnce(landedBefore);
+      return service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "save-9",
+        } as never,
+        {
+          approved: false,
+          strategy: {
+            month: "2026-11",
+            summary: "Grow.",
+            goals: ["More demo requests"],
+            mix: [],
+            funnel: [],
+            pillars: [],
+            channels: [],
+            calendar: [],
+            questions: [],
+          } as never,
+          planSent: false,
+        },
+      );
+    };
+
+    await expect(review(3)).resolves.toMatchObject({ save: 4 });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+      },
+    });
+    await expect(review(4)).resolves.toBeNull();
+  });
+
   it("saves the Brand Brain to Cuso's Project", async () => {
     const PROJECT = "01960001-0001-7001-8001-0000000000c2";
     const tx = {
