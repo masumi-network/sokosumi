@@ -151,6 +151,19 @@ describe("public SEO report trust boundary", () => {
         request,
       ),
     ).toThrow("frozen page scope");
+    for (const skipped of [
+      { url: SEO_TEST_PAGE, reason: "reported too" },
+      { url: "https://other.test/x", reason: "out of scope" },
+    ]) {
+      const odd = site([{ url: second, reason: "timeout" }, skipped]);
+      expect(() =>
+        assertSeoArtifactMatchesRequest(
+          odd,
+          parsePublicSeoArtifact(odd),
+          request,
+        ),
+      ).toThrow("frozen page scope");
+    }
   });
 
   it("rejects a valid result relabeled for a different Market, device, keyword or external target", () => {

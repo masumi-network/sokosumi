@@ -161,12 +161,13 @@ export function assertSeoArtifactMatchesRequest(
     pageUrls = request.pageUrls.map(normalizedUrl),
     reported = payload.pageUrls.map(normalizedUrl),
     skipped = skippedPages(raw).map((page) => normalizedUrl(page.url));
-  // Every reported page is in scope, and every page in scope is reported or named as skipped.
+  // Every reported page is in scope, and every page in scope is reported or named as skipped, never both.
   if (
     payload.kind !== expected.kind ||
     new Set(reported).size !== reported.length ||
     reported.some((url) => !pageUrls.includes(url)) ||
     pageUrls.some((url) => !reported.includes(url) && !skipped.includes(url)) ||
+    skipped.some((url) => !pageUrls.includes(url) || reported.includes(url)) ||
     payload.countryCode !== request.countryCode ||
     payload.languageCode !== request.languageCode
   )
