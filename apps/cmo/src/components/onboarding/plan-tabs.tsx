@@ -5,11 +5,10 @@ import { ArrowRight, CalendarDays, Repeat, Sparkles, Sun } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { formatDay, planWeeks } from "../../lib/calendar";
-import { brandStyle, Section } from "../brand-profile";
+import { Section } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
-import { PhoneFeeds } from "../phone-feeds";
-import { withoutLabel } from "../showcases";
+import { AccountPreviews, withoutLabel } from "../showcases";
 import {
   Alternatives,
   BeforeAfter,
@@ -66,9 +65,7 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
   const [comparing, setComparing] = useState(false);
   const { barrier } = strategy;
   // Masumi chrome for the plan; the founder's brand colours stay off this
-  // panel (they used to tint the whole `.bb` via brandStyle — Brand Brain
-  // leftover). Phone mockups below still take brandStyle so posts look like
-  // theirs.
+  // panel. Only the account previews (Your month) wear them.
   return (
     <div className="bb">
       {stages.length > 0 ? (
@@ -135,21 +132,20 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
       <Section title={`Where ${AGENT_NAME} works`} wide>
         <ChannelPlan strategy={strategy} />
       </Section>
-      <Everything overview={overview} strategy={strategy} />
+      <Everything strategy={strategy} />
     </div>
   );
 }
 
 /** The rest of the plan, closed until the founder wants it. */
-function Everything({ overview, strategy }: PlanPanelProps) {
+function Everything({ strategy }: { strategy: Strategy }) {
   const improvements = strategy.improvements ?? [];
   const beforeAfter = strategy.beforeAfter ?? [];
   if (
     !strategy.ladder &&
     !strategy.why &&
     improvements.length === 0 &&
-    beforeAfter.length === 0 &&
-    strategy.calendar.length === 0
+    beforeAfter.length === 0
   ) {
     return null;
   }
@@ -171,13 +167,6 @@ function Everything({ overview, strategy }: PlanPanelProps) {
           <BeforeAfter rows={beforeAfter} />
         </Section>
       ) : null}
-      {strategy.calendar.length > 0 ? (
-        <Section title="Where it shows up" wide>
-          <div style={brandStyle(overview)}>
-            <PhoneFeeds overview={overview} strategy={strategy} />
-          </div>
-        </Section>
-      ) : null}
       {improvements.length > 0 ? (
         <Section title="What you can improve">
           <p className="note">
@@ -192,12 +181,23 @@ function Everything({ overview, strategy }: PlanPanelProps) {
 }
 
 interface MonthPanelProps {
+  overview: CmoOverview;
   strategy: Strategy;
+  /** Cuso is writing the plan: unwritten ads hold their place. */
+  writing: boolean;
   onOpen: (entry: Entry) => void;
 }
 
-/** What goes out first, then every day of the plan. */
-export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
+/**
+ * What goes out first, week one day by day, what the founder's accounts will
+ * look like, then the other weeks.
+ */
+export function MonthPanel({
+  overview,
+  strategy,
+  writing,
+  onOpen,
+}: MonthPanelProps) {
   const weeks = useMemo(
     () => planWeeks(strategy.calendar),
     [strategy.calendar],
@@ -259,60 +259,72 @@ export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
             <span key={day}>{day}</span>
           ))}
         </div>
-        {weeks.map((week, weekIndex) => (
-          <div key={week.start} className="ob-week">
-            <span className="ob-week-label">Week {weekIndex + 1}</span>
-            <div className="ob-days">
-              {week.days.map((day) => {
-                const entries = byDay.get(day) ?? [];
-                const dayNumber = formatDay(day, { day: "numeric" });
-                return (
-                  <div
-                    key={day}
-                    className={
-                      entries.length ? "ob-day" : "ob-day ob-day-blank"
-                    }
-                  >
-                    <span className="ob-day-n">
-                      <span className="ob-day-short">
-                        {dayNumber}
-                        {dayNumber === "1"
-                          ? ` ${formatDay(day, { month: "short" })}`
-                          : ""}
-                      </span>
-                      <span className="ob-day-long">
-                        {formatDay(day, {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })}
-                      </span>
-                    </span>
-                    {entries.map((entry) => (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        className="ob-entry"
-                        onClick={() => onOpen(entry)}
-                      >
-                        <span className="ob-entry-meta">
-                          <ChannelIcon channel={entry.channel} size={12} />
-                          {entry.time ?? ""}
-                        </span>
-                        <span className="ob-entry-title">
-                          {withoutLabel(entry.hook ?? entry.title)}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+        {weeks.slice(0, 1).map(weekRow)}
       </div>
+      <AccountPreviews
+        overview={overview}
+        strategy={strategy}
+        writing={writing}
+      />
+      {weeks.length > 1 ? (
+        <div className="ob-weeks">
+          {weeks.slice(1).map((week, index) => weekRow(week, index + 1))}
+        </div>
+      ) : null}
     </div>
   );
+
+  function weekRow(week: (typeof weeks)[number], weekIndex: number) {
+    return (
+      <div key={week.start} className="ob-week">
+        <span className="ob-week-label">Week {weekIndex + 1}</span>
+        <div className="ob-days">
+          {week.days.map((day) => {
+            const entries = byDay.get(day) ?? [];
+            const dayNumber = formatDay(day, { day: "numeric" });
+            return (
+              <div
+                key={day}
+                className={entries.length ? "ob-day" : "ob-day ob-day-blank"}
+              >
+                <span className="ob-day-n">
+                  <span className="ob-day-short">
+                    {dayNumber}
+                    {dayNumber === "1"
+                      ? ` ${formatDay(day, { month: "short" })}`
+                      : ""}
+                  </span>
+                  <span className="ob-day-long">
+                    {formatDay(day, {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
+                  </span>
+                </span>
+                {entries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className="ob-entry"
+                    onClick={() => onOpen(entry)}
+                  >
+                    <span className="ob-entry-meta">
+                      <ChannelIcon channel={entry.channel} size={12} />
+                      {entry.time ?? ""}
+                    </span>
+                    <span className="ob-entry-title">
+                      {withoutLabel(entry.hook ?? entry.title)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 }
 
 function measureLine(measure: Measure): string {

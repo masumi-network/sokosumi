@@ -7,7 +7,15 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
-import { asking, brain, draft, strategy } from "../../test-fixtures/onboarding";
+import {
+  asking,
+  brain,
+  draft,
+  mappedBrain,
+  sevenPlan,
+  strategy,
+} from "../../test-fixtures/onboarding";
+import { LAND_MS } from "../type-in";
 import { inertOnboardingActions, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
 import { OnboardingFlow } from "./flow";
@@ -915,4 +923,100 @@ it("ends Launch with a recap: what is done and what still runs", async () => {
     "Still running: Cuso is making your month, piece by piece. Watch them land on Today.",
   );
   vi.useRealTimers();
+});
+
+// Brand: the competitor map and the rival rows pick each other.
+
+it("picks a rival's row from its dot, and its dot from its row", async () => {
+  await act(async () =>
+    root.render(
+      <BrandStep
+        overview={draft({ brandBrain: mappedBrain, strategy: null })}
+        messages={[]}
+        onCorrect={noop}
+        onSave={noop}
+        onAnswer={noop}
+        onApprove={async () => null}
+      />,
+    ),
+  );
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-tile")]
+      .find((tile) => tile.textContent?.startsWith("Competitors"))
+      ?.click(),
+  );
+  const dot = (name: string) =>
+    [
+      ...container.querySelectorAll<HTMLButtonElement>("button.ob-map-dot"),
+    ].find((candidate) => candidate.textContent === name);
+  const row = (name: string) =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-rival")].find(
+      (candidate) => candidate.querySelector("b")?.textContent === name,
+    );
+  const pressed = (element: HTMLElement | undefined) =>
+    element?.getAttribute("aria-pressed");
+
+  expect(pressed(dot("Moonshot"))).toBe("false");
+  await act(async () => dot("Moonshot")?.click());
+  expect(pressed(dot("Moonshot"))).toBe("true");
+  expect(pressed(row("Moonshot"))).toBe("true");
+  expect(pressed(row("Orbit Labs"))).toBe("false");
+
+  await act(async () => row("Orbit Labs")?.click());
+  expect(pressed(dot("Orbit Labs"))).toBe("true");
+  expect(pressed(dot("Moonshot"))).toBe("false");
+  expect(pressed(row("Moonshot"))).toBe("false");
+
+  // Picking it again lets go.
+  await act(async () => dot("Orbit Labs")?.click());
+  expect(pressed(row("Orbit Labs"))).toBe("false");
+});
+
+// Plan: account previews land one at a time while the plan writes.
+
+it("lands each new account preview one at a time", async () => {
+  vi.useFakeTimers();
+  try {
+    const at = (calendar: typeof sevenPlan.calendar) => (
+      <PlanStep
+        overview={draft({
+          strategy: { ...sevenPlan, calendar },
+          work: {
+            kind: "strategy",
+            status: "running",
+            startedAt: new Date("2026-10-05T09:00:00Z"),
+            steps: [],
+            sections: [],
+            sectionsSaved: 0,
+            sectionsTotal: 0,
+          },
+        })}
+        phase="review"
+        initialTab="month"
+        onRequest={async () => null}
+        onSetAds={async () => null}
+        onAnswer={noop}
+        onUpdate={async () => null}
+        onApprove={noop}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+      />
+    );
+    const frames = () =>
+      container.querySelectorAll(".ob-showcases .ob-showcase-label").length;
+    const newsletter = sevenPlan.calendar.filter(
+      (entry) => entry.channel === "newsletter",
+    );
+    await act(async () => root.render(at(newsletter)));
+    expect(frames()).toBe(1);
+    await act(async () => root.render(at(sevenPlan.calendar)));
+    expect(frames()).toBe(1);
+    await act(async () => vi.advanceTimersByTime(LAND_MS));
+    expect(frames()).toBe(2);
+    for (let landed = 3; landed <= 7; landed++) {
+      await act(async () => vi.advanceTimersByTime(LAND_MS));
+      expect(frames()).toBe(landed);
+    }
+  } finally {
+    vi.useRealTimers();
+  }
 });

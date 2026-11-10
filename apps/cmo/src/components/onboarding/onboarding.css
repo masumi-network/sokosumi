@@ -1940,3 +1940,264 @@ body:has(.ob) .site-header {
     justify-content: center;
   }
 }
+
+/* Competitors: where the business sits among its rivals, over the rival rows. */
+.ob-map {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.ob-map-plot {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.ob-map-plot::before,
+.ob-map-plot::after {
+  content: "";
+  position: absolute;
+}
+
+.ob-map-plot::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px dashed var(--muted);
+}
+
+.ob-map-plot::after {
+  top: 50%;
+  right: 0;
+  left: 0;
+  border-top: 1px dashed var(--muted);
+}
+
+/* Players sit inside a margin, so a dot at 0 or 100 keeps its label in view. */
+.ob-map-field {
+  position: absolute;
+  inset: 32px 24px;
+}
+
+.ob-map-axis,
+.ob-map-x {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+}
+
+.ob-map-axis {
+  position: absolute;
+  left: 12px;
+  white-space: nowrap;
+}
+
+.ob-map-axis.top {
+  top: 8px;
+}
+
+.ob-map-axis.bottom {
+  bottom: 8px;
+}
+
+.ob-map-x {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* The dot is the label's marker; the label is part of the button. */
+.ob-map-dot {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-mark);
+  /* The plot's own fill, so a centre line never runs through a name. */
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  white-space: nowrap;
+  translate: -6px 50%;
+  animation: ob-map-pop 350ms ease-out both;
+}
+
+.ob-map-dot::before {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+button.ob-map-dot {
+  cursor: pointer;
+}
+
+button.ob-map-dot:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ob-map-dot[aria-pressed="true"] {
+  z-index: 2;
+  font-weight: 700;
+}
+
+.ob-map-dot[aria-pressed="true"]::before {
+  background: var(--foreground);
+}
+
+.ob-map-dot.flip {
+  flex-direction: row-reverse;
+  translate: calc(-100% + 6px) 50%;
+}
+
+.ob-map-dot.you {
+  z-index: 3;
+  font-size: 0.875rem;
+  font-weight: 700;
+  translate: -9px 50%;
+}
+
+.ob-map-dot.you.flip {
+  translate: calc(-100% + 9px) 50%;
+}
+
+.ob-map-dot.you::before {
+  width: 18px;
+  height: 18px;
+  background: var(--primary);
+}
+
+@keyframes ob-map-pop {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+
+.ob-rivals {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The link column stays when a rival has no site, so the rows line up. */
+.ob-rivals li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 4px;
+}
+
+.ob-rival {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ob-rival[aria-pressed="true"] {
+  box-shadow: var(--shadow-hard);
+}
+
+.ob-rival img,
+.ob-rival-blank {
+  flex: 0 0 56px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-mark);
+  background: var(--surface);
+  object-fit: cover;
+  object-position: top;
+}
+
+.ob-rival-blank {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ob-rival-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ob-rival-text b {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ob-rival-text span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.ob-rival-link {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+}
+
+.ob-rival-link:hover {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-map-dot {
+    animation: none;
+  }
+}
+
+/* Your month: what the founder's accounts will look like, under week one. */
+.ob-previews {
+  display: grid;
+  gap: 16px;
+}
+
+.ob-previews-head {
+  display: grid;
+  gap: 4px;
+}
+
+.ob-previews-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ob-previews-head p {
+  margin: 0;
+}

@@ -6,10 +6,12 @@ import {
   brain,
   draft,
   hex,
+  mappedBrain,
   reading,
   richBrain,
   richMedia,
   richPlan,
+  sevenPlan,
   work,
 } from "../../../test-fixtures/onboarding";
 
@@ -22,7 +24,10 @@ export const SCREENS = [
   "writing",
   "asking",
   "brand",
+  "brand-no-map",
   "plan",
+  "plan-seven",
+  "plan-writing",
   "planning",
   "planning-slow",
   "launch",
@@ -43,6 +48,12 @@ const visual: CmoOverview["brandVisual"] = {
   siteName: "Acme",
   designMdUrl: null,
   images: [],
+};
+
+/** A look with two real colours, so the previews show both fills. */
+const twoColors: CmoOverview["brandVisual"] = {
+  ...visual,
+  colors: ["1f3a5f", "ff6a00", "f4e9d8"].map(hex),
 };
 
 /** Started this long ago: on time, or past twice the usual time. */
@@ -120,8 +131,9 @@ export function screenOverview(screen: Screen): CmoOverview {
         work: work("research", { sectionsSaved: 9 }),
       });
     case "brand":
+    case "brand-no-map":
       return draft({
-        brandBrain: richBrain,
+        brandBrain: screen === "brand" ? mappedBrain : richBrain,
         brandBrainConfirmedAt: null,
         strategy: null,
         brandMedia: richMedia,
@@ -172,6 +184,30 @@ export function screenOverview(screen: Screen): CmoOverview {
                 },
               ]
             : [],
+      });
+    case "plan-seven":
+      return draft({
+        brandBrain: richBrain,
+        strategy: sevenPlan,
+        brandVisual: twoColors,
+      });
+    case "plan-writing":
+      // A change on its way (a first plan writes behind the planning
+      // screen): three frames, the second Google ad not written yet.
+      return draft({
+        brandBrain: richBrain,
+        strategy: {
+          ...sevenPlan,
+          changes: ["Search ads start in week one"],
+          channels: sevenPlan.channels.filter((channel) =>
+            ["x", "google_ads", "newsletter"].includes(channel.channel),
+          ),
+          calendar: sevenPlan.calendar.filter((entry) =>
+            ["x", "google_ads", "newsletter"].includes(entry.channel),
+          ),
+        },
+        brandVisual: twoColors,
+        work: work("strategy", { startedAt: ago(2), steps: [] }),
       });
     default:
       return draft({ brandBrain: richBrain, strategy: richPlan });

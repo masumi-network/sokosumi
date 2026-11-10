@@ -22,7 +22,7 @@ export function FixtureScreen({ screen }: FixtureScreenProps) {
       overview={overview}
       messages={[]}
       // The Brand screen shows its questions-left line when they were skipped.
-      skipped={screen === "brand" ? ["questions"] : []}
+      skipped={screen.startsWith("brand") ? ["questions"] : []}
       actions={inertOnboardingActions(overview)}
     />
   );

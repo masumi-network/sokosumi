@@ -43,7 +43,7 @@ const SOURCE = FILES.filter(
 const STYLESHEET = "app/globals.css";
 
 /** Drawings of the networks' own UIs; exempt from the visual-system guards. */
-const ALLOWLIST = ["components/phone-feeds.css", "components/showcases.css"];
+const ALLOWLIST = ["components/showcases.css"];
 
 /** Every stylesheet and non-test source file except the allowlist. */
 const STYLED = FILES.filter(
