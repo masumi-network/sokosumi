@@ -1,10 +1,15 @@
 "use client";
 
-import { ChevronRight, Folder } from "lucide-react";
+import { ChevronRight, Folder, FolderLock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,6 +27,10 @@ import { cn } from "@/lib/utils";
  *
  * `actions` is the current folder's own controls (rename, move, delete) and is
  * absent at the root, where there is no folder to act on.
+ *
+ * A data room's folder wears a lock and a quiet "Data room" label, here and in
+ * the trail, so nobody forgets it is private; hovering or focusing it says who
+ * can get in (`roomHint`).
  */
 
 /** Folders directly inside `parent`, from a list that holds every ancestor. */
@@ -42,6 +51,8 @@ export function DriveFolderNav({
   onSelect,
   actions,
   virtualFolder,
+  roomPaths = [],
+  roomHint,
 }: {
   folders: string[];
   current: string;
@@ -49,6 +60,10 @@ export function DriveFolderNav({
   actions?: ReactNode;
   /** A folder that is not a path (Sokosumi Projects), listed at the root. */
   virtualFolder?: { label: string; onOpen: () => void };
+  /** Folders that are data rooms. */
+  roomPaths?: readonly string[];
+  /** Who can open a data room's files, shown on hover and focus. */
+  roomHint?: string;
 }) {
   const t = useTranslations("App.Drive.Files");
   const rows = childFolders(folders, current).map((folder) => ({
@@ -104,7 +119,13 @@ export function DriveFolderNav({
                   title={path}
                   onClick={() => onSelect(path)}
                 >
+                  {roomPaths.includes(path) ? (
+                    <FolderLock className="size-4 shrink-0" aria-hidden />
+                  ) : null}
                   <span className="truncate">{segment}</span>
+                  {roomPaths.includes(path) ? (
+                    <span className="sr-only">{t("dataRoom")}</span>
+                  ) : null}
                 </Button>
               </span>
             );
@@ -120,22 +141,42 @@ export function DriveFolderNav({
           className="grid grid-cols-1 gap-2 @lg:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4"
           data-testid="drive-folder-children"
         >
-          {rows.map((row) => (
-            <li key={row.key}>
+          {rows.map((row) => {
+            const isRoom = roomPaths.includes(row.key);
+            const Icon = isRoom ? FolderLock : Folder;
+            const button = (
               <button
                 type="button"
                 className="bg-card-background hover:bg-accent focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2"
-                title={row.label}
+                title={isRoom ? undefined : row.label}
                 onClick={row.onOpen}
               >
-                <Folder
+                <Icon
                   className="text-muted-foreground size-5 shrink-0"
                   aria-hidden
                 />
                 <span className="truncate">{row.label}</span>
+                {isRoom ? (
+                  <span className="text-muted-foreground shrink-0 font-normal">
+                    <span aria-hidden>· </span>
+                    {t("dataRoom")}
+                  </span>
+                ) : null}
               </button>
-            </li>
-          ))}
+            );
+            return (
+              <li key={row.key}>
+                {isRoom && roomHint ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>{button}</TooltipTrigger>
+                    <TooltipContent>{roomHint}</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  button
+                )}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </div>

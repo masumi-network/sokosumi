@@ -2285,6 +2285,7 @@ function DrivePageWorkspace({
             label: t("tasksFolder"),
             onOpen: navigateToTasksRoot,
           }}
+          dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
           reloadToken={catalogReloadToken}
           onShareFile={setShareItem}
           onMoveFiles={openMoveFilesDialog}

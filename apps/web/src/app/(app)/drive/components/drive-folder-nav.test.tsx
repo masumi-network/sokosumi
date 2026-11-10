@@ -122,4 +122,24 @@ describe("DriveFolderNav virtual folder", () => {
     );
     expect(screen.queryByText("Sokosumi Projects")).toBeNull();
   });
+
+  it("marks a data room's folder and says who can open it", async () => {
+    render(
+      <DriveFolderNav
+        folders={FOLDERS}
+        current=""
+        onSelect={() => {}}
+        roomPaths={["Reports"]}
+        roomHint="Only people you let in"
+      />,
+    );
+    const room = screen.getByRole("button", { name: "Reports dataRoom" });
+    expect(screen.getByRole("button", { name: "Brand" })).toBeInTheDocument();
+    await userEvent.tab();
+    await userEvent.tab();
+    expect(room).toHaveFocus();
+    expect(
+      await screen.findByRole("tooltip", { name: "Only people you let in" }),
+    ).toBeInTheDocument();
+  });
 });
