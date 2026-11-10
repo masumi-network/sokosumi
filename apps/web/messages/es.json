@@ -7467,7 +7467,7 @@
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
         "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
         "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
-        "tagDirectMessagesDescription": "Permite que Jev lea los mensajes directos entre personas para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesDescription": "Si está activado, leemos tus mensajes directos para destacar preguntas y decisiones para ti. Solo leemos un mensaje directo si todas las personas en él lo han activado. En los canales lo hacemos siempre.",
         "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
         "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
@@ -9171,7 +9171,7 @@
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
-        "aiNote": "Jev ordena los mensajes según lo que te piden. Puede equivocarse, así que no se oculta nada: corrige una etiqueta en cualquier mensaje con un clic.",
+        "aiNote": "Etiquetamos tus mensajes por ti y a veces nos equivocamos. Para corregir una etiqueta, abre el mensaje, pasa el cursor por encima y haz clic en el icono de etiqueta.",
         "removeTag": "Quitar etiqueta: {tag}",
         "taskMade": "Tarea creada",
         "loopClosed": "Hecho",
@@ -9182,8 +9182,8 @@
         "noCoworkerFits": "Ningún Coworker encaja todavía.",
         "createTask": "Crear una tarea",
         "editTags": "Editar etiquetas",
-        "editTagsTitle": "Qué es este mensaje",
-        "editTagsNote": "Tu corrección vale para todos en la sala.",
+        "editTagsTitle": "Etiquetas de este mensaje",
+        "editTagsNote": "Todos en la sala ven tu cambio.",
         "taskDue": "Vence {date}",
         "taskSource": "Del chat:",
         "taskFrom": "{name} escribió:",
@@ -9208,7 +9208,7 @@
           "blockers": "Bloqueos",
           "decisions": "Decisiones",
           "announcements": "Anuncios",
-          "openLoops": "Pendientes",
+          "openLoops": "Aún pendiente",
           "highlights": "Destacados"
         },
         "Chips": {
@@ -9245,7 +9245,7 @@
           "title": "Decisiones",
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
-          "note": "Reunidas por Jev. Quita una incorrecta desde su mensaje."
+          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta."
         },
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",
@@ -10716,7 +10716,7 @@
         "save": "Guardar",
         "create": "Crear lista",
         "smart": "Llenarla con los filtros actuales",
-        "smartHint": "Una lista inteligente: quien coincida con estos filtros está en ella, ahora y más adelante."
+        "smartHint": "Todas las personas que coincidan con estos filtros están en esta lista. La lista se actualiza sola."
       },
       "addDialog": {
         "title": "Añadir contacto",
@@ -10914,7 +10914,7 @@
         "waitingSince": "Desde el {date}, sin respuesta",
         "heardFrom": "Última noticia suya {when}",
         "automatic": "Automático",
-        "classifier": "Clasificación automática",
+        "classifier": "Sokosumi",
         "enrich": "Enriquecer",
         "enrichHint": "Buscar en la web y rellenar los campos vacíos · 1 crédito",
         "enriched": "{fields} completado desde la web · 1 crédito",
@@ -10945,13 +10945,13 @@
         "medium": "Algo importante",
         "low": "Poco importante",
         "minimal": "Sin importancia",
-        "auto": "Que decida Jev",
+        "auto": "Que decida Sokosumi",
         "change": "Cambiar lo importante que es para ti",
-        "byJev": "Valorado por Jev",
-        "byJevBecause": "Jev: {reason}",
+        "byJev": "Definido por Sokosumi",
+        "byJevBecause": "Definido por Sokosumi ({reason})",
         "byYou": "Definido por ti",
         "byBot": "Definido por tu Soko Bot",
-        "notYet": "Aún sin valorar",
+        "notYet": "Aún sin definir",
         "familiarityHint": "Según tus propios correos y reuniones con esta persona",
         "reasons": {
           "decides": "toma decisiones",

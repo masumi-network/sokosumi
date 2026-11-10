@@ -93,6 +93,15 @@ describe("CMO home page", () => {
     expect(getUsersById).not.toHaveBeenCalled();
   });
 
+  it("loads only the named Project when resuming a flow", async () => {
+    const page = await HomePage({
+      searchParams: Promise.resolve({ project: "project-2" }),
+    });
+
+    expect(loadOverview).toHaveBeenCalledExactlyOnceWith("project-2");
+    expect(page.type).not.toBe(Onboarding);
+  });
+
   it("goes straight to hiring Cuso, with no workspace question", async () => {
     const page = await render();
 
