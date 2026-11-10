@@ -130,6 +130,7 @@ export function SidebarScopeMobileChip() {
             <ProjectScopeMenu
               selectedProjectId={projectId}
               onSelect={(id) => selectProjectScope(id, select)}
+              onSelectAll={request ? undefined : () => select(null)}
               onCreate={openScopeCreate}
               onDone={() => setScopeSheetOpen(false)}
               // The reason's own rule already sits above the list.
