@@ -58,6 +58,51 @@ function selectedModules(input: RequestSeoAnalysis): string[] {
   if (input.kind === "links") return ["links.refresh"];
   return input.analyses ?? ["page.inspect"];
 }
+// The SEO worker refuses a Task packet longer than this (seo-bot MAX_ANALYSIS_REQUEST_CHARS).
+export const SEO_MAX_PACKET_CHARS = 32_768;
+
+/** The Task packet the SEO worker reads. Refuse it here when the worker would refuse it. */
+export function seoTaskPacket(
+  input: RequestSeoAnalysis,
+  pageUrls: string[],
+  requestId: string,
+): Prisma.InputJsonObject {
+  const packet: Prisma.InputJsonObject =
+    input.kind === "audit_full"
+      ? {
+          version: 1,
+          requestId,
+          pageUrls,
+          ...(input.keywords[0] ? { keyword: input.keywords[0] } : {}),
+          countryCode: input.countryCode,
+          languageCode: input.languageCode,
+          ...(input.fullAuditLimits ? { limits: input.fullAuditLimits } : {}),
+        }
+      : {
+          version: 1,
+          requestId,
+          kind: input.kind,
+          pageUrls,
+          competitorUrls: input.competitorUrls.map(normalizeSeoUrl),
+          keywords: input.keywords,
+          countryCode: input.countryCode,
+          languageCode: input.languageCode,
+          devices: input.devices,
+          ...(input.analyses ? { analyses: input.analyses } : {}),
+          budget: {
+            maxPages: pageUrls.length,
+            maxKeywords: input.keywords.length,
+            maxCompetitors: input.competitorUrls.length,
+            maxProviderCalls: input.maxProviderCalls,
+          },
+        };
+  if (JSON.stringify(packet).length > SEO_MAX_PACKET_CHARS)
+    throw badRequest(
+      "The SEO request is too long for the worker. Use shorter URLs or fewer pages, keywords or competitors",
+    );
+  return packet;
+}
+
 export function validateSeoAnalysis(
   input: RequestSeoAnalysis,
   pageUrls: string[],
@@ -189,35 +234,7 @@ export async function requestProjectSeoAnalysisInTransaction(
       requestedBy: actor.userId,
     },
   });
-  const packet =
-    input.kind === "audit_full"
-      ? {
-          version: 1,
-          requestId: analysis.id,
-          pageUrls,
-          ...(input.keywords[0] ? { keyword: input.keywords[0] } : {}),
-          countryCode: input.countryCode,
-          languageCode: input.languageCode,
-          ...(input.fullAuditLimits ? { limits: input.fullAuditLimits } : {}),
-        }
-      : {
-          version: 1,
-          requestId: analysis.id,
-          kind: input.kind,
-          pageUrls,
-          competitorUrls: input.competitorUrls.map(normalizeSeoUrl),
-          keywords: input.keywords,
-          countryCode: input.countryCode,
-          languageCode: input.languageCode,
-          devices: input.devices,
-          ...(input.analyses ? { analyses: input.analyses } : {}),
-          budget: {
-            maxPages: pageUrls.length,
-            maxKeywords: input.keywords.length,
-            maxCompetitors: input.competitorUrls.length,
-            maxProviderCalls: input.maxProviderCalls,
-          },
-        };
+  const packet = seoTaskPacket(input, pageUrls, analysis.id);
   const task = await createTaskForActor(
     {
       actor: actor.sokoBotId

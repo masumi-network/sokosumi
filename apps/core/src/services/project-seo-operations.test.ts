@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { requestSeoAnalysisSchema } from "@/schemas/project-seo.schema";
-import { validateSeoAnalysis } from "./project-seo-operations.service";
+import {
+  SEO_MAX_PACKET_CHARS,
+  seoTaskPacket,
+  validateSeoAnalysis,
+} from "./project-seo-operations.service";
 
 const page = "https://example.test/page";
 const request = () =>
@@ -68,5 +72,28 @@ describe("SEO worker request compatibility before Task dispatch", () => {
         [page],
       ),
     ).toThrow("Full audits cannot use focused analysis options");
+  });
+  it("refuses a Task packet the worker would refuse for its length, before dispatch", () => {
+    const longUrl = (n: number) =>
+      `https://example.test/${n}/${"a".repeat(4000)}`;
+    const pages = Array.from({ length: 10 }, (_, n) => longUrl(n));
+    const links = {
+      ...request(),
+      kind: "links" as const,
+      analyses: undefined,
+      keywords: [],
+      competitorUrls: Array.from({ length: 10 }, (_, n) =>
+        longUrl(n).replace("example", "competitor"),
+      ),
+    };
+    expect(() =>
+      seoTaskPacket(links, pages, "01951111-1111-7111-8111-111111111111"),
+    ).toThrow("too long for the worker");
+    const packet = seoTaskPacket(
+      request(),
+      [page],
+      "01951111-1111-7111-8111-111111111111",
+    );
+    expect(JSON.stringify(packet).length).toBeLessThan(SEO_MAX_PACKET_CHARS);
   });
 });
