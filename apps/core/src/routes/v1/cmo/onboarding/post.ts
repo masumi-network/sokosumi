@@ -36,7 +36,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const body = c.req.valid("json");
-    await startCmoOnboarding({ userId, ...body }).catch(rethrow);
-    return created(c, await requireOverview(userId));
+    const cuso = await startCmoOnboarding({ userId, ...body }).catch(rethrow);
+    // The hired Cuso, by his Project, which CMO names from here on.
+    return created(
+      c,
+      await requireOverview({ userId, projectId: cuso.projectId }),
+    );
   });
 }
