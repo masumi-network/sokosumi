@@ -182,6 +182,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           workspaceId: targetWorkspace.id,
           projectId: null,
+          // Contacts belong to one workspace; the link does not travel.
+          contactId: null,
         },
       });
 

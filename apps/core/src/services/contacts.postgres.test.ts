@@ -5,8 +5,10 @@
  * them (smart lists, sorting with empty dates, import and export).
  */
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import mountMoveTask from "@/routes/v1/tasks/[id]/workspace/put";
 import {
   createContactList,
   deleteContactList,
@@ -37,6 +39,12 @@ import {
   importContactsFromTable,
 } from "./contacts-import.service";
 import { linkNewsletterContacts } from "./newsletter-contacts.service";
+import { createTaskForActor } from "./task-domain.service";
+
+// Calendar delivery after a Task move is not under test here.
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: vi.fn(),
+}));
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -48,6 +56,12 @@ const outsider = randomUUID();
 const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const otherWorkspaceId = randomUUID();
+const alicePersonalWorkspaceId = randomUUID();
+const allWorkspaceIds = [
+  workspaceId,
+  otherWorkspaceId,
+  alicePersonalWorkspaceId,
+];
 const asAlice: ContactActor = { workspaceId, userId: alice, sokoBotId: null };
 const asBob: ContactActor = { workspaceId, userId: bob, sokoBotId: null };
 const asOutsider: ContactActor = {
@@ -110,11 +124,14 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     await prisma.workspace.create({
       data: { id: otherWorkspaceId, userId: outsider },
     });
+    await prisma.workspace.create({
+      data: { id: alicePersonalWorkspaceId, userId: alice },
+    });
   });
 
   afterAll(async () => {
     await prisma.task.deleteMany({
-      where: { workspaceId: { in: [workspaceId, otherWorkspaceId] } },
+      where: { workspaceId: { in: allWorkspaceIds } },
     });
     await prisma.dataTable.deleteMany({
       where: { workspaceId: { in: [workspaceId, otherWorkspaceId] } },
@@ -126,7 +143,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       where: { workspaceId: { in: [workspaceId, otherWorkspaceId] } },
     });
     await prisma.workspace.deleteMany({
-      where: { id: { in: [workspaceId, otherWorkspaceId] } },
+      where: { id: { in: allWorkspaceIds } },
     });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
     await prisma.user.deleteMany({
@@ -1075,5 +1092,139 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
         where: { query: { endsWith: workspaceId } },
       });
     }
+  });
+  describe("Tasks linked to a contact", () => {
+    function createLinkedTask(
+      contactId: string,
+      name: string,
+      tx: Parameters<typeof createTaskForActor>[1],
+    ) {
+      return createTaskForActor(
+        {
+          actor: { kind: "user", userId: alice },
+          ownerId: alice,
+          organizationId,
+          workspaceId,
+          name,
+          status: "DRAFT",
+          contactId,
+        },
+        tx,
+      );
+    }
+
+    /** Resolves once some transaction waits on another's row lock. */
+    async function untilALockWaits() {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const [row] = await prisma.$queryRaw<{ waiting: number }[]>`
+          SELECT count(*)::int AS waiting FROM pg_stat_activity
+          WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+        if ((row?.waiting ?? 0) > 0) return;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      throw new Error("No transaction ever waited for a lock");
+    }
+
+    function gate() {
+      let open = () => {};
+      const opened = new Promise<void>((resolve) => {
+        open = resolve;
+      });
+      return { opened, open };
+    }
+
+    async function pair(name: string) {
+      const winner = await create(asAlice, { name });
+      const loser = await create(asAlice, { name: `${name} (old)` });
+      return { winnerId: winner.contact.id, loserId: loser.contact.id };
+    }
+
+    it("leaves the contact behind when the Task moves workspace", async () => {
+      const { winnerId, loserId } = await pair("Tara Moss");
+      const task = await prisma.$transaction((tx) =>
+        createLinkedTask(loserId, "Send Tara the brief", tx),
+      );
+      const app = new OpenAPIHonoWithAuth();
+      app.use("*", async (c, next) => {
+        c.set("requestId", "contact-task-move");
+        c.set("isAuthenticated", true);
+        c.set("authContext", {
+          actor: "user",
+          userId: alice,
+          organizationId,
+          role: "user",
+          authenticationMethod: "session",
+        });
+        await next();
+      });
+      mountMoveTask(app);
+
+      const response = await app.request(`http://localhost/${task.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organizationId: null }),
+      });
+      expect(response.status, await response.clone().text()).toBe(200);
+      await inContactTransaction((tx) =>
+        mergeContacts(tx, asAlice, winnerId, [loserId]),
+      );
+
+      await expect(
+        prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
+      ).resolves.toMatchObject({
+        workspaceId: alicePersonalWorkspaceId,
+        contactId: null,
+      });
+    });
+
+    it("moves a Task made during a merge to the contact that stays", async () => {
+      const { winnerId, loserId } = await pair("Ivo Brandt");
+      const created = gate();
+      const commit = gate();
+      const creating = prisma.$transaction(async (tx) => {
+        const task = await createLinkedTask(loserId, "Call Ivo", tx);
+        created.open();
+        await commit.opened;
+        return task;
+      });
+      await created.opened;
+
+      const merging = inContactTransaction((tx) =>
+        mergeContacts(tx, asAlice, winnerId, [loserId]),
+      );
+      await untilALockWaits();
+      commit.open();
+      const task = await creating;
+      await merging;
+
+      await expect(
+        prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
+      ).resolves.toMatchObject({ contactId: winnerId });
+    });
+
+    it("refuses a Task for a contact a concurrent merge archived", async () => {
+      const { winnerId, loserId } = await pair("Lena Vogt");
+      const merged = gate();
+      const commit = gate();
+      const merging = inContactTransaction(async (tx) => {
+        const result = await mergeContacts(tx, asAlice, winnerId, [loserId]);
+        merged.open();
+        await commit.opened;
+        return result;
+      });
+      await merged.opened;
+
+      const creating = prisma.$transaction((tx) =>
+        createLinkedTask(loserId, "Email Lena", tx),
+      );
+      await untilALockWaits();
+      commit.open();
+      await merging;
+
+      await expect(creating).rejects.toMatchObject({ status: 404 });
+      await expect(
+        prisma.task.count({ where: { name: "Email Lena" } }),
+      ).resolves.toBe(0);
+    });
   });
 });

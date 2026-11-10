@@ -57,7 +57,7 @@ const {
   notifyWorkspaceApproversOfPendingGrantMock,
   projectFindFirstMock,
   projectUpdateManyMock,
-  contactFindFirstMock,
+  contactTouchMock,
   prismaTransactionMock,
   requestWorkspaceGrantMock,
   resolveEffectiveDesignMdMock,
@@ -71,7 +71,7 @@ const {
   uploadProjectBriefingFileMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
-  contactFindFirstMock: vi.fn(),
+  contactTouchMock: vi.fn(),
   ensureProjectFilesTokenMock: vi.fn(),
   generateTaskNameMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -592,7 +592,7 @@ describe("POST /tasks", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
-          contact: { findFirst: contactFindFirstMock },
+          $executeRaw: contactTouchMock,
           project: {
             findFirst: projectFindFirstMock,
           },
@@ -785,7 +785,7 @@ describe("POST /tasks", () => {
 
   it("links a live contact in the workspace", async () => {
     const contactId = "01960001-0001-7001-8001-000000000077";
-    contactFindFirstMock.mockResolvedValue({ id: contactId });
+    contactTouchMock.mockResolvedValue(1);
 
     const response = await createApp().request("http://localhost/", {
       method: "POST",
@@ -794,14 +794,11 @@ describe("POST /tasks", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(contactFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: contactId,
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        archivedAt: null,
-      },
-      select: { id: true },
-    });
+    expect(contactTouchMock).toHaveBeenCalledWith(
+      expect.anything(),
+      contactId,
+      "11111111-1111-7111-8111-111111111111",
+    );
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ contactId }),
@@ -810,7 +807,7 @@ describe("POST /tasks", () => {
   });
 
   it("rejects a contact outside the workspace or archived", async () => {
-    contactFindFirstMock.mockResolvedValue(null);
+    contactTouchMock.mockResolvedValue(0);
 
     const response = await createApp().request("http://localhost/", {
       method: "POST",

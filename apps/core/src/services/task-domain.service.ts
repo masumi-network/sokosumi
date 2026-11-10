@@ -188,11 +188,18 @@ async function requireLiveContactInWorkspace(
 ): Promise<void> {
   if (contactId === null || contactId === undefined) return;
 
-  const contact = await tx.contact.findFirst({
-    where: { id: contactId, workspaceId, archivedAt: null },
-    select: { id: true },
-  });
-  if (!contact) throw notFound("Contact not found");
+  // A real (no-op) row write, not a read or `FOR UPDATE`: a concurrent merge
+  // archives the contact after moving its Tasks, inside a Serializable
+  // transaction. Writing the row makes that merge wait for this Task and then
+  // retry (a new row version is a serialization failure, a lock alone is
+  // not), so it moves the new Task too. A merge that commits first leaves the
+  // contact archived and this update matches nothing.
+  const touched = await tx.$executeRaw`
+    UPDATE "contact" SET "archivedAt" = NULL
+    WHERE "id" = ${contactId}::uuid
+      AND "workspaceId" = ${workspaceId}::uuid
+      AND "archivedAt" IS NULL`;
+  if (touched === 0) throw notFound("Contact not found");
 }
 
 /** Only a user or a Soko Bot acting for itself carries tasking authority. */
