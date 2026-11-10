@@ -114,6 +114,7 @@ import type {
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
 import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
@@ -1458,15 +1459,16 @@ export class SokoBotControlPlane {
     // charge that rolled back. Reset per attempt: a serialization retry
     // starts over and must not carry the rolled-back attempt's charge.
     let chargedUserId: string | null = null;
-    // A CMO research turn that ended: Cuso's first plan may start now.
-    let cmoResearchEnded: {
+    // A CMO research or plan turn that ended: Cuso's first plan, or the
+    // next fix the owner asked for meanwhile, may start now.
+    let cmoTurnEnded: {
       sokoBotId: string;
       userId: string | null;
     } | null = null;
 
     return serializableTransaction(async (tx) => {
       chargedUserId = null;
-      cmoResearchEnded = null;
+      cmoTurnEnded = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
@@ -1577,12 +1579,18 @@ export class SokoBotControlPlane {
         },
       });
       if (settled.count === 0) return false;
-      // A research the owner stopped starts no plan.
+      // Once any foreground turn of Cuso ends, his first plan or the next
+      // fix the owner asked for meanwhile may start (one turn per bot). A
+      // turn the owner stopped starts nothing.
       if (
         settledStatus !== "CANCELLED" &&
-        turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)
+        (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
+          turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
+          (turn.parentTurnId === null &&
+            turn.versionId !== undefined &&
+            getSokoBotVersion(turn.versionId).profile === "cmo"))
       ) {
-        cmoResearchEnded = {
+        cmoTurnEnded = {
           sokoBotId: turn.sokoBotId,
           userId: turn.requestedByUserId,
         };
@@ -1677,16 +1685,14 @@ export class SokoBotControlPlane {
             organizationId: null,
           });
         }
-        if (settled && cmoResearchEnded) {
+        if (settled && cmoTurnEnded) {
           const ended: { sokoBotId: string; userId: string | null } =
-            cmoResearchEnded;
+            cmoTurnEnded;
           waitUntil(
             import("@/services/cmo-strategy.service")
-              .then(({ startCmoPlanAfterResearch }) =>
-                startCmoPlanAfterResearch(ended),
-              )
+              .then(({ afterCmoTurn }) => afterCmoTurn(ended))
               .catch((error) => {
-                console.warn("CMO plan did not start after the research", {
+                console.warn("CMO's next run did not start", {
                   sokoBotId: ended.sokoBotId,
                   error: error instanceof Error ? error.message : "unknown",
                 });

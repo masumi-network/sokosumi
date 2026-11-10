@@ -42,7 +42,10 @@ import {
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import { writeCmoQuickLook } from "@/services/cmo-quick-look.service";
-import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
+import {
+  cmoChangeKind,
+  STRATEGY_TURN_PREFIX,
+} from "@/services/marketing-strategy.service";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -141,6 +144,8 @@ export interface CmoWorkStep {
 
 export interface CmoWork {
   kind: "research" | "strategy";
+  /** A strategy turn that fixes the Brand Brain or patches the plan; null for a whole plan. */
+  change: "fix" | "patch" | null;
   status: CmoLearningState;
   startedAt: Date;
   steps: CmoWorkStep[];
@@ -313,6 +318,7 @@ export async function cmoWork(
     kind: turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)
       ? "strategy"
       : "research",
+    change: cmoChangeKind(turn.clientTurnId),
     status: await settledTurnStatus(turn, now),
     startedAt: turn.createdAt,
     steps,

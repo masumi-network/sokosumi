@@ -302,6 +302,28 @@ describe("CMO strategy and rhythms", () => {
     expect("calendar" in planOnly).toBe(false);
   });
 
+  it("takes from a patch only the entries and fields it really sent", () => {
+    const entry = {
+      id: "a",
+      date: "2026-10-05",
+      channel: "linkedin",
+      title: "One",
+      format: "post",
+      status: "idea",
+    };
+    const patch = parseCmoStrategySave({
+      part: "patch",
+      strategy: {
+        pace: { level: "active", why: "The owner asked.", perWeek: 5 },
+        mix: [],
+        funnel: [],
+        calendar: [entry],
+      },
+    });
+    expect(Object.keys(patch).sort()).toEqual(["calendar", "pace"]);
+    expect(patch.calendar).toHaveLength(1);
+  });
+
   it("proposes only channels Cuso runs that the plan leaves out", () => {
     const proposing = (channel: string) => ({
       strategy: {

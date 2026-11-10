@@ -86,6 +86,12 @@ export const cmoAdBudgetRequestSchema = z
 export const cmoStrategyRequestSchema = z
   .object({
     note: z.string().trim().max(1_000).optional(),
+    patch: z
+      .boolean()
+      .optional()
+      .describe(
+        "With a note: Cuso changes only the entries the note touches (a no, the pace) in a short turn, instead of writing a new plan.",
+      ),
     restart: z
       .boolean()
       .optional()
@@ -105,6 +111,29 @@ export const cmoProjectParamsSchema = z.object({
       example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     }),
 });
+
+export const cmoBrandFixRequestSchema = z
+  .object({
+    section: z.enum(CMO_BRAND_SECTION_KEYS),
+    note: z
+      .string()
+      .trim()
+      .min(1)
+      .max(400)
+      .describe("What is true instead, in the owner's words."),
+  })
+  .openapi("CmoBrandFixRequest");
+
+export const cmoBrandFixStartedSchema = z
+  .object({
+    turnId: z.union([z.string(), z.null()]),
+    queued: z
+      .boolean()
+      .describe(
+        "Cuso is busy: the fix is kept on its section and starts when his current turn ends.",
+      ),
+  })
+  .openapi("CmoBrandFixStarted");
 
 export const cmoUpdateIdParamsSchema = z.object({
   id: z.string().min(1).max(64),
@@ -161,6 +190,12 @@ export const cmoWorkStepSchema = z
 export const cmoWorkSchema = z
   .object({
     kind: z.enum(["research", "strategy"]),
+    change: z
+      .union([z.enum(["fix", "patch"]), z.null()])
+      .optional()
+      .describe(
+        "A strategy turn that fixes Brand Brain sections or patches the plan's entries; null for a whole plan.",
+      ),
     status: z.enum(["running", "failed", "done"]),
     startedAt: dateTimeSchema,
     steps: z.array(cmoWorkStepSchema),

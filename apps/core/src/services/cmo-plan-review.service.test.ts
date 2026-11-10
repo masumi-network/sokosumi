@@ -13,6 +13,7 @@ import {
   cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
+  cmoPlanRuleProblems,
   cmoReplySafety,
   mixProblems,
   pillarProblems,
@@ -124,9 +125,26 @@ describe("cmoPlanProblems", () => {
     expect(problems.join("\n")).toMatch(/mix is empty/);
     expect(problems.join("\n")).toMatch(/funnel has 1 stages/);
     expect(problems.join("\n")).toMatch(/objective's metric, "Intro calls"/);
-    expect(problems.join("\n")).toMatch(/calendar has 1 pieces/);
     expect(problems.join("\n")).toMatch(/uses 1 formats/);
     expect(problems.join("\n")).toMatch(/holds drafts/);
+  });
+
+  it("leaves the hard rules to the save, so it never sends Cuso back for them", () => {
+    const broken = plan({
+      summary:
+        "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone.",
+      calendar: [entry("a", "linkedin", "post")],
+    });
+    const review = cmoPlanProblems(broken).join("\n");
+    expect(review).not.toMatch(/summary has|calendar has 1 pieces|% of the/);
+    const rules = cmoPlanRuleProblems(broken).join("\n");
+    expect(rules).toMatch(/Rule "20-word summary": the summary has 21 words/);
+    expect(rules).toMatch(/Rule "16 pieces": the calendar has 1 pieces/);
+    expect(rules).toMatch(/Rule "shares within 7 points": /);
+  });
+
+  it("checks no calendar rule before the calendar is saved", () => {
+    expect(cmoPlanRuleProblems(plan({ calendar: [] }))).toEqual([]);
   });
 
   it("asks for a story on every LinkedIn piece", () => {

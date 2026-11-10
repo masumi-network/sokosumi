@@ -40,16 +40,44 @@ function isVideoFormat(entry: { channel: string; format: string }): boolean {
 }
 
 /**
- * What a saved plan breaks of the strategy skill's hard rules, in words Cuso
- * can act on. Calendar rules wait until a calendar is saved.
+ * The hard rules a save must keep, or nothing is saved: each problem names
+ * its rule, so Cuso fixes it in the same turn. Calendar rules wait until a
+ * calendar is saved, so the plan part can save first.
+ */
+export function cmoPlanRuleProblems(strategy: MarketingStrategyPlan): string[] {
+  const problems: string[] = [];
+  const rule = (name: string, problem: string) =>
+    problems.push(`Rule "${name}": ${problem}`);
+  const words = strategy.summary.trim().split(/\s+/).length;
+  if (words > MAX_SUMMARY_WORDS)
+    rule(
+      `${MAX_SUMMARY_WORDS}-word summary`,
+      `the summary has ${words} words; keep it to ${MAX_SUMMARY_WORDS}.`,
+    );
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  if (pieces.length === 0) return problems;
+  if (pieces.length < MIN_PIECES)
+    rule(
+      `${MIN_PIECES} pieces`,
+      `the calendar has ${pieces.length} pieces; plan at least ${MIN_PIECES} for four weeks.`,
+    );
+  for (const problem of [
+    ...mixProblems(strategy.mix, pieces),
+    ...pillarProblems(strategy.pillars, pieces),
+  ])
+    rule(`shares within ${CMO_SHARE_TOLERANCE} points`, problem);
+  return problems;
+}
+
+/**
+ * What a saved plan breaks of the strategy skill's other rules, in words Cuso
+ * can act on. The hard rules are kept at save time (cmoPlanRuleProblems).
+ * Calendar rules wait until a calendar is saved.
  */
 export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
   const problems: string[] = [];
-  const words = strategy.summary.trim().split(/\s+/).length;
-  if (words > MAX_SUMMARY_WORDS)
-    problems.push(
-      `summary has ${words} words; keep it to ${MAX_SUMMARY_WORDS}.`,
-    );
   if (strategy.mix.length === 0)
     problems.push("mix is empty; give two to four approaches.");
   problems.push(...pillarListProblems(strategy.pillars));
@@ -103,10 +131,6 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
     (entry) => entry.status !== "skipped",
   );
   if (pieces.length > 0) {
-    if (pieces.length < MIN_PIECES)
-      problems.push(
-        `calendar has ${pieces.length} pieces; plan at least ${MIN_PIECES} for four weeks.`,
-      );
     const formats = new Set(
       pieces.map((entry) => `${entry.channel}/${entry.format}`),
     );
@@ -118,8 +142,6 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       problems.push(
         "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
-    problems.push(...mixProblems(strategy.mix, pieces));
-    problems.push(...pillarProblems(strategy.pillars, pieces));
     const hedged = pieces.filter((entry) =>
       /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
         entry.title,

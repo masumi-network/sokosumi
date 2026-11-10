@@ -7,6 +7,7 @@ export {
   type CmoReportUpdateInput,
   type CmoSaveBrandBrainInput,
   type CmoStrategySave,
+  type CmoStrategySavePart,
   type CmoSystemSchedule,
   cmoBrandQuestionsPatchSchema,
   cmoMayExecute,

@@ -268,6 +268,26 @@ describe("work", () => {
     expect(work?.sectionsSaved).toBe(2);
   });
 
+  it("tells a fix or a patch from a whole plan", async () => {
+    const kinds = [];
+    for (const clientTurnId of [
+      "cmo:strategy:bot-1:1",
+      "cmo:strategy:bot-1:fix:1",
+      "cmo:strategy:bot-1:patch:1",
+      "cmo:onboarding:bot-1:1",
+    ]) {
+      turnFindFirst.mockResolvedValue({ ...turn, clientTurnId });
+      const work = await cmoWork(cuso(null));
+      kinds.push([work?.kind, work?.change]);
+    }
+    expect(kinds).toEqual([
+      ["strategy", null],
+      ["strategy", "fix"],
+      ["strategy", "patch"],
+      ["research", null],
+    ]);
+  });
+
   it("lists none before any section is saved", async () => {
     turnFindFirst.mockResolvedValue(turn);
     const work = await cmoWork(cuso(null));

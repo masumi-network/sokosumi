@@ -10,10 +10,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
+const { revertMock, overviewMock, strategyMock, fixMock } = vi.hoisted(() => ({
   revertMock: vi.fn(),
   overviewMock: vi.fn(),
   strategyMock: vi.fn(),
+  fixMock: vi.fn(),
 }));
 
 const { archiveMock, nextCusoMock } = vi.hoisted(() => ({
@@ -39,6 +40,7 @@ vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   return {
     ...actual,
     requestCmoStrategy: strategyMock,
+    fixCmoBrandSection: fixMock,
   };
 });
 vi.mock("@/services/cmo-reports.service", async (importOriginal) => {
@@ -252,8 +254,71 @@ describe("CMO routes", () => {
       userId: "user-1",
       projectId: PROJECT_ID,
       note: undefined,
+      patch: undefined,
       restart: true,
     });
+  });
+
+  it("asks for a patch, not a new plan, for a pace", async () => {
+    strategyMock.mockResolvedValue({ turnId: "turn-3" });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/strategy`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          note: "Switch to the active pace.",
+          patch: true,
+        }),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(strategyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        note: "Switch to the active pace.",
+        patch: true,
+      }),
+    );
+  });
+
+  it("fixes one Brand Brain section, or says the fix waits its turn", async () => {
+    fixMock.mockResolvedValueOnce({ turnId: "turn-4" });
+    fixMock.mockResolvedValueOnce({ queued: true });
+    const fix = () =>
+      createApp().request(`/projects/${PROJECT_ID}/brand/fix`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ section: "pricing", note: "From 19 dollars." }),
+      });
+
+    const started = await fix();
+    expect(started.status).toBe(201);
+    expect(await started.json()).toMatchObject({
+      data: { turnId: "turn-4", queued: false },
+    });
+    const queued = await fix();
+    expect(await queued.json()).toMatchObject({
+      data: { turnId: null, queued: true },
+    });
+    expect(fixMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      section: "pricing",
+      note: "From 19 dollars.",
+    });
+  });
+
+  it("refuses a fix for a section that does not exist", async () => {
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/brand/fix`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ section: "weather", note: "Sunny." }),
+      },
+    );
+    expect(response.status).toBe(422);
+    expect(fixMock).not.toHaveBeenCalled();
   });
 
   it.each(["aaaaaaaa-aaaa-4aaa-8aaa-000000000001", null])(
