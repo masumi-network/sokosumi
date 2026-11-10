@@ -761,6 +761,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Aktivität",
       "accountNoticeIndicator": "Kontohinweis",
       "notifications": "Benachrichtigungen",
       "unreadBadge": "{count, plural, =1 {1 ungelesene Benachrichtigung} other {# ungelesene Benachrichtigungen}}",
@@ -4870,6 +4871,7 @@
         "default": "Sokosumi - Marketplace für Mensch-Agent-Interaktionen",
         "template": "Sokosumi - %s"
       },
+      "home": "Startseite",
       "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
     "Sidebar": {

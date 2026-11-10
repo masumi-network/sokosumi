@@ -16,6 +16,10 @@ const redirect = vi.fn((path: string) => {
 });
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
+vi.mock("next-intl/server", () => ({
+  getTranslations: async (namespace: string) => (key: string) =>
+    `${namespace}.${key}`,
+}));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => redirect(path),
 }));
@@ -91,7 +95,7 @@ vi.mock("./components/soko-bot-home", () => ({
   },
 }));
 
-import WelcomePage from "./page";
+import WelcomePage, { generateMetadata } from "./page";
 
 async function renderPage() {
   render(await WelcomePage({ searchParams: Promise.resolve({}) }));
@@ -183,5 +187,13 @@ describe("WelcomePage", () => {
         needsYou: expect.anything(),
       }),
     );
+  });
+});
+
+describe("generateMetadata", () => {
+  it("names the tab Home instead of the layout's marketing line", async () => {
+    await expect(generateMetadata()).resolves.toEqual({
+      title: "App.Metadata.home",
+    });
   });
 });

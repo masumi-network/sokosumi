@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
@@ -32,6 +34,12 @@ interface WelcomePageProps {
   searchParams: Promise<{
     notice?: string | string[];
   }>;
+}
+
+// Without its own title the landing page kept the layout's marketing line.
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Metadata");
+  return { title: t("home") };
 }
 
 /** The bot's Direct, or null when it has none yet or the read fails. */

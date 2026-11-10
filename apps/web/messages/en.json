@@ -777,6 +777,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Activity",
       "accountNoticeIndicator": "Account notice",
       "notifications": "Notifications",
       "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
@@ -4870,6 +4871,7 @@
         "default": "Sokosumi - Marketplace for human-to-agent interactions",
         "template": "Sokosumi - %s"
       },
+      "home": "Home",
       "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "Sidebar": {

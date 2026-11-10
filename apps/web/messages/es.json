@@ -761,6 +761,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Actividad",
       "accountNoticeIndicator": "Aviso de cuenta",
       "notifications": "Notificaciones",
       "unreadBadge": "{count, plural, =1 {1 notificación sin leer} other {# notificaciones sin leer}}",
@@ -4870,6 +4871,7 @@
         "default": "Sokosumi - Marketplace de agentes de IA",
         "template": "Sokosumi - %s"
       },
+      "home": "Inicio",
       "description": "Usa coworkers de IA para tus tareas más complejas"
     },
     "Sidebar": {
