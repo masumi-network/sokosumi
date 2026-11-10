@@ -104,11 +104,11 @@ describe("SEO load recovery", () => {
     await showPage({ auditId: SEO_TEST_AUDIT });
     expect(
       screen.getByRole("heading", {
-        name: "SEO unavailable in this Workspace",
+        name: "This audit is not available in this workspace",
       }),
     ).toBeVisible();
     expect(
-      screen.getByText(/Check the Workspace in the sidebar/),
+      screen.getByText(/It may belong to another workspace/),
     ).toBeVisible();
     expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
       "href",
@@ -132,6 +132,10 @@ describe("SEO load recovery", () => {
       expect(
         screen.getByRole("link", { name: "Open all pages" }),
       ).toHaveAttribute("href", `/seo?auditId=${SEO_TEST_AUDIT}`);
+      // The link opens this Audit here, so the text does not send the reader to another workspace.
+      expect(
+        screen.getByText(/This audit or selection is not available/),
+      ).toBeVisible();
       expect(boundary.getWorkspace).toHaveBeenCalledOnce();
       expect(boundary.listAudits).not.toHaveBeenCalled();
     },
@@ -157,7 +161,7 @@ describe("SEO load recovery", () => {
     render(wrap(<SeoWorkspace workspace={workspace()} />, client()));
     expect(
       await screen.findByRole("heading", {
-        name: "SEO unavailable in this Workspace",
+        name: "This audit is not available in this workspace",
       }),
     ).toBeVisible();
     expect(screen.queryByText(CACHED_AUDIT_NAME)).toBeNull();
@@ -226,7 +230,7 @@ describe("SEO load recovery", () => {
     finish?.(Response.json({ error: "SEO unavailable" }, { status: 404 }));
     expect(
       await screen.findByRole("heading", {
-        name: "SEO unavailable in this Workspace",
+        name: "This audit is not available in this workspace",
       }),
     ).toBeVisible();
   });

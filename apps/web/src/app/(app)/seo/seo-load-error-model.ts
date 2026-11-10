@@ -49,17 +49,26 @@ export function seoLoadRecovery({
           : { projectId: owner.id, view: "project" },
       )
     : null;
+  const named = hasSelection ? undefined : owner;
   return {
     contextual,
     canRetry: !contextual && !invalidFilters,
-    titleKey: contextual
-      ? ("unavailableTitle" as const)
-      : ("errorTitle" as const),
+    // A named Audit or Project that this workspace cannot open usually lives in another one.
+    // With a page or scope selected, the selection can be what is missing: the general text covers both.
+    titleKey: !contextual
+      ? ("errorTitle" as const)
+      : !named
+        ? ("unavailableTitle" as const)
+        : named.kind === "audit"
+          ? ("auditNotHereTitle" as const)
+          : ("projectNotHereTitle" as const),
     bodyKey: invalidFilters
       ? ("invalidFilters" as const)
-      : contextual
-        ? ("unavailableBody" as const)
-        : ("errorBody" as const),
+      : !contextual
+        ? ("errorBody" as const)
+        : named
+          ? ("notHereBody" as const)
+          : ("unavailableBody" as const),
     allPagesHref: hasSelection && params ? `/seo?${params}` : null,
   };
 }

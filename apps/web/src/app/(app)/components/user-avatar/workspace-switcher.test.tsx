@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAgentJobsBasePath,
   getOrganizationSettingsPath,
+  getSeoBasePath,
   getTaskDetailBasePath,
   switchOrganizationWorkspace,
   useWorkspaceSwitcher,
@@ -88,6 +89,14 @@ describe("workspace switcher", () => {
     it("returns null for task edit and list routes", () => {
       expect(getTaskDetailBasePath("/tasks")).toBeNull();
       expect(getTaskDetailBasePath("/tasks/task-9/edit")).toBeNull();
+    });
+  });
+
+  describe("getSeoBasePath", () => {
+    it("returns the SEO page for the SEO page only", () => {
+      expect(getSeoBasePath("/seo")).toBe("/seo");
+      expect(getSeoBasePath("/seo/connections/return")).toBeNull();
+      expect(getSeoBasePath("/tasks")).toBeNull();
     });
   });
 
@@ -264,6 +273,31 @@ describe("workspace switcher", () => {
         organizationId: "org-1",
       });
       expect(replaceMock).toHaveBeenCalledWith("/tasks");
+      expect(refreshMock).toHaveBeenCalled();
+    });
+  });
+
+  it("opens the new workspace's SEO audit list when the current route is the SEO page", async () => {
+    // The open Audit sits in the query, which the pathname does not carry.
+    pathnameMock = "/seo";
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        organizationId: "org-1",
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/seo");
       expect(refreshMock).toHaveBeenCalled();
     });
   });

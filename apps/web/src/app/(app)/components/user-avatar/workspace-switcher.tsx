@@ -34,6 +34,11 @@ export function getTaskDetailBasePath(pathname: string): string | null {
   return "/tasks";
 }
 
+/** An Audit and a Project belong to one workspace, so the selection in the SEO page's query does not survive a switch. */
+export function getSeoBasePath(pathname: string): string | null {
+  return pathname === "/seo" ? "/seo" : null;
+}
+
 export function getOrganizationSettingsPath(
   pathname: string,
   organizationId?: string | null,
@@ -136,6 +141,18 @@ export async function switchOrganizationWorkspace(
     if (taskDetailBasePath) {
       runRouterTransition(() => {
         options.router?.replace(taskDetailBasePath);
+        options.router?.refresh();
+      }, options.startTransition);
+      return;
+    }
+  }
+
+  if (options?.router && options?.pathname) {
+    // Without this the old Audit stays in the address and the page says it is unavailable.
+    const seoBasePath = getSeoBasePath(options.pathname);
+    if (seoBasePath) {
+      runRouterTransition(() => {
+        options.router?.replace(seoBasePath);
         options.router?.refresh();
       }, options.startTransition);
       return;

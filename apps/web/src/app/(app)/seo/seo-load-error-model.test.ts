@@ -33,6 +33,30 @@ describe("SEO load error model", () => {
         titleKey: "unavailableTitle",
         bodyKey: "unavailableBody",
       });
+      // A named Audit or Project says what is missing, and where it may be.
+      expect(
+        seoLoadRecovery({ status, owner: { kind: "audit", id: AUDIT } }),
+      ).toMatchObject({
+        titleKey: "auditNotHereTitle",
+        bodyKey: "notHereBody",
+      });
+      expect(
+        seoLoadRecovery({ status, owner: { kind: "project", id: AUDIT } }),
+      ).toMatchObject({
+        titleKey: "projectNotHereTitle",
+        bodyKey: "notHereBody",
+      });
+      // A selected page can be the missing part: the Audit itself may be here.
+      expect(
+        seoLoadRecovery({
+          status,
+          owner: { kind: "audit", id: AUDIT },
+          hasSelection: true,
+        }),
+      ).toMatchObject({
+        titleKey: "unavailableTitle",
+        bodyKey: "unavailableBody",
+      });
     },
   );
 
@@ -45,6 +69,10 @@ describe("SEO load error model", () => {
         titleKey: "errorTitle",
         bodyKey: "errorBody",
       });
+      // A failed read says nothing about where the Audit lives.
+      expect(
+        seoLoadRecovery({ status, owner: { kind: "audit", id: AUDIT } }),
+      ).toMatchObject({ titleKey: "errorTitle", bodyKey: "errorBody" });
     },
   );
 

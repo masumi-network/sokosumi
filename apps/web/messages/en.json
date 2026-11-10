@@ -11367,6 +11367,9 @@
       },
       "unavailableTitle": "SEO unavailable in this Workspace",
       "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",
+      "auditNotHereTitle": "This audit is not available in this workspace",
+      "projectNotHereTitle": "This project is not available in this workspace",
+      "notHereBody": "It may belong to another workspace. Switch workspace in the sidebar, or open the audits of this workspace.",
       "openAllPages": "Open all pages",
       "queries": {
         "title": "Search Console queries",

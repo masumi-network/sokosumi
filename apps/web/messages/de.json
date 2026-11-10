@@ -11367,6 +11367,9 @@
       },
       "unavailableTitle": "SEO ist in diesem Workspace nicht verfügbar",
       "unavailableBody": "Dieses Audit oder diese Auswahl ist im aktuellen Workspace nicht verfügbar. Prüfe den Workspace in der Seitenleiste oder öffne die Audit-Liste.",
+      "auditNotHereTitle": "Dieses Audit ist in diesem Workspace nicht verfügbar",
+      "projectNotHereTitle": "Dieses Projekt ist in diesem Workspace nicht verfügbar",
+      "notHereBody": "Es gehört möglicherweise zu einem anderen Workspace. Wechsle den Workspace in der Seitenleiste oder öffne die Audits dieses Workspace.",
       "openAllPages": "Alle Seiten öffnen",
       "queries": {
         "title": "Search-Console-Suchanfragen",
