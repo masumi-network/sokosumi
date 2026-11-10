@@ -22,6 +22,7 @@ import {
 
 import {
   requestProjectSeoAnalysisInTransaction,
+  seoTaskPacket,
   validateSeoAnalysis,
 } from "./project-seo-operations.service";
 import { requireSeoOwner, resolveSeoScope } from "./project-seo-store";
@@ -63,10 +64,10 @@ export async function createProjectSeoMonitor(
     throw conflict(
       "The page group changed. Reload it before scheduling monitoring.",
     );
-  validateSeoAnalysis(
-    preparedAnalysis,
-    scope.pages.map((page) => page.url),
-  );
+  const pageUrls = scope.pages.map((page) => page.url);
+  validateSeoAnalysis(preparedAnalysis, pageUrls);
+  // Each Run sends this packet with its own Analysis id, a UUID of the same length: refuse it now, not at every Run.
+  seoTaskPacket(preparedAnalysis, pageUrls, crypto.randomUUID());
   const analysis = requestSeoAnalysisSchema.parse({
     ...preparedAnalysis,
     coworkerId: executor.coworkerId,

@@ -518,6 +518,25 @@ describe.skipIf(!enabled)(
         timeZone: "UTC",
         analysis,
       };
+      // A packet the worker would refuse fails at creation, not at every Run.
+      await expect(
+        createProjectSeoMonitor(vars, actor, {
+          ...input,
+          operationId: randomUUID(),
+          analysis: requestSeoAnalysisSchema.parse({
+            ...analysis,
+            kind: "links",
+            idempotencyKey: "monitor-long-links",
+            competitorUrls: Array.from(
+              { length: 10 },
+              (_, n) => `https://competitor-${n}.test/${"a".repeat(4000)}`,
+            ),
+          }),
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining("too long for the worker"),
+      });
       const monitor = await createProjectSeoMonitor(vars, actor, input);
       expect((await createProjectSeoMonitor(vars, actor, input)).id).toBe(
         monitor.id,
