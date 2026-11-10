@@ -490,12 +490,13 @@ describe("validateSocialPostMedia", () => {
 
   it("enforces per-kind byte caps", () => {
     const rules = SOCIAL_POST_MEDIA_RULES.x;
-    expect(
-      validateSocialPostMedia("x", [ref({ size: rules.maxImageBytes })]),
-    ).toEqual({ ok: true });
-    expect(
-      validateSocialPostMedia("x", [ref({ size: rules.maxImageBytes + 1 })]),
-    ).toEqual({ ok: false, reason: "too_large" });
+    expect(validateSocialPostMedia("x", [ref({ size: 5_000_000 })])).toEqual({
+      ok: true,
+    });
+    expect(validateSocialPostMedia("x", [ref({ size: 5_000_001 })])).toEqual({
+      ok: false,
+      reason: "too_large",
+    });
     expect(
       validateSocialPostMedia("x", [{ ...gif, size: rules.maxGifBytes + 1 }]),
     ).toEqual({ ok: false, reason: "too_large" });
