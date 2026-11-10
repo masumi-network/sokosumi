@@ -5,6 +5,7 @@ import { isValidHttpUrl } from "@sokosumi/utils";
 import { DomUtils, parseDocument } from "htmlparser2";
 import { z } from "zod";
 
+import { suggestWebsiteOffers } from "@/lib/image-studio/website-brand-profile";
 import { sitePlatformOf } from "@/lib/site-platform";
 import {
   MAX_STUDIO_PRODUCTS,
@@ -179,6 +180,7 @@ function linkedProductPages(
 
 export async function importStudioProducts(
   website: string,
+  workspaceId?: string,
 ): Promise<StudioProduct[]> {
   const signal = AbortSignal.timeout(IMPORT_TIMEOUT_MS);
   let remainingBytes = IMPORT_BYTE_LIMIT;
@@ -275,6 +277,38 @@ export async function importStudioProducts(
       );
       products.push(...pages.flat());
     }
+  }
+
+  if (products.length === 0 && workspaceId) {
+    const main = DomUtils.getElementsByTagName(
+      "main",
+      document.children,
+      true,
+      1,
+    )[0];
+    const nodes = main?.children ?? document.children;
+    DomUtils.removeSubsets(
+      DomUtils.filter(
+        (node) =>
+          "attribs" in node &&
+          (/^(?:head|script|style|noscript|template|nav|footer)$/.test(
+            node.name,
+          ) ||
+            node.attribs.hidden !== undefined ||
+            node.attribs["aria-hidden"] === "true"),
+        nodes,
+      ),
+    ).forEach(DomUtils.removeElement);
+    const text = DomUtils.filter((node) => node.type === "text", nodes)
+      .map(DomUtils.textContent)
+      .join(" ");
+    const offers = await suggestWebsiteOffers(workspaceId, text);
+    return offers.map((offer) => ({
+      ...offer,
+      id: randomUUID(),
+      url: websiteUrl.href,
+      imageUrl: null,
+    }));
   }
 
   return [

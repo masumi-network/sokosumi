@@ -282,7 +282,10 @@ describe("prepareStudioWebsiteDraft", () => {
       websiteUrl,
       expect.any(Object),
     );
-    expect(importProductsMock).toHaveBeenCalledExactlyOnceWith(websiteUrl);
+    expect(importProductsMock).toHaveBeenCalledExactlyOnceWith(
+      websiteUrl,
+      "workspace-a",
+    );
     expect(suggestProfileMock).toHaveBeenCalledExactlyOnceWith(
       "workspace-a",
       "Brew at your own pace.\nFor home coffee enthusiasts.",
