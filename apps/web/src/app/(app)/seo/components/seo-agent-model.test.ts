@@ -125,10 +125,14 @@ describe("SEO agent brief", () => {
     expect(brief.steps).toEqual(
       expect.arrayContaining([
         { kind: "connect", provider: "search_console" },
-        { kind: "connect", provider: "ga4" },
         { kind: "competitors", available: false },
       ]),
     );
+    // One Google step: the Search Console step also offers Google Analytics.
+    expect(brief.steps).not.toContainEqual({
+      kind: "connect",
+      provider: "ga4",
+    });
   });
 
   it("drops the add-competitor step once a competitor is saved without paid data", () => {

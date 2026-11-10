@@ -11297,8 +11297,8 @@
           "body": "Tu agente sigue las posiciones, encuentra problemas en las páginas y prepara correcciones. Tú apruebas cada una.",
           "addTitle": "Añade una página",
           "addBody": "Empieza con una página pública. Puedes añadir páginas relacionadas después.",
-          "connectTitle": "Conecta Search Console",
-          "connectBody": "Conecta Search Console para ver las búsquedas y los clics de tu página. Lo haces después de crear la auditoría.",
+          "connectTitle": "Conecta Google",
+          "connectBody": "Conecta Google para ver las búsquedas y los clics de tu página. Lo haces después de crear la auditoría.",
           "checkTitle": "Inicia la primera comprobación",
           "checkBody": "El agente lee tus páginas, encuentra problemas y prepara correcciones.",
           "trust": "Guardar una página es gratis. Las comprobaciones de pago solo se ejecutan cuando tú las inicias.",
@@ -11363,7 +11363,11 @@
         "callbackWorking": "Verificando tu autorización de Google",
         "callbackDone": "Tu cuenta está conectada. Vuelve a la auditoría, elige una propiedad y sincroniza las estadísticas.",
         "returnToAudit": "Volver a la auditoría",
-        "invalidCallback": "Este enlace no tiene un contexto de conexión SEO válido. Inicia la conexión desde la auditoría."
+        "invalidCallback": "Este enlace no tiene un contexto de conexión SEO válido. Inicia la conexión desde la auditoría.",
+        "connectGoogle": "Conectar Google",
+        "includeAnalytics": "Conectar también Google Analytics (opcional)",
+        "analyticsNext": "Google pide tu aprobación dos veces: primero para Search Console y después para Google Analytics.",
+        "analyticsOff": "Google Analytics no está conectado. Las visitas y las páginas vistas quedan vacías."
       },
       "unavailableTitle": "SEO no está disponible en este Workspace",
       "unavailableBody": "Esta auditoría o selección no está disponible en el Workspace actual. Revisa el Workspace en la barra lateral o abre la lista de auditorías.",
@@ -11427,7 +11431,7 @@
             "no_queries": "Carga las búsquedas detrás de tus totales de Search Console para que el agente pueda sugerir trabajo."
           },
           "connect": {
-            "search_console": "Conecta Search Console para medir clics, impresiones y las búsquedas que muestran estas páginas.",
+            "search_console": "Conecta Google para medir clics, impresiones y las búsquedas que muestran estas páginas. Google Analytics añade visitas y páginas vistas y es opcional.",
             "ga4": "Conecta Google Analytics para medir visitas y páginas vistas."
           },
           "competitors": {
@@ -11512,7 +11516,7 @@
         "pageDone": "Página añadida",
         "pageBody": "Añade la página pública que quieres posicionar.",
         "pageDoneBody": "{count, plural, one {# página está en esta auditoría.} other {# páginas están en esta auditoría.}} Puedes añadir más páginas después.",
-        "connect": "Conecta Search Console",
+        "connect": "Conectar Google",
         "connectDone": "Search Console conectado",
         "connectBody": "Conecta tu cuenta de Google, elige la propiedad de tu sitio y sincroniza. Después verás las búsquedas, los clics y las posiciones de estas páginas. Google Analytics es opcional.",
         "connectDoneBody": "Las estadísticas de búsqueda de estas páginas están en la pestaña Tráfico.",

@@ -24,6 +24,8 @@ type ConnectionButtonProps = {
   onSync?: () => void;
   /** The view's one primary action passes "primary"; every other use stays outlined. */
   variant?: "primary" | "outline";
+  /** The first connection's button text, where one step covers more than this provider. */
+  connectLabel?: string;
 };
 
 export function SeoConnectionButton({
@@ -31,6 +33,7 @@ export function SeoConnectionButton({
   onConnected,
   onSync,
   variant = "outline",
+  connectLabel,
 }: ConnectionButtonProps) {
   const { data: session } = useSession();
   const identity = JSON.stringify([
@@ -45,6 +48,7 @@ export function SeoConnectionButton({
       onConnected={onConnected}
       onSync={onSync}
       variant={variant}
+      connectLabel={connectLabel}
     />
   );
 }
@@ -54,6 +58,7 @@ function SeoConnectionControl({
   onConnected,
   onSync,
   variant,
+  connectLabel,
 }: ConnectionButtonProps) {
   const t = useTranslations("App.Seo");
   const model = useSeoConnection(provider, onConnected);
@@ -182,14 +187,11 @@ function SeoConnectionControl({
         }}
       >
         <Plug />
-        {t(
-          data?.status === "pending"
-            ? "connections.restart"
-            : data?.status === "needs_reconnect"
-              ? "connections.reconnect"
-              : "connections.connect",
-          { provider: name },
-        )}
+        {data?.status === "pending"
+          ? t("connections.restart", { provider: name })
+          : data?.status === "needs_reconnect"
+            ? t("connections.reconnect", { provider: name })
+            : (connectLabel ?? t("connections.connect", { provider: name }))}
       </Button>
       {data?.status === "pending" ? (
         <p role="status" className="text-muted-foreground text-sm">

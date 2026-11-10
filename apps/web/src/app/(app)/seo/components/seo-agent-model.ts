@@ -93,8 +93,9 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
       kind: "refresh",
       reason: staleSearch ? "stale" : "no_queries",
     });
-  if (canSync && !searchSaved)
-    steps.push({ kind: "connect", provider: "search_console" });
+  // One Google step: the Search Console step also offers Google Analytics.
+  const needsSearch = canSync && !searchSaved;
+  if (needsSearch) steps.push({ kind: "connect", provider: "search_console" });
   const paidSearch = workspace.availableActions.canUsePaidSearchData === true;
   const competitors = workspace.competitors.filter(
     (row) => row.role === "competitor",
@@ -106,7 +107,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
       : !competitors.length
   )
     steps.push({ kind: "competitors", available: paidSearch });
-  if (canSync && !analytics.length)
+  if (canSync && !needsSearch && !analytics.length)
     steps.push({ kind: "connect", provider: "ga4" });
   return {
     lastCheck: lastCheck

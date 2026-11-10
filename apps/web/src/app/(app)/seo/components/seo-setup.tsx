@@ -8,6 +8,7 @@ import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { SeoConnectionButton } from "./seo-connection-button";
+import { SeoGoogleConnection } from "./seo-google-connection";
 import type { SeoSetup, SeoSetupState } from "./seo-setup-model";
 import { SeoStep, SeoStepList, type SeoStepMark } from "./seo-steps";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -120,29 +121,30 @@ export function SeoSetupCard({
           connect.state === "waiting" ? null : (
             <div className="flex flex-wrap items-start gap-2">
               {connect.state === "done" ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    void model.setFilters({ tab: "traffic" });
-                  }}
-                >
-                  <BarChart3 />
-                  {t("agent.openTraffic")}
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void model.setFilters({ tab: "traffic" });
+                    }}
+                  >
+                    <BarChart3 />
+                    {t("agent.openTraffic")}
+                  </Button>
+                  <SeoConnectionButton
+                    provider="ga4"
+                    onConnected={() => model.openStatistics("ga4")}
+                    onSync={() => model.openStatistics("ga4")}
+                  />
+                </>
               ) : (
-                <SeoConnectionButton
-                  provider="search_console"
+                <SeoGoogleConnection
                   variant={variant(connect.state)}
-                  onConnected={() => model.openStatistics("search_console")}
-                  onSync={() => model.openStatistics("search_console")}
+                  onConnected={model.openStatistics}
+                  onSync={model.openStatistics}
                 />
               )}
-              <SeoConnectionButton
-                provider="ga4"
-                onConnected={() => model.openStatistics("ga4")}
-                onSync={() => model.openStatistics("ga4")}
-              />
             </div>
           )}
         </SeoStep>

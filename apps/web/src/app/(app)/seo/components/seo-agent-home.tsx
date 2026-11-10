@@ -32,6 +32,7 @@ import { SeoAskBar } from "./seo-ask-bar";
 import { useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
+import { SeoGoogleConnection } from "./seo-google-connection";
 import { SeoAutomation } from "./seo-monitors";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoSetupCard } from "./seo-setup";
@@ -172,13 +173,22 @@ function StepRow({
             : step.kind === "connect"
               ? [
                   t(`agent.steps.connect.${step.provider}`),
-                  <SeoConnectionButton
-                    key="connect"
-                    provider={step.provider}
-                    variant={variant}
-                    onConnected={() => model.openStatistics(step.provider)}
-                    onSync={() => model.openStatistics(step.provider)}
-                  />,
+                  step.provider === "search_console" ? (
+                    <SeoGoogleConnection
+                      key="connect"
+                      variant={variant}
+                      onConnected={model.openStatistics}
+                      onSync={model.openStatistics}
+                    />
+                  ) : (
+                    <SeoConnectionButton
+                      key="connect"
+                      provider={step.provider}
+                      variant={variant}
+                      onConnected={() => model.openStatistics(step.provider)}
+                      onSync={() => model.openStatistics(step.provider)}
+                    />
+                  ),
                 ]
               : [
                   t(

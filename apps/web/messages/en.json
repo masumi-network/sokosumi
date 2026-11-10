@@ -11297,8 +11297,8 @@
           "body": "Your agent tracks rankings, finds page issues and drafts fixes. You approve each one.",
           "addTitle": "Add a page",
           "addBody": "Start with one public page. You can add related pages later.",
-          "connectTitle": "Connect Search Console",
-          "connectBody": "Connect Search Console to see the searches and clicks of your page. You do this after you create the audit.",
+          "connectTitle": "Connect Google",
+          "connectBody": "Connect Google to see the searches and clicks of your page. You do this after you create the audit.",
           "checkTitle": "Run the first check",
           "checkBody": "The agent reads your pages, finds issues and drafts fixes.",
           "trust": "Saving a page is free. Paid checks only run when you start them.",
@@ -11363,7 +11363,11 @@
         "callbackWorking": "Verifying your Google approval",
         "callbackDone": "Your account is connected. Return to the audit to choose a property and sync statistics.",
         "returnToAudit": "Return to audit",
-        "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit."
+        "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit.",
+        "connectGoogle": "Connect Google",
+        "includeAnalytics": "Also connect Google Analytics (optional)",
+        "analyticsNext": "Google asks for approval two times: first for Search Console, then for Google Analytics.",
+        "analyticsOff": "Google Analytics is not connected. Visits and page views stay empty."
       },
       "unavailableTitle": "SEO unavailable in this Workspace",
       "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",
@@ -11427,7 +11431,7 @@
             "no_queries": "Load the searches behind your Search Console totals, so the agent can suggest work."
           },
           "connect": {
-            "search_console": "Connect Search Console to measure clicks, impressions and the searches that show these pages.",
+            "search_console": "Connect Google to measure clicks, impressions and the searches that show these pages. Google Analytics adds visits and page views and is optional.",
             "ga4": "Connect Google Analytics to measure visits and page views."
           },
           "competitors": {
@@ -11512,9 +11516,9 @@
         "pageDone": "Page added",
         "pageBody": "Add the public page you want to rank.",
         "pageDoneBody": "{count, plural, one {# page is in this audit.} other {# pages are in this audit.}} You can add more pages later.",
-        "connect": "Connect Search Console",
+        "connect": "Connect Google",
         "connectDone": "Search Console connected",
-        "connectBody": "Connect your Google account, choose the property of your site, then sync. You then see the searches, clicks and positions of these pages. Google Analytics is optional.",
+        "connectBody": "Connect your Google account, choose the property of your site, then sync. You then see the searches, clicks and positions of these pages. Google Analytics adds visits and page views and is optional.",
         "connectDoneBody": "Search statistics for these pages are in the Traffic tab.",
         "connectUnavailable": "Statistics are unavailable in this workspace. Skip this step and run the first check.",
         "check": "Run the first check",

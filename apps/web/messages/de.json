@@ -11297,8 +11297,8 @@
           "body": "Dein Agent verfolgt Rankings, findet Probleme auf Seiten und entwirft Korrekturen. Du gibst jede einzeln frei.",
           "addTitle": "Seite hinzufügen",
           "addBody": "Beginne mit einer öffentlichen Seite. Weitere Seiten kannst du später hinzufügen.",
-          "connectTitle": "Search Console verbinden",
-          "connectBody": "Verbinde Search Console, um Suchanfragen und Klicks deiner Seite zu sehen. Das machst du, nachdem du das Audit erstellt hast.",
+          "connectTitle": "Google verbinden",
+          "connectBody": "Verbinde Google, um Suchanfragen und Klicks deiner Seite zu sehen. Das machst du, nachdem du das Audit erstellt hast.",
           "checkTitle": "Erste Prüfung starten",
           "checkBody": "Der Agent liest deine Seiten, findet Probleme und entwirft Korrekturen.",
           "trust": "Eine Seite zu speichern ist kostenlos. Kostenpflichtige Prüfungen laufen nur, wenn du sie startest.",
@@ -11363,7 +11363,11 @@
         "callbackWorking": "Deine Google-Freigabe wird geprüft",
         "callbackDone": "Dein Konto ist verbunden. Kehre zum Audit zurück, wähle eine Property und synchronisiere die Statistiken.",
         "returnToAudit": "Zurück zum Audit",
-        "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit."
+        "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit.",
+        "connectGoogle": "Google verbinden",
+        "includeAnalytics": "Auch Google Analytics verbinden (optional)",
+        "analyticsNext": "Google fragt zweimal nach deiner Zustimmung: zuerst für Search Console, dann für Google Analytics.",
+        "analyticsOff": "Google Analytics ist nicht verbunden. Besuche und Seitenaufrufe bleiben leer."
       },
       "unavailableTitle": "SEO ist in diesem Workspace nicht verfügbar",
       "unavailableBody": "Dieses Audit oder diese Auswahl ist im aktuellen Workspace nicht verfügbar. Prüfe den Workspace in der Seitenleiste oder öffne die Audit-Liste.",
@@ -11427,7 +11431,7 @@
             "no_queries": "Lade die Suchanfragen hinter deinen Search-Console-Summen, damit der Agent Arbeit vorschlagen kann."
           },
           "connect": {
-            "search_console": "Verbinde die Search Console, um Klicks, Impressionen und Suchanfragen zu messen.",
+            "search_console": "Verbinde Google, um Klicks, Impressionen und Suchanfragen zu messen. Google Analytics ergänzt Besuche und Seitenaufrufe und ist optional.",
             "ga4": "Verbinde Google Analytics, um Besuche und Seitenaufrufe zu messen."
           },
           "competitors": {
@@ -11512,7 +11516,7 @@
         "pageDone": "Seite hinzugefügt",
         "pageBody": "Füge die öffentliche Seite hinzu, die ranken soll.",
         "pageDoneBody": "{count, plural, one {# Seite ist in diesem Audit.} other {# Seiten sind in diesem Audit.}} Weitere Seiten kannst du später hinzufügen.",
-        "connect": "Search Console verbinden",
+        "connect": "Google verbinden",
         "connectDone": "Search Console verbunden",
         "connectBody": "Verbinde dein Google-Konto, wähle die Property deiner Website und synchronisiere. Danach siehst du Suchanfragen, Klicks und Positionen dieser Seiten. Google Analytics ist optional.",
         "connectDoneBody": "Die Suchstatistiken dieser Seiten findest du im Tab „Zugriffe“.",

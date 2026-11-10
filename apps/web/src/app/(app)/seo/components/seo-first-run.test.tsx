@@ -141,13 +141,13 @@ describe("SEO audit first run", () => {
     network(workspace);
     renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
+    expect(within(setup).getByText("Next: Connect Google")).toBeVisible();
+    await within(setup).findByRole("button", { name: "Connect Google" });
+    expect(primaryButtons(setup)).toEqual(["Connect Google"]);
+    // One Google step: Analytics is a choice in it, not a second button.
     expect(
-      within(setup).getByText("Next: Connect Search Console"),
-    ).toBeVisible();
-    await within(setup).findByRole("button", {
-      name: "Connect Search Console",
-    });
-    expect(primaryButtons(setup)).toEqual(["Connect Search Console"]);
+      within(setup).queryByRole("button", { name: "Connect Google Analytics" }),
+    ).toBeNull();
     // The card offers the connections, so no row under it repeats them.
     expect(
       screen.queryByText(copy.agent.steps.connect.search_console),
@@ -194,9 +194,7 @@ describe("SEO audit first run", () => {
     const setup = screen.getByTestId("seo-setup");
     const steps = within(setup).getAllByRole("listitem");
     expect(within(steps[2]).getByText(copy.setup.checkFailed)).toBeVisible();
-    await within(setup).findByRole("button", {
-      name: "Connect Search Console",
-    });
+    await within(setup).findByRole("button", { name: "Connect Google" });
     expect(primaryButtons(setup)).toEqual(["Run a check"]);
     expect(steps[2]).toHaveAttribute("aria-current", "step");
   });
