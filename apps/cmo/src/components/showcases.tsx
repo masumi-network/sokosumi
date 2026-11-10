@@ -4,13 +4,15 @@ import "./showcases.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { motion } from "motion/react";
-import type { ReactNode } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 
+import { AGENT_NAME } from "../lib/agent";
 import { calendarKind } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
 import { BusinessMark, businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
 import { plainText } from "./draft-text";
+import { LAND_MS, reducedMotion } from "./type-in";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -53,7 +55,7 @@ export function showcaseKind(
   return null;
 }
 
-/** The plan's pieces per showcase, earliest first, written drafts before ideas. */
+/** The plan's pieces per showcase, earliest first, written drafts before ideas; skipped ones left out. */
 export function showcaseEntries(
   strategy: Strategy,
 ): Map<ShowcaseKind, Entry[]> {
@@ -64,10 +66,102 @@ export function showcaseEntries(
       `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`),
   );
   for (const entry of sorted) {
+    if (entry.status === "skipped") continue;
     const kind = showcaseKind(entry);
     if (kind) groups.set(kind, [...(groups.get(kind) ?? []), entry]);
   }
   return groups;
+}
+
+/**
+ * The site's real colours, in its own order: not a near grey, near black or
+ * near white.
+ */
+function realColors(colors: string[]): string[] {
+  return colors.filter((hex) => {
+    const [r = 0, g = 0, b = 0] = [1, 3, 5].map(
+      (at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255,
+    );
+    const max = Math.max(r, g, b);
+    const saturation = max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return saturation >= 0.3 && luminance > 0.1 && luminance < 0.85;
+  });
+}
+
+/**
+ * The frames' two fills, from the brand's first two real colours; without
+ * one, the frames stay ink (showcases.css). Never the app's Iris.
+ */
+export function showcaseStyle(
+  overview: CmoOverview,
+): CSSProperties | undefined {
+  const [brand, second] = realColors(overview.brandVisual?.colors ?? []);
+  return brand
+    ? ({ "--brand": brand, "--brand-2": second ?? brand } as CSSProperties)
+    : undefined;
+}
+
+/** The kinds on screen: those it mounted with at once, then one new kind at a time. */
+function useLandedKinds(kinds: ShowcaseKind[]): ShowcaseKind[] {
+  const [landed, setLanded] = useState(kinds);
+  const next = kinds.find((kind) => !landed.includes(kind));
+  useEffect(() => {
+    if (!next) return;
+    if (reducedMotion()) {
+      setLanded((current) => [...current, next]);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setLanded((current) => [...current, next]),
+      LAND_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [next]);
+  return kinds.filter((kind) => landed.includes(kind));
+}
+
+/**
+ * "What your accounts will look like": one of October's frames per channel
+ * the plan uses, in their order, landing one at a time while the plan writes.
+ */
+export function AccountPreviews({
+  overview,
+  strategy,
+  writing,
+}: {
+  overview: CmoOverview;
+  strategy: Strategy;
+  writing: boolean;
+}) {
+  const groups = showcaseEntries(strategy);
+  const shown = useLandedKinds(
+    SHOWCASE_ORDER.filter((kind) => groups.has(kind)),
+  );
+  if (groups.size === 0) return null;
+  return (
+    <section className="ob-previews" aria-labelledby="ob-previews-title">
+      <div className="ob-previews-head">
+        <h2 id="ob-previews-title">What your accounts will look like</h2>
+        <p className="note">
+          From the plan's real drafts. Your site's photos stand in until{" "}
+          {AGENT_NAME} makes the images.
+        </p>
+      </div>
+      <div className="ob-showcases" style={showcaseStyle(overview)}>
+        {shown.map((kind) => (
+          <div key={kind} className="ob-showcase">
+            <Showcase
+              kind={kind}
+              entries={groups.get(kind) ?? []}
+              overview={overview}
+              writing={writing}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 /** "Subject: …", also as "**Subject:** …" or "# Subject: …". */
@@ -151,6 +245,20 @@ function Post({
   );
 }
 
+/** An ad the plan has not written yet holds its place. */
+function WritingAd() {
+  return (
+    <div className="ss-writing">
+      <span className="ss-writing-label">
+        <span className="ss-pulse" aria-hidden="true" />
+        Writing this ad
+      </span>
+      <span className="ss-bar" aria-hidden="true" />
+      <span className="ss-bar short" aria-hidden="true" />
+    </div>
+  );
+}
+
 /** A shared link as networks show it: the site's photo, else a brand block. */
 function LinkCard({
   image,
@@ -197,16 +305,19 @@ function Frame({
 /**
  * One of the founder's accounts as it will look once Cuso runs the plan,
  * built from the real drafts, newest post first. No invented likes or
- * followers. A post slides in when it is new.
+ * followers. A post slides in when it is new; while the plan writes, an
+ * unwritten ad holds its place.
  */
 export function Showcase({
   kind,
   entries,
   overview,
+  writing = false,
 }: {
   kind: ShowcaseKind;
   entries: Entry[];
   overview: CmoOverview;
+  writing?: boolean;
 }) {
   const name = businessDisplayName(overview);
   const at = handle(overview);
@@ -336,11 +447,19 @@ export function Showcase({
                 <p className="sl-sub">Sponsored</p>
               </div>
             </div>
-            <p className="sl-text">{text(first)}</p>
-            <div className={photo(0) ? "sa-visual sa-photo" : "sa-visual"}>
-              {photo(0) ? <img src={photo(0)} alt="" loading="lazy" /> : null}
-              <span>{headline(first)}</span>
-            </div>
+            {writing && !first.draft ? (
+              <WritingAd />
+            ) : (
+              <>
+                <p className="sl-text">{text(first)}</p>
+                <div className={photo(0) ? "sa-visual sa-photo" : "sa-visual"}>
+                  {photo(0) ? (
+                    <img src={photo(0)} alt="" loading="lazy" />
+                  ) : null}
+                  <span>{headline(first)}</span>
+                </div>
+              </>
+            )}
             <div className="sa-cta">
               <span>{host(overview.websiteUrl)}</span>
               <span className="sa-button">Learn more</span>
@@ -351,19 +470,25 @@ export function Showcase({
     case "google":
       return (
         <Frame channel="google_ads" label="Your ad on Google">
-          {entries.slice(0, 2).map((entry) => (
-            <Post key={entry.id} className="ss-result">
-              <p className="ss-site">
-                <span className="ss-sponsored">Sponsored</span>
-                <span>
-                  {name}
-                  <small>{host(overview.websiteUrl)}</small>
-                </span>
-              </p>
-              <p className="ss-title">{headline(entry)}</p>
-              <p className="ss-snippet">{text(entry)}</p>
-            </Post>
-          ))}
+          {entries.slice(0, 2).map((entry) =>
+            writing && !entry.draft ? (
+              <div key={entry.id} className="ss-result">
+                <WritingAd />
+              </div>
+            ) : (
+              <Post key={entry.id} className="ss-result">
+                <p className="ss-site">
+                  <span className="ss-sponsored">Sponsored</span>
+                  <span>
+                    {name}
+                    <small>{host(overview.websiteUrl)}</small>
+                  </span>
+                </p>
+                <p className="ss-title">{headline(entry)}</p>
+                <p className="ss-snippet">{text(entry)}</p>
+              </Post>
+            ),
+          )}
         </Frame>
       );
     case "newsletter":

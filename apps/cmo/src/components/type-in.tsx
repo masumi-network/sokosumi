@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 export const TYPE_IN_MS = 1_000;
 const TICK_MS = 30;
 
-const reducedMotion = () =>
+export const reducedMotion = () =>
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 

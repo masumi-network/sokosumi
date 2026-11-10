@@ -1,9 +1,7 @@
 "use client";
 
-import type { CmoOverview } from "@sokosumi/core-client";
 import { Check, Plus, Trash2, X } from "lucide-react";
 import {
-  type CSSProperties,
   type ReactNode,
   useId,
   useOptimistic,
@@ -137,40 +135,6 @@ function lowerFirst(text: string): string {
   return /^[A-Z][a-z]/.test(text)
     ? `${text.charAt(0).toLowerCase()}${text.slice(1)}`
     : text;
-}
-
-function channels(hex: string): [number, number, number] {
-  const [r = 0, g = 0, b = 0] = [1, 3, 5].map(
-    (at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255,
-  );
-  return [r, g, b];
-}
-
-/**
- * The brand colour: the site's own first colour when it is a real colour,
- * not a near grey, near black or near white.
- */
-export function coverColor(colors: string[]): string | undefined {
-  const usable = colors.filter((hex) => {
-    const [r, g, b] = channels(hex);
-    const max = Math.max(r, g, b);
-    const saturation = max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
-    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    return saturation >= 0.3 && luminance > 0.1 && luminance < 0.85;
-  });
-  return usable[0] ?? colors[0];
-}
-
-/** The brand colour and a soft fill of it. */
-export function brandStyle(overview: CmoOverview): CSSProperties | undefined {
-  const brand = coverColor(overview.brandVisual?.colors ?? []);
-  return brand
-    ? ({
-        "--brand": brand,
-        // The brand colour at about 12%, for soft fills.
-        "--brand-soft": `${brand}1f`,
-      } as CSSProperties)
-    : undefined;
 }
 
 export function hostOf(url: string): string {

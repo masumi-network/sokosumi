@@ -4,8 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { cmoOverview } from "../test-fixtures/cmo";
 import { PlanPanel } from "./onboarding/plan-tabs";
-import { planPieces } from "./phone-feeds";
-import { goalLine } from "./strategy-reveal";
+import { goalLine, planPieces } from "./strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];

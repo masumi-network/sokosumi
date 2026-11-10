@@ -9,18 +9,20 @@ import {
   asking,
   brain,
   draft,
+  hex,
+  mappedBrain,
   quickLook,
   reading,
   research,
   richMedia,
+  sevenPlan,
   strategy,
   work,
 } from "../../test-fixtures/onboarding";
 import { Onboarding } from "../onboarding";
-import { feedScreens } from "../phone-feeds";
 import { showcaseEntries } from "../showcases";
 import { inertOnboardingActions } from "./actions";
-import { BrandStep } from "./brand-step";
+import { BrandStep, brandTiles } from "./brand-step";
 import { OnboardingFlow } from "./flow";
 import {
   firstPost,
@@ -65,11 +67,13 @@ const site = (
 const plan = (
   overview: CmoOverview,
   phase: "planning" | "writing-needed" | "review" = "review",
+  initialTab?: "plan" | "month" | "results",
 ) =>
   renderToStaticMarkup(
     <PlanStep
       overview={overview}
       phase={phase}
+      initialTab={initialTab}
       onRequest={async () => null}
       onSetAds={async () => null}
       onAnswer={noop}
@@ -713,6 +717,8 @@ describe("Plan", () => {
             { id: third!.id, was: third! },
           ],
         }}
+        overview={asking()}
+        writing={false}
         onOpen={() => {}}
       />,
     );
@@ -954,23 +960,6 @@ describe("Launch", () => {
     expect(strategySocialChannels(draft())).toEqual(["linkedin", "x"]);
   });
 
-  it("shows the plan's own ads as optional too", () => {
-    const ad = {
-      id: "ad-1",
-      date: "2026-10-05",
-      channel: "meta_ads",
-      format: "ad",
-      title: "Launch ad",
-      status: "idea" as const,
-    };
-    const ads = feedScreens([ad]).find((screen) => screen.key === "ads");
-    expect(ads).toMatchObject({
-      optional: true,
-      perMonth: 1,
-      name: "Meta ads",
-    });
-  });
-
   it("makes ads and proposed channels optional, and leaves the newsletter out", () => {
     expect(optionalChannels(approved()).map((channel) => channel.key)).toEqual([
       "meta_ads",
@@ -1101,5 +1090,163 @@ describe("first post on the Launch recap", () => {
     expect(firstPost(calendar, connected, new Date(2026, 9, 6, 10, 0))).toBe(
       "",
     );
+  });
+});
+
+describe("Competitor map", () => {
+  type Brain = NonNullable<CmoOverview["brandBrain"]>;
+  const competitors = (brandBrain: Brain) =>
+    renderToStaticMarkup(
+      <>
+        {
+          brandTiles(brandBrain, noop, richMedia).find(
+            (tile) => tile.id === "competitors",
+          )?.body
+        }
+      </>,
+    );
+  const dot = (html: string, name: string) =>
+    new RegExp(`<button[^>]*class="ob-map-dot[^"]*"[^>]*>${name}<`).exec(
+      html,
+    )?.[0];
+
+  it("places each player at its x and y on the two named axes", () => {
+    const html = competitors(mappedBrain);
+    expect(html).toContain("ob-map-plot");
+    expect(dot(html, "Moonshot")).toContain("left:40%;bottom:60%");
+    expect(dot(html, "Build it in house")).toContain("left:15%;bottom:20%");
+    expect(html).toContain("↑ Done for you");
+    expect(html).toContain("Do it yourself");
+    expect(html).toContain("For one person");
+    expect(html).toContain("For whole teams →");
+  });
+
+  it("marks the founder as the one larger dot, not a button", () => {
+    const html = competitors(mappedBrain);
+    expect(html.match(/ob-map-dot you/g)).toHaveLength(1);
+    expect(html).toMatch(
+      /<span class="ob-map-dot you"[^>]*>Acme<span class="ob-sr">, you</,
+    );
+    expect(dot(html, "Acme")).toBeUndefined();
+  });
+
+  it("puts a label left of its dot past x 75", () => {
+    const html = competitors(mappedBrain);
+    expect(dot(html, "Orbit Labs")).toContain("ob-map-dot flip");
+    expect(dot(html, "Moonshot")).not.toContain("flip");
+  });
+
+  it("names every rival as a row the map can pick, above nothing but the map", () => {
+    const html = competitors(mappedBrain);
+    expect(html.indexOf("ob-map-plot")).toBeLessThan(html.indexOf("ob-rival"));
+    for (const name of ["Moonshot", "Orbit Labs", "Build it"]) {
+      expect(html).toMatch(
+        new RegExp(`<button[^>]*class="ob-rival"[^>]*aria-pressed="false"`),
+      );
+      expect(html).toContain(`>${name}<`);
+    }
+    // The row still leads to the rival's site.
+    expect(html).toContain('href="https://moonshot.io"');
+  });
+
+  it("draws no plot without a map, or with fewer than two players", () => {
+    const { map, ...reveal } = mappedBrain.reveal as NonNullable<
+      Brain["reveal"]
+    >;
+    const none = competitors({ ...mappedBrain, reveal });
+    expect(none).not.toContain("ob-map");
+    expect(none).toContain("bm-rivals");
+    const alone = competitors({
+      ...mappedBrain,
+      reveal: {
+        ...reveal,
+        map: {
+          ...(map as NonNullable<typeof map>),
+          players: [{ name: "Acme", x: 50, y: 50, you: true }],
+        },
+      },
+    });
+    expect(alone).not.toContain("ob-map");
+  });
+});
+
+describe("Account previews", () => {
+  const visual: CmoOverview["brandVisual"] = {
+    logoUrl: null,
+    colors: ["1b1b1b", "ff6a00", "0055ff"].map(hex),
+    fonts: ["Inter"],
+    siteName: "Acme",
+    designMdUrl: null,
+    images: [],
+  };
+  const LABELS = [
+    "Your X profile",
+    "Your LinkedIn feed",
+    "Your Instagram grid",
+    "Your Facebook page",
+    "Your ad on Facebook and Instagram",
+    "Your ad on Google",
+    "Your newsletter",
+  ];
+  const month = (overview: CmoOverview) => plan(overview, "review", "month");
+
+  it("shows one frame per channel the plan uses, in October's order, under week one", () => {
+    const html = month(draft({ strategy: sevenPlan, brandVisual: visual }));
+    const heading = html.indexOf("What your accounts will look like");
+    expect(heading).toBeGreaterThan(html.indexOf("Week 1"));
+    const at = LABELS.map((label) => html.indexOf(label));
+    expect(at.every((index) => index > heading)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(html.match(/ob-showcase-label/g)).toHaveLength(7);
+    expect(html).not.toContain("Your article in Google");
+  });
+
+  it("leaves out skipped pieces, and a channel with only skipped pieces", () => {
+    const html = month(
+      draft({
+        strategy: {
+          ...sevenPlan,
+          calendar: sevenPlan.calendar.map((entry) =>
+            entry.channel === "instagram"
+              ? { ...entry, status: "skipped" as const }
+              : entry,
+          ),
+        },
+        brandVisual: visual,
+      }),
+    );
+    expect(html.match(/ob-showcase-label/g)).toHaveLength(6);
+    expect(html).not.toContain("Your Instagram grid");
+  });
+
+  it("leaves out the channels the plan does not use", () => {
+    const html = month(draft({ brandVisual: visual }));
+    expect(html.match(/ob-showcase-label/g)).toHaveLength(3);
+    expect(html).toContain("Your LinkedIn feed");
+    expect(html).not.toContain("Your Instagram grid");
+    expect(html).not.toContain("Your ad on Google");
+  });
+
+  it("colours the frames with the brand's first two real colours, never Iris", () => {
+    const html = month(draft({ strategy: sevenPlan, brandVisual: visual }));
+    expect(html).toContain("--brand:#ff6a00;--brand-2:#0055ff");
+    const section = html.slice(html.indexOf("ob-showcases"));
+    expect(section).not.toContain("--primary");
+  });
+
+  it("holds an unwritten ad's place while the plan writes", () => {
+    const strategyWork = work("strategy");
+    const writing = month(
+      draft({ strategy: sevenPlan, brandVisual: visual, work: strategyWork }),
+    );
+    expect(writing.match(/Writing this ad/g)).toHaveLength(1);
+    expect(writing).toContain("Rockets for Teams · Ship on Time");
+    const written = month(draft({ strategy: sevenPlan, brandVisual: visual }));
+    expect(written).not.toContain("Writing this ad");
+  });
+
+  it("replaces the hidden phone feeds", () => {
+    const html = plan(draft({ strategy: sevenPlan }));
+    expect(html).not.toContain("Where it shows up");
   });
 });

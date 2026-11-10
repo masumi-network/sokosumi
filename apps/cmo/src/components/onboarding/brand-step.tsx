@@ -18,7 +18,7 @@ import { channelLabel } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { joinNames } from "../../lib/names";
-import { CompetitorCards, SiteShowcase } from "../brand-media";
+import { SiteShowcase } from "../brand-media";
 import {
   Accounts,
   AskForm,
@@ -27,7 +27,6 @@ import {
   firstSentence,
   hostOf,
   Offers,
-  RivalFacts,
   SectionEditor,
   Voice,
 } from "../brand-profile";
@@ -37,6 +36,7 @@ import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import { TypeIn } from "../type-in";
 import { planWriting, researchGroups, stepTitle } from "./live";
+import { Competitors } from "./market-map";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -150,29 +150,7 @@ export function brandTiles(
       value: `${rivals.length} compared`,
       detail: short(rivals.map((rival) => rival.name).join(", ")),
       section: "competition",
-      body: (
-        <>
-          {media && media.competitors.length > 0 ? (
-            <CompetitorCards brain={brain} media={media} />
-          ) : (
-            <ul className="ob-list">
-              {rivals.map((rival) => (
-                <li key={rival.name}>
-                  {rival.url ? (
-                    <a href={rival.url} target="_blank" rel="noreferrer">
-                      {rival.name}
-                    </a>
-                  ) : (
-                    rival.name
-                  )}
-                  {rival.note ? ` · ${rival.note}` : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-          <RivalFacts competitors={brain.competitors} />
-        </>
-      ),
+      body: <Competitors brain={brain} media={media} />,
     });
   }
   if (brain.channels.length > 0) {
