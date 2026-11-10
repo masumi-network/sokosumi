@@ -18,6 +18,8 @@ export const studioWebsiteCopySchema = z
   .object({
     summary: studioBrandCopySchema.shape.summary.nullable(),
     lines: studioBrandCopySchema.shape.approvedLines,
+    tone: studioBrandCopySchema.shape.tone.optional(),
+    audience: studioBrandCopySchema.shape.audience.optional(),
   })
   .openapi("StudioWebsiteCopy");
 

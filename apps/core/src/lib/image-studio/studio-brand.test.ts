@@ -4,11 +4,13 @@ const {
   projectFindUniqueMock,
   projectFindUniqueOrThrowMock,
   importProductsMock,
+  suggestProfileMock,
   ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
   projectFindUniqueMock: vi.fn(),
   projectFindUniqueOrThrowMock: vi.fn(),
   importProductsMock: vi.fn(),
+  suggestProfileMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
 }));
 
@@ -23,6 +25,10 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/image-studio/product-import", () => ({
   importStudioProducts: importProductsMock,
+}));
+
+vi.mock("@/lib/image-studio/website-brand-profile", () => ({
+  suggestWebsiteBrandProfile: suggestProfileMock,
 }));
 
 vi.mock("@sokosumi/net", async (importOriginal) => ({
@@ -243,14 +249,28 @@ describe("prepareStudioWebsiteDraft", () => {
     };
     projectFindUniqueOrThrowMock.mockResolvedValueOnce({ websiteUrl });
     ssrfSafeFetchMock.mockResolvedValueOnce(
-      new Response("<main><h1>Brew at your own pace.</h1></main>", {
-        headers: { "Content-Type": "text/html" },
-      }),
+      new Response(
+        "<main><h1>Brew at your own pace.</h1><p>For home coffee enthusiasts.</p></main>",
+        {
+          headers: { "Content-Type": "text/html" },
+        },
+      ),
     );
     importProductsMock.mockResolvedValueOnce([product]);
+    suggestProfileMock.mockResolvedValueOnce({
+      tone: "Warm and relaxed",
+      audience: ["Home coffee enthusiasts"],
+    });
 
-    await expect(prepareStudioWebsiteDraft("project-1")).resolves.toEqual({
-      brandCopy: { summary: null, lines: ["Brew at your own pace."] },
+    await expect(
+      prepareStudioWebsiteDraft("project-1", "workspace-a"),
+    ).resolves.toEqual({
+      brandCopy: {
+        summary: null,
+        lines: ["Brew at your own pace."],
+        tone: "Warm and relaxed",
+        audience: ["Home coffee enthusiasts"],
+      },
       products: [product],
     });
     expect(projectFindUniqueOrThrowMock).toHaveBeenCalledTimes(1);
@@ -258,7 +278,14 @@ describe("prepareStudioWebsiteDraft", () => {
       websiteUrl,
       expect.any(Object),
     );
-    expect(importProductsMock).toHaveBeenCalledExactlyOnceWith(websiteUrl);
+    expect(importProductsMock).toHaveBeenCalledExactlyOnceWith(
+      websiteUrl,
+      "workspace-a",
+    );
+    expect(suggestProfileMock).toHaveBeenCalledExactlyOnceWith(
+      "workspace-a",
+      "Brew at your own pace.\nFor home coffee enthusiasts.",
+    );
   });
 
   it("returns usable copy when product discovery fails", async () => {
@@ -278,6 +305,7 @@ describe("prepareStudioWebsiteDraft", () => {
       brandCopy: { summary: null, lines: ["Freshly roasted."] },
       products: null,
     });
+    expect(suggestProfileMock).not.toHaveBeenCalled();
   });
 });
 
@@ -317,6 +345,25 @@ describe("loadStudioBrand", () => {
       brandBrain: null,
     });
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("includes colors and fonts from the end of a long project design guide", async () => {
+    projectFindUniqueMock.mockResolvedValue({
+      designMdUrl:
+        "https://abc123.public.blob.vercel-storage.com/design-md/long-style.md",
+      contextMd: null,
+    });
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response(
+        `# Brand\n${"Introduction. ".repeat(160)}\ncolors:\n  primary: "#a33421"\ntypography:\n  heading:\n    fontFamily: "Inter"`,
+      ),
+    );
+
+    const brand = await loadStudioBrand("project-1");
+    expect(brand.designMd).toHaveLength(1600);
+    const prompt = applyStudioBrandPrompt("Launch ad", brand);
+    expect(prompt).toContain("Brand colors: #a33421\nBrand fonts: Inter");
+    expect(prompt).toMatch(/Brief:\nLaunch ad$/);
   });
 
   it("fails open when the project or Design cannot be read", async () => {

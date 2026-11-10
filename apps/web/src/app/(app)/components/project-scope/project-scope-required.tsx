@@ -49,6 +49,7 @@ export function ProjectScopeRequired({
   body,
   children,
   createActionLabel,
+  onCreated,
   onSelect,
   testId,
   title,
@@ -65,6 +66,7 @@ export function ProjectScopeRequired({
   children?: React.ReactNode;
   /** Offers project creation as an explicit second entry point. */
   createActionLabel?: string;
+  onCreated?: ProjectScopeRequest["onCreated"];
   onSelect?: ProjectScopeRequest["onSelect"];
   testId?: string;
   title?: string;
@@ -91,6 +93,7 @@ export function ProjectScopeRequired({
       required: true,
       reason: body,
       onSelect,
+      ...(onCreated ? { onCreated } : {}),
     });
     if (create) {
       openScopeCreate(opener);

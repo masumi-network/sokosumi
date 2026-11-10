@@ -159,8 +159,8 @@ export function SidebarScopeMobileChip() {
       <InlineCreateProjectModal
         open={createOpen}
         onOpenChange={setScopeCreateOpen}
-        onCreated={({ projectId: createdId }) =>
-          selectCreatedProject(createdId, select)
+        onCreated={({ projectId: createdId, project }) =>
+          selectCreatedProject(createdId, select, project?.websiteUrl)
         }
         onCloseAutoFocus={(event) =>
           returnFocusTo(getScopeCreateOpener())(event)

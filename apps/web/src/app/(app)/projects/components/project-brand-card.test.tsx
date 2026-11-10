@@ -94,17 +94,20 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
 }));
 
 function renderBrandDashboard({
+  autoStart,
   designMd = {
     extractionId: "extract-1",
     url: "https://blob.example/DESIGN.md",
   },
   websiteUrl = "https://example.com",
 }: {
+  autoStart?: boolean;
   designMd?: { extractionId: string | null; url: string } | null;
   websiteUrl?: string | null;
 } = {}) {
   return render(
     <ProjectBrandProvider
+      autoStart={autoStart}
       projectId="project-1"
       initialDesignMd={designMd}
       websiteUrl={websiteUrl}
@@ -204,6 +207,13 @@ describe("ProjectBrandCard", () => {
     expect(generateMock).not.toHaveBeenCalled();
   });
 
+  it("leaves new design extraction to the caller when automatic start is disabled", () => {
+    renderBrandDashboard({ designMd: null, autoStart: false });
+
+    expect(resumeMock).not.toHaveBeenCalled();
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
   it("resumes a pending wizard generation on the project page", async () => {
     window.sessionStorage.setItem(
       "sokosumi:project-brand-job:project-1",
@@ -214,7 +224,7 @@ describe("ProjectBrandCard", () => {
       }),
     );
 
-    renderBrandDashboard({ designMd: null });
+    renderBrandDashboard({ designMd: null, autoStart: false });
 
     await waitFor(() =>
       expect(resumeMock).toHaveBeenCalledWith({

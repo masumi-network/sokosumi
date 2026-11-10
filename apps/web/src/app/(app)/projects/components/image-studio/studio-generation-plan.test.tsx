@@ -206,6 +206,7 @@ describe("an honest generation plan", () => {
     expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
     await act(async () => pendingUpload.resolve({ resourceId: "photo-1" }));
     expect(await screen.findByText("product.png")).toBeInTheDocument();
+    expect(screen.getByText("productPhotoGuidance")).toBeInTheDocument();
     expect(uploadPhoto).toHaveBeenCalledWith(photo, {
       scope: "org",
       organizationId: "workspace-org",
@@ -221,6 +222,7 @@ describe("an honest generation plan", () => {
     ).toEqual([["photo-1"], ["photo-1"]]);
 
     fireEvent.click(screen.getByRole("button", { name: "removeProductPhoto" }));
+    expect(screen.queryByText("productPhotoGuidance")).toBeNull();
     generate();
     expect(
       onGenerate.mock.calls[1][0].map((request) => request.referenceFileIds),
@@ -274,6 +276,13 @@ describe("an honest generation plan", () => {
       "1:1",
       "9:16",
     ]);
+    expect(requests[0].prompt).toBe(requests[1].prompt);
+    expect(requests[2].prompt).toBe(requests[3].prompt);
+    expect(requests[0].prompt).toContain("Ad variation: Frame the product");
+    expect(requests[2].prompt).toContain("Ad variation: Place the product");
+    expect(requests[4].prompt).toBe(requests[5].prompt);
+    expect(requests[4].prompt).not.toContain("Ad variation:");
+    expect(screen.getByText("variedAdCopies")).toBeInTheDocument();
     for (const request of requests) {
       const isVase = request.referenceFileIds?.[0] === "vase-file";
       expect(request.product).toEqual(
@@ -287,28 +296,107 @@ describe("an honest generation plan", () => {
     }
   });
 
-  it("blocks an oversized product batch until the chosen models fit", () => {
+  it("uses distinct treatments for a full batch and replaces an existing treatment when reused", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(
       <Harness
-        batchProducts={BATCH_PRODUCTS}
+        batchProducts={[{ ...BATCH_PRODUCTS[0], copies: MAX_BATCH }]}
+        catalog={TEST_CATALOG}
         initial={{
-          modelIds: ["many-0", "many-1", "many-2"],
+          modelIds: ["model-a"],
+          settings: { ...SETTINGS, seed: 42 },
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    generate();
+    const requests = onGenerate.mock.calls[0][0];
+    expect(new Set(requests.map(({ prompt }) => prompt)).size).toBe(MAX_BATCH);
+    expect(new Set(requests.map(({ settings }) => settings.seed))).toEqual(
+      new Set([42]),
+    );
+
+    const treatment = requests[0].prompt.split("\n\nAd variation:")[1];
+    fireEvent.change(
+      screen.getByRole("textbox", { name: TEST_LABELS.promptPlaceholder }),
+      { target: { value: `A campaign image\n\nAd variation:${treatment}` } },
+    );
+    generate();
+    expect(onGenerate.mock.calls[1][0].map(({ prompt }) => prompt)).toEqual(
+      requests.map(({ prompt }) => prompt),
+    );
+  });
+
+  it("preserves the full brief when there is no room for variation guidance", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+    const prompt = "x".repeat(4_000);
+    fireEvent.change(
+      screen.getByRole("textbox", { name: TEST_LABELS.promptPlaceholder }),
+      { target: { value: prompt } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    expect(screen.queryByText("variedAdCopies")).toBeNull();
+    generate();
+    expect(
+      onGenerate.mock.calls[0][0].map((request) => request.prompt),
+    ).toEqual([prompt, prompt]);
+  });
+
+  it("fits an oversized product batch by keeping selected models and leaving placements and copies intact", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    const incompatible = {
+      ...TEST_CATALOG.models[0],
+      aspectRatios: ["1:1"],
+    };
+    render(
+      <Harness
+        batchProducts={BATCH_PRODUCTS}
+        catalog={{
+          ...LARGE_CATALOG,
+          models: [incompatible, ...LARGE_CATALOG.models.slice(0, 2)],
+        }}
+        initial={{
+          modelIds: [incompatible.id, "many-0", "many-1"],
           settings: SETTINGS,
           placementRatios: ["1:1", "9:16"],
         }}
         onGenerate={onGenerate}
       />,
     );
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      'productBatchLimit:{"count":12}',
-    );
+    expect(
+      screen.getByText('productBatchLimit:{"count":12}', {
+        selector: '[role="alert"]',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("unsupportedPlacements")).toBeInTheDocument();
     generate();
     expect(onGenerate).not.toHaveBeenCalled();
 
-    fireEvent.click(modelEntry("Many 2"));
+    fireEvent.click(
+      screen.getByRole("button", { name: 'fitBatchModels:{"count":2}' }),
+    );
+    expect(onGenerate).not.toHaveBeenCalled();
+    expect(modelEntry(incompatible.label)).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
     generate();
-    expect(onGenerate.mock.calls[0][0]).toHaveLength(MAX_BATCH);
+    const requests = onGenerate.mock.calls[0][0];
+    expect(requests).toHaveLength(MAX_BATCH);
+    expect(new Set(requests.map(({ modelId }) => modelId))).toEqual(
+      new Set(["many-0", "many-1"]),
+    );
+    expect(requests.map(({ settings }) => settings.aspectRatio)).toEqual(
+      Array.from({ length: 3 }, () => ["1:1", "1:1", "9:16", "9:16"]).flat(),
+    );
   });
 
   it("selects only models that fit and buys every checked model", () => {

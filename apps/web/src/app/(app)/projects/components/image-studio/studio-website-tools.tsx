@@ -8,11 +8,13 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { prepareStudioWebsiteDraft } from "@/lib/actions/image-studio/brand-kit";
 
 import type { StudioBatchProduct } from "./studio-batch";
 import { StudioBrandKitDialog } from "./studio-brand-kit";
 import { StudioProductCatalogDialog } from "./studio-product-catalog";
+import { consumeStudioWebsiteDraftRequest } from "./studio-website-intent";
 
 export function StudioWebsiteTools({
   canUseProduct,
@@ -47,7 +49,10 @@ export function StudioWebsiteTools({
       try {
         const result = await prepareStudioWebsiteDraft({ projectId });
         const brandCopy =
-          result.brandCopy?.summary || result.brandCopy?.lines.length
+          result.brandCopy?.summary ||
+          result.brandCopy?.lines.length ||
+          result.brandCopy?.tone ||
+          result.brandCopy?.audience?.length
             ? result.brandCopy
             : null;
         const products = result.products?.length ? result.products : null;
@@ -62,6 +67,10 @@ export function StudioWebsiteTools({
       }
     });
   }
+
+  useMountEffect(() => {
+    if (websiteUrl && consumeStudioWebsiteDraftRequest(projectId)) prepare();
+  });
 
   return (
     <>
@@ -79,13 +88,13 @@ export function StudioWebsiteTools({
       ) : null}
       <StudioBrandKitDialog
         disabled={pending}
-        hasWebsite={Boolean(websiteUrl)}
         onLogoChange={onLogoChange}
         onWebsiteCopyReviewed={() =>
           setDraft((current) => current && { ...current, brandCopy: null })
         }
         projectId={projectId}
         websiteCopy={draft?.brandCopy}
+        websiteUrl={websiteUrl}
       />
       <StudioProductCatalogDialog
         canUseProduct={canUseProduct}
@@ -99,12 +108,12 @@ export function StudioWebsiteTools({
         websiteProducts={draft?.products}
         websiteUrl={websiteUrl}
       />
-      {message || ready ? (
+      {pending || message || ready ? (
         <p
           className="text-muted-foreground order-last basis-full text-right text-xs"
           role="status"
         >
-          {t(message ?? "ready")}
+          {t(pending ? "preparing" : (message ?? "ready"))}
         </p>
       ) : null}
     </>

@@ -12,7 +12,7 @@ import {
   imageStudioAssetParamsSchema,
 } from "@/schemas/project-image-studio.schema";
 import { openAssetStream } from "@/services/image-studio-assets.service";
-import { renderBrandedStudioAsset } from "@/services/image-studio-brand-export.service";
+import { renderStudioAssetPng } from "@/services/image-studio-brand-export.service";
 
 /**
  * The only way to read a stored image.
@@ -27,7 +27,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/image-studio/assets/{assetId}/content",
     description:
-      "Stream one image or video version's bytes, honouring a Range header. Authorized per request; the stored object has no publicly readable URL.",
+      "Stream the authorized original, honoring byte ranges, or render a still PNG cropped to a placement with an optional project logo.",
     tags: ["Projects"],
     request: {
       params: imageStudioAssetParamsSchema,
@@ -73,14 +73,18 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       workspaceId: workspaceContext.workspaceId,
       userId: userContext.userId,
     };
-    const { logo } = c.req.valid("query");
-    if (logo) {
-      const bytes = await renderBrandedStudioAsset(scope, logo);
+    const query = c.req.valid("query");
+    if (query.logo || query.placement) {
+      const bytes = await renderStudioAssetPng(scope, query);
+      const placement = query.placement
+        ? `-${query.placement.replace(":", "x")}`
+        : "";
+      const branding = query.logo ? "-branded" : "";
       return c.body(bytes, 200, {
         "cache-control": "private, no-store",
         "content-type": "image/png",
         "content-length": String(bytes.byteLength),
-        "content-disposition": `inline; filename="${assetId}-branded.png"`,
+        "content-disposition": `inline; filename="${assetId}${placement}${branding}.png"`,
       });
     }
 

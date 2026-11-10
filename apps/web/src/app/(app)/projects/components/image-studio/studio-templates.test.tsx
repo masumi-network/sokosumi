@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { STUDIO_TEMPLATES } from "./studio-templates";
+import { requestStudioWebsiteDraftOnOpen } from "./studio-website-intent";
 import type { StudioAsset } from "./types";
 
 /**
@@ -45,18 +46,29 @@ const mocks = vi.hoisted(() => ({
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
   uploadLogo: vi.fn(),
+  findWebsiteLogo: vi.fn(),
+  saveWebsiteLogo: vi.fn(),
   loadWebsiteCopy: vi.fn(),
+  startDesignMdGeneration: vi.fn(),
   prepareWebsiteDraft: vi.fn(),
   loadProducts: vi.fn(),
   saveProducts: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
+  findStudioWebsiteLogo: mocks.findWebsiteLogo,
   getStudioBrandKit: mocks.loadBrandKit,
   getStudioWebsiteCopy: mocks.loadWebsiteCopy,
   prepareStudioWebsiteDraft: mocks.prepareWebsiteDraft,
   saveStudioBrandCopy: mocks.saveBrandCopy,
+  saveStudioWebsiteLogo: mocks.saveWebsiteLogo,
   uploadStudioProjectLogo: mocks.uploadLogo,
+}));
+
+vi.mock("@/lib/actions/design-md/action", () => ({
+  startDesignMdGeneration: mocks.startDesignMdGeneration,
+  pollDesignMdGeneration: vi.fn(),
+  finalizeDesignMdGeneration: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/product-catalog", () => ({
@@ -170,6 +182,59 @@ describe("starting from a template", () => {
     });
   });
 
+  it("extracts the project website's visual style without resetting the copy draft", async () => {
+    mocks.saveBrandCopy.mockClear();
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: ["#a33421"],
+      fonts: ["Inter"],
+      summary: "A ceramics studio",
+      tone: "Direct",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    mocks.startDesignMdGeneration.mockResolvedValueOnce({
+      ok: true,
+      value: {
+        kind: "completed",
+        data: {
+          url: "https://blob.example/design.md",
+          extractionId: null,
+          previewUrl: null,
+          look: {
+            colors: ["#285e45"],
+            fonts: ["Georgia"],
+            tone: "Friendly",
+          },
+        },
+      },
+    });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const tone = await screen.findByLabelText("BrandKit.tone");
+    fireEvent.change(tone, { target: { value: "Clear and warm" } });
+    const extract = screen.getByRole("button", {
+      name: "BrandKit.extractWebsiteStyle",
+    });
+    fireEvent.click(extract);
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
+    expect(mocks.startDesignMdGeneration).not.toHaveBeenCalled();
+
+    fireEvent.click(extract);
+    fireEvent.click(screen.getByRole("button", { name: "confirmGenerate" }));
+    expect(await screen.findByText("#285e45")).toBeInTheDocument();
+    expect(screen.getByText("Georgia")).toBeInTheDocument();
+    expect(screen.queryByText("#a33421")).toBeNull();
+    expect(tone).toHaveValue("Clear and warm");
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+    expect(mocks.startDesignMdGeneration).toHaveBeenCalledExactlyOnceWith({
+      force: false,
+      owner: { type: "project", projectId: "p" },
+      url: "https://ceramics.example",
+    });
+  });
+
   it("adds website copy to the draft and only saves after review", async () => {
     mocks.saveBrandCopy.mockClear();
     const version = new Date("2026-11-09T12:00:00.000Z");
@@ -230,6 +295,46 @@ describe("starting from a template", () => {
     });
   });
 
+  it("automatically prepares only the newly created project once and leaves suggestions for review", async () => {
+    mocks.prepareWebsiteDraft.mockClear();
+    const prepare = Promise.withResolvers();
+    mocks.prepareWebsiteDraft.mockReturnValueOnce(prepare.promise);
+    requestStudioWebsiteDraftOnOpen("p");
+
+    const studio = mount("https://ceramics.example");
+    expect(await screen.findByText("preparing")).toBeInTheDocument();
+    expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+    });
+    await act(async () =>
+      prepare.resolve({
+        brandCopy: { summary: "A ceramics studio", lines: [] },
+        products: [
+          {
+            id: "mug",
+            name: "Travel mug",
+            description: "",
+            price: "",
+            url: null,
+            imageUrl: null,
+          },
+        ],
+      }),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "WebsiteDraft.reviewCopy" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "reviewImportedProducts" }),
+    ).toBeInTheDocument();
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+    expect(mocks.saveProducts).not.toHaveBeenCalled();
+    studio.unmount();
+    mount("https://ceramics.example");
+    expect(mocks.prepareWebsiteDraft).toHaveBeenCalledTimes(1);
+  });
+
   it("prepares website copy and products together for independent review", async () => {
     mocks.saveBrandCopy.mockClear();
     const product = {
@@ -240,12 +345,20 @@ describe("starting from a template", () => {
       url: "https://ceramics.example/mug",
       imageUrl: null,
     };
+    const secondProduct = {
+      ...product,
+      id: "vase",
+      name: "Clay vase",
+      url: "https://ceramics.example/vase",
+    };
     mocks.prepareWebsiteDraft.mockResolvedValueOnce({
       brandCopy: {
         summary: "A ceramics studio",
         lines: ["Made from reclaimed clay."],
+        tone: "Relaxed",
+        audience: ["Ceramics collectors"],
       },
-      products: [product],
+      products: [product, secondProduct],
     });
     mocks.loadBrandKit.mockResolvedValueOnce({
       logo: null,
@@ -253,14 +366,14 @@ describe("starting from a template", () => {
       fonts: [],
       summary: "Existing description",
       tone: "Direct",
-      audience: [],
+      audience: ["Home cooks"],
       approvedLines: ["Fired in Prague."],
       version: null,
     });
     mocks.loadProducts.mockResolvedValueOnce({ revision: 4, products: [] });
     mocks.saveProducts.mockResolvedValueOnce({
       revision: 5,
-      products: [product],
+      products: [product, secondProduct],
     });
     mount("https://ceramics.example");
     fireEvent.click(screen.getByRole("button", { name: "prepare" }));
@@ -270,6 +383,7 @@ describe("starting from a template", () => {
     expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
     });
+    await waitFor(() => expect(brandReview).toBeEnabled());
     fireEvent.click(brandReview);
     expect(
       await screen.findByText("BrandKit.websiteCopyAdded"),
@@ -279,6 +393,10 @@ describe("starting from a template", () => {
     );
     expect(screen.getByLabelText("BrandKit.approvedLines")).toHaveValue(
       "Fired in Prague.\nMade from reclaimed clay.",
+    );
+    expect(screen.getByLabelText("BrandKit.tone")).toHaveValue("Direct");
+    expect(screen.getByLabelText("BrandKit.audience")).toHaveValue(
+      "Home cooks",
     );
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
     const close = screen.getByRole("button", { name: "BrandKit.close" });
@@ -296,9 +414,114 @@ describe("starting from a template", () => {
     await waitFor(() =>
       expect(mocks.saveProducts).toHaveBeenCalledExactlyOnceWith({
         projectId: "p",
-        catalog: { revision: 4, products: [product] },
+        catalog: { revision: 4, products: [product, secondProduct] },
       }),
     );
+    const stage = await screen.findByRole("button", {
+      name: "addImportedToBatch",
+    });
+    await waitFor(() => expect(stage).toBeEnabled());
+    fireEvent.click(stage);
+    fireEvent.click(screen.getByRole("button", { name: "useBatch" }));
+    expect(screen.getByText("Travel mug")).toBeInTheDocument();
+    expect(screen.getByText("Clay vase")).toBeInTheDocument();
+    expect(mocks.saveProducts).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts website voice and audience suggestions into empty draft fields for review", async () => {
+    mocks.prepareWebsiteDraft.mockClear();
+    mocks.saveBrandCopy.mockClear();
+    mocks.prepareWebsiteDraft.mockResolvedValueOnce({
+      brandCopy: {
+        summary: null,
+        lines: [],
+        tone: "Warm and relaxed",
+        audience: ["Home coffee enthusiasts"],
+      },
+      products: [],
+    });
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "A coffee company",
+      tone: "",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    mount("https://coffee.example");
+    fireEvent.click(screen.getByRole("button", { name: "prepare" }));
+    const review = await screen.findByRole("button", {
+      name: "WebsiteDraft.reviewCopy",
+    });
+    await waitFor(() => expect(review).toBeEnabled());
+    fireEvent.click(review);
+    await screen.findByText("BrandKit.websiteProfileAdded");
+    expect(screen.getByLabelText("BrandKit.tone")).toHaveValue(
+      "Warm and relaxed",
+    );
+    expect(screen.getByLabelText("BrandKit.audience")).toHaveValue(
+      "Home coffee enthusiasts",
+    );
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
+  });
+
+  it("stages a website logo for approval and preserves unsaved brand copy", async () => {
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "A ceramics studio",
+      tone: "Direct",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    const logo = "https://blob.example/website-logo.png";
+    mocks.findWebsiteLogo.mockResolvedValue({ logo });
+    mocks.saveWebsiteLogo.mockResolvedValueOnce({ logo });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const tone = await screen.findByLabelText("BrandKit.tone");
+    await waitFor(() => expect(tone).toBeEnabled());
+    fireEvent.change(tone, { target: { value: "Clear and warm" } });
+    const findLogo = () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "BrandKit.findWebsiteLogo" }),
+      );
+    findLogo();
+    const preview = await screen.findByRole("img", {
+      name: "BrandKit.websiteLogoPreview",
+    });
+    expect(preview).toHaveAttribute("src", logo);
+    expect(mocks.findWebsiteLogo).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+    });
+    expect(mocks.saveWebsiteLogo).not.toHaveBeenCalled();
+    const discard = screen.getByRole("button", {
+      name: "BrandKit.discardWebsiteLogo",
+    });
+    await waitFor(() => expect(discard).toBeEnabled());
+    fireEvent.click(discard);
+    expect(preview).not.toBeInTheDocument();
+    expect(mocks.saveWebsiteLogo).not.toHaveBeenCalled();
+
+    findLogo();
+    const approve = await screen.findByRole("button", {
+      name: "BrandKit.useWebsiteLogo",
+    });
+    await waitFor(() => expect(approve).toBeEnabled());
+    fireEvent.click(approve);
+    await screen.findByText("BrandKit.logoSaved");
+    expect(
+      screen.getByRole("img", { name: "BrandKit.currentLogo" }),
+    ).toHaveAttribute("src", logo);
+    expect(tone).toHaveValue("Clear and warm");
+    expect(mocks.saveWebsiteLogo).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      logo,
+    });
   });
 
   it("uploads an approved logo while preserving an unsaved brand copy edit", async () => {

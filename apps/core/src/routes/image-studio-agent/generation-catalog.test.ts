@@ -106,16 +106,48 @@ describe("agent catalog and generation HTTP contract", () => {
         parentAssetId: sourceId,
         referenceAssetIds: [sourceId],
         referenceFileIds: [fileId],
+        reuseParentPhotoIfAvailable: false,
         referenceFileActor: {
           kind: "interactive",
           userId: "user",
           organizationId: "org",
         },
         prompt:
-          "Switch the product and keep the layout\n\nFeature one product: Clay mug.\nGlazed stoneware\nApproved price: EUR 19.\n\nUse the last reference image for the product's appearance.",
+          "Switch the product and keep the layout\n\nFeature one product: Clay mug.\nGlazed stoneware\nApproved price: EUR 19.",
       }),
     );
     expect(copyPhoto).not.toHaveBeenCalled();
+  });
+
+  it("allows a regular edit to reuse the original product photo", async () => {
+    createJob.mockResolvedValueOnce({ id: "new-job", status: "QUEUED" });
+
+    const response = await app.request("/generations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Change the headline",
+        modelId: "flux-2-pro",
+        idempotencyKey: "valid-key",
+        parentAssetId: sourceId,
+        referenceAssetIds: [sourceId],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(readCatalog).not.toHaveBeenCalled();
+    expect(createJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentAssetId: sourceId,
+        referenceAssetIds: [sourceId],
+        reuseParentPhotoIfAvailable: true,
+        referenceFileActor: {
+          kind: "interactive",
+          userId: "user",
+          organizationId: "org",
+        },
+      }),
+    );
   });
 
   it("copies a saved storefront photo before attaching it as a reference", async () => {

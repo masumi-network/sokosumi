@@ -74,6 +74,9 @@ export function StudioProductCatalogDialog({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const pending = transitionPending || preparingBatch || uploadingPhoto;
   const [batchCopies, setBatchCopies] = useState<Record<string, number>>({});
+  const [recentImportIds, setRecentImportIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [includePhotos, setIncludePhotos] = useState(true);
   const products = catalog?.products ?? [];
   const selected = products.find(({ id }) => id === selectedId) ?? products[0];
@@ -87,6 +90,12 @@ export function StudioProductCatalogDialog({
     (sum, entry) => sum + entry.copies,
     0,
   );
+  const importedBatchCandidates = products
+    .filter(
+      ({ id, name }) =>
+        recentImportIds.has(id) && !batchCopies[id] && name.trim(),
+    )
+    .slice(0, Math.max(0, MAX_BATCH - batchCount));
   const canApplyBatch =
     canUseProduct &&
     batchCount > 0 &&
@@ -191,6 +200,7 @@ export function StudioProductCatalogDialog({
       return;
     }
     setCatalog({ ...base, products: [...base.products, ...additions] });
+    setRecentImportIds(new Set(additions.map(({ id }) => id)));
     setDirty(true);
     setSelectedId(first.id);
     setMessage(t("imported", { count: additions.length }));
@@ -339,6 +349,26 @@ export function StudioProductCatalogDialog({
                   {t("import")}
                 </Button>
               </div>
+              {onUseBatch && importedBatchCandidates.length ? (
+                <Button
+                  onClick={() =>
+                    setBatchCopies((current) => ({
+                      ...current,
+                      ...Object.fromEntries(
+                        importedBatchCandidates.map(({ id }) => [id, 1]),
+                      ),
+                    }))
+                  }
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <Plus aria-hidden />
+                  {t("addImportedToBatch", {
+                    count: importedBatchCandidates.length,
+                  })}
+                </Button>
+              ) : null}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-muted-foreground text-xs">
                   {t("count", { count: products.length, limit: MAX_PRODUCTS })}

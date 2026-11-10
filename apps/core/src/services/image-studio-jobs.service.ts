@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 
 import {
-  FileSourceKind,
   type Prisma,
   ProjectImageJobKind,
   ProjectImageJobStatus,
@@ -78,7 +77,6 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
-import { loadLiveResources } from "@/services/file-search.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
@@ -146,6 +144,8 @@ export interface CreateImageJobInput {
   referenceFileIds?: string[];
   /** The REST caller, whose file access must be checked for new requests. */
   referenceFileActor?: FileActor;
+  /** Keep the source ad's product photo when an assistant edit can use it. */
+  reuseParentPhotoIfAvailable?: boolean;
   /** The version being refined, when the user started from a selection. */
   parentAssetId: string | null;
   idempotencyKey: string;
@@ -301,7 +301,15 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       !input.product && input.parentAssetId
         ? await tx.projectImageAsset.findFirst({
             where: { id: input.parentAssetId, projectId: input.projectId },
-            select: { job: { select: { productId: true, productName: true } } },
+            select: {
+              job: {
+                select: {
+                  productId: true,
+                  productName: true,
+                  referenceFileIds: true,
+                },
+              },
+            },
           })
         : null;
 
@@ -325,6 +333,31 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         },
         tx,
       );
+    }
+
+    let referenceFileIds = input.referenceFileIds ?? [];
+    const inheritedPhotoId = input.reuseParentPhotoIfAvailable
+      ? source?.job.referenceFileIds.at(-1)
+      : undefined;
+    if (inheritedPhotoId && input.referenceFileActor) {
+      try {
+        await requireStudioReferenceFiles(
+          {
+            workspaceId: input.workspaceId,
+            actor: input.referenceFileActor,
+            resourceIds: [inheritedPhotoId],
+          },
+          tx,
+        );
+        referenceFileIds = [inheritedPhotoId];
+      } catch (error) {
+        if (
+          !(error instanceof HTTPException) ||
+          (error.status !== 404 && error.status !== 422)
+        ) {
+          throw error;
+        }
+      }
     }
 
     const inFlight = await tx.projectImageJob.count({
@@ -378,7 +411,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         batchId: input.batchId,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
-        referenceFileIds: input.referenceFileIds ?? [],
+        referenceFileIds,
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
@@ -584,24 +617,20 @@ async function uploadFileReference(
 ): Promise<string> {
   // The requester can lose access to a private room while the reservation is
   // pending. Resolve the current, authorized pathname before opening the file.
-  const [file] = await loadLiveResources({
+  const [sourceId] = await requireStudioReferenceFiles({
     workspaceId,
     actor,
     resourceIds: [fileId],
   });
-  if (
-    file?.sourceKind !== FileSourceKind.DRIVE_UPLOAD ||
-    !file.mimeType?.startsWith("image/")
-  ) {
+  if (!sourceId)
     throw notFound("A reference image was not found in your Files.");
-  }
-  const blob = await driveHead(file.sourceId);
+  const blob = await driveHead(sourceId);
   if (!blob) throw new DriveFileDownloadError("unavailable");
   if (blob.size > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
     throw new DriveFileDownloadError("too_large");
   // A data room's picture is private: a short-lived signed address instead.
   const url =
-    blob.access === "public" ? blob.url : await driveReadUrl(file.sourceId);
+    blob.access === "public" ? blob.url : await driveReadUrl(sourceId);
   // The address comes from our own blob store, never from a person, so it
   // needs no SSRF guard; and the store's bot check answered the guarded
   // client 403 after its first request, failing every brand picture after
@@ -681,8 +710,14 @@ export async function createImageJob(input: CreateImageJobInput) {
   // The charge, decided here and nowhere else. Same catalog row, same function
   // and therefore the same number the composer's pre-flight estimate showed.
   let chargedCredits: number;
+  let maxReferences: number;
   try {
-    chargedCredits = creditsPerImage(imageModel(input.modelId), settings);
+    const model = imageModel(input.modelId);
+    chargedCredits = creditsPerImage(model, settings);
+    maxReferences = Math.min(
+      model.maxReferences,
+      LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB,
+    );
   } catch (error) {
     throw unprocessableEntity(
       error instanceof Error ? error.message : "Invalid image settings",
@@ -695,6 +730,13 @@ export async function createImageJob(input: CreateImageJobInput) {
   const { modelId, ...request } = input;
   return await reserveAndSend({
     ...request,
+    reuseParentPhotoIfAvailable:
+      input.reuseParentPhotoIfAvailable &&
+      !input.product &&
+      !input.referenceFileIds?.length &&
+      input.parentAssetId !== null &&
+      input.referenceAssetIds.includes(input.parentAssetId) &&
+      references < maxReferences,
     kind,
     model: falModelForKind(kind, modelId),
     settings,
@@ -867,9 +909,13 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       });
     } else {
       const settings = readSettings(job.settings);
+      const photoCount = job.referenceFileIds.length;
+      const productPhotoGuidance = photoCount
+        ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
+        : "";
       input = buildFalInput(
         {
-          prompt,
+          prompt: prompt + productPhotoGuidance,
           aspectRatio: settings.aspectRatio,
           resolution: settings.resolution,
           outputFormat: settings.outputFormat,

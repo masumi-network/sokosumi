@@ -24,11 +24,20 @@ import {
 import { saveStudioBrandCopy } from "@/services/brand-brain.service";
 
 const path = "/{id}/image-studio/brand-kit";
+const websiteDraftPath = "/{id}/image-studio/website-draft";
 const tags = ["Projects"];
 const accessErrors = {
   401: jsonErrorResponse("Unauthorized"),
   403: jsonErrorResponse("Forbidden"),
   404: jsonErrorResponse("Not Found"),
+};
+const websiteDraftResponses = {
+  200: jsonSuccessResponse(
+    studioWebsiteDraftSchema,
+    "Website suggestions for review",
+  ),
+  ...accessErrors,
+  422: jsonErrorResponse("Project website missing"),
 };
 
 const getRoute = withOrganizationSlugHeaderParameter(
@@ -89,18 +98,24 @@ const websiteCopyRoute = withOrganizationSlugHeaderParameter(
 const websiteDraftRoute = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
-    path: "/{id}/image-studio/website-draft",
+    path: websiteDraftPath,
     operationId: "prepareStudioWebsiteDraft",
     tags,
     request: { params: imageStudioProjectParamsSchema },
-    responses: {
-      200: jsonSuccessResponse(
-        studioWebsiteDraftSchema,
-        "Website suggestions for review",
-      ),
-      ...accessErrors,
-      422: jsonErrorResponse("Project website missing"),
-    },
+    responses: websiteDraftResponses,
+  }),
+);
+
+const websiteResearchRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "post",
+    path: websiteDraftPath,
+    operationId: "researchStudioWebsiteDraft",
+    description:
+      "Prepare a website draft with optional brand voice and audience suggestions.",
+    tags,
+    request: { params: imageStudioProjectParamsSchema },
+    responses: websiteDraftResponses,
   }),
 );
 
@@ -127,6 +142,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     const { id: projectId } = c.req.valid("param");
     await requireProjectAccess({ userId, workspaceId, projectId });
     return ok(c, await prepareStudioWebsiteDraft(projectId));
+  });
+
+  app.openapi(websiteResearchRoute, async (c) => {
+    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
+    const { id: projectId } = c.req.valid("param");
+    await requireProjectAccess({ userId, workspaceId, projectId });
+    return ok(c, await prepareStudioWebsiteDraft(projectId, workspaceId));
   });
 
   app.openapi(putRoute, async (c) => {

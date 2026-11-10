@@ -1,3 +1,4 @@
+import { FileSourceKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -381,7 +382,15 @@ describe("image studio job submission", () => {
 
     expect(assetFindFirstMock).toHaveBeenCalledWith({
       where: { id: "parent-a", projectId: BASE_INPUT.projectId },
-      select: { job: { select: { productId: true, productName: true } } },
+      select: {
+        job: {
+          select: {
+            productId: true,
+            productName: true,
+            referenceFileIds: true,
+          },
+        },
+      },
     });
     expect(jobCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -401,6 +410,69 @@ describe("image studio job submission", () => {
       kind: "interactive",
     },
   } satisfies Parameters<typeof createImageJob>[0];
+
+  it.each([
+    { visible: true, references: ["parent-a"], expected: ["file-1"] },
+    { visible: false, references: ["parent-a"], expected: [] },
+    {
+      visible: true,
+      references: ["parent-a", "other-a", "other-b", "other-c"],
+      expected: [],
+    },
+  ])(
+    "reuses an accessible original photo only if the edit has room ($visible, $references)",
+    async ({ visible, references, expected }) => {
+      jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+      assetFindFirstMock.mockResolvedValueOnce({
+        job: {
+          productId: "product-a",
+          productName: "Clay mug",
+          referenceFileIds: ["file-1"],
+        },
+      });
+      if (references.length === 1) {
+        loadLiveResourcesMock.mockResolvedValueOnce(
+          visible
+            ? [
+                {
+                  id: "file-1",
+                  sourceKind: FileSourceKind.DRIVE_UPLOAD,
+                  mimeType: "image/jpeg",
+                  sizeBytes: 2,
+                },
+              ]
+            : [],
+        );
+      }
+
+      await createImageJob({
+        ...photoInput,
+        referenceFileIds: undefined,
+        parentAssetId: "parent-a",
+        referenceAssetIds: references,
+        reuseParentPhotoIfAvailable: true,
+      });
+
+      expect(jobCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          referenceAssetIds: references,
+          referenceFileIds: expected,
+        }),
+      });
+      if (references.length === 1) {
+        expect(loadLiveResourcesMock).toHaveBeenCalledWith(
+          {
+            workspaceId: BASE_INPUT.workspaceId,
+            actor: photoInput.referenceFileActor,
+            resourceIds: ["file-1"],
+          },
+          expect.any(Object),
+        );
+      } else {
+        expect(loadLiveResourcesMock).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   it("refuses a new photo request when the file is not visible to the caller", async () => {
     loadLiveResourcesMock.mockResolvedValueOnce([]);
@@ -460,15 +532,18 @@ describe("image studio job submission", () => {
 
       await recoverUnclaimedReservations({ now });
 
-      expect(loadLiveResourcesMock).toHaveBeenCalledWith({
-        workspaceId: BASE_INPUT.workspaceId,
-        actor: {
-          kind,
-          userId: BASE_INPUT.userId,
-          organizationId: "organization-1",
+      expect(loadLiveResourcesMock).toHaveBeenCalledWith(
+        {
+          workspaceId: BASE_INPUT.workspaceId,
+          actor: {
+            kind,
+            userId: BASE_INPUT.userId,
+            organizationId: "organization-1",
+          },
+          resourceIds: ["file-1"],
         },
-        resourceIds: ["file-1"],
-      });
+        expect.any(Object),
+      );
       expect(driveHeadMock).not.toHaveBeenCalled();
       expect(uploadReferenceMock).not.toHaveBeenCalled();
       expect(submitToQueueMock).not.toHaveBeenCalled();
@@ -665,11 +740,12 @@ describe("image studio job submission", () => {
     );
   });
 
-  it("sends private Drive image bytes to the edit endpoint without sharing the signed URL", async () => {
+  it("keeps a private product photo after the source ad and guides the provider to preserve it", async () => {
     jobCreateMock.mockImplementation(async ({ data }) =>
       jobRow({
         kind: data.kind,
         model: data.model,
+        referenceAssetIds: data.referenceAssetIds,
         referenceFileIds: data.referenceFileIds,
       }),
     );
@@ -677,9 +753,19 @@ describe("image studio job submission", () => {
       jobRow({
         kind: "EDIT",
         model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+        referenceAssetIds: ["asset-1"],
         referenceFileIds: ["file-1"],
       }),
     );
+    assetFindManyMock.mockResolvedValueOnce([
+      {
+        id: "asset-1",
+        blobPathname: "private/source.png",
+        bytes: 2,
+        contentType: "image/png",
+      },
+    ]);
+    readAssetBytesMock.mockResolvedValueOnce(new Uint8Array([3, 4]));
     loadLiveResourcesMock.mockResolvedValueOnce([
       {
         id: "file-1",
@@ -700,31 +786,47 @@ describe("image studio job submission", () => {
         headers: { "content-type": "image/jpeg" },
       }),
     );
-    uploadReferenceMock.mockResolvedValue("https://v3b.fal.media/files/l.jpg");
+    uploadReferenceMock
+      .mockResolvedValueOnce("https://v3b.fal.media/files/source.png")
+      .mockResolvedValueOnce("https://v3b.fal.media/files/l.jpg");
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-3" });
 
-    await createImageJob({ ...BASE_INPUT, referenceFileIds: ["file-1"] });
+    await createImageJob({
+      ...BASE_INPUT,
+      referenceAssetIds: ["asset-1"],
+      referenceFileIds: ["file-1"],
+    });
 
     expect(jobCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           kind: "EDIT",
           referenceFileIds: ["file-1"],
+          prompt: BASE_INPUT.prompt,
         }),
       }),
     );
-    expect(loadLiveResourcesMock).toHaveBeenCalledWith({
-      workspaceId: BASE_INPUT.workspaceId,
-      actor: photoInput.referenceFileActor,
-      resourceIds: ["file-1"],
-    });
+    expect(loadLiveResourcesMock).toHaveBeenCalledWith(
+      {
+        workspaceId: BASE_INPUT.workspaceId,
+        actor: photoInput.referenceFileActor,
+        resourceIds: ["file-1"],
+      },
+      expect.any(Object),
+    );
     expect(driveReadUrlMock).toHaveBeenCalledWith("drive/w/leggings.jpg");
     expect(fetchMock).toHaveBeenCalledWith(signedUrl, expect.any(Object));
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         input: expect.objectContaining({
-          image_urls: ["https://v3b.fal.media/files/l.jpg"],
+          image_urls: [
+            "https://v3b.fal.media/files/source.png",
+            "https://v3b.fal.media/files/l.jpg",
+          ],
+          prompt: expect.stringContaining(
+            "Use the last reference image for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text",
+          ),
         }),
       }),
     );

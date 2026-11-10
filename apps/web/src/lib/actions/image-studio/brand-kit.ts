@@ -6,8 +6,11 @@ import type {
   StudioWebsiteCopy,
   StudioWebsiteDraft,
 } from "@sokosumi/core-client";
+import { isOwnedProjectLogoUrl } from "@sokosumi/utils";
+import { revalidatePath } from "next/cache";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { imageStudioService } from "@/lib/services/image-studio.service";
+import { projectService } from "@/lib/services/project.service";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -37,6 +40,24 @@ export const uploadStudioProjectLogo = withSession<
 >(({ projectId, file }) =>
   imageStudioService.uploadProjectLogo(projectId, file),
 );
+
+export const findStudioWebsiteLogo = withSession<
+  ProjectInput,
+  { logo: string | null }
+>(({ projectId }) => imageStudioService.findWebsiteLogo(projectId));
+
+export const saveStudioWebsiteLogo = withSession<
+  ProjectInput & { logo: string },
+  { logo: string }
+>(async ({ projectId, logo }) => {
+  if (!isOwnedProjectLogoUrl(logo, projectId)) {
+    throw new Error("Choose a logo belonging to this project");
+  }
+  await projectService.patchProject(projectId, { logo });
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  return { logo };
+});
 
 export const saveStudioBrandCopy = withSession<
   ProjectInput & SaveStudioBrandCopy,

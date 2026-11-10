@@ -38933,6 +38933,20 @@ export const StudioWebsiteCopySchema = {
                 maxLength: 2000
             },
             maxItems: 8
+        },
+        tone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
         }
     },
     required: [
@@ -39288,6 +39302,16 @@ export const StudioLogoPositionSchema = {
         'top-right',
         'bottom-left',
         'bottom-right'
+    ]
+} as const;
+
+export const StudioAdPlacementRatioSchema = {
+    type: 'string',
+    enum: [
+        '1:1',
+        '4:5',
+        '9:16',
+        '16:9'
     ]
 } as const;
 

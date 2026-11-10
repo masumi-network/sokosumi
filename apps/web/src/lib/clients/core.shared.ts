@@ -1,5 +1,6 @@
 import {
   attachStudioProductPhoto as coreAttachStudioProductPhoto,
+  findStudioWebsiteLogo as coreFindStudioWebsiteLogo,
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   getStudioBrandKit as coreGetStudioBrandKit,
@@ -7,8 +8,8 @@ import {
   getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
   importStudioProductCatalog as coreImportStudioProductCatalog,
   listStudioBatchAssets as coreListStudioBatchAssets,
-  prepareStudioWebsiteDraft as corePrepareStudioWebsiteDraft,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
+  researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   suggestTaskTags as coreSuggestTaskTags,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
@@ -4198,7 +4199,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePrepareStudioWebsiteDraft({
+        coreResearchStudioWebsiteDraft({
           client,
           path: { id },
           cache: "no-store",
@@ -4226,6 +4227,14 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         coreUploadStudioProjectLogo({ client, path: { id }, body: { file } }),
       "Failed to upload the Studio project logo",
+    );
+  }
+
+  async function findStudioWebsiteLogo(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreFindStudioWebsiteLogo({ client, path: { id } }),
+      "Failed to find a logo on the Studio project website",
     );
   }
 
@@ -7103,6 +7112,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listStudioBatchAssets,
     saveStudioBrandCopy,
     uploadStudioProjectLogo,
+    findStudioWebsiteLogo,
     replaceStudioProductCatalog,
     importStudioProductCatalog,
     getProjectsByIdImageStudio,

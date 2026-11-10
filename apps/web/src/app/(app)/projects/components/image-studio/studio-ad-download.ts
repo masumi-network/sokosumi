@@ -1,5 +1,10 @@
 import type { StudioLogoPosition } from "@sokosumi/core-client";
-import { assetContentUrl, assetFileExtension, type StudioAsset } from "./types";
+import {
+  assetContentUrl,
+  assetFileExtension,
+  type StudioAdRenderOptions,
+  type StudioAsset,
+} from "./types";
 
 export const MAX_ARCHIVE_IMAGES = 12;
 export const MAX_ARCHIVE_MIB = 96;
@@ -7,14 +12,17 @@ export const MAX_ARCHIVE_BYTES = MAX_ARCHIVE_MIB * 1024 * 1024;
 
 export async function fetchStudioAd(
   asset: StudioAsset,
-  logo?: StudioLogoPosition,
+  options?: StudioAdRenderOptions,
 ): Promise<Response> {
-  const response = await fetch(assetContentUrl(asset, logo), {
+  const response = await fetch(assetContentUrl(asset, options), {
     signal: AbortSignal.timeout(30_000),
   });
   if (!response.ok) throw new Error(`Studio image returned ${response.status}`);
-  if (logo && response.headers.get("content-type") !== "image/png") {
-    throw new Error("Studio branded image returned an unexpected format");
+  if (
+    (options?.logo || options?.placement) &&
+    response.headers.get("content-type") !== "image/png"
+  ) {
+    throw new Error("Studio image returned an unexpected format");
   }
   return response;
 }
@@ -39,7 +47,7 @@ export async function createStudioAdArchive(
 
   // Fetch one image at a time to limit simultaneous reads of private files.
   for (const [index, asset] of assets.entries()) {
-    const response = await fetchStudioAd(asset, logo);
+    const response = await fetchStudioAd(asset, { logo });
 
     const image = await response.arrayBuffer();
     bytes += image.byteLength;
