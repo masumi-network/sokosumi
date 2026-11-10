@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { createSeoAuditAction } from "@/lib/actions/seo/create-audit";
+import { seoAuditHref } from "../seo-href";
 
-export function useCreateSeoAudit() {
+/** A new Audit links to the header's Project scope when one is chosen. */
+export function useCreateSeoAudit(projectId: string | null) {
   const router = useRouter();
   const t = useTranslations("App.Seo");
   const [open, setOpen] = useState(false);
@@ -22,13 +24,14 @@ export function useCreateSeoAudit() {
         body: {
           name: String(form.get("name") ?? "").trim(),
           firstPage: { url: String(form.get("url") ?? "").trim() },
+          ...(projectId ? { projectId } : {}),
         },
       });
       if (!result.ok || !result.value.auditId) {
         setError(t("audits.createFailed"));
         return;
       }
-      router.push(`/seo?auditId=${encodeURIComponent(result.value.auditId)}`);
+      router.push(seoAuditHref(result.value.auditId, projectId));
       setOpen(false);
     } catch {
       setError(t("audits.createFailed"));

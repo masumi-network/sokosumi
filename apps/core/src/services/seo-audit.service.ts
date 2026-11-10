@@ -22,14 +22,24 @@ import { requireScopedProject } from "./project-social-connections.service";
 
 export async function listSeoAudits(
   actor: SeoWorkspaceActor,
-  query: { cursor?: string; limit?: number },
+  query: { cursor?: string; limit?: number; projectId?: string },
 ) {
   await requireSeoWorkspace(actor);
+  if (query.projectId)
+    await requireScopedProject({
+      projectId: query.projectId,
+      workspaceId: actor.workspaceId,
+    });
   const { cursor, take, skip } = parseCursorPagination(query);
-  const where = {
-    workspaceId: actor.workspaceId,
-    OR: [{ projectId: null }, { project: { workspaceId: actor.workspaceId } }],
-  };
+  const where = query.projectId
+    ? { workspaceId: actor.workspaceId, projectId: query.projectId }
+    : {
+        workspaceId: actor.workspaceId,
+        OR: [
+          { projectId: null },
+          { project: { workspaceId: actor.workspaceId } },
+        ],
+      };
   if (
     cursor &&
     !(await prisma.seoAudit.findFirst({

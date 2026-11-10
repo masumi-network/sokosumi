@@ -25,5 +25,9 @@ export const createSeoAuditSchema = z
   .openapi("CreateSeoAuditRequest");
 
 export const seoAuditListQuerySchema = cursorPaginationQuerySchema
-  .extend({ cursor: seoIdSchema.optional() })
+  .extend({
+    cursor: seoIdSchema.optional(),
+    // The header's Project scope: only the Audits linked to this Project.
+    projectId: seoIdSchema.optional(),
+  })
   .openapi("SeoAuditListQuery");

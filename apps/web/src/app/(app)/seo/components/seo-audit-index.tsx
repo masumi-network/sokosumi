@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { seoAuditHref, seoIndexHref } from "../seo-href";
 import { SeoAuditForm } from "./seo-audit-form";
 import { SeoDate, SeoSection } from "./seo-shared";
 import { useCreateSeoAudit } from "./use-create-seo-audit";
@@ -21,12 +22,15 @@ import { useCreateSeoAudit } from "./use-create-seo-audit";
 export function SeoAuditIndex({
   audits,
   nextCursor,
+  projectId,
 }: {
   audits: SeoAuditSummary[];
   nextCursor: string | null;
+  /** The header's Project scope; a new Audit links to it. */
+  projectId: string | null;
 }) {
   const t = useTranslations("App.Seo");
-  const form = useCreateSeoAudit();
+  const form = useCreateSeoAudit(projectId);
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -47,7 +51,7 @@ export function SeoAuditIndex({
             {audits.map((audit) => (
               <li key={audit.id}>
                 <Link
-                  href={`/seo?auditId=${encodeURIComponent(audit.id)}`}
+                  href={seoAuditHref(audit.id, audit.projectId)}
                   className={cn(
                     HOLDER_ITEM_CLASS,
                     "hover:bg-quinary flex items-center gap-3 p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
@@ -72,7 +76,9 @@ export function SeoAuditIndex({
       ) : (
         <section className={cn(HOLDER_ITEM_CLASS, "space-y-5 p-5 sm:p-6")}>
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold">{t("audits.empty")}</h2>
+            <h2 className="text-lg font-semibold">
+              {projectId ? t("audits.emptyProject") : t("audits.empty")}
+            </h2>
             <p className="text-muted-foreground max-w-prose text-sm">
               {t("audits.createHelp")}
             </p>
@@ -82,9 +88,7 @@ export function SeoAuditIndex({
       )}
       {nextCursor ? (
         <Button variant="outline" asChild>
-          <Link href={`/seo?cursor=${encodeURIComponent(nextCursor)}`}>
-            {t("more")}
-          </Link>
+          <Link href={seoIndexHref(projectId, nextCursor)}>{t("more")}</Link>
         </Button>
       ) : null}
       <Dialog

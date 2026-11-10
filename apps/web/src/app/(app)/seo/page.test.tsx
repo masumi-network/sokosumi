@@ -8,6 +8,7 @@ import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../messages/en.json";
 import {
   SEO_TEST_AUDIT,
+  SEO_TEST_PROJECT,
   seoTestWorkspace,
 } from "./components/seo-test-fixture";
 import SeoPage from "./page";
@@ -110,7 +111,10 @@ describe("native SEO audit entry", () => {
         /personal project manager|inbox and calendar|Soko Bot/i,
       ),
     ).toBeNull();
-    expect(m.listAudits).toHaveBeenCalledWith({ cursor: undefined });
+    expect(m.listAudits).toHaveBeenCalledWith({
+      cursor: undefined,
+      projectId: undefined,
+    });
     expect(m.getWorkspace).not.toHaveBeenCalled();
     expect(m.coworkers).not.toHaveBeenCalled();
   });
@@ -147,9 +151,52 @@ describe("native SEO audit entry", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    await show({ auditId: SEO_TEST_AUDIT });
+    await show({ auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT });
     expect(screen.getByRole("heading", { name: "Launch pages" })).toBeVisible();
     expect(m.coworkers).not.toHaveBeenCalled();
+  });
+
+  it("opens an Audit in its own Project scope, so the header names that Project", async () => {
+    m.getWorkspace.mockResolvedValue({
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+    });
+    await expect(
+      SeoPage({ searchParams: Promise.resolve({ auditId: SEO_TEST_AUDIT }) }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `/seo?projectId=${SEO_TEST_PROJECT}&auditId=${SEO_TEST_AUDIT};`,
+      ),
+    });
+  });
+
+  it("lists the scoped Project's Audits and links a new Audit to that Project", async () => {
+    const user = userEvent.setup();
+    await show({ projectId: SEO_TEST_PROJECT });
+    expect(m.listAudits).toHaveBeenCalledWith({
+      cursor: undefined,
+      projectId: SEO_TEST_PROJECT,
+    });
+    expect(screen.getByText("No audits in this project yet")).toBeVisible();
+    const form = screen.getByRole("form", { name: "Create audit" });
+    await user.type(within(form).getByLabelText("Audit name"), "Launch pages");
+    await user.type(
+      within(form).getByLabelText("First page URL"),
+      "https://example.test/launch",
+    );
+    await user.click(
+      within(form).getByRole("button", { name: "Create audit" }),
+    );
+    expect(m.createAudit).toHaveBeenCalledExactlyOnceWith({
+      body: {
+        name: "Launch pages",
+        firstPage: { url: "https://example.test/launch" },
+        projectId: SEO_TEST_PROJECT,
+      },
+    });
+    expect(m.push).toHaveBeenCalledWith(
+      `/seo?projectId=${SEO_TEST_PROJECT}&auditId=${SEO_TEST_AUDIT}`,
+    );
   });
 
   it("keeps the inline form and entered pages when audit creation fails", async () => {

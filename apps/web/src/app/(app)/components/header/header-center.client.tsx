@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 
 interface HeaderCenterProps {
   children: ReactNode;
-  mobileProjectScope?: ReactNode;
 }
 
 /**
@@ -16,14 +15,9 @@ interface HeaderCenterProps {
  * starts at `md`: below it the header's scope chip stands in, so it never sits
  * beside the room slot.
  */
-export function HeaderCenter({
-  children,
-  mobileProjectScope,
-}: HeaderCenterProps) {
+export function HeaderCenter({ children }: HeaderCenterProps) {
   const pathname = usePathname();
   const isMobileRoom = isChatRoomPathname(pathname);
-  const showProjectScope =
-    pathname !== "/seo" && !pathname?.startsWith("/seo/");
 
   return (
     <>
@@ -37,17 +31,12 @@ export function HeaderCenter({
         )}
       />
 
-      {showProjectScope ? (
-        <>
-          <div
-            data-testid="header-scope"
-            className="hidden min-w-0 flex-1 flex-row items-center gap-2 md:flex"
-          >
-            {children}
-          </div>
-          {mobileProjectScope}
-        </>
-      ) : null}
+      <div
+        data-testid="header-scope"
+        className="hidden min-w-0 flex-1 flex-row items-center gap-2 md:flex"
+      >
+        {children}
+      </div>
     </>
   );
 }

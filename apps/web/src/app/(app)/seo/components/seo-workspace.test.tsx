@@ -23,6 +23,7 @@ import { SeoAutomation } from "./seo-monitors";
 import {
   openStatisticsSetup,
   SEO_TEST_AUDIT,
+  SEO_TEST_PROJECT,
   seoTestWorkspace,
 } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
@@ -2131,9 +2132,10 @@ describe("SEO workspace integration", () => {
         "Run a page check or import a completed report. Add related pages to compare them in one audit.",
       ),
     ).toBeNull();
+    // "All audits" goes back to the Audit's Project scope.
     expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
       "href",
-      "/seo",
+      `/seo?projectId=${SEO_TEST_PROJECT}`,
     );
     expect(
       screen.queryByRole("link", { name: /bot|coworker|assistant/i }),

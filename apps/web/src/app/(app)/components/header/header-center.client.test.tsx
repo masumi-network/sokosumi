@@ -8,7 +8,6 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { HeaderCenter } from "./header-center.client";
-import { HeaderTrailing } from "./header-trailing.client";
 
 describe("HeaderCenter", () => {
   beforeEach(() => {
@@ -63,62 +62,4 @@ describe("HeaderCenter", () => {
     expect(scopeClasses).toContain("md:flex");
     expect(scopeClasses).not.toContain("sm:flex");
   });
-
-  it.each(["/seo", "/seo/connections/return"])(
-    "hides desktop and mobile Project controls on %s while preserving notifications",
-    (pathname) => {
-      mockPathname = pathname;
-      render(
-        <>
-          <HeaderCenter
-            mobileProjectScope={
-              <button type="button">Mobile project selection</button>
-            }
-          >
-            <button type="button">All projects</button>
-            <button type="button">Create project</button>
-          </HeaderCenter>
-          <HeaderTrailing>
-            <button type="button">Notifications</button>
-          </HeaderTrailing>
-        </>,
-      );
-      expect(screen.queryByRole("button", { name: "All projects" })).toBeNull();
-      expect(
-        screen.queryByRole("button", { name: "Create project" }),
-      ).toBeNull();
-      expect(
-        screen.queryByRole("button", { name: "Mobile project selection" }),
-      ).toBeNull();
-      expect(
-        screen.getByRole("button", { name: "Notifications" }),
-      ).toBeVisible();
-    },
-  );
-
-  it.each(["/tasks", "/seo-tools"])(
-    "preserves Project controls on %s",
-    (pathname) => {
-      mockPathname = pathname;
-      render(
-        <HeaderCenter
-          mobileProjectScope={
-            <button type="button">Mobile project selection</button>
-          }
-        >
-          <button type="button">All projects</button>
-          <button type="button">Create project</button>
-        </HeaderCenter>,
-      );
-      expect(
-        screen.getByRole("button", { name: "All projects" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Create project" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Mobile project selection" }),
-      ).toBeInTheDocument();
-    },
-  );
 });

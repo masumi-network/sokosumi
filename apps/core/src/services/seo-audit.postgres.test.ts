@@ -204,6 +204,28 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     ).rejects.toMatchObject({ status: 404 });
   });
 
+  it("lists only the scoped Project's Audits and refuses a foreign Project scope", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Scoped SEO Project" },
+    });
+    const linked = await createSeoAudit(actor, {
+      name: "Linked Audit",
+      firstPage,
+      projectId: project.id,
+    });
+    const scoped = await listSeoAudits(actor, { projectId: project.id });
+    expect(scoped.audits.map((audit) => audit.id)).toEqual([linked.auditId]);
+    expect(scoped.pagination.total).toBe(1);
+    const all = await listSeoAudits(actor, { limit: 100 });
+    expect(all.audits.length).toBeGreaterThan(1);
+    const foreignProject = await prisma.project.create({
+      data: { workspaceId: foreignWorkspaceId, name: "Foreign scope" },
+    });
+    await expect(
+      listSeoAudits(actor, { projectId: foreignProject.id }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
   it("rejects a foreign optional Project link without retaining an Audit or its first page", async () => {
     const foreignProject = await prisma.project.create({
       data: { workspaceId: foreignWorkspaceId, name: "Foreign native Project" },

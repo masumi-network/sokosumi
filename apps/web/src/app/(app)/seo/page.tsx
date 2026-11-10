@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { unstable_rethrow } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
@@ -8,6 +8,7 @@ import { seoService } from "@/lib/services/seo.service";
 import { SeoAuditIndex } from "./components/seo-audit-index";
 import { SeoPageError } from "./components/seo-page-error";
 import { SeoWorkspace } from "./components/seo-workspace";
+import { seoAuditHref } from "./seo-href";
 import { seoLoadErrorStatus } from "./seo-load-error-model";
 import { readSeoPageQuery } from "./seo-query";
 
@@ -32,24 +33,27 @@ export default async function SeoPage({
       </WorkspacePageShell>
     );
   const { auditId, projectId, cursor, tab: _tab, ...query } = parsed.data;
+  // `projectId` is the header's Project scope: it filters the Audit list, it does not name an owner.
   const owner: SeoOwner | undefined = auditId
     ? { kind: "audit", id: auditId }
-    : projectId
-      ? { kind: "project", id: projectId }
-      : undefined;
+    : undefined;
   try {
     if (!owner) {
-      const index = await seoService.listAudits({ cursor });
+      const index = await seoService.listAudits({ cursor, projectId });
       return (
         <WorkspacePageShell title={t("title")}>
           <SeoAuditIndex
             audits={index.audits}
+            projectId={projectId ?? null}
             nextCursor={index.pagination?.nextCursor ?? null}
           />
         </WorkspacePageShell>
       );
     }
     const workspace = await seoService.getWorkspace(owner, query);
+    // An Audit opens in its own Project's scope (or the workspace view for none).
+    if (auditId && (projectId ?? null) !== (workspace.projectId ?? null))
+      redirect(seoAuditHref(auditId, workspace.projectId ?? null));
     return (
       <WorkspacePageShell title={t("title")}>
         <SeoWorkspace

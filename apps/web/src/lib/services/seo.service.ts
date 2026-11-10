@@ -55,7 +55,9 @@ export type SeoWorkspaceQuery = NonNullable<
 >;
 
 export const seoServiceNoRedirect = {
-  async listAudits(query: { cursor?: string; limit?: number } = {}) {
+  async listAudits(
+    query: { cursor?: string; limit?: number; projectId?: string } = {},
+  ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) => listSeoAudits({ client, query }),

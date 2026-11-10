@@ -36,6 +36,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { seoIndexHref } from "../seo-href";
 import { SeoActions } from "./seo-actions";
 import { SeoAgentHome } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
@@ -114,7 +115,7 @@ export function SeoWorkspace({
   )
     return (
       <SeoPageError
-        resetHref="/seo"
+        resetHref={seoIndexHref(model.data.projectId ?? null)}
         status={loadStatus}
         owner={model.owner}
         hasSelection={Boolean(model.filters.pageId || model.filters.scopeId)}
@@ -149,7 +150,7 @@ export function SeoWorkspace({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <Link
-            href="/seo"
+            href={seoIndexHref(model.data.projectId ?? null)}
             className="text-muted-foreground text-sm underline underline-offset-4"
           >
             {t("audits.all")}

@@ -68566,6 +68566,7 @@ export type ListSeoAuditsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        projectId?: string;
     };
     url: '/seo/audits';
 };

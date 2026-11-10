@@ -44,20 +44,16 @@ export const seoFilterQuerySchema = z
     "Invalid period",
   );
 
-export const seoPageQuerySchema = seoFilterQuerySchema
-  .safeExtend({
-    auditId: z.uuid().optional(),
-    projectId: z.uuid().optional(),
-    cursor: z.string().max(200).optional(),
-    tab: z
-      .string()
-      .refine((value) => seoTab(value) !== null, "Unknown tab")
-      .optional(),
-  })
-  .refine(
-    (query) => !(query.auditId && query.projectId),
-    "Choose one SEO audit",
-  );
+export const seoPageQuerySchema = seoFilterQuerySchema.safeExtend({
+  auditId: z.uuid().optional(),
+  // The header's Project scope. It sits beside an open Audit: the page moves a mismatch to the Audit's Project.
+  projectId: z.uuid().optional(),
+  cursor: z.string().max(200).optional(),
+  tab: z
+    .string()
+    .refine((value) => seoTab(value) !== null, "Unknown tab")
+    .optional(),
+});
 
 /** Invalid URL filters must not fall back to a broader page selection. */
 export function readSeoPageQuery(
