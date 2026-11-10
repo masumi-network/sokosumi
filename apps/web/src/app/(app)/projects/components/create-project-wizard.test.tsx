@@ -167,6 +167,7 @@ describe("CreateProjectWizard", () => {
   it("creates with a website and stays on brand setup", async () => {
     const user = userEvent.setup();
     const onSuccess = vi.fn();
+    const onOpenProject = vi.fn();
     const createProjectMock = vi.mocked(createProject);
     createProjectMock.mockResolvedValue({
       ok: true,
@@ -182,6 +183,7 @@ describe("CreateProjectWizard", () => {
         onOpenChange={vi.fn()}
         creationSource="projects_page"
         onSuccess={onSuccess}
+        onOpenProject={onOpenProject}
       />,
     );
 
@@ -211,6 +213,7 @@ describe("CreateProjectWizard", () => {
       });
     });
     expect(onSuccess).not.toHaveBeenCalled();
+    expect(onOpenProject).not.toHaveBeenCalled();
     expect(
       screen.getByRole("button", {
         name: "App.Projects.Wizard.nav.openProject",
@@ -222,6 +225,7 @@ describe("CreateProjectWizard", () => {
         name: "App.Projects.Wizard.nav.openProject",
       }),
     );
+    expect(onOpenProject).toHaveBeenCalledWith("project-1");
     expect(onSuccess).toHaveBeenCalledWith(
       "project-1",
       "Spring launch",
