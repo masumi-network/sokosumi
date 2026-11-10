@@ -223,7 +223,7 @@ describe("same-tab Composio verification", () => {
       });
 
       expect(replace).toHaveBeenCalledExactlyOnceWith(
-        `/personal-assistant/integrations/verify?session_uri=${encodeURIComponent(sessionUri)}`,
+        `/personal-assistant/integrations/verify?session_uri=${encodeURIComponent(sessionUri)}&__sokosumi_owner_verification=1`,
       );
       expect(broadcast).not.toHaveBeenCalled();
       expect(postMessage).not.toHaveBeenCalled();
@@ -274,7 +274,7 @@ describe("same-tab verification for a shared Soko Bot", () => {
       [COMPOSIO_BOT_ID_STORAGE_KEY]: BOT_ID,
     });
     expect(replace).toHaveBeenCalledExactlyOnceWith(
-      `/personal-assistant/integrations/verify?session_uri=one-use&botId=${BOT_ID}`,
+      `/personal-assistant/integrations/verify?session_uri=one-use&__sokosumi_owner_verification=1&botId=${BOT_ID}`,
     );
     expect(removeItem).toHaveBeenCalledWith(COMPOSIO_BOT_ID_STORAGE_KEY);
   });
@@ -282,7 +282,7 @@ describe("same-tab verification for a shared Soko Bot", () => {
   it("ignores a botId on Composio's query and verifies the caller's own bot", () => {
     const { replace } = runCallback({});
     expect(replace).toHaveBeenCalledExactlyOnceWith(
-      "/personal-assistant/integrations/verify?session_uri=one-use",
+      "/personal-assistant/integrations/verify?session_uri=one-use&__sokosumi_owner_verification=1",
     );
   });
 
@@ -350,34 +350,51 @@ describe("hand-off from another first-party app", () => {
     );
   });
 
-  it("sends Composio's callback back to that app with the connection", () => {
-    const replace = vi.fn();
-    const removeItem = vi.fn();
-    const stored = JSON.stringify({
+  it.each([
+    {
+      host: "app.sokosumi.com",
       returnUrl: "https://app.cmo.xyz/connect/callback",
-      connectionId: "ca_1",
-      at: Date.now(),
-    });
-    runInNewContext(buildComposioCallbackInlineScript(), {
-      URL,
-      URLSearchParams,
-      window: {
-        sessionStorage: {
-          getItem: (key: string) =>
-            key === COMPOSIO_HANDOFF_STORAGE_KEY ? stored : null,
-          removeItem,
+      expected:
+        "https://app.cmo.xyz/connect/callback?session_uri=one-use&connected_account_id=ca_1",
+    },
+    {
+      // Only the Preprod host returns to a preview.
+      host: "preprod.sokosumi.com",
+      returnUrl:
+        "https://sokosumi-app-preprod-git-feat-seo-workspace.preview.sokosumi.com/seo/connections/callback?provider=ga4&viewer=alice&organization=team&seo_state=attempt-123",
+      expected:
+        "https://sokosumi-app-preprod-git-feat-seo-workspace.preview.sokosumi.com/seo/connections/callback?provider=ga4&viewer=alice&organization=team&seo_state=attempt-123&session_uri=one-use&connected_account_id=ca_1",
+    },
+  ])(
+    "sends Composio's callback to $returnUrl with its exact connection",
+    ({ host, returnUrl, expected }) => {
+      const replace = vi.fn();
+      const removeItem = vi.fn();
+      const stored = JSON.stringify({
+        returnUrl,
+        connectionId: "ca_1",
+        at: Date.now(),
+      });
+      runInNewContext(buildComposioCallbackInlineScript(), {
+        URL,
+        URLSearchParams,
+        window: {
+          sessionStorage: {
+            getItem: (key: string) =>
+              key === COMPOSIO_HANDOFF_STORAGE_KEY ? stored : null,
+            removeItem,
+          },
+          name: "",
+          location: {
+            origin: `https://${host}`,
+            hostname: host,
+            search: "?session_uri=one-use",
+            replace,
+          },
         },
-        name: "",
-        location: {
-          origin: "https://app.sokosumi.com",
-          search: "?session_uri=one-use",
-          replace,
-        },
-      },
-    });
-    expect(replace).toHaveBeenCalledExactlyOnceWith(
-      "https://app.cmo.xyz/connect/callback?session_uri=one-use&connected_account_id=ca_1",
-    );
-    expect(removeItem).toHaveBeenCalledWith(COMPOSIO_HANDOFF_STORAGE_KEY);
-  });
+      });
+      expect(replace).toHaveBeenCalledExactlyOnceWith(expected);
+      expect(removeItem).toHaveBeenCalledWith(COMPOSIO_HANDOFF_STORAGE_KEY);
+    },
+  );
 });
