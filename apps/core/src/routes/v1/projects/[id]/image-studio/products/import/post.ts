@@ -48,7 +48,10 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     await requireProjectAccess({ projectId, workspaceId, userId });
-    const products = await importStudioProducts(c.req.valid("json").url);
+    const products = await importStudioProducts(
+      c.req.valid("json").url,
+      workspaceId,
+    );
     return ok(c, studioProductImportSchema.parse({ products }));
   });
 }
