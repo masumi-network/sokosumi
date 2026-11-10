@@ -1896,7 +1896,23 @@
           "markComplete": "Mark complete",
           "repeat": "Repeat",
           "repeatError": "Couldn't open the schedule form. Try again.",
-          "duplicate": "Duplicate as draft"
+          "duplicate": "Duplicate as draft",
+          "sendToChat": {
+            "menuItem": "Send to chat",
+            "title": "Send task to chat",
+            "description": "Post a link to this task in a channel or direct message. Everyone there sees its title; only people who can open the task can see more.",
+            "roomLabel": "Send to",
+            "roomPlaceholder": "Choose a channel or direct message",
+            "noteLabel": "Message (optional)",
+            "notePlaceholder": "Add a note, like what you need from them",
+            "noRooms": "You have no chats in this workspace to send to yet.",
+            "send": "Send",
+            "cancel": "Cancel",
+            "success": "Task sent to chat",
+            "openChat": "Open chat",
+            "error": "Couldn't send the task. Try again.",
+            "loadError": "Couldn't load your chats. Try again."
+          }
         },
         "ShareModal": {
           "title": "Share task",

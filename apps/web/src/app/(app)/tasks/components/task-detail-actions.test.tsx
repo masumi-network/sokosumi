@@ -420,6 +420,26 @@ vi.mock("@/app/tasks/components/task-form-modal", () => ({
     ) : null,
 }));
 
+const { listChatRoomsMock, sendToChatDialogPropsMock } = vi.hoisted(() => ({
+  listChatRoomsMock: vi.fn(),
+  sendToChatDialogPropsMock: vi.fn(),
+}));
+
+vi.mock("@/components/chat/organization-chat-list.actions", () => ({
+  listOrganizationChatRoomsAction: listChatRoomsMock,
+}));
+
+vi.mock("@/app/tasks/components/task-send-to-chat-dialog", () => ({
+  TaskSendToChatDialog: (props: { rooms: { id: string }[] }) => {
+    sendToChatDialogPropsMock(props);
+    return (
+      <div role="dialog" aria-label="send to chat dialog">
+        {props.rooms.map((room) => room.id).join(",")}
+      </div>
+    );
+  },
+}));
+
 vi.mock("@/app/tasks/components/task-share-button", () => ({
   TaskShareButton: ({ label }: { label: string }) => <button>{label}</button>,
 }));
@@ -2251,6 +2271,81 @@ describe("TaskDetailActions", () => {
       await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
       expect(screen.queryByRole("menuitem", { name: "duplicate" })).toBeNull();
+    });
+  });
+
+  describe("Send to chat", () => {
+    const sendToChat = {
+      task: { id: "task-1", identifier: "SOK-1", name: "Weekly report" },
+      currentUserId: "user-1",
+    };
+    const chatRoom = (id: string, organizationId: string | null) => ({
+      id,
+      organizationId,
+      kind: "channel",
+      isSelfDirect: false,
+      isReadOnly: false,
+      discoverability: "public",
+    });
+
+    it("opens the dialog with only the Task workspace's rooms", async () => {
+      const user = userEvent.setup();
+      listChatRoomsMock.mockResolvedValue({
+        ok: true,
+        value: {
+          rooms: [chatRoom("same-org", "org-1"), chatRoom("other", "org-2")],
+          nextCursor: null,
+        },
+      });
+      renderActions({ sendToChat, currentOrganizationId: "org-1" });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(
+        screen.getByRole("menuitem", { name: "sendToChat.menuItem" }),
+      );
+
+      const dialog = await screen.findByRole("dialog", {
+        name: "send to chat dialog",
+      });
+      expect(dialog.textContent).toBe("same-org");
+      expect(sendToChatDialogPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          task: sendToChat.task,
+          currentUserId: "user-1",
+        }),
+      );
+    });
+
+    it("says so when the rooms cannot be loaded", async () => {
+      const user = userEvent.setup();
+      listChatRoomsMock.mockResolvedValue({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "boom" },
+      });
+      renderActions({ sendToChat, currentOrganizationId: "org-1" });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(
+        screen.getByRole("menuitem", { name: "sendToChat.menuItem" }),
+      );
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("sendToChat.loadError"),
+      );
+      expect(
+        screen.queryByRole("dialog", { name: "send to chat dialog" }),
+      ).toBeNull();
+    });
+
+    it("is not offered without it", async () => {
+      const user = userEvent.setup();
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(
+        screen.queryByRole("menuitem", { name: "sendToChat.menuItem" }),
+      ).toBeNull();
     });
   });
 });

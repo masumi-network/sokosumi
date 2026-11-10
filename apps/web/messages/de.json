@@ -1895,7 +1895,23 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren"
+          "duplicate": "Als Entwurf duplizieren",
+          "sendToChat": {
+            "menuItem": "In Chat senden",
+            "title": "Aufgabe in Chat senden",
+            "description": "Poste einen Link zu dieser Aufgabe in einen Kanal oder eine Direktnachricht. Alle dort sehen den Titel; mehr sehen nur Personen, die die Aufgabe öffnen dürfen.",
+            "roomLabel": "Senden an",
+            "roomPlaceholder": "Kanal oder Direktnachricht wählen",
+            "noteLabel": "Nachricht (optional)",
+            "notePlaceholder": "Füge eine Notiz hinzu, z. B. was du brauchst",
+            "noRooms": "Du hast in diesem Workspace noch keine Chats, an die du senden kannst.",
+            "send": "Senden",
+            "cancel": "Abbrechen",
+            "success": "Aufgabe in den Chat gesendet",
+            "openChat": "Chat öffnen",
+            "error": "Die Aufgabe konnte nicht gesendet werden. Versuche es erneut.",
+            "loadError": "Deine Chats konnten nicht geladen werden. Versuche es erneut."
+          }
         },
         "ShareModal": {
           "title": "Share task",
