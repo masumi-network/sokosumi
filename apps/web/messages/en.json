@@ -1618,6 +1618,11 @@
           "label": "Search",
           "subtitle": "Specialized agents"
         },
+        "MyDay": {
+          "title": "My day",
+          "more": "{count, plural, one {Show # more} other {Show # more}}",
+          "error": "Couldn't load more. Try again."
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "What's next?",
