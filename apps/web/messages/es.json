@@ -11285,15 +11285,29 @@
         "saved": "Auditorías guardadas",
         "updated": "Actualizada",
         "created": "Creada",
-        "empty": "Todavía no hay auditorías",
-        "emptyProject": "Todavía no hay auditorías en este proyecto",
         "projectWorkspace": "Espacio SEO del proyecto",
         "emptyBody": "Crea una auditoría y añade su primera página. Puedes añadir páginas relacionadas después.",
-        "createHelp": "Nombra la auditoría y añade la URL de una página pública. Esto guarda la página sin iniciar una comprobación de pago.",
+        "createHelp": "Añade la URL de una página pública. Esto guarda la página sin iniciar una comprobación de pago.",
         "name": "Nombre de la auditoría",
         "firstPage": "URL de la primera página",
         "createFailed": "No se pudo crear la auditoría. Revisa el nombre y la URL e inténtalo de nuevo.",
-        "all": "Todas las auditorías"
+        "all": "Todas las auditorías",
+        "nameHelp": "Opcional. Déjalo vacío para usar el dominio de la página.",
+        "urlPlaceholder": "https://example.com/pagina",
+        "onboarding": {
+          "eyebrow": "Agente SEO",
+          "title": "Empieza tu primera auditoría SEO",
+          "titleProject": "Empieza la primera auditoría SEO de este proyecto",
+          "body": "Tu agente sigue las posiciones, encuentra problemas en las páginas y redacta correcciones. Tú apruebas cada una.",
+          "addTitle": "Añade tu página",
+          "addBody": "Empieza con una página pública. Puedes añadir páginas relacionadas después.",
+          "connectTitle": "Conecta Google",
+          "connectBody": "Vincula Search Console y Analytics con tu conexión de Sokosumi. Lo haces dentro de la auditoría.",
+          "checkTitle": "Ejecuta la primera comprobación",
+          "checkBody": "El agente lee tus páginas, encuentra problemas y redacta acciones para que las apruebes.",
+          "trust": "Guardar una página es gratis. Las comprobaciones de pago solo se ejecutan cuando tú las inicias.",
+          "steps": "Pasos de configuración"
+        }
       },
       "chat": {
         "title": "Preguntar al agente SEO",

@@ -11285,15 +11285,29 @@
         "saved": "Saved audits",
         "updated": "Updated",
         "created": "Created",
-        "empty": "No audits yet",
-        "emptyProject": "No audits in this project yet",
         "projectWorkspace": "Project SEO workspace",
         "emptyBody": "Create an audit and add its first page. You can add related pages later.",
-        "createHelp": "Name this audit and add a public page URL. This saves the page without running a paid check.",
+        "createHelp": "Add a public page URL. This saves the page without running a paid check.",
         "name": "Audit name",
         "firstPage": "First page URL",
         "createFailed": "Could not create the audit. Check the name and URL, then try again.",
-        "all": "All audits"
+        "all": "All audits",
+        "nameHelp": "Optional. Leave it empty to use the page's domain.",
+        "urlPlaceholder": "https://example.com/page",
+        "onboarding": {
+          "eyebrow": "SEO agent",
+          "title": "Start your first SEO audit",
+          "titleProject": "Start this project's first SEO audit",
+          "body": "Your agent tracks rankings, finds page issues and drafts fixes. You approve each one.",
+          "addTitle": "Add your page",
+          "addBody": "Start with one public page. You can add related pages later.",
+          "connectTitle": "Connect Google",
+          "connectBody": "Link Search Console and Analytics through your Sokosumi connection. You do this inside the audit.",
+          "checkTitle": "Run the first check",
+          "checkBody": "The agent reads your pages, finds issues and drafts actions for you to approve.",
+          "trust": "Saving a page is free. Paid checks only run when you start them.",
+          "steps": "Setup steps"
+        }
       },
       "chat": {
         "title": "Ask the SEO agent",

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { createSeoAuditAction } from "@/lib/actions/seo/create-audit";
 import { seoAuditHref } from "../seo-href";
+import { seoAuditName } from "./seo-audit-name";
 
 /** A new Audit links to the header's Project scope when one is chosen. */
 export function useCreateSeoAudit(projectId: string | null) {
@@ -20,10 +21,11 @@ export function useCreateSeoAudit(projectId: string | null) {
     setPending(true);
     setError(null);
     try {
+      const url = String(form.get("url") ?? "").trim();
       const result = await createSeoAuditAction({
         body: {
-          name: String(form.get("name") ?? "").trim(),
-          firstPage: { url: String(form.get("url") ?? "").trim() },
+          name: seoAuditName(String(form.get("name") ?? ""), url),
+          firstPage: { url },
           ...(projectId ? { projectId } : {}),
         },
       });

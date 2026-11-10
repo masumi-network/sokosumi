@@ -103,7 +103,20 @@ describe("native SEO audit entry", () => {
   it("opens the audit index without a selected Project or assistant", async () => {
     await show();
     expect(screen.getByRole("button", { name: "Create audit" })).toBeVisible();
-    expect(screen.getByText("No audits yet")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Start your first SEO audit" }),
+    ).toBeVisible();
+    const steps = within(
+      screen.getByRole("list", { name: "Setup steps" }),
+    ).getAllByRole("listitem");
+    expect(steps.map((step) => step.getAttribute("aria-current"))).toEqual([
+      "step",
+      null,
+      null,
+    ]);
+    expect(
+      within(steps[0]).getByRole("form", { name: "Create audit" }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: /Select project|Create project/ }),
     ).toBeNull();
@@ -237,7 +250,11 @@ describe("native SEO audit entry", () => {
       cursor: undefined,
       projectId: SEO_TEST_PROJECT,
     });
-    expect(screen.getByText("No audits in this project yet")).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "Start this project's first SEO audit",
+      }),
+    ).toBeVisible();
     const form = screen.getByRole("form", { name: "Create audit" });
     await user.type(within(form).getByLabelText("Audit name"), "Launch pages");
     await user.type(
@@ -257,6 +274,25 @@ describe("native SEO audit entry", () => {
     expect(m.push).toHaveBeenCalledWith(
       `/seo?projectId=${SEO_TEST_PROJECT}&auditId=${SEO_TEST_AUDIT}`,
     );
+  });
+
+  it("names an Audit after the page host when the name is left empty", async () => {
+    const user = userEvent.setup();
+    await show();
+    const form = screen.getByRole("form", { name: "Create audit" });
+    await user.type(
+      within(form).getByLabelText("First page URL"),
+      "https://www.example.test/launch",
+    );
+    await user.click(
+      within(form).getByRole("button", { name: "Create audit" }),
+    );
+    expect(m.createAudit).toHaveBeenCalledExactlyOnceWith({
+      body: {
+        name: "example.test",
+        firstPage: { url: "https://www.example.test/launch" },
+      },
+    });
   });
 
   it("keeps the inline form and entered pages when audit creation fails", async () => {

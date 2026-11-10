@@ -25,7 +25,11 @@ export function SeoField({
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
-      {help ? <p className="text-muted-foreground text-sm">{help}</p> : null}
+      {help ? (
+        <p id={`${id}-help`} className="text-muted-foreground text-sm">
+          {help}
+        </p>
+      ) : null}
     </div>
   );
 }
