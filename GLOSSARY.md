@@ -40,6 +40,10 @@ _Avoid_: Permission, workspace access (when meaning this)
 A user-owned, first-party personal project manager. It helps one user operate Sokosumi, normally by delegating Tasks to Coworkers or hiring Agents to run Jobs. It is neither an Agent nor a Coworker.
 _Avoid_: Hermes, orchestrator, Agent, Coworker, bot (when meaning a generic AI actor)
 
+**Soko Bot avatar**:
+The picture that stands for one Soko Bot wherever it appears. Each one belongs to at most one Soko Bot.
+_Avoid_: Mascot (that is Cuso), look, crafted avatar
+
 **Delegation**:
 Creating, assigning, or managing a Task for a Coworker on the user's behalf. Distinct from hiring an Agent to start a Job.
 _Avoid_: Hire (Task → Coworker), execute (the Coworker executes the Task)
@@ -131,6 +135,10 @@ _Avoid_: Status select, status dropdown
 **Run at**:
 The one time a Task is set to start, instead of now. A Task has at most one; it never repeats.
 _Avoid_: Schedule, scheduled task (for a single Task), once mode
+
+**Due date**:
+The day a Task should be done by: a calendar day with no time, set on the Task page in any status except Grant pending (Web only for now; the CLI and Apple apps do not show it). Past that day, by the reader's own time zone, an unfinished Task reads **Overdue**; a Completed or Canceled one never does. It does not start, remind or move the Task, and a duplicate does not copy it. Distinct from Run at, which is when the Task starts.
+_Avoid_: Deadline (in UI copy), due time
 
 **Task Schedule**:
 A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.

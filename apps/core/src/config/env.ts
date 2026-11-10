@@ -347,18 +347,6 @@ const baseEnvSchema = z.object({
     .url()
     .default("https://www.masumi.network/api/v1"),
   /**
-   * Where a deployed instance fetches the ffmpeg binary that encodes avatar
-   * loops: a gzip of a static linux-x64 build, unpacked into /tmp on first use
-   * (the function does not ship ffmpeg). Unset: our copy of the pinned
-   * ffmpeg-static release (`DEFAULT_FFMPEG_BUILD`). Set both together.
-   */
-  AVATAR_FFMPEG_URL: z.url().optional(),
-  /** Lowercase hex sha256 of the gzip at `AVATAR_FFMPEG_URL`. Checked before it runs. */
-  AVATAR_FFMPEG_SHA256: z
-    .string()
-    .regex(/^[0-9a-f]{64}$/, "Expected a lowercase hex sha256")
-    .optional(),
-  /**
    * Read-write token for the image studio's **own, private-access** Blob
    * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.
    *
@@ -375,6 +363,14 @@ const baseEnvSchema = z.object({
    * `services/image-studio-jobs.service.ts`.
    */
   IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
+   * Read-write token for the **private-access** Blob store data rooms keep
+   * their files in, for the same reason the image studio has its own: the
+   * shared Drive store is public, and only a private store makes taking
+   * someone's access away final. Absent, a folder cannot become a data room.
+   * See `lib/drive-blob.ts`.
+   */
+  DATA_ROOM_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
@@ -457,19 +453,6 @@ export function isProductionEnvironment(
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
-  // A different binary needs its own hash: the pinned one would never match.
-  if (
-    Boolean(value.AVATAR_FFMPEG_URL) !== Boolean(value.AVATAR_FFMPEG_SHA256)
-  ) {
-    context.addIssue({
-      code: "custom",
-      path: [
-        value.AVATAR_FFMPEG_URL ? "AVATAR_FFMPEG_SHA256" : "AVATAR_FFMPEG_URL",
-      ],
-      message:
-        "AVATAR_FFMPEG_URL and AVATAR_FFMPEG_SHA256 must be set together",
-    });
-  }
   if (!value.SOKO_BOT_ENABLED) return;
   // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;

@@ -20,7 +20,15 @@ export async function proxyCoreFileContent(
     const upstream = await fetch(`${base}${corePath}`, {
       headers: buildCoreChatProxyHeaders(request.headers),
       cache: "no-store",
+      redirect: "manual",
     });
+
+    // Core hands a large file over as a short-lived signed address; the
+    // browser fetches it directly rather than through this function.
+    const location = upstream.headers.get("location");
+    if (upstream.status === 302 && location) {
+      return NextResponse.redirect(location, 302);
+    }
 
     if (!upstream.ok || !upstream.body) {
       // 503 passes through as itself: the file is not gone, the store is

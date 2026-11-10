@@ -129,6 +129,12 @@ interface SetTaskPriorityParameters extends AuthenticatedRequest {
   priority: TaskPriority;
 }
 
+interface SetTaskDueOnParameters extends AuthenticatedRequest {
+  taskId: string;
+  /** `YYYY-MM-DD`, or null to clear. */
+  dueOn: string | null;
+}
+
 interface MoveTaskToWorkspaceParameters extends AuthenticatedRequest {
   taskId: string;
   organizationId: string | null;
@@ -727,6 +733,28 @@ export const setTaskPriority = withSession<
       error,
       "Failed to update task priority",
       "Failed to update task priority",
+    );
+  }
+});
+
+export const setTaskDueOn = withSession<
+  SetTaskDueOnParameters,
+  TaskMutationActionResult<{ taskId: string }>
+>(async ({ taskId, dueOn }) => {
+  try {
+    await taskService.patchTask(taskId, { dueOn });
+
+    revalidateTaskMutationRoutes();
+    return taskMutationSuccess({ taskId });
+  } catch (error) {
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to update task due date",
+      "Failed to update task due date",
     );
   }
 });

@@ -249,7 +249,6 @@ describe("mapTaskEventActor", () => {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       avatarSeed: "orb:jewel-sky:user_123",
-      avatar: { styleId: "crafted-desk" },
       userId: defaultTaskUser.id,
       user: defaultTaskUser,
     };
@@ -265,7 +264,6 @@ describe("mapTaskEventActor", () => {
         id: sokoBot.id,
         name: sokoBot.name,
         avatarSeed: sokoBot.avatarSeed,
-        avatarStyleId: "crafted-desk",
         owner: defaultTaskUser,
       },
     });
@@ -317,7 +315,6 @@ describe("mapTaskEventActor", () => {
         id: sokoBot.id,
         name: sokoBot.name,
         avatarSeed: sokoBot.avatarSeed,
-        avatarStyleId: null,
         owner: defaultTaskUser,
       },
     });
@@ -348,7 +345,6 @@ describe("mapTaskEventActor", () => {
         id: sokoBot.id,
         name: sokoBot.name,
         avatarSeed: sokoBot.avatarSeed,
-        avatarStyleId: null,
         owner: defaultTaskUser,
       },
     });
@@ -612,6 +608,47 @@ describe("mapTask", () => {
     } as unknown as TaskWithIncludes;
 
     expect(mapTask(task, TEST_USER_AUTH).priority).toBe(TaskPriority.URGENT);
+  });
+
+  it("exposes the stored due day as YYYY-MM-DD, or null", () => {
+    const task = {
+      id: "tsk_due",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: null,
+      assignee: null,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Due soon",
+      description: null,
+      status: TaskStatus.DRAFT,
+      priority: TaskPriority.NONE,
+      dueOn: new Date("2026-11-20T00:00:00.000Z"),
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH).dueOn).toBe("2026-11-20");
+    expect(mapTask({ ...task, dueOn: null }, TEST_USER_AUTH).dueOn).toBeNull();
   });
 
   it("builds the identifier from the project prefix and the task number", () => {

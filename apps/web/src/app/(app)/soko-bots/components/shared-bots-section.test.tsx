@@ -7,7 +7,10 @@ vi.mock("next-intl/server", () => ({
     async () => (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
 }));
-vi.mock("./bot-face", () => ({ BotFace: () => <span /> }));
+vi.mock("@/components/soko-bot/bot-face", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/soko-bot/bot-face")>()),
+  BotFace: () => <span />,
+}));
 vi.mock("./create-soko-bot-dialog.client", () => ({
   CreateSokoBotDialog: () => <button type="button">create</button>,
 }));

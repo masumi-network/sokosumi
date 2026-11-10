@@ -6,10 +6,11 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
-import { head } from "@vercel/blob";
+import { BlobNotFoundError } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { driveHead, driveRead } from "@/lib/drive-blob";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import type { ExtractedChunk } from "@/lib/files/extraction";
 import {
@@ -148,23 +149,23 @@ export async function writeVersionChunks(input: {
 export async function downloadBlob(
   objectKey: string,
 ): Promise<Uint8Array | null> {
-  const token = getEnv().BLOB_READ_WRITE_TOKEN;
-  if (!token) return null;
+  if (!getEnv().BLOB_READ_WRITE_TOKEN) return null;
 
-  const metadata = await head(objectKey, {
-    token,
+  // Through the store router: a data room's files are in the private store.
+  const metadata = await driveHead(objectKey, {
     abortSignal: AbortSignal.timeout(HEAD_TIMEOUT_MS),
   });
+  if (!metadata) throw new BlobNotFoundError();
   if (metadata.size > FILE_EXTRACTION_MAX_BYTES) return null;
 
-  const response = await fetch(metadata.url, {
-    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+  const read = await driveRead(objectKey, {
+    abortSignal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
   });
   // `head` found the blob, so a failed download is transient: a pathname
   // written again after a delete answers 404 for a few seconds. Thrown, the
   // job retries instead of recording the file as unreadable for good.
-  if (!response.ok)
-    throw new Error(`Blob download failed with status ${response.status}`);
+  if (!read) throw new Error("Blob download failed: no store had the object");
+  const response = new Response(read.stream);
 
   return new Uint8Array(await response.arrayBuffer());
 }

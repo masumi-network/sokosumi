@@ -777,6 +777,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Activity",
       "accountNoticeIndicator": "Account notice",
       "notifications": "Notifications",
       "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
@@ -964,26 +965,6 @@
         "ACCEPTED": "Approved and carried out.",
         "REJECTED": "Rejected. Nothing was created.",
         "EXPIRED": "Expired without a decision. Ask your Soko Bot again if still needed."
-      },
-      "AvatarState": {
-        "alt": "{name}, {state}",
-        "label": {
-          "idle": "Idle",
-          "thinking": "Thinking",
-          "working": "Working",
-          "done": "Done",
-          "needs_you": "Needs you",
-          "offline": "Offline"
-        },
-        "line": {
-          "idle": "Ready when you are",
-          "thinking": "Working out its next step",
-          "working": "Working on a request",
-          "done": "Finished its last request",
-          "needs_you": "A decision is waiting for you",
-          "offline": "Not taking requests right now"
-        },
-        "lastActive": "Last active {time}"
       }
     },
     "Mermaid": {
@@ -1638,6 +1619,11 @@
           "label": "Search",
           "subtitle": "Specialized agents"
         },
+        "MyDay": {
+          "title": "My day",
+          "more": "{count, plural, one {Show # more} other {Show # more}}",
+          "error": "Couldn't load more. Try again."
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "What's next?",
@@ -1645,6 +1631,8 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "chatKind": "Chat",
+          "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
@@ -1655,6 +1643,8 @@
       "SokoBot": {
         "connectTitle": "Give {bot} your inbox and calendar",
         "connectBody": "Unlocks meeting prep, follow-up reminders and your daily brief.",
+        "connectCompactTitle": "Connect inbox and calendar",
+        "connectButton": "Connect",
         "connectConnected": "{name} connected",
         "connectProvider": "Connect {name}",
         "connectDismiss": "Dismiss",
@@ -2112,6 +2102,17 @@
           "tomorrowAt": "Starts tomorrow at {time}",
           "at": "Starts {datetime}"
         }
+      },
+      "Due": {
+        "label": "Due date",
+        "none": "No due date",
+        "set": "Set a due date",
+        "change": "Change due date",
+        "save": "Save",
+        "clear": "Clear",
+        "due": "Due {date}",
+        "overdue": "Overdue · {date}",
+        "updateError": "Could not update the due date. Try again."
       },
       "Schedules": {
         "viewList": "List view",
@@ -4879,6 +4880,7 @@
         "default": "Sokosumi - Marketplace for human-to-agent interactions",
         "template": "Sokosumi - %s"
       },
+      "home": "Home",
       "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "Sidebar": {
@@ -4933,6 +4935,7 @@
         },
         "SokoBot": {
           "fallbackName": "Soko Bot",
+          "workingNow": "Working now",
           "needsAttention": "Needs attention",
           "activeAgo": "Active {time}",
           "ready": "Ready",
@@ -6465,7 +6468,7 @@
         },
         "Avatar": {
           "title": "Avatar",
-          "description": "Give this bot a mascot from the shared pool, as its owner would.",
+          "description": "Give this bot an avatar from the shared pool, as its owner would.",
           "apply": "Set avatar",
           "done": "Avatar updated.",
           "error": "Could not set the avatar."
@@ -9132,6 +9135,8 @@
       "moveNewFolderPlaceholder": "Or type a new folder name",
       "shareAction": "Share",
       "shareFolderAction": "Share “{name}”",
+      "dataRoomAction": "Data room",
+      "dataRoomFolderAction": "Data room for {name}",
       "moveDialogTitle": "Move {itemName}",
       "moveDialogDescription": "Select the destination folder",
       "moveHere": "Move here",
@@ -9324,6 +9329,9 @@
         "typeAll": "All",
         "foldersLabel": "Folders",
         "foldersRoot": "All files",
+        "dataRoom": "Data room",
+        "dataRoomAccess": "Only you and the people you let in by email can open its files.",
+        "dataRoomAccessOrg": "Only whoever made it, your organization’s owners and admins, colleagues let in, and people let in by email can open its files.",
         "folderEmptyTitle": "Nothing in this folder yet",
         "detailRejected": "Removed labels",
         "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
@@ -9356,7 +9364,138 @@
         "revoke": "Stop sharing",
         "revoked": "Link turned off",
         "loadFailed": "Could not load the link",
-        "saveFailed": "Could not save the link"
+        "saveFailed": "Could not save the link",
+        "inDataRoom": "This is in a data room. Invite people to the room instead of sharing a link."
+      },
+      "DataRoom": {
+        "makeTitle": "Make “{name}” a data room",
+        "makeDescription": "Its files move to private storage, so only people you let in can open them. Links to this folder, or to anything in it, stop working.",
+        "makeDescriptionOrg": "Its files move to private storage, so only people you let in can open them. In your organization, only you, the owners and admins, and colleagues you add will see the folder. Links to this folder, or to anything in it, stop working.",
+        "make": "Make data room",
+        "made": "Data room on. Invite the first people.",
+        "roomTitle": "Data room “{name}”",
+        "insideRoom": "This folder is inside the data room “{room}”.",
+        "storage": {
+          "moving_in": "Its files are moving to private storage. You can keep working with them meanwhile.",
+          "private": "Every file is in private storage. Nobody can open them from outside Sokosumi.",
+          "moving_out": "Closing. Its files are moving back to ordinary storage."
+        },
+        "close": "Close data room",
+        "closeTitle": "Close the data room “{name}”?",
+        "closeDescription": "Its files move back to ordinary storage, where anyone with a file's address can open it.",
+        "closed": "Data room closed. Its files are moving back.",
+        "cancel": "Cancel",
+        "saveFailed": "Could not save the data room",
+        "manage": "Manage room",
+        "loading": "Loading data room",
+        "loadFailed": "Could not load the data room",
+        "backToFiles": "Back to Files",
+        "copyLink": "Copy link",
+        "linkCopied": "Link copied",
+        "linkCopyFailed": "Could not copy the link",
+        "tabs": {
+          "people": "People ({count})",
+          "activity": "Activity",
+          "questions": "Questions",
+          "contents": "Contents",
+          "settings": "Settings"
+        },
+        "Colleagues": {
+          "title": "In your organization",
+          "hint": "Only the person who made this room, the organization's owners and admins, and the colleagues ticked here see it in Files. Everyone else doesn't see the folder, and agents like Soko Bot never open it.",
+          "nobodyElse": "Nobody else has been let in.",
+          "madeIt": "Made it",
+          "admin": "Owner or admin",
+          "save": "Save who's in",
+          "saved": "Saved who's in the room.",
+          "saveFailed": "Couldn't save who's in. Try again.",
+          "loadFailed": "Couldn't load your organization's members.",
+          "loading": "Loading members"
+        },
+        "People": {
+          "emailsLabel": "Invite by email",
+          "expiresLabel": "Access ends",
+          "noEnd": "Never",
+          "clearEnd": "Remove end date",
+          "foldersLabel": "Folders",
+          "foldersHint": "None ticked means the whole room.",
+          "invite": "Invite",
+          "inviteMany": "Invite {count}",
+          "invited": "{count, plural, one {Invitation sent} other {# invitations sent}}",
+          "inviteFailed": "Could not send the invitations",
+          "empty": "Nobody is in this room yet. Invite people by email above.",
+          "statusInvited": "Invited, not visited yet",
+          "statusDomain": "Let in by email domain",
+          "statusVisited": "Last visit {when}",
+          "statusRemoved": "Removed",
+          "statusExpired": "Access ended",
+          "onlyFolders": "only {folders}",
+          "until": "until {date}",
+          "counts": "{views, plural, one {# view} other {# views}} · {downloads, plural, one {# download} other {# downloads}}",
+          "remove": "Remove",
+          "removeTitle": "Remove {email} from the room?",
+          "removeDescription": "They lose access at once, including any page they have open. Their activity stays in the log.",
+          "removed": "{email} removed",
+          "removeFailed": "Could not remove them",
+          "cancel": "Cancel"
+        },
+        "Activity": {
+          "filterLabel": "Show activity of",
+          "everyone": "Everyone",
+          "someone": "Someone",
+          "loading": "Loading activity",
+          "loadFailed": "Could not load the activity",
+          "empty": "No activity yet.",
+          "more": "Show older",
+          "kind": {
+            "enter": "{who} signed in",
+            "view": "{who} opened {what}",
+            "download": "{who} downloaded {what}",
+            "download_all": "{who} downloaded the whole room",
+            "ask": "{who} asked about {what}"
+          }
+        },
+        "Questions": {
+          "loading": "Loading questions",
+          "loadFailed": "Could not load the questions",
+          "empty": "No questions yet. Viewers can ask about any document they open.",
+          "byline": "{who} about {path} · {when}",
+          "answerLabel": "Answer",
+          "answerPlaceholder": "Write an answer they will see beside the document",
+          "answer": "Answer",
+          "updateAnswer": "Update answer",
+          "answered": "Answer saved",
+          "answerFailed": "Could not save the answer"
+        },
+        "Contents": {
+          "hint": "The order viewers see, which also numbers the room (1, 1.1, 1.2).",
+          "empty": "This room has no files yet.",
+          "moveUp": "Move {name} up",
+          "moveDown": "Move {name} down",
+          "save": "Save order",
+          "saved": "Order saved",
+          "saveFailed": "Could not save the order"
+        },
+        "Settings": {
+          "titleLabel": "Title",
+          "logoLabel": "Logo",
+          "noLogo": "No logo",
+          "logoHint": "An image from this room, shown beside the title.",
+          "domainsLabel": "Allowed email domains",
+          "domainsHint": "Anyone with an address at these domains can sign in without an invitation.",
+          "expiresLabel": "Room closes",
+          "noEnd": "Never",
+          "clearEnd": "Remove closing date",
+          "downloadLabel": "Allow downloads",
+          "downloadHint": "Viewers can download files and the whole room as a zip.",
+          "watermarkLabel": "Watermark",
+          "watermarkHint": "PDFs and images carry the viewer's email and the time.",
+          "notifyLabel": "Email me on first visits",
+          "notifyHint": "You get an email the first time each person opens the room.",
+          "save": "Save settings",
+          "saved": "Settings saved",
+          "saveFailed": "Could not save the settings"
+        }
       }
     },
     "SokoBot": {
@@ -9387,7 +9526,8 @@
         "nameHint": "Your own AI assistant in Sokosumi. You can rename it later.",
         "continue": "Continue",
         "back": "Back",
-        "pictureTitle": "Pick a picture for {name}"
+        "pictureTitle": "Pick a picture for {name}",
+        "skip": "Skip"
       },
       "Memory": {
         "title": "Memory",
@@ -9672,6 +9812,7 @@
       },
       "Console": {
         "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
+        "lastActivity": "last active {time}",
         "adminView": "Admin view",
         "openChat": "Open chat",
         "openChatError": "Could not open the chat with your Soko Bot.",
@@ -9726,73 +9867,17 @@
       },
       "Avatar": {
         "title": "Picture",
-        "description": "A unique mascot from the collection. No two assistants share one.",
+        "description": "A unique picture from the collection. No two assistants share one.",
         "save": "Use this picture",
+        "edit": "Change picture",
         "saved": "Picture updated.",
         "saveError": "Could not update the picture.",
         "current": "Current picture",
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
+        "pictures": "Pictures",
         "loadError": "Could not load pictures.",
-        "rateLimited": "Too many new pictures requested. Try again later.",
-        "edit": "Edit avatar",
-        "Studio": {
-          "metadata": "Avatar studio",
-          "back": "Back to {name}",
-          "title": "Choose how {name} looks",
-          "description": "Change the creature or add an accessory. The desk stays: it is where your bot works.",
-          "draftAlt": "New look for {name}, not saved yet",
-          "making": "Making your new look · about 10 s",
-          "sizes": "Profile above · avatar in chat and tasks",
-          "states": "States",
-          "statesPlay": "Pick a state to play it once",
-          "statesDraft": "Animates once you keep it",
-          "statesProgress": "Making its animations · {ready} of {total} ready",
-          "creature": "Creature",
-          "accessory": "Accessory",
-          "creatures": {
-            "owl": "Owl",
-            "frog": "Frog",
-            "hedgehog": "Hedgehog",
-            "otter": "Otter",
-            "penguin": "Penguin"
-          },
-          "accessories": {
-            "beanie": "Beanie",
-            "glasses": "Glasses",
-            "scarf": "Scarf",
-            "headphones": "Headphones",
-            "magnifier": "Magnifier"
-          },
-          "describe": "Or describe a change",
-          "placeholder": "Give it a tiny wizard hat",
-          "apply": "Apply",
-          "ideas": {
-            "wizard": "A tiny wizard hat",
-            "coffee": "Coffee on the desk",
-            "snow": "Let it snow",
-            "sleepy": "Make it sleepy",
-            "beach": "Take it to the beach"
-          },
-          "keep": "Keep this look",
-          "shuffle": "Shuffle",
-          "cancel": "Cancel",
-          "saved": "Saved.",
-          "error": "Could not change the look. Try again.",
-          "keepError": "Could not keep this look. Try again.",
-          "cancelError": "Could not go back to your current look. Try again.",
-          "redo": "Redo animation",
-          "retry": "Try again",
-          "redoing": "Making…",
-          "drawing": "Drawing…",
-          "animating": "Animating…",
-          "redoError": "Could not redo this animation. Try again.",
-          "redoLimit": "You have redone a lot of animations today. Try again tomorrow.",
-          "redoBusy": "That animation is still being made.",
-          "empty": "No look yet. Pick a creature or press Shuffle to start.",
-          "rateLimited": "You have made a lot of new looks. Try again later.",
-          "unavailable": "Changing the look is not available right now."
-        }
+        "rateLimited": "Too many new pictures requested. Try again later."
       },
       "Skills": {
         "builtIn": "Included",
@@ -10822,6 +10907,43 @@
         "locked": "Too many wrong passwords. Try again in 15 minutes.",
         "failed": "Something went wrong. Try again."
       }
+    },
+    "Room": {
+      "notFoundTitle": "Data room not found",
+      "dataRoom": "Data room",
+      "closed": "This data room is closed.",
+      "expired": "This data room has expired. Ask its owner for access.",
+      "signInHint": "Enter the email address you were invited with. We'll send you a code.",
+      "emailLabel": "Email",
+      "sendCode": "Send code",
+      "codeSent": "We sent a code to {email} if it has access. It expires in 10 minutes.",
+      "codeLabel": "Code",
+      "open": "Open data room",
+      "useAnotherEmail": "Use another email",
+      "errors": {
+        "wrong": "That code is wrong or has expired. Check it or ask for a new one.",
+        "closed": "This data room is closed.",
+        "failed": "Could not reach the data room. Try again."
+      },
+      "signedInAs": "Signed in as {email}",
+      "downloadAll": "Download all",
+      "signOut": "Sign out",
+      "empty": "Nothing in this data room yet.",
+      "indexLabel": "Contents",
+      "pickFile": "Choose a file to open it.",
+      "new": "New",
+      "download": "Download",
+      "watermarkNote": "Pages and images you open carry your email and the time.",
+      "downloadToOpen": "This file can't be shown here. Download it to open it.",
+      "cannotOpenHere": "This file can't be shown here, and downloads are off in this data room. Ask its owner for a copy.",
+      "loadingFile": "Loading file",
+      "fileFailed": "Could not open this file. Try again.",
+      "pdfPage": "Page {number}",
+      "questionsTitle": "Questions",
+      "awaitingAnswer": "Waiting for an answer",
+      "askLabel": "Ask the owner about this document",
+      "ask": "Ask",
+      "askFailed": "Could not send your question. Try again."
     }
   },
   "NotFound": {

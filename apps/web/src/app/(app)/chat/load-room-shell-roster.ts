@@ -40,7 +40,6 @@ export async function loadRoomShellRoster(
             name: bot.name?.trim() || t("personalAssistantBadge"),
             image: bot.avatarImageUrl ?? null,
             avatarSeed: bot.avatarSeed,
-            avatarStyleId: bot.avatar?.styleId ?? null,
           },
         ]
       : [],

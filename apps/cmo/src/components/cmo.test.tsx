@@ -424,6 +424,8 @@ describe("pages", () => {
     expect(viewFromPath("/brain")).toBeNull();
     expect(VIEW_PATHS.settings).toBe("/settings");
     expect(viewFromPath("/calendar")).toBe("calendar");
+    expect(viewFromPath("/newsletter")).toBe("newsletter");
+    expect(viewFromPath("/contacts")).toBeNull();
   });
 
   it("reads an older strategy as one headline, the main goal and the weeks", () => {

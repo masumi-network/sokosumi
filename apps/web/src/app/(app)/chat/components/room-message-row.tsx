@@ -60,7 +60,6 @@ import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
-  isPersistedMentionThoughtShell,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -98,7 +97,6 @@ import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
 import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
-import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -142,7 +140,6 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
-import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { parseSokoBotBrief } from "@/lib/soko-bot/brief";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
@@ -2189,7 +2186,6 @@ function SenderFace({
   className,
   fallbackClassName,
   monogram = false,
-  busy = false,
 }: {
   sender: MessageSenderProfile;
   /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
@@ -2198,8 +2194,6 @@ function SenderFace({
   fallbackClassName: string;
   /** One initial instead of two, for faces too small to fit both. */
   monogram?: boolean;
-  /** Its reply is in progress: a crafted bot loops its Working state. */
-  busy?: boolean;
 }) {
   if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
     return (
@@ -2208,22 +2202,6 @@ function SenderFace({
         size={orbSize}
         alt=""
         className={cn("ring-border ring-1", className)}
-      />
-    );
-  }
-  if (
-    sender.kind === "sokoBot" &&
-    sender.image &&
-    isCraftedStyle(sender.avatarStyleId)
-  ) {
-    return (
-      <AvatarFace
-        src={sender.image}
-        crafted
-        className={className}
-        loopSrc={sender.workingLoopUrl}
-        playing={busy}
-        loop
       />
     );
   }
@@ -2823,10 +2801,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               orbSize={64}
               className="size-8"
               fallbackClassName="text-xs"
-              busy={
-                isStreamOverlay ||
-                isPersistedMentionThoughtShell(message.metadata)
-              }
             />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>

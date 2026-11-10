@@ -38,7 +38,7 @@ const m = vi.hoisted(() => ({
   workspaceRead: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({}),
+  getEnv: () => ({ BLOB_READ_WRITE_TOKEN: "t" }),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 vi.mock("@sokosumi/email", () => ({ renderNewsletterEmail: m.render }));
@@ -49,6 +49,7 @@ vi.mock("@/services/task-domain.service", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish },
+    dataRoom: { findMany: async () => [] },
     newsletterIssue: { findUnique: async () => m.issue.current },
     user: { findMany: async () => [] },
     workspace: { findUnique: m.workspaceRead },

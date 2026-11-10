@@ -24,7 +24,7 @@ export function mountSokoBotAvatarRoutes(app: OpenAPIHonoWithAuth): void {
     responses: {
       200: jsonSuccessResponse(
         z.array(sokoBotAvatarSchema),
-        "Unclaimed mascot avatars to pick from",
+        "Unclaimed Soko Bot avatars to pick from",
       ),
       401: jsonErrorResponse("Unauthorized"),
     },
@@ -44,7 +44,7 @@ export function mountSokoBotAvatarRoutes(app: OpenAPIHonoWithAuth): void {
   });
 
   /**
-   * Generation writes rows and bills FAL, so it is a POST. As a GET it was
+   * Generation writes rows and bills the image model, so it is a POST. As a GET it was
    * reachable by a cross-site top-level navigation, which carries the session
    * cookie under `SameSite=Lax`, and was cacheable by intermediaries.
    */
@@ -67,7 +67,7 @@ export function mountSokoBotAvatarRoutes(app: OpenAPIHonoWithAuth): void {
     responses: {
       200: jsonSuccessResponse(
         z.array(sokoBotAvatarSchema),
-        "Unclaimed mascot avatars, after filling a short pool",
+        "Unclaimed Soko Bot avatars, after filling a short pool",
       ),
       401: jsonErrorResponse("Unauthorized"),
       // Reserving a generation slot runs in a Serializable transaction, so a

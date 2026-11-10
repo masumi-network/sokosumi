@@ -11,10 +11,6 @@ import type {
   SimulateSokoBotTaskEventRequest,
   SokoBot,
   SokoBotAvatar,
-  SokoBotAvatarChange,
-  SokoBotAvatarDraftResult,
-  SokoBotAvatarState,
-  SokoBotAvatarStudio,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
   SokoBotIntegrationCatalogEntry,
@@ -115,9 +111,9 @@ export const sokoBotService = {
   },
 
   /**
-   * Generates missing mascots before answering, so only the creation picker
+   * Generates missing avatars before answering, so only the creation picker
    * calls it: the sidebar must never wait on image generation. It writes rows
-   * and bills FAL, so Core exposes it as a POST.
+   * and bills the image model, so Core exposes it as a POST.
    */
   async topUpAvatars(
     take: number,
@@ -317,52 +313,6 @@ export const sokoBotService = {
   /** Posts the bot's first message in its direct room (once). */
   async introduce(roomId: string): Promise<{ messageId: string }> {
     const response = await coreClient.introduceMySokoBot({ roomId });
-    return response.data;
-  },
-
-  /** The look, newest draft and render progress of the caller's bot, or of shared bot `botId`. */
-  async getAvatarStudio(botId?: string): Promise<SokoBotAvatarStudio> {
-    const response = await coreClient.getSokoBotAvatarStudio(botId);
-    return response.data;
-  },
-
-  /** One change to the look, as a draft. A refusal is a draft-less answer with a note. */
-  async createAvatarDraft(
-    change: SokoBotAvatarChange,
-    draftId?: string,
-    botId?: string,
-  ): Promise<SokoBotAvatarDraftResult> {
-    const response = await coreClient.createSokoBotAvatarDraft(
-      { change, draftId },
-      botId,
-    );
-    return response.data;
-  },
-
-  /** Makes the draft the bot's avatar; its states render in the background. */
-  async keepAvatarDraft(
-    draftId: string,
-    botId?: string,
-  ): Promise<SokoBotAvatarStudio> {
-    const response = await coreClient.keepSokoBotAvatarDraft(draftId, botId);
-    return response.data;
-  },
-
-  /** Drops every open draft; the studio comes back showing the kept look. */
-  async discardAvatarDrafts(botId?: string): Promise<SokoBotAvatarStudio> {
-    const response = await coreClient.discardSokoBotAvatarDrafts(botId);
-    return response.data;
-  },
-
-  /** Redoes one state's animation; the old loop plays until the new one is ready. */
-  async regenerateAvatarState(
-    state: SokoBotAvatarState,
-    botId?: string,
-  ): Promise<SokoBotAvatarStudio> {
-    const response = await coreClient.regenerateSokoBotAvatarState(
-      state,
-      botId,
-    );
     return response.data;
   },
 

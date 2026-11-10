@@ -1,0 +1,181 @@
+/// Where a data room's bytes are. Moving runs in batches from a cron, so a
+/// room spends a while in a moving state and readers look in both stores.
+enum DataRoomStorage {
+  /// Being copied from the public Drive store into the private one.
+  MOVING_IN
+  /// Every file is in the private store.
+  PRIVATE
+  /// The room was closed; its files are going back to the public store.
+  MOVING_OUT
+}
+
+/// A Drive folder whose files live in the private data-room store, so only
+/// Core can serve them and taking someone's access away really ends it.
+/// People outside Sokosumi are let in by email, one by one, and everything
+/// they open is logged.
+model DataRoom {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceScope FileSourceScope
+  /// The store's owner: the user for a personal Drive, the organization otherwise.
+  ownerId     String
+  /// Normalized folder path within the store; never "" (the whole Drive).
+  folderPath  String
+
+  storage         DataRoomStorage @default(MOVING_IN)
+  createdByUserId String
+
+  /// The room's address, `/share/rooms/<token>`. Knowing it lets nobody in on its own.
+  token String @unique
+
+  /// Shown to viewers; the folder's name when null.
+  title              String?
+  /// A Drive file id of an image in the room's Drive, shown beside the title.
+  logoFileId         String?   @db.Uuid
+  /// Anyone whose address is at one of these domains may let themselves in.
+  allowedDomains     String[]  @default([])
+  /// After this the room is shut for every viewer.
+  expiresAt          DateTime?
+  /// Viewers may download files, and the whole room as a zip.
+  allowDownload      Boolean   @default(false)
+  /// Viewed and downloaded files carry the viewer's email and the date.
+  watermark          Boolean   @default(true)
+  /// The owner hears when someone opens the room for the first time.
+  notifyOnFirstVisit Boolean   @default(true)
+
+  members    DataRoomMember[]
+  colleagues DataRoomColleague[]
+  events     DataRoomEvent[]
+  entries    DataRoomEntry[]
+  questions  DataRoomQuestion[]
+
+  /// Pathnames are keyed by owner, not workspace, so one owner's rooms never overlap.
+  @@unique([sourceScope, ownerId, folderPath])
+  @@index([storage])
+  @@map("data_room")
+}
+
+/// A member of the room's organization let in to see and run the room.
+/// An organization room is hidden from every other member except the one who
+/// made it and the organization's owners and admins: in Files, search, recents
+/// and to agents. A personal room has none; it is private to its owner already.
+model DataRoomColleague {
+  roomId String   @db.Uuid
+  room   DataRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  addedByUserId String
+  createdAt     DateTime @default(now())
+
+  @@id([roomId, userId])
+  @@index([userId])
+  @@map("data_room_colleague")
+}
+
+/// One person let into a room, by invitation or by an allowed domain.
+model DataRoomMember {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roomId String   @db.Uuid
+  room   DataRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  /// Lowercase.
+  email           String
+  name            String?
+  /// Null when they let themselves in through an allowed domain.
+  invitedByUserId String?
+
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  /// Folders inside the room this person may see; empty means all of it.
+  folderPaths String[]  @default([])
+
+  firstVisitAt    DateTime?
+  lastVisitAt     DateTime?
+  /// The visit before the latest, for "new since your last visit".
+  previousVisitAt DateTime?
+
+  /// `scrypt$<salt>$<hash>` of the one-time sign-in code; null when none is out.
+  codeHash       String?
+  codeExpiresAt  DateTime?
+  codeAttempts   Int       @default(0)
+  /// Bumped to end every session this person has, on revoke or a new code.
+  sessionVersion Int       @default(0)
+
+  events    DataRoomEvent[]
+  questions DataRoomQuestion[]
+
+  @@unique([roomId, email])
+  @@map("data_room_member")
+}
+
+enum DataRoomEventKind {
+  /// Signed in to the room.
+  ENTER
+  VIEW
+  DOWNLOAD
+  /// Downloaded the room, or a folder of it, as a zip.
+  DOWNLOAD_ALL
+  ASK
+}
+
+/// One thing a person did in a room. The owner's activity log.
+model DataRoomEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  roomId   String          @db.Uuid
+  room     DataRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  memberId String?         @db.Uuid
+  member   DataRoomMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  kind DataRoomEventKind
+  /// The file or folder, relative to the room, when the event has one.
+  path String?
+
+  @@index([roomId, createdAt])
+  @@index([memberId, createdAt])
+  @@map("data_room_event")
+}
+
+/// The owner's order for one file or folder of a room, which also numbers it.
+model DataRoomEntry {
+  roomId   String   @db.Uuid
+  room     DataRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  /// Relative to the room.
+  path     String
+  position Int
+
+  @@id([roomId, path])
+  @@map("data_room_entry")
+}
+
+/// A viewer's question about one document, and the owner's answer.
+model DataRoomQuestion {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roomId   String         @db.Uuid
+  room     DataRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  memberId String         @db.Uuid
+  member   DataRoomMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  /// The document, relative to the room.
+  path             String
+  body             String
+  answer           String?
+  answeredByUserId String?
+  answeredAt       DateTime?
+
+  @@index([roomId, createdAt])
+  @@map("data_room_question")
+}

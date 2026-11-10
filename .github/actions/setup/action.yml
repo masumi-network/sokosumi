@@ -6,13 +6,6 @@ inputs:
     description: Vercel team slug for Turborepo Remote Cache (OIDC)
     required: false
     default: ""
-  ffmpeg:
-    description: >-
-      "true" for a job that runs ffmpeg (Core's avatar tests). It gets our
-      copy of the pinned build; every other job skips ffmpeg-static's
-      download.
-    required: false
-    default: "false"
 
 runs:
   using: composite
@@ -35,32 +28,6 @@ runs:
       with:
         node-version-file: .nvmrc
         package-manager-cache: false
-
-    # ffmpeg-static's install script downloads an ~80 MB binary from GitHub
-    # Releases, and a 504 there failed every job of every PR (2026-11-08)
-    # though only Core's avatar tests run ffmpeg. The script skips the
-    # download when FFMPEG_BIN names an existing file. A job without ffmpeg
-    # points it at a stub that fails loudly if anything calls it; Test Core
-    # points it at Core's DEFAULT_FFMPEG_BUILD (our copy of that release
-    # asset), checked against its hash. ci:test keeps the two in step.
-    - name: Point ffmpeg-static at a binary
-      shell: bash
-      env:
-        WANTS_FFMPEG: ${{ inputs.ffmpeg }}
-        FFMPEG_URL: https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/vendor/ffmpeg-static/b6.1.1/ffmpeg-linux-x64-Kat8TFEc5GgKu9hryOAPTb3VpUHuG9.gz
-        FFMPEG_SHA256: bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa
-      run: |
-        bin="$RUNNER_TEMP/ffmpeg"
-        if [ "$WANTS_FFMPEG" = "true" ]; then
-          curl --fail --silent --show-error --location --retry 5 --retry-all-errors \
-            --output "$bin.gz" "$FFMPEG_URL"
-          echo "$FFMPEG_SHA256  $bin.gz" | sha256sum --check --quiet
-          gunzip "$bin.gz"
-        else
-          printf '#!/bin/sh\necho "ffmpeg is not installed in this job: pass ffmpeg: \\"true\\" to the Setup action" >&2\nexit 1\n' > "$bin"
-        fi
-        chmod +x "$bin"
-        echo "FFMPEG_BIN=$bin" >> "$GITHUB_ENV"
 
     - name: Install Dependencies
       run: pnpm install

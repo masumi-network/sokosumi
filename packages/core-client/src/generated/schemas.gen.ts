@@ -2701,30 +2701,6 @@ export const ChatRoomSokoBotParticipantSchema = {
             ],
             example: 'orb:user_123'
         },
-        avatarStyleId: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'The style of the bot\'s claimed avatar, null when it has none. Always sent; optional so clients written before it compile.',
-            example: 'crafted-desk'
-        },
-        idleLoopUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'The bot\'s Idle loop (silent MP4), played on its face while its hover card is open. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.',
-            example: 'https://example.com/idle-480.mp4'
-        },
-        workingLoopUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'The bot\'s Working loop (silent MP4), played on its face while a reply is in progress. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.',
-            example: 'https://example.com/working-480.mp4'
-        },
         ownerUserId: {
             type: [
                 'string',
@@ -3806,138 +3782,6 @@ export const SokoBotScheduleSchema = {
         'consecutiveFailures',
         'createdAt',
         'updatedAt'
-    ]
-} as const;
-
-export const SokoBotAvatarStateSchema = {
-    type: 'string',
-    enum: [
-        'idle',
-        'thinking',
-        'working',
-        'done',
-        'needs_you',
-        'offline'
-    ]
-} as const;
-
-export const SokoBotAvatarViewSchema = {
-    type: 'object',
-    properties: {
-        styleId: {
-            type: 'string'
-        },
-        styleVersion: {
-            type: 'integer'
-        },
-        stillUrl: {
-            type: 'string'
-        },
-        states: {
-            type: 'object',
-            properties: {
-                idle: {
-                    anyOf: [
-                        {
-                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
-                        },
-                        {
-                            type: 'null'
-                        }
-                    ]
-                },
-                thinking: {
-                    anyOf: [
-                        {
-                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
-                        },
-                        {
-                            type: 'null'
-                        }
-                    ]
-                },
-                working: {
-                    anyOf: [
-                        {
-                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
-                        },
-                        {
-                            type: 'null'
-                        }
-                    ]
-                },
-                done: {
-                    anyOf: [
-                        {
-                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
-                        },
-                        {
-                            type: 'null'
-                        }
-                    ]
-                },
-                needs_you: {
-                    anyOf: [
-                        {
-                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
-                        },
-                        {
-                            type: 'null'
-                        }
-                    ]
-                },
-                offline: {
-                    anyOf: [
-                        {
-                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
-                        },
-                        {
-                            type: 'null'
-                        }
-                    ]
-                }
-            },
-            required: [
-                'idle',
-                'thinking',
-                'working',
-                'done',
-                'needs_you',
-                'offline'
-            ]
-        }
-    },
-    required: [
-        'styleId',
-        'styleVersion',
-        'stillUrl',
-        'states'
-    ]
-} as const;
-
-export const SokoBotAvatarStateAssetsSchema = {
-    type: 'object',
-    properties: {
-        stillUrl: {
-            type: 'string'
-        },
-        loopUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        loopLargeUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'stillUrl',
-        'loopUrl',
-        'loopLargeUrl'
     ]
 } as const;
 
@@ -5038,19 +4882,6 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
-        avatarState: {
-            $ref: '#/components/schemas/SokoBotAvatarState'
-        },
-        avatar: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/SokoBotAvatarView'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
         versionId: {
             type: [
                 'string',
@@ -5161,286 +4992,6 @@ export const ClaimSokoBotAvatarRequestSchema = {
     },
     required: [
         'avatarId'
-    ]
-} as const;
-
-export const SokoBotAvatarStudioSchema = {
-    type: 'object',
-    properties: {
-        avatar: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/SokoBotAvatarView'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        look: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/SokoBotAvatarLook'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        draft: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/SokoBotAvatarDraft'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        progress: {
-            type: 'object',
-            properties: {
-                ready: {
-                    type: 'integer'
-                },
-                failed: {
-                    type: 'integer'
-                },
-                total: {
-                    type: 'integer'
-                }
-            },
-            required: [
-                'ready',
-                'failed',
-                'total'
-            ]
-        },
-        options: {
-            type: 'object',
-            properties: {
-                creatures: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            id: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'id'
-                        ]
-                    }
-                },
-                accessories: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            id: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'id'
-                        ]
-                    }
-                }
-            },
-            required: [
-                'creatures',
-                'accessories'
-            ]
-        }
-    },
-    required: [
-        'avatar',
-        'look',
-        'draft',
-        'progress',
-        'options'
-    ]
-} as const;
-
-export const SokoBotAvatarLookSchema = {
-    type: 'object',
-    properties: {
-        creature: {
-            type: 'string'
-        },
-        accessories: {
-            type: 'array',
-            items: {
-                type: 'string'
-            }
-        },
-        typed: {
-            type: 'array',
-            items: {
-                type: 'string'
-            }
-        },
-        traits: {
-            type: 'object',
-            additionalProperties: {
-                type: 'string'
-            }
-        }
-    },
-    required: [
-        'creature',
-        'accessories',
-        'typed'
-    ]
-} as const;
-
-export const SokoBotAvatarDraftSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        imageUrl: {
-            type: 'string'
-        },
-        look: {
-            $ref: '#/components/schemas/SokoBotAvatarLook'
-        },
-        expiresAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'imageUrl',
-        'look',
-        'expiresAt'
-    ]
-} as const;
-
-export const SokoBotAvatarDraftResultSchema = {
-    type: 'object',
-    properties: {
-        draft: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/SokoBotAvatarDraft'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        note: {
-            type: 'string'
-        }
-    },
-    required: [
-        'draft',
-        'note'
-    ]
-} as const;
-
-export const CreateSokoBotAvatarDraftRequestSchema = {
-    type: 'object',
-    properties: {
-        change: {
-            $ref: '#/components/schemas/SokoBotAvatarChange'
-        },
-        draftId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'change'
-    ]
-} as const;
-
-export const SokoBotAvatarChangeSchema = {
-    oneOf: [
-        {
-            type: 'object',
-            properties: {
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'creature'
-                    ]
-                },
-                creature: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 40
-                }
-            },
-            required: [
-                'kind',
-                'creature'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'accessory'
-                    ]
-                },
-                accessory: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 40
-                },
-                enabled: {
-                    type: 'boolean',
-                    default: true
-                }
-            },
-            required: [
-                'kind',
-                'accessory'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'shuffle'
-                    ]
-                }
-            },
-            required: [
-                'kind'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'typed'
-                    ]
-                },
-                text: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 300
-                }
-            },
-            required: [
-                'kind',
-                'text'
-            ]
-        }
     ]
 } as const;
 
@@ -7773,6 +7324,15 @@ export const TaskSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
         },
+        dueOn: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
+            example: '2026-11-20'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -7874,6 +7434,7 @@ export const TaskSchema = {
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',
+        'dueOn',
         'scheduleId',
         'credits',
         'events',
@@ -8104,14 +7665,7 @@ export const SokoBotSummarySchema = {
                 'string',
                 'null'
             ],
-            example: 'https://blob.example/mascot.png'
-        },
-        avatarStyleId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'crafted-desk'
+            example: 'https://blob.example/avatar.png'
         },
         owner: {
             anyOf: [
@@ -8445,14 +7999,7 @@ export const TaskEventSchema = {
                         'string',
                         'null'
                     ],
-                    example: 'https://blob.example/mascot.png'
-                },
-                avatarStyleId: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'crafted-desk'
+                    example: 'https://blob.example/avatar.png'
                 },
                 owner: {
                     anyOf: [
@@ -11588,6 +11135,43 @@ export const ChatPersonSchema = {
     ]
 } as const;
 
+export const ChatRecentSokoBotMessageSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The Thread\'s parent when the message is a reply.'
+        },
+        content: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'roomId',
+        'messageId',
+        'parentMessageId',
+        'content',
+        'createdAt'
+    ]
+} as const;
+
 export const ChatRoomSchema = {
     type: 'object',
     properties: {
@@ -13330,14 +12914,6 @@ export const ChatResultAvailableSchema = {
                             ],
                             maxLength: 200,
                             default: null
-                        },
-                        avatarStyleId: {
-                            type: [
-                                'string',
-                                'null'
-                            ],
-                            maxLength: 200,
-                            default: null
                         }
                     },
                     required: [
@@ -13380,14 +12956,6 @@ export const ChatResultAvailableSchema = {
                                 maxLength: 200
                             },
                             avatarSeed: {
-                                type: [
-                                    'string',
-                                    'null'
-                                ],
-                                maxLength: 200,
-                                default: null
-                            },
-                            avatarStyleId: {
                                 type: [
                                     'string',
                                     'null'
@@ -13563,14 +13131,6 @@ export const ChatResultAvailableSchema = {
                     maxLength: 200
                 },
                 avatarSeed: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    maxLength: 200,
-                    default: null
-                },
-                avatarStyleId: {
                     type: [
                         'string',
                         'null'
@@ -17246,6 +16806,829 @@ export const FileCollectionSchema = {
     ]
 } as const;
 
+export const DataRoomsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoom'
+    }
+} as const;
+
+export const DataRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        folderPath: {
+            type: 'string'
+        },
+        storage: {
+            type: 'string',
+            enum: [
+                'moving_in',
+                'private',
+                'moving_out'
+            ],
+            description: 'moving_in while its files go to the private store, private once they all are, moving_out after it was closed.'
+        },
+        token: {
+            type: 'string',
+            description: 'The room\'s address: /share/rooms/{token}'
+        },
+        title: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        logoFileId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        allowedDomains: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        allowDownload: {
+            type: 'boolean'
+        },
+        watermark: {
+            type: 'boolean'
+        },
+        notifyOnFirstVisit: {
+            type: 'boolean'
+        },
+        createdByUserId: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'folderPath',
+        'storage',
+        'token',
+        'title',
+        'logoFileId',
+        'allowedDomains',
+        'expiresAt',
+        'allowDownload',
+        'watermark',
+        'notifyOnFirstVisit',
+        'createdByUserId',
+        'createdAt'
+    ]
+} as const;
+
+export const CreateDataRoomRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            description: 'Folder to turn into a data room, e.g. "Series A".',
+            example: 'Series A'
+        }
+    },
+    required: [
+        'scope',
+        'folderPath'
+    ]
+} as const;
+
+export const DataRoomDetailSchema = {
+    type: 'object',
+    properties: {
+        room: {
+            $ref: '#/components/schemas/DataRoom'
+        },
+        members: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/DataRoomMember'
+            }
+        },
+        rows: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/DataRoomTreeRow'
+            }
+        },
+        colleagues: {
+            anyOf: [
+                {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/DataRoomColleague'
+                    }
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Organization members let in besides the maker and the organization\'s owners and admins. Null for a personal room, which is its owner\'s alone.'
+        },
+        canChooseColleagues: {
+            type: 'boolean',
+            description: 'True for the room\'s maker and the organization\'s owners and admins.'
+        }
+    },
+    required: [
+        'room',
+        'members',
+        'rows',
+        'colleagues',
+        'canChooseColleagues'
+    ]
+} as const;
+
+export const DataRoomMemberSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        email: {
+            type: 'string'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        invited: {
+            type: 'boolean',
+            description: 'Invited by name; false when let in by an allowed domain.'
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        revokedAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        folderPaths: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Folders of the room this person may see; empty is all.'
+        },
+        firstVisitAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        lastVisitAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        views: {
+            type: 'integer'
+        },
+        downloads: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'email',
+        'name',
+        'invited',
+        'expiresAt',
+        'revokedAt',
+        'folderPaths',
+        'firstVisitAt',
+        'lastVisitAt',
+        'views',
+        'downloads'
+    ]
+} as const;
+
+export const DataRoomTreeRowSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'folder',
+                'file'
+            ]
+        },
+        path: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        depth: {
+            type: 'integer'
+        },
+        number: {
+            type: 'string',
+            example: '1.2'
+        },
+        resourceId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        sizeBytes: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        mimeType: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        updatedAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        isNew: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'kind',
+        'path',
+        'name',
+        'depth',
+        'number',
+        'resourceId',
+        'sizeBytes',
+        'mimeType',
+        'updatedAt',
+        'isNew'
+    ]
+} as const;
+
+export const DataRoomColleagueSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        email: {
+            type: 'string'
+        }
+    },
+    required: [
+        'userId',
+        'name',
+        'email'
+    ]
+} as const;
+
+export const UpdateDataRoomRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        title: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        logoFileId: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        allowedDomains: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 253
+            },
+            maxItems: 50
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        allowDownload: {
+            type: 'boolean'
+        },
+        watermark: {
+            type: 'boolean'
+        },
+        notifyOnFirstVisit: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'scope'
+    ]
+} as const;
+
+export const InviteDataRoomMembersRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        emails: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 320
+            },
+            minItems: 1,
+            maxItems: 100
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        folderPaths: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 1000
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'scope',
+        'emails'
+    ]
+} as const;
+
+export const UpdateDataRoomMemberRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        expiresAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        folderPaths: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 1000
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'scope'
+    ]
+} as const;
+
+export const DataRoomEventsSchema = {
+    type: 'object',
+    properties: {
+        events: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/DataRoomEvent'
+            }
+        },
+        nextBefore: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'events',
+        'nextBefore'
+    ]
+} as const;
+
+export const DataRoomEventSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'enter',
+                'view',
+                'download',
+                'download_all',
+                'ask'
+            ]
+        },
+        path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        memberId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        email: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'kind',
+        'path',
+        'memberId',
+        'email',
+        'name'
+    ]
+} as const;
+
+export const DataRoomQuestionsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoomQuestion'
+    }
+} as const;
+
+export const DataRoomQuestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        },
+        path: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        answer: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        answeredAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        email: {
+            type: 'string'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'path',
+        'body',
+        'answer',
+        'answeredAt',
+        'email',
+        'name'
+    ]
+} as const;
+
+export const AnswerDataRoomQuestionRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        answer: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 5000
+        }
+    },
+    required: [
+        'scope',
+        'answer'
+    ]
+} as const;
+
+export const SetDataRoomOrderRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        entries: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    path: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 1000
+                    },
+                    position: {
+                        type: 'integer',
+                        minimum: 1
+                    }
+                },
+                required: [
+                    'path',
+                    'position'
+                ]
+            },
+            maxItems: 5000
+        }
+    },
+    required: [
+        'scope',
+        'entries'
+    ]
+} as const;
+
+export const DataRoomColleaguesSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoomColleague'
+    }
+} as const;
+
+export const SetDataRoomColleaguesRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        userIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 200,
+            description: 'Every colleague who should be in the room; anyone left out loses access.'
+        }
+    },
+    required: [
+        'scope',
+        'userIds'
+    ]
+} as const;
+
 export const DriveFileUploadSessionSchema = {
     type: 'object',
     properties: {
@@ -17263,10 +17646,11 @@ export const DriveFileUploadSessionSchema = {
         access: {
             type: 'string',
             enum: [
-                'public'
+                'public',
+                'private'
             ],
             example: 'public',
-            description: 'Blob access level for the upload'
+            description: 'Blob access level for the upload: private inside a data room.'
         },
         method: {
             type: 'string',
@@ -17416,12 +17800,18 @@ export const DriveFolderSchema = {
             type: 'string',
             example: 'Documents',
             description: 'Relative folder path from current folder (single segment)'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'This folder is a data room, or is inside one.'
         }
     },
     required: [
         'type',
         'name',
-        'path'
+        'path',
+        'dataRoom'
     ]
 } as const;
 
@@ -17478,6 +17868,11 @@ export const DriveFileSchema = {
             format: 'date-time',
             example: '2026-08-18T10:00:00.000Z',
             description: 'When the file was uploaded to Blob storage'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.'
         }
     },
     required: [
@@ -17485,7 +17880,8 @@ export const DriveFileSchema = {
         'fileUrl',
         'pathname',
         'size',
-        'uploadedAt'
+        'uploadedAt',
+        'dataRoom'
     ]
 } as const;
 
@@ -17858,6 +18254,11 @@ export const DriveRecentsDriveFileItemSchema = {
                 ]
             },
             description: 'Tags on this file, automatic or confirmed. Labels a person removed are never listed.'
+        },
+        dataRoom: {
+            type: 'boolean',
+            example: false,
+            description: 'In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.'
         }
     },
     required: [
@@ -17869,7 +18270,8 @@ export const DriveRecentsDriveFileItemSchema = {
         'activityAt',
         'resourceId',
         'category',
-        'tags'
+        'tags',
+        'dataRoom'
     ]
 } as const;
 
@@ -40122,6 +40524,142 @@ export const DriveShareDownloadSchema = {
     ]
 } as const;
 
+export const DataRoomViewSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'in',
+                'out',
+                'closed',
+                'expired'
+            ]
+        },
+        title: {
+            type: 'string'
+        },
+        hasLogo: {
+            type: 'boolean'
+        },
+        allowDownload: {
+            type: 'boolean'
+        },
+        watermark: {
+            type: 'boolean'
+        },
+        viewer: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        email: {
+                            type: 'string'
+                        },
+                        name: {
+                            anyOf: [
+                                {
+                                    type: 'string'
+                                },
+                                {
+                                    type: 'null'
+                                }
+                            ]
+                        }
+                    },
+                    required: [
+                        'email',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        rows: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/DataRoomTreeRow'
+            }
+        }
+    },
+    required: [
+        'state',
+        'title',
+        'hasLogo',
+        'allowDownload',
+        'watermark',
+        'viewer',
+        'rows'
+    ]
+} as const;
+
+export const DataRoomCodeRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 320
+        }
+    },
+    required: [
+        'email'
+    ]
+} as const;
+
+export const DataRoomSessionSchema = {
+    type: 'object',
+    properties: {
+        session: {
+            type: 'string'
+        }
+    },
+    required: [
+        'session'
+    ]
+} as const;
+
+export const DataRoomSessionRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 320
+        },
+        code: {
+            type: 'string',
+            minLength: 4,
+            maxLength: 12
+        }
+    },
+    required: [
+        'email',
+        'code'
+    ]
+} as const;
+
+export const AskDataRoomQuestionRequestSchema = {
+    type: 'object',
+    properties: {
+        resourceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        body: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 5000
+        }
+    },
+    required: [
+        'resourceId',
+        'body'
+    ]
+} as const;
+
 export const PublicSharedResourceResponseSchema = {
     oneOf: [
         {
@@ -45351,19 +45889,6 @@ export const SokoBotStateSchema = {
                         'null'
                     ]
                 },
-                avatarState: {
-                    $ref: '#/components/schemas/SokoBotAvatarState'
-                },
-                avatar: {
-                    anyOf: [
-                        {
-                            $ref: '#/components/schemas/SokoBotAvatarView'
-                        },
-                        {
-                            type: 'null'
-                        }
-                    ]
-                },
                 versionId: {
                     type: [
                         'string',
@@ -45469,19 +45994,6 @@ export const SharedSokoBotSummarySchema = {
                 'null'
             ]
         },
-        avatarState: {
-            $ref: '#/components/schemas/SokoBotAvatarState'
-        },
-        avatar: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/SokoBotAvatarView'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
         status: {
             $ref: '#/components/schemas/SokoBotStatus'
         },
@@ -45546,17 +46058,13 @@ export const SokoBotActivitySchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
-        },
-        avatarState: {
-            $ref: '#/components/schemas/SokoBotAvatarState'
         }
     },
     required: [
         'status',
         'activeTurnId',
         'lastTurnAt',
-        'lastActivityAt',
-        'avatarState'
+        'lastActivityAt'
     ]
 } as const;
 
@@ -46310,19 +46818,6 @@ export const SokoBotTeamSchema = {
                                 type: [
                                     'string',
                                     'null'
-                                ]
-                            },
-                            avatarState: {
-                                $ref: '#/components/schemas/SokoBotAvatarState'
-                            },
-                            avatar: {
-                                anyOf: [
-                                    {
-                                        $ref: '#/components/schemas/SokoBotAvatarView'
-                                    },
-                                    {
-                                        type: 'null'
-                                    }
                                 ]
                             },
                             avatarSeed: {
@@ -47765,6 +48260,15 @@ export const TaskListItemSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
         },
+        dueOn: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
+            example: '2026-11-20'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -47820,6 +48324,7 @@ export const TaskListItemSchema = {
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',
+        'dueOn',
         'scheduleId',
         'workspace',
         'jobsCount',
@@ -48180,12 +48685,6 @@ export const TaskScheduleAssigneesSchema = {
                     ]
                 },
                 avatarImageUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ]
-                },
-                avatarStyleId: {
                     type: [
                         'string',
                         'null'

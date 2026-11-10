@@ -2,10 +2,6 @@ import { z } from "@hono/zod-openapi";
 import { isValidTimezone } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { sokoBotSchema, sokoBotStatusSchema } from "./soko-bot.schema";
-import {
-  sokoBotAvatarOrNullSchema,
-  sokoBotAvatarStateSchema,
-} from "./soko-bot-avatar.schema";
 
 /** Personal (one owner), project or workspace (shared by the organization). */
 export const sokoBotScopeSchema = z
@@ -18,7 +14,7 @@ export const createSokoBotRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(80),
     avatarSeed: z.string().max(200).nullable().optional(),
-    /** Mascot from the avatar pool to claim for this bot. */
+    /** Soko Bot avatar from the pool to claim for this bot. */
     avatarId: z.string().uuid().nullable().optional(),
     personalityTone: z.number().int().min(0).max(100).nullable().optional(),
     personalityDetail: z.number().int().min(0).max(100).nullable().optional(),
@@ -69,10 +65,6 @@ export const sharedSokoBotSummarySchema = z
     projectId: z.string().uuid().nullable(),
     avatarSeed: z.string().nullable(),
     avatarImageUrl: z.string().nullable(),
-    // Always sent. Optional in the contract so clients written before them
-    // keep compiling; tighten once every consumer reads them.
-    avatarState: sokoBotAvatarStateSchema.optional(),
-    avatar: sokoBotAvatarOrNullSchema.optional(),
     status: sokoBotStatusSchema,
     archivedAt: dateTimeSchema.nullable(),
     /** The room every member shares with this bot. */

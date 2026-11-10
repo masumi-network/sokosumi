@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { getNow, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
@@ -12,6 +14,7 @@ import {
   panelFeed,
 } from "@/app/projects/components/workspace-column";
 import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
+import { dayInTimeZone } from "@/app/tasks/utils/task-due";
 import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -21,10 +24,13 @@ import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
+import { loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
   SOKO_BOT_HOME_TASK_LIMIT,
+  type SokoBotHomeChat,
+  toSokoBotChats,
   toTeamDay,
 } from "./components/soko-bot-home-data";
 
@@ -34,12 +40,34 @@ interface WelcomePageProps {
   }>;
 }
 
-/** The bot's Direct, or null when it has none yet or the read fails. */
-async function loadSokoBotRoomId(sokoBotId: string): Promise<string | null> {
-  const { rooms } = await chatRoomService
-    .listRooms("direct")
-    .catch(() => ({ rooms: [] }));
-  return findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null;
+// Without its own title the landing page kept the layout's marketing line.
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Metadata");
+  return { title: t("home") };
+}
+
+/**
+ * The bot's Direct (null when it has none yet or the read fails) and the
+ * chats with a Soko Bot the reader took part in during the last day. Core
+ * picks those chats; the room list is the sidebar's cached one.
+ */
+async function loadSokoBotChats(
+  sokoBotId: string,
+): Promise<{ roomId: string | null; chats: SokoBotHomeChat[] }> {
+  const [{ rooms }, recent, tChannels] = await Promise.all([
+    chatRoomService.listRooms().catch(() => ({ rooms: [] })),
+    chatRoomService.listRecentSokoBotMessages().catch(() => []),
+    getTranslations("App.Channels"),
+  ]);
+  return {
+    roomId: findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null,
+    chats: toSokoBotChats(
+      recent,
+      rooms,
+      tChannels("MentionAll.label"),
+      tChannels("SavedMessages.untitled"),
+    ),
+  };
 }
 
 /**
@@ -62,12 +90,15 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, session, activeOrganizationId, access] = await Promise.all([
-    searchParams,
-    getSession(),
-    userService.getActiveOrganizationId(),
-    userService.getWorkspaceAccess().catch(() => null),
-  ]);
+  const [query, session, activeOrganizationId, access, now, timeZone] =
+    await Promise.all([
+      searchParams,
+      getSession(),
+      userService.getActiveOrganizationId(),
+      userService.getWorkspaceAccess().catch(() => null),
+      getNow(),
+      getTimeZone(),
+    ]);
   // The app shell's loading fallback renders this page before the frame's
   // workspace gate redirects, so a brand-new account (sign-up lands here)
   // would read a bot, coworkers and tasks it has no workspace for. Leave
@@ -80,6 +111,14 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
   const userId = session?.user.id;
+  // The reader's Tasks due today or overdue, by their own calendar day. One
+  // rendered promise shared by both compositions, like Needs you below.
+  const today = dayInTimeZone(now, timeZone);
+  const myDay = (
+    <Suspense fallback={null}>
+      {MyDay({ feed: loadMyDay(today), today })}
+    </Suspense>
+  );
   // What waits on the reader, as the quiet list under either welcome. One
   // promise of the rendered panel, so the two breakpoint compositions share
   // its reads instead of each loading the rows and their projects again.
@@ -98,8 +137,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   if (sokoBot && userId) {
     // In an org the day is the team's; in a personal workspace, the user's.
     const scope = activeOrganizationId ? "workspace" : "owned";
-    const [roomId, summary, recent] = await Promise.all([
-      loadSokoBotRoomId(sokoBot.id),
+    const [{ roomId, chats }, summary, recent] = await Promise.all([
+      loadSokoBotChats(sokoBot.id),
       taskService.getActivitySummary({ scope }),
       taskService
         .listTasks({
@@ -118,13 +157,14 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
             name: sokoBot.name,
             avatarSeed: sokoBot.avatarSeed,
             avatarImageUrl: sokoBot.avatarImageUrl ?? null,
-            avatar: sokoBot.avatar ?? null,
           }}
           ownerId={userId}
           roomId={roomId}
           userName={resolveLandingGreetingName(session?.user.name)}
           summary={summary ?? null}
           teamTasks={toTeamDay(recent.tasks, new Date())}
+          chats={chats}
+          myDay={myDay}
           needsYou={needsYou}
         />
       </>
@@ -157,6 +197,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
           userName={greetingName}
+          myDay={myDay}
           needsYou={needsYou}
         />
       </div>
@@ -172,6 +213,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
           userName={greetingName}
+          myDay={myDay}
           needsYou={needsYou}
         />
       </div>

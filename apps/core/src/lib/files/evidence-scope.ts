@@ -3,11 +3,14 @@ import { createHash } from "node:crypto";
 import {
   FileSourceKind,
   FileSourceScope,
+  MemberRole,
   type Prisma,
   TaskVisibility,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { buildOrganizationDriveFilePrefix } from "@sokosumi/utils";
 
+import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
 import {
   type FileActor,
@@ -133,6 +136,41 @@ export async function ensureEvidenceScope(
 const UUID_TEXT_PATTERN =
   "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$";
 
+/**
+ * A row inside an organization data room this actor may not see: only its
+ * maker, the organization's owners and admins, and the colleagues they added
+ * may open one. Agents see none. Mirrors `lib/data-room-visibility.ts`.
+ */
+function hiddenDataRoomSql(
+  actor: FileActor,
+  organizationId: string,
+): PrismaRaw.Sql {
+  const outsider = DATA_ROOM_PEOPLE_KINDS.includes(actor.kind)
+    ? PrismaRaw.sql`
+        AND dr."createdByUserId" <> ${actor.userId}
+        AND NOT EXISTS (
+          SELECT 1 FROM data_room_colleague c
+          WHERE c."roomId" = dr.id AND c."userId" = ${actor.userId}
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM member a
+          WHERE a."organizationId" = ${organizationId}
+            AND a."userId" = ${actor.userId}
+            AND a.role IN (${MemberRole.OWNER}, ${MemberRole.ADMIN})
+        )`
+    : PrismaRaw.empty;
+  return PrismaRaw.sql`EXISTS (
+    SELECT 1 FROM data_room dr
+    WHERE dr."sourceScope" = ${FileSourceScope.ORGANIZATION}::"FileSourceScope"
+      AND dr."ownerId" = ${organizationId}
+      AND starts_with(
+        fr."sourceId",
+        ${buildOrganizationDriveFilePrefix(organizationId)} || dr."folderPath" || '/'
+      )
+      ${outsider}
+  )`;
+}
+
 export function buildAuthorizedResourceSql(input: {
   workspaceId: string;
   actor: FileActor;
@@ -174,6 +212,7 @@ export function buildAuthorizedResourceSql(input: {
         WHERE m."organizationId" = ${actor.organizationId}
           AND m."userId" = ${actor.userId}
       )
+      AND NOT ${hiddenDataRoomSql(actor, actor.organizationId)}
     )`);
   }
 

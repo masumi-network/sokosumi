@@ -20,7 +20,6 @@ export const SOKO_BOT_ADMIN_ACTIONS = {
   resetMemory: "reset the memory of",
   reactivate: "reactivate",
   manageApiKeys: "manage the API keys of",
-  changeAvatar: "change the avatar of",
   rename: "rename",
 } as const;
 
