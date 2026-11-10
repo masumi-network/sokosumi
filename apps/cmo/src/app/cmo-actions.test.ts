@@ -111,6 +111,7 @@ const {
   loadState,
   pauseEntry,
   requestStrategy,
+  restartStrategy,
   retryLearning,
   revertUpdate,
   saveBrandBrain,
@@ -458,6 +459,11 @@ describe("the Cuso on screen", () => {
       "requestCmoStrategyForProject",
     ],
     [
+      "restartStrategy",
+      () => restartStrategy("project-2"),
+      "requestCmoStrategyForProject",
+    ],
+    [
       "setAdBudget",
       () => setAdBudget("project-2", 500, "EUR"),
       "setCmoAdBudgetForProject",
@@ -555,6 +561,13 @@ describe("the Cuso on screen", () => {
       );
     },
   );
+
+  it("restartStrategy asks Core to replace a slow plan", async () => {
+    await restartStrategy("project-2");
+    expect(forProject.requestCmoStrategyForProject).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { restart: true } }),
+    );
+  });
 
   const projectRoutes: [string, () => Promise<unknown>, string][] = [
     [
