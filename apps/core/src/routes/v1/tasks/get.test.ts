@@ -820,4 +820,81 @@ describe("GET /tasks", () => {
       ]);
     });
   });
+
+  // Home's "My day": open Tasks the reader owns or is assigned, due by today.
+  describe("my due Tasks", () => {
+    it("matches Tasks the caller owns or is assigned with scope=mine", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=mine",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            archivedAt: null,
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            AND: [...HUMAN_TASK_VISIBILITY_AND],
+            OR: [{ ownerId: "user_123" }, { assigneeUserId: "user_123" }],
+          },
+        }),
+      );
+    });
+
+    it("keeps the delegated coworker access filter with scope=mine", async () => {
+      const response = await createApp(
+        DELEGATED_COWORKER_AUTH_CONTEXT,
+        DELEGATED_WORKSPACE_CONTEXT,
+      ).request("http://localhost/?scope=mine");
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: delegatedCoworkerListWhere({
+            OR: [
+              { ownerId: "user_delegate" },
+              { assigneeUserId: "user_delegate" },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("filters to Tasks due on or before dueOnTo, earliest first", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=mine&dueOnTo=2026-11-10&sort=dueOn&status=READY,FAILED&limit=5",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            archivedAt: null,
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            AND: [...HUMAN_TASK_VISIBILITY_AND],
+            OR: [{ ownerId: "user_123" }, { assigneeUserId: "user_123" }],
+            dueOn: { lte: new Date("2026-11-10T00:00:00.000Z") },
+            status: { in: [TaskStatus.READY, TaskStatus.FAILED] },
+          },
+          orderBy: [{ dueOn: "asc" }, { id: "asc" }],
+          take: 6,
+        }),
+      );
+      // The count uses the same filter, so a cut-off list knows its total.
+      expect(taskCountMock).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          dueOn: { lte: new Date("2026-11-10T00:00:00.000Z") },
+        }),
+      });
+    });
+
+    it("rejects a dueOnTo that is not a calendar day", async () => {
+      const response = await createApp().request(
+        "http://localhost/?dueOnTo=2026-02-30",
+      );
+
+      expect(response.status).toBe(422);
+      expect(taskFindManyMock).not.toHaveBeenCalled();
+    });
+  });
 });

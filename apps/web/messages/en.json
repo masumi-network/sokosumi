@@ -1618,6 +1618,10 @@
           "label": "Search",
           "subtitle": "Specialized agents"
         },
+        "MyDay": {
+          "title": "My day",
+          "more": "{count, plural, one {# more due} other {# more due}}"
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "What's next?",

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { getNow, getTimeZone } from "next-intl/server";
 import { Suspense } from "react";
 
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
@@ -12,6 +13,7 @@ import {
   panelFeed,
 } from "@/app/projects/components/workspace-column";
 import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
+import { dayInTimeZone } from "@/app/tasks/utils/task-due";
 import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -21,6 +23,7 @@ import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
+import { loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
@@ -62,12 +65,15 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, session, activeOrganizationId, access] = await Promise.all([
-    searchParams,
-    getSession(),
-    userService.getActiveOrganizationId(),
-    userService.getWorkspaceAccess().catch(() => null),
-  ]);
+  const [query, session, activeOrganizationId, access, now, timeZone] =
+    await Promise.all([
+      searchParams,
+      getSession(),
+      userService.getActiveOrganizationId(),
+      userService.getWorkspaceAccess().catch(() => null),
+      getNow(),
+      getTimeZone(),
+    ]);
   // The app shell's loading fallback renders this page before the frame's
   // workspace gate redirects, so a brand-new account (sign-up lands here)
   // would read a bot, coworkers and tasks it has no workspace for. Leave
@@ -80,6 +86,13 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
   const userId = session?.user.id;
+  // The reader's Tasks due today or overdue, by their own calendar day. One
+  // rendered promise shared by both compositions, like Needs you below.
+  const myDay = (
+    <Suspense fallback={null}>
+      {MyDay({ feed: loadMyDay(dayInTimeZone(now, timeZone)) })}
+    </Suspense>
+  );
   // What waits on the reader, as the quiet list under either welcome. One
   // promise of the rendered panel, so the two breakpoint compositions share
   // its reads instead of each loading the rows and their projects again.
@@ -124,6 +137,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           userName={resolveLandingGreetingName(session?.user.name)}
           summary={summary ?? null}
           teamTasks={toTeamDay(recent.tasks, new Date())}
+          myDay={myDay}
           needsYou={needsYou}
         />
       </>
@@ -156,6 +170,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
           userName={greetingName}
+          myDay={myDay}
           needsYou={needsYou}
         />
       </div>
@@ -171,6 +186,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
           userName={greetingName}
+          myDay={myDay}
           needsYou={needsYou}
         />
       </div>
