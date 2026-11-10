@@ -1,5 +1,10 @@
 import type { StudioSettings } from "./types";
 
+export interface StudioBrief {
+  aspectRatio: NonNullable<StudioSettings["aspectRatio"]>;
+  prompt: string;
+}
+
 // These editable prompts are model input. Only their labels are localized.
 export const STUDIO_TEMPLATES = [
   {
@@ -32,11 +37,9 @@ export const STUDIO_TEMPLATES = [
     prompt:
       "Create a wide display ad for [product or offer] aimed at [audience]. Keep the subject on the right and the left half clear for a short headline and [call to action]. Use the brand palette and include only approved offer details.",
   },
-] as const satisfies readonly {
+] as const satisfies readonly ({
   id: string;
-  aspectRatio: NonNullable<StudioSettings["aspectRatio"]>;
-  prompt: string;
-}[];
+} & StudioBrief)[];
 
 export type StudioTemplate = (typeof STUDIO_TEMPLATES)[number];
 export type StudioTemplateId = StudioTemplate["id"];

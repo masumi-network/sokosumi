@@ -13,10 +13,8 @@ import { rehypeMarkdownCodeHighlight } from "@/components/markdown-highlighter";
 import { remarkRestoreInlineCodeEntities } from "@/components/markdown-inline-code";
 import { prepareMermaidMarkdown } from "@/components/mermaid/markdown-mermaid";
 import { MermaidBlock } from "@/components/mermaid/mermaid-block";
-import {
-  ConnectLinkButton,
-  connectLinkTarget,
-} from "@/components/soko-bot/connect-link-button";
+import { ConnectLinkButton } from "@/components/soko-bot/connect-link-button";
+import { connectLinkTarget } from "@/components/soko-bot/connect-link-target";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import { cn } from "@/lib/utils";
 import { normalizeLooseInlineMarkdown } from "@/lib/utils/composer-markdown-dom";

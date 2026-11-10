@@ -66,12 +66,13 @@ import {
   STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
+import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioProductCatalogDialog } from "./studio-product-catalog";
-import { StudioTemplateCarousel } from "./studio-template-picker";
-import type { StudioTemplate } from "./studio-templates";
+import { StudioTemplateCanvas } from "./studio-template-canvas";
+import type { StudioBrief } from "./studio-templates";
 import {
   StudioModeSwitch,
   StudioVideoComposer,
@@ -484,7 +485,7 @@ export function ImageStudio({
    * clamped per leg when the batch is built (`clampToModel`), which is the same
    * rule any other frame choice goes through.
    */
-  function applyTemplate(template: StudioTemplate) {
+  function applyTemplate(template: StudioBrief) {
     setHasNewerSettings(true);
     setTemplateUndo(
       (current) => current ?? (prompt.trim() ? { prompt, target } : null),
@@ -500,7 +501,13 @@ export function ImageStudio({
       placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
-    promptRef.current?.focus();
+    if (mode === "video") {
+      setMode("image");
+      setVideoSource(null);
+      requestAnimationFrame(() => promptRef.current?.focus());
+    } else {
+      promptRef.current?.focus();
+    }
   }
 
   function useProduct(
@@ -778,7 +785,7 @@ export function ImageStudio({
     // Re-armed per page: a page that does not fill the viewport must fire again.
   }, [hasOlder, state.assets.length]);
 
-  const dock = useSteadyDock(promptRef);
+  const dock = useSteadyDock(promptRef, showsNothing);
 
   const modeSwitch = hasVideo ? (
     <StudioModeSwitch
@@ -855,7 +862,6 @@ export function ImageStudio({
         promptRef={promptRef}
         referenceAssets={checkedAssets}
         target={target}
-        showTemplates={!showsNothing}
         onUndoTemplate={
           templateUndo
             ? () => {
@@ -890,8 +896,13 @@ export function ImageStudio({
         STUDIO_COLUMN_MOBILE_SHELL_CLASS,
         isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
         STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+        showsNothing &&
+          "relative isolate overflow-y-auto max-md:overflow-y-auto",
       )}
     >
+      {showsNothing ? (
+        <StudioTemplateCanvas labels={labels} onApplyTemplate={applyTemplate} />
+      ) : null}
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
       {activeProjectId ? (
         <div
@@ -912,13 +923,19 @@ export function ImageStudio({
         </div>
       ) : null}
 
-      <div className="app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]">
+      <div
+        className={cn(
+          showsNothing
+            ? "pointer-events-none mt-auto"
+            : "app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]",
+        )}
+      >
         <div
           className={cn(
             "flex min-h-full w-full min-w-0 shrink-0 flex-col gap-4 pb-2",
             // The column cancels the page pad so the prompt docks to the
             // edge; the gallery takes the composer's gutter back. The empty
-            // state's carousel stays edge to edge on purpose.
+            // state's artwork stays edge to edge on purpose.
             showsNothing
               ? "justify-center"
               : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
@@ -932,11 +949,21 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <StudioTemplateCarousel
-              labels={labels}
-              onApplyTemplate={applyTemplate}
-              projectAction={projectScopePrompt}
-            />
+            <div className="space-y-2 px-4 pt-8 text-center">
+              <h2 className="text-foreground text-3xl font-semibold text-balance">
+                {labels.emptyTitle}
+              </h2>
+              <p className="text-muted-foreground text-sm text-pretty">
+                {labels.emptyBody}
+              </p>
+              <div className="pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2">
+                {projectScopePrompt}
+                <StudioCreativeStart
+                  onApplyBrief={applyTemplate}
+                  onFocusPrompt={() => promptRef.current?.focus()}
+                />
+              </div>
+            </div>
           ) : (
             <StudioGallery
               activeJobs={activeJobs}
@@ -1089,9 +1116,18 @@ export function ImageStudio({
         </div>
       ) : null}
 
-      <div className="relative shrink-0" ref={dock.slotRef}>
+      <div
+        className={cn(
+          "relative shrink-0",
+          showsNothing && "mx-auto mb-auto w-full max-w-3xl pb-14",
+        )}
+        ref={dock.slotRef}
+      >
         <div
-          className="bg-background absolute inset-x-0 bottom-0 pt-2"
+          className={cn(
+            "pt-2",
+            !showsNothing && "bg-background absolute inset-x-0 bottom-0",
+          )}
           ref={dock.dockRef}
         >
           {composer}
@@ -1202,13 +1238,20 @@ export function ImageStudio({
  * resting height. A growing brief then rises over the feed, the way a sheet
  * would, and the feed's height only follows the composer's own rows.
  */
-function useSteadyDock(promptRef: RefObject<HTMLTextAreaElement | null>) {
+function useSteadyDock(
+  promptRef: RefObject<HTMLTextAreaElement | null>,
+  floating: boolean,
+) {
   const slotRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const slot = slotRef.current;
     const dock = dockRef.current;
     if (!slot || !dock) return;
+    if (floating) {
+      slot.style.height = "";
+      return;
+    }
     const sync = () => {
       const prompt = promptRef.current;
       const growth = prompt
@@ -1221,7 +1264,7 @@ function useSteadyDock(promptRef: RefObject<HTMLTextAreaElement | null>) {
     const observer = new ResizeObserver(sync);
     observer.observe(dock);
     return () => observer.disconnect();
-  }, [promptRef]);
+  }, [promptRef, floating]);
   return { slotRef, dockRef };
 }
 

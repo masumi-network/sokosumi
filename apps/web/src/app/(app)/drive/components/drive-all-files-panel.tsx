@@ -158,6 +158,8 @@ export interface DriveAllFilesPanelProps {
   folderActions?: ReactNode;
   /** Listed with the root folders; see `DriveFolderNav`. */
   virtualFolder?: { label: string; onOpen: () => void };
+  /** Folders that are data rooms, marked in the folder grid and trail. */
+  dataRoomPaths?: readonly string[];
   /**
    * Bumped when the page changed the files behind this list — an upload, a
    * folder rename, a delete.
@@ -198,6 +200,7 @@ export function DriveAllFilesPanel({
   onFolderChange,
   folderActions,
   virtualFolder,
+  dataRoomPaths,
   onShareFile,
   onMoveFiles,
   reloadToken = 0,
@@ -912,6 +915,10 @@ export function DriveAllFilesPanel({
           onSelect={(folder) => applyFilters({ ...filters, folder })}
           actions={filters.folder ? folderActions : null}
           virtualFolder={virtualFolder}
+          roomPaths={dataRoomPaths}
+          roomHint={t(
+            store.scope === "org" ? "dataRoomAccessOrg" : "dataRoomAccess",
+          )}
         />
       ) : null}
 
