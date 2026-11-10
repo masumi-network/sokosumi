@@ -2,7 +2,10 @@ import { createRoute } from "@hono/zod-openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { adsActions, chooseConfig } from "@/routes/v1/cmo/ads/routes";
+import {
+  adsActions,
+  chooseConfig,
+} from "@/routes/v1/cmo/projects/[projectId]/ads/helpers";
 import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
 
 const chooseProjectRoute = createRoute({
