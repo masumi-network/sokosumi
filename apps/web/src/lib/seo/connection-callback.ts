@@ -16,10 +16,14 @@ export type SeoConnectionCallbackContext = {
   failed: boolean;
 };
 
-/** Only an Audit identifier can select the local return page. */
+/** Only an Audit, or a Project's own SEO workspace, can select the local return page. */
 export function seoConnectionReturnPath(params: URLSearchParams) {
   const audit = z.uuid().safeParse(params.get("auditId"));
-  return audit.success ? `/seo?auditId=${audit.data}` : "/seo";
+  if (audit.success) return `/seo?auditId=${audit.data}`;
+  const project = z.uuid().safeParse(params.get("projectId"));
+  return project.success && params.get("view") === "project"
+    ? `/seo?projectId=${project.data}&view=project`
+    : "/seo";
 }
 
 export function seoConnectionCallbackUrl(input: {

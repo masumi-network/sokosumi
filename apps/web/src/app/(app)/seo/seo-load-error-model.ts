@@ -41,10 +41,13 @@ export function seoLoadRecovery({
 }: SeoLoadRecoveryInput) {
   const contextual =
     status !== undefined && CONTEXT_UNAVAILABLE_STATUSES.has(status);
+  // A Project owner is the Project's own SEO workspace: without `view` the page lists its Audits.
   const params = owner
-    ? new URLSearchParams({
-        [owner.kind === "audit" ? "auditId" : "projectId"]: owner.id,
-      })
+    ? new URLSearchParams(
+        owner.kind === "audit"
+          ? { auditId: owner.id }
+          : { projectId: owner.id, view: "project" },
+      )
     : null;
   return {
     contextual,

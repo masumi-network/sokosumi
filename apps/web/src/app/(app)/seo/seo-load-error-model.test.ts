@@ -62,7 +62,7 @@ describe("SEO load error model", () => {
         owner: { kind: "project", id: AUDIT },
         hasSelection: true,
       }).allPagesHref,
-    ).toBe(`/seo?projectId=${AUDIT}`);
+    ).toBe(`/seo?projectId=${AUDIT}&view=project`);
     expect(seoLoadRecovery({ status: 404 }).allPagesHref).toBeNull();
     expect(seoLoadRecovery({ invalidFilters: true }).canRetry).toBe(false);
   });
