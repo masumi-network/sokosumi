@@ -9,10 +9,11 @@ import { toast } from "sonner";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type {
   SokoBotConnectOffer,
   SokoBotConnectPromptState,
@@ -67,22 +68,14 @@ export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
     setDismissed(true);
   }
 
-  return (
-    <SokoBotConnectCard
-      botName={data.botName}
-      offers={data.offers}
-      onDismiss={dismiss}
-    />
-  );
+  return <SokoBotConnectCard offers={data.offers} onDismiss={dismiss} />;
 }
 
 /** The card itself, without the fetch, so it renders in tests and previews. */
 export function SokoBotConnectCard({
-  botName,
   offers,
   onDismiss,
 }: {
-  botName: string;
   offers: SokoBotConnectOffer[];
   onDismiss: () => void;
 }) {
@@ -103,62 +96,55 @@ export function SokoBotConnectCard({
   }
 
   // The composer owns the outer inset; the tray sits one step inside it.
+  // One generic line and one Connect button: the bot's name lives in the
+  // room header, and on a phone it wrapped this title over three lines.
   return (
     <section
       data-testid="soko-bot-connect-prompt"
-      aria-label={t("connectTitle", { bot: botName })}
+      aria-label={t("connectCompactTitle")}
       className="border-border bg-card-background mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
     >
       <Inbox aria-hidden className="text-muted-foreground size-4 shrink-0" />
-      {/* Wraps (up to three lines) rather than truncating: on a 320px phone one line
-          leaves "Give Jarvis y…", which drops what the logos are for. */}
-      <p className="line-clamp-3 min-w-0 flex-1 text-xs leading-5 [overflow-wrap:anywhere]">
-        <span className="font-medium">
-          {t("connectTitle", { bot: botName })}
-        </span>
+      <p className="line-clamp-2 min-w-0 flex-1 text-xs leading-5">
+        <span className="font-medium">{t("connectCompactTitle")}</span>
         <span className="text-muted-foreground max-sm:hidden">
           {" · "}
           {t("connectBody")}
         </span>
       </p>
       <div className="flex shrink-0 items-center gap-0.5">
-        {offers.map((offer) => {
-          const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];
-          const label = offer.connected
-            ? t("connectConnected", { name: offer.name })
-            : t("connectProvider", { name: offer.name });
-          return (
-            <Tooltip key={offer.provider}>
-              <TooltipTrigger asChild>
-                {/* aria-disabled, not disabled: a connected provider keeps
-                      its tooltip and stays reachable, it just does nothing. */}
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  aria-label={label}
-                  aria-disabled={offer.connected || busy !== null}
-                  onClick={() => {
-                    if (!offer.connected && busy === null)
-                      connect(offer.provider);
-                  }}
-                  className="relative size-10 md:size-8 aria-disabled:cursor-default"
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy !== null}
+              className="h-10 md:h-8"
+            >
+              {t("connectButton")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top">
+            {offers.map((offer) => {
+              const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];
+              return (
+                <DropdownMenuItem
+                  key={offer.provider}
+                  disabled={offer.connected}
+                  onSelect={() => connect(offer.provider)}
                 >
-                  {Logo ? <Logo className="size-4 shrink-0" /> : null}
+                  {Logo ? <Logo className="size-4" /> : null}
+                  {offer.connected
+                    ? t("connectConnected", { name: offer.name })
+                    : t("connectProvider", { name: offer.name })}
                   {offer.connected ? (
-                    <span
-                      aria-hidden
-                      className="bg-semantic-success text-semantic-success-foreground absolute -end-0.5 -bottom-0.5 flex size-3 items-center justify-center rounded-full"
-                    >
-                      <Check className="size-2" strokeWidth={3} />
-                    </span>
+                    <Check aria-hidden className="ms-auto" />
                   ) : null}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{label}</TooltipContent>
-            </Tooltip>
-          );
-        })}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <span aria-hidden className="bg-border mx-1 h-4 w-px" />
         <Button
           type="button"

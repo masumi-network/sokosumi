@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Toaster } from "@/components/ui/sonner";
 import {
   APP_HEADER_HEIGHT_PX,
@@ -8,11 +10,15 @@ import {
 } from "@/lib/constants/notification-toaster";
 
 export function NotificationToaster() {
+  const t = useTranslations("Components.NotificationCenter");
   const topOffset = APP_HEADER_HEIGHT_PX + TOAST_GAP_BELOW_HEADER_PX;
 
   return (
     <Toaster
       id={NOTIFICATION_TOASTER_ID}
+      // The root toaster keeps Sonner's "Notifications" label; two landmarks
+      // with one name read as the same region twice.
+      containerAriaLabel={t("toastRegion")}
       position="top-right"
       offset={{ top: topOffset, right: 16 }}
       mobileOffset={{ top: topOffset, right: 16 }}
