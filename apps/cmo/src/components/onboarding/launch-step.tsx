@@ -96,16 +96,24 @@ interface LaunchStepProps {
   onCelebrate?: (celebrating: boolean) => void;
 }
 
-/** The next post on a connected network, as "Tue 6 Oct, 09:00"; empty when none. */
-function firstPost(
+/**
+ * The next post still to come on a connected network, as "Tue 6 Oct, 09:00";
+ * empty when none. Calendar days and times are the founder's local ones.
+ */
+export function firstPost(
   calendar: { date: string; time?: string; channel: string }[],
   connected: ReadonlySet<string>,
-) {
-  const today = new Date().toISOString().slice(0, 10);
+  now = new Date(),
+): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const clock = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const first = calendar
     .filter(
       (entry) =>
-        entry.date >= today && connected.has(channelKey(entry.channel) ?? ""),
+        connected.has(channelKey(entry.channel) ?? "") &&
+        (entry.date > today ||
+          (entry.date === today && (entry.time ?? clock) >= clock)),
     )
     .map((entry) => `${entry.date} ${entry.time ?? ""}`.trim())
     .sort()[0];

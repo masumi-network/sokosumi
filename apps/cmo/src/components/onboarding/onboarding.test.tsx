@@ -21,6 +21,7 @@ import { inertOnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
 import { OnboardingFlow } from "./flow";
 import {
+  firstPost,
   LaunchStep,
   optionalChannels,
   strategySocialChannels,
@@ -839,5 +840,26 @@ describe("strategy helpers the screens build on", () => {
     expect(groups.get("linkedin")?.map((entry) => entry.id)).toEqual(["a"]);
     expect(groups.get("x")?.map((entry) => entry.id)).toEqual(["b"]);
     expect(groups.get("newsletter")?.map((entry) => entry.id)).toEqual(["c"]);
+  });
+});
+
+describe("first post on the Launch recap", () => {
+  const connected = new Set(["linkedin"]);
+  const calendar = [
+    { date: "2026-10-06", time: "07:30", channel: "linkedin" },
+    { date: "2026-10-06", time: "09:00", channel: "linkedin" },
+    { date: "2026-10-06", time: "08:00", channel: "instagram" },
+  ];
+
+  it("is the next post still to come on a connected network, in local time", () => {
+    // 08:00 on 6 Oct where the founder is: 07:30 already went out.
+    const now = new Date(2026, 9, 6, 8, 0);
+    expect(firstPost(calendar, connected, now)).toBe("Tue 6 Oct, 09:00");
+  });
+
+  it("is empty once every post on a connected network went out", () => {
+    expect(firstPost(calendar, connected, new Date(2026, 9, 6, 10, 0))).toBe(
+      "",
+    );
   });
 });

@@ -163,6 +163,8 @@ export async function Home({ searchParams, view }: HomeProps) {
     overview.strategyVersion?.approvedAt != null;
   // Every Cuso action names the Project of the overview this page rendered,
   // so a workspace switch elsewhere cannot move them to another Cuso.
+  // Keyed by that Project too: a soft navigation to another Cuso (Start over,
+  // ?project=) mounts fresh state instead of keeping the last Cuso's.
   const { projectId } = overview;
   if (overview.onboardingStep !== "done" || backInHiring) {
     // The app's pages open once onboarding ends; until then it is the first run.
@@ -171,6 +173,7 @@ export async function Home({ searchParams, view }: HomeProps) {
     }
     return (
       <OnboardingFlow
+        key={projectId}
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
@@ -200,6 +203,7 @@ export async function Home({ searchParams, view }: HomeProps) {
   }
   return (
     <CmoApp
+      key={projectId}
       overview={overview}
       messages={await loadMessages(projectId).catch(() => [])}
       name={session.user.name}
