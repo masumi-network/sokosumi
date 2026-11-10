@@ -53,6 +53,7 @@ describe.skipIf(!enabled)("GET /chats/recent against PostgreSQL", () => {
         organizationId: options.org ?? null,
         name: "Fixture chat",
         kind: "direct",
+        directKey: `recent:${id}`,
         createdByUserId: reader,
         userMembers: { create: [{ userId: reader }, { userId: teammate }] },
         ...(options.withBot === false
