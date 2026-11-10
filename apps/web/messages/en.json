@@ -3245,7 +3245,10 @@
           "bots": "Bots"
         },
         "design": {
-          "document": "DESIGN.md"
+          "document": "DESIGN.md",
+          "colors": "Colors",
+          "typography": "Typography",
+          "frontMatter": "Front matter"
         },
         "bots": {
           "title": "Bots for this project"
