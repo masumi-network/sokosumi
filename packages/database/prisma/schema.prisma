@@ -515,6 +515,7 @@ model Project {
   adMarketAdsJob    ProjectAdMarketAdsJob?
 
   studioProductCatalog ProjectStudioProductCatalog?
+  studioConnections    ProjectStudioConnection[]
 
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
@@ -5196,6 +5197,20 @@ model ProjectStudioProductCatalog {
   revision  Int
 
   @@map("project_studio_product_catalog")
+}
+
+model ProjectStudioConnection {
+  projectId String   @db.Uuid
+  userId    String
+  keyHash   String   @unique
+  expiresAt DateTime
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_studio_connection")
 }
 
 /// One eve conversation, permanently bound to one project.

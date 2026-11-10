@@ -39281,6 +39281,50 @@ export const StudioBrandLookSchema = {
     ]
 } as const;
 
+export const StudioConnectionSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'url',
+        'expiresAt'
+    ]
+} as const;
+
+export const IssuedStudioConnectionSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/StudioConnection'
+        },
+        {
+            type: 'object',
+            properties: {
+                expiresAt: {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                token: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'token'
+            ]
+        }
+    ]
+} as const;
+
 export const CreateProjectImageJobRequestSchema = {
     type: 'object',
     properties: {

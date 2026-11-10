@@ -10447,6 +10447,16 @@ export type StudioBrandLook = {
     fonts: Array<string>;
 };
 
+export type StudioConnection = {
+    url: string;
+    expiresAt: Date | null;
+};
+
+export type IssuedStudioConnection = StudioConnection & {
+    expiresAt?: Date;
+    token: string;
+};
+
 export type CreateProjectImageJobRequest = {
     modelId?: string;
     prompt: string;
@@ -68560,6 +68570,242 @@ export type FindStudioWebsiteLogoResponses = {
 };
 
 export type FindStudioWebsiteLogoResponse = FindStudioWebsiteLogoResponses[keyof FindStudioWebsiteLogoResponses];
+
+export type RevokeStudioConnectionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/connection';
+};
+
+export type RevokeStudioConnectionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RevokeStudioConnectionError = RevokeStudioConnectionErrors[keyof RevokeStudioConnectionErrors];
+
+export type RevokeStudioConnectionResponses = {
+    /**
+     * Studio connection revoked
+     */
+    204: void;
+};
+
+export type RevokeStudioConnectionResponse = RevokeStudioConnectionResponses[keyof RevokeStudioConnectionResponses];
+
+export type GetStudioConnectionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/connection';
+};
+
+export type GetStudioConnectionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetStudioConnectionError = GetStudioConnectionErrors[keyof GetStudioConnectionErrors];
+
+export type GetStudioConnectionResponses = {
+    /**
+     * Current Studio connection
+     */
+    200: {
+        data: StudioConnection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetStudioConnectionResponse = GetStudioConnectionResponses[keyof GetStudioConnectionResponses];
+
+export type CreateStudioConnectionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/connection';
+};
+
+export type CreateStudioConnectionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateStudioConnectionError = CreateStudioConnectionErrors[keyof CreateStudioConnectionErrors];
+
+export type CreateStudioConnectionResponses = {
+    /**
+     * Studio connection created
+     */
+    201: {
+        data: IssuedStudioConnection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateStudioConnectionResponse = CreateStudioConnectionResponses[keyof CreateStudioConnectionResponses];
 
 export type PostProjectsByIdImageStudioJobsData = {
     body: CreateProjectImageJobRequest;

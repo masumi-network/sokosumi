@@ -26,7 +26,7 @@ vi.mock("@/config/env", async (importOriginal) => {
       IMAGE_STUDIO_AGENT_SECRET: "campaign-fixture-agent-secret".repeat(2),
       AI_GATEWAY_API_KEY: undefined,
     }),
-    getBetterAuthPublicBaseUrl: () => null,
+    getBetterAuthPublicBaseUrl: () => "https://core.example.test",
   };
 });
 vi.mock("@sokosumi/net", async (importOriginal) => ({
@@ -57,13 +57,16 @@ import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import { mintAgentGrant } from "@/lib/image-studio/agent-grant";
+import { STUDIO_MCP_PATH } from "@/lib/image-studio/studio-connection";
 import legacyAgentRoutes from "@/routes/image-studio-agent/index";
 import agentRoutes from "@/routes/v1/image-studio-agent/index";
+import mcpRoutes from "@/routes/v1/image-studio-mcp/index";
 import mountAssetContent from "@/routes/v1/projects/[id]/image-studio/asset-content-get";
 import mountAssetHeadline from "@/routes/v1/projects/[id]/image-studio/asset-headline-put";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
 import mountBrandKit from "@/routes/v1/projects/[id]/image-studio/brand-kit";
 import mountWebsiteLogo from "@/routes/v1/projects/[id]/image-studio/brand-logo-website-post";
+import mountConnection from "@/routes/v1/projects/[id]/image-studio/connection";
 import mountJobs from "@/routes/v1/projects/[id]/image-studio/jobs-post";
 import mountSaveProducts from "@/routes/v1/projects/[id]/image-studio/products/put";
 import mountPatchProject from "@/routes/v1/projects/[id]/patch";
@@ -114,9 +117,11 @@ function app(actorId = userId) {
   });
   server.onError(errorHandler);
   server.route("/v1/image-studio-agent", agentRoutes);
+  server.route(`/v1${STUDIO_MCP_PATH}`, mcpRoutes);
   server.route("/image-studio-agent", legacyAgentRoutes);
   mountBrandKit(server);
   mountWebsiteLogo(server);
+  mountConnection(server);
   mountPatchProject(server);
   mountSaveProducts(server);
   mountJobs(server);
@@ -735,6 +740,185 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect(revoke.status).toBe(200);
     const withoutHeadline = await finishRevision(await fromAssistant(), null);
     await expectedBatch(withoutHeadline.id);
+  });
+
+  it("shares one project's brand and catalog over MCP until the connection expires or is revoked", async () => {
+    const project = await prisma.project.create({
+      data: {
+        workspaceId,
+        name: "Assistant demo",
+        websiteUrl: shop,
+        designMdUrl: designMd,
+        studioBrandLook: { colors: ["#123456"], fonts: ["Source Serif 4"] },
+      },
+    });
+    const studio = app();
+    const path = `/${project.id}/image-studio`;
+    const connectionPath = `${path}/connection`;
+    const endpoint = `/v1${STUDIO_MCP_PATH}`;
+    function mcp(
+      token: string,
+      method: string,
+      params: Record<string, unknown> = {},
+      headers?: Record<string, string>,
+    ) {
+      return studio.request(endpoint, {
+        ...json("POST", { jsonrpc: "2.0", id: 1, method, params }),
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+          authorization: `Bearer ${token}`,
+          ...headers,
+        },
+      });
+    }
+    async function result(response: Response) {
+      expect(response.status).toBe(200);
+      if (response.headers.get("content-type")?.includes("text/event-stream")) {
+        const message = (await response.text())
+          .split("\n")
+          .find((line) => line.startsWith("data: {"));
+        return JSON.parse(message?.slice(6) ?? "null");
+      }
+      return response.json();
+    }
+    async function connect() {
+      const response = await studio.request(connectionPath, { method: "POST" });
+      expect(response.status).toBe(201);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      const { data } = await response.json();
+      expect(data.url).toBe(`https://core.example.test${endpoint}`);
+      expect(data.token).toMatch(/^studio_[\w-]{43}$/);
+      return data;
+    }
+    try {
+      const productId = randomUUID();
+      const product = {
+        id: productId,
+        name: "Fieldwork Travel Mug",
+        description: "Insulated steel.",
+        price: "$20",
+        url: null,
+        imageUrl: null,
+      };
+      expect(
+        (
+          await studio.request(
+            `${path}/products`,
+            json("PUT", {
+              revision: 0,
+              products: [product],
+            }),
+          )
+        ).status,
+      ).toBe(200);
+      expect(
+        (await app(randomUUID()).request(connectionPath, { method: "POST" }))
+          .status,
+      ).toBe(404);
+      const denied = await mcp("wrong-token", "tools/list");
+      expect(denied.status).toBe(401);
+      expect(denied.headers.get("www-authenticate")).toBe("Bearer");
+
+      const { token, expiresAt } = await connect();
+      const status = await studio.request(connectionPath);
+      expect((await status.json()).data).toEqual({
+        url: `https://core.example.test${endpoint}`,
+        expiresAt,
+      });
+      expect(
+        (
+          await mcp(
+            token,
+            "tools/list",
+            {},
+            { origin: "https://another.example" },
+          )
+        ).status,
+      ).toBe(403);
+      const initialized = await result(
+        await mcp(token, "initialize", {
+          protocolVersion: "2025-11-25",
+          capabilities: {},
+          clientInfo: { name: "fixture", version: "1" },
+        }),
+      );
+      expect(initialized.result.serverInfo.name).toBe(
+        "sokosumi-content-studio",
+      );
+      const tools = await result(await mcp(token, "tools/list"));
+      expect(
+        tools.result.tools.map((tool: { name: string }) => tool.name).sort(),
+      ).toEqual(["get_brand_kit", "list_products", "research_website"]);
+      const brand = await result(
+        await mcp(token, "tools/call", {
+          name: "get_brand_kit",
+          arguments: {},
+        }),
+      );
+      expect(brand.result.structuredContent).toMatchObject({
+        colors: ["#123456"],
+        fonts: ["Source Serif 4"],
+      });
+      const crossProject = await result(
+        await mcp(token, "tools/call", {
+          name: "get_brand_kit",
+          arguments: { projectId },
+        }),
+      );
+      expect(crossProject.result.isError).toBe(true);
+      const catalog = await result(
+        await mcp(token, "tools/call", {
+          name: "list_products",
+          arguments: {},
+        }),
+      );
+      expect(catalog.result.structuredContent).toEqual({
+        products: [
+          {
+            id: productId,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            hasPhoto: false,
+          },
+        ],
+      });
+      const research = await result(
+        await mcp(token, "tools/call", {
+          name: "research_website",
+          arguments: {},
+        }),
+      );
+      expect(research.result.structuredContent.products).toHaveLength(2);
+
+      const next = await connect();
+      expect((await mcp(token, "tools/list")).status).toBe(401);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { banned: true },
+      });
+      try {
+        expect((await mcp(next.token, "tools/list")).status).toBe(401);
+      } finally {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { banned: false },
+        });
+      }
+      await prisma.projectStudioConnection.update({
+        where: { projectId_userId: { projectId: project.id, userId } },
+        data: { expiresAt: new Date(0) },
+      });
+      expect((await mcp(next.token, "tools/list")).status).toBe(401);
+      const final = await connect();
+      expect(
+        (await studio.request(connectionPath, { method: "DELETE" })).status,
+      ).toBe(204);
+      expect((await mcp(final.token, "tools/list")).status).toBe(401);
+    } finally {
+      await prisma.project.delete({ where: { id: project.id } });
+    }
   });
 
   it("composites a verified product cutout into the delivered artwork and checks the file again", async () => {

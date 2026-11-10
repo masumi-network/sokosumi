@@ -52,6 +52,7 @@
     "@composio/core": "0.28.0",
     "@hono/node-server": "2.1.6",
     "@hono/zod-openapi": "1.6.3",
+    "@modelcontextprotocol/server": "2.4.0",
     "@openrouter/ai-sdk-provider": "3.1.0",
     "@scalar/hono-api-reference": "0.12.18",
     "@scalar/openapi-to-markdown": "1.7.4",

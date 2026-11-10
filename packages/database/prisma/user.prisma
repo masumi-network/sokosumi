@@ -128,6 +128,7 @@ model User {
   confirmedBrandBrains             BrandBrain[]                  @relation("BrandBrainConfirmedBy")
 
   imageSessions ProjectImageSession[] @relation("ProjectImageSessionCreator")
+  studioConnections ProjectStudioConnection[]
   imageJobs     ProjectImageJob[]     @relation("ProjectImageJobRequester")
   imageReviews  ProjectImageReview[]  @relation("ProjectImageReviewDecider")
 

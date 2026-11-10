@@ -38,6 +38,7 @@ import mountListStudioBatchAssets from "./[id]/image-studio/batch-assets-get.js"
 import mountStudioBrandKit from "./[id]/image-studio/brand-kit.js";
 import mountStudioBrandLogo from "./[id]/image-studio/brand-logo-post.js";
 import mountStudioWebsiteLogo from "./[id]/image-studio/brand-logo-website-post.js";
+import mountStudioConnection from "./[id]/image-studio/connection.js";
 import mountGetProjectImageStudio from "./[id]/image-studio/get.js";
 import mountCancelProjectImageJob from "./[id]/image-studio/job-cancel-post.js";
 import mountCreateProjectImageJob from "./[id]/image-studio/jobs-post.js";
@@ -235,6 +236,7 @@ mountListStudioBatchAssets(app);
 mountStudioBrandKit(app);
 mountStudioBrandLogo(app);
 mountStudioWebsiteLogo(app);
+mountStudioConnection(app);
 mountCreateProjectImageJob(app);
 mountGetStudioProductCatalog(app);
 mountImportStudioProductCatalog(app);

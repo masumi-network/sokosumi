@@ -15,6 +15,36 @@ deployables:
 Both halves ship through the normal pipeline: `/deploy <network>` on a pull
 request, or a merge to `main` for production.
 
+## External assistant connection
+
+The Core `/v1/image-studio-mcp` endpoint serves Streamable HTTP. An interactive
+project member can issue a connection from
+`POST /v1/projects/{projectId}/image-studio/connection`. Its response contains
+the endpoint URL, a token shown once, and the expiry. Use the same project
+route with `GET` to check the expiry and `DELETE` to disconnect. Issuing a
+fresh token replaces the caller's previous token for that project.
+
+Configure a client that accepts an Authorization header with the returned URL
+and `Bearer <token>`. For Claude Code, a local configuration can reference
+environment variables. Set `STUDIO_MCP_URL` and `STUDIO_MCP_TOKEN` in the
+client process environment.
+
+```json
+{
+  "mcpServers": {
+    "sokosumi-studio": {
+      "type": "http",
+      "url": "${STUDIO_MCP_URL}",
+      "headers": { "Authorization": "Bearer ${STUDIO_MCP_TOKEN}" }
+    }
+  }
+}
+```
+
+The token expires after one hour. The connector reads the saved brand kit and
+catalog and prepares drafts from the project's saved website. Studio applies
+its existing website-fetch limits and rechecks project access on every call.
+
 ## Environment
 
 The studio is off unless every key below is set on the right project. None of
