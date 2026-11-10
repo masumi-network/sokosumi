@@ -471,6 +471,8 @@ model Project {
   sitePlatform            String?
   logo                    String?
   studioLogoPosition      String?
+  studioBrandLook         Json?
+  studioBrandLookRevision Int       @default(0)
   designMdUrl             String?
   designMdExtractionId    String?
   /// Markdown guidance for drafting this Project's social posts (tone,

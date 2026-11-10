@@ -55,7 +55,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
 
 import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
-import type { EnvVariables } from "@/lib/hono";
+import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import { mintAgentGrant } from "@/lib/image-studio/agent-grant";
 import legacyAgentRoutes from "@/routes/image-studio-agent/index";
 import agentRoutes from "@/routes/v1/image-studio-agent/index";
@@ -93,7 +93,9 @@ let workspaceId: string;
 let projectId: string;
 
 function app(actorId = userId) {
-  const server = new OpenAPIHono<EnvVariables>();
+  const server = new OpenAPIHono<EnvVariables>({
+    defaultHook: defaultValidationHook,
+  });
   server.use("*", async (c, next) => {
     c.set("requestId", "studio-campaign-fixture");
     c.set("authContext", {
@@ -319,7 +321,52 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect((await savedKit.json()).data).toMatchObject({
       logo,
       studioLogoPosition: "bottom-left",
+      lookRevision: 0,
+      hasCustomLook: false,
     });
+    const lookPath = `${path}/brand-kit/look`;
+    const customLook = { colors: ["#134"], fonts: ["Source Serif 4"] };
+    const savedLook = await studio.request(
+      lookPath,
+      json("PUT", { look: customLook, lookRevision: 0 }),
+    );
+    expect(savedLook.status).toBe(200);
+    const savedLookState = {
+      colors: ["#113344"],
+      fonts: customLook.fonts,
+      lookRevision: 1,
+      hasCustomLook: true,
+    };
+    expect((await savedLook.json()).data).toEqual(savedLookState);
+    expect(
+      (
+        await studio.request(
+          lookPath,
+          json("PUT", { look: null, lookRevision: 0 }),
+        )
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await studio.request(
+          lookPath,
+          json("PUT", {
+            look: { colors: ["orange"], fonts: [] },
+            lookRevision: 1,
+          }),
+        )
+      ).status,
+    ).toBe(422);
+    expect(
+      (
+        await app(randomUUID()).request(
+          lookPath,
+          json("PUT", { look: null, lookRevision: 1 }),
+        )
+      ).status,
+    ).toBe(404);
+    const customKit = await studio.request(`${path}/brand-kit`);
+    expect((await customKit.json()).data).toMatchObject(savedLookState);
     expect(
       (
         await studio.request(
@@ -386,10 +433,23 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       expect(payload.input.prompt).not.toContain(approvedLine);
       expect(payload.input.prompt).not.toContain(secondApprovedLine);
       expect(payload.input.prompt).toContain("#a33421");
+      expect(payload.input.prompt).toContain("Palette: #113344");
+      expect(payload.input.prompt).toContain("Fonts: Source Serif 4");
       expect(payload.input.prompt).toContain(submissions[index].product.name);
       expect(payload.input.prompt).toContain("Keep the upper area clear");
       expect(payload.input.prompt).not.toContain(unusedLine);
     }
+    const resetLook = await studio.request(
+      lookPath,
+      json("PUT", { look: null, lookRevision: 1 }),
+    );
+    expect(resetLook.status).toBe(200);
+    expect((await resetLook.json()).data).toEqual({
+      colors: ["#a33421"],
+      fonts: ["Inter"],
+      lookRevision: 2,
+      hasCustomLook: false,
+    });
     const jobs = await prisma.projectImageJob.findMany({
       where: { projectId, batchId },
     });

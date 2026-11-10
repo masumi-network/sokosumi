@@ -178,6 +178,8 @@ describe("readStudioBrandKit", () => {
       studioLogoPosition: "top-left",
       colors: ["#a33421"],
       fonts: ["Inter"],
+      lookRevision: 0,
+      hasCustomLook: false,
       summary: "A ceramics studio",
       tone: "Direct",
       audience: ["Home cooks"],

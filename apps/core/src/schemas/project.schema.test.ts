@@ -39,6 +39,8 @@ function createDatabaseProject(
     sitePlatform: null,
     logo: null,
     studioLogoPosition: null,
+    studioBrandLook: null,
+    studioBrandLookRevision: 0,
     designMdUrl: null,
     designMdExtractionId: null,
     postingInstructionsMd: null,

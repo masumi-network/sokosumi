@@ -1,4 +1,5 @@
 import type {
+  SaveStudioBrandLook,
   StudioBrandCopy,
   StudioBrandKit,
   StudioLogoPosition,
@@ -41,6 +42,7 @@ import {
   getStudioBrandKit,
   getStudioWebsiteCopy,
   saveStudioBrandCopy,
+  saveStudioBrandLook,
   saveStudioLogoPosition,
   saveStudioWebsiteLogo,
   uploadStudioProjectLogo,
@@ -87,6 +89,13 @@ export function StudioBrandKitDialog({
     approvedLines: "",
   });
   const [dirty, setDirty] = useState(false);
+  const [lookDraft, setLookDraft] = useState<{
+    colors: string;
+    fonts: string;
+  } | null>(null);
+  const [lookMessage, setLookMessage] = useState<
+    "lookSaved" | "lookReset" | "lookSaveError" | "lookConflict" | null
+  >(null);
   const [logoPositionDraft, setLogoPositionDraft] =
     useState<StudioLogoPosition | null>(null);
   const [websiteStyleSaved, setWebsiteStyleSaved] = useState(false);
@@ -97,8 +106,13 @@ export function StudioBrandKitDialog({
   const [logoPending, startLogoTransition] = useTransition();
   const [websiteLogoPending, startWebsiteLogoTransition] = useTransition();
   const [websitePending, startWebsiteTransition] = useTransition();
+  const [lookPending, startLookTransition] = useTransition();
   const pending =
-    brandPending || logoPending || websiteLogoPending || websitePending;
+    brandPending ||
+    logoPending ||
+    websiteLogoPending ||
+    websitePending ||
+    lookPending;
   const logoInput = useRef<HTMLInputElement>(null);
   const [logoCandidate, setLogoCandidate] = useState<string | null>(null);
   const [logoMessage, setLogoMessage] = useState<
@@ -129,6 +143,22 @@ export function StudioBrandKitDialog({
     copy.approvedLines.length > MAX_LINES ||
     copy.audience.some((line) => line.length > MAX_AUDIENCE_LENGTH) ||
     copy.approvedLines.some((line) => line.length > MAX_COPY_LENGTH);
+  const look = lookDraft
+    ? { colors: lines(lookDraft.colors), fonts: lines(lookDraft.fonts) }
+    : null;
+  const invalidColors =
+    look &&
+    (look.colors.length > 8 ||
+      look.colors.some(
+        (color) => !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color),
+      ));
+  const invalidFonts =
+    look &&
+    (look.fonts.length > 4 ||
+      look.fonts.some(
+        (font) => font.length > 80 || /[\p{Cc}\p{Cf}]/u.test(font),
+      ));
+  const invalidLook = !!(invalidColors || invalidFonts);
 
   function load() {
     startTransition(async () => {
@@ -137,6 +167,8 @@ export function StudioBrandKitDialog({
       setLogoCandidate(null);
       setWebsiteMessage(null);
       setWebsiteStyleSaved(false);
+      setLookDraft(null);
+      setLookMessage(null);
       try {
         const next = await getStudioBrandKit({ projectId });
         setKit(next);
@@ -326,6 +358,51 @@ export function StudioBrandKitDialog({
     });
   }
 
+  function updateLook(next: SaveStudioBrandLook["look"]) {
+    if (!kit || pending || (next && invalidLook)) return;
+    startLookTransition(async () => {
+      try {
+        const result = await saveStudioBrandLook({
+          projectId,
+          look: next,
+          lookRevision: kit.lookRevision ?? 0,
+        });
+        if (!result.ok) {
+          setLookMessage(result.conflict ? "lookConflict" : "lookSaveError");
+          return;
+        }
+        setKit((current) => current && { ...current, ...result.look });
+        setLookDraft(null);
+        setLookMessage(next ? "lookSaved" : "lookReset");
+      } catch {
+        setLookMessage("lookSaveError");
+      }
+    });
+  }
+
+  function reloadLook() {
+    startLookTransition(async () => {
+      try {
+        const { colors, fonts, lookRevision, hasCustomLook } =
+          await getStudioBrandKit({ projectId });
+        setKit(
+          (current) =>
+            current && {
+              ...current,
+              colors,
+              fonts,
+              lookRevision,
+              hasCustomLook,
+            },
+        );
+        setLookDraft(null);
+        setLookMessage(null);
+      } catch {
+        setLookMessage("lookConflict");
+      }
+    });
+  }
+
   return (
     <Dialog
       open={open}
@@ -494,7 +571,7 @@ export function StudioBrandKitDialog({
                   {t(`BrandKit.${logoMessage}`)}
                 </p>
               ) : null}
-              {kit.colors.length ? (
+              {!lookDraft && kit.colors.length ? (
                 <ul
                   aria-label={t("BrandKit.colors")}
                   className="flex flex-wrap gap-2"
@@ -514,12 +591,123 @@ export function StudioBrandKitDialog({
                   ))}
                 </ul>
               ) : null}
-              {kit.fonts.length ? (
+              {!lookDraft && kit.fonts.length ? (
                 <p className="text-muted-foreground text-sm break-words">
                   {kit.fonts.join(" · ")}
                 </p>
               ) : null}
-              {websiteUrl ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  aria-expanded={lookDraft !== null}
+                  onClick={() => {
+                    setLookDraft(
+                      lookDraft
+                        ? null
+                        : {
+                            colors: kit.colors.join("\n"),
+                            fonts: kit.fonts.join("\n"),
+                          },
+                    );
+                    if (lookMessage !== "lookConflict") setLookMessage(null);
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {t(lookDraft ? "BrandKit.cancelLook" : "BrandKit.editLook")}
+                </Button>
+                {!lookDraft && kit.hasCustomLook ? (
+                  <Button
+                    loading={lookPending}
+                    disabled={lookMessage === "lookConflict"}
+                    onClick={() => updateLook(null)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    {t("BrandKit.resetLook")}
+                  </Button>
+                ) : null}
+              </div>
+              {lookDraft ? (
+                <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="studio-brand-colors">
+                      {t("BrandKit.colors")}
+                    </Label>
+                    <Textarea
+                      id="studio-brand-colors"
+                      aria-describedby="studio-brand-colors-help"
+                      aria-invalid={!!invalidColors}
+                      className="font-mono"
+                      rows={3}
+                      value={lookDraft.colors}
+                      onChange={(event) =>
+                        setLookDraft({
+                          ...lookDraft,
+                          colors: event.currentTarget.value,
+                        })
+                      }
+                    />
+                    <p
+                      id="studio-brand-colors-help"
+                      className="text-muted-foreground text-xs"
+                    >
+                      {t("BrandKit.colorsHelp")}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="studio-brand-fonts">
+                      {t("BrandKit.fonts")}
+                    </Label>
+                    <Textarea
+                      id="studio-brand-fonts"
+                      aria-describedby="studio-brand-fonts-help"
+                      aria-invalid={!!invalidFonts}
+                      rows={2}
+                      value={lookDraft.fonts}
+                      onChange={(event) =>
+                        setLookDraft({
+                          ...lookDraft,
+                          fonts: event.currentTarget.value,
+                        })
+                      }
+                    />
+                    <p
+                      id="studio-brand-fonts-help"
+                      className="text-muted-foreground text-xs"
+                    >
+                      {t("BrandKit.fontsHelp")}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={invalidLook || lookMessage === "lookConflict"}
+                    loading={lookPending}
+                    onClick={() => updateLook(look)}
+                    size="sm"
+                    type="button"
+                  >
+                    {t("BrandKit.saveLook")}
+                  </Button>
+                </div>
+              ) : null}
+              {lookMessage ? (
+                <p role="status" className="text-muted-foreground text-sm">
+                  {t(`BrandKit.${lookMessage}`)}
+                </p>
+              ) : null}
+              {lookMessage === "lookConflict" ? (
+                <Button
+                  loading={lookPending}
+                  onClick={reloadLook}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {t("BrandKit.reloadLook")}
+                </Button>
+              ) : null}
+              {websiteUrl && !lookDraft ? (
                 <div className="space-y-2">
                   <DesignMdGenerateDialog
                     owner={{ type: "project", projectId }}
@@ -532,13 +720,14 @@ export function StudioBrandKitDialog({
                     }
                     onGenerated={({ look }) => {
                       if (!look) return;
-                      setKit(
-                        (current) =>
-                          current && {
-                            ...current,
-                            colors: look.colors,
-                            fonts: look.fonts,
-                          },
+                      setKit((current) =>
+                        current && !current.hasCustomLook
+                          ? {
+                              ...current,
+                              colors: look.colors,
+                              fonts: look.fonts,
+                            }
+                          : current,
                       );
                       setWebsiteStyleSaved(true);
                     }}

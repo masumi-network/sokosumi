@@ -11,13 +11,16 @@ import {
   prepareStudioWebsiteDraft,
   readStudioBrandKit,
   readStudioWebsiteCopy,
+  saveStudioBrandLook,
 } from "@/lib/image-studio/studio-brand";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.schema";
 import {
   saveStudioBrandCopySchema,
+  saveStudioBrandLookSchema,
   studioBrandKitSchema,
+  studioBrandLookStateSchema,
   studioWebsiteCopySchema,
   studioWebsiteDraftSchema,
 } from "@/schemas/studio-brand-kit.schema";
@@ -74,6 +77,31 @@ const putRoute = withOrganizationSlugHeaderParameter(
       ),
       ...accessErrors,
       409: jsonErrorResponse("Brand kit changed"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
+
+const lookRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "put",
+    path: `${path}/look`,
+    operationId: "saveStudioBrandLook",
+    tags,
+    request: {
+      params: imageStudioProjectParamsSchema,
+      body: {
+        required: true,
+        content: { "application/json": { schema: saveStudioBrandLookSchema } },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        studioBrandLookStateSchema,
+        "Studio brand look saved",
+      ),
+      ...accessErrors,
+      409: jsonErrorResponse("Brand look changed"),
       422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
@@ -161,5 +189,16 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     return ok(c, {
       version: await saveStudioBrandCopy(projectId, copy, version),
     });
+  });
+
+  app.openapi(lookRoute, async (c) => {
+    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
+    const { id: projectId } = c.req.valid("param");
+    await requireProjectAccess({ userId, workspaceId, projectId });
+    return ok(
+      c,
+      await saveStudioBrandLook(projectId, workspaceId, c.req.valid("json")),
+    );
   });
 }

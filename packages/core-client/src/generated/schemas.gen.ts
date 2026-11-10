@@ -38949,6 +38949,13 @@ export const StudioBrandKitSchema = {
                 type: 'string'
             }
         },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        hasCustomLook: {
+            type: 'boolean'
+        },
         summary: {
             type: 'string'
         },
@@ -39188,6 +39195,89 @@ export const StudioBrandCopySchema = {
         'tone',
         'audience',
         'approvedLines'
+    ]
+} as const;
+
+export const StudioBrandLookStateSchema = {
+    type: 'object',
+    properties: {
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        hasCustomLook: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'colors',
+        'fonts',
+        'lookRevision',
+        'hasCustomLook'
+    ]
+} as const;
+
+export const SaveStudioBrandLookSchema = {
+    type: 'object',
+    properties: {
+        look: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioBrandLook'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'look',
+        'lookRevision'
+    ]
+} as const;
+
+export const StudioBrandLookSchema = {
+    type: 'object',
+    properties: {
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i'
+            },
+            maxItems: 8
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 80,
+                pattern: '^[^\\p{Cc}\\p{Cf}]+$/u'
+            },
+            maxItems: 4
+        }
+    },
+    required: [
+        'colors',
+        'fonts'
     ]
 } as const;
 

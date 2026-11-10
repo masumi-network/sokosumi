@@ -12,9 +12,11 @@ import {
   researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
   saveStudioAdHeadline as coreSaveStudioAdHeadline,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
+  saveStudioBrandLook as coreSaveStudioBrandLook,
   suggestTaskTags as coreSuggestTaskTags,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
   type SaveStudioBrandCopy,
+  type SaveStudioBrandLook,
   type StudioProductCatalog,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
@@ -4178,6 +4180,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function saveStudioBrandLook(id: string, body: SaveStudioBrandLook) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSaveStudioBrandLook({ client, path: { id }, body }),
+      "Failed to save the Studio brand look",
+    );
+  }
+
   async function getStudioWebsiteCopy(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7120,6 +7130,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listStudioBatchAssets,
     saveStudioAdHeadline,
     saveStudioBrandCopy,
+    saveStudioBrandLook,
     uploadStudioProjectLogo,
     findStudioWebsiteLogo,
     replaceStudioProductCatalog,

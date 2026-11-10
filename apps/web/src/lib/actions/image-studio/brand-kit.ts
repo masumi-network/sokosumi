@@ -2,7 +2,9 @@
 
 import type {
   SaveStudioBrandCopy,
+  SaveStudioBrandLook,
   StudioBrandKit,
+  StudioBrandLookState,
   StudioLogoPosition,
   StudioWebsiteCopy,
   StudioWebsiteDraft,
@@ -85,6 +87,26 @@ export const saveStudioBrandCopy = withSession<
       version,
     });
     return { ok: true, version: result.version };
+  } catch (error) {
+    return {
+      ok: false,
+      conflict: error instanceof CoreApiRequestError && error.status === 409,
+    };
+  }
+});
+
+export const saveStudioBrandLook = withSession<
+  ProjectInput & SaveStudioBrandLook,
+  { ok: true; look: StudioBrandLookState } | { ok: false; conflict: boolean }
+>(async ({ projectId, look, lookRevision }) => {
+  try {
+    return {
+      ok: true,
+      look: await imageStudioService.saveBrandLook(projectId, {
+        look,
+        lookRevision,
+      }),
+    };
   } catch (error) {
     return {
       ok: false,

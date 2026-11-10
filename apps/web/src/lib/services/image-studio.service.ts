@@ -7,6 +7,7 @@ import type {
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
   SaveStudioBrandCopy,
+  SaveStudioBrandLook,
   SocialPostMediaRef,
   StudioProductCatalog,
   StudioProductImport,
@@ -92,6 +93,10 @@ export const imageStudioService = {
 
   async saveBrandCopy(projectId: string, input: SaveStudioBrandCopy) {
     return (await coreClient.saveStudioBrandCopy(projectId, input)).data;
+  },
+
+  async saveBrandLook(projectId: string, input: SaveStudioBrandLook) {
+    return (await coreClient.saveStudioBrandLook(projectId, input)).data;
   },
 
   async uploadProjectLogo(projectId: string, file: File) {

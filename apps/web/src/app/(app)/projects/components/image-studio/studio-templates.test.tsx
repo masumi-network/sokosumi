@@ -44,6 +44,7 @@ const mocks = vi.hoisted(() => ({
   assets: [] as unknown[],
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
+  saveBrandLook: vi.fn(),
   saveLogoPosition: vi.fn(),
   uploadLogo: vi.fn(),
   findWebsiteLogo: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   getStudioWebsiteCopy: mocks.loadWebsiteCopy,
   prepareStudioWebsiteDraft: mocks.prepareWebsiteDraft,
   saveStudioBrandCopy: mocks.saveBrandCopy,
+  saveStudioBrandLook: mocks.saveBrandLook,
   saveStudioLogoPosition: mocks.saveLogoPosition,
   saveStudioWebsiteLogo: mocks.saveWebsiteLogo,
   uploadStudioProjectLogo: mocks.uploadLogo,
@@ -175,6 +177,72 @@ describe("starting from a template", () => {
         approvedLines: ["Made from reclaimed clay.", "Fired in Prague."],
       },
     });
+  });
+
+  it("edits and resets the Studio look without changing the copy draft", async () => {
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: ["#a33421"],
+      fonts: ["Inter"],
+      summary: "A ceramics studio",
+      tone: "Direct",
+      audience: [],
+      approvedLines: [],
+      version: null,
+      lookRevision: 0,
+      hasCustomLook: false,
+    });
+    mocks.saveBrandLook
+      .mockResolvedValueOnce({
+        ok: true,
+        look: {
+          colors: ["#23453c"],
+          fonts: ["Georgia"],
+          lookRevision: 1,
+          hasCustomLook: true,
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        look: {
+          colors: ["#a33421"],
+          fonts: ["Inter"],
+          lookRevision: 2,
+          hasCustomLook: false,
+        },
+      });
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const tone = await screen.findByLabelText("BrandKit.tone");
+    fireEvent.change(tone, { target: { value: "Clear and warm" } });
+    fireEvent.click(screen.getByRole("button", { name: "BrandKit.editLook" }));
+    const colors = screen.getByLabelText("BrandKit.colors");
+    const fonts = screen.getByLabelText("BrandKit.fonts");
+    expect(colors).toHaveValue("#a33421");
+    fireEvent.change(colors, { target: { value: "invalid" } });
+    const save = screen.getByRole("button", { name: "BrandKit.saveLook" });
+    expect(save).toBeDisabled();
+    fireEvent.change(colors, { target: { value: "#23453C" } });
+    fireEvent.change(fonts, { target: { value: "Georgia" } });
+    fireEvent.click(save);
+    await screen.findByText("BrandKit.lookSaved");
+    expect(screen.getByText("#23453c")).toBeInTheDocument();
+    expect(screen.getByText("Georgia")).toBeInTheDocument();
+    expect(tone).toHaveValue("Clear and warm");
+    fireEvent.click(screen.getByRole("button", { name: "BrandKit.resetLook" }));
+    await screen.findByText("BrandKit.lookReset");
+    expect(screen.getByText("#a33421")).toBeInTheDocument();
+    expect(tone).toHaveValue("Clear and warm");
+    expect(mocks.saveBrandLook.mock.calls).toEqual([
+      [
+        {
+          projectId: "p",
+          look: { colors: ["#23453C"], fonts: ["Georgia"] },
+          lookRevision: 0,
+        },
+      ],
+      [{ projectId: "p", look: null, lookRevision: 1 }],
+    ]);
   });
 
   it("extracts the project website's visual style without resetting the copy draft", async () => {
