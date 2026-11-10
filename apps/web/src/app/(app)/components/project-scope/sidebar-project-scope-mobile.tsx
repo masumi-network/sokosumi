@@ -130,6 +130,7 @@ export function SidebarScopeMobileChip() {
             <ProjectScopeMenu
               selectedProjectId={projectId}
               onSelect={(id) => selectProjectScope(id, select)}
+              onSelectAll={request ? undefined : () => select(null)}
               onCreate={openScopeCreate}
               onDone={() => setScopeSheetOpen(false)}
               // The reason's own rule already sits above the list.
@@ -158,8 +159,8 @@ export function SidebarScopeMobileChip() {
       <InlineCreateProjectModal
         open={createOpen}
         onOpenChange={setScopeCreateOpen}
-        onCreated={({ projectId: createdId }) =>
-          selectCreatedProject(createdId, select)
+        onCreated={({ projectId: createdId, project }) =>
+          selectCreatedProject(createdId, select, project?.websiteUrl)
         }
         onCloseAutoFocus={(event) =>
           returnFocusTo(getScopeCreateOpener())(event)

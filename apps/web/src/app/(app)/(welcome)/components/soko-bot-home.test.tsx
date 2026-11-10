@@ -30,7 +30,8 @@ vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: (...args: unknown[]) => ensureRoom(...args),
   sendRoomMessageAction: (...args: unknown[]) => sendMessage(...args),
 }));
-vi.mock("@/app/soko-bots/components/bot-face", () => ({
+vi.mock("@/components/soko-bot/bot-face", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/soko-bot/bot-face")>()),
   BotFace: () => <span data-testid="bot-face" />,
 }));
 // The real composer is a rich editor; a plain textarea keeps the contract.
@@ -172,6 +173,44 @@ describe("SokoBotHome", () => {
     expect(screen.getByRole("heading", { level: 2 }).textContent).toContain(
       'workedHours:{"hours":120}',
     );
+  });
+
+  it("lists a chat with the bot among the Tasks by time, opening at the reader's message", async () => {
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Plan this week's bakery posts",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.closest("section[aria-labelledby]"));
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/chat/rooms/room-1?message=msg-9",
+      "/tasks/task-1",
+    ]);
+    expect(links[0]?.textContent).toContain("Plan this week's bakery posts");
+    expect(links[0]?.textContent).toContain("open");
+    expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
+  it("drops the quiet line once a chat happened, with no Tasks", async () => {
+    await renderHome({
+      teamTasks: [],
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Hi",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    expect(screen.queryByText(/quietDay/)).toBeNull();
   });
 
   it("says so when nothing moved", async () => {

@@ -16,6 +16,23 @@ const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
   strategyMock: vi.fn(),
 }));
 
+const { archiveMock, nextCusoMock } = vi.hoisted(() => ({
+  archiveMock: vi.fn(),
+  nextCusoMock: vi.fn(),
+}));
+
+vi.mock("@/services/cmo-hiring.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/cmo-hiring.service")>();
+  return { ...actual, startCmoOver: archiveMock };
+});
+
+vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/cmo-cuso.service")>();
+  return { ...actual, findCusoForUser: nextCusoMock };
+});
+
 vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-strategy.service")>();
@@ -42,6 +59,7 @@ import cmoRouter from "./index";
 
 const NOW = new Date("2026-10-05T09:00:00.000Z");
 const REPORT_ID = "0196a000-0000-7000-8000-000000000001";
+const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-000000000002";
 
 function overview() {
   return {
@@ -147,10 +165,14 @@ describe("CMO routes", () => {
     overviewMock.mockResolvedValue(overview());
   });
 
-  it("returns the overview of the caller's Cuso", async () => {
+  it("returns the overview of the caller's default Cuso, by his Project", async () => {
+    nextCusoMock.mockResolvedValue({ projectId: PROJECT_ID });
     const response = await createApp().request("/");
     expect(response.status).toBe(200);
-    expect(overviewMock).toHaveBeenCalledWith("user-1");
+    expect(overviewMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+    });
     const body = await response.json();
     expect(body.data.strategyVersion).toMatchObject({
       id: "strategy-1",
@@ -171,43 +193,99 @@ describe("CMO routes", () => {
     });
   });
 
+  it("answers 404 without a default Cuso", async () => {
+    nextCusoMock.mockResolvedValue(null);
+    const response = await createApp().request("/");
+    expect(response.status).toBe(404);
+    expect(overviewMock).not.toHaveBeenCalled();
+  });
+
   it("answers 409 when Cuso is already working on a turn", async () => {
     strategyMock.mockRejectedValue(
       new SokoBotTurnInProgressError("Soko Bot is already working"),
     );
-    const response = await createApp().request("/strategy", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({}),
-    });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/strategy`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
     expect(response.status).toBe(409);
   });
 
-  it("reverts a weekly update by its report card's id", async () => {
-    revertMock.mockResolvedValue(undefined);
-    const response = await createApp().request(`/updates/${REPORT_ID}/revert`, {
-      method: "POST",
-    });
+  it.each(["aaaaaaaa-aaaa-4aaa-8aaa-000000000001", null])(
+    "returns the next Project after starting over (%s)",
+    async (nextProjectId) => {
+      archiveMock.mockResolvedValue(undefined);
+      nextCusoMock.mockResolvedValue(
+        nextProjectId ? { projectId: nextProjectId } : null,
+      );
+      const response = await createApp().request(
+        `/projects/${PROJECT_ID}/start-over`,
+        { method: "POST" },
+      );
+      expect(response.status).toBe(200);
+      expect(archiveMock).toHaveBeenCalledWith({
+        userId: "user-1",
+        projectId: PROJECT_ID,
+      });
+      expect((await response.json()).data).toEqual({
+        startedOver: true,
+        projectId: nextProjectId,
+      });
+    },
+  );
+
+  it("returns the overview of the Cuso of the Project the path names", async () => {
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
     expect(response.status).toBe(200);
-    expect(revertMock).toHaveBeenCalledWith({
+    expect(overviewMock).toHaveBeenCalledWith({
       userId: "user-1",
-      updateId: REPORT_ID,
+      projectId: PROJECT_ID,
     });
   });
 
-  it("answers 422 for an id that is no report card", async () => {
-    const response = await createApp().request("/updates/u1/revert", {
-      method: "POST",
+  it("reverts an update of the named Project's Cuso and returns his overview", async () => {
+    revertMock.mockResolvedValue(undefined);
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/updates/${REPORT_ID}/revert`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(200);
+    expect(revertMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      updateId: REPORT_ID,
     });
+    expect(overviewMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+    });
+  });
+
+  it("answers 422 for a Project id that is no uuid", async () => {
+    const response = await createApp().request("/projects/project-1");
+    expect(response.status).toBe(422);
+    expect(overviewMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 422 for an id that is no report card", async () => {
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/updates/u1/revert`,
+      { method: "POST" },
+    );
     expect(response.status).toBe(422);
     expect(revertMock).not.toHaveBeenCalled();
   });
 
   it("answers 404 when an update cannot be reverted", async () => {
     revertMock.mockRejectedValue(new CmoNotFoundError("Nothing to revert"));
-    const response = await createApp().request(`/updates/${REPORT_ID}/revert`, {
-      method: "POST",
-    });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/updates/${REPORT_ID}/revert`,
+      { method: "POST" },
+    );
     expect(response.status).toBe(404);
   });
 });

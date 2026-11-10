@@ -10,7 +10,7 @@ import { AvatarPicker } from "@/app/personal-assistant/components/avatar-picker.
 import { Button } from "@/components/ui/button";
 import { setAdminSokoBotAvatarAction } from "@/lib/actions/admin-soko-bots/action";
 
-/** Gives another user's bot a mascot from the same pool the owner picks from. */
+/** Gives another user's bot a Soko Bot avatar from the same pool the owner picks from. */
 export function AdminSokoBotAvatar({
   sokoBotId,
   currentImageUrl,
@@ -21,6 +21,8 @@ export function AdminSokoBotAvatar({
   const t = useTranslations("App.Admin.SokoBots.Avatar");
   const router = useRouter();
   const [picked, setPicked] = useState<SokoBotAvatar | null>(null);
+  // The picker mounts loading its first set; start there so Apply is held.
+  const [loadingAvatars, setLoadingAvatars] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   function apply() {
@@ -49,8 +51,13 @@ export function AdminSokoBotAvatar({
         value={picked?.id ?? null}
         onChange={setPicked}
         currentImageUrl={currentImageUrl}
+        onLoadingChange={setLoadingAvatars}
       />
-      <Button size="sm" disabled={!picked || isPending} onClick={apply}>
+      <Button
+        size="sm"
+        disabled={!picked || isPending || loadingAvatars}
+        onClick={apply}
+      >
         {t("apply")}
       </Button>
     </section>

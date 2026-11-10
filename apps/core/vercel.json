@@ -13,7 +13,7 @@
   "functions": {
     "dist/index.js": {
       "maxDuration": 300,
-      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**,assets/soko-bot-avatar/*}"
+      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**}"
     }
   },
   "relatedProjects": [
@@ -23,6 +23,10 @@
   "crons": [
     {
       "path": "/sync/newsletter-issues-send",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/evals",
       "schedule": "* * * * *"
     },
     {
@@ -102,6 +106,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/data-rooms",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/calendar-invalidations",
       "schedule": "* * * * *"
     },
@@ -136,14 +144,6 @@
     {
       "path": "/sync/contact-capture",
       "schedule": "5,20,35,50 * * * *"
-    },
-    {
-      "path": "/sync/soko-bot-avatars",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/sync/soko-bot-avatar-renders",
-      "schedule": "* * * * *"
     },
     {
       "path": "/sync/task-tags",

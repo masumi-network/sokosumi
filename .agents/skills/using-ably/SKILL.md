@@ -3,10 +3,11 @@ name: using-ably
 description: >
   ALWAYS use when building realtime features with Ably — messaging, chat,
   collaboration, presence, or streaming AI agent output. Covers product and SDK
-  selection (Pub/Sub vs Chat vs Spaces vs LiveObjects vs AI Transport),
-  authentication (JWT, token auth, authUrl), channel design, React integration,
-  and critical mistakes like missing Chat attach(), client-side API key exposure,
-  and creating Ably clients inside components. Fetches current docs from
+  selection (Pub/Sub vs Chat vs Spaces vs LiveObjects vs AI Transport), device vs
+  server packages (@ably/pubsub-device, @ably/pubsub-server) and MAU clientId
+  rules, authentication (JWT, token auth, authUrl), channel design, React
+  integration, and critical mistakes like missing Chat attach(), client-side API
+  key exposure, and creating Ably clients inside components. Fetches current docs from
   ably.com/llms.txt before generating code. Not for general WebSocket or non-Ably
   realtime libraries.
 license: Apache-2.0
@@ -56,13 +57,16 @@ If no SDK exists:
 
 After generating code, verify these common-mistake patterns:
 
-- [ ] **API key in client code?** Must use `authUrl`/`authCallback` with JWT or token auth (see Section 3)
-- [ ] **Chat SDK: `attach()` before subscribing?** Subscribe first to avoid messages being silently lost (see Section 7)
-- [ ] **React: Ably client created inside a component without cleanup?** Create once outside and pass via provider, or use useEffect with proper cleanup (see Section 8)
-- [ ] **Server-side: Realtime SDK used when REST would suffice?** Default to `Ably.Rest` for publishing, token generation, history (see Section 2)
-- [ ] **Connection cleanup on unmount/exit?** Call `realtime.close()` (see Section 5)
-- [ ] **Reimplementing built-in behavior?** Don't add custom debounce for typing indicators, custom throttling for cursors, or custom conflict resolution for LiveObjects (see Section 9)
-- [ ] **AI Transport: channel rule enabled?** The namespace needs `mutableMessages`, or streaming fails with error `93002` (see Section 2)
+- [ ] **Right package for the side?** Device code uses `@ably/pubsub-device`, backend code uses `@ably/pubsub-server` — never the legacy `ably` package or bare `new Ably.Realtime()` / `new Ably.Rest()` (see Section 2). Never `AblyProvider` or `useAbly`: they don't exist in v3, use `PubSubClientProvider` and `usePubSubClient` (see Section 9)
+- [ ] **Device client without a `clientId`?** Rejected at connect on MAU-billed accounts — the token must carry one (see Section 2)
+- [ ] **REST API, MQTT or other non-SDK server traffic?** Declare it with `clientType=server` (API key) or the `x-ably-clientType: server` claim (token), or it counts as a user (see Section 2)
+- [ ] **API key in client code?** Must use `authUrl`/`authCallback` with JWT or token auth (see Section 4)
+- [ ] **Chat SDK: `attach()` before subscribing?** Subscribe first to avoid messages being silently lost (see Section 8)
+- [ ] **React: Ably client created inside a component without cleanup?** Create once outside and pass via provider, or use useEffect with proper cleanup (see Section 9)
+- [ ] **Server-side: realtime client used when HTTP would suffice?** Default to `createHttpClient()` for publishing, token generation, history (see Section 2)
+- [ ] **Connection cleanup on unmount/exit?** Call `realtime.close()` (see Section 6)
+- [ ] **Reimplementing built-in behavior?** Don't add custom debounce for typing indicators, custom throttling for cursors, or custom conflict resolution for LiveObjects (see Section 10)
+- [ ] **AI Transport: channel rule enabled?** The namespace needs `mutableMessages`, or streaming fails with error `93002` (see Section 3)
 
 ---
 
@@ -74,23 +78,23 @@ Ably is a multi-product platform, not a single SDK. Choosing the wrong product o
 
 | Product | Use Case | SDK |
 |---------|----------|-----|
-| **Pub/Sub** | Core messaging: live dashboards, notifications, IoT, event streaming | `ably` (Realtime or REST) |
-| **AI Transport** | Streaming LLM tokens, multi-agent coordination, resumable AI sessions | `@ably/ai-transport` |
-| **LiveObjects** | Shared mutable state: counters, key-value maps, collaborative data | `ably` + LiveObjects plugin |
+| **Pub/Sub** | Core messaging: live dashboards, notifications, IoT, event streaming | `@ably/pubsub-device` or `@ably/pubsub-server` |
+| **AI Transport** | Streaming LLM tokens, multi-device fan-out, resumable AI conversations | `@ably/ai-transport` |
+| **LiveObjects** | Shared mutable state: counters, key-value maps, collaborative data | Pub/Sub package + LiveObjects plugin (`/liveobjects`) |
 | **LiveSync** | Database-to-frontend sync (PostgreSQL change streams) | `@ably-labs/models` + ADBC connector |
 | **Chat** | Chat rooms, typing indicators, reactions, message history, moderation | `@ably/chat` |
 | **Spaces** | Collaborative cursors, avatar stacks, member locations, component locking | `@ably/spaces` |
 
 ### SDK Architecture: Two Layers
 
-**Layer 1 — Core SDKs** (used directly for Pub/Sub, LiveObjects, LiveSync):
+**Layer 1 — Pub/Sub SDKs** (used directly for Pub/Sub, LiveObjects, LiveSync), one package per side of the connection:
 
-| SDK | Use When | Connection |
-|-----|----------|------------|
-| **`Ably.Realtime`** | Client needs to **subscribe** to messages, presence, or state changes | Persistent WebSocket |
-| **`Ably.Rest`** | Server-side **publish only**, token generation, history queries | Stateless HTTP |
+| Package | Runs On | Factories |
+|---------|---------|-----------|
+| **`@ably/pubsub-device`** | An end user's device: browser, React Native, Electron, mobile or desktop app | `createClient()` — realtime client |
+| **`@ably/pubsub-server`** | Infrastructure you operate: Node.js server, container, serverless function | `createHttpClient()` — stateless HTTP<br>`createRealtimeClient()` — persistent connection |
 
-These are the foundation. LiveObjects and LiveSync build on the core Realtime SDK — LiveObjects as a plugin you pass in client options, LiveSync via the Models SDK.
+These are the foundation. Pick the package by side first, then the client kind — see Section 2. LiveObjects and LiveSync build on the realtime client — LiveObjects as a plugin you pass in client options, LiveSync via the Models SDK.
 
 **Layer 2 — Product SDKs** (higher-level abstractions for specific use cases):
 
@@ -98,51 +102,51 @@ These are the foundation. LiveObjects and LiveSync build on the core Realtime SD
 |-----|---------|
 | **`@ably/chat`** | Rooms, typing indicators, reactions, message history, moderation |
 | **`@ably/spaces`** | Cursors, avatar stacks, member locations, component locking |
-| **`@ably/ai-transport`** | Sessions, runs, and steps for streaming AI agent output; conversation tree with branching and history |
+| **`@ably/ai-transport`** | A transport over one channel: the agent pipes its model stream in, clients subscribe and catch up from history. Codecs for the Vercel AI SDK, OpenAI and AG-UI |
 
-These product SDKs depend on the core Realtime SDK. You pass an `Ably.Realtime` instance when creating them. The underlying Realtime knowledge (auth, channels, presence) still applies.
+These product SDKs depend on the Pub/Sub SDK. You pass them a realtime client created by the package for your side — `createClient()` on a device, `createRealtimeClient()` on a server. The underlying Pub/Sub knowledge (auth, channels, presence) still applies.
 
 ### Decision Rules
 
 ```
-Q: Is this server-side or client-side?
-├── Server-side:
-│   ├── Publishing, token generation, history → Use Ably.Rest (stateless HTTP)
-│   ├── Streaming AI agent output → Use @ably/ai-transport agent session (over Realtime)
-│   └── Need persistent connection (subscribing) → Use Ably.Realtime
-└── Client-side → Use Ably.Realtime, then:
-    ├── Building chat? → Use @ably/chat (pass Realtime instance)
-    ├── Building collaboration? → Use @ably/spaces (pass Realtime instance)
-    ├── Consuming AI agent output? → Use @ably/ai-transport client session
-    ├── Need shared state? → Use LiveObjects plugin with Realtime
+Q: Does this code run on an end user's device, or on infrastructure you operate?
+├── Server (@ably/pubsub-server):
+│   ├── Publishing, token generation, history → createHttpClient() (stateless HTTP)
+│   ├── Streaming AI agent output → @ably/ai-transport createTransport() over createRealtimeClient()
+│   └── Need persistent connection (subscribing) → createRealtimeClient()
+└── Device (@ably/pubsub-device) → createClient(), then:
+    ├── Building chat? → Use @ably/chat (pass the client)
+    ├── Building collaboration? → Use @ably/spaces (pass the client)
+    ├── Consuming AI agent output? → Use @ably/ai-transport createTransport() (pass the client)
+    ├── Need shared state? → Use LiveObjects plugin with the client
     ├── Syncing database? → Use @ably-labs/models with ADBC connector
-    └── Otherwise → Use Ably.Realtime directly (Pub/Sub)
+    └── Otherwise → Use the client directly (Pub/Sub)
 ```
 
-**Server-side rule of thumb:** Default to `Ably.Rest` for server operations. Only use `Ably.Realtime` on the server when you genuinely need a persistent connection — for example, an AI agent streaming tokens to clients, or a backend service that subscribes to events.
+**Server-side rule of thumb:** Default to `createHttpClient()` for server operations. Only use `createRealtimeClient()` when you genuinely need a persistent connection — for example, an AI agent streaming tokens to clients, or a backend service that subscribes to events.
 
 ### Common Mistakes
 
 ```javascript
-// WRONG: Using REST SDK then polling for messages
-const rest = new Ably.Rest({ key: '...' });
+// WRONG: Using an HTTP client then polling for messages
+const http = createHttpClient({ key: '...' });
 setInterval(async () => {
-  const history = await rest.channels.get('updates').history();
+  const history = await http.channels.get('updates').history();
 }, 1000);
 
-// RIGHT: Using Realtime SDK to subscribe
-const realtime = new Ably.Realtime({ key: '...' });
+// RIGHT: Using a realtime client to subscribe
+const realtime = createRealtimeClient({ key: '...' });
 realtime.channels.get('updates').subscribe((msg) => {
   console.log('Received:', msg.data);
 });
 
 // WRONG: Using raw Pub/Sub for chat when Chat SDK exists
-const channel = realtime.channels.get('chat-room');
-channel.subscribe((msg) => { /* manually handling typing, reactions, history... */ });
+const client = createClient({ authUrl: '/api/ably-auth' }); // @ably/pubsub-device
+client.channels.get('chat-room').subscribe((msg) => { /* manually handling typing, reactions, history... */ });
 
 // RIGHT: Using Chat SDK which handles all chat patterns
 import { ChatClient } from '@ably/chat';
-const chat = new ChatClient(realtime);
+const chat = new ChatClient(client);
 const room = await chat.rooms.get('my-room');
 room.messages.subscribe((msg) => console.log(msg.text));
 await room.typing.keystroke(); // built-in typing indicators
@@ -150,55 +154,71 @@ await room.typing.keystroke(); // built-in typing indicators
 
 ---
 
-## 2. Use Modern SDK Patterns (v2.x)
+## 2. Device and Server Packages
 
-Ably's JavaScript SDK v2.x uses async/await. **Never generate callback-style 1.x patterns.**
+On MAU pricing, Ably bills by monthly active users: each distinct `clientId` that connects from an end user's device counts once per month, and your own servers and AI Transport agents don't count at all. For Ably to tell them apart, every client declares which side of the connection it is on, so Pub/Sub ships as one package per side. Accounts still on resource-based pricing are billed on messages, channel minutes and connection minutes instead, but new code should use the side-declaring packages either way: it's what lets an account switch to MAU pricing. See [MAU pricing](https://ably.com/docs/pub-sub/pricing?source=using-ably) and [product guidance](https://ably.com/docs/platform/products?source=using-ably). Other platforms follow the same device/server split from these major versions: Pub/Sub JavaScript 3.0+, Python 4.0+, and Java, Go, .NET, Swift, Objective-C, Ruby, Flutter and PHP 2.0+; Chat 2.0+, AI Transport 0.11+, Spaces 0.6+, Models 0.1+. Package names vary by platform, so confirm them from the fetched docs.
+
+**Device vs server is the first decision; HTTP vs realtime is the second.** Pick the package by **who owns the runtime** — not by which features you need (both expose the same API), and not by which side is cheaper to declare. Then pick the client kind. A repository with a frontend and a backend installs both — one package in each.
+
+| Side | Package | Client Kind |
+|------|---------|-------------|
+| **Device** — code runs on an end user's device | `@ably/pubsub-device` | `createClient()` — always realtime; devices subscribe |
+| **Server** — code runs on infrastructure you operate | `@ably/pubsub-server` | `createHttpClient()` for publish, token generation, history<br>`createRealtimeClient()` only when you need a persistent connection |
 
 ```javascript
-// WRONG: Old 1.x callback pattern (deprecated)
-const channel = realtime.channels.get('updates');
-channel.subscribe('event', function(message) {
-  console.log(message.data);
-});
-channel.publish('event', { text: 'hello' }, function(err) {
-  if (err) console.error(err);
-});
+// Device: browser, React Native, mobile or desktop app
+import { createClient } from '@ably/pubsub-device';
+const client = createClient({ authUrl: '/api/ably-auth' }); // token carries the clientId
 
-// RIGHT: Modern 2.x async/await pattern
-const channel = realtime.channels.get('updates');
-channel.subscribe('event', (message) => {
-  console.log(message.data);
-});
+// Server: backend services you operate
+import { createHttpClient, createRealtimeClient } from '@ably/pubsub-server';
+const http = createHttpClient({ key: process.env.ABLY_API_KEY });
+const realtime = createRealtimeClient({ key: process.env.ABLY_API_KEY }); // only if you need a connection
+```
+
+Each factory returns the same client the old `Realtime`/`Rest` constructor did, so everything else about the client is unchanged. Type them as `PubSubClient` (device), `PubSubHttpClient` or `PubSubRealtimeClient` (server), not `Ably.RestClient`/`Ably.RealtimeClient`. Both packages re-export the full Pub/Sub API — import everything (types, plugins, React hooks) from the package for your side, never from `@ably/pubsub-core` directly.
+
+**What each side means on an MAU-billed account:**
+
+| | Device | Server |
+|---|---|---|
+| Counts toward MAU | Yes, once per `clientId` per month | No |
+| `clientId` required | Yes — rejected at connect without one | No |
+| Per-`clientId` concurrency limit | Yes | No |
+| How the side is declared | The package alone | API key: the package alone<br>Token auth: the package **plus** a signed `x-ably-clientType: server` token claim |
+
+**Legacy SDKs are rejected.** The old `ably` package (v2 and earlier), the bare `Realtime`/`Rest` constructors, and SDK versions older than those listed above declare no side, and on an MAU account Ably rejects their traffic outright — with or without a `clientId`, on devices and servers alike. Never generate `import Ably from 'ably'`, `new Ably.Realtime()` or `new Ably.Rest()` for new code. See the [migration guide](https://ably.com/docs/platform/pricing/resource-based/migrate?source=using-ably).
+
+**Traffic without an SDK must declare servers itself.** Calls to the REST API directly, custom realtime clients and protocol adapters (MQTT, SSE and others) are counted as users unless they declare themselves as servers: with an API key, add `clientType=server` as a request or connection parameter; with token auth, add the `x-ably-clientType: server` claim to the token.
+
+**A server on token auth needs the claim.** If a backend authenticates with `authUrl`/`authCallback` instead of an API key, its tokens must carry the signed `x-ably-clientType: server` claim. Without it the connection is **rejected** with error `40167` — not quietly treated as a device. Add the claim to the auth service before deploying `@ably/pubsub-server`.
+
+**Common mistakes:**
+- `@ably/pubsub-server` in browser or mobile code — claims an exemption devices aren't entitled to
+- `@ably/pubsub-device` in a backend — inflates MAU and holds the service to the per-`clientId` concurrency limit
+- A random `clientId` per session (a new MAU on every page load) or one shared `clientId` for all users (everyone under one concurrency limit) — issue one stable `clientId` per end user in the token
+
+---
+
+## 3. Use Modern SDK Patterns
+
+Ably's JavaScript SDK uses async/await. **Never generate callback-style 1.x patterns.**
+
+```javascript
+// WRONG: Old 1.x callback pattern (removed)
+channel.publish('event', { text: 'hello' }, function(err) { /* ... */ });
+
+// RIGHT: Modern async/await pattern
+channel.subscribe('event', (message) => console.log(message.data));
 await channel.publish('event', { text: 'hello' });
 ```
 
-**Imports and initialization — keep it simple:**
+**Imports and initialization — keep it simple:** create clients with the factory from the package for your side (Section 2), and import product SDKs by name (`import { ChatClient } from '@ably/chat'`). Don't invent type-based initialization. If you hit ESM/CommonJS import errors, check that your `tsconfig.json` has `"moduleResolution": "bundler"` or `"node16"`. The device package's `/modular` subpath is ESM-only (`import`, not `require`). Don't try multiple import strategies — check the [SDK README](https://github.com/ably/ably-js) for your environment.
+
+**Server-side: Default to the HTTP client** (`createHttpClient()`). Only use `createRealtimeClient()` on the server when you need a persistent connection, such as streaming AI agent output:
 
 ```javascript
-// RIGHT: Standard ESM import
-import Ably from 'ably';
-const realtime = new Ably.Realtime({ key: 'your-key' });
-const rest = new Ably.Rest({ key: 'your-key' });
-
-// RIGHT: Chat SDK import
-import { ChatClient } from '@ably/chat';
-
-// WRONG: Don't invent type-based initialization
-const options: Ably.Types.ClientOptions = { ... }; // unnecessary
-```
-
-If you hit ESM/CommonJS import errors, check that your `tsconfig.json` has `"moduleResolution": "bundler"` or `"node16"`, and that you're importing from `'ably'` (not subpaths). Don't try multiple import strategies — check the [SDK README](https://github.com/ably/ably-js) for your environment.
-
-**Server-side: Default to REST SDK.** Only use `Ably.Realtime` on the server when you need a persistent connection.
-
-```javascript
-// WRONG: Realtime SDK on server just to publish
-const realtime = new Ably.Realtime({ key: '...' }); // opens WebSocket unnecessarily
-await realtime.channels.get('events').publish('update', data);
-
-// RIGHT: REST SDK for server-side publish
-const rest = new Ably.Rest({ key: '...' }); // stateless HTTP
-await rest.channels.get('events').publish('update', data);
+const realtime = createRealtimeClient({ key: process.env.ABLY_API_KEY }); // @ably/pubsub-server
 
 // WRONG: Hand-rolling token streaming onto a raw channel
 const channel = realtime.channels.get('conversations:123');
@@ -207,19 +227,26 @@ for await (const event of llmStream) {
   channel.appendMessage({ serial: msgSerial, data: event.text }); // reinvents AI Transport
 }
 
-// RIGHT: Use AI Transport — it owns the run/step lifecycle, cancellation, and history
-import { createAgentSession } from '@ably/ai-transport/vercel';
-const session = createAgentSession({ client: realtime, channelName: 'conversations:123' });
-await session.connect();
-// Then open a run and pipe your model stream into a step. Verify the run/step API
-// against ably.com/docs/ai-transport/api/javascript/core/agent-session?source=using-ably
+// RIGHT: Use AI Transport — it owns the appends, cancellation, and message encoding
+import { createTransport } from '@ably/ai-transport';
+import { vercel } from '@ably/ai-transport/vercel'; // or /openai, /ag-ui
+import { streamText, toUIMessageStream } from 'ai';
+const result = streamText({ model, messages, abortSignal: req.signal });
+const transport = createTransport({ client: realtime, channelName: 'conversations:123', codec: vercel });
+try {
+  await transport.pipe(toUIMessageStream({ stream: result.fullStream }), { signal: req.signal });
+} finally {
+  await transport.close(); // never closes the client you passed in
+}
 ```
 
-**AI Transport requires a channel rule.** Every namespace used with AI Transport needs the *Message annotations, updates, deletes, and appends* rule (`mutableMessages: true`) — streaming appends tokens to one message, and appends are rejected with error `93002` without it. This is the single most common AI Transport failure, and it surfaces only on the first append, so the symptom is an assistant message that is empty or holds just the first token. Enable it in the dashboard, or run `ably apps rules create "conversations" --mutable-messages`. See [channel rules](https://ably.com/docs/ai-transport/getting-started/channel-rules?source=using-ably).
+The transport doesn't keep the conversation for you: the agent hydrates it from your own store, and clients render what they receive through `transport.subscribe()`. Verify the API against the [transport reference](https://ably.com/docs/ai-transport/api/javascript/transport/transport?source=using-ably).
+
+**AI Transport requires a channel rule.** Every namespace used with AI Transport needs the *Message annotations, updates, deletes, and appends* rule (`mutableMessages: true`) — streaming appends tokens to one message, and appends are rejected with error `93002` without it. This is the single most common AI Transport failure, and it surfaces only on the first append, so the symptom is an assistant message that is empty or holds just the first token. Enable it in the dashboard, or run `ably apps rules create "conversations" --mutable-messages`. See [channel rules](https://ably.com/docs/ai-transport/setup/channel-rules?source=using-ably).
 
 ---
 
-## 3. Authentication
+## 4. Authentication
 
 **API keys are for server-side only. Never expose them to clients.**
 
@@ -240,7 +267,8 @@ JWT is the recommended authentication method for client-side applications.
 - `iat`: Issued-at timestamp (seconds)
 - `exp`: Expiration timestamp (seconds)
 - `x-ably-capability`: JSON string of channel permissions
-- `x-ably-clientId` (optional): Client identity for presence
+- `x-ably-clientId`: Client identity — required for device clients on MAU-billed accounts, and for presence. Use one stable ID per end user (e.g. your user ID)
+- `x-ably-clientType` (optional): Set to `"server"` only on tokens issued to your own backend services that use `@ably/pubsub-server` (see Section 2). Never on tokens issued to devices
 
 ```javascript
 // Server-side: Create JWT for client
@@ -259,20 +287,15 @@ app.post('/api/ably-auth', (req, res) => {
       'x-ably-clientId': req.user.id,
     },
     keySecret,
-    {
-      expiresIn: '1h',
-      keyid: keyName,
-    }
+    { expiresIn: '1h', keyid: keyName }
   );
 
   res.json(token);
 });
 
-// Client-side: Use JWT with Ably
-const realtime = new Ably.Realtime({
-  authUrl: '/api/ably-auth',
-  authMethod: 'POST',
-});
+// Device: Use JWT with Ably
+import { createClient } from '@ably/pubsub-device';
+const client = createClient({ authUrl: '/api/ably-auth', authMethod: 'POST' });
 ```
 
 ### Alternative: Ably Token Requests
@@ -282,8 +305,8 @@ JWT is recommended for most use cases, but Ably tokens may be preferred when you
 ```javascript
 // Ably's native token system (requires round-trip to Ably servers from backend)
 app.post('/api/ably-token', (req, res) => {
-  const client = new Ably.Rest({ key: process.env.ABLY_API_KEY });
-  client.auth.createTokenRequest({
+  const http = createHttpClient({ key: process.env.ABLY_API_KEY }); // @ably/pubsub-server
+  http.auth.createTokenRequest({
     clientId: req.user.id,
     capability: { 'room:*': ['subscribe', 'publish'] },
   }).then(tokenRequest => res.json(tokenRequest));
@@ -291,14 +314,15 @@ app.post('/api/ably-token', (req, res) => {
 ```
 
 ### Rules
-- Server-side: API key is fine (`{ key: 'appId.keyId:keySecret' }`)
+- Server-side: API key is fine (`{ key: 'appId.keyId:keySecret' }`) — with a key, `@ably/pubsub-server` declares the server side on its own
+- Server-side on token auth: the token must carry `x-ably-clientType: server`, or the connection is rejected with `40167`
 - Client-side: Always use `authUrl` or `authCallback` — never embed the API key or pass a static `token` directly (it won't auto-refresh on expiry)
-- Set `clientId` if you need presence features — it's required for presence
+- Always issue device tokens with a `clientId` — on MAU-billed accounts a device connection without one is rejected, and presence requires one anyway
 - Use capabilities to restrict what channels and operations each client can access
 
 ---
 
-## 4. Channel Design
+## 5. Channel Design
 
 Channels separate messages into topics. Get the naming right early — it's hard to change later.
 
@@ -314,14 +338,14 @@ chat:room-{roomId}           # Chat rooms
 notifications:user-{userId}  # Per-user notifications
 cursors:doc-{docId}          # Collaborative editing
 events:{eventType}           # Event streaming
-conversations:{sessionId}    # AI Transport sessions
+conversations:{conversationId}  # AI Transport conversations
 ```
 
 Rules and capabilities match the namespace literally up to the first colon, so `conversation` (singular) does not match `conversations:*`. Pick one spelling and use it in the channel name, the channel rule, and the token capability.
 
 ---
 
-## 5. Connection Management
+## 6. Connection Management
 
 The Realtime SDK manages reconnection automatically. Don't fight it.
 
@@ -345,16 +369,16 @@ const channel = realtime.channels.get('updates:123', {
 });
 ```
 
-- For AI Transport, don't reach for `rewind` — the client session subscribes before it reads history and pages back through `view.loadOlder()`, so history and the live stream join with no gap and no duplicates
+- For AI Transport, don't reach for `rewind` — pass `history: { replay: fromSerial(storedSerial) }` (or `untilEvent(...)`) to `transport.subscribe()`. It buffers live messages while it pages back, then delivers history and the live stream in channel order with no gap and no duplicates. See [history](https://ably.com/docs/ai-transport/streaming/history?source=using-ably)
 
 ---
 
-## 6. Presence
+## 7. Presence
 
 Presence tracks which clients are on a channel. Use it for "who's online" features.
 
 **Rules:**
-- Set `clientId` during auth — it's required for presence
+- Set `clientId` during auth — it's required for presence (and for every device client on MAU-billed accounts)
 - Call `channel.presence.enter()` to join, `channel.presence.update()` to update data, `channel.presence.leave()` to depart
 - Use `channel.presence.get()` for current members, `channel.presence.subscribe()` for changes
 - If a client disconnects ungracefully, Ably removes them after ~15 seconds (not instantly)
@@ -364,7 +388,7 @@ Presence tracks which clients are on a channel. Use it for "who's online" featur
 
 ---
 
-## 7. Chat SDK: Critical Lifecycle
+## 8. Chat SDK: Critical Lifecycle
 
 If using `@ably/chat`, these are the most common mistakes:
 
@@ -393,13 +417,14 @@ await room.attach();
 
 ---
 
-## 8. React Integration
+## 9. React Integration
 
-Ably provides React hooks for each product:
+Ably provides React hooks for each product. React runs on devices, so the Pub/Sub hooks come from the device package:
 
 | Product | Package | Key Hooks |
 |---------|---------|-----------|
-| Pub/Sub | `ably/react` | `useChannel`, `usePresence`, `useConnectionStateListener` |
+| Pub/Sub | `@ably/pubsub-device/react` | `PubSubClientProvider`, `usePubSubClient`, `useChannel`, `usePresence`, `useConnectionStateListener` |
+| AI Transport | `@ably/ai-transport/react` | `useTransport`, `useDeliveries`, `useHistory`, `useTransportStatus` |
 | Chat | `@ably/chat/react` | `useMessages`, `useTyping`, `usePresence`, `useRoomReactions` |
 | Spaces | `@ably/spaces/react` | `useMembers`, `useCursors`, `useLocations`, `useLocks` |
 
@@ -408,38 +433,29 @@ Ably provides React hooks for each product:
 ```javascript
 // WRONG: Creates new connection every render — memory leak
 function Chat() {
-  const ably = new Ably.Realtime({ authUrl: '/api/ably-auth' });
+  const ably = createClient({ authUrl: '/api/ably-auth' });
   // ...
 }
 
 // RIGHT: Create client once, pass via provider
-const ably = new Ably.Realtime({ authUrl: '/api/ably-auth' });
+const ably = createClient({ authUrl: '/api/ably-auth' });
 
 function App() {
   return (
-    <AblyProvider client={ably}>
+    <PubSubClientProvider client={ably}>
       <ChannelProvider channelName="chat:room-1">
         <Chat />
       </ChannelProvider>
-    </AblyProvider>
+    </PubSubClientProvider>
   );
-}
-
-// ALSO RIGHT: Create in useEffect with proper cleanup
-function App() {
-  const [client, setClient] = useState(null);
-  useEffect(() => {
-    const ably = new Ably.Realtime({ authUrl: '/api/ably-auth' });
-    setClient(ably);
-    return () => ably.close();
-  }, []);
-  // ...
 }
 ```
 
+Also fine: create the client in a `useEffect` with an empty dependency array, hold it in state, and return `() => ably.close()` as the cleanup.
+
 ---
 
-## 9. Spaces and LiveObjects: Built-in Behavior
+## 10. Spaces and LiveObjects: Built-in Behavior
 
 When using **Spaces** (`@ably/spaces`):
 - Cursor position batching is built-in — don't implement custom throttling
@@ -454,7 +470,7 @@ When using **LiveObjects**:
 
 ---
 
-## 10. LiveSync: Database-to-Frontend
+## 11. LiveSync: Database-to-Frontend
 
 LiveSync connects your database to frontends: Database → ADBC Connector → Ably Channels → Models SDK → Frontend.
 
@@ -464,10 +480,13 @@ LiveSync connects your database to frontends: Database → ADBC Connector → Ab
 
 ---
 
-## 11. Production Checklist
+## 12. Production Checklist
 
 Before going to production, verify:
 
+- [ ] **Side-declaring packages** — device code uses `@ably/pubsub-device`, backend code uses `@ably/pubsub-server`. No legacy `ably` package or bare constructors — on MAU-billed accounts their traffic is rejected outright
+- [ ] **Every device client has a `clientId`** — issued in the token by your auth server, one stable ID per end user. Random IDs inflate your MAU count; a shared ID puts every user under one per-`clientId` concurrency limit
+- [ ] **Server tokens carry `x-ably-clientType: server`** — only if your backend uses token auth instead of an API key; add the claim before deploying `@ably/pubsub-server` or its connections are rejected (`40167`)
 - [ ] **No API keys in client code** — use JWT or token auth via `authUrl`/`authCallback`
 - [ ] **Capabilities are scoped** — don't grant `{"*":["*"]}` to clients; restrict to specific channels and operations
 - [ ] **Connection cleanup** — call `realtime.close()` on unmount/unload to avoid connection leaks
@@ -480,11 +499,11 @@ Before going to production, verify:
 
 ### Error Handling
 
-Ably error codes can be broad (e.g., 40000, 50000) — always read the error **message text**, not just the code. Every error code has a help page at `https://help.ably.io/error/{code}`.
+Ably error codes can be broad (e.g., 40000, 50000) — always read the error **message text**, not just the code. Every error code has a help page at `https://help.ably.io/error/{code}`. For MAU rejections, check the client's side first: a device connection refused for a missing `clientId`, or `40167` for a server on token auth without the `x-ably-clientType: server` claim.
 
 ---
 
-## 12. Quick Reference
+## 13. Quick Reference
 
 **Product docs:** [Pub/Sub](https://ably.com/docs/pubsub?source=using-ably) | [Chat](https://ably.com/docs/chat?source=using-ably) | [Spaces](https://ably.com/docs/spaces?source=using-ably) | [LiveObjects](https://ably.com/docs/liveobjects?source=using-ably) | [LiveSync](https://ably.com/docs/livesync?source=using-ably) | [AI Transport](https://ably.com/docs/ai-transport?source=using-ably)
 

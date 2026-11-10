@@ -98,17 +98,94 @@ export function buildThread(
     .map(({ item }) => item);
 }
 
+/** What Cuso is doing, in the order that decides it. */
+export type CusoState =
+  | "stopped"
+  | "learning"
+  | "needs-answers"
+  | "paused"
+  | "working"
+  | "planning"
+  | "waiting-approval"
+  | "waiting-channel"
+  | "running";
+
+/** How Cuso looks: the pose of his avatar for that state. */
+export type CusoPose =
+  | "reading"
+  | "thinking"
+  | "needs-you"
+  | "reporting"
+  | "done";
+
+/** Each state in a word, for the chat header and Cuso's status card. */
+const CUSO_STATE_LABEL: Record<CusoState, string> = {
+  stopped: "Stopped",
+  learning: "Learning",
+  "needs-answers": "Needs your answers",
+  paused: "Paused",
+  working: "Working",
+  planning: "Planning",
+  "waiting-approval": "Waiting for approval",
+  "waiting-channel": "Waiting for a channel",
+  running: "Running",
+};
+
+/**
+ * The pose each state shows. A state that waits on the owner (or stopped)
+ * needs him; "running" has no pose of its own, see `cusoPose`.
+ */
+const STATE_POSE: Record<Exclude<CusoState, "running">, CusoPose> = {
+  stopped: "needs-you",
+  learning: "reading",
+  "needs-answers": "needs-you",
+  paused: "needs-you",
+  working: "thinking",
+  planning: "thinking",
+  "waiting-approval": "needs-you",
+  "waiting-channel": "needs-you",
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function cusoState(overview: CmoOverview): CusoState {
+  if (overview.learning === "failed") return "stopped";
+  if (overview.learning === "running") return "learning";
+  if (!overview.brandBrain) return "needs-answers";
+  if (overview.billing.availableCredits <= 0 && strategyApproved(overview)) {
+    return "paused";
+  }
+  if (overview.botStatus === "RUNNING") return "working";
+  if (!overview.strategy) return "planning";
+  if (!strategyApproved(overview)) return "waiting-approval";
+  if (overview.channels.length === 0) return "waiting-channel";
+  return "running";
+}
+
 /** Cuso's state in a word, for the chat header. */
 export function cusoStatus(overview: CmoOverview): string {
-  if (overview.learning === "failed") return "Stopped";
-  if (overview.learning === "running") return "Learning";
-  if (!overview.brandBrain) return "Needs your answers";
-  if (overview.billing.availableCredits <= 0 && strategyApproved(overview)) {
-    return "Paused";
+  return CUSO_STATE_LABEL[cusoState(overview)];
+}
+
+/**
+ * Running is steady: thinking while the month is made, reading while
+ * research runs, reporting for a day after a report is filed, else done.
+ */
+export function cusoPose(
+  overview: CmoOverview,
+  now: Date = new Date(),
+): CusoPose {
+  const state = cusoState(overview);
+  if (state !== "running") return STATE_POSE[state];
+  if (overview.work?.kind === "research") return "reading";
+  if (
+    overview.production.state === "running" ||
+    overview.work?.status === "running"
+  ) {
+    return "thinking";
   }
-  if (overview.botStatus === "RUNNING") return "Working";
-  if (!overview.strategy) return "Planning";
-  if (!strategyApproved(overview)) return "Waiting for approval";
-  if (overview.channels.length === 0) return "Waiting for a channel";
-  return "Running";
+  const filed = overview.updates.some(
+    (update) => now.getTime() - new Date(update.at).getTime() < DAY_MS,
+  );
+  return filed ? "reporting" : "done";
 }

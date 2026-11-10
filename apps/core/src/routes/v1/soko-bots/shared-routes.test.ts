@@ -287,25 +287,7 @@ describe("shared Soko Bot routes", () => {
           scope: "workspace",
           projectId: null,
           avatarSeed: null,
-          avatarImageUrl: "https://blob.test/idle.webp",
-          avatarState: "needs_you",
-          avatar: {
-            styleId: "crafted-desk",
-            styleVersion: 1,
-            stillUrl: "https://blob.test/idle.webp",
-            states: {
-              idle: {
-                stillUrl: "https://blob.test/idle.webp",
-                loopUrl: "https://blob.test/idle-320.webp",
-                loopLargeUrl: null,
-              },
-              thinking: null,
-              working: null,
-              done: null,
-              needs_you: null,
-              offline: null,
-            },
-          },
+          avatarImageUrl: null,
           status: "IDLE",
           archivedAt: null,
           sharedRoomId: null,
@@ -317,19 +299,7 @@ describe("shared Soko Bot routes", () => {
 
       expect(response.status).toBe(200);
       expect((await response.json()).data.sharedBots).toEqual([
-        expect.objectContaining({
-          id: BOT_ID,
-          viewerCanManage: true,
-          avatarState: "needs_you",
-          avatarImageUrl: "https://blob.test/idle.webp",
-          avatar: expect.objectContaining({
-            styleId: "crafted-desk",
-            states: expect.objectContaining({
-              idle: expect.objectContaining({ loopLargeUrl: null }),
-              working: null,
-            }),
-          }),
-        }),
+        expect.objectContaining({ id: BOT_ID, viewerCanManage: true }),
       ]);
       expect(listSharedMock).toHaveBeenCalledWith(USER_ID, WORKSPACE_ID);
     });

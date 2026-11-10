@@ -17,6 +17,9 @@ const {
   chatRoomUserMemberFindFirstMock,
   chatRoomUserMemberFindManyMock,
   workspaceFindUniqueMock,
+  runtimeEventFindFirstMock,
+  uploadGrantMock,
+  speakMock,
   chatRoomFindManyMock,
   chatMessageFindManyMock,
   botUpdateManyMock,
@@ -116,6 +119,9 @@ const {
   chatRoomUserMemberFindFirstMock: vi.fn(),
   chatRoomUserMemberFindManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
+  runtimeEventFindFirstMock: vi.fn(),
+  uploadGrantMock: vi.fn(),
+  speakMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatMessageFindManyMock: vi.fn(),
   botUpdateManyMock: vi.fn(),
@@ -162,6 +168,7 @@ const {
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
+    copy: vi.fn(),
     search: vi.fn(),
     loadLive: vi.fn(),
     adopt: vi.fn(),
@@ -170,6 +177,8 @@ const {
     nudge: vi.fn(),
     chunks: vi.fn(),
     download: vi.fn(),
+    BlobNotFoundError: class BlobNotFoundError extends Error {},
+    rooms: vi.fn(async () => []),
   },
   jobFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
@@ -235,6 +244,13 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/lib/soko-bot/voiceover", () => ({
+  speakVoiceover: speakMock,
+  VoiceoverRefusedError: class VoiceoverRefusedError extends Error {},
+}));
+vi.mock("@/lib/blob-upload-grant", () => ({
+  createBlobUploadGrant: uploadGrantMock,
+}));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
 }));
@@ -314,6 +330,7 @@ vi.mock("@/services/social-posts.service", () => ({
   updateSocialPost: social.update,
   scheduleSocialPost: social.schedule,
   cancelSocialPost: social.cancel,
+  requireMonthPostPicture: vi.fn(),
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
@@ -326,10 +343,12 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 }));
 
 vi.mock("@vercel/blob", () => ({
+  copy: files.copy,
   del: files.del,
   head: files.head,
   list: files.list,
   put: files.put,
+  BlobNotFoundError: files.BlobNotFoundError,
 }));
 vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/soko-bot/agent-search")>()),
@@ -405,6 +424,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: files.resourceFindFirst,
     },
     taskFile: { upsert: files.taskFileUpsert },
+    dataRoom: { findMany: files.rooms },
     contact: { findUniqueOrThrow: research.contactName },
     projectImageAsset: { findFirst: images.assetFindFirst },
     project: { findFirst: social.postingInstructions },
@@ -475,6 +495,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: jobInputFindManyMock,
       findUnique: jobInputFindUniqueMock,
     },
+    sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
     workspace: {
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
@@ -648,6 +669,7 @@ import {
   MAX_CHAT_CHAIN_DEPTH,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
+import { VoiceoverRefusedError } from "@/lib/soko-bot/voiceover";
 import {
   isSokoBotDecisionTargetAllowed,
   personAssignee,
@@ -7813,6 +7835,10 @@ describe("Soko Bot project social tools", () => {
       files.head.mockImplementation(async (pathname: string) => ({
         url: `https://x.public.blob.vercel-storage.com/${pathname}`,
       }));
+      getEnvMock.mockReturnValue({
+        ...getEnvMock(),
+        BLOB_READ_WRITE_TOKEN: "token",
+      });
     });
 
     afterEach(() => {
@@ -8781,6 +8807,14 @@ describe("Drive file tools", () => {
       organizationId: null,
     });
     files.adopt.mockResolvedValue({ ran: false });
+    getEnvMock.mockReturnValue({
+      ...getEnvMock(),
+      BLOB_READ_WRITE_TOKEN: "token",
+    });
+    // A path nobody wrote yet is a 404, as it is in the store.
+    files.head.mockImplementation(async () => {
+      throw new files.BlobNotFoundError("missing");
+    });
   });
 
   it("searches the catalog as the owner's bot", async () => {
@@ -9093,7 +9127,7 @@ describe("Drive file tools", () => {
       await expect(
         service["deleteFile"](asked as never, { fileId: "file-1" }, "call-1"),
       ).resolves.toEqual({ id: "file-1", filename: "meta.pdf", deleted: true });
-      expect(files.del).toHaveBeenCalledWith("drive/u/meta.pdf", {
+      expect(files.del).toHaveBeenCalledWith(["drive/u/meta.pdf"], {
         token: "token",
       });
       expect(files.tombstone).toHaveBeenCalledWith({
@@ -9372,10 +9406,11 @@ describe("Drive file tools", () => {
         sokoBotMembers: [],
       });
       chatMessageFindFirstMock.mockReset().mockResolvedValue({ id: "m-1" });
-      files.head.mockReset().mockResolvedValue({
-        url,
-        size: bytes.byteLength,
-        contentType: "image/png",
+      // The attachment is there; the Drive path it is saved to is not yet.
+      files.head.mockReset().mockImplementation(async (pathname: string) => {
+        if (pathname.startsWith("drive/"))
+          throw new files.BlobNotFoundError("missing");
+        return { url, size: bytes.byteLength, contentType: "image/png" };
       });
       files.list.mockReset().mockResolvedValue({ blobs: [] });
       files.put
@@ -9474,6 +9509,280 @@ describe("Drive file tools", () => {
       await expect(
         service["uploadFile"](chatAuthorized as never, { filename: "x.md" }),
       ).rejects.toThrow("attachmentUrl");
+    });
+
+    describe("a file from the workspace", () => {
+      const pathname = `soko-bot-staging/${SCOPE.turnId}/0f8e2b7c-1a2b-4c3d-8e9f-0a1b2c3d4e5f.mp4`;
+      const granted = {
+        data: {
+          pathname,
+          displayName: "launch.mp4",
+          folder: "",
+          contentType: "video/mp4",
+        },
+      };
+      const authorizedWithUpload = {
+        ...chatAuthorized,
+        turn: { ...chatAuthorized.turn, id: SCOPE.turnId },
+        grant: { capabilities: ["upload_file"] },
+      };
+      beforeEach(() => {
+        getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "token" });
+        uploadGrantMock.mockReset().mockImplementation(async (grant) => ({
+          uploadUrl: "https://blob.example/put",
+          pathname: grant.pathname,
+          headers: { "Content-Type": grant.contentType },
+        }));
+        runtimeEventFindFirstMock.mockReset().mockResolvedValue(granted);
+        files.copy.mockReset().mockResolvedValue({});
+        files.del.mockReset().mockResolvedValue(undefined);
+        files.head.mockResolvedValue({
+          size: 12_000_000,
+          contentType: "video/mp4",
+        });
+      });
+
+      it("grants a new one-time address for each upload, never reusing a name", async () => {
+        const first = await service.grantWorkspaceUpload(
+          authorizedWithUpload as never,
+          { filename: "launch.mp4", size: 12_000_000 },
+        );
+        const second = await service.grantWorkspaceUpload(
+          authorizedWithUpload as never,
+          { filename: "launch.mp4", size: 12_000_000 },
+        );
+        expect(first.grant.pathname).toMatch(
+          new RegExp(`^soko-bot-staging/${SCOPE.turnId}/[0-9a-f-]{36}\\.mp4$`),
+        );
+        expect(first.grant.pathname).not.toBe(second.grant.pathname);
+        expect(uploadGrantMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            contentType: "video/mp4",
+            maximumSizeInBytes: 12_000_000,
+            addRandomSuffix: false,
+          }),
+        );
+        expect(first.displayName).toBe("launch.mp4");
+      });
+
+      it.each([
+        ["markup", "page.html", 10],
+        ["an svg, which goes through content", "card.svg", 10],
+        ["over 50 MB", "long.mp4", 50_000_001],
+      ])("refuses to grant %s", async (_label, filename, size) => {
+        await expect(
+          service.grantWorkspaceUpload(authorizedWithUpload as never, {
+            filename,
+            size,
+          }),
+        ).rejects.toThrow();
+        expect(uploadGrantMock).not.toHaveBeenCalled();
+      });
+
+      it("refuses a bot without upload_file", async () => {
+        await expect(
+          service.grantWorkspaceUpload(
+            { ...chatAuthorized, grant: { capabilities: [] } } as never,
+            { filename: "launch.mp4", size: 10 },
+          ),
+        ).rejects.toThrow("not available");
+      });
+
+      it("adds the uploaded video to Files under its own name", async () => {
+        const result = await service["uploadFile"](
+          authorizedWithUpload as never,
+          {
+            filename: "launch.mp4",
+            workspacePath: "out/launch.mp4",
+            uploadedPathname: pathname,
+          },
+        );
+        expect(runtimeEventFindFirstMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              turnId: SCOPE.turnId,
+              type: "sandbox.upload_granted",
+              data: { path: ["pathname"], equals: pathname },
+            }),
+          }),
+        );
+        expect(files.reserve).toHaveBeenCalledWith(
+          expect.objectContaining({
+            displayName: "launch.mp4",
+            mimeType: "video/mp4",
+            sizeBytes: 12_000_000,
+          }),
+        );
+        expect(files.copy).toHaveBeenCalledWith(
+          pathname,
+          expect.stringMatching(/\/launch-[0-9a-f]{8}\.mp4$/),
+          expect.objectContaining({ allowOverwrite: false }),
+        );
+        expect(files.reserve).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: expect.objectContaining({
+              pathname: files.copy.mock.calls[0][1],
+            }),
+          }),
+        );
+        expect(files.del).toHaveBeenCalledWith(pathname);
+        expect(files.put).not.toHaveBeenCalled();
+        expect(result).toMatchObject({ id: "file-7", filename: "launch.mp4" });
+      });
+
+      it("refuses an address this turn was not granted", async () => {
+        runtimeEventFindFirstMock.mockResolvedValue(null);
+        await expect(
+          service["uploadFile"](authorizedWithUpload as never, {
+            filename: "launch.mp4",
+            workspacePath: "out/launch.mp4",
+            uploadedPathname: "users/u/files/someone-elses.mp4",
+          }),
+        ).rejects.toThrow("only be saved from your sandbox");
+        expect(files.reserve).not.toHaveBeenCalled();
+      });
+
+      it("refuses a file stored with another type than granted", async () => {
+        files.head.mockResolvedValue({ size: 10, contentType: "text/html" });
+        await expect(
+          service["uploadFile"](authorizedWithUpload as never, {
+            filename: "launch.mp4",
+            workspacePath: "out/launch.mp4",
+            uploadedPathname: pathname,
+          }),
+        ).rejects.toThrow("did not finish uploading");
+        expect(files.reserve).not.toHaveBeenCalled();
+      });
+
+      it("never overwrites", async () => {
+        await expect(
+          service["uploadFile"](authorizedWithUpload as never, {
+            filename: "launch.mp4",
+            workspacePath: "out/launch.mp4",
+            uploadedPathname: pathname,
+            overwrite: true,
+          }),
+        ).rejects.toThrow("always saved as a new file");
+      });
+    });
+
+    describe("voice-overs", () => {
+      const voiced = {
+        ...chatAuthorized,
+        turn: { ...chatAuthorized.turn, id: SCOPE.turnId, source: "CHAT" },
+      };
+      beforeEach(() => {
+        speakMock.mockReset().mockResolvedValue({
+          bytes: new Uint8Array([73, 68, 51]),
+          costUsd: 0.004,
+          durationSeconds: 3.2,
+          sentences: [{ start: 0.1, text: "New in Sokosumi." }],
+        });
+      });
+
+      it("saves the mp3 to Files with its timing and records the cost", async () => {
+        const result = await service["generateVoiceover"](voiced as never, {
+          text: "New in Sokosumi.",
+          voice: "Brian",
+          filename: "launch-voiceover",
+        });
+        expect(speakMock).toHaveBeenCalledWith(
+          expect.objectContaining({ text: "New in Sokosumi.", voice: "Brian" }),
+        );
+        expect(files.put).toHaveBeenCalledWith(
+          expect.stringContaining("launch-voiceover.mp3"),
+          Buffer.from([73, 68, 51]),
+          expect.objectContaining({ contentType: "audio/mpeg" }),
+        );
+        expect(turnUpdateMock).toHaveBeenCalledWith({
+          where: { id: SCOPE.turnId },
+          data: { overheadCostUsdMicros: { increment: 4000n } },
+        });
+        expect(result).toMatchObject({
+          id: "file-7",
+          filename: "launch-voiceover.mp3",
+          durationSeconds: 3.2,
+          sentences: [{ start: 0.1, text: "New in Sokosumi." }],
+        });
+      });
+
+      it("marks a refused voice-over as not sent", async () => {
+        speakMock.mockRejectedValue(
+          new VoiceoverRefusedError("The voice service answered 500"),
+        );
+        const refused = service["generateVoiceover"](voiced as never, {
+          text: "Hi.",
+          filename: "a.mp3",
+        });
+        await expect(refused).rejects.toThrow("answered 500");
+        await expect(refused).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+        expect(files.put).not.toHaveBeenCalled();
+      });
+
+      it("does not mark a voice-over lost after it was made as not sent", async () => {
+        speakMock.mockRejectedValue(new Error("download failed"));
+        const failed = service["generateVoiceover"](voiced as never, {
+          text: "Hi.",
+          filename: "a.mp3",
+        });
+        await expect(failed).rejects.toBeInstanceOf(
+          SokoBotRuntimeValidationError,
+        );
+      });
+    });
+
+    describe("copying a file into the workspace", () => {
+      const importing = {
+        ...chatAuthorized,
+        grant: { capabilities: ["workspace_import_file"] },
+      };
+      it("gives the runner the file's address", async () => {
+        files.loadLive.mockResolvedValue([
+          {
+            id: "01a0f700-0000-7000-8000-000000000001",
+            displayName: "logo.png",
+            mimeType: "image/png",
+            sizeBytes: 2_000,
+            sourceKind: "DRIVE_UPLOAD",
+            sourceId: "users/u/files/logo.png",
+          },
+        ]);
+        files.head.mockResolvedValue({ url: "https://blob.example/logo.png" });
+        await expect(
+          service.workspaceFileSource(
+            importing as never,
+            "01a0f700-0000-7000-8000-000000000001",
+          ),
+        ).resolves.toEqual({
+          url: "https://blob.example/logo.png",
+          name: "logo.png",
+          contentType: "image/png",
+        });
+      });
+
+      it("refuses a Task's file and a bot without the tool", async () => {
+        files.loadLive.mockResolvedValue([
+          {
+            id: "01a0f700-0000-7000-8000-000000000002",
+            displayName: "out.pdf",
+            sizeBytes: 10,
+            sourceKind: "TASK_FILE",
+            sourceId: "x",
+          },
+        ]);
+        await expect(
+          service.workspaceFileSource(
+            importing as never,
+            "01a0f700-0000-7000-8000-000000000002",
+          ),
+        ).rejects.toThrow("Task's files stay with it");
+        await expect(
+          service.workspaceFileSource(
+            { ...chatAuthorized, grant: { capabilities: [] } } as never,
+            "01a0f700-0000-7000-8000-000000000002",
+          ),
+        ).rejects.toThrow("not available");
+      });
     });
 
     it("gives a saved chat image to a Social post as media", async () => {
@@ -9710,7 +10019,7 @@ describe("Content Studio image tools", () => {
     expect(images.create).not.toHaveBeenCalled();
   });
 
-  it("lets Cuso's daily run make the images his approved plan lists", async () => {
+  it("leaves the month's pictures to Core in Cuso's own runs, and makes them when the owner asks in chat", async () => {
     const dailyRun = {
       ...ownerChat,
       turn: { ...ownerChat.turn, source: "SCHEDULE", versionId: "cmo-v1" },
@@ -9726,7 +10035,16 @@ describe("Content Studio image tools", () => {
       id: "strategy-1",
       approvedAt: new Date(),
     });
-    await expect(generate(dailyRun, request, "call-c2")).resolves.toBeDefined();
+    await expect(generate(dailyRun, request, "call-c2")).rejects.toThrow(
+      "Core makes the month's pictures and videos",
+    );
+    const ownerAsks = {
+      ...ownerChat,
+      turn: { ...ownerChat.turn, versionId: "cmo-v1" },
+    };
+    await expect(
+      generate(ownerAsks, request, "call-c3"),
+    ).resolves.toBeDefined();
     expect(images.create).toHaveBeenCalledTimes(1);
   });
 
@@ -9803,12 +10121,12 @@ describe("Content Studio image tools", () => {
       expect(result).toMatchObject({
         file: {
           id: "file-9",
-          name: "a-purple-robot-logo-01a0f430.png",
+          name: "a-purple-robot-logo-00000001.png",
           link: "/drive/files/file-9",
         },
       });
       expect(files.put).toHaveBeenCalledWith(
-        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
         expect.any(Buffer),
         expect.objectContaining({ access: "public", addRandomSuffix: false }),
       );

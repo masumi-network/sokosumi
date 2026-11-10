@@ -10,6 +10,7 @@
     "includes": [
       "**",
       "!.agents/**",
+      "!!.claude/worktrees",
       "!**/.agents/**",
       "!**/.next/**",
       "!**/.output/**",

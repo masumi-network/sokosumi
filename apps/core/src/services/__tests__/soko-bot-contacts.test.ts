@@ -116,17 +116,60 @@ beforeEach(() => {
 
 describe("Soko Bot contacts tools", () => {
   it("search as the turn's member without a receipt", async () => {
+    const found = {
+      ...contact,
+      kind: "PERSON",
+      organization: "Acme",
+      role: null,
+      location: null,
+      stage: "LEAD",
+      replyState: null,
+      lastContactAt: null,
+      interactionCount: 0,
+      summary: "Runs partnerships.",
+      channels: [
+        { type: "EMAIL", value: "nina@acme.com", followers: null },
+        { type: "X", value: "ninak", followers: 300 },
+      ],
+      lists: [{ id: contactId, name: "Leads" }],
+    };
     mocks.listContacts.mockResolvedValue({
-      items: [contact],
+      items: [found],
       total: 1,
       nextCursor: null,
     });
     const { run, authority } = runtime();
+    // Compact: what tells people apart and reaches them, list names only.
     expect(
       await run("search_contacts", { search: "nina", stages: ["LEAD"] }),
-    ).toEqual({ contacts: [contact], total: 1, nextCursor: null });
+    ).toEqual({
+      contacts: [
+        {
+          id: contactId,
+          name: "Nina Keller",
+          kind: "PERSON",
+          organization: "Acme",
+          role: null,
+          location: null,
+          stage: "LEAD",
+          replyState: null,
+          lastContactAt: null,
+          interactionCount: 0,
+          version: 2,
+          channels: [
+            { type: "EMAIL", value: "nina@acme.com" },
+            { type: "X", value: "ninak", followers: 300 },
+          ],
+          lists: ["Leads"],
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    });
     expect(mocks.listContacts).toHaveBeenCalledWith(actor, {
       filter: { search: "nina", stages: ["LEAD"] },
+      query: undefined,
+      mode: "both",
       listId: undefined,
       archived: undefined,
       sort: "lastContactAt",

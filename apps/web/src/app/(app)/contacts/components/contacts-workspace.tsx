@@ -1,6 +1,7 @@
 "use client";
 import type {
   Contact,
+  ContactChannelSource,
   ContactKind,
   ContactList,
   ContactReplyState,
@@ -10,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Download,
   FileSpreadsheet,
+  GitMerge,
   Globe,
   ListPlus,
   MoreHorizontal,
@@ -24,6 +26,7 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
+  CONTACT_CHANNEL_SOURCES,
   CONTACT_KINDS,
   CONTACT_REPLY_STATES,
   CONTACT_SORTS,
@@ -34,6 +37,7 @@ import {
   defaultDirection,
   isContactPreset,
   matchesContactSearch,
+  smartFilterOf,
 } from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -64,6 +68,7 @@ import { contactsService } from "@/lib/services/contacts.client";
 import type { ContactsSyncState } from "@/lib/soko-bot/connect-prompt";
 import { cn } from "@/lib/utils";
 import { AddContactDialog } from "./add-contact-dialog";
+import { CompanyHeader } from "./company-header";
 import { ContactListDialog } from "./contact-list-dialog";
 import { ContactPanel } from "./contact-panel";
 import { ContactsEmptyState } from "./contacts-empty-state";
@@ -76,14 +81,19 @@ import {
   ContactsFilterBar,
 } from "./contacts-toolbar";
 import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
+import { DuplicatesDialog } from "./duplicates-dialog";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_LISTS_KEY,
+  DUPLICATE_GROUP_LIMIT,
   refreshContacts,
+  useContactDuplicates,
   useContactLists,
+  useContactMap,
   useContactOrganizations,
   useContactRows,
   useTeammates,
@@ -100,7 +110,9 @@ type Dialog =
   | { kind: "import" }
   | { kind: "list"; list?: ContactList }
   | { kind: "deleteList"; list: ContactList }
-  | { kind: "merge"; contacts: Contact[] };
+  | { kind: "duplicates" }
+  /** `fromDuplicates` returns to the duplicates list when the merge ends. */
+  | { kind: "merge"; contacts: Contact[]; fromDuplicates?: boolean };
 
 /** The Contacts tab: views and companies on top, the grid, and the person panel. */
 export function ContactsWorkspace({
@@ -136,6 +148,10 @@ export function ContactsWorkspace({
     parseAsStringLiteral(CONTACT_KINDS),
   );
   const [knownBy, setKnownBy] = useQueryState("knownBy");
+  const [source, setSource] = useQueryState(
+    "source",
+    parseAsStringLiteral(CONTACT_CHANNEL_SOURCES),
+  );
   const [sort, setSort] = useQueryState(
     "sort",
     parseAsStringLiteral(CONTACT_SORTS).withDefault("lastContactAt"),
@@ -162,8 +178,11 @@ export function ContactsWorkspace({
 
   const { teammates } = useTeammates();
   const lists = useContactLists();
+  const duplicates = useContactDuplicates();
+  const duplicateGroups = duplicates.data ?? [];
+  const duplicatesCapped = duplicateGroups.length >= DUPLICATE_GROUP_LIMIT;
   const organizations = useContactOrganizations(debouncedCompanySearch);
-  const filters: ContactFilters = { stage, replyState, kind, knownBy };
+  const filters: ContactFilters = { stage, replyState, kind, knownBy, source };
   const query = contactQuery({
     view,
     company,
@@ -173,6 +192,19 @@ export function ContactsWorkspace({
     direction: direction ?? defaultDirection(sort),
   });
   const rows = useContactRows(query);
+  const smartFilter = smartFilterOf(
+    {
+      view,
+      company,
+      search: debouncedSearch,
+      ...filters,
+      sort,
+      direction: direction ?? defaultDirection(sort),
+    },
+    lists.data?.find((list) => list.id === view)?.kind,
+  );
+  // Started here, not in the lazy map, so it runs beside the rows request.
+  useContactMap(query, layout === "map");
   const loaded = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
   const searchPending = search !== debouncedSearch || rows.isPlaceholderData;
   const contacts =
@@ -191,6 +223,7 @@ export function ContactsWorkspace({
     replyState: (value) => setReplyState(value as ContactReplyState | null),
     kind: (value) => setKind(value as ContactKind | null),
     knownBy: setKnownBy,
+    source: (value) => setSource(value as ContactChannelSource | null),
   };
   function clearFilters() {
     void setSearch(null);
@@ -419,8 +452,23 @@ export function ContactsWorkspace({
               }
             />
           )}
-          <span className="text-muted-foreground ms-auto shrink-0 text-sm tabular-nums">
-            {rows.isPending ? null : t("count", { count: total })}
+          <span className="ms-auto flex shrink-0 items-center gap-2">
+            {duplicateGroups.length ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-10 md:h-8"
+                onClick={() => setDialog({ kind: "duplicates" })}
+              >
+                <GitMerge aria-hidden className="size-4" />
+                {t(duplicatesCapped ? "duplicatesMore" : "duplicates", {
+                  count: duplicateGroups.length,
+                })}
+              </Button>
+            ) : null}
+            <span className="text-muted-foreground text-sm tabular-nums">
+              {rows.isPending ? null : t("count", { count: total })}
+            </span>
           </span>
         </div>
         {viewList?.description ? (
@@ -428,8 +476,25 @@ export function ContactsWorkspace({
             {viewList.description}
           </p>
         ) : null}
+        {viewList && layout !== "map" ? (
+          <ListOverview
+            query={query}
+            onShowMap={() => {
+              void setLayout("map");
+              setSelected([]);
+            }}
+            onCompany={changeOrganization}
+          />
+        ) : null}
         {viewList?.kind === "manual" ? (
           <ListSuggestions key={viewList.id} list={viewList} />
+        ) : null}
+        {company ? (
+          <CompanyHeader
+            key={company}
+            name={company}
+            onOpenContact={(id) => void setOpenId(id)}
+          />
         ) : null}
         <div className={cn(HOLDER_CLASS, "min-w-0")}>
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>
@@ -548,6 +613,7 @@ export function ContactsWorkspace({
       {dialog?.kind === "list" ? (
         <ContactListDialog
           list={dialog.list}
+          smartFilter={smartFilter}
           onClose={() => setDialog(null)}
           onSaved={(list) => {
             setDialog(null);
@@ -556,14 +622,34 @@ export function ContactsWorkspace({
           }}
         />
       ) : null}
+      {dialog?.kind === "duplicates" ? (
+        <DuplicatesDialog
+          groups={duplicateGroups}
+          capped={duplicatesCapped}
+          onMerge={(group) =>
+            setDialog({ kind: "merge", contacts: group, fromDuplicates: true })
+          }
+          onOpenContact={(id) => {
+            setDialog(null);
+            open(id);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
       {dialog?.kind === "merge" ? (
         <MergeContactsDialog
           contacts={dialog.contacts}
-          onClose={() => setDialog(null)}
+          onClose={() =>
+            setDialog(dialog.fromDuplicates ? { kind: "duplicates" } : null)
+          }
           onMerged={(winner) => {
-            setDialog(null);
-            setSelected([]);
             toast.success(t("merged", { name: winner.name }));
+            setSelected([]);
+            if (dialog.fromDuplicates) {
+              setDialog({ kind: "duplicates" });
+              return;
+            }
+            setDialog(null);
             open(winner.id);
           }}
         />

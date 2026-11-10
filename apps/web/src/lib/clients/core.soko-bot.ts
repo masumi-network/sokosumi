@@ -53,6 +53,8 @@ import {
   listSokoBotVersions as coreListSokoBotVersions,
   reactivateSokoBot as coreReactivateSokoBot,
   removeMySokoBotSkill as coreRemoveMySokoBotSkill,
+  renameMySokoBot as coreRenameMySokoBot,
+  renameSokoBot as coreRenameSokoBot,
   resetMySokoBotMemory as coreResetMySokoBotMemory,
   resetSokoBotMemory as coreResetSokoBotMemory,
   resolveMySokoBotDecision as coreResolveMySokoBotDecision,
@@ -72,6 +74,7 @@ import {
   updateSokoBotProactive as coreUpdateSokoBotProactive,
   updateSokoBotSchedule as coreUpdateSokoBotSchedule,
 } from "@sokosumi/core-client";
+import { createEvalsAdminClient } from "./core.evals-admin";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
 import { createSokoBotAdminClient } from "./core.soko-bot-admin";
 
@@ -211,6 +214,17 @@ export function createSokoBotClient(getClient: GetCoreClient) {
             })
           : coreUpdateMySokoBotBoardFollowing({ client, body }),
       "Failed to update board following",
+    );
+  }
+
+  async function renameMySokoBot(body: { name: string }, sokoBotId?: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreRenameSokoBot({ client, path: { sokoBotId }, body })
+          : coreRenameMySokoBot({ client, body }),
+      "Failed to rename Soko Bot",
     );
   }
 
@@ -605,6 +619,7 @@ export function createSokoBotClient(getClient: GetCoreClient) {
 
   return {
     ...createSokoBotAdminClient(getClient),
+    ...createEvalsAdminClient(getClient),
     getMySokoBot,
     getMySokoBotActivity,
     createMySokoBot,
@@ -617,6 +632,7 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     updateMySokoBotProactive,
     sendMySokoBotTurnFeedback,
     updateMySokoBotBoardFollowing,
+    renameMySokoBot,
     updateMySokoBotVersion,
     getSokoBotTeam,
     listMySokoBotIntegrations,

@@ -5,6 +5,7 @@ import { mergeMessagesWithStreamOverlay } from "@/app/chat/utils/merge-room-mess
 import {
   assignStableOverlayCreatedAtMs,
   buildCoworkerStreamSendMessageOptions,
+  coworkerStreamErrorMessage,
   createResumePendingCoworkerShell,
   RESUME_PENDING_STREAM_MESSAGE_ID,
   readStoredStreamParentMessageId,
@@ -117,6 +118,29 @@ describe("buildCoworkerStreamSendMessageOptions", () => {
         quote: { messageId: "  " },
       }),
     ).toEqual({ body: { parentMessageId: "parent-1" } });
+  });
+});
+
+describe("coworkerStreamErrorMessage", () => {
+  it("reads the sentence out of a Core JSON error body", () => {
+    const body = JSON.stringify({
+      error: "Forbidden",
+      message: "This AI coworker cannot accept messages right now.",
+      meta: { requestId: "r1" },
+    });
+    expect(coworkerStreamErrorMessage(new Error(body))).toBe(
+      "This AI coworker cannot accept messages right now.",
+    );
+  });
+
+  it("falls back to the error title, then plain text, then null", () => {
+    expect(
+      coworkerStreamErrorMessage(new Error('{"error":"Unauthorized"}')),
+    ).toBe("Unauthorized");
+    expect(coworkerStreamErrorMessage(new Error("Unauthorized"))).toBe(
+      "Unauthorized",
+    );
+    expect(coworkerStreamErrorMessage(new Error(""))).toBeNull();
   });
 });
 

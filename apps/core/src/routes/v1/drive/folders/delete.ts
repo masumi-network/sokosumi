@@ -4,25 +4,20 @@ import {
   buildUserDriveFolderPrefix,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
-import { del, list } from "@vercel/blob";
 
-import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import {
-  badRequest,
-  notFound,
-  serviceUnavailable,
-  unprocessableEntity,
-} from "@/helpers/error";
+import { badRequest, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { empty } from "@/helpers/response";
+import { driveDel, driveList } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { deleteDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
+import { deleteDataRoomsUnder } from "@/services/data-room-paths.service";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
@@ -65,12 +60,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
 
-    const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
-
     const folderPath = normalizeDriveFolderPath(body.folderPath);
     if (!folderPath) {
       throw badRequest("Folder path cannot be empty");
@@ -91,13 +80,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       ownerId = body.organizationId;
       scope = "organization";
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      await requireDriveFileAccess(authContext, scope, ownerId, {
+        changes: [folderPath],
+      });
       prefix = buildOrganizationDriveFolderPrefix(ownerId, folderPath);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // List and delete each page as we receive it (no unbounded accumulation)
+    // List and delete each page as we receive it (no unbounded accumulation).
+    // After a deletion the listing starts over: a listing that spans both
+    // stores pages by offset, and deleting shifts what an offset points at.
     let cursor: string | undefined;
     let foundAnyBlobs = false;
     const BATCH_SIZE = 100;
@@ -115,27 +108,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     try {
-      do {
-        const result = await list({
-          prefix,
-          token,
-          cursor,
-          limit: 1000,
-        });
+      // Never twice: a listing that still shows something already deleted
+      // moves on by cursor instead of starting over for ever.
+      const seen = new Set<string>();
+      for (;;) {
+        const result = await driveList({ prefix, cursor, limit: 1000 });
+        const pathnames = result.blobs
+          .map((b) => b.pathname)
+          .filter((pathname) => !seen.has(pathname));
 
-        if (result.blobs.length > 0) {
+        if (pathnames.length > 0) {
           foundAnyBlobs = true;
-          const pathnames = result.blobs.map((b) => b.pathname);
+          for (const pathname of pathnames) seen.add(pathname);
 
           for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
             const batch = pathnames.slice(i, i + BATCH_SIZE);
-            await del(batch, { token });
+            await driveDel(batch);
             deleted.push(...batch);
           }
+          cursor = undefined;
+          continue;
         }
 
-        cursor = result.hasMore ? result.cursor : undefined;
-      } while (cursor);
+        if (!result.hasMore || !result.cursor) break;
+        cursor = result.cursor;
+      }
     } finally {
       // Tombstone in the same request, and tombstone what was *actually*
       // deleted even when a later batch threw. Without this the documents
@@ -155,6 +152,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!foundAnyBlobs) {
       throw notFound("Folder not found");
     }
+
+    await deleteDataRoomsUnder({ scope, ownerId, folderPath });
 
     return empty(c);
   });

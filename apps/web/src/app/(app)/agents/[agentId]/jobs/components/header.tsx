@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
+import { getAgentName } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export interface HeaderProps {
@@ -36,17 +37,22 @@ export default function Header({
           showBackButton={true}
           showShareButton={false}
           showCloseButton={false}
+          agentUnavailable={disabled}
           trailingActions={detailActions}
         />
       </div>
       <div className="hidden w-full md:block">
         <div className="flex w-full items-center justify-between py-4">
           <Link
-            href="/agents"
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+            href={disabled ? "/agents" : `/agents/${agent.id}`}
+            className="text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-1.5 text-sm transition-colors"
           >
-            <ArrowLeft className="size-4" />
-            <span>{t("back")}</span>
+            <ArrowLeft className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">
+              {disabled
+                ? t("back")
+                : t("backToAgent", { name: getAgentName(agent) })}
+            </span>
           </Link>
           <div className="flex items-center gap-1.5">
             {canRate && (

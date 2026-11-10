@@ -820,6 +820,23 @@ export const chatRoomPinnedMessageListItemSchema = z
   })
   .openapi("ChatRoomPinnedMessageListItem");
 
+export const chatSavedMessageMutationSchema = z
+  .object({
+    messageId: z.string().uuid(),
+    saved: z.boolean().openapi({
+      description: "Whether the message is now on the reader's Saved list.",
+    }),
+  })
+  .openapi("ChatSavedMessageMutation");
+
+export const chatSavedMessageListItemSchema = z
+  .object({
+    messageId: z.string().uuid(),
+    savedAt: dateTimeSchema,
+    message: z.object(chatRoomMessageSchema.shape),
+  })
+  .openapi("ChatSavedMessageListItem");
+
 export const createChatRoomMessageRequestSchema = z
   .object({
     content: z
@@ -1084,3 +1101,16 @@ export type ChatUnreadThread = z.infer<typeof chatUnreadThreadSchema>;
 export type ChatRoomThreadsUnreadCount = z.infer<
   typeof chatRoomThreadsUnreadCountSchema
 >;
+
+/** The caller's newest own message in one room with a Soko Bot. */
+export const chatRecentSokoBotMessageSchema = z
+  .object({
+    roomId: z.string().uuid(),
+    messageId: z.string().uuid(),
+    parentMessageId: z.string().uuid().nullable().openapi({
+      description: "The Thread's parent when the message is a reply.",
+    }),
+    content: z.string(),
+    createdAt: dateTimeSchema,
+  })
+  .openapi("ChatRecentSokoBotMessage");

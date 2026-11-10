@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 # linear-requirement
 
-**Retired for this repository.** Specs and tickets live as Sokosumi Tasks. Load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/SKILL.md) and follow [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md). Draft in chat, wait for approval, then `sokosumi --preprod tasks create|update … --description-file …`.
+**Retired for this repository.** Specs and tickets live as Sokosumi Tasks on **mainnet**. Load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/SKILL.md) and follow [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md). Read with `sokosumi --api-url https://api.sokosumi.com tasks get …`. Draft in chat, wait for approval, then create/update on mainnet (operator `yes` required for writes).
 
 Do **not** call Linear CLI or Linear MCP for new Sokosumi monorepo work. The rest of this file is historical for out-of-repo Linear installs only.
 

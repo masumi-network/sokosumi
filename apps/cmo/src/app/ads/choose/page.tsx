@@ -1,28 +1,39 @@
 import { redirect } from "next/navigation";
 
 import { SubmitButton } from "../../../components/submit-button";
+import { AGENT_NAME } from "../../../lib/agent";
 import { chooseAdAccount, loadAdChoices } from "../../cmo-actions";
 
 interface ChoosePageProps {
-  searchParams: Promise<{ connection?: string; from?: string }>;
+  searchParams: Promise<{
+    connection?: string;
+    from?: string;
+    /** The Project the ad connection started from. */
+    project?: string;
+  }>;
 }
 
 /** The login reaches several ad accounts: the founder picks the one for Cuso's ads. */
 export default async function ChooseAdAccountPage({
   searchParams,
 }: ChoosePageProps) {
-  const { connection, from } = await searchParams;
-  const back = from === "app" ? "/channels" : "/?step=connect&from=onboarding";
-  if (!connection) redirect(back);
-  const accounts = await loadAdChoices(connection).catch(() => []);
+  const { connection, from, project } = await searchParams;
+  const inApp = from === "app";
+  const params = new URLSearchParams(
+    inApp ? {} : { step: "connect", from: "onboarding" },
+  );
+  if (project) params.set("project", project);
+  const back = (inApp ? "/channels" : "/") + (params.size ? `?${params}` : "");
+  if (!connection || !project) redirect(back);
+  const accounts = await loadAdChoices(project, connection).catch(() => []);
   if (accounts.length === 0) redirect(back);
 
   async function choose(formData: FormData) {
     "use server";
     const id = formData.get("account");
     const chosen =
-      typeof id === "string" && connection
-        ? await chooseAdAccount(connection, id)
+      typeof id === "string" && connection && project
+        ? await chooseAdAccount(project, connection, id)
         : false;
     redirect(
       chosen ? back : `${back}${back.includes("?") ? "&" : "?"}ads=failed`,
@@ -33,7 +44,7 @@ export default async function ChooseAdAccountPage({
     <main className="ads-choose">
       <h1>Which ad account?</h1>
       <p className="muted">
-        Cuso's ads run in the one you pick. You can add another later.
+        {AGENT_NAME}'s ads run in the one you pick. You can add another later.
       </p>
       <ul className="list">
         {accounts.map((account) => (

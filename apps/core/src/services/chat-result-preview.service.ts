@@ -78,7 +78,6 @@ function previewAssignee(source: {
     id: string;
     name: string | null;
     avatarImageUrl: string | null;
-    avatar: { styleId: string } | null;
     avatarSeed: string | null;
   } | null;
 }) {
@@ -101,7 +100,6 @@ function previewAssignee(source: {
         name: (bot.name ?? "Soko Bot").slice(0, 500),
         image: bot.avatarImageUrl,
         avatarSeed: bot.avatarSeed,
-        avatarStyleId: bot.avatar?.styleId ?? null,
         kind: "sokoBot" as const,
       }
     : null;
@@ -574,7 +572,6 @@ export async function resolveChatResultReference(
               id: true,
               name: true,
               avatarImageUrl: true,
-              avatar: { select: { styleId: true } },
               avatarSeed: true,
             },
           },
@@ -664,7 +661,6 @@ export async function resolveChatResultReference(
               id: true,
               name: true,
               avatarImageUrl: true,
-              avatar: { select: { styleId: true } },
               avatarSeed: true,
             },
           },
@@ -704,7 +700,6 @@ export async function resolveChatResultReference(
               id: true,
               name: true,
               avatarImageUrl: true,
-              avatar: { select: { styleId: true } },
               avatarSeed: true,
             },
           },

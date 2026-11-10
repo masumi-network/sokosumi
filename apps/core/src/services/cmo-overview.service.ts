@@ -18,8 +18,9 @@ import {
 import {
   type CmoLearningState,
   type Cuso,
+  type CusoTarget,
   cmoPayer,
-  findCusoForUser,
+  findCusoForProject,
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
@@ -198,10 +199,11 @@ export function cmoUpNext(
 
 /** Everything the CMO app shows, in one read, for one member of the business. */
 export async function getCmoOverview(
-  userId: string,
+  target: CusoTarget,
   now: Date = new Date(),
 ): Promise<CmoOverview | null> {
-  const cuso = await findCusoForUser(userId);
+  const { userId } = target;
+  const cuso = await findCusoForProject(target);
   if (!cuso) return null;
   const payer = await cmoPayer(cuso);
   const [organization, project, bot, channels] = await Promise.all([

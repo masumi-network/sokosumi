@@ -2,9 +2,11 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useState, useTransition } from "react";
+import { AGENT_NAME } from "../../lib/agent";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { channelLabel, planRange } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
+import { StatusText } from "../status";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -73,7 +75,7 @@ export function LearningCard({
           ? "Done"
           : `${missing} not confirmed yet`;
   return (
-    <div className={failed ? "card highlight" : "card"}>
+    <div className={failed ? "card card-focus" : "card"}>
       <div className="ch">
         <b>Learning</b>
         <span className="sp" />
@@ -208,7 +210,7 @@ export function StrategyCard({
   if (!strategy) return null;
   const approved = strategyApproved(overview);
   return (
-    <div className={approved ? "card" : "card highlight"}>
+    <div className={approved ? "card" : "card card-focus"}>
       <div className="ch">
         <b>
           Your strategy
@@ -280,9 +282,9 @@ export function StrategyCard({
       <div className="cf">
         {approved ? (
           <>
-            <span className="tag ok">Approved</span>
+            <StatusText>Approved</StatusText>
             <span className="note">
-              Cuso runs this plan and keeps it current.
+              {AGENT_NAME} runs this plan and keeps it current.
             </span>
           </>
         ) : (
@@ -290,7 +292,7 @@ export function StrategyCard({
             {overview.viewerCanApprove ? (
               <button
                 type="button"
-                className="button button-accent button-small"
+                className="button button-small"
                 disabled={pending}
                 onClick={() => startTransition(actions.approve)}
               >
@@ -306,7 +308,7 @@ export function StrategyCard({
             </button>
             <span className="note">
               {overview.viewerCanApprove
-                ? "This is the only thing you approve. Cuso runs the rest."
+                ? `This is the only thing you approve. ${AGENT_NAME} runs the rest.`
                 : APPROVED_BY_OWNERS}
             </span>
           </>
@@ -319,10 +321,10 @@ export function StrategyCard({
 /** Opens CMO's own Channels page, where each network connects in place. */
 export function ConnectCard({ actions }: { actions: CardActions }) {
   return (
-    <div className="card">
+    <div className="card card-focus">
       <div className="ch">
         <b>Connect a channel</b>
-        <span className="tag warn">Not connected</span>
+        <span className="muted">Not connected</span>
       </div>
       <div className="cb">
         <p>
@@ -406,6 +408,7 @@ export function UpdateCard({
   actions,
   approved,
   superseded = false,
+  focused = false,
 }: {
   update: Update;
   actions: CardActions;
@@ -416,10 +419,16 @@ export function UpdateCard({
   approved: boolean;
   /** Reported before the approval that came later: its Up next is history. */
   superseded?: boolean;
+  /** Opened from Results: the card in focus. */
+  focused?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   return (
-    <div className={update.kind === "request" ? "card highlight" : "card"}>
+    <div
+      className={
+        focused || update.kind === "request" ? "card card-focus" : "card"
+      }
+    >
       <div className="ch">
         <b>{UPDATE_TITLES[update.kind]}</b>
         <span className="note">{update.headline}</span>
@@ -458,7 +467,7 @@ export function UpdateCard({
             <ul className={update.revertedAt ? "list reverted" : "list"}>
               {(update.changes ?? []).map((change) => (
                 <li key={change} className="li">
-                  <span className="tag accent">
+                  <span className="tag emphasis">
                     {update.revertedAt ? "Reverted" : "Changed"}
                   </span>
                   <span className="grow">{change}</span>

@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const memberFindUnique = vi.hoisted(() => vi.fn());
+const roomFindMany = vi.hoisted(() => vi.fn(async () => [] as unknown[]));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     member: {
       findUnique: (...args: unknown[]) => memberFindUnique(...args),
     },
+    dataRoom: { findMany: () => roomFindMany() },
   },
 }));
 
@@ -48,7 +50,7 @@ describe("requireDriveFileAccess", () => {
   it("allows personal drive in a personal workspace for the owner", async () => {
     await expect(
       requireDriveFileAccess(sessionAuth("user_1", null), "user", "user_1"),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ hiddenRoomFolders: [] });
     expect(memberFindUnique).not.toHaveBeenCalled();
   });
 
@@ -89,7 +91,7 @@ describe("requireDriveFileAccess", () => {
         "organization",
         "org_a",
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ hiddenRoomFolders: [] });
   });
 
   it("rejects a different organization store even when the user is a member", async () => {
@@ -119,7 +121,7 @@ describe("requireDriveFileAccess", () => {
         "user",
         "user_1",
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ hiddenRoomFolders: [] });
   });
 
   it("allows organization drive for an API key member", async () => {
@@ -134,7 +136,7 @@ describe("requireDriveFileAccess", () => {
         "organization",
         "org_a",
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ hiddenRoomFolders: [] });
   });
 
   it("rejects organization drive for an API key that is not a member", async () => {
@@ -165,7 +167,7 @@ describe("requireDriveFileAccess", () => {
         "organization",
         "org_a",
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ hiddenRoomFolders: [] });
   });
 });
 
@@ -261,6 +263,93 @@ describe("requireOrganizationDriveFileUploadAccess", () => {
         "org_a",
       ),
     ).resolves.toEqual(organization);
+  });
+});
+
+describe("organization data rooms", () => {
+  const room = (colleagues: { userId: string }[] = []) => ({
+    folderPath: "Deals/Acme",
+    storage: "PRIVATE",
+    createdByUserId: "maker",
+    colleagues,
+  });
+  const member = sessionAuth("user_1", "org_rooms");
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    memberFindUnique.mockResolvedValue({ role: "member" });
+  });
+
+  it("hides a room from a member outside it", async () => {
+    roomFindMany.mockResolvedValue([room()]);
+    await expect(
+      requireDriveFileAccess(member, "organization", "org_rooms"),
+    ).resolves.toEqual({ hiddenRoomFolders: ["Deals/Acme"] });
+  });
+
+  it("answers 404 for a file inside it, as if it were not there", async () => {
+    roomFindMany.mockResolvedValue([room()]);
+    await expect(
+      requireDriveFileAccess(member, "organization", "org_rooms", {
+        changes: ["Deals/Acme/Term sheet.pdf"],
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("refuses to move or delete a folder that holds it", async () => {
+    roomFindMany.mockResolvedValue([room()]);
+    await expect(
+      requireDriveFileAccess(member, "organization", "org_rooms", {
+        changes: ["Deals"],
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("still lets a file go into the folder that holds it", async () => {
+    roomFindMany.mockResolvedValue([room()]);
+    await expect(
+      requireDriveFileAccess(member, "organization", "org_rooms", {
+        changes: ["Notes.txt"],
+        into: ["Deals"],
+      }),
+    ).resolves.toEqual({ hiddenRoomFolders: ["Deals/Acme"] });
+  });
+
+  it("refuses an upload into it", async () => {
+    roomFindMany.mockResolvedValue([room()]);
+    await expect(
+      requireOrganizationDriveFileUploadAccess(member, "org_rooms", {
+        into: ["Deals/Acme"],
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("lets a colleague in", async () => {
+    roomFindMany.mockResolvedValue([room([{ userId: "user_1" }])]);
+    await expect(
+      requireDriveFileAccess(member, "organization", "org_rooms", {
+        changes: ["Deals/Acme/Term sheet.pdf"],
+      }),
+    ).resolves.toEqual({ hiddenRoomFolders: [] });
+  });
+
+  it("lets the organization's admins in", async () => {
+    roomFindMany.mockResolvedValue([room()]);
+    memberFindUnique.mockResolvedValue({ role: "admin" });
+    await expect(
+      requireDriveFileAccess(member, "organization", "org_rooms"),
+    ).resolves.toEqual({ hiddenRoomFolders: [] });
+  });
+
+  it("lets the room's maker in", async () => {
+    roomFindMany.mockResolvedValue([room()]);
+    await expect(
+      requireDriveFileAccess(
+        sessionAuth("maker", "org_rooms"),
+        "organization",
+        "org_rooms",
+      ),
+    ).resolves.toEqual({ hiddenRoomFolders: [] });
   });
 });
 

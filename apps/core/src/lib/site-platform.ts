@@ -20,10 +20,10 @@ export function sitePlatformOf(headers: Headers, html: string): SitePlatform {
   return SHOPIFY_HTML.test(html) ? "shopify" : "other";
 }
 
-/** Reads the homepage once; null when it cannot be read, so a later try can. */
-export async function detectSitePlatform(
+/** The homepage's headers and HTML; null when it cannot be read. */
+export async function readHomepage(
   rawUrl: string,
-): Promise<SitePlatform | null> {
+): Promise<{ headers: Headers; html: string } | null> {
   try {
     const url = new URL(
       /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`,
@@ -37,8 +37,39 @@ export async function detectSitePlatform(
       maxResponseBytes: MAX_PAGE_BYTES,
     });
     if (!response.ok) return null;
-    return sitePlatformOf(response.headers, await response.text());
+    return { headers: response.headers, html: await response.text() };
   } catch {
     return null;
   }
+}
+
+/** Reads the homepage once; null when it cannot be read, so a later try can. */
+export async function detectSitePlatform(
+  rawUrl: string,
+): Promise<SitePlatform | null> {
+  const page = await readHomepage(rawUrl);
+  return page ? sitePlatformOf(page.headers, page.html) : null;
+}
+
+/** The language a page declares, in English ("German"); null when it declares none. */
+export function siteLanguageOf(html: string): string | null {
+  const code = html.match(/<html\b[^>]*\blang=["']?([a-z]{2,3})\b/i)?.[1];
+  if (!code) return null;
+  try {
+    return (
+      new Intl.DisplayNames(["en"], { type: "language" }).of(
+        code.toLowerCase(),
+      ) ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** The language the homepage is written in; null when it cannot tell. */
+export async function detectSiteLanguage(
+  rawUrl: string,
+): Promise<string | null> {
+  const page = await readHomepage(rawUrl);
+  return page ? siteLanguageOf(page.html) : null;
 }

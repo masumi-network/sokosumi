@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
-import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
 import {
@@ -13,10 +12,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
+import { TaskDueBadge } from "./task-due-badge";
+import { TaskMetadataDueField } from "./task-metadata-due-field";
 import {
   TaskMetadataPriorityField,
   type TaskPriorityLabels,
@@ -46,6 +46,7 @@ interface TaskMetadataLabels {
 interface TaskMetadataTask {
   status: Task["status"];
   priority: Task["priority"];
+  dueOn: Task["dueOn"];
   visibility?: Task["visibility"];
   selectableStatuses: Task["selectableStatuses"];
   organization: Task["organization"];
@@ -56,7 +57,6 @@ interface PersonDisplay {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
-  avatarStyleId?: string | null;
 }
 
 function resolveTaskAssigneeDisplay(
@@ -75,7 +75,6 @@ function resolveTaskAssigneeDisplay(
       avatarSeed: claimed
         ? null
         : (sokoBot.avatarSeed ?? defaultSokoBotOrbSeed(sokoBot)),
-      avatarStyleId: sokoBot.avatarStyleId,
     };
   }
 
@@ -183,6 +182,23 @@ export function TaskMetadata({
             </span>
           </PropertyRow>
         )}
+
+        {editable ? (
+          <TaskMetadataDueField
+            key={`${taskId}-${task.dueOn}`}
+            taskId={taskId}
+            dueOn={task.dueOn}
+            status={task.status}
+          />
+        ) : task.dueOn ? (
+          <div className="flex h-8 items-center">
+            <TaskDueBadge
+              dueOn={task.dueOn}
+              status={task.status}
+              variant="row"
+            />
+          </div>
+        ) : null}
 
         <PropertyRow
           label={labels.assignee}
@@ -292,17 +308,6 @@ function PersonAvatar({ person }: { person: PersonDisplay }) {
         size={20}
         className="size-5 shrink-0"
         alt={person.name}
-      />
-    );
-  }
-
-  if (person.image && isCraftedStyle(person.avatarStyleId)) {
-    return (
-      <AvatarFace
-        src={person.image}
-        crafted
-        alt={person.name}
-        className="size-5"
       />
     );
   }

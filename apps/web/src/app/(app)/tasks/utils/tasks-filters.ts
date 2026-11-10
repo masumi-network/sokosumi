@@ -359,6 +359,43 @@ export function getTasksFiltersResetKey(
 }
 
 /**
+ * True when the Filters menu narrows the board past its defaults: a
+ * non-default scope, an assignee, a status or private visibility. These are
+ * what the removable chips show and what Clear filters resets.
+ */
+export function hasClearableTasksFilters(
+  filters: TasksFilters,
+  activeOrganizationId: string | null,
+): boolean {
+  return (
+    filters.scope !== getDefaultTasksScope(activeOrganizationId) ||
+    Boolean(
+      filters.assigneeId ||
+        filters.assigneeSokoBotId ||
+        filters.assigneeUserId ||
+        filters.status ||
+        filters.visibility,
+    )
+  );
+}
+
+/** Resets what {@link hasClearableTasksFilters} counts; the project stays. */
+export function clearTasksFilters(
+  filters: TasksFilters,
+  activeOrganizationId: string | null,
+): TasksFilters {
+  return {
+    ...filters,
+    scope: getDefaultTasksScope(activeOrganizationId),
+    assigneeId: null,
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
+    status: null,
+    visibility: null,
+  };
+}
+
+/**
  * Determines whether to show the active filter indicator dot.
  *
  * Business logic:

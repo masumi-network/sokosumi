@@ -73,9 +73,9 @@ export default async function AdminSokoBotsPage({
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link href="/admin/soko-bots/lab">
+              <Link href="/admin/evals">
                 <FlaskConical aria-hidden className="size-4" />
-                {t("labLink")}
+                {t("evalsLink")}
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm">

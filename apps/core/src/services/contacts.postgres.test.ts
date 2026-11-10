@@ -716,10 +716,20 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
   it("finds same-name duplicates and captures an interaction idempotently", async () => {
     await create(asAlice, { name: "Jon Duplicate" });
     await create(asBob, { name: " jon duplicate" });
+    // A first name alone is a duplicate only at the same organization.
+    await create(asAlice, { name: "Steven", organization: "Auda" });
+    await create(asAlice, { name: "Steven", organization: "Toto" });
+    await create(asAlice, { name: "Steven" });
+    await create(asAlice, { name: "Gus", organization: "Nearweek" });
+    await create(asAlice, { name: "gus", organization: "NEARWEEK" });
     const groups = await findDuplicateContacts(asAlice);
     expect(
       groups.find((group) => group.name === "Jon Duplicate")?.contacts,
     ).toHaveLength(2);
+    expect(groups.some((group) => group.name === "Steven")).toBe(false);
+    expect(groups.find((group) => group.name === "Gus")?.contacts).toHaveLength(
+      2,
+    );
 
     const capture = () =>
       inContactTransaction((tx) =>
@@ -1010,9 +1020,24 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       });
       await create(asAlice, { name: "Map Dan" });
       const options = { filter: { search: "Map " }, archived: false };
-      const unusable = await contactMap(asAlice, options, async () => null);
-      expect(unusable).toMatchObject({ places: [], unplaced: 3 });
-      const map = await contactMap(asAlice, options, geocode);
+      const scheduled: Promise<unknown>[] = [];
+      const deps = (lookup: Geocode) => ({
+        geocode: lookup,
+        schedule: (work: Promise<unknown>) => void scheduled.push(work),
+      });
+      const first = await contactMap(
+        asAlice,
+        options,
+        deps(async () => null),
+      );
+      expect(first).toMatchObject({ places: [], unplaced: 0, pending: 3 });
+      await Promise.all(scheduled);
+      expect(await contactMap(asAlice, options, deps(geocode))).toMatchObject({
+        places: [],
+        pending: 3,
+      });
+      await Promise.all(scheduled);
+      const map = await contactMap(asAlice, options, deps(geocode));
       expect(map.places).toEqual([
         expect.objectContaining({
           label: "Lisbon, Portugal",
@@ -1022,9 +1047,13 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
           ],
         }),
       ]);
-      expect(map).toMatchObject({ unplaced: 1, withoutLocation: 1 });
+      expect(map).toMatchObject({
+        unplaced: 1,
+        pending: 0,
+        withoutLocation: 1,
+      });
       expect(asked.flat()).toHaveLength(3);
-      await contactMap(asAlice, options, geocode);
+      await contactMap(asAlice, options, deps(geocode));
       expect(asked).toHaveLength(1);
     } finally {
       await prisma.geocodedPlace.deleteMany({

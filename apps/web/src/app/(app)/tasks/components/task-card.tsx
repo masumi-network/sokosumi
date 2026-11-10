@@ -9,6 +9,7 @@ import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
+import { TaskDueBadge } from "./task-due-badge";
 import { TaskMetaDetails } from "./task-meta";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
@@ -33,6 +34,7 @@ export interface TaskCardData
     | "commentsCount"
     | "tags"
     | "runAt"
+    | "dueOn"
   > {}
 interface TaskCardProps {
   task: TaskCardData;
@@ -126,6 +128,13 @@ export function TaskCard({
         )}
         {task.runAt ? (
           <TaskRunAtBadge runAt={task.runAt} className="flex" />
+        ) : null}
+        {task.dueOn ? (
+          <TaskDueBadge
+            dueOn={task.dueOn}
+            status={task.status}
+            className="flex"
+          />
         ) : null}
         <TaskMetaDetails
           project={null}

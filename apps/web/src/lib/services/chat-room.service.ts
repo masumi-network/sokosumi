@@ -6,6 +6,7 @@ import type {
   ChannelSlugAvailability,
   ChatEarlierThread,
   ChatPerson,
+  ChatRecentSokoBotMessage,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -17,6 +18,7 @@ import type {
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
   ChatRoomThreadUnreadReplyCount,
+  ChatSavedMessageListItem,
   ChatSkillCatalogItem,
   ChatUnreadThread,
   CreateChatRoomGuestInviteLinkRequest,
@@ -403,6 +405,27 @@ export const chatRoomService = (() => {
     };
   }
 
+  async function listSavedMessages(options?: { cursor?: string }): Promise<{
+    items: ChatSavedMessageListItem[];
+    nextCursor: string | null;
+  }> {
+    const response = await coreClient.getChatSavedMessages({
+      cursor: options?.cursor,
+    });
+    return {
+      items: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
+  }
+
+  async function saveMessage(messageId: string): Promise<void> {
+    await coreClient.saveChatMessage(messageId);
+  }
+
+  async function unsaveMessage(messageId: string): Promise<void> {
+    await coreClient.unsaveChatMessage(messageId);
+  }
+
   async function pinMessage(
     roomId: string,
     messageId: string,
@@ -559,6 +582,13 @@ export const chatRoomService = (() => {
   );
 
   /** One page of the reader's unread Threads across rooms (SOK-1159). */
+  /** The reader's newest own message per Soko Bot room, last 24 hours. */
+  async function listRecentSokoBotMessages(): Promise<
+    ChatRecentSokoBotMessage[]
+  > {
+    return (await coreClient.getChatRecentSokoBotMessages()).data;
+  }
+
   async function listUnreadThreads(options?: {
     cursor?: string;
   }): Promise<ChatUnreadThreadsPage> {
@@ -738,6 +768,7 @@ export const chatRoomService = (() => {
     listRooms,
     listThreads,
     listUnreadThreadReplyCounts,
+    listRecentSokoBotMessages,
     listUnreadThreads,
     listEarlierThreads,
     markAllUnreadRead,
@@ -755,6 +786,9 @@ export const chatRoomService = (() => {
     setThreadMuted,
     markUnread,
     pinMessage,
+    listSavedMessages,
+    saveMessage,
+    unsaveMessage,
     sendMessageToSelf,
     pinRoom,
     reorderPinnedRooms,

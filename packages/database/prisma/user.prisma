@@ -104,11 +104,14 @@ model User {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
+  dataRoomColleagues DataRoomColleague[]
+
   createdChatRooms                 ChatRoom[]                    @relation("ChatRoomCreator")
   chatRoomMemberships              ChatRoomUserMember[]
   chatRoomMessages                 ChatRoomMessage[]             @relation("ChatRoomUserSender")
   chatRoomPinnedMessages           ChatRoomPinnedMessage[]       @relation("ChatRoomPinnedMessagePinnedBy")
   chatRoomReactions                ChatRoomReaction[]
+  chatRoomSavedMessages            ChatRoomSavedMessage[]
   chatRoomReadStates               ChatRoomReadState[]
   chatRoomThreadReadStates         ChatRoomThreadReadState[]
   chatRoomUserMentions             ChatRoomUserMention[]

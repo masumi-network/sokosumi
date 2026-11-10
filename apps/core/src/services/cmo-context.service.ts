@@ -64,6 +64,8 @@ export async function loadCmoMarketingContext(
     listCmoBrandPictures(cuso.projectId),
   ]);
   const designMd = await readDesignMdContent(project?.designMdUrl ?? null);
+  // A month of reports covers the last four weekly reviews.
+  const reports = await listCmoReports(sokoBotId, REPORTS_READ);
   const context: MarketingContext = {
     business: {
       name: cuso.businessName,
@@ -111,28 +113,51 @@ export async function loadCmoMarketingContext(
             strategy,
             now,
             CMO_VISIBLE_CALENDAR_DAYS,
-          ).map((entry) =>
-            entry.date > draftHorizon(now)
+          ).map(({ socialPostId, ...entry }) => ({
+            ...entry,
+            // A Social post's entry is already under the post's id.
+            ...(socialPostId && socialPostId !== entry.id
+              ? { socialPostId }
+              : {}),
+            ...(entry.date > draftHorizon(now)
               ? {
-                  ...entry,
                   draft: undefined,
                   brief: undefined,
                   why: undefined,
                   hook: undefined,
+                  visual: undefined,
+                  visualFileIds: undefined,
+                  slides: undefined,
                   detailsStored: true,
                 }
-              : entry,
-          ),
+              : {}),
+          })),
           calendarTotal: strategy.calendar.length,
         }
       : null,
-    recentUpdates: (await listCmoReports(sokoBotId, 3)).map(
-      ({ previousVersionId: _previous, versionId: _version, ...update }) =>
-        update,
-    ),
+    recentUpdates: reports
+      .slice(0, 3)
+      .map(
+        ({ previousVersionId: _previous, versionId: _version, ...update }) =>
+          update,
+      ),
+    /** The last weekly reviews' calls and lessons, newest first: the next plan builds on them. */
+    weeklyLearnings: reports
+      .filter((report) => report.kind === "weekly")
+      .slice(0, WEEKLY_LEARNINGS)
+      .map((report) => ({
+        at: report.at.slice(0, 10),
+        verdict: report.verdict ?? null,
+        learnings: report.learnings ?? [],
+      })),
   };
   return fitCmoMarketingContext(context, now);
 }
+
+/** Weekly reviews whose learnings Cuso sees: about a month. */
+const WEEKLY_LEARNINGS = 4;
+/** Reports read to find them among the daily and production ones. */
+const REPORTS_READ = 60;
 
 /** Enough DESIGN.md for colours, fonts and type, as Image Studio reads it. */
 const CMO_DESIGN_MD_CHARS = 1_600;
@@ -164,6 +189,9 @@ export function fitCmoMarketingContext(
     .slice(0, 10);
   const later = (entry: Record<string, unknown>) =>
     typeof entry.date === "string" && entry.date > soon;
+  const twoWeeks = new Date(now.getTime() + 14 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   const calendar = (
     current: MarketingContext,
     shed: (entry: Record<string, unknown>) => Record<string, unknown>,
@@ -199,10 +227,19 @@ export function fitCmoMarketingContext(
   };
   const steps: ((current: MarketingContext) => MarketingContext)[] = [
     (current) =>
-      calendar(current, ({ draft: _draft, ...entry }) => ({
-        ...entry,
-        detailsStored: true,
-      })),
+      calendar(
+        current,
+        ({
+          draft: _draft,
+          visual: _visual,
+          visualFileIds: _files,
+          slides: _slides,
+          ...entry
+        }) => ({
+          ...entry,
+          detailsStored: true,
+        }),
+      ),
     (current) => without(current, "strategy", ["previews", "weeks"]),
     (current) =>
       calendar(current, ({ brief: _b, why: _w, hook: _h, ...entry }) => ({
@@ -241,6 +278,22 @@ export function fitCmoMarketingContext(
       without(current, "brandBrain", ["reveal", "alternatives", "channels"]),
     (current) =>
       calendar(current, ({ pillar: _p, campaignId: _c, ...entry }) => entry),
+    // Last: the next two weeks only. A 60-piece month with its visuals once
+    // left no room in the packet, and every run failed to start.
+    (current) =>
+      current.strategy
+        ? {
+            ...current,
+            strategy: {
+              ...current.strategy,
+              calendar: (current.strategy.calendar ?? []).filter(
+                (entry) =>
+                  (entry as { date?: string }).date === undefined ||
+                  (entry as { date: string }).date <= twoWeeks,
+              ),
+            },
+          }
+        : current,
   ];
   let fitted = context;
   for (const step of steps) {

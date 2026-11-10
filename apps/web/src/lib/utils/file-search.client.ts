@@ -83,7 +83,7 @@ export function countActiveFileFilters(filters: FileSearchFilterState): number {
   );
 }
 
-function storeQuery(store: FileStore) {
+export function storeQuery(store: FileStore) {
   return store.scope === "org"
     ? { scope: "org" as const, organizationId: store.organizationId }
     : { scope: "me" as const };

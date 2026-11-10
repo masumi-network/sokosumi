@@ -1,11 +1,12 @@
+import type { SokoBotTurnStatus } from "@sokosumi/database";
 import {
+  type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
   type MarketingStrategyPlan,
   SOKO_BOT_CMO_RHYTHMS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
-import { CMO_CHANNELS } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
 import prisma from "@/lib/db/prisma";
@@ -19,8 +20,17 @@ import {
   listCusosWithApprovedStrategy,
 } from "@/services/cmo-cuso.service";
 import {
+  advanceCmoMedia,
+  type CmoMediaJob,
+  cmoMediaState,
+  cmoPieceNeedsMedia,
+  cmoPieceSlides,
+  listCmoMediaJobs,
+} from "@/services/cmo-media-maker.service";
+import {
   advanceCmoMonthReview,
   type CmoPillarShare,
+  cmoBrandFacts,
   cmoPillarShares,
   parseCmoMonthReview,
 } from "@/services/cmo-month-review.service";
@@ -54,33 +64,11 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 /** Pieces one run is given; a longer month continues in the next run. */
 const PIECES_PER_RUN = 40;
 
-const RUN_ACTIVE = new Set(["STARTING", "RUNNING", "CANCEL_REQUESTED"]);
-
-type Format = {
-  image: boolean;
-  video?: boolean;
-  slides?: readonly [number, number];
-};
-type Channel = { group: string; formats: Record<string, Format> };
-
-function channelOf(key: string): Channel | undefined {
-  return (CMO_CHANNELS as Record<string, Channel>)[key];
-}
-
-/** Whether the piece's format comes with an image or video Cuso makes. */
-export function cmoPieceNeedsMedia(
-  entry: Pick<CmoCalendarEntry, "channel" | "format">,
-): boolean {
-  const format = channelOf(entry.channel)?.formats[entry.format];
-  return Boolean(format?.image || format?.video);
-}
-
-/** The fewest slides a carousel format needs; 0 for a single-image format. */
-export function cmoPieceMinSlides(
-  entry: Pick<CmoCalendarEntry, "channel" | "format">,
-): number {
-  return channelOf(entry.channel)?.formats[entry.format]?.slides?.[0] ?? 0;
-}
+const RUN_ACTIVE = new Set<SokoBotTurnStatus>([
+  "STARTING",
+  "RUNNING",
+  "CANCEL_REQUESTED",
+]);
 
 /** A Social post of the approved version: its entry and its media files. */
 export type CmoPiece = CmoCalendarEntry & { media: readonly string[] };
@@ -104,7 +92,7 @@ export function cmoPieceReady(
   if (!piece.draft?.trim() && !piece.fileId) return false;
   if (
     cmoPieceNeedsMedia(piece) &&
-    new Set(piece.media).size < Math.max(1, cmoPieceMinSlides(piece))
+    new Set(piece.media).size < Math.max(1, cmoPieceSlides(piece))
   )
     return false;
   return !connected.has(piece.channel) || piece.status === "scheduled";
@@ -125,7 +113,7 @@ export function cmoProductionSteps(
     if (done(piece)) {
       pictured += 1;
     } else if (
-      files.length >= Math.max(1, cmoPieceMinSlides(piece)) &&
+      files.length >= Math.max(1, cmoPieceSlides(piece)) &&
       !files.some((file) => used.has(file))
     ) {
       for (const file of files) used.add(file);
@@ -239,7 +227,8 @@ export function cmoMixLedger(
     .join(", ");
 }
 
-function pieceLine(piece: CmoPiece): string {
+function pieceLine(piece: CmoPiece, failed: boolean): string {
+  const slides = cmoPieceSlides(piece);
   return [
     `- ${piece.id}`,
     `${piece.date}${piece.time ? ` ${piece.time}` : ""}`,
@@ -249,7 +238,15 @@ function pieceLine(piece: CmoPiece): string {
     piece.campaignId ? `campaign ${piece.campaignId}` : "",
     `"${piece.title}"`,
     piece.brief ? `brief: ${piece.brief}` : "",
-    cmoPieceMinSlides(piece) > 0 ? carouselNote(piece) : "",
+    piece.story ? `story: ${piece.story}` : "",
+    slides > 0
+      ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
+      : "",
+    cmoPieceNeedsMedia(piece) && !piece.visual
+      ? "(write its visual)"
+      : failed
+        ? "(its picture failed twice: write a different visual)"
+        : "",
     isMarketingFilePiece(piece)
       ? piece.fileId
         ? "(file written; finish what is missing)"
@@ -262,16 +259,24 @@ function pieceLine(piece: CmoPiece): string {
     .join(" · ");
 }
 
+/** Proof points a brief may hold: enough for a month, short enough for a brief. */
+const MAX_PROOF_POINTS = 12;
+/** Brand Brain sections whose findings name customers, results and reviews. */
+const PROOF_SECTIONS = ["proof", "customers", "reputation"] as const;
+
 /**
- * A carousel's line in the brief. One product photo is enough for its slides:
- * a run once asked the owner for more photos and made none.
+ * The Brand Brain's named customers, results and reviews, word for word.
+ * Cuso's context keeps each section's summary only, so a month planned 11
+ * customer-proof pieces and named no customer.
  */
-function carouselNote(piece: CmoPiece): string {
-  const made = new Set(piece.media).size;
-  const count = `carousel: at least ${cmoPieceMinSlides(piece)} slides, ${made} made`;
-  return made > 0
-    ? `${count}; make the rest yourself with generate_image, the cover's file as referenceFileIds, each a different view of the same product (detail, on an anonymous model, flat lay). These are your pictures of the real product, not invented ones; do not wait for more photos`
-    : count;
+export function cmoProofPoints(brain: BrandBrain | null): string[] {
+  const points = PROOF_SECTIONS.flatMap(
+    (key) =>
+      brain?.profile?.[key]?.findings
+        .filter((finding) => finding.evidence !== "inference")
+        .map((finding) => finding.point) ?? [],
+  );
+  return [...new Set(points)].slice(0, MAX_PROOF_POINTS);
 }
 
 /** What the production run reads: the whole month to make, in one brief. */
@@ -283,6 +288,10 @@ export function cmoProductionMessage(input: {
   attempt: number;
   /** The month was made before: these pieces are new or changed since. */
   topUp: boolean;
+  /** Named customers, results and reviews from the Brand Brain, word for word. */
+  proof?: readonly string[];
+  /** Pieces whose picture failed twice for its visual. */
+  failedMedia?: ReadonlySet<string>;
 }): string {
   const { strategy, pending } = input;
   const batch = pending.slice(0, PIECES_PER_RUN);
@@ -296,18 +305,26 @@ export function cmoProductionMessage(input: {
       ? "An earlier run made part of the month; these pieces are still missing something."
       : "",
     batch.some((piece) => !isMarketingFilePiece(piece))
-      ? "Each social piece is already a draft Social post, under the id below: never create another post for it. Put its words and its pictures on that post with update_social_post (read get_social_post first for its revision)."
+      ? "Each social piece is already a draft Social post, under the id below: never create another post for it. Put its words on that post with update_social_post (read get_social_post first for its revision)."
       : "",
     batch.some(isMarketingFilePiece)
-      ? "Every other piece (an article, a page fix, ad copy, a newsletter issue) becomes a file in the owner's Files: write it in full, ready to paste, launch or send, and save it with save_strategy part pieces, sending only that entry with its id and draft (and imageFileId once its picture is made). Core writes the file; never upload it yourself."
+      ? "Every other piece (an article, a page fix, ad copy, a newsletter issue) becomes a file in the owner's Files: write it in full, ready to paste, launch or send, and save it with save_strategy part pieces, sending that entry with its id and draft (and its visual when its format has a picture). Core writes the file; never upload it yourself."
       : "",
-    `Connected networks: ${connected.length > 0 ? connected.join(", ") : "none yet"}. On a connected network, schedule each post with schedule_social_post at its date and time; on any other network it stays a finished draft until the owner connects it.`,
+    `Connected networks: ${connected.length > 0 ? connected.join(", ") : "none yet"}. On a connected network, schedule a post that needs no picture with schedule_social_post at its date and time; Core schedules a post with a picture once it has it. On any other network a post stays a finished draft until the owner connects it.`,
     `The mix, as planned: ${cmoMixLedger(strategy)}. Each piece keeps its approach.`,
+    input.proof && input.proof.length > 0
+      ? [
+          "Proof you may name, from the Brand Brain (customers, results, reviews; use each in at most two pieces):",
+          ...input.proof.map((point) => `- ${point}`),
+        ].join("\n")
+      : "",
     "",
     `Pieces (${batch.length}${pending.length > batch.length ? ` of ${pending.length}; the rest come in the next run` : ""}):`,
-    ...batch.map(pieceLine),
+    ...batch.map((piece) =>
+      pieceLine(piece, input.failedMedia?.has(piece.id) ?? false),
+    ),
     "",
-    "Work in two passes, as your production skill says: first write every post's words, then make the pictures and schedule. A failed picture never stops the words.",
+    "As your production skill says: first list each pillar's different messages and give every piece its own, then write every piece's words, then save the visuals of the pieces with a picture or video (visual and visualFileIds from brandPictures) in one save_strategy part pieces call. Core makes and attaches every picture and video; never call generate_image or generate_video.",
     "",
     writingSkillsBrief(batch.map((piece) => piece.channel)),
     "When every piece is made, report with report_update kind production: how many pieces you made per channel, what is scheduled and what waits for a connection. Then end with DONE: and one sentence for the owner. A reply without DONE: is treated as a progress note and you will be asked to continue.",
@@ -424,7 +441,7 @@ async function startProductionRun(
 
 type ProductionRun = {
   clientTurnId: string;
-  status: string;
+  status: SokoBotTurnStatus;
   createdAt: Date;
   completedAt: Date | null;
 };
@@ -471,10 +488,15 @@ interface ProductionRead {
   strategy: MarketingStrategyPlan | null;
   /** When the version being made was approved: one run id per approval. */
   approvedAt: Date | null;
+  /** Every piece still to come, for Core's media maker. */
+  pieces: CmoPiece[];
+  /** What a run still has to do: pieces missing words or a usable visual. */
   pending: CmoPiece[];
+  /** Pieces whose picture failed twice for their visual. */
+  failedMedia: Set<string>;
   /** This approval's runs, newest first. */
   runs: ProductionRun[];
-  /** A run is still working, possibly one from an earlier approval. */
+  /** A run or its follow-up is still working, possibly from an earlier approval. */
   working: boolean;
 }
 
@@ -503,7 +525,9 @@ export async function readCmoProduction(
       version: null,
       strategy: plan,
       approvedAt,
+      pieces: [],
       pending: [],
+      failedMedia: new Set(),
       runs: [],
       working: false,
     };
@@ -517,7 +541,27 @@ export async function readCmoProduction(
   );
   const pieces = cmoProductionPieces(posts, now, strategy.calendar);
   const ready = cmoReadyPieceIds(pieces, connected);
-  const pending = pieces.filter((piece) => !ready.has(piece.id));
+  const unready = pieces.filter((piece) => !ready.has(piece.id));
+  const jobs: CmoMediaJob[] = await listCmoMediaJobs(
+    cuso.projectId,
+    approved.id,
+  );
+  const media = new Map(
+    pieces.map((piece) => [piece.id, cmoMediaState(piece, jobs)]),
+  );
+  const failedMedia = new Set(
+    pieces.flatMap((piece) =>
+      media.get(piece.id) === "failed" ? [piece.id] : [],
+    ),
+  );
+  // A written piece whose picture Core is making waits for Core, not a run.
+  const pending = unready.filter(
+    (piece) =>
+      !(
+        (piece.draft?.trim() || piece.fileId) &&
+        media.get(piece.id) === "making"
+      ),
+  );
   const check = parseCmoMonthReview(approved.monthReview);
   const pillarsOf = (runs: ProductionRun[]) =>
     check
@@ -553,7 +597,9 @@ export async function readCmoProduction(
     version: approved,
     strategy,
     approvedAt,
+    pieces,
     pending,
+    failedMedia,
     runs,
     working,
   });
@@ -561,9 +607,20 @@ export async function readCmoProduction(
   const all = await productionRuns(cuso.sokoBotId, approvedAt, now);
   const prefix = approvalRunPrefix(cuso.sokoBotId, approvedAt);
   const runs = all.filter((run) => run.clientTurnId.startsWith(prefix));
-  const working = Boolean(all[0] && RUN_ACTIVE.has(all[0].status));
-  if (pending.length === 0) return read("ready", runs, working);
+  // A follow-up a run left behind (wait_for) works on the same pieces.
+  const following = await prisma.sokoBotTurn.count({
+    where: {
+      sokoBotId: cuso.sokoBotId,
+      clientTurnId: { startsWith: "watch:" },
+      status: { in: [...RUN_ACTIVE] },
+    },
+  });
+  const working =
+    Boolean(all[0] && RUN_ACTIVE.has(all[0].status)) || following > 0;
+  if (unready.length === 0) return read("ready", runs, working);
   if (working) return read("running", runs, true);
+  // Every piece has its words and visual: Core is making the pictures.
+  if (pending.length === 0) return read("running", runs);
   const today = all.filter(
     (run) => now.getTime() - run.createdAt.getTime() < DAY_MS,
   );
@@ -597,7 +654,9 @@ export async function advanceCmoProduction(
     version,
     strategy,
     approvedAt,
+    pieces,
     pending,
+    failedMedia,
     runs,
     working,
   } = await readCmoProduction(cuso, {
@@ -605,6 +664,17 @@ export async function advanceCmoProduction(
     subscribed: await isCmoSubscribed(cuso),
     now,
   });
+  // Core makes the pictures from the visuals saved so far, runs or no runs.
+  if (version && current.state !== "waiting")
+    await advanceCmoMedia(
+      { cuso, versionId: version.id, connected },
+      pieces,
+    ).catch((error: unknown) => {
+      console.warn("CMO media could not move on", {
+        sokoBotId: cuso.sokoBotId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    });
   if (!strategy || !approvedAt || working) return current;
   // A made month is reviewed for its pillars, skills and voice, and the
   // pieces that miss are rewritten once.
@@ -616,6 +686,7 @@ export async function advanceCmoProduction(
       version,
       strategy,
       voice: brain?.voice ?? null,
+      facts: brain ? cmoBrandFacts(brain) : null,
       runs,
       runIdPrefix: approvalRunPrefix(cuso.sokoBotId, approvedAt),
       ready: current.ready,
@@ -641,6 +712,10 @@ export async function advanceCmoProduction(
       connected,
       attempt,
       topUp: runs.some((run) => run.status === "COMPLETED"),
+      proof: cmoProofPoints(
+        parseBrandBrain((await getBrandBrain(cuso.projectId))?.body),
+      ),
+      failedMedia,
     }),
     `${approvalRunPrefix(cuso.sokoBotId, approvedAt)}${attempt}:${current.ready}`,
   );

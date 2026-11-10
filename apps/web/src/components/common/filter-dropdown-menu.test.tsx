@@ -153,4 +153,46 @@ describe("FilterDropdownMenu", () => {
     await user.click(screen.getByRole("button", { name: /close/i }));
     expect(onSheetOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("finds grouped options by their group heading and Enter picks the best match", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <FilterDropdownMenu
+        buttonLabel="Filter"
+        searchPlaceholder="Search..."
+        emptyResultsLabel="No results"
+        sections={[
+          {
+            id: "status",
+            label: "Status",
+            icon: Folder,
+            value: null,
+            allLabel: "All",
+            onChange,
+            options: [
+              {
+                value: "AUTHENTICATION_REQUIRED",
+                label: "Authentication required",
+                group: "Input required",
+              },
+              { value: "COMPLETED", label: "Completed", group: "Done" },
+              { value: "CANCELED", label: "Canceled", group: "Done" },
+            ],
+          },
+        ]}
+      />,
+    );
+    await user.click(screen.getByLabelText("Filter"));
+    await user.click(screen.getByRole("button", { name: "Status All" }));
+    await user.type(screen.getByPlaceholderText("Search..."), "Done");
+
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["Completed", "Canceled"]);
+    expect(screen.getByRole("group", { name: "Done" })).toBeVisible();
+
+    await user.keyboard("{Enter}");
+    expect(onChange).toHaveBeenCalledWith("COMPLETED");
+  });
 });

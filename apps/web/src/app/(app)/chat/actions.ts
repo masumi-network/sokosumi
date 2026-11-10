@@ -13,6 +13,7 @@ import type {
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
   ChatRoomThreadUnreadReplyCount,
+  ChatSavedMessageListItem,
   Coworker,
   DiscoverableChatRoom,
   Member,
@@ -99,8 +100,6 @@ export interface ChatComposeSokoBot {
   name: string;
   image: string | null;
   avatarSeed: string | null;
-  /** The style of the bot's claimed avatar; a crafted one is cropped to the face. */
-  avatarStyleId?: string | null;
 }
 
 export interface ChatComposeRoster {
@@ -185,7 +184,6 @@ export async function loadChatComposeRosterAction(): Promise<
             name: bot.name?.trim() || t("personalAssistantBadge"),
             image: bot.avatarImageUrl ?? null,
             avatarSeed: bot.avatarSeed,
-            avatarStyleId: bot.avatar?.styleId ?? null,
           },
         ]
       : [];
@@ -1072,6 +1070,53 @@ export async function pinRoomMessageAction(
     return roomOk(result);
   } catch (error) {
     return roomCatch(error, t("pinError"));
+  }
+}
+
+/** Save for later: put a message on the reader's private Saved list. */
+export async function saveRoomMessageAction(
+  messageId: string,
+): Promise<RoomActionResult<null>> {
+  const t = await getTranslations("App.Channels.SavedMessages");
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanMessageId) {
+    return roomFail(t("saveError"));
+  }
+  try {
+    await chatRoomService.saveMessage(cleanMessageId);
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, t("saveError"));
+  }
+}
+
+export async function unsaveRoomMessageAction(
+  messageId: string,
+): Promise<RoomActionResult<null>> {
+  const t = await getTranslations("App.Channels.SavedMessages");
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanMessageId) {
+    return roomFail(t("removeError"));
+  }
+  try {
+    await chatRoomService.unsaveMessage(cleanMessageId);
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, t("removeError"));
+  }
+}
+
+export async function listSavedMessagesAction(cursor: string): Promise<
+  RoomActionResult<{
+    items: ChatSavedMessageListItem[];
+    nextCursor: string | null;
+  }>
+> {
+  const t = await getTranslations("App.Channels.SavedMessages");
+  try {
+    return roomOk(await chatRoomService.listSavedMessages({ cursor }));
+  } catch (error) {
+    return roomCatch(error, t("error"));
   }
 }
 

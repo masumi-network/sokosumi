@@ -19,11 +19,13 @@ import {
   CmoConflictError,
   CmoNotFoundError,
   type Cuso,
+  type CusoTarget,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
+  isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
   planMarketingStrategyPosts,
@@ -73,8 +75,16 @@ export async function cmoWorkingStrategy(
   );
 }
 
-function tomorrow(now: Date = new Date()): string {
-  return new Date(now.getTime() + 86_400_000).toISOString().slice(0, 10);
+const DAY_MS = 86_400_000;
+
+/** The four weeks a new plan covers: tomorrow through 27 days later. */
+export function planWindow(now: Date = new Date()): {
+  start: string;
+  end: string;
+} {
+  const day = (offset: number) =>
+    new Date(now.getTime() + offset * DAY_MS).toISOString().slice(0, 10);
+  return { start: day(1), end: day(28) };
 }
 
 /**
@@ -82,12 +92,13 @@ function tomorrow(now: Date = new Date()): string {
  * plans the ads (and what they should bring) around exactly that amount.
  * Zero turns paid ads off.
  */
-export async function setCmoAdBudget(input: {
-  userId: string;
-  monthly: number;
-  currency: string;
-}): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function setCmoAdBudget(
+  input: CusoTarget & {
+    monthly: number;
+    currency: string;
+  },
+): Promise<{ turnId: string }> {
+  const cuso = await requireCuso(input);
   const strategy = parseMarketingPlan(
     (await newestMarketingStrategy(cuso.projectId))?.plan,
   );
@@ -95,7 +106,7 @@ export async function setCmoAdBudget(input: {
     throw new CmoConflictError("Cuso has not written the strategy yet");
   }
   const currency = input.currency.toUpperCase();
-  const started = await requestCmoStrategy({
+  const started = await requestStrategyForCuso(cuso, {
     userId: input.userId,
     note:
       input.monthly > 0
@@ -131,11 +142,18 @@ export async function setCmoAdBudget(input: {
  * Asks Cuso for a new one-month strategy: he writes a new version, which an
  * owner or admin approves; the approved one keeps running until then.
  */
-export async function requestCmoStrategy(input: {
-  userId: string;
-  note?: string;
-}): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function requestCmoStrategy(
+  input: CusoTarget & {
+    note?: string;
+  },
+): Promise<{ turnId: string }> {
+  return requestStrategyForCuso(await requireCuso(input), input);
+}
+
+async function requestStrategyForCuso(
+  cuso: Cuso,
+  input: { userId: string; note?: string },
+): Promise<{ turnId: string }> {
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
@@ -144,6 +162,12 @@ export async function requestCmoStrategy(input: {
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
+  // A plan for a Zurich restaurant's German site once posted in English.
+  const { detectSiteLanguage } = await import("@/lib/site-platform");
+  const siteLanguage = input.note
+    ? null
+    : await detectSiteLanguage(cuso.websiteUrl);
+  const span = planWindow();
   return startCmoTurn(cuso, input.userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
     message: brandCorrections(brain)
@@ -156,14 +180,20 @@ export async function requestCmoStrategy(input: {
               "Save with save_strategy: part plan for changes to the strategy (send the whole plan with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
             ]
           : [
-              `Write ${cuso.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
+              `Write ${cuso.businessName}'s marketing strategy for the four weeks from ${span.start} to ${span.end}. No calendar entry after ${span.end}.`,
+              ...seasonLines(span),
               `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
+              ...(siteLanguage
+                ? [
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another.`,
+                  ]
+                : []),
               ...ownerAnswers(brain),
               "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
               "",
               "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-              "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId) whose approach shares match the mix and whose pillar shares match the pillars. Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
+              "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece) whose approach shares match the mix and whose pillar shares match the pillars. Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
             ],
       )
       .concat([
@@ -173,6 +203,17 @@ export async function requestCmoStrategy(input: {
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
   });
+}
+
+/**
+ * Plans once ignored the season (no Christmas for a restaurant, no Black
+ * Friday for a shop in November) and repeated one fact a dozen times.
+ */
+function seasonLines(span: { start: string; end: string }): string[] {
+  return [
+    `Before the calendar, list the dates between ${span.start} and ${span.end} that matter to this business's buyers where they live (the Brand Brain's headquarters and markets) and in its trade: public holidays, shopping days (Black Friday, Cyber Monday), seasons and gift moments (Advent, Christmas, Valentine's Day, back to school), and its industry's events. Build pieces and campaigns around the ones its buyers act on, starting a week or two before, and name the date in each such entry's why. Never invent a discount for one: a sale only when the Brand Brain shows one, otherwise suggest it under improvements. On a holiday the business is closed or its buyers are away, post only about that day, or not at all.`,
+    "Vary the calendar: every entry carries its own message, and one fact, number or story (a founding year, a price, a product name) appears in at most two entries of the month.",
+  ];
 }
 
 /**
@@ -322,6 +363,40 @@ export function withoutDashes<T>(value: T): T {
 }
 
 /**
+ * A piece that is a Project file (an image ad) keeps its visual on the
+ * approved plan's entry, where Core's media maker reads it; a Social post
+ * keeps it on the post.
+ */
+async function keepFileVisuals(
+  db: Prisma.TransactionClient,
+  approved: MarketingStrategy,
+  sent: CmoCalendarEntry[],
+): Promise<MarketingStrategy> {
+  const visuals = new Map(
+    sent
+      .filter((entry) => isMarketingFilePiece(entry) && entry.visual)
+      .map((entry) => [entry.id, entry]),
+  );
+  const plan = parseMarketingPlan(approved.plan);
+  if (visuals.size === 0 || !plan) return approved;
+  const calendar = plan.calendar.map((entry) => {
+    const sentEntry = visuals.get(entry.id);
+    return sentEntry
+      ? {
+          ...entry,
+          visual: sentEntry.visual,
+          visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
+          slides: sentEntry.slides ?? entry.slides,
+        }
+      : entry;
+  });
+  return db.marketingStrategy.update({
+    where: { id: approved.id },
+    data: { plan: { ...plan, calendar } },
+  });
+}
+
+/**
  * Saves the strategy as a version of the Project's Marketing strategy. A
  * turn's first save adds a version and its later saves complete it (a plan
  * goes in two calls) until it is approved; no save changes another version.
@@ -329,7 +404,7 @@ export function withoutDashes<T>(value: T): T {
  * writes the other pieces (ads, articles, newsletters) as Project files.
  */
 export async function saveCmoStrategy(
-  where: { userId: string } | { sokoBotId: string },
+  where: CusoTarget | { sokoBotId: string },
   strategy: CmoStrategySave,
   options: {
     turnId?: string;
@@ -359,7 +434,11 @@ export async function saveCmoStrategy(
           ? { sokoBotId: cuso.sokoBotId }
           : { userId: where.userId },
     });
-    return approved;
+    return keepFileVisuals(
+      db,
+      approved,
+      (strategy.calendar ?? []) as CmoCalendarEntry[],
+    );
   }
   const own = options.turnId
     ? await db.marketingStrategy.findFirst({
@@ -487,15 +566,15 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
 
 /** Cuso revises the plan to fit the owner's answers. */
 export async function applyCmoPlanAnswers(
-  userId: string,
+  target: CusoTarget,
 ): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId });
+  const cuso = await requireCuso(target);
   const newest = await newestCmoStrategy(cuso);
   const note = cmoPlanAnswerNote(
     parseMarketingPlan(newest.plan)?.questions ?? [],
   );
   if (!note) throw new CmoConflictError("Your answers confirm the plan");
-  return requestCmoStrategy({ userId, note });
+  return requestStrategyForCuso(cuso, { userId: target.userId, note });
 }
 
 /**
@@ -504,11 +583,12 @@ export async function applyCmoPlanAnswers(
  * refused (409). Any other piece is a Project file the owner uses
  * themselves, so nothing goes out to pause: it is refused too.
  */
-export async function pauseCmoCalendarEntry(input: {
-  userId: string;
-  entryId: string;
-}): Promise<void> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function pauseCmoCalendarEntry(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<void> {
+  const cuso = await requireCuso(input);
   const post = UUID.test(input.entryId)
     ? await prisma.socialPost.findFirst({
         where: { id: input.entryId, projectId: cuso.projectId },
@@ -533,11 +613,12 @@ export async function pauseCmoCalendarEntry(input: {
  * The words of one approved piece that lives in the Project's Files (an
  * article, a page fix, ad copy, a newsletter issue), for its sheet in CMO.
  */
-export async function readCmoPieceText(input: {
-  userId: string;
-  entryId: string;
-}): Promise<string> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function readCmoPieceText(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<string> {
+  const cuso = await requireCuso(input);
   const approved = await approvedMarketingStrategy(cuso.projectId);
   const text = approved
     ? await readMarketingPieceText(approved, input.entryId)

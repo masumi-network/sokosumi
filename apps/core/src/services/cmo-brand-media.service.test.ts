@@ -15,6 +15,13 @@ const files = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), BLOB_READ_WRITE_TOKEN: "t" }),
+  };
+});
 vi.mock("@vercel/blob", () => ({ put: files.put, list: files.list }));
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
@@ -294,8 +301,11 @@ describe("the Project's brand research", () => {
     });
   });
 
-  it("gives Cuso the pictures as file references, newest per slot", async () => {
+  it("gives Cuso the page screenshots, then the pictures, newest per slot", async () => {
     expect(await listCmoBrandPictures("project-1")).toEqual([
+      { fileId: "f-home", alt: "Home page screenshot" },
+      { fileId: "f-phone", alt: "Home on a phone page screenshot" },
+      { fileId: "f-pricing", alt: "Pricing page screenshot" },
       { fileId: "f-new", alt: "red sneaker" },
       { fileId: "f-plain", alt: "" },
     ]);

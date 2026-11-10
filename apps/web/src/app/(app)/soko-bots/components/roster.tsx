@@ -21,6 +21,7 @@ import {
   GALLERY_SOCIAL_PROOF_CAPTION_CLASS,
   GALLERY_SOCIAL_PROOF_FACE_CLASS,
 } from "@/components/agents/gallery-page-classes";
+import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +37,6 @@ import {
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
-import { BotFace } from "./bot-face";
 import { ChatWithBotButton, ChatWithBotTile } from "./open-bot-chat.client";
 import { SokoBotStatusChip } from "./soko-bot-status-chip";
 
@@ -130,8 +130,8 @@ export async function SokoBotsHero({ team }: { team: SokoBotTeam | null }) {
                 member.bot ? (
                   <BotFace
                     key={member.userId}
-                    bot={member.bot}
-                    ownerId={member.userId}
+                    imageUrl={member.bot.avatarImageUrl}
+                    seed={botFaceSeed(member.bot, member.userId)}
                     className={cn(
                       GALLERY_SOCIAL_PROOF_FACE_CLASS,
                       "ring-background ring-2",
@@ -239,8 +239,8 @@ export async function YourAssistantSection({
           <div className={shell}>
             <div className="flex min-w-0 flex-1 items-start gap-4">
               <BotFace
-                bot={bot}
-                ownerId={me.userId}
+                imageUrl={bot.avatarImageUrl}
+                seed={botFaceSeed(bot, me.userId)}
                 className="size-14 sm:size-16"
               />
               <div className="min-w-0 space-y-1.5">
@@ -337,7 +337,11 @@ function PairCard({
         )}
       >
         <span className="flex min-w-0 items-center gap-3">
-          <BotFace bot={bot} ownerId={member.userId} className="size-10" />
+          <BotFace
+            imageUrl={bot.avatarImageUrl}
+            seed={botFaceSeed(bot, member.userId)}
+            className="size-10"
+          />
           <span className="text-foreground min-w-0 flex-1 truncate font-medium">
             {name}
           </span>

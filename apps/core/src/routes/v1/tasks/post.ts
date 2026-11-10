@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/node";
 import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
+import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseSchema } from "@/helpers/error";
 import {
@@ -28,7 +29,7 @@ import {
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
-import { TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
+import { mapTaskTags, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -63,6 +64,10 @@ import { taskInclude } from "@/types/task";
 export const createTaskRequestSchema = z
   .object({
     tagSuggestionReceipt: z.string().max(4096).optional(),
+    copyOfTaskId: z.uuid().optional().openapi({
+      description:
+        "A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.",
+    }),
     name: z
       .string()
       .trim()
@@ -198,10 +203,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     const runAt = body.runAt ? parseFutureRunAt(body.runAt) : null;
 
-    const resolvedName = await resolveTaskName({
-      name: body.name,
-      description: body.description,
-    });
+    // A copy reads its source first: an unreadable source fails before any
+    // work, and a readable one gives the copy its name and tags, so a copy
+    // calls no model.
+    const copySource = body.copyOfTaskId
+      ? await requireTaskReadForRouteVars(c.var, body.copyOfTaskId)
+      : null;
+
+    const resolvedName = copySource
+      ? (body.name ?? copySource.name)
+      : await resolveTaskName({
+          name: body.name,
+          description: body.description,
+        });
 
     const shouldEnforceCreateGrant =
       isCoworkerAuthContext(authContext) && Boolean(authContext.context);
@@ -214,6 +228,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? await healProjectBriefingUrl(project, workspaceContext.workspaceId)
         : project;
 
+    const copiedTags = copySource ? mapTaskTags(copySource) : null;
+
     // Read after normal preparation so an in-flight composer evaluation can finish.
     // Only exact authored input is eligible; generated title/context are derived.
     const suggestionScope = {
@@ -221,6 +237,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceId: workspaceContext.workspaceId,
     };
     const receiptTags =
+      !copiedTags &&
       authContext.actor === "user" &&
       authContext.authenticationMethod === "session"
         ? (verifyTaskTagReceipt(
@@ -232,12 +249,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Every other actor — a token, a delegated coworker, a Soko Bot — classifies
     // here instead of waiting for the next `/sync/task-tags` tick. Bounded and
     // failure-swallowing: null just leaves the row `pending` for that tick.
-    const suggestedTags =
-      receiptTags ??
-      (await classifyTaskTagsInline({
-        name: resolvedName,
-        description: body.description,
-      }));
+    const suggestedTags = copiedTags
+      ? null
+      : (receiptTags ??
+        (await classifyTaskTagsInline({
+          name: resolvedName,
+          description: body.description,
+        })));
 
     const task = await prisma.$transaction(async (tx) => {
       const createdTask = await createTaskForActor(
@@ -277,7 +295,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         tx,
       );
-      if (suggestedTags !== null) {
+      if (copiedTags) {
+        await tx.task.update({
+          where: { id: createdTask.id },
+          data: {
+            automaticTags: copiedTags.automatic,
+            manualTags: copiedTags.manual,
+            rejectedTags: copiedTags.rejected,
+            tagClassificationState: "complete",
+            tagClassificationLease: null,
+            tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+          },
+        });
+      } else if (suggestedTags !== null) {
         await tx.task.update({
           where: { id: createdTask.id },
           data: {

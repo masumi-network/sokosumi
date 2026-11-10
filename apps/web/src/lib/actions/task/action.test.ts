@@ -1242,6 +1242,24 @@ describe("draft task tag actions", () => {
       );
     },
   );
+
+  it("forwards a copy's source Task so Core takes its tags", async () => {
+    taskServiceMock.createTask.mockReset().mockResolvedValue(buildTask());
+    const { createTask } = await import("./action");
+    await createTask({
+      name: "Weekly report",
+      description: "Summarise the week",
+      assigneeId: null,
+      status: TaskStatus.DRAFT,
+      copyOfTaskId: "source-task",
+    });
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Weekly report",
+        copyOfTaskId: "source-task",
+      }),
+    );
+  });
 });
 
 describe("setTaskPriority", () => {
@@ -1272,5 +1290,31 @@ describe("setTaskPriority", () => {
     await expect(
       setTaskPriority({ taskId: "task-1", priority: TaskPriority.LOW }),
     ).rejects.toThrow();
+  });
+});
+
+describe("setTaskDueOn", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.patchTask.mockReset();
+    taskServiceMock.patchTask.mockResolvedValue({});
+  });
+
+  it("patches only the due date, and clears it with null", async () => {
+    const { setTaskDueOn } = await import("./action");
+
+    const result = await setTaskDueOn({
+      taskId: "task-1",
+      dueOn: "2026-11-20",
+    });
+    await setTaskDueOn({ taskId: "task-1", dueOn: null });
+
+    expect(taskServiceMock.patchTask).toHaveBeenNthCalledWith(1, "task-1", {
+      dueOn: "2026-11-20",
+    });
+    expect(taskServiceMock.patchTask).toHaveBeenNthCalledWith(2, "task-1", {
+      dueOn: null,
+    });
+    expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
   });
 });

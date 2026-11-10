@@ -106,6 +106,26 @@ describe("ProjectDesignPage", () => {
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
   });
 
+  it("shows the front matter's tokens above the guidance", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    fetchDesignMdMarkdownMock.mockResolvedValue({
+      markdown: "---\ncolors:\n  primary: '#2f7d4f'\n---\n## Voice\n\nPlain.",
+    });
+
+    const { default: ProjectDesignPage } = await import("./page");
+    render(
+      await ProjectDesignPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(
+      screen.getByText("App.Projects.Detail.design.colors"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("#2f7d4f")).toBeInTheDocument();
+    expect(screen.getByText("Plain.")).toBeInTheDocument();
+  });
+
   it("leaves the empty state to the brand section without fetching", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(
       buildProject({ designMd: null }),

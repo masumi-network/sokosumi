@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { consumeStudioWebsiteDraftRequest } from "@/app/projects/components/image-studio/studio-website-intent";
+
 const {
   imageStudioServiceMock,
   projectServiceMock,
@@ -39,6 +41,20 @@ vi.mock("@/lib/services/project.service", () => ({
 
 vi.mock("@/lib/services/image-studio.service", () => ({
   imageStudioService: imageStudioServiceMock,
+}));
+
+vi.mock("@/app/projects/components/project-brand-card", () => ({
+  ProjectBrandProvider: ({
+    children,
+    autoStart,
+  }: {
+    children: React.ReactNode;
+    autoStart?: boolean;
+  }) => (
+    <div data-testid="studio-brand-provider" data-auto-start={autoStart}>
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
@@ -134,6 +150,7 @@ describe("StudioPage", () => {
       required: true,
       reason: "App.Studio.pickBody",
       onSelect: undefined,
+      onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).not.toHaveBeenCalled();
     // Nothing is loaded for a project nobody named.
@@ -155,15 +172,38 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).not.toHaveBeenCalled();
     expect(openScopeCreateMock).not.toHaveBeenCalled();
     const button = screen.getByRole("button", {
-      name: "App.ProjectScope.create",
+      name: "App.Studio.startFromWebsite",
     });
     fireEvent.click(button);
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickBody",
       onSelect: undefined,
+      onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
+    const request = openProjectScopeMock.mock.calls[0][0];
+    request.onCreated("without-website", null);
+    expect(consumeStudioWebsiteDraftRequest("without-website")).toBe(false);
+    request.onCreated("with-website", "https://shop.example/");
+    expect(consumeStudioWebsiteDraftRequest("unrelated")).toBe(false);
+    expect(consumeStudioWebsiteDraftRequest("with-website")).toBe(true);
+    expect(consumeStudioWebsiteDraftRequest("with-website")).toBe(false);
+  });
+
+  it("opens the website setup wizard even when the workspace already has projects", async () => {
+    const { default: StudioPage } = await import("./page");
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(
+      screen.getByRole("button", { name: "App.ProjectScope.selectProject" }),
+    ).toBeInTheDocument();
+    const setup = screen.getByRole("button", {
+      name: "App.Studio.startFromWebsite",
+    });
+    fireEvent.click(setup);
+
+    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(setup);
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
@@ -216,6 +256,7 @@ describe("StudioPage", () => {
       required: true,
       reason: "App.Studio.pickUnavailable",
       onSelect: undefined,
+      onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).not.toHaveBeenCalled();
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
@@ -231,6 +272,10 @@ describe("StudioPage", () => {
       await StudioPage({
         searchParams: Promise.resolve({ projectId: "project-1" }),
       }),
+    );
+    expect(screen.getByTestId("studio-brand-provider")).toHaveAttribute(
+      "data-auto-start",
+      "false",
     );
 
     expect(imageStudioServiceMock.getState).toHaveBeenCalledWith(

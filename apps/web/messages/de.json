@@ -18,6 +18,7 @@
       "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
       "resend": "Neuen Code senden",
       "resendIn": "Neuer Code in {seconds} s",
+      "didntGetIt": "Nicht angekommen?",
       "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut.",
       "notSent": "Wir konnten keinen Code senden. Versuche es erneut."
     },
@@ -509,6 +510,7 @@
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",
         "emptyJobs": "Noch keine Jobs. Beauftrage diesen Coworker, um zu starten.",
+        "noMatches": "Keine Jobs passen zu deiner Suche.",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
@@ -587,6 +589,7 @@
           "back": "Zurück",
           "next": "Weiter",
           "skip": "Überspringen",
+          "skipForNow": "Vorerst überspringen",
           "finishSetup": "Einrichtung abschließen",
           "finish": "Zum Workspace"
         },
@@ -608,7 +611,7 @@
           "found": "Das haben wir auf {domain} gefunden. Passt nicht? Lade dein eigenes hoch.",
           "foundNoDomain": "Das haben wir auf deiner Website gefunden. Passt nicht? Lade dein eigenes hoch.",
           "notFound": "Auf deiner Website wurde kein Logo gefunden. Lade eines hoch oder überspringe diesen Schritt.",
-          "upload": "Logo hochladen",
+          "dropzone": "Logo hier ablegen oder Datei auswählen",
           "replace": "Logo ersetzen",
           "remove": "Entfernen",
           "uploadHint": "PNG, JPG oder SVG. Bis 2 MB.",
@@ -617,7 +620,7 @@
         },
         "Brand": {
           "title": "Markenrichtlinien",
-          "tooltip": "Markenrichtlinien sind eine DESIGN.md-Datei: Farben, Schriften, Tonalität und Stil an einem Ort. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
+          "tooltip": "Markenrichtlinien halten Farben, Schriften, Tonalität und Stil an einem Ort fest. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
           "generating": "Wir lesen {domain}, um deinen Markenstil zu erstellen…",
           "generatingNoDomain": "Wir lesen deine Website, um deinen Markenstil zu erstellen…",
           "generated": "Wir haben deinen Markenstil aus {domain} erzeugt.",
@@ -626,16 +629,23 @@
           "failedSubtitle": "Kein Problem — du kannst die Markenrichtlinien später hinzufügen.",
           "retry": "Erneut versuchen",
           "skipHint": "Das läuft im Hintergrund weiter — du kannst jederzeit fortfahren.",
-          "editHint": "Später in den Organisationseinstellungen bearbeiten, ersetzen oder entfernen."
+          "editHint": "Deine Coworker nutzen sie, damit ihre Arbeit nach dir aussieht und klingt. Ändere sie jederzeit in den Organisationseinstellungen.",
+          "colors": "Farben",
+          "fonts": "Schriften",
+          "tone": "Tonalität",
+          "noSummary": "Deine Markenrichtlinien sind gespeichert. Farben, Schriften oder Tonalität konnten wir hier nicht herauslesen.",
+          "viewFull": "Vollständige Richtlinien ansehen"
         },
         "Invite": {
           "title": "{organization} ist bereit",
           "titleFallback": "Alles erledigt",
           "subtitle": "Deine Organisation ist eingerichtet. Lade dein Team ein — oder mach das später.",
+          "linkLabel": "Einladungslink",
           "linkHint": "Jeder mit diesem Link kann als Mitglied beitreten.",
           "copy": "Kopieren",
           "copied": "Kopiert",
           "regenerate": "Link zurücksetzen",
+          "emailsLabel": "Per E-Mail einladen (optional)",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Kommas, Semikolons oder Zeilenumbrüche.",
           "sendInvites": "Einladungen senden",
@@ -751,6 +761,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Aktivität",
       "accountNoticeIndicator": "Kontohinweis",
       "notifications": "Benachrichtigungen",
       "unreadBadge": "{count, plural, =1 {1 ungelesene Benachrichtigung} other {# ungelesene Benachrichtigungen}}",
@@ -954,26 +965,6 @@
         "ACCEPTED": "Freigegeben und ausgeführt.",
         "REJECTED": "Abgelehnt. Es wurde nichts erstellt.",
         "EXPIRED": "Ohne Entscheidung abgelaufen. Frage deinen Soko Bot bei Bedarf erneut."
-      },
-      "AvatarState": {
-        "alt": "{name}, {state}",
-        "label": {
-          "idle": "Bereit",
-          "thinking": "Denkt nach",
-          "working": "Arbeitet",
-          "done": "Fertig",
-          "needs_you": "Braucht dich",
-          "offline": "Offline"
-        },
-        "line": {
-          "idle": "Bereit, wenn du es bist",
-          "thinking": "Überlegt sich den nächsten Schritt",
-          "working": "Arbeitet an einer Anfrage",
-          "done": "Hat die letzte Anfrage erledigt",
-          "needs_you": "Eine Entscheidung wartet auf dich",
-          "offline": "Nimmt gerade keine Anfragen an"
-        },
-        "lastActive": "Zuletzt aktiv {time}"
       }
     },
     "Mermaid": {
@@ -1026,6 +1017,7 @@
       },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
+      "files": "{count, plural, one {# Datei} other {# Dateien}}",
       "assignee": "Zugewiesen an",
       "project": "Projekt",
       "destination": "Konto",
@@ -1627,6 +1619,11 @@
           "label": "Suchen",
           "subtitle": "Spezialisierte Agenten"
         },
+        "MyDay": {
+          "title": "Mein Tag",
+          "more": "{count, plural, one {# weitere anzeigen} other {# weitere anzeigen}}",
+          "error": "Konnte nicht mehr laden. Versuche es erneut."
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "Was steht als Nächstes an?",
@@ -1634,6 +1631,8 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
+          "chatKind": "Chat",
+          "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
             "teamWins": "Was haben wir geschafft?",
@@ -1644,6 +1643,8 @@
       "SokoBot": {
         "connectTitle": "Gib {bot} Zugriff auf Postfach und Kalender",
         "connectBody": "Damit gibt es Meeting-Vorbereitung, Follow-up-Erinnerungen und dein tägliches Briefing.",
+        "connectCompactTitle": "Postfach und Kalender verbinden",
+        "connectButton": "Verbinden",
         "connectConnected": "{name} verbunden",
         "connectProvider": "{name} verbinden",
         "connectDismiss": "Ausblenden",
@@ -1751,7 +1752,13 @@
           "CANCELED": "Abgebrochen"
         },
         "visibilityLabel": "Sichtbarkeit",
-        "visibilityPrivate": "Privat"
+        "visibilityPrivate": "Privat",
+        "activeFilters": "Aktive Filter",
+        "chip": "{label}: {value}",
+        "removeFilter": "Filter {filter} entfernen",
+        "clear": "Filter zurücksetzen",
+        "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
+        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen."
       },
       "Detail": {
         "back": "Zurück zu Tasks",
@@ -1887,7 +1894,8 @@
           "resumeReady": "Zurück zu Bereit",
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
-          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut."
+          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2023,7 +2031,8 @@
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
         "privateLabel": "Privat",
-        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker."
+        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker.",
+        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen."
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -2093,6 +2102,17 @@
           "tomorrowAt": "Startet morgen um {time}",
           "at": "Startet {datetime}"
         }
+      },
+      "Due": {
+        "label": "Fälligkeitsdatum",
+        "none": "Kein Fälligkeitsdatum",
+        "set": "Fälligkeitsdatum festlegen",
+        "change": "Fälligkeitsdatum ändern",
+        "save": "Speichern",
+        "clear": "Entfernen",
+        "due": "Fällig am {date}",
+        "overdue": "Überfällig · {date}",
+        "updateError": "Das Fälligkeitsdatum konnte nicht geändert werden. Versuche es erneut."
       },
       "Schedules": {
         "viewList": "Listenansicht",
@@ -3225,7 +3245,10 @@
           "bots": "Bots"
         },
         "design": {
-          "document": "DESIGN.md"
+          "document": "DESIGN.md",
+          "colors": "Farben",
+          "typography": "Typografie",
+          "frontMatter": "Front Matter"
         },
         "bots": {
           "title": "Bots für dieses Projekt"
@@ -4011,9 +4034,163 @@
     "Studio": {
       "back": "Zurück zum Projekt",
       "updated": "Aktualisiert",
-      "emptyTitle": "Erstelle dein erstes Bild",
-      "emptyBody": "Klicke auf eine Vorlage, um sie anzuwenden, oder schreibe unten deinen eigenen Prompt.",
-      "promptPlaceholder": "Beschreibe das Bild…",
+      "startFromWebsite": "Mit einer Website starten",
+      "brandKit": "Marken-Kit",
+      "brandKitNewTab": "Projektdesign in einem neuen Tab öffnen",
+      "WebsiteDraft": {
+        "reviewBrand": "Marken-Kit prüfen",
+        "preparing": "Vorschläge für Marke und Produkte werden anhand der Website vorbereitet …",
+        "prepare": "Entwurf aus Website erstellen",
+        "reviewCopy": "Markentexte prüfen",
+        "ready": "Die Vorschläge von der Website sind bereit zur Prüfung.",
+        "partial": "Einige Angaben konnten nicht von der Website gelesen werden.",
+        "empty": "Auf der Projekt-Website wurden keine Markentexte oder Produkte gefunden.",
+        "error": "Die Vorschläge von der Projekt-Website konnten nicht erstellt werden. Versuche es erneut."
+      },
+      "BrandKit": {
+        "websiteLookDraft": "Farben und Schriften von deiner Website. Du kannst sie vor dem Speichern bearbeiten.",
+        "discardWebsiteLook": "Vorgeschlagenes Design verwerfen",
+        "cancelLook": "Änderungen am Design verwerfen",
+        "editLook": "Farben und Schriften bearbeiten",
+        "resetLook": "Projektdesign verwenden",
+        "colorsHelp": "Gib bis zu acht Hex-Farbwerte ein, je einen pro Zeile, zum Beispiel #23453C.",
+        "fonts": "Schriften",
+        "fontsHelp": "Gib bis zu vier Schriftnamen ein, je einen pro Zeile.",
+        "saveLook": "Design speichern",
+        "lookSaved": "Studio verwendet dieses Design für neue Anzeigen.",
+        "lookReset": "Studio verwendet das Projektdesign für neue Anzeigen.",
+        "lookSaveError": "Das Markendesign konnte nicht gespeichert werden. Versuch es erneut.",
+        "lookConflict": "Das Markendesign wurde in einer anderen Sitzung geändert. Lade es vor der Bearbeitung neu.",
+        "reloadLook": "Markendesign neu laden",
+        "addWebsiteCopy": "Website-Texte zum Entwurf hinzufügen",
+        "websiteCopyAdded": "Website-Texte hinzugefügt. Prüfe sie vor dem Speichern.",
+        "websiteProfileAdded": "Website-Vorschläge hinzugefügt. Prüfe Tonalität und Zielgruppe vor dem Speichern.",
+        "websiteCopyEmpty": "Es gibt keine neuen Website-Texte zum Hinzufügen.",
+        "websiteCopyError": "Die Texte konnten nicht von der Projekt-Website gelesen werden. Versuche es erneut.",
+        "extractWebsiteStyle": "Farben und Schriftarten extrahieren",
+        "websiteStyleHelp": "Beim Extrahieren des Website-Stils wird der Designleitfaden des Projekts ersetzt.",
+        "websiteStyleSaved": "Der Website-Stil wurde im Designleitfaden des Projekts gespeichert.",
+        "logoFile": "Datei für das Projektlogo",
+        "uploadLogo": "Logo hochladen",
+        "replaceLogo": "Logo ersetzen",
+        "logoSaved": "Projektlogo gespeichert.",
+        "logoUploadError": "Das Projektlogo konnte nicht gespeichert werden.",
+        "logoFileInvalid": "Wähle ein statisches PNG-, JPEG- oder WebP-Bild bis 2 MB.",
+        "logoRequirements": "PNG, JPEG oder WebP bis 2 MB und 4 Megapixel.",
+        "logoPosition": "Standardposition des Logos",
+        "logoPositionHint": "Neue Anzeigenvorschauen und ZIP-Exporte übernehmen diese Position. Du kannst sie für jeden Export ändern.",
+        "saveLogoPosition": "Logoposition speichern",
+        "logoPositionSaved": "Standardposition des Logos gespeichert.",
+        "logoPositionError": "Die Standardposition des Logos konnte nicht gespeichert werden.",
+        "findWebsiteLogo": "Website-Logo suchen",
+        "currentLogo": "Aktuelles Projektlogo",
+        "websiteLogoPreview": "Logo von der Projektwebsite",
+        "useWebsiteLogo": "Dieses Logo verwenden",
+        "discardWebsiteLogo": "Verwerfen",
+        "websiteLogoMissing": "Auf der Projektwebsite wurde kein geeignetes Logo gefunden.",
+        "websiteLogoError": "Das Logo konnte auf der Projektwebsite nicht gesucht werden. Versuche es erneut.",
+        "description": "Lege den visuellen Stil, den Ton, die Zielgruppe und die freigegebenen Texte für deine Anzeigen fest.",
+        "colors": "Markenfarben",
+        "summary": "Markenbeschreibung",
+        "tone": "Sprache und Ton",
+        "audience": "Zielgruppe",
+        "approvedLines": "Freigegebene Anzeigentexte",
+        "onePerLine": "Ein Eintrag pro Zeile",
+        "lineLimits": "Verwende bis zu acht Einträge je Feld. Ein Zielgruppeneintrag darf höchstens 400 Zeichen haben, eine Textzeile höchstens 2.000.",
+        "loading": "Marken-Kit wird geladen…",
+        "saved": "Markentexte gespeichert.",
+        "loadError": "Das Marken-Kit konnte nicht geladen werden.",
+        "saveError": "Die Markentexte konnten nicht gespeichert werden.",
+        "conflict": "Das Marken-Kit wurde geändert. Lade es vor dem Speichern erneut.",
+        "reload": "Marken-Kit neu laden",
+        "editDesign": "Design bearbeiten",
+        "close": "Schließen",
+        "save": "Markentexte speichern"
+      },
+      "addProductPhoto": "Produktfoto hinzufügen",
+      "removeProductPhoto": "Produktfoto entfernen",
+      "productPhoto": "Produktfoto",
+      "productPhotoType": "Wähle ein Foto im Format JPEG, PNG oder WebP.",
+      "productPhotoSize": "Wähle ein Foto mit höchstens {size} MiB.",
+      "productPhotoDuplicate": "In Dateien gibt es bereits eine Datei mit diesem Namen. Benenne das Foto um oder wähle ein anderes.",
+      "productPhotoFailed": "Das Foto konnte nicht angehängt werden. Versuche es mit einer anderen Datei.",
+      "productPhotoNeedsModel": "Wähle ein Bildmodell, das dein Foto und alle weiteren Referenzen unterstützt.",
+      "productPhotoGuidance": "Studio nutzt das Produktfoto als Vorlage für Form, Farben, Verpackung und Etikett des Produkts.",
+      "useProductCutout": "Originales Produktfoto verwenden",
+      "productCutoutSummary": "Originalfoto",
+      "productCutoutHint": "Verwende ein transparentes PNG. Studio erstellt die Umgebung und platziert dein Originalfoto darin.",
+      "productCutoutNeedsPhoto": "Füge für jedes Produkt ein transparentes PNG hinzu und entferne andere Bildreferenzen, oder schalte das Originalfoto aus.",
+      "tooManyReferences": "Verwende bis zu {count} Referenzbilder pro Anzeige.",
+      "ProductCatalog": {
+        "reviewImportedProducts": "Importierte Produkte prüfen",
+        "addImportedToBatch": "{count, plural, one {# importiertes Produkt zum Batch hinzufügen} other {# importierte Produkte zum Batch hinzufügen}}",
+        "catalogFull": "Der Katalog ist voll. Entferne ein Produkt, bevor du ein weiteres hinzufügst.",
+        "title": "Produkte",
+        "description": "Importiere oder ergänze bis zu {count} Produkte. Prüfe die Angaben, bevor du sie in einer Anzeige verwendest.",
+        "website": "Onlineshop oder Produktseite",
+        "websitePlaceholder": "beispiel.de",
+        "import": "Produkte importieren",
+        "count": "{count} von {limit} Produkten",
+        "add": "Produkt hinzufügen",
+        "product": "Produkt",
+        "untitled": "Unbenanntes Produkt",
+        "name": "Produktname",
+        "productDescription": "Produktbeschreibung",
+        "price": "Preis",
+        "productUrl": "URL der Produktseite",
+        "imageUrl": "URL des Produktfotos",
+        "viewPhoto": "Produktfoto öffnen",
+        "use": "Im Briefing verwenden",
+        "remove": "Produkt entfernen",
+        "loading": "Produkte werden geladen…",
+        "working": "Wird verarbeitet…",
+        "retry": "Erneut versuchen",
+        "close": "Schließen",
+        "save": "Produkte speichern",
+        "loadError": "Die Produkte konnten nicht geladen werden. Versuche es erneut.",
+        "noImportResults": "Es wurden keine Produkte gefunden. Versuche es mit einer Produktseite oder füge ein Produkt manuell hinzu.",
+        "alreadyImported": "Diese Produkte sind bereits im Katalog.",
+        "imported": "{count, plural, one {# Produkt gefunden} other {# Produkte gefunden}}. Prüfe und speichere die Angaben.",
+        "importError": "Die Produkte konnten nicht importiert werden. Prüfe die URL und versuche es erneut.",
+        "saved": "Produkte gespeichert.",
+        "saveError": "Die Produkte konnten nicht gespeichert werden. Prüfe die Angaben oder lade den gespeicherten Katalog neu.",
+        "discardAndReload": "Änderungen verwerfen und neu laden",
+        "useDetailsOnly": "Nur Angaben verwenden",
+        "attachPhotoError": "Das Foto konnte nicht angehängt werden. Prüfe die Foto-URL oder verwende nur die Produktangaben.",
+        "addToBatch": "Zum Stapel hinzufügen",
+        "batchTitle": "Produkte in diesem Stapel",
+        "copiesFor": "Kopien von {name} pro Platzierung und Modell",
+        "removeFromBatch": "{name} aus dem Stapel entfernen",
+        "removeBatchItem": "Entfernen",
+        "includePhotos": "Produktfotos verwenden",
+        "batchNote": "Jede Kopie wird für alle gewählten Platzierungen und Modelle erstellt.",
+        "useBatch": "Produktstapel verwenden",
+        "batchPhotoError": "Das Foto für {name} konnte nicht angehängt werden. Aktualisiere die Foto-URL oder deaktiviere „Produktfotos verwenden“."
+      },
+      "productBatchLimit": "Reduziere Produkte, Kopien, Platzierungen oder Modelle, um das Limit von {count} Bildern einzuhalten.",
+      "fitBatchModels": "{count, plural, one {# kompatibles Modell behalten} other {# kompatible Modelle behalten}}",
+      "batchProductCount": "{count, plural, one {# Produkt im Stapel} other {# Produkte im Stapel}}",
+      "clearProductBatch": "Produktstapel leeren",
+      "copiesFromProducts": "Lege die Anzahl der Kopien je Produkt unter „Produkte“ fest.",
+      "emptyTitle": "Erstelle deine erste Anzeige",
+      "emptyBody": "Wähle eine Vorlage und ergänze die Details oder schreibe dein eigenes Anzeigenbriefing.",
+      "pauseTemplateMotion": "Schwebende Vorschauen anhalten",
+      "resumeTemplateMotion": "Schwebende Vorschauen fortsetzen",
+      "CreativeStart": {
+        "open": "Projektidee auswählen",
+        "title": "Was möchtest du zuerst gestalten?",
+        "description": "Wähle einen Ausgangspunkt und passe das Briefing an.",
+        "product": "Produktbilder / E-Commerce",
+        "campaign": "Kampagnenkonzepte / Leitmotive",
+        "architecture": "Architektur / Innenräume",
+        "portfolio": "Portfolio / persönliche Arbeiten",
+        "social": "Social-Media-Inhalte / Vorschaubilder",
+        "video": "Videokonzepte / Storyboards / Animation",
+        "fashion": "Mode / Editorial-Konzepte",
+        "worlds": "Figuren, Umgebungen oder Welten",
+        "other": "Sonstiges"
+      },
+      "promptPlaceholder": "Beschreibe die Anzeige, die du erstellen möchtest…",
       "generate": "Erzeugen",
       "refine": "Verfeinern",
       "regenerate": "Neue Variante",
@@ -4030,6 +4207,58 @@
       "reroll": "Neu würfeln",
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
+      "previewAd": "Anzeige ansehen",
+      "previewAdDescription": "Sieh dir eine Anzeige im Instagram- oder Facebook-Feed oder als vertikales Reel an.",
+      "approvedHeadline": "Freigegebene Überschrift",
+      "noHeadline": "Keine Überschrift",
+      "headlineHint": "Studio speichert diese Überschrift für die Anzeige und verwendet sie in PNG- und ZIP-Exporten.",
+      "headlineLoading": "Freigegebene Überschriften werden geladen…",
+      "headlineLoadFailed": "Freigegebene Überschriften konnten nicht geladen werden.",
+      "useApprovedHeadlines": "Freigegebene Überschriften verwenden",
+      "useApprovedHeadlinesHint": "Die Anzeigenvarianten verwenden abwechselnd freigegebene Überschriften aus dem Markenkit. Jede Größe einer Variante verwendet in Vorschauen und Exporten denselben Wortlaut.",
+      "approvedHeadlinesSummary": "Freigegebene Überschriften",
+      "campaignHeadlineRemoved": "Die Freigabe im Markenkit hat sich geändert. Aktiviere freigegebene Überschriften erneut, um den aktuellen Wortlaut zu verwenden.",
+      "headlineRendering": "Überschrift wird hinzugefügt…",
+      "headlineRenderFailed": "Die Überschrift konnte nicht gerendert werden.",
+      "headlineRemoved": "Diese Überschrift ist im Marken-Kit nicht mehr freigegeben.",
+      "headlineSaving": "Überschrift wird gespeichert…",
+      "headlineSaveFailed": "Die Überschrift konnte nicht gespeichert werden. Prüfe das Marken-Kit und versuche es erneut.",
+      "reviewBatchHeadlines": "Überschriften der Anzeigenserie prüfen",
+      "reviewBatchHeadlinesHint": "Prüfe die neueste fertige Version jeder Anzeige. Studio speichert deine Auswahl und exportiert jede Anzeige in ihrer Originalgröße.",
+      "batchReviewChanged": "Die Anzeigenserie hat sich geändert. Prüfe die aktualisierten Anzeigen vor dem Download.",
+      "loadingBatchHeadlines": "Fertige Anzeigen und freigegebene Überschriften werden geladen…",
+      "batchHeadlinesLoadFailed": "Die Anzeigenserie konnte nicht zur Prüfung geladen werden.",
+      "batchHeadlinesEmpty": "Füge im Marken-Kit kurze freigegebene Zeilen hinzu, um sie als Überschriften zu verwenden.",
+      "batchAdNumber": "Anzeige {number}",
+      "batchHasNoReadyAds": "In dieser Anzeigenserie sind noch keine Anzeigen fertig.",
+      "headlineNoLongerApproved": "Nicht mehr freigegeben",
+      "archiveHeadlineRemoved": "Eine Überschrift ist nicht mehr freigegeben. Öffne die Prüfung erneut und ersetze oder entferne sie.",
+      "previewPlatform": "Plattform für die Vorschau",
+      "logoOnCreative": "Projektlogo auf der Anzeige",
+      "downloadPlacementPng": "PNG in {ratio} herunterladen",
+      "placementExportFailed": "Das Anzeigenformat konnte nicht exportiert werden. Versuche es erneut.",
+      "archiveLogoPosition": "Projektlogo auf ausgewählten Anzeigen",
+      "brandExportFailed": "Der Export mit Projektlogo ist fehlgeschlagen. Prüfe, ob es ein PNG-, JPEG- oder WebP-Bild ist.",
+      "LogoPositions": {
+        "none": "Kein Logo",
+        "top-left": "Oben links",
+        "top-right": "Oben rechts",
+        "bottom-left": "Unten links",
+        "bottom-right": "Unten rechts"
+      },
+      "PreviewPlatforms": {
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "reels": "Reels"
+      },
+      "previewSponsored": "Gesponsert",
+      "downloadAdsZip": "ZIP herunterladen",
+      "downloadBatchZip": "Anzeigenserie als ZIP herunterladen",
+      "downloadBatchZipHint": "Enthält die neueste fertige Version jeder Anzeige mit der geprüften Überschrift.",
+      "logoOnBatch": "Projektlogo auf jeder Anzeige",
+      "archiveImageLimit": "Wähle bis zu {count} Bilder pro ZIP-Datei.",
+      "archiveSizeLimit": "Wähle Bilder mit insgesamt höchstens {size} MiB.",
+      "archiveDownloadFailed": "Die ZIP-Datei konnte nicht heruntergeladen werden. Versuche es erneut oder lade die Bilder einzeln herunter.",
       "compare": "Vergleichen",
       "version": "Version",
       "generating": "Wird erzeugt",
@@ -4051,6 +4280,51 @@
       "composerTitle": "Neue Bilder",
       "model": "Modell",
       "aspectRatio": "Format",
+      "adPlacements": "Anzeigenplatzierungen",
+      "placementHelp": "Wähle eine oder mehrere Platzierungen oder unten ein einzelnes eigenes Seitenverhältnis.",
+      "creativeDirection": "Kreative Ausrichtung",
+      "adGallery": "Anzeigengalerie",
+      "groupByProduct": "Nach Produkt gruppieren",
+      "Assistant": {
+        "title": "Anzeigenassistent",
+        "edit": "Mit Assistent bearbeiten",
+        "empty": "Beschreibe eine neue Anzeige oder öffne eine vorhandene und wähle „Mit Assistent bearbeiten“.",
+        "unavailable": "Der Anzeigenassistent ist für dieses Projekt nicht verfügbar.",
+        "placeholder": "Beschreibe eine Anzeige oder bitte um eine Änderung",
+        "send": "Nachricht senden",
+        "you": "Du",
+        "thinking": "In Arbeit…",
+        "resuming": "Unterhaltung wird geöffnet…",
+        "retryConnection": "Verbindung erneut versuchen",
+        "error": "Der Assistent konnte diese Anfrage nicht abschließen.",
+        "errorHint": "Prüfe die Galerie auf eine neue Version, bevor du die Anfrage erneut sendest.",
+        "newConversation": "Neue Unterhaltung",
+        "editResult": "Version {version} bearbeiten",
+        "viewUpdatedAd": "Aktualisierte Anzeige ansehen",
+        "editingVersion": "Version {version} wird bearbeitet",
+        "editingProduct": "{name} · Version {version} wird bearbeitet",
+        "refreshFailed": "Die Verbindung zum Assistenten konnte nicht hergestellt werden."
+      },
+      "CreativeDirections": {
+        "auto": "Automatisch",
+        "spotlight": "Produktfokus",
+        "lifestyle": "Lifestyle",
+        "editorial": "Editorial",
+        "explainer": "Erklärmotiv"
+      },
+      "Placements": {
+        "squareFeed": "Quadratischer Feed",
+        "portraitFeed": "Hochformat-Feed",
+        "stories": "Stories und Reels",
+        "landscapeFeed": "Querformat-Feed"
+      },
+      "placementCount": "{count, plural, one {# Platzierung} other {# Platzierungen}}",
+      "placementNeedsModels": "Wähle Modelle, die alle dieses Seitenverhältnis unterstützen.",
+      "placementLimit": "Diese Platzierung würde das Limit von {count} Bildern pro Stapel überschreiten.",
+      "unsupportedPlacements": "Einige Modelle unterstützen nicht alle gewählten Platzierungen. Wechsle die Modelle oder entferne eine Platzierung.",
+      "placementCopiesOverCeiling": "Dadurch würden {images} Bilder erzeugt. Das Limit liegt bei {limit}.",
+      "placementPlan": "{count, plural, one {# Bild} other {# Bilder}}",
+      "placementPlanCredits": "{count, plural, one {# Bild} other {# Bilder}} · {credits, plural, one {# Credit} other {# Credits}}",
       "resolution": "Auflösung",
       "outputFormat": "Dateiformat",
       "copies": "Kopien",
@@ -4060,22 +4334,13 @@
       "waitingForSlot": "Wartet auf einen Platz",
       "waitingForSlotBody": "Wartet auf einen Platz — in diesem Projekt laufen bereits so viele Generierungen, wie erlaubt sind.",
       "queueNotDurable": "Die übrigen Anfragen bleiben in diesem Tab und werden gesendet, sobald Plätze frei werden. Wird der Tab geschlossen, gehen die noch nicht gesendeten verloren.",
-      "templates": "Vorlagen",
+      "templates": "Anzeigenvorlagen",
       "Templates": {
-        "poster": "Poster",
-        "headshot": "Porträt",
-        "product-announcement": "Produktankündigung",
-        "flyer": "Flyer",
-        "infographic": "Infografik",
-        "illustration": "Illustration",
-        "icon": "Icon",
-        "ad": "Werbeanzeige",
-        "social-post": "Social-Media-Post",
-        "banner": "Banner",
-        "logo-mark": "Bildmarke",
-        "background": "Hintergrund",
-        "thumbnail": "Thumbnail",
-        "mockup": "Mockup"
+        "story-ad": "Story-Anzeige",
+        "social-post": "Lifestyle-Anzeige",
+        "product-announcement": "Produkteinführung",
+        "ad": "Produkt im Fokus",
+        "banner": "Display-Banner"
       },
       "gallery": "Bilder",
       "select": "Auswählen",
@@ -4118,6 +4383,7 @@
       "modelChoosesFormat": "Modell wählt",
       "copiesOverCeiling": "{models, plural, one {# Modell} other {# Modelle}} x {copies} Kopien sind {images} Bilder, das Limit ist {limit}.",
       "batchCeiling": "Höchstens {count} Bilder pro Klick. Sokosumi schickt sie in kleinen Gruppen los, sobald der Anbieter Kapazität hat.",
+      "variedAdCopies": "Studio variiert Layouts und Überschriften der Kopien im Rahmen deines Briefings.",
       "savedSubmission": "Gespeicherte Anfrage für {model}",
       "submissionUnconfirmed": "Übermittlung nicht bestätigt",
       "submissionNotStarted": "Bildgenerierung konnte nicht gestartet werden",
@@ -4148,6 +4414,7 @@
         "provider_unreachable": "Der Bildanbieter war so lange nicht erreichbar, dass das Studio nicht weiter gewartet hat.",
         "submission_uncertain": "Der Bildanbieter hat den Empfang dieser Anfrage nicht bestätigt, sie kann also gelaufen sein oder nicht.",
         "reference_not_sendable": "Ein Referenzbild konnte nicht an den Bildanbieter gesendet werden.",
+        "product_cutout_unavailable": "Das Originalfoto muss ein zugängliches, statisches PNG mit transparentem Hintergrund sein.",
         "request_not_supported": "Dieses Modell oder diese Einstellungen sind beim Bildanbieter nicht mehr verfügbar.",
         "cancelled": "Abgebrochen, bevor ein Bild entstanden ist.",
         "abandoned_before_send": "Diese Anfrage wurde verworfen, bevor sie den Bildanbieter erreicht hat.",
@@ -4860,6 +5127,7 @@
         "default": "Sokosumi - Marketplace für Mensch-Agent-Interaktionen",
         "template": "Sokosumi - %s"
       },
+      "home": "Startseite",
       "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
     "Sidebar": {
@@ -4914,6 +5182,7 @@
         },
         "SokoBot": {
           "fallbackName": "Soko Bot",
+          "workingNow": "Arbeitet gerade",
           "needsAttention": "Braucht Aufmerksamkeit",
           "activeAgo": "Aktiv {time}",
           "ready": "Bereit",
@@ -5228,6 +5497,10 @@
           "designSystem": {
             "title": "Designsystem",
             "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten."
+          },
+          "evals": {
+            "title": "Evals",
+            "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
           }
         }
       },
@@ -6170,7 +6443,7 @@
           "realRunsByVersion": "Echte Nutzung nach Version",
           "descriptionBot": "Bewertungen (1–5) für die echten Durchläufe dieses Bots, letzte 30 Tage. Echte Durchläufe werden nicht mehr bewertet, daher erscheinen nur frühere Bewertungen."
         },
-        "labLink": "Verhaltenslabor",
+        "evalsLink": "Evals",
         "evaluationsLink": "Modellvergleiche",
         "versionsLink": "Versionen",
         "Versions": {
@@ -6406,7 +6679,7 @@
         },
         "Avatar": {
           "title": "Avatar",
-          "description": "Gib diesem Bot ein Maskottchen aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
+          "description": "Gib diesem Bot einen Avatar aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
           "apply": "Avatar setzen",
           "done": "Avatar aktualisiert.",
           "error": "Der Avatar konnte nicht gesetzt werden."
@@ -6749,6 +7022,99 @@
           "doneBody": "Der erste geht am Donnerstag um 09:00 in deiner Zeitzone raus.",
           "doneAction": "Kalender öffnen"
         }
+      },
+      "Evals": {
+        "title": "Evals",
+        "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
+        "noHistory": "No daily runs yet",
+        "historyLabel": "Pass rate in the last {count} daily runs",
+        "noDailyRuns": "No daily run has finished yet.",
+        "trendBarTitle": "{rate} passed ({passed} of {scored})",
+        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "wasRate": "was {rate}",
+        "noCasesMatch": "No case matches this filter.",
+        "runTitle": "{trigger} run, {when}",
+        "comparedWith": "Compared with the daily run of {when}",
+        "noBaseline": "No daily run before this one to compare with.",
+        "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
+        "passedOf": "{passed} of {scored} passed",
+        "suiteFilter": "Suite",
+        "outcomeFilter": "Cases",
+        "allSuites": "All",
+        "allCases": "All cases",
+        "onlyChanges": "Only what needs a look",
+        "cancelRun": "Stop run",
+        "cancelError": "The run could not be stopped.",
+        "backToRun": "Back to the run",
+        "Suite": {
+          "soko-bot": "Soko Bot",
+          "cmo": "CMO"
+        },
+        "Runs": {
+          "title": "Runs",
+          "when": "When",
+          "run": "Run",
+          "pr": "PR",
+          "versions": "Versions",
+          "cost": "Cost"
+        },
+        "Trigger": {
+          "DAILY": "Daily",
+          "MANUAL": "Manual"
+        },
+        "Status": {
+          "QUEUED": "Queued",
+          "RUNNING": "Running",
+          "COMPLETED": "Done",
+          "CANCELLED": "Stopped"
+        },
+        "Outcome": {
+          "regressed": "Regressed",
+          "error": "Error",
+          "failing": "Failing",
+          "flaky": "Flaky",
+          "fixed": "Fixed",
+          "passing": "Passing",
+          "pending": "Waiting",
+          "skipped": "Skipped"
+        },
+        "State": {
+          "PENDING": "Waiting",
+          "RUNNING": "Running",
+          "PASSED": "Passed",
+          "FAILED": "Failed",
+          "ERROR": "Could not run",
+          "SKIPPED": "Skipped"
+        },
+        "RunDialog": {
+          "open": "Run evals",
+          "title": "Run evals",
+          "description": "Runs on this deployment. If a run is in progress, this one waits until it is done.",
+          "suites": "Suites",
+          "all": "Both",
+          "sokoBot": "Soko Bot",
+          "cmo": "CMO",
+          "repeats": "Repeats",
+          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "cases": "Only these cases",
+          "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
+          "casesHint": "Leave empty to run every case of the suites.",
+          "cancel": "Cancel",
+          "start": "Start run",
+          "error": "The run could not be started."
+        },
+        "Case": {
+          "judge": "Judge: {verdict}",
+          "seconds": "{seconds} s",
+          "passed": "Passed",
+          "failed": "Failed",
+          "answer": "Answer",
+          "tools": "Tools, in order",
+          "toolFailed": "failed",
+          "thisRun": "This run, repeat {repeat}",
+          "before": "Daily run of {when}"
+        },
+        "labLink": "Try one scenario on your own bot"
       }
     },
     "Billing": {
@@ -6977,7 +7343,9 @@
           "error": "{provider} konnte nicht getrennt werden"
         },
         "connect": "{provider} verbinden",
-        "disconnect": "{provider} trennen"
+        "disconnect": "{provider} trennen",
+        "connectAction": "Verbinden",
+        "disconnectAction": "Trennen"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
@@ -7136,7 +7504,7 @@
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
         "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert",
         "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
-        "tagDirectMessagesDescription": "Jev darf Direktnachrichten zwischen Personen lesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
+        "tagDirectMessagesDescription": "Wenn eingeschaltet, lesen wir deine Direktnachrichten, um Fragen und Entscheidungen für dich hervorzuheben. Wir lesen eine Direktnachricht nur, wenn alle darin das eingeschaltet haben. In Channels machen wir das immer.",
         "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
         "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
       },
@@ -7881,10 +8249,14 @@
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "Header": {
           "back": "Zurück zu Agents",
-          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
+          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
+          "backToAgent": "Zurück zu {name}",
+          "yourJobs": "Deine Jobs",
+          "yourJobsCount": "Deine Jobs · {count}"
         },
         "Modal": {
-          "back": "Zurück"
+          "back": "Zurück",
+          "title": "Job-Details"
         },
         "Footer": {
           "termsAndConditions": "Allgemeine Geschäftsbedingungen",
@@ -8144,6 +8516,8 @@
       }
     },
     "Connections": {
+      "title": "Verbindungen",
+      "description": "Anmeldekonten, verbundene Apps und MCP.",
       "tabs": {
         "connectedApps": "Verbundene Apps",
         "mcp": "MCP"
@@ -8259,6 +8633,7 @@
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
       "headerVisitSwitch": "Zu {workspace} wechseln",
+      "headerMore": "Weitere Chat-Optionen",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",
@@ -8324,7 +8699,8 @@
         "sent": "Gesendet",
         "failed": "Senden fehlgeschlagen",
         "retry": "Erneut versuchen",
-        "remove": "Entfernen"
+        "remove": "Entfernen",
+        "noReply": "Der AI coworker hat nicht geantwortet."
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
@@ -8490,6 +8866,23 @@
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
         "unpinError": "Nachricht konnte nicht gelöst werden."
+      },
+      "SavedMessages": {
+        "save": "Für später speichern",
+        "saved": "Für später gespeichert",
+        "view": "Gespeicherte ansehen",
+        "saveError": "Die Nachricht konnte nicht gespeichert werden.",
+        "removeError": "Die Nachricht konnte nicht aus Gespeichert entfernt werden.",
+        "error": "Gespeicherte Nachrichten konnten nicht geladen werden.",
+        "title": "Gespeichert",
+        "description": "Nachrichten, die du für später gespeichert hast. Nur du siehst diese Liste.",
+        "empty": "Noch nichts gespeichert",
+        "emptyHint": "Öffne die Aktionen einer Nachricht und wähle Für später speichern, um sie hier zu behalten.",
+        "remove": "Aus Gespeichert entfernen",
+        "removed": "Aus Gespeichert entfernt",
+        "loadOlder": "Ältere laden",
+        "untitled": "Nachricht ohne Text",
+        "savedAgo": "Gespeichert {time}"
       },
       "Quote": {
         "action": "Zitieren",
@@ -8815,7 +9208,7 @@
         "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
         "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
-        "aiNote": "Jev sortiert Nachrichten danach, was sie von dir wollen. Jev kann sich irren, daher wird nichts ausgeblendet: Korrigiere ein Tag an jeder Nachricht mit einem Klick.",
+        "aiNote": "Wir taggen deine Nachrichten für dich und liegen dabei manchmal falsch. Um ein Tag zu korrigieren, öffne die Nachricht, zeige mit der Maus darauf und klicke auf das Tag-Symbol.",
         "removeTag": "Tag entfernen: {tag}",
         "taskMade": "Task erstellt",
         "loopClosed": "Erledigt",
@@ -8826,8 +9219,8 @@
         "noCoworkerFits": "Noch passt kein Coworker dazu.",
         "createTask": "Task erstellen",
         "editTags": "Tags bearbeiten",
-        "editTagsTitle": "Was diese Nachricht ist",
-        "editTagsNote": "Deine Korrektur gilt für alle im Raum.",
+        "editTagsTitle": "Tags dieser Nachricht",
+        "editTagsNote": "Alle im Raum sehen deine Änderung.",
         "taskDue": "Fällig {date}",
         "taskSource": "Aus dem Chat:",
         "taskFrom": "{name} schrieb:",
@@ -8852,7 +9245,7 @@
           "blockers": "Blocker",
           "decisions": "Entscheidungen",
           "announcements": "Ankündigungen",
-          "openLoops": "Offene Punkte",
+          "openLoops": "Noch offen",
           "highlights": "Wichtiges"
         },
         "Chips": {
@@ -8889,12 +9282,13 @@
           "title": "Entscheidungen",
           "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
           "loadOlder": "Ältere laden",
-          "note": "Von Jev gesammelt. Entferne eine falsche an ihrer Nachricht."
+          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag."
         },
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
-          "threads": "Threads"
+          "threads": "Threads",
+          "saved": "Gespeichert"
         },
         "Briefing": {
           "welcomeBack": "Willkommen zurück",
@@ -8992,6 +9386,8 @@
       "moveNewFolderPlaceholder": "Oder neuen Ordnernamen eingeben",
       "shareAction": "Teilen",
       "shareFolderAction": "„{name}“ teilen",
+      "dataRoomAction": "Datenraum",
+      "dataRoomFolderAction": "Datenraum für {name}",
       "moveDialogTitle": "{itemName} verschieben",
       "moveDialogDescription": "Wähle den Zielordner aus",
       "moveHere": "Hierher verschieben",
@@ -9184,6 +9580,9 @@
         "typeAll": "Alle",
         "foldersLabel": "Ordner",
         "foldersRoot": "Alle Dateien",
+        "dataRoom": "Datenraum",
+        "dataRoomAccess": "Nur du und die Personen, die du per E-Mail hereinlässt, können die Dateien öffnen.",
+        "dataRoomAccessOrg": "Nur die Person, die ihn angelegt hat, die Inhaber und Admins deiner Organisation, hereingelassene Kollegen und per E-Mail hereingelassene Personen können die Dateien öffnen.",
         "folderEmptyTitle": "In diesem Ordner ist noch nichts",
         "detailRejected": "Entfernte Labels",
         "rejectedExplainer": "Du hast diese entfernt, daher werden sie nicht erneut vorgeschlagen. Lass das Modell eines erneut prüfen, falls das ein Versehen war.",
@@ -9216,7 +9615,138 @@
         "revoke": "Freigabe beenden",
         "revoked": "Link deaktiviert",
         "loadFailed": "Link konnte nicht geladen werden",
-        "saveFailed": "Link konnte nicht gespeichert werden"
+        "saveFailed": "Link konnte nicht gespeichert werden",
+        "inDataRoom": "Das liegt in einem Datenraum. Lade Personen in den Raum ein, statt einen Link zu teilen."
+      },
+      "DataRoom": {
+        "makeTitle": "„{name}“ zum Datenraum machen",
+        "makeDescription": "Die Dateien ziehen in einen privaten Speicher. Nur Personen, die du einlädst, können sie öffnen. Links auf diesen Ordner oder etwas darin funktionieren nicht mehr.",
+        "makeDescriptionOrg": "Seine Dateien wandern in privaten Speicher, sodass nur Menschen, die du hineinlässt, sie öffnen können. In deiner Organisation sehen nur du, die Inhaber und Admins und Kolleginnen und Kollegen, die du hinzufügst, den Ordner. Links zu diesem Ordner oder zu etwas darin funktionieren nicht mehr.",
+        "make": "Datenraum einrichten",
+        "made": "Datenraum aktiv. Lade jetzt die ersten Personen ein.",
+        "roomTitle": "Datenraum „{name}“",
+        "insideRoom": "Dieser Ordner liegt im Datenraum „{room}“.",
+        "storage": {
+          "moving_in": "Die Dateien ziehen in den privaten Speicher. Du kannst in der Zwischenzeit weiter mit ihnen arbeiten.",
+          "private": "Alle Dateien liegen im privaten Speicher. Von außerhalb von Sokosumi kann sie niemand öffnen.",
+          "moving_out": "Wird geschlossen. Die Dateien ziehen zurück in den normalen Speicher."
+        },
+        "close": "Datenraum schließen",
+        "closeTitle": "Datenraum „{name}“ schließen?",
+        "closeDescription": "Die Dateien ziehen zurück in den normalen Speicher, wo jeder mit der Adresse einer Datei sie öffnen kann.",
+        "closed": "Datenraum geschlossen. Die Dateien ziehen zurück.",
+        "cancel": "Abbrechen",
+        "saveFailed": "Datenraum konnte nicht gespeichert werden",
+        "manage": "Raum verwalten",
+        "loading": "Datenraum wird geladen",
+        "loadFailed": "Datenraum konnte nicht geladen werden",
+        "backToFiles": "Zurück zu Dateien",
+        "copyLink": "Link kopieren",
+        "linkCopied": "Link kopiert",
+        "linkCopyFailed": "Link konnte nicht kopiert werden",
+        "tabs": {
+          "people": "Personen ({count})",
+          "activity": "Aktivität",
+          "questions": "Fragen",
+          "contents": "Inhalt",
+          "settings": "Einstellungen"
+        },
+        "Colleagues": {
+          "title": "In deiner Organisation",
+          "hint": "Nur die Person, die diesen Raum erstellt hat, die Inhaber und Admins der Organisation und die hier angehakten Kolleginnen und Kollegen sehen ihn in Dateien. Alle anderen sehen den Ordner nicht, und Agenten wie Soko Bot öffnen ihn nie.",
+          "nobodyElse": "Sonst wurde niemand hineingelassen.",
+          "madeIt": "Hat ihn erstellt",
+          "admin": "Inhaber oder Admin",
+          "save": "Speichern, wer drin ist",
+          "saved": "Gespeichert, wer im Raum ist.",
+          "saveFailed": "Konnte nicht speichern, wer drin ist. Versuch es erneut.",
+          "loadFailed": "Die Mitglieder deiner Organisation konnten nicht geladen werden.",
+          "loading": "Mitglieder werden geladen"
+        },
+        "People": {
+          "emailsLabel": "Per E-Mail einladen",
+          "expiresLabel": "Zugang endet",
+          "noEnd": "Nie",
+          "clearEnd": "Enddatum entfernen",
+          "foldersLabel": "Ordner",
+          "foldersHint": "Ohne Auswahl der ganze Raum.",
+          "invite": "Einladen",
+          "inviteMany": "{count} einladen",
+          "invited": "{count, plural, one {Einladung gesendet} other {# Einladungen gesendet}}",
+          "inviteFailed": "Einladungen konnten nicht gesendet werden",
+          "empty": "Noch niemand in diesem Raum. Lade oben Personen per E-Mail ein.",
+          "statusInvited": "Eingeladen, noch nicht besucht",
+          "statusDomain": "Über E-Mail-Domain zugelassen",
+          "statusVisited": "Letzter Besuch {when}",
+          "statusRemoved": "Entfernt",
+          "statusExpired": "Zugang beendet",
+          "onlyFolders": "nur {folders}",
+          "until": "bis {date}",
+          "counts": "{views, plural, one {# Aufruf} other {# Aufrufe}} · {downloads, plural, one {# Download} other {# Downloads}}",
+          "remove": "Entfernen",
+          "removeTitle": "{email} aus dem Raum entfernen?",
+          "removeDescription": "Der Zugang endet sofort, auch für geöffnete Seiten. Die Aktivität bleibt im Protokoll.",
+          "removed": "{email} entfernt",
+          "removeFailed": "Konnte nicht entfernt werden",
+          "cancel": "Abbrechen"
+        },
+        "Activity": {
+          "filterLabel": "Aktivität anzeigen von",
+          "everyone": "Allen",
+          "someone": "Jemand",
+          "loading": "Aktivität wird geladen",
+          "loadFailed": "Aktivität konnte nicht geladen werden",
+          "empty": "Noch keine Aktivität.",
+          "more": "Ältere anzeigen",
+          "kind": {
+            "enter": "{who} hat sich angemeldet",
+            "view": "{who} hat {what} geöffnet",
+            "download": "{who} hat {what} heruntergeladen",
+            "download_all": "{who} hat den ganzen Raum heruntergeladen",
+            "ask": "{who} hat zu {what} gefragt"
+          }
+        },
+        "Questions": {
+          "loading": "Fragen werden geladen",
+          "loadFailed": "Fragen konnten nicht geladen werden",
+          "empty": "Noch keine Fragen. Besucher können zu jedem geöffneten Dokument fragen.",
+          "byline": "{who} zu {path} · {when}",
+          "answerLabel": "Antwort",
+          "answerPlaceholder": "Schreib eine Antwort, die neben dem Dokument erscheint",
+          "answer": "Antworten",
+          "updateAnswer": "Antwort ändern",
+          "answered": "Antwort gespeichert",
+          "answerFailed": "Antwort konnte nicht gespeichert werden"
+        },
+        "Contents": {
+          "hint": "Die Reihenfolge, die Besucher sehen. Sie nummeriert den Raum (1, 1.1, 1.2).",
+          "empty": "Dieser Raum hat noch keine Dateien.",
+          "moveUp": "{name} nach oben",
+          "moveDown": "{name} nach unten",
+          "save": "Reihenfolge speichern",
+          "saved": "Reihenfolge gespeichert",
+          "saveFailed": "Reihenfolge konnte nicht gespeichert werden"
+        },
+        "Settings": {
+          "titleLabel": "Titel",
+          "logoLabel": "Logo",
+          "noLogo": "Kein Logo",
+          "logoHint": "Ein Bild aus diesem Raum, neben dem Titel.",
+          "domainsLabel": "Zugelassene E-Mail-Domains",
+          "domainsHint": "Wer eine Adresse bei diesen Domains hat, kann sich ohne Einladung anmelden.",
+          "expiresLabel": "Raum schließt",
+          "noEnd": "Nie",
+          "clearEnd": "Schließdatum entfernen",
+          "downloadLabel": "Downloads erlauben",
+          "downloadHint": "Besucher können Dateien und den ganzen Raum als Zip herunterladen.",
+          "watermarkLabel": "Wasserzeichen",
+          "watermarkHint": "PDFs und Bilder tragen die E-Mail der Besucher und die Uhrzeit.",
+          "notifyLabel": "E-Mail bei ersten Besuchen",
+          "notifyHint": "Du bekommst eine E-Mail, wenn eine Person den Raum zum ersten Mal öffnet.",
+          "save": "Einstellungen speichern",
+          "saved": "Einstellungen gespeichert",
+          "saveFailed": "Einstellungen konnten nicht gespeichert werden"
+        }
       }
     },
     "SokoBot": {
@@ -9247,7 +9777,8 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}"
+        "pictureTitle": "Wähle ein Bild für {name}",
+        "skip": "Überspringen"
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -9321,9 +9852,6 @@
         "Form": {
           "open": "Neuer Zeitplan",
           "name": "Name",
-          "cron": "Cron-Ausdruck",
-          "cronHint": "Fünf Felder, z. B. 0 9 * * 1-5 für werktags um 09:00.",
-          "timezone": "Zeitzone",
           "prompt": "Prompt",
           "submit": "Zeitplan erstellen",
           "cancel": "Abbrechen",
@@ -9332,6 +9860,12 @@
         }
       },
       "Settings": {
+        "nameTitle": "Name",
+        "nameDescription": "Erscheint im Chat, bei Tasks und in der Seitenleiste.",
+        "nameRequired": "Gib einen Namen ein.",
+        "rename": "Speichern",
+        "renamed": "Name gespeichert.",
+        "renameError": "Der Name konnte nicht gespeichert werden.",
         "Proactive": {
           "pauseTitle": "Alles pausieren, was er von sich aus startet",
           "pauseDescription": "Stoppt Stand-up, Wochenrückblick, Mail-Checks und Nudges. Chat und zugewiesene Tasks laufen weiter.",
@@ -9529,6 +10063,7 @@
       },
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
+        "lastActivity": "zuletzt aktiv {time}",
         "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
         "openChatError": "Der Chat mit deinem Soko Bot konnte nicht geöffnet werden.",
@@ -9583,73 +10118,17 @@
       },
       "Avatar": {
         "title": "Bild",
-        "description": "Ein einzigartiges Maskottchen aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
+        "description": "Ein einzigartiges Bild aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
         "save": "Dieses Bild verwenden",
+        "edit": "Bild ändern",
         "saved": "Bild aktualisiert.",
         "saveError": "Das Bild konnte nicht aktualisiert werden.",
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
+        "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
-        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal.",
-        "edit": "Bild bearbeiten",
-        "Studio": {
-          "metadata": "Bild-Studio",
-          "back": "Zurück zu {name}",
-          "title": "Wie soll {name} aussehen?",
-          "description": "Ändere das Tier oder füge ein Accessoire hinzu. Der Schreibtisch bleibt: Dort arbeitet dein Bot.",
-          "draftAlt": "Neuer Look für {name}, noch nicht gespeichert",
-          "making": "Dein neuer Look entsteht · etwa 10 s",
-          "sizes": "Profil oben · Bild in Chat und Aufgaben",
-          "states": "Zustände",
-          "statesPlay": "Wähle einen Zustand, um ihn einmal abzuspielen",
-          "statesDraft": "Bewegt sich, sobald du ihn behältst",
-          "statesProgress": "Die Animationen entstehen · {ready} von {total} fertig",
-          "creature": "Tier",
-          "accessory": "Accessoire",
-          "creatures": {
-            "owl": "Eule",
-            "frog": "Frosch",
-            "hedgehog": "Igel",
-            "otter": "Otter",
-            "penguin": "Pinguin"
-          },
-          "accessories": {
-            "beanie": "Mütze",
-            "glasses": "Brille",
-            "scarf": "Schal",
-            "headphones": "Kopfhörer",
-            "magnifier": "Lupe"
-          },
-          "describe": "Oder beschreibe eine Änderung",
-          "placeholder": "Gib ihm einen kleinen Zauberhut",
-          "apply": "Anwenden",
-          "ideas": {
-            "wizard": "Ein kleiner Zauberhut",
-            "coffee": "Kaffee auf dem Schreibtisch",
-            "snow": "Lass es schneien",
-            "sleepy": "Lass es müde aussehen",
-            "beach": "Ab an den Strand"
-          },
-          "keep": "Diesen Look behalten",
-          "shuffle": "Zufällig",
-          "cancel": "Abbrechen",
-          "saved": "Gespeichert.",
-          "error": "Der Look konnte nicht geändert werden. Versuch es erneut.",
-          "keepError": "Der Look konnte nicht gespeichert werden. Versuch es erneut.",
-          "cancelError": "Der aktuelle Look konnte nicht wiederhergestellt werden. Versuch es erneut.",
-          "redo": "Animation neu erstellen",
-          "retry": "Erneut versuchen",
-          "redoing": "Wird erstellt…",
-          "drawing": "Wird gezeichnet…",
-          "animating": "Wird animiert…",
-          "redoError": "Die Animation konnte nicht neu erstellt werden. Versuch es erneut.",
-          "redoLimit": "Du hast heute schon viele Animationen neu erstellt. Versuch es morgen wieder.",
-          "redoBusy": "Diese Animation wird noch erstellt.",
-          "empty": "Noch kein Look. Wähle ein Tier oder tippe auf „Zufällig“, um zu starten.",
-          "rateLimited": "Du hast sehr viele neue Looks erstellt. Versuch es später noch einmal.",
-          "unavailable": "Der Look lässt sich gerade nicht ändern."
-        }
+        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
       },
       "Skills": {
         "builtIn": "Enthalten",
@@ -10201,7 +10680,8 @@
         "add": "Kontakt hinzufügen",
         "more": "Weitere Aktionen",
         "filter": "Filter",
-        "kind": "Art"
+        "kind": "Art",
+        "source": "Quelle"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -10229,6 +10709,17 @@
       "noMatches": "Keine Kontakte passen zu diesen Filtern.",
       "clearFilters": "Filter entfernen",
       "merged": "Zusammengeführt in {name}",
+      "duplicates": "{count, plural, =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+      "duplicatesMore": "{count}+ mögliche Duplikate",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {Keine möglichen Duplikate} =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+        "titleMore": "{count}+ mögliche Duplikate",
+        "description": "Diese Einträge haben denselben Namen oder denselben Nachnamen und Anfangsbuchstaben bei derselben Firma. Führe die zusammen, die eine Person sind; öffne einen Eintrag, um ihn vorher zu prüfen.",
+        "merge": "Zusammenführen",
+        "mergeGroup": "Einträge für {name} zusammenführen",
+        "noDetails": "Keine E-Mail oder Firma",
+        "empty": "Nichts mehr zusammenzuführen."
+      },
       "deleteList": {
         "title": "{name} löschen?",
         "description": "Die Liste verschwindet für das ganze Team. Die Menschen darauf bleiben in den Kontakten.",
@@ -10260,7 +10751,9 @@
         "failed": "Die Liste wurde nicht gespeichert. Versuch es noch einmal.",
         "cancel": "Abbrechen",
         "save": "Speichern",
-        "create": "Liste erstellen"
+        "create": "Liste erstellen",
+        "smart": "Mit den aktuellen Filtern füllen",
+        "smartHint": "Alle, die zu diesen Filtern passen, stehen auf dieser Liste. Die Liste aktualisiert sich von selbst."
       },
       "addDialog": {
         "title": "Kontakt hinzufügen",
@@ -10302,7 +10795,7 @@
         "title": "{count, plural, =2 {2 Kontakte zusammenführen} other {# Kontakte zusammenführen}}",
         "description": "Wähle den Kontakt, der bleibt. Alles von den anderen wandert dorthin: Kanäle, Verlauf und Listen. Leere Felder werden aus ihnen ergänzt.",
         "keep": "Behalten",
-        "noDetails": "Keine Rolle oder Organisation",
+        "noDetails": "Keine E-Mail, Rolle oder Organisation",
         "interactions": "{count, plural, =0 {Keine Interaktionen} =1 {1 Interaktion} other {# Interaktionen}}",
         "failed": "Das Zusammenführen wurde nicht abgeschlossen. Nichts wurde geändert.",
         "cancel": "Abbrechen",
@@ -10458,7 +10951,7 @@
         "waitingSince": "Seit {date} noch keine Antwort",
         "heardFrom": "Zuletzt von ihnen gehört: {when}",
         "automatic": "Automatisch",
-        "classifier": "Automatische Einordnung",
+        "classifier": "Sokosumi",
         "enrich": "Anreichern",
         "enrichHint": "Im Web nachschlagen und leere Felder füllen · 1 Credit",
         "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
@@ -10489,13 +10982,13 @@
         "medium": "Etwas wichtig",
         "low": "Weniger wichtig",
         "minimal": "Nicht wichtig",
-        "auto": "Jev entscheiden lassen",
+        "auto": "Sokosumi entscheiden lassen",
         "change": "Ändern, wie wichtig die Person für dich ist",
-        "byJev": "Von Jev eingeschätzt",
-        "byJevBecause": "Jev: {reason}",
+        "byJev": "Von Sokosumi gesetzt",
+        "byJevBecause": "Von Sokosumi gesetzt ({reason})",
         "byYou": "Von dir gesetzt",
         "byBot": "Von deinem Soko Bot gesetzt",
-        "notYet": "Noch nicht eingeschätzt",
+        "notYet": "Noch nicht gesetzt",
         "familiarityHint": "Aus deinen eigenen E-Mails und Meetings mit der Person",
         "reasons": {
           "decides": "entscheidet mit",
@@ -10551,10 +11044,67 @@
         "emptyUnplaced": "Keiner dieser Orte war auffindbar. Versuch es mit Stadt und Land.",
         "placed": "{count, plural, one {# Kontakt} other {# Kontakte}} auf der Karte",
         "unplaced": "{count, plural, one {# Kontakt} other {# Kontakte}} nicht platziert",
+        "pending": "{count, plural, one {# Kontakt wird} other {# Kontakte werden}} platziert…",
+        "zoomIn": "Hineinzoomen",
+        "zoomOut": "Herauszoomen",
+        "resetZoom": "Ganze Welt zeigen",
         "withoutLocation": "{count} ohne Ort",
         "place": "{place}, {count, plural, one {# Kontakt} other {# Kontakte}}",
         "nearby": "{place} und {others, plural, one {# Ort} other {# Orte}} in der Nähe",
         "people": "{count, plural, one {# Kontakt} other {# Kontakte}}"
+      },
+      "company": {
+        "loading": "Firma wird geladen…",
+        "edit": "Bearbeiten",
+        "whyItMatters": "Warum wichtig",
+        "people": "Personen",
+        "knownBy": "Bekannt bei",
+        "knownByLabel": "{count, plural, one {# Teammitglied kennt} other {# Teammitglieder kennen}} jemanden hier",
+        "nobody": "Noch niemand",
+        "lastContact": "Letzter Kontakt",
+        "never": "Nie",
+        "warmth": "Beziehung",
+        "warmthLevels": {
+          "warm": "Warm",
+          "cooling": "Abkühlend",
+          "cold": "Kalt",
+          "none": "Noch kein Kontakt"
+        },
+        "strongestStage": "Stärkste Phase",
+        "nextSteps": "Nächste Schritte",
+        "noNextSteps": "Nichts geplant.",
+        "recent": "Letzte Kontakte",
+        "noRecent": "Noch keine Kontakte.",
+        "someone": "Jemand",
+        "editTitle": "Firma bearbeiten",
+        "editDescription": "Was das Team über diese Firma weiß. Leere Felder werden im Hintergrund von ihrer Website ergänzt.",
+        "nameRequired": "Gib der Firma einen Namen.",
+        "saveFailed": "Die Firma konnte nicht gespeichert werden.",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "fields": {
+          "name": "Name",
+          "website": "Website",
+          "industry": "Branche",
+          "size": "Größe",
+          "headquarters": "Hauptsitz",
+          "linkedinUrl": "LinkedIn",
+          "description": "Über",
+          "whyItMatters": "Warum sie für uns wichtig ist"
+        }
+      },
+      "overview": {
+        "label": "Listenübersicht",
+        "people": "{count, plural, one {# Person} other {# Personen}}",
+        "quiet": "{count} seit 90 Tagen ohne Kontakt",
+        "map": "Auf Karte zeigen",
+        "stages": "Phase",
+        "companies": "Firmen",
+        "places": "Orte",
+        "knownBy": "Bekannt bei",
+        "none": "Nicht gesetzt",
+        "nobody": "Noch niemand",
+        "more": "und {count} weitere"
       }
     }
   },
@@ -10608,6 +11158,43 @@
         "locked": "Zu viele falsche Passwörter. Versuche es in 15 Minuten erneut.",
         "failed": "Etwas ist schiefgelaufen. Versuche es erneut."
       }
+    },
+    "Room": {
+      "notFoundTitle": "Datenraum nicht gefunden",
+      "dataRoom": "Datenraum",
+      "closed": "Dieser Datenraum ist geschlossen.",
+      "expired": "Dieser Datenraum ist abgelaufen. Frag die Person, die ihn betreibt, nach Zugang.",
+      "signInHint": "Gib die E-Mail-Adresse ein, mit der du eingeladen wurdest. Wir schicken dir einen Code.",
+      "emailLabel": "E-Mail",
+      "sendCode": "Code senden",
+      "codeSent": "Falls {email} Zugang hat, haben wir einen Code geschickt. Er läuft in 10 Minuten ab.",
+      "codeLabel": "Code",
+      "open": "Datenraum öffnen",
+      "useAnotherEmail": "Andere E-Mail verwenden",
+      "errors": {
+        "wrong": "Der Code ist falsch oder abgelaufen. Prüfe ihn oder fordere einen neuen an.",
+        "closed": "Dieser Datenraum ist geschlossen.",
+        "failed": "Der Datenraum ist nicht erreichbar. Versuch es noch einmal."
+      },
+      "signedInAs": "Angemeldet als {email}",
+      "downloadAll": "Alles herunterladen",
+      "signOut": "Abmelden",
+      "empty": "In diesem Datenraum liegt noch nichts.",
+      "indexLabel": "Inhalt",
+      "pickFile": "Wähle eine Datei, um sie zu öffnen.",
+      "new": "Neu",
+      "download": "Herunterladen",
+      "watermarkNote": "Geöffnete Seiten und Bilder tragen deine E-Mail und die Uhrzeit.",
+      "downloadToOpen": "Diese Datei kann hier nicht angezeigt werden. Lade sie herunter, um sie zu öffnen.",
+      "cannotOpenHere": "Diese Datei kann hier nicht angezeigt werden, und Downloads sind in diesem Datenraum aus. Frag nach einer Kopie.",
+      "loadingFile": "Datei wird geladen",
+      "fileFailed": "Die Datei konnte nicht geöffnet werden. Versuch es noch einmal.",
+      "pdfPage": "Seite {number}",
+      "questionsTitle": "Fragen",
+      "awaitingAnswer": "Wartet auf eine Antwort",
+      "askLabel": "Frage zu diesem Dokument stellen",
+      "ask": "Fragen",
+      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal."
     }
   },
   "NotFound": {
@@ -10861,6 +11448,7 @@
     "Assistant": {
       "metadataTitle": "Assistenten einrichten",
       "later": "Später",
+      "laterHint": "Du kannst ihn jederzeit unter Soko Bots einrichten.",
       "skip": "Überspringen",
       "continue": "Weiter"
     }

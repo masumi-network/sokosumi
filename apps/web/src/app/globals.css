@@ -26,6 +26,19 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
+  --animate-studio-template-float: studio-template-float 14s ease-in-out
+    infinite;
+
+  @keyframes studio-template-float {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(10px, -14px, 0);
+    }
+  }
+
   /* Entrances: fast out of the gate, then a long settle, so a dialog is
      already moving on the first frame. The browser's `ease` starts slow,
      which reads as lag on something that should answer a click. */
@@ -651,6 +664,12 @@ body[data-agent-fullbleed="true"] main[data-app-main] {
 
 body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   overflow: visible !important;
+}
+
+/* Soko Bot create flow (CreateState): no tab bar, as in the first-run setup. */
+body[data-soko-bot-creating="true"] [data-mobile-bottom-nav],
+body[data-soko-bot-creating="true"] [data-mobile-bottom-nav-spacer] {
+  display: none;
 }
 
 /* Vercel injects its preview toolbar outside the app; leave every page room to scroll past it. */

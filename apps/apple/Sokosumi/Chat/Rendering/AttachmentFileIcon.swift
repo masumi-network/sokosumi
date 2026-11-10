@@ -22,12 +22,6 @@ struct AttachmentFileIcon: View {
         .scaledToFit()
         .frame(width: size, height: size)
         .accessibilityHidden(true)
-    #else
-      VStack(spacing: 2) {
-        Image(systemName: "doc.richtext").font(.title)
-        Text(fileExtension.uppercased()).font(.caption2.bold()).lineLimit(1)
-      }
-      .accessibilityHidden(true)
     #endif
   }
 }

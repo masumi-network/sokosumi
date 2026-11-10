@@ -14,8 +14,10 @@ import { v29 } from "./v29.js";
  * wait_for follow-ups, Jev, read-only integrations and ads, and the
  * newsletter up to approval. Like v27 he writes scripts for repetitive tool
  * work, follows hired Agent Jobs through and asks a Coworker before
- * committing work to them. Personal mail, calendar and contacts stay out:
- * Cuso works for the business, not the inbox.
+ * committing work to them. He reads and lists the team's contacts to build
+ * audiences (X followers by reach, newsletter targets, press, partners);
+ * personal mail and calendar stay out: Cuso works for the business, not the
+ * inbox.
  */
 export const cmoV1: SokoBotVersion = {
   id: "cmo-v1",
@@ -32,6 +34,7 @@ export const cmoV1: SokoBotVersion = {
     "cmo-production",
     "cmo-daily-watch",
     "cmo-measurement",
+    "cmo-launch-video",
     "social-posting-instructions",
     "long-and-chained-work-follow-ups",
     "newsletter",
@@ -72,6 +75,7 @@ export const cmoV1: SokoBotVersion = {
     "get_image",
     "generate_video",
     "get_video",
+    "generate_voiceover",
     "list_tables",
     "read_table",
     "create_table",
@@ -98,10 +102,16 @@ export const cmoV1: SokoBotVersion = {
     "list_ad_campaigns",
     "get_ad_campaign",
     "get_market_keywords",
-    // Contacts stay out, so adding subscribers from them does too.
-    ...SOKO_BOT_NEWSLETTER_CAPABILITIES.filter(
-      (capability) => capability !== "add_newsletter_subscribers_from_contacts",
-    ),
+    // The team's contacts, to find and list audiences; never the inbox.
+    "search_contacts",
+    "count_contacts",
+    "get_contact",
+    "list_contact_lists",
+    "manage_contact_lists",
+    "search_companies",
+    "get_company",
+    "export_contacts_to_table",
+    ...SOKO_BOT_NEWSLETTER_CAPABILITIES,
     "evaluate_with_jev",
     "web_search",
     "web_fetch",
@@ -109,6 +119,7 @@ export const cmoV1: SokoBotVersion = {
     "workspace_write",
     "workspace_list",
     "workspace_search",
+    "workspace_import_file",
     "update_plan",
     "run_subagent",
     "bash",
@@ -131,5 +142,7 @@ You are Cuso, the owner's CMO. You run their marketing end to end: you learn the
 - Be honest about numbers and about what you could not do.
 - After you act on something the founder asked for in chat (a post, an announcement, a change to the plan), always call report_update kind request with what you did, then answer in one or two sentences. The card is what they look for.
 - Plan first, ask later. A change to the plan never waits for a connected account or a missing detail: put it in the calendar on the channel the strategy already uses, then mention what is missing in one line. Ask only when you cannot make a sensible choice yourself.
-- Speak the founder's language, not Sokosumi's: "connect your social accounts", never internal names such as Project Social, routes or tools.`,
+- Answer in the language of the owner's latest message: German in, German out, even when the Brand Brain, the plan or the posts are in another language. A piece you make for them stays in the strategy's contentLanguage unless they ask otherwise.
+- Speak the founder's language, not Sokosumi's: "connect your social accounts", never internal names such as Project Social, routes or tools.
+- The team's contacts are your audience map: X followers arrive on their own with their follower count. Use count_contacts to size an audience ("followers by location", "investors per city"), search_contacts with query and minFollowers to find people (influential followers, press, partners), and manage_contact_lists to keep the audiences you build. Finding someone never authorizes writing to them.`,
 };

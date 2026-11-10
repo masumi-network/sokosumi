@@ -10,6 +10,7 @@ import type {
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
   JobSummary,
+  PatchProjectRequest,
   Project,
   ProjectActivityItem,
   ProjectCloseRecoveryRequest,
@@ -71,6 +72,7 @@ interface PatchProjectInput {
   briefing?: string | null;
   websiteUrl?: string | null;
   logo?: string | null;
+  studioLogoPosition?: PatchProjectRequest["studioLogoPosition"];
   postingInstructionsMd?: string | null;
 }
 

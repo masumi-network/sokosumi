@@ -9,6 +9,7 @@ import {
   CmoForbiddenError,
   CmoNotFoundError,
   type Cuso,
+  type CusoTarget,
   cmoPayer,
   requireCuso,
 } from "@/services/cmo-cuso.service";
@@ -41,8 +42,9 @@ import {
  */
 
 /** Cuso, for an owner or admin: only they connect or spend. */
-async function requireAdsOwner(userId: string): Promise<Cuso> {
-  const cuso = await requireCuso({ userId });
+async function requireAdsOwner(target: CusoTarget): Promise<Cuso> {
+  const { userId } = target;
+  const cuso = await requireCuso(target);
   const { organizationId } = await cmoPayer(cuso);
   const mayApprove = await mayApproveMarketingStrategy(userId, {
     id: cuso.workspaceId,
@@ -60,18 +62,19 @@ function scopeOf(cuso: Cuso) {
 }
 
 /** Starts connecting an ad account; the owner comes back to returnUrl on CMO. */
-export async function connectCmoAds(input: {
-  userId: string;
-  provider: string;
-  returnUrl: string;
-}): Promise<{ redirectUrl: string }> {
+export async function connectCmoAds(
+  input: CusoTarget & {
+    provider: string;
+    returnUrl: string;
+  },
+): Promise<{ redirectUrl: string }> {
   if (!isProjectAdProvider(input.provider)) {
     throw new CmoNotFoundError("CMO connects Google Ads and Meta Ads only");
   }
   if (!isFirstPartyAppUrl(input.returnUrl)) {
     throw new CmoConflictError("The return address must be CMO's own page");
   }
-  const cuso = await requireAdsOwner(input.userId);
+  const cuso = await requireAdsOwner(input);
   const { redirectUrl } = await initiateProjectAdConnection({
     ...scopeOf(cuso),
     userId: input.userId,
@@ -93,12 +96,13 @@ export type CmoAdsFinalized =
  * callback, keeps the connection, and attaches its only ad account. Safe to
  * repeat after a reload.
  */
-export async function finalizeCmoAds(input: {
-  userId: string;
-  connectionId: string;
-  sessionUri: string | null;
-}): Promise<CmoAdsFinalized> {
-  const cuso = await requireAdsOwner(input.userId);
+export async function finalizeCmoAds(
+  input: CusoTarget & {
+    connectionId: string;
+    sessionUri: string | null;
+  },
+): Promise<CmoAdsFinalized> {
+  const cuso = await requireAdsOwner(input);
   const scope = scopeOf(cuso);
   const kept = await prisma.projectAdConnection.findUnique({
     where: { composioConnectedAccountId: input.connectionId },
@@ -138,11 +142,12 @@ export async function finalizeCmoAds(input: {
 }
 
 /** The ad accounts a connection reaches, for the owner to pick one. */
-export async function listCmoAdChoices(input: {
-  userId: string;
-  adConnectionId: string;
-}): Promise<AvailableAdAccount[]> {
-  const cuso = await requireAdsOwner(input.userId);
+export async function listCmoAdChoices(
+  input: CusoTarget & {
+    adConnectionId: string;
+  },
+): Promise<AvailableAdAccount[]> {
+  const cuso = await requireAdsOwner(input);
   return listProjectAdConnectionChoices({
     ...scopeOf(cuso),
     adConnectionId: input.adConnectionId,
@@ -150,12 +155,13 @@ export async function listCmoAdChoices(input: {
 }
 
 /** Attaches the ad account the owner picked. */
-export async function chooseCmoAdAccount(input: {
-  userId: string;
-  adConnectionId: string;
-  externalAccountId: string;
-}): Promise<void> {
-  const cuso = await requireAdsOwner(input.userId);
+export async function chooseCmoAdAccount(
+  input: CusoTarget & {
+    adConnectionId: string;
+    externalAccountId: string;
+  },
+): Promise<void> {
+  const cuso = await requireAdsOwner(input);
   await attachProjectAdAccounts({
     ...scopeOf(cuso),
     adConnectionId: input.adConnectionId,
@@ -171,11 +177,12 @@ export interface CmoAdAccountCampaigns {
 }
 
 /** Every attached ad account with its campaigns and numbers over the range. */
-export async function listCmoAdCampaigns(input: {
-  userId: string;
-  range: AdRange;
-}): Promise<CmoAdAccountCampaigns[]> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function listCmoAdCampaigns(
+  input: CusoTarget & {
+    range: AdRange;
+  },
+): Promise<CmoAdAccountCampaigns[]> {
+  const cuso = await requireCuso(input);
   const scope = scopeOf(cuso);
   const accounts = await listProjectAdAccounts(scope);
   return Promise.all(
@@ -312,16 +319,48 @@ function roundBudget(amount: number): number {
 }
 
 /**
+ * Searches no small business wants to pay for, whatever it sells: people
+ * looking for a job there or for a pirated copy.
+ */
+export const CMO_NEGATIVE_KEYWORDS = [
+  "jobs",
+  "job",
+  "career",
+  "careers",
+  "salary",
+  "hiring",
+  "internship",
+  "torrent",
+  "crack",
+] as const;
+
+/** A day's budget buys at least this many clicks, whatever one costs. */
+const MIN_CLICKS_PER_DAY = 3;
+
+/**
+ * The most one click may cost: Cuso's ceiling from the keyword prices, and
+ * never so much that a few clicks spend the whole day.
+ */
+export function cmoMaxCpc(dailyBudget: number, cusoMaxCpc?: number): number {
+  const ceiling = roundBudget(dailyBudget / MIN_CLICKS_PER_DAY);
+  return Math.max(
+    0.01,
+    cusoMaxCpc ? Math.min(roundBudget(cusoMaxCpc), ceiling) : ceiling,
+  );
+}
+
+/**
  * Launches a search ad Cuso wrote: Core builds the Google campaign from its
  * parts in the Project's Google Ads account, with an equal share of the
  * plan's daily ad budget, then starts it. A piece launched before is started
  * again. Only an owner or admin launches.
  */
-export async function launchCmoSearchAd(input: {
-  userId: string;
-  entryId: string;
-}): Promise<void> {
-  const cuso = await requireAdsOwner(input.userId);
+export async function launchCmoSearchAd(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<void> {
+  const cuso = await requireAdsOwner(input);
   const scope = scopeOf(cuso);
   const budget = await dailyAdBudget(cuso);
   const files = await listMarketingStrategyFiles(budget.approved);
@@ -333,6 +372,7 @@ export async function launchCmoSearchAd(input: {
   if (piece.adCampaign) {
     await setCmoAdCampaignStatus({
       userId: input.userId,
+      projectId: input.projectId,
       ...piece.adCampaign,
       status: "ACTIVE",
     });
@@ -352,6 +392,18 @@ export async function launchCmoSearchAd(input: {
   }
   await requireAdBudgetRoom({ cuso, account, dailyBudget });
   const ad = piece.searchAd;
+  const targeting = await googleTargeting(
+    { ...scope, accountId: account.id },
+    ad,
+  );
+  // An ad without a place runs worldwide, which a local budget cannot afford.
+  if (targeting.locationIds.length === 0) {
+    throw new CmoConflictError(
+      ad.location
+        ? `Google does not know the place "${ad.location}". Ask Cuso to name the country or city as Google names it.`
+        : "This ad does not say where it runs yet. Ask Cuso to add the country or city you serve.",
+    );
+  }
   const { id: campaignId } = await createProjectAdCampaign({
     ...scope,
     accountId: account.id,
@@ -361,11 +413,18 @@ export async function launchCmoSearchAd(input: {
     dailyBudget,
     google: {
       type: "SEARCH",
-      ...(await googleTargeting({ ...scope, accountId: account.id }, ad)),
+      ...targeting,
       finalUrl: ad.finalUrl,
+      maxCpc: cmoMaxCpc(dailyBudget, ad.maxCpc),
       keywords: ad.keywords.map((text) => ({ text, matchType: "PHRASE" })),
+      negativeKeywords: [
+        ...CMO_NEGATIVE_KEYWORDS,
+        ...(ad.negativeKeywords ?? []),
+      ],
       headlines: ad.headlines,
       descriptions: ad.descriptions,
+      ...(ad.path1 ? { path1: ad.path1 } : {}),
+      ...(ad.path2 ? { path2: ad.path2 } : {}),
       ...(ad.callouts?.length ? { callouts: ad.callouts } : {}),
     },
   });
@@ -391,13 +450,14 @@ export async function launchCmoSearchAd(input: {
  * Pauses or starts a campaign in the Project's ad account. Starting one is
  * held to the plan's daily ad budget.
  */
-export async function setCmoAdCampaignStatus(input: {
-  userId: string;
-  accountId: string;
-  campaignId: string;
-  status: "ACTIVE" | "PAUSED";
-}): Promise<void> {
-  const cuso = await requireAdsOwner(input.userId);
+export async function setCmoAdCampaignStatus(
+  input: CusoTarget & {
+    accountId: string;
+    campaignId: string;
+    status: "ACTIVE" | "PAUSED";
+  },
+): Promise<void> {
+  const cuso = await requireAdsOwner(input);
   const scope = scopeOf(cuso);
   if (input.status === "ACTIVE") {
     const account = (await listProjectAdAccounts(scope)).find(

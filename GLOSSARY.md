@@ -40,6 +40,10 @@ _Avoid_: Permission, workspace access (when meaning this)
 A user-owned, first-party personal project manager. It helps one user operate Sokosumi, normally by delegating Tasks to Coworkers or hiring Agents to run Jobs. It is neither an Agent nor a Coworker.
 _Avoid_: Hermes, orchestrator, Agent, Coworker, bot (when meaning a generic AI actor)
 
+**Soko Bot avatar**:
+The picture that stands for one Soko Bot wherever it appears. Each one belongs to at most one Soko Bot.
+_Avoid_: Mascot (that is Cuso), look, crafted avatar
+
 **Delegation**:
 Creating, assigning, or managing a Task for a Coworker on the user's behalf. Distinct from hiring an Agent to start a Job.
 _Avoid_: Hire (Task → Coworker), execute (the Coworker executes the Task)
@@ -95,11 +99,19 @@ The product at cmo.xyz: an AI agent that runs a business's marketing end to end 
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
 **Cuso**:
-CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that works in one Project of the business's organization, for every member of it. A Project has at most one, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
+CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that markets one Business from one Project of an organization, for every member of it. A Project has at most one, an organization may hold several, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
 _Avoid_: CMO bot, marketing assistant, the CMO (that is the product), CMO hire (what he knows and plans belongs to the Project)
 
+**Business**:
+The company one Cuso markets, known by his website and named after its host. It belongs to his Project, not to the organization; one organization may market several.
+_Avoid_: Organization (when meaning this), brand, client
+
+**Cuso picker**:
+CMO's list of every Cuso a person can work with, across their organizations, with the way to hire another. CMO opens on it only when a person has several Cusos and none was opened last on that device.
+_Avoid_: Workspace switcher (that is Sokosumi's), Cuso switcher, Business picker
+
 **Hiring Cuso**:
-CMO's flow after identity onboarding, from the start form (website and main goal) until the person finishes it and CMO opens on the chat. It reuses what identity onboarding already learned instead of asking again.
+CMO's flow after identity onboarding, from the start form (website, main goal, and a new or an existing organization) until the person finishes it and CMO opens on the chat. Every hire creates a new Project. It reuses what identity onboarding already learned instead of asking again.
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
 **Marketing strategy**:
@@ -131,6 +143,10 @@ _Avoid_: Status select, status dropdown
 **Run at**:
 The one time a Task is set to start, instead of now. A Task has at most one; it never repeats.
 _Avoid_: Schedule, scheduled task (for a single Task), once mode
+
+**Due date**:
+The day a Task should be done by: a calendar day with no time, set on the Task page in any status except Grant pending (Web only for now; the CLI and Apple apps do not show it). Past that day, by the reader's own time zone, an unfinished Task reads **Overdue**; a Completed or Canceled one never does. It does not start, remind or move the Task, and a duplicate does not copy it. Distinct from Run at, which is when the Task starts.
+_Avoid_: Deadline (in UI copy), due time
 
 **Task Schedule**:
 A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
@@ -545,6 +561,10 @@ _Avoid_: Workspace badge, workspace indicator
 **Pinned message**:
 A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
 _Avoid_: Announcement (a use of this), pinned room, thread pin
+
+**Saved message**:
+A room message one reader saved for later, on their private Saved list (Catch up's Saved tab). Any message they can read, in a Channel, Direct or Thread. Nobody else sees it. The list reads each message live, so a deleted message or a room they left drops out. Distinct from a Pinned message, which is shared, and from Send to yourself, which copies the message.
+_Avoid_: Bookmark, starred message
 
 ### Chat reactions
 

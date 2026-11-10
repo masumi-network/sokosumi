@@ -32,6 +32,13 @@ vi.mock("@/lib/files/in-process-indexer", () => ({
 vi.mock("@vercel/blob", () => ({
   put: mocks.put,
 }));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), BLOB_READ_WRITE_TOKEN: "t" }),
+  };
+});
 
 import {
   ensureStudioAssetDriveFile,
@@ -70,14 +77,14 @@ describe("ensureStudioAssetDriveFile", () => {
 
     await expect(ensureStudioAssetDriveFile(INPUT)).resolves.toEqual({
       id: "file-9",
-      name: "a-purple-robot-logo-01a0f430.png",
+      name: "a-purple-robot-logo-00000001.png",
       pathname:
-        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
       mimeType: "image/png",
       size: 3,
     });
     expect(mocks.put).toHaveBeenCalledWith(
-      "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+      "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
       expect.any(Buffer),
       expect.objectContaining({ access: "public", addRandomSuffix: false }),
     );
@@ -96,7 +103,7 @@ describe("ensureStudioAssetDriveFile", () => {
     await expect(ensureStudioAssetDriveFile(INPUT)).resolves.toMatchObject({
       id: "file-9",
       pathname:
-        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
     });
     expect(mocks.put).not.toHaveBeenCalled();
     expect(mocks.readBytes).not.toHaveBeenCalled();
@@ -127,7 +134,7 @@ describe("publishStudioAssetToFiles", () => {
       contentType: "image/png",
     });
     expect(mocks.put.mock.calls[0][0]).toContain(
-      "/Content Studio/a-purple-robot-logo-01a0f430.png",
+      "/Content Studio/a-purple-robot-logo-00000001.png",
     );
     expect(mocks.reserve.mock.calls[0][0].key).toMatchObject({
       workspaceId: "workspace-1",
@@ -160,12 +167,30 @@ describe("studioAssetFileName", () => {
         "3f2a9c1d-0000",
         "image/jpeg",
       ),
-    ).toBe("a-red-fox-in-the-snow-3f2a9c1d.jpg");
+    ).toBe("a-red-fox-in-the-snow-9c1d0000.jpg");
+  });
+
+  it("tells apart two jobs made in the same minute from one prompt", () => {
+    // A time-ordered id starts with its clock: the slides of one carousel
+    // shared it and became one file.
+    expect(
+      studioAssetFileName(
+        "Slide",
+        "01a1b39b-0000-7000-8000-00000000000a",
+        "image/jpeg",
+      ),
+    ).not.toBe(
+      studioAssetFileName(
+        "Slide",
+        "01a1b39b-0000-7000-8000-00000000000b",
+        "image/jpeg",
+      ),
+    );
   });
 
   it("falls back to a plain name and png for an empty prompt or odd type", () => {
     expect(studioAssetFileName("!!!", "abcdef12-0", "image/x-weird")).toBe(
-      "image-abcdef12.png",
+      "image-bcdef120.png",
     );
   });
 });

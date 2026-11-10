@@ -2,12 +2,20 @@ import crypto from "node:crypto";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { uploadDesignMdContent } from "./design-md-blob";
+import { readDesignMdContent, uploadDesignMdContent } from "./design-md-blob";
 
-const { putMock, getEnvMock, captureExceptionMock } = vi.hoisted(() => ({
-  putMock: vi.fn(),
-  getEnvMock: vi.fn(() => ({ BLOB_READ_WRITE_TOKEN: "blob_token" })),
-  captureExceptionMock: vi.fn(),
+const { putMock, getEnvMock, captureExceptionMock, fetchMock } = vi.hoisted(
+  () => ({
+    putMock: vi.fn(),
+    getEnvMock: vi.fn(() => ({ BLOB_READ_WRITE_TOKEN: "blob_token" })),
+    captureExceptionMock: vi.fn(),
+    fetchMock: vi.fn(),
+  }),
+);
+
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: fetchMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -158,5 +166,50 @@ describe("uploadDesignMdContent", () => {
         owner: { kind: "user", id: "user_123" },
       }),
     ).rejects.toThrow("BLOB_READ_WRITE_TOKEN is not configured");
+  });
+});
+
+describe("readDesignMdContent", () => {
+  const blobUrl = (name: string) =>
+    `https://store.public.blob.vercel-storage.com/design-md/projects/p1/${name}.md`;
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("downloads a stored DESIGN.md once; its URL is a hash of its text", async () => {
+    fetchMock.mockImplementation(async () => new Response("# Brand"));
+    const url = blobUrl("cached");
+
+    expect(await readDesignMdContent(url)).toBe("# Brand");
+    expect(await readDesignMdContent(url)).toBe("# Brand");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves a cached DESIGN.md when the blob store refuses a later read", async () => {
+    // Vercel's firewall challenges bursts of server reads with a 403.
+    const url = blobUrl("challenged");
+    fetchMock.mockResolvedValueOnce(new Response("# Brand"));
+    await readDesignMdContent(url);
+    fetchMock.mockResolvedValue(new Response("challenge", { status: 403 }));
+
+    expect(await readDesignMdContent(url)).toBe("# Brand");
+  });
+
+  it("does not remember a failed read", async () => {
+    const url = blobUrl("retried");
+    fetchMock.mockResolvedValueOnce(new Response("challenge", { status: 403 }));
+    fetchMock.mockResolvedValueOnce(new Response("# Brand"));
+
+    expect(await readDesignMdContent(url)).toBeNull();
+    expect(await readDesignMdContent(url)).toBe("# Brand");
+  });
+
+  it("reads nothing outside the DESIGN.md blob store", async () => {
+    expect(
+      await readDesignMdContent("https://example.com/design.md"),
+    ).toBeNull();
+    expect(await readDesignMdContent(null)).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

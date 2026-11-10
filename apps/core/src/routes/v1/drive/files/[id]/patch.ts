@@ -6,17 +6,25 @@ import {
   buildUserDriveFilePrefix,
   clampDriveFileName,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
+import { BlobNotFoundError } from "@vercel/blob";
 
-import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import {
+  drivePathOf,
+  requireDriveFileAccess,
+} from "@/helpers/drive-file-access";
 import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  driveExists,
+  driveHasAny,
+  driveHead,
+  driveRename,
+} from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -67,12 +75,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
 
-    const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
-
     const { oldPathname, newFilename } = body;
 
     const { scope, ownerId } = parseDriveFilePathname(
@@ -80,7 +82,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
     );
 
-    await requireDriveFileAccess(authContext, scope, ownerId);
+    await requireDriveFileAccess(authContext, scope, ownerId, {
+      changes: [drivePathOf(oldPathname)],
+    });
 
     const prefix =
       scope === "user"
@@ -110,49 +114,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             sanitizedName,
           );
 
-    let sourceMetadata;
-    try {
-      sourceMetadata = await head(oldPathname, { token });
-    } catch (error) {
-      if (error instanceof BlobNotFoundError) {
-        throw notFound("Source file not found");
-      }
-      throw error;
-    }
-
-    try {
-      await head(newPathname, { token });
+    const sourceMetadata = await driveHead(oldPathname);
+    if (!sourceMetadata) throw notFound("Source file not found");
+    if (await driveExists(newPathname)) {
       throw conflict("Target pathname already exists");
-    } catch (error) {
-      if (error instanceof BlobNotFoundError) {
-      } else if (
-        error &&
-        typeof error === "object" &&
-        "kind" in error &&
-        error.kind === "conflict"
-      ) {
-        throw error;
-      } else {
-        throw error;
-      }
     }
-
-    const folderPrefix = `${newPathname}/`;
-    const folderCheck = await list({
-      prefix: folderPrefix,
-      token,
-      limit: 1,
-    });
-    if (folderCheck.blobs.length > 0) {
+    if (await driveHasAny(`${newPathname}/`)) {
       throw conflict("A folder with that name already exists");
     }
 
     let renamedBlob;
     try {
-      renamedBlob = await rename(oldPathname, newPathname, {
-        token,
-        access: "public",
-        addRandomSuffix: false,
+      renamedBlob = await driveRename(oldPathname, newPathname, {
         contentType: sourceMetadata.contentType,
         cacheControlMaxAge: parseCacheControlMaxAge(
           sourceMetadata.cacheControl,
@@ -200,6 +173,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         pathname: renamedBlob.pathname,
         size: sourceMetadata.size,
         uploadedAt: sourceMetadata.uploadedAt.toISOString(),
+        dataRoom: renamedBlob.access === "private",
       }),
     );
   });
