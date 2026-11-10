@@ -7,6 +7,9 @@ import type {
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
   SocialPostMediaRef,
+  StudioProductCatalog,
+  StudioProductImport,
+  StudioProductPhoto,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
 
@@ -50,6 +53,40 @@ export const imageStudioService = {
         beforeId?: string;
       },
     );
+    return result.data;
+  },
+
+  async attachProductPhoto(
+    projectId: string,
+    input: { name: string; imageUrl: string },
+  ): Promise<StudioProductPhoto> {
+    const result = await coreClient.attachStudioProductPhoto(projectId, input);
+    return result.data;
+  },
+
+  async getProductCatalog(projectId: string): Promise<StudioProductCatalog> {
+    const result = await coreClient.getStudioProductCatalog(projectId);
+    return result.data;
+  },
+
+  async replaceProductCatalog(
+    projectId: string,
+    input: StudioProductCatalog,
+  ): Promise<StudioProductCatalog> {
+    const result = await coreClient.replaceStudioProductCatalog(
+      projectId,
+      input,
+    );
+    return result.data;
+  },
+
+  async importProducts(
+    projectId: string,
+    url: string,
+  ): Promise<StudioProductImport> {
+    const result = await coreClient.importStudioProductCatalog(projectId, {
+      url,
+    });
     return result.data;
   },
 

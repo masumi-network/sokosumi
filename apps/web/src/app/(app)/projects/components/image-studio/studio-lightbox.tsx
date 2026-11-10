@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import { resolveModel, supportsVariation } from "./catalog";
+import { StudioAdPreview } from "./studio-ad-preview";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
@@ -184,6 +185,13 @@ export function StudioLightbox({
               {writingCaption ? labels.writingCaption : null}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {isVideoAsset(single) ? null : (
+                <StudioAdPreview
+                  asset={single}
+                  caption={caption}
+                  labels={labels}
+                />
+              )}
               {onSchedule ? (
                 <Button
                   loading={scheduling}

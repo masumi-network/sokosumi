@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
@@ -15,6 +21,7 @@ import type { StudioAsset } from "./types";
 
 const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
+  loadCatalog: vi.fn(),
   stateOptions: vi.fn(),
   replace: vi.fn(),
   openProjectScope: vi.fn(),
@@ -39,6 +46,10 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/image-studio/product-catalog", () => ({
+  getStudioProducts: mocks.loadCatalog,
 }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
@@ -158,6 +169,38 @@ beforeEach(() => {
 });
 
 describe("the workspace view", () => {
+  it("clears a submitted product batch so the keyboard shortcut cannot charge again", async () => {
+    mocks.loadCatalog.mockResolvedValueOnce({
+      revision: 1,
+      products: [
+        {
+          id: "mug",
+          name: "Mug",
+          description: "Handmade stoneware",
+          price: "",
+          url: null,
+          imageUrl: null,
+        },
+      ],
+    });
+    mount("project-launch", []);
+    fireEvent.click(screen.getByRole("button", { name: "title" }));
+    const add = await screen.findByRole("button", { name: "addToBatch" });
+    await waitFor(() => expect(add).toBeEnabled());
+    fireEvent.click(add);
+    fireEvent.click(screen.getByRole("button", { name: "useBatch" }));
+
+    const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    expect(box).toHaveValue("");
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: "clearProductBatch" }),
+    ).not.toBeInTheDocument();
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+  });
+
   it("opens the same empty studio without requiring a project", () => {
     mount(null, []);
     expect(screen.getByRole("button", { name: "templates" })).toBeEnabled();

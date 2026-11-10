@@ -5,7 +5,11 @@ import type {
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
 } from "@sokosumi/core-client";
+import { extensionForEntityImageMime } from "@sokosumi/utils";
+import type { StudioCreativeDirection } from "./studio-creative-directions";
 import type { StudioTemplateId } from "./studio-templates";
+
+export const MAX_STUDIO_REFERENCES = 4;
 
 export type StudioAsset = ProjectImageAsset;
 export type StudioJob = ProjectImageJob;
@@ -142,10 +146,14 @@ export function isVideoAsset(asset: Pick<StudioAsset, "mediaType">): boolean {
 
 /** The extension a download of this version should carry. */
 export function assetFileExtension(
-  asset: Pick<StudioAsset, "mediaType" | "settings">,
+  asset: Pick<StudioAsset, "contentType" | "mediaType" | "settings">,
 ): string {
   if (isVideoAsset(asset)) return "mp4";
-  return asset.settings?.outputFormat ?? "png";
+  return (
+    extensionForEntityImageMime(asset.contentType ?? "") ??
+    asset.settings?.outputFormat ??
+    "png"
+  );
 }
 
 export function assetContentUrl(
@@ -163,7 +171,9 @@ export function assetContentUrl(
  * statement about the work.
  */
 export interface StudioTarget {
+  creativeDirection?: StudioCreativeDirection;
   modelIds: string[];
+  placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;
 }
 

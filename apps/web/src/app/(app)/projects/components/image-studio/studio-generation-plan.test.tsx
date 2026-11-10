@@ -1,11 +1,28 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { StudioProductPhoto } from "@sokosumi/core-client";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { MAX_BATCH, StudioComposer } from "./studio-composer";
+import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
+import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import type { StudioCatalog, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
+
+const { uploadPhoto } = vi.hoisted(() => ({ uploadPhoto: vi.fn() }));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {
+    getSession: async () => ({
+      data: { session: { activeOrganizationId: "workspace-org" } },
+    }),
+  },
+}));
+
+vi.mock("@/lib/utils/drive-file-upload.client", () => ({
+  uploadDriveFile: uploadPhoto,
+  isDriveFileUploadDuplicate: () => false,
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -39,19 +56,53 @@ const LARGE_CATALOG: StudioCatalog = {
   })),
 };
 
+const BATCH_PRODUCTS: StudioBatchProduct[] = [
+  {
+    product: {
+      id: "vase",
+      name: "Vase",
+      description: "Terracotta",
+      price: "EUR 12",
+      url: null,
+      imageUrl: null,
+    },
+    photo: { id: "vase-file", name: "Vase photo" },
+    copies: 2,
+  },
+  {
+    product: {
+      id: "mug",
+      name: "Mug",
+      description: "Porcelain",
+      price: "EUR 9",
+      url: null,
+      imageUrl: null,
+    },
+    photo: { id: "mug-file", name: "Mug photo" },
+    copies: 1,
+  },
+];
+
 function Harness({
   catalog = LARGE_CATALOG,
   initial,
   onGenerate,
+  productPhotos = false,
+  batchProducts,
 }: {
   catalog?: StudioCatalog;
   initial: StudioTarget;
   onGenerate: (requests: GenerationRequest[]) => void;
+  productPhotos?: boolean;
+  batchProducts?: StudioBatchProduct[];
 }) {
   const [target, setTarget] = useState(initial);
   const [prompt, setPrompt] = useState("A campaign image");
+  const [photo, setPhoto] = useState<StudioProductPhoto | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   return (
     <StudioComposer
+      batchProducts={batchProducts}
       busy={false}
       catalog={catalog}
       labels={TEST_LABELS}
@@ -64,7 +115,11 @@ function Harness({
       }}
       onClearReferences={() => {}}
       onGenerate={onGenerate}
+      onProductPhotoChange={productPhotos ? setPhoto : undefined}
+      onPhotoUploadChange={setUploadingPhoto}
+      uploadingPhoto={uploadingPhoto}
       onPromptChange={setPrompt}
+      productPhoto={photo}
       onTargetChange={setTarget}
       prompt={prompt}
       referenceAssets={[]}
@@ -92,6 +147,166 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
+  it("uses the selected creative direction without changing the written brief", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+    const box = screen.getByRole("textbox", {
+      name: TEST_LABELS.promptPlaceholder,
+    });
+    const spotlight = screen.getByRole("button", {
+      name: "CreativeDirections.spotlight",
+    });
+    fireEvent.click(spotlight);
+    expect(spotlight).toHaveAttribute("aria-pressed", "true");
+    expect(box).toHaveValue("A campaign image");
+    generate();
+    expect(onGenerate.mock.calls[0][0][0].prompt).toContain(
+      "A campaign image\n\nCreative direction: Make the product the visual focal point.",
+    );
+
+    fireEvent.change(box, { target: { value: "" } });
+    generate();
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(box, { target: { value: "A campaign image" } });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "CreativeDirections.auto",
+      }),
+    );
+    generate();
+    expect(onGenerate.mock.calls[1][0][0].prompt).toBe("A campaign image");
+  });
+
+  it("uploads a product photo to the active workspace and sends it to every placement", async () => {
+    const pendingUpload = Promise.withResolvers<{ resourceId: string }>();
+    uploadPhoto.mockReturnValueOnce(pendingUpload.promise);
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+        productPhotos
+      />,
+    );
+
+    const photo = new File(["image"], "product.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText("productPhoto"), {
+      target: { files: [photo] },
+    });
+
+    expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
+    await act(async () => pendingUpload.resolve({ resourceId: "photo-1" }));
+    expect(await screen.findByText("product.png")).toBeInTheDocument();
+    expect(uploadPhoto).toHaveBeenCalledWith(photo, {
+      scope: "org",
+      organizationId: "workspace-org",
+    });
+    for (const placement of ["squareFeed", "stories"]) {
+      fireEvent.click(
+        screen.getByRole("button", { name: new RegExp(placement) }),
+      );
+    }
+    generate();
+    expect(
+      onGenerate.mock.calls[0][0].map((request) => request.referenceFileIds),
+    ).toEqual([["photo-1"], ["photo-1"]]);
+
+    fireEvent.click(screen.getByRole("button", { name: "removeProductPhoto" }));
+    generate();
+    expect(
+      onGenerate.mock.calls[1][0].map((request) => request.referenceFileIds),
+    ).toEqual([undefined, undefined]);
+  });
+
+  it("prices each product copy across placements and sends only that product's brief and photo", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        batchProducts={BATCH_PRODUCTS}
+        catalog={TEST_CATALOG}
+        initial={{
+          modelIds: ["model-a"],
+          settings: SETTINGS,
+          placementRatios: ["1:1", "9:16"],
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(
+      screen.getByText('placementPlanCredits:{"count":6,"credits":24}'),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "CreativeDirections.explainer",
+      }),
+    );
+    generate();
+
+    const requests = onGenerate.mock.calls[0][0];
+    expect(requests).toHaveLength(6);
+    expect(
+      new Set(requests.map(({ idempotencyKey }) => idempotencyKey)).size,
+    ).toBe(6);
+    expect(
+      requests.map(({ referenceFileIds }) => referenceFileIds?.[0]),
+    ).toEqual([
+      "vase-file",
+      "vase-file",
+      "vase-file",
+      "vase-file",
+      "mug-file",
+      "mug-file",
+    ]);
+    expect(requests.map(({ settings }) => settings.aspectRatio)).toEqual([
+      "1:1",
+      "9:16",
+      "1:1",
+      "9:16",
+      "1:1",
+      "9:16",
+    ]);
+    for (const request of requests) {
+      const isVase = request.referenceFileIds?.[0] === "vase-file";
+      expect(request.prompt).toContain(isVase ? "Vase" : "Mug");
+      expect(request.prompt).not.toContain(isVase ? "Mug" : "Vase");
+      expect(request.prompt).toContain(
+        "Creative direction: Illustrate how the product works",
+      );
+    }
+  });
+
+  it("blocks an oversized product batch until the chosen models fit", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        batchProducts={BATCH_PRODUCTS}
+        initial={{
+          modelIds: ["many-0", "many-1", "many-2"],
+          settings: SETTINGS,
+          placementRatios: ["1:1", "9:16"],
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      'productBatchLimit:{"count":12}',
+    );
+    generate();
+    expect(onGenerate).not.toHaveBeenCalled();
+
+    fireEvent.click(modelEntry("Many 2"));
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toHaveLength(MAX_BATCH);
+  });
+
   it("selects only models that fit and buys every checked model", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(
@@ -230,6 +445,73 @@ describe("an honest generation plan", () => {
         (request) => request.settings.aspectRatio,
       ),
     ).toEqual(["9:16", "1:1"]);
+  });
+
+  it("prices and submits the requested placements within the copy limit", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "4" }));
+    for (const placement of [
+      "squareFeed",
+      "portraitFeed",
+      "stories",
+      "landscapeFeed",
+    ]) {
+      fireEvent.click(
+        screen.getByRole("button", { name: new RegExp(placement) }),
+      );
+    }
+
+    expect(screen.getByRole("button", { name: "3" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByText('placementPlanCredits:{"count":12,"credits":48}'),
+    ).toBeInTheDocument();
+    generate();
+    const requests = onGenerate.mock.calls[0][0];
+    expect(requests.map(({ settings }) => settings.aspectRatio)).toEqual(
+      Array.from({ length: 3 }, () => ["1:1", "4:5", "9:16", "16:9"]).flat(),
+    );
+    expect(
+      new Set(requests.map(({ idempotencyKey }) => idempotencyKey)).size,
+    ).toBe(MAX_BATCH);
+  });
+
+  it("keeps a selected placement visible and blocks incompatible batches", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+
+    const stories = screen.getByRole("button", { name: /Placements.stories/ });
+    fireEvent.click(stories);
+    fireEvent.click(modelEntry("Model B"));
+    expect(stories).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "unsupportedPlacements",
+    );
+    generate();
+    expect(onGenerate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "4:5" }));
+    expect(stories).toHaveAttribute("aria-pressed", "false");
+    generate();
+    expect(
+      onGenerate.mock.calls[0][0].map(({ settings }) => settings.aspectRatio),
+    ).toEqual(["4:5", "4:5"]);
   });
 
   it("shows and prices the same normalized settings it submits for each model", () => {

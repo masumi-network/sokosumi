@@ -511,6 +511,8 @@ model Project {
   adMarketSnapshots ProjectAdMarketSnapshot[]
   adMarketAdsJob    ProjectAdMarketAdsJob?
 
+  studioProductCatalog ProjectStudioProductCatalog?
+
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
@@ -5182,6 +5184,15 @@ enum ProjectImageInitialTurn {
   /// automatically: that is the duplicate-turn mistake. The conversation is
   /// resumable, so the person can see what happened and decide.
   UNCERTAIN
+}
+
+model ProjectStudioProductCatalog {
+  projectId String  @id @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  products  Json
+  revision  Int
+
+  @@map("project_studio_product_catalog")
 }
 
 /// One eve conversation, permanently bound to one project.

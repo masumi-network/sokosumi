@@ -2,7 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { MAX_BATCH, StudioComposer } from "./studio-composer";
+import { MAX_BATCH } from "./studio-batch";
+import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioCatalog, StudioLabels, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";

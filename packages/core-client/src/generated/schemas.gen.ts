@@ -21623,6 +21623,13 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
         error: {
             type: [
                 'string',
@@ -38819,6 +38826,14 @@ export const CreateProjectImageJobRequestSchema = {
             maxItems: 4,
             default: []
         },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 4
+        },
         parentAssetId: {
             type: [
                 'string',
@@ -38844,6 +38859,107 @@ export const CreateProjectImageJobRequestSchema = {
     required: [
         'prompt',
         'idempotencyKey'
+    ]
+} as const;
+
+export const StudioProductCatalogSchema = {
+    type: 'object',
+    properties: {
+        products: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'products',
+        'revision'
+    ]
+} as const;
+
+export const StudioProductSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        },
+        description: {
+            type: 'string',
+            maxLength: 800
+        },
+        price: {
+            type: 'string',
+            maxLength: 80
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        imageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'description',
+        'price',
+        'url',
+        'imageUrl'
+    ]
+} as const;
+
+export const StudioProductImportSchema = {
+    type: 'object',
+    properties: {
+        products: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'products'
+    ]
+} as const;
+
+export const StudioProductPhotoSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        }
+    },
+    required: [
+        'id',
+        'name'
     ]
 } as const;
 

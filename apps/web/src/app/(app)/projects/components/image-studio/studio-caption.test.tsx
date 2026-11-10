@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -133,6 +134,34 @@ beforeEach(() => {
 
 afterEach(() => {
   document.documentElement.classList.remove("dark");
+});
+
+describe("preview an ad", () => {
+  it("previews a crop of the open image and returns to the same asset", async () => {
+    mount();
+    const trigger = screen.getByRole("button", { name: "previewAd" });
+    fireEvent.click(trigger);
+
+    const preview = screen.getByRole("dialog", { name: "previewAd" });
+    expect(within(preview).getByText("Launch")).toBeInTheDocument();
+    expect(within(preview).getByText("previewSponsored")).toBeInTheDocument();
+    expect(
+      within(preview).getByRole("button", { name: /Placements.squareFeed/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const image = within(preview).getByRole("img", { name: ASSET.prompt });
+    const src = image.getAttribute("src");
+    const stories = within(preview).getByRole("button", {
+      name: /Placements.stories/,
+    });
+    fireEvent.click(stories);
+    expect(stories).toHaveAttribute("aria-pressed", "true");
+    expect(image.parentElement).toHaveStyle({ aspectRatio: "9 / 16" });
+    expect(image).toHaveAttribute("src", src);
+
+    fireEvent.click(within(preview).getByRole("button", { name: "close" }));
+    await waitFor(() => expect(preview).not.toBeInTheDocument());
+    expect(trigger).toHaveFocus();
+  });
 });
 
 describe("write a caption", () => {

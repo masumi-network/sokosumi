@@ -90,6 +90,13 @@ describe("starting from a template", () => {
     expect(rendered).toEqual(names);
   });
 
+  it("links to the current project's brand kit in a separate tab", () => {
+    mount();
+    const kit = screen.getByRole("link", { name: "brandKitNewTab" });
+    expect(kit).toHaveAttribute("href", "/projects/p/design-md");
+    expect(kit).toHaveAttribute("target", "_blank");
+  });
+
   it("fills the composer with the template's brief and sets its frame", () => {
     mount();
 

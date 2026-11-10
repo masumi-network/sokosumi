@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { IMAGE_JOB_FAILURE_REASONS } from "@/lib/image-studio/failure-reason";
@@ -140,6 +141,7 @@ export const imageStudioJobSchema = z
     video: z.union([imageStudioVideoSettingsSchema, z.null()]),
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
+    referenceFileIds: z.array(z.string().uuid()).optional(),
     /**
      * One sentence a person can read, written by the studio. Never the
      * provider's own words: a raw transport string is not something anybody can
@@ -229,6 +231,10 @@ export const createImageJobRequestSchema = z
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
+    referenceFileIds: z
+      .array(z.string().uuid())
+      .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
+      .optional(),
     parentAssetId: z.string().uuid().nullable().default(null),
     sessionId: z.string().uuid().nullable().default(null),
     /**

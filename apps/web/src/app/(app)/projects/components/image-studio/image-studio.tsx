@@ -1,8 +1,19 @@
 "use client";
 
-import type { CreateProjectVideoJobRequest } from "@sokosumi/core-client";
+import type {
+  CreateProjectVideoJobRequest,
+  StudioProduct,
+  StudioProductPhoto,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { AlertTriangle, Columns2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Columns2,
+  Download,
+  ExternalLink,
+  X,
+} from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -42,6 +53,13 @@ import {
   videoModelsFor,
 } from "./catalog";
 import {
+  createStudioAdArchive,
+  MAX_ARCHIVE_BYTES,
+  MAX_ARCHIVE_IMAGES,
+  MAX_ARCHIVE_MIB,
+} from "./studio-ad-archive";
+import { productBrief, type StudioBatchProduct } from "./studio-batch";
+import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
@@ -52,6 +70,7 @@ import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
+import { StudioProductCatalogDialog } from "./studio-product-catalog";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import type { StudioBrief } from "./studio-templates";
 import {
@@ -64,6 +83,7 @@ import {
   creditsByAssetId,
   elapsedByAssetId,
   isActive,
+  MAX_STUDIO_REFERENCES,
   type StudioAsset,
   type StudioCatalog,
   type StudioJob,
@@ -121,6 +141,7 @@ export function ImageStudio({
   labels,
   projectId,
   projectScopePrompt,
+  websiteUrl,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -140,6 +161,7 @@ export function ImageStudio({
    */
   projectId: string | null;
   projectScopePrompt?: React.ReactNode;
+  websiteUrl?: string | null;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -166,6 +188,13 @@ export function ImageStudio({
     initialSelectedAssetId ? { mode: "single" } : null,
   );
   const [prompt, setPrompt] = useState("");
+  const productDetailsRef = useRef<string | null>(null);
+  const [batchProducts, setBatchProducts] = useState<StudioBatchProduct[]>([]);
+  const catalogPhotoRef = useRef<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [productPhoto, setProductPhoto] = useState<StudioProductPhoto | null>(
+    null,
+  );
   const [hasNewerSettings, setHasNewerSettings] = useState(false);
   const [composerKey, setComposerKey] = useState(0);
   const [parentAssetId, setParentAssetId] = useState<
@@ -180,6 +209,7 @@ export function ImageStudio({
     [],
   );
   const [pending, startTransition] = useTransition();
+  const [downloadingAds, startAdDownload] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
   const [captionByAssetId, setCaptionByAssetId] = useState<
@@ -293,6 +323,34 @@ export function ImageStudio({
     [checkedIds, state.assets],
   );
 
+  const archiveLimit =
+    checkedAssets.length > MAX_ARCHIVE_IMAGES
+      ? t("archiveImageLimit", { count: MAX_ARCHIVE_IMAGES })
+      : checkedAssets.reduce((sum, asset) => sum + asset.bytes, 0) >
+          MAX_ARCHIVE_BYTES
+        ? t("archiveSizeLimit", { size: MAX_ARCHIVE_MIB })
+        : null;
+
+  function handleDownloadAds() {
+    if (downloadingAds || archiveLimit || checkedAssets.length < 2) return;
+    startAdDownload(async () => {
+      try {
+        const archive = await createStudioAdArchive(checkedAssets);
+        const url = URL.createObjectURL(
+          new Blob([archive], { type: "application/zip" }),
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "studio-ads.zip";
+        link.click();
+        // Allow the browser to begin saving before releasing the blob.
+        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      } catch {
+        toast.error(t("archiveDownloadFailed"));
+      }
+    });
+  }
+
   /**
    * The most recent generation that ended badly and has not been superseded.
    * Shown above the gallery so a failure is never silent.
@@ -405,6 +463,11 @@ export function ImageStudio({
         : from === "asset"
           ? [(source as StudioAsset).id]
           : (source as StudioJob).referenceAssetIds,
+      ...(from === "job" &&
+      !reroll &&
+      (source as StudioJob).referenceFileIds?.length
+        ? { referenceFileIds: (source as StudioJob).referenceFileIds }
+        : {}),
       idempotencyKey: `ui:${id}`,
     };
     queue.enqueue([request]);
@@ -427,9 +490,15 @@ export function ImageStudio({
     setTemplateUndo(
       (current) => current ?? (prompt.trim() ? { prompt, target } : null),
     );
-    setPrompt(template.prompt);
+    const details = productDetailsRef.current;
+    setPrompt(
+      details && prompt.endsWith(details)
+        ? `${template.prompt}\n\n${details}`
+        : template.prompt,
+    );
     setTarget((current) => ({
       ...current,
+      placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
     if (mode === "video") {
@@ -441,13 +510,59 @@ export function ImageStudio({
     }
   }
 
+  function useProduct(
+    product: StudioProduct,
+    photo: StudioProductPhoto | null,
+  ) {
+    setBatchProducts([]);
+    const previousPhotoId = catalogPhotoRef.current;
+    catalogPhotoRef.current = photo?.id ?? null;
+    setProductPhoto(
+      (current) => photo ?? (current?.id === previousPhotoId ? null : current),
+    );
+    const details = productBrief(product);
+    setMode("image");
+    setHasNewerSettings(true);
+    setTemplateUndo(null);
+    const previousDetails = productDetailsRef.current;
+    productDetailsRef.current = details;
+    setPrompt((current) => {
+      const rest =
+        previousDetails && current.endsWith(previousDetails)
+          ? current.slice(0, -previousDetails.length).trim()
+          : current.trim();
+      return [rest, details].filter(Boolean).join("\n\n");
+    });
+    requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
+  function useProductBatch(products: StudioBatchProduct[]) {
+    const previousDetails = productDetailsRef.current;
+    productDetailsRef.current = null;
+    catalogPhotoRef.current = null;
+    setProductPhoto(null);
+    setBatchProducts(products);
+    setMode("image");
+    setHasNewerSettings(true);
+    setTemplateUndo(null);
+    setPrompt((current) =>
+      previousDetails && current.endsWith(previousDetails)
+        ? current.slice(0, -previousDetails.length).trim()
+        : current,
+    );
+    requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
   /** Put an image's brief and frame back in the composer, ready to edit. */
   function reusePrompt(asset: StudioAsset) {
+    setBatchProducts([]);
     setHasNewerSettings(true);
     setTemplateUndo(null);
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
+      creativeDirection: undefined,
+      placementRatios: undefined,
       settings: { ...current.settings, ...settingsOf(asset), seed: null },
     }));
     promptRef.current?.focus();
@@ -492,14 +607,21 @@ export function ImageStudio({
       requests.map((request) => ({ ...request, projectId: target })),
     );
     setPrompt("");
+    setBatchProducts([]);
     setHasNewerSettings(false);
   }
 
   function canEditRequest(request: QueuedGeneration) {
     const model = modelById(catalog, request.modelId);
-    if (!model || request.projectId !== activeProjectId) return false;
-    const { referenceAssetIds, parentAssetId, settings } = request;
+    if (uploadingPhoto || !model || request.projectId !== activeProjectId)
+      return false;
+    const { referenceAssetIds, referenceFileIds, parentAssetId, settings } =
+      request;
+    const referenceCount =
+      referenceAssetIds.length + (referenceFileIds?.length ?? 0);
     if (
+      referenceCount > MAX_STUDIO_REFERENCES ||
+      (referenceFileIds?.length ?? 0) > 1 ||
       referenceAssetIds.some(
         (id) =>
           !state.assets.some(
@@ -511,8 +633,8 @@ export function ImageStudio({
           (asset) =>
             asset.id === parentAssetId && asset.projectId === request.projectId,
         )) ||
-      (referenceAssetIds.length > 0 &&
-        (!model.editEndpoint || model.maxReferences < referenceAssetIds.length))
+      (referenceCount > 0 &&
+        (!model.editEndpoint || model.maxReferences < referenceCount))
     ) {
       return false;
     }
@@ -713,6 +835,19 @@ export function ImageStudio({
           setHasNewerSettings(true);
         }}
         onGenerate={handleGenerate}
+        onProductPhotoChange={(photo) => {
+          setProductPhoto(photo);
+          setTemplateUndo(null);
+          setHasNewerSettings(true);
+        }}
+        productPhoto={productPhoto}
+        batchProducts={batchProducts}
+        onClearProductBatch={() => {
+          setBatchProducts([]);
+          setHasNewerSettings(true);
+        }}
+        uploadingPhoto={uploadingPhoto}
+        onPhotoUploadChange={setUploadingPhoto}
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
@@ -740,6 +875,20 @@ export function ImageStudio({
       />
     );
 
+  const brandAction = activeProjectId ? (
+    <Button asChild size="sm" variant="outline">
+      <Link
+        aria-label={t("brandKitNewTab")}
+        href={`/projects/${encodeURIComponent(activeProjectId)}/design-md`}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {t("brandKit")}
+        <ExternalLink aria-hidden />
+      </Link>
+    </Button>
+  ) : null;
+
   return (
     <div
       className={cn(
@@ -755,6 +904,24 @@ export function ImageStudio({
         <StudioTemplateCanvas labels={labels} onApplyTemplate={applyTemplate} />
       ) : null}
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
+      {activeProjectId ? (
+        <div
+          className={cn(
+            "flex flex-wrap justify-end gap-2 pt-2",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
+        >
+          {brandAction}
+          <StudioProductCatalogDialog
+            key={activeProjectId}
+            canUseProduct={!uploadingPhoto}
+            onUseProduct={useProduct}
+            onUseBatch={useProductBatch}
+            projectId={activeProjectId}
+            websiteUrl={websiteUrl}
+          />
+        </div>
+      ) : null}
 
       <div
         className={cn(
@@ -840,6 +1007,7 @@ export function ImageStudio({
                   ? () => {
                       if (prompt.trim().length > 0 || hasNewerSettings) return;
                       const { request } = failure;
+                      setBatchProducts([]);
                       setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
@@ -847,6 +1015,12 @@ export function ImageStudio({
                         settings: request.settings,
                       });
                       setCheckedIds(request.referenceAssetIds);
+                      const photoId = request.referenceFileIds?.[0];
+                      setProductPhoto((current) => {
+                        if (!photoId) return null;
+                        if (current?.id === photoId) return current;
+                        return { id: photoId, name: t("productPhoto") };
+                      });
                       setParentAssetId(request.parentAssetId);
                       setHasNewerSettings(true);
                       // A saved failure is one leg, even if its batch had copies.
@@ -913,6 +1087,29 @@ export function ImageStudio({
             <Columns2 aria-hidden />
             {labels.compareSelected}
           </Button>
+          {checkedAssets.length > 1 ? (
+            <Button
+              aria-describedby={
+                archiveLimit ? "studio-archive-limit" : undefined
+              }
+              aria-disabled={archiveLimit ? true : undefined}
+              loading={downloadingAds}
+              onClick={handleDownloadAds}
+              size="sm"
+              variant="secondary"
+            >
+              <Download aria-hidden />
+              {t("downloadAdsZip")}
+            </Button>
+          ) : null}
+          {archiveLimit ? (
+            <p
+              className="text-muted-foreground basis-full text-right text-xs"
+              id="studio-archive-limit"
+            >
+              {archiveLimit}
+            </p>
+          ) : null}
           <Button onClick={clearReferences} size="sm" variant="ghost">
             {labels.clearSelection}
           </Button>
@@ -952,6 +1149,7 @@ export function ImageStudio({
           onSchedule={scheduleAsset}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
+            setBatchProducts([]);
             setParentAssetId(undefined);
             setHasNewerSettings(true);
             setTemplateUndo(null);
@@ -959,6 +1157,8 @@ export function ImageStudio({
             setPrompt("");
             setTarget((current) => ({
               ...current,
+              creativeDirection: undefined,
+              placementRatios: undefined,
               settings: { ...settingsOf(asset), seed: null },
             }));
             setViewing(null);

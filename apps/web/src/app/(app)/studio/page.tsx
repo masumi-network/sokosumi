@@ -83,10 +83,12 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         key={scopeId ?? "workspace"}
         labels={buildStudioLabels(t)}
         projectId={scopeId}
+        websiteUrl={project?.websiteUrl}
         projectScopePrompt={
           scopeId ? undefined : (
             <ProjectScopeRequired
               body={projectId ? t("pickUnavailable") : t("pickBody")}
+              createActionLabel={t("startFromWebsite")}
               testId="studio-no-project"
               variant="action"
             />

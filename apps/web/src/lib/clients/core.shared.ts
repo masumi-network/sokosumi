@@ -1,7 +1,12 @@
 import {
+  attachStudioProductPhoto as coreAttachStudioProductPhoto,
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
+  getStudioProductCatalog as coreGetStudioProductCatalog,
+  importStudioProductCatalog as coreImportStudioProductCatalog,
+  replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   suggestTaskTags as coreSuggestTaskTags,
+  type StudioProductCatalog,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 
@@ -4145,6 +4150,51 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function attachStudioProductPhoto(
+    id: string,
+    body: { name: string; imageUrl: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreAttachStudioProductPhoto({ client, path: { id }, body }),
+      "Failed to attach a Studio product photo",
+    );
+  }
+
+  async function getStudioProductCatalog(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioProductCatalog({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio products",
+    );
+  }
+
+  async function replaceStudioProductCatalog(
+    id: string,
+    body: StudioProductCatalog,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreReplaceStudioProductCatalog({ client, path: { id }, body }),
+      "Failed to save Studio products",
+    );
+  }
+
+  async function importStudioProductCatalog(id: string, body: { url: string }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreImportStudioProductCatalog({ client, path: { id }, body }),
+      "Failed to import Studio products",
+    );
+  }
+
   async function getProjectsByIdImageStudioAssetsByAssetIdSocialMedia(
     id: string,
     assetId: string,
@@ -6977,6 +7027,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
     getImageStudioState,
+    attachStudioProductPhoto,
+    getStudioProductCatalog,
+    replaceStudioProductCatalog,
+    importStudioProductCatalog,
     getProjectsByIdImageStudio,
     getProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
     postProjectsByIdImageStudioAssetsByAssetIdCaption,
