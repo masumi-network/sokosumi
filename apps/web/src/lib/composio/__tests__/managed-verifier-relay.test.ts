@@ -1,7 +1,6 @@
 import { runInNewContext } from "node:vm";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   buildComposioCallbackInlineScript,
   buildComposioHandoffInlineScript,
@@ -40,19 +39,18 @@ nativeReturn.search = new URLSearchParams({
   auditId: AUDIT_ID,
 }).toString();
 
-function browser(name = "") {
+function browser(name = "", origin = CANONICAL_ORIGIN) {
   const stored = new Map<string, string>();
   const redirected: URL[] = [];
   const broadcast: Array<{ channel: string; payload: unknown }> = [];
   const close = vi.fn();
   const openerMessage = vi.fn();
   const location = {
-    origin: CANONICAL_ORIGIN,
+    origin,
+    hostname: new URL(origin).hostname,
     pathname: VERIFIER_PATH,
     search: `?${new URLSearchParams({ session_uri: SESSION_URI })}`,
-    replace: vi.fn((value: string) =>
-      redirected.push(new URL(value, CANONICAL_ORIGIN)),
-    ),
+    replace: vi.fn((value: string) => redirected.push(new URL(value, origin))),
   };
   class Channel {
     constructor(readonly channel: string) {}
@@ -111,6 +109,18 @@ function browser(name = "") {
   };
 }
 
+/** The session left for no page but this host's own signed-in check. */
+function expectSessionKept(flow: ReturnType<typeof browser>) {
+  expect(flow.redirected).toHaveLength(1);
+  const target = flow.redirected[0];
+  expect(target.origin + target.pathname).toBe(
+    flow.window.location.origin + VERIFIER_PATH,
+  );
+  expect(target.searchParams.getAll(OWNER_REENTRY_PARAM)).toEqual(["1"]);
+  expect(flow.broadcast).toEqual([]);
+  expect(flow.openerMessage).not.toHaveBeenCalled();
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   boundary.cookie.mockReturnValue("owner-session");
@@ -151,6 +161,114 @@ describe("managed verifier cross-protocol relay", () => {
       expect(flow.stored.has(COMPOSIO_HANDOFF_STORAGE_KEY)).toBe(false);
     },
   );
+
+  // The rule reads no page path: Composio's fixed return page is a setting of
+  // the Composio project, and the rule must hold whichever page that is.
+  describe("where a session may go", () => {
+    it.each([
+      ["a different page of the preview", `${FEATURE_ORIGIN}/seo`],
+      [
+        "a page below the redeeming page",
+        `${FEATURE_ORIGIN}/seo/connections/callback/x`,
+      ],
+      ["the popup page of the preview", `${FEATURE_ORIGIN}/composio/callback`],
+      ["a share page of this host", `${CANONICAL_ORIGIN}/share/abc`],
+      [
+        "the redeeming path on a docs host",
+        "https://docs.sokosumi.com/seo/connections/callback",
+      ],
+      [
+        "the redeeming path on the Mainnet host",
+        "https://app.sokosumi.com/seo/connections/callback",
+      ],
+      [
+        "the redeeming path on a Core preview",
+        "https://sokosumi-core-preprod-git-x.preview.sokosumi.com/seo/connections/callback",
+      ],
+      [
+        "the redeeming path on a Mainnet preview",
+        "https://sokosumi-app-mainnet-git-x.preview.sokosumi.com/seo/connections/callback",
+      ],
+      [
+        "the redeeming path below a preview host name",
+        "https://x.sokosumi-app-preprod-git-a.preview.sokosumi.com/seo/connections/callback",
+      ],
+      [
+        "a host that only starts like a preview",
+        "https://sokosumi-app-preprod-git-a.preview.sokosumi.com.sokosumi.com/seo/connections/callback",
+      ],
+      [
+        "a different port of a preview",
+        `${FEATURE_ORIGIN}:8443/seo/connections/callback`,
+      ],
+    ])("keeps a session away from %s", (_name, returnUrl) => {
+      const flow = browser();
+      flow.handoff(new URL(returnUrl));
+      flow.callback();
+      expectSessionKept(flow);
+    });
+
+    it("returns a session to a preview from the Preprod host only", () => {
+      const flow = browser("", "https://app.sokosumi.com");
+      flow.handoff();
+      flow.callback();
+      expectSessionKept(flow);
+    });
+
+    it("returns a session from one preview to no second preview", () => {
+      const flow = browser("", FEATURE_ORIGIN);
+      flow.handoff(
+        new URL(
+          "https://sokosumi-app-preprod-git-other.preview.sokosumi.com/seo/connections/callback",
+        ),
+      );
+      flow.callback();
+      expectSessionKept(flow);
+    });
+
+    it("returns a session to the redeeming page of its own host on Mainnet", () => {
+      const origin = "https://app.sokosumi.com";
+      const flow = browser("", origin);
+      flow.handoff(
+        new URL(nativeReturn.pathname + nativeReturn.search, origin),
+      );
+      flow.callback();
+      expect(flow.redirected).toHaveLength(1);
+      expect(flow.redirected[0].origin + flow.redirected[0].pathname).toBe(
+        `${origin}/seo/connections/callback`,
+      );
+      expect(flow.redirected[0].searchParams.get("session_uri")).toBe(
+        SESSION_URI,
+      );
+    });
+
+    it("keeps a refused session on this host when the popup has a name", () => {
+      const flow = browser(getComposioOAuthPopupName(REMOTE_NONCE));
+      flow.handoff(new URL(`${FEATURE_ORIGIN}/seo`));
+      flow.callback();
+      expect(flow.redirected).toEqual([]);
+      expect(flow.broadcast.map((sent) => sent.channel)).toEqual([
+        `${COMPOSIO_OAUTH_BROADCAST_CHANNEL}:${REMOTE_NONCE}`,
+      ]);
+      expect(flow.openerMessage).toHaveBeenCalledExactlyOnceWith(
+        expect.anything(),
+        CANONICAL_ORIGIN,
+      );
+    });
+
+    it("leaves a return to a different first-party app as it was", () => {
+      const flow = browser();
+      flow.handoff(
+        new URL(
+          "https://app.cmo.xyz/measure/callback?provider=google_analytics",
+        ),
+      );
+      flow.callback();
+      expect(flow.redirected.map(String)).toEqual([
+        `https://app.cmo.xyz/measure/callback?provider=google_analytics&session_uri=${encodeURIComponent(SESSION_URI)}&connected_account_id=${CONNECTION_ID}`,
+      ]);
+    });
+  });
 
   it("clears an inherited canonical nonce when a different first-party app starts its handoff", () => {
     const flow = browser(getComposioOAuthPopupName(REMOTE_NONCE));

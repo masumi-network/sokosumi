@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { ActionError } from "@/lib/actions/errors/action-error";
+import { COMPOSIO_MANAGED_RETURN_PATH } from "@/lib/composio/oauth-popup-protocol";
 
-export const SEO_CONNECTION_CALLBACK_PATH = "/seo/connections/callback";
+export const SEO_CONNECTION_CALLBACK_PATH = COMPOSIO_MANAGED_RETURN_PATH;
 export const SEO_CONNECTION_RETURN_PATH = "/seo/connections/return";
 export const SEO_CONNECTION_HANDOFF_PREFIX = "sokosumi:seo:callback:";
 const providerSchema = z.enum(["ga4", "search_console"]);

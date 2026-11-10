@@ -352,11 +352,14 @@ describe("hand-off from another first-party app", () => {
 
   it.each([
     {
+      host: "app.sokosumi.com",
       returnUrl: "https://app.cmo.xyz/connect/callback",
       expected:
         "https://app.cmo.xyz/connect/callback?session_uri=one-use&connected_account_id=ca_1",
     },
     {
+      // Only the Preprod host returns to a preview.
+      host: "preprod.sokosumi.com",
       returnUrl:
         "https://sokosumi-app-preprod-git-feat-seo-workspace.preview.sokosumi.com/seo/connections/callback?provider=ga4&viewer=alice&organization=team&seo_state=attempt-123",
       expected:
@@ -364,7 +367,7 @@ describe("hand-off from another first-party app", () => {
     },
   ])(
     "sends Composio's callback to $returnUrl with its exact connection",
-    ({ returnUrl, expected }) => {
+    ({ host, returnUrl, expected }) => {
       const replace = vi.fn();
       const removeItem = vi.fn();
       const stored = JSON.stringify({
@@ -383,7 +386,8 @@ describe("hand-off from another first-party app", () => {
           },
           name: "",
           location: {
-            origin: "https://app.sokosumi.com",
+            origin: `https://${host}`,
+            hostname: host,
             search: "?session_uri=one-use",
             replace,
           },

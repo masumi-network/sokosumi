@@ -17,6 +17,26 @@ export const COMPOSIO_OWNER_VERIFICATION_PARAM =
   "__sokosumi_owner_verification";
 
 /**
+ * The one page of a Sokosumi host that a return from Composio may go to. A
+ * return can hold a one-use session: whoever reads it, signed in as the user
+ * who started the connection, can finish that connection. It goes to the page
+ * that redeems it, on this host or on a preview named below, and to no other
+ * Sokosumi page.
+ */
+export const COMPOSIO_MANAGED_RETURN_PATH = "/seo/connections/callback";
+/**
+ * Preprod's Web host, and Web's Preprod pull-request previews. Preprod can
+ * return there, so a preview can finish a connection. A preview runs the code
+ * of its branch, so this trusts every branch that gets a Preprod preview; no
+ * other network does. The host is named, not read from the environment: this
+ * page is built one time, and an unset variable must not open Mainnet.
+ */
+const PREPROD_WEB_HOST = "preprod.sokosumi.com";
+const PREPROD_PREVIEW_HOST =
+  /^sokosumi-app-preprod-git-[a-z0-9-]+\.preview\.sokosumi\.com$/;
+const SOKOSUMI_HOST = /(^|\.)sokosumi\.com$/;
+
+/**
  * The shared bot a same-tab connection is for. Composio returns to the fixed
  * callback page, not to our return URL, so the tab keeps the id for it.
  */
@@ -254,7 +274,11 @@ var validConnection=handoff&&(handoff.connectionId===null||handoff.connectionId=
 var validPopupNonce=handoff&&(handoff.popupNonce===null||handoff.popupNonce===undefined||(typeof handoff.popupNonce==="string"&&handoff.popupNonce.length>0));
 if(handoff&&typeof handoff.returnUrl==="string"&&typeof handoff.at==="number"&&Number.isFinite(handoff.at)&&handoff.at<=now&&now-handoff.at<${COMPOSIO_HANDOFF_TTL_MS}&&validConnection&&validPopupNonce&&(!namedNonce||handoff.popupNonce===namedNonce)){
 var candidate=new URL(handoff.returnUrl);
-if((${returnUrlValidator})(candidate,${allowLocalReturn}))back=candidate;
+var here=candidate.origin===window.location.origin;
+var preview=window.location.hostname===${JSON.stringify(PREPROD_WEB_HOST)}&&candidate.port===""&&new RegExp(${JSON.stringify(PREPROD_PREVIEW_HOST.source)}).test(candidate.hostname);
+var redeems=candidate.pathname===${JSON.stringify(COMPOSIO_MANAGED_RETURN_PATH)}&&(here||preview);
+var sokosumi=new RegExp(${JSON.stringify(SOKOSUMI_HOST.source)}).test(candidate.hostname);
+if((${returnUrlValidator})(candidate,${allowLocalReturn})&&(!sokosumi||redeems))back=candidate;
 }
 }catch(e){}
 if(back){

@@ -13,6 +13,7 @@ import { SENTRY_TUNNEL_PATH } from "@/config/sentry-tunnel";
 import {
   COMPOSIO_BOT_VERIFIER_PATH,
   COMPOSIO_CALLBACK_PATH,
+  COMPOSIO_MANAGED_RETURN_PATH,
   COMPOSIO_OWNER_VERIFICATION_PARAM,
 } from "@/lib/composio/oauth-popup-protocol";
 import {
@@ -68,7 +69,7 @@ const EXCLUDED_PATHS = [
 // require the authenticated initiating viewer and workspace. Match exactly so
 // callback credentials cannot enter a sign-in URL after a session expires.
 const OAUTH_CONNECTION_DOCUMENT_PATHS = new Set([
-  "/seo/connections/callback",
+  COMPOSIO_MANAGED_RETURN_PATH,
   "/seo/connections/return",
   "/composio/callback",
   "/composio/handoff",
