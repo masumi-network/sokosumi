@@ -2,13 +2,16 @@
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
-  BarChart3,
   CalendarClock,
   ChevronDown,
+  Eye,
+  Info,
+  ListPlus,
   MessageSquare,
   MoreHorizontal,
   PencilLine,
   Plus,
+  RotateCw,
   Settings2,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,6 +29,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -52,10 +60,15 @@ import {
   seoScopeControls,
   useSeoDateFields,
 } from "./seo-scope-bar";
+import { seoSetup } from "./seo-setup-model";
 import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoTraffic } from "./seo-traffic";
 import { useSeoWorkspace } from "./use-seo-workspace";
+
+/** A load faster than this shows no skeleton at all. */
+const SKELETON_DELAY_MS = 150;
+const SKELETON_ROWS = ["first", "second"] as const;
 
 export function SeoWorkspace({
   workspace,
@@ -197,7 +210,7 @@ export function SeoWorkspace({
                   disabled={unavailable}
                   onSelect={() => model.setDialog("statistics")}
                 >
-                  <BarChart3 className="size-4" />
+                  <Settings2 className="size-4" />
                   {t("overview.manageConnections")}
                 </DropdownMenuItem>
               ) : null}
@@ -214,7 +227,7 @@ export function SeoWorkspace({
                     disabled={unavailable || !model.data.pages.length}
                     onSelect={() => model.setDialog("scope")}
                   >
-                    <Settings2 className="size-4" />
+                    <ListPlus className="size-4" />
                     {t("createScope")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -239,32 +252,49 @@ export function SeoWorkspace({
           </DropdownMenu>
         </div>
       </div>
-      {!unavailable && model.data.history.limited ? (
-        <p role="status" className="text-muted-foreground text-sm">
-          {t("historyLimited", { limit: model.data.history.limit })}
-        </p>
-      ) : null}
-      {!unavailable &&
-      model.data.availableActions.canEdit &&
-      model.data.scope.pageIds.length > 0 &&
-      !model.data.availableActions.canRequestAnalysis ? (
-        <p role="status" className="text-muted-foreground text-sm">
-          {t("dispatchPaused")}
-        </p>
-      ) : null}
-      {!model.data.availableActions.canEdit ? (
-        <p className="text-muted-foreground text-sm">{t("readOnly")}</p>
-      ) : null}
+      {/* One group of notices; it takes no room when none shows. */}
+      <div className="space-y-2 empty:hidden">
+        {!unavailable && model.data.history.limited ? (
+          <p
+            role="status"
+            className="text-muted-foreground flex items-start gap-2 text-sm"
+          >
+            <Info className="mt-0.5 size-4 shrink-0" />
+            {t("historyLimited", { limit: model.data.history.limit })}
+          </p>
+        ) : null}
+        {/* During setup the card on the agent tab says this on its check step. */}
+        {!unavailable &&
+        model.data.availableActions.canEdit &&
+        model.data.scope.pageIds.length > 0 &&
+        !model.data.availableActions.canRequestAnalysis &&
+        !(
+          model.filters.tab === "agent" && seoSetup(model.data, model.filters)
+        ) ? (
+          <p className="text-muted-foreground flex items-start gap-2 text-sm">
+            <Info className="mt-0.5 size-4 shrink-0" />
+            {t("dispatchPaused")}
+          </p>
+        ) : null}
+        {!model.data.availableActions.canEdit ? (
+          <p className="text-muted-foreground flex items-start gap-2 text-sm">
+            <Eye className="mt-0.5 size-4 shrink-0" />
+            {t("readOnly")}
+          </p>
+        ) : null}
+      </div>
       {model.result.isError ? (
         <div role="alert" className="space-y-2">
           <p className="text-sm">{t("refreshFailed")}</p>
           <Button
             variant="outline"
             size="sm"
+            loading={model.result.isFetching}
             onClick={() => {
               void model.result.refetch();
             }}
           >
+            <RotateCw />
             {t("retry")}
           </Button>
         </div>
@@ -324,7 +354,7 @@ export function SeoWorkspace({
             ) : null}
             <ChevronDown
               className={cn(
-                "size-4 transition-transform",
+                "size-4 transition-transform duration-150 ease-out motion-reduce:transition-none",
                 filtersOpen && "rotate-180",
               )}
               aria-hidden
@@ -356,13 +386,42 @@ export function SeoWorkspace({
         {unavailable ? (
           model.result.isError ? (
             <SeoEmpty title={t("errorTitle")} body={t("errorBody")} />
-          ) : (
+          ) : model.invalidDates ? (
             <p
               role="status"
               className="text-muted-foreground py-8 text-center text-sm"
             >
-              {model.invalidDates ? t("invalidDates") : t("loading")}
+              {t("invalidDates")}
             </p>
+          ) : (
+            // The shape of a tab: a panel of white cards. The bones sit inside
+            // the cards, because a bone on the panel has the panel's own colour.
+            // The short fade keeps a fast load from flashing it.
+            <div
+              role="status"
+              className={cn(HOLDER_CLASS, "content-in space-y-3")}
+              style={{ animationDelay: `${SKELETON_DELAY_MS}ms` }}
+            >
+              <span className="sr-only">{t("loading")}</span>
+              <Skeleton className="mx-2 mt-1 h-4 w-24" />
+              <div className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4")}>
+                <Skeleton className="h-6 w-48 max-w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+              {SKELETON_ROWS.map((row) => (
+                <div
+                  key={row}
+                  className={cn(
+                    HOLDER_ITEM_CLASS,
+                    "flex items-center gap-3 p-4",
+                  )}
+                >
+                  <Skeleton className="size-8 shrink-0 rounded-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              ))}
+            </div>
           )
         ) : (
           <>

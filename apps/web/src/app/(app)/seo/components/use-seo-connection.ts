@@ -20,6 +20,7 @@ import {
 import { seoViewerHeaders } from "@/lib/seo/owner";
 
 export type SeoConnectionProvider = SeoConnectionStatus["provider"];
+export type SeoConnectionAction = "connect" | "resume" | "disconnect";
 
 export function useSeoConnection(
   provider: SeoConnectionProvider,
@@ -29,7 +30,8 @@ export function useSeoConnection(
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { runPopupOAuth } = useComposioOAuthPopup();
-  const [busy, setBusy] = useState(false);
+  // The action in flight, so only the pressed button shows and announces progress.
+  const [busy, setBusy] = useState<SeoConnectionAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
   const alive = useRef(true);
@@ -76,7 +78,7 @@ export function useSeoConnection(
         async (
           flow,
         ): Promise<ComposioConnectionOutcome<SeoConnectionStatus>> => {
-          setBusy(true);
+          setBusy("connect");
           const initiation = await connectSeoStatisticsAction({
             ...actor,
             provider,
@@ -152,14 +154,14 @@ export function useSeoConnection(
         );
     } finally {
       busyRef.current = false;
-      if (alive.current) setBusy(false);
+      if (alive.current) setBusy(null);
     }
   }
   async function resume() {
     const connectionId = status.data?.pendingConnectionId;
     if (!connectionId || busyRef.current) return;
     busyRef.current = true;
-    setBusy(true);
+    setBusy("resume");
     setError(null);
     try {
       const result = await finalizeSeoStatisticsAction({
@@ -188,13 +190,13 @@ export function useSeoConnection(
         );
     } finally {
       busyRef.current = false;
-      if (alive.current) setBusy(false);
+      if (alive.current) setBusy(null);
     }
   }
   async function disconnect() {
     if (busyRef.current) return;
     busyRef.current = true;
-    setBusy(true);
+    setBusy("disconnect");
     setError(null);
     try {
       const result = await disconnectSeoStatisticsAction({
@@ -217,7 +219,7 @@ export function useSeoConnection(
         );
     } finally {
       busyRef.current = false;
-      if (alive.current) setBusy(false);
+      if (alive.current) setBusy(null);
     }
   }
   return { status, busy, error, connect, resume, disconnect };

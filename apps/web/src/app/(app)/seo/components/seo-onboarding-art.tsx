@@ -1,5 +1,20 @@
-/** A search result above a ranking line that climbs to first place. Decoration only. */
+"use client";
+
+import { motion, useReducedMotion } from "motion/react";
+
+/** The app's strong ease-out curve: a quick start that settles. */
+const EASE_OUT = [0.23, 1, 0.32, 1] as const;
+const LINE_SECONDS = 0.9;
+const BADGE_SECONDS = 0.3;
+/** The scale an entering mark starts from. */
+const BADGE_FROM_SCALE = 0.25;
+
+/**
+ * A search result above a ranking line that climbs to first place. Decoration only.
+ * The line draws once and the badge lands at its end; reduced motion shows the end state.
+ */
 export function SeoOnboardingArt() {
+  const still = useReducedMotion();
   return (
     <svg
       viewBox="0 0 280 240"
@@ -60,29 +75,45 @@ export function SeoOnboardingArt() {
           strokeDasharray="2 4"
         />
       ))}
-      <polyline
+      <motion.polyline
         points="36,212 76,204 112,208 152,186 192,178 226,158"
         fill="none"
         className="stroke-foreground"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        initial={still ? false : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: LINE_SECONDS, ease: EASE_OUT }}
       />
-      <circle
-        cx="230"
-        cy="154"
-        r="16"
-        className="fill-foreground stroke-card"
-        strokeWidth="2"
-      />
-      <text
-        x="230"
-        y="158"
-        textAnchor="middle"
-        className="fill-background text-xs font-semibold"
+      <motion.g
+        initial={still ? false : { opacity: 0, scale: BADGE_FROM_SCALE }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{
+          type: "spring",
+          duration: BADGE_SECONDS,
+          bounce: 0,
+          delay: LINE_SECONDS,
+        }}
+        // Scale around the badge's own centre, not the drawing's corner.
+        style={{ transformBox: "fill-box", transformOrigin: "center" }}
       >
-        #1
-      </text>
+        <circle
+          cx="230"
+          cy="154"
+          r="16"
+          className="fill-foreground stroke-card"
+          strokeWidth="2"
+        />
+        <text
+          x="230"
+          y="158"
+          textAnchor="middle"
+          className="fill-background text-xs font-semibold"
+        >
+          #1
+        </text>
+      </motion.g>
     </svg>
   );
 }

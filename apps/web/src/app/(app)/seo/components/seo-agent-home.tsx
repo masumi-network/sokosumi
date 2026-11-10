@@ -1,8 +1,21 @@
 "use client";
 
-import { Bot } from "lucide-react";
+import {
+  ChevronDown,
+  FileText,
+  Lightbulb,
+  type LucideIcon,
+  Play,
+  Plug,
+  Plus,
+  Radar,
+  RefreshCw,
+  Search,
+  WandSparkles,
+} from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState } from "react";
+import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -15,11 +28,17 @@ import {
   type SeoAgentStep,
   seoAgentBrief,
 } from "./seo-agent-model";
-import { SeoChatThread, useSeoChatIdentity } from "./seo-chat-panel";
+import {
+  SeoChatHeading,
+  SeoChatThread,
+  useSeoChatIdentity,
+} from "./seo-chat-panel";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
 import { seoRarelyShown } from "./seo-performance-model";
+import { SeoSetupCard } from "./seo-setup";
+import { seoCheckRunning, seoSetup } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
@@ -27,6 +46,20 @@ import { useSeoChat } from "./use-seo-chat";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export const SEO_AGENT_INPUT_ID = "seo-agent-question";
+/** Next steps past this count fold behind a "show more" button. */
+const SEO_AGENT_VISIBLE_STEPS = 3;
+const STEP_ICONS: Record<
+  Exclude<SeoAgentStep, { kind: "action" }>["kind"],
+  LucideIcon
+> = {
+  measure: Lightbulb,
+  keyword: Search,
+  pages: FileText,
+  refresh: RefreshCw,
+  connect: Plug,
+  // Not the people icon: the chat uses that one for "shared in your organization".
+  competitors: Radar,
+};
 
 type Chat = ReturnType<typeof useSeoChat>;
 
@@ -76,7 +109,9 @@ function StepRow({
               size="sm"
               variant={variant}
               aria-describedby={bodyId}
-              disabled={chat.busy}
+              // Not the disabled attribute: that drops focus from the button just pressed.
+              aria-disabled={chat.busy || undefined}
+              className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
               onClick={() => {
                 void chat.send(
                   t("agent.prompts.measure", {
@@ -89,6 +124,7 @@ function StepRow({
                 );
               }}
             >
+              <WandSparkles />
               {t("agent.draftFix")}
             </Button>
           ) : null,
@@ -105,13 +141,16 @@ function StepRow({
                 size="sm"
                 variant={variant}
                 aria-describedby={bodyId}
-                disabled={chat.busy}
+                // Not the disabled attribute: that drops focus from the button just pressed.
+                aria-disabled={chat.busy || undefined}
+                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                 onClick={() => {
                   void chat.send(
                     t("agent.prompts.keyword", { keyword: step.keyword }),
                   );
                 }}
               >
+                <WandSparkles />
                 {t("agent.askHow")}
               </Button>
             ) : null,
@@ -125,6 +164,7 @@ function StepRow({
                 variant={variant}
                 onClick={() => model.setDialog("page")}
               >
+                <Plus />
                 {t("addPage")}
               </Button>,
             ]
@@ -139,6 +179,7 @@ function StepRow({
                   disabled={model.pending}
                   onClick={refresh}
                 >
+                  <RefreshCw />
                   {t("syncNow")}
                 </Button>,
               ]
@@ -148,7 +189,9 @@ function StepRow({
                   <SeoConnectionButton
                     key="connect"
                     provider={step.provider}
+                    variant={variant}
                     onConnected={() => model.openStatistics(step.provider)}
+                    onSync={() => model.openStatistics(step.provider)}
                   />,
                 ]
               : [
@@ -168,6 +211,7 @@ function StepRow({
                         )
                       }
                     >
+                      {step.available ? <Search /> : <Plus />}
                       {t(
                         step.available
                           ? "agent.researchCompetitors"
@@ -176,20 +220,30 @@ function StepRow({
                     </Button>
                   ) : null,
                 ];
+  const Icon = STEP_ICONS[step.kind];
   return (
     <li
       className={cn(
         HOLDER_ITEM_CLASS,
-        "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 p-4",
+        "content-rise flex items-start gap-3 p-4",
       )}
     >
-      <p
-        id={bodyId}
-        className="min-w-0 basis-full text-sm break-words sm:basis-0 sm:flex-1"
+      <span
+        aria-hidden
+        className="bg-quinary text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
       >
-        {body}
-      </p>
-      {control}
+        <Icon className="size-4" />
+      </span>
+      {/* A control that wraps starts on the text edge, not under the icon. */}
+      <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+        <p
+          id={bodyId}
+          className="max-w-prose min-w-0 flex-1 basis-48 text-sm break-words"
+        >
+          {body}
+        </p>
+        {control ? <div className="max-w-full min-w-0">{control}</div> : null}
+      </div>
     </li>
   );
 }
@@ -206,8 +260,15 @@ function AgentConversation({
     // The card takes its content's height: a short thread leaves no gap above the questions.
     <div className={cn(HOLDER_ITEM_CLASS, "flex min-w-0 flex-col self-start")}>
       <div className="border-b px-4 py-3">
-        <h3 className="text-sm font-semibold">{t("chat.title")}</h3>
-        <p className="text-muted-foreground text-xs">{t("chat.description")}</p>
+        <SeoChatHeading
+          chat={chat}
+          title={<h3 className="text-sm font-semibold">{t("chat.title")}</h3>}
+          description={
+            <p className="text-muted-foreground text-sm">
+              {t("chat.description")}
+            </p>
+          }
+        />
       </div>
       <SeoChatThread
         model={model}
@@ -256,16 +317,29 @@ function SeoAgentPanel({
   const rarelyShown = Boolean(
     traffic && seoRarelyShown(traffic.impressions, traffic.period),
   );
-  // The first proposal with its own button carries the one primary action.
-  // Action cards and connection buttons keep their own style.
+  // Before the first check the setup card leads; a filtered view has its own empty state.
+  const setup = seoSetup(model.data, model.filters);
+  const checkRunning = seoCheckRunning(model.data);
+  // The setup card already offers the connections and the page step.
+  const steps = setup
+    ? brief.steps.filter(
+        (step) => step.kind !== "connect" && step.kind !== "pages",
+      )
+    : brief.steps;
+  const [showAllSteps, setShowAllSteps] = useState(false);
+  const shown = showAllSteps ? steps : steps.slice(0, SEO_AGENT_VISIBLE_STEPS);
+  // The first proposal with its own button carries the one primary action,
+  // unless a setup step holds it. Action cards keep their own style.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
-  const primary = brief.steps.findIndex((step) =>
-    step.kind === "keyword" || step.kind === "measure"
-      ? Boolean(model.data.auditId)
-      : step.kind === "competitors"
-        ? canEdit && (canRequestAnalysis || !step.available)
-        : step.kind !== "action" && step.kind !== "connect",
-  );
+  const primary = setup?.next
+    ? -1
+    : steps.findIndex((step) =>
+        step.kind === "keyword" || step.kind === "measure"
+          ? Boolean(model.data.auditId)
+          : step.kind === "competitors"
+            ? canEdit && (canRequestAnalysis || !step.available)
+            : step.kind !== "action",
+      );
   // History waits for a fresh Audit read, so a revoked or missing Audit is never read again.
   const chat = useSeoChat(
     model,
@@ -276,116 +350,184 @@ function SeoAgentPanel({
       aria-labelledby="seo-agent-title"
       className={cn(
         HOLDER_CLASS,
-        "grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
+        "grid min-w-0 gap-3",
+        // Without an Audit there is no chat, so the content keeps the full width.
+        model.data.auditId && "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
       )}
     >
+      {/* The panel label spans both columns, so both cards start on one line. */}
+      <h2
+        id="seo-agent-title"
+        className="text-muted-foreground col-span-full px-2 pt-1 text-xs font-medium"
+      >
+        {t("agent.title")}
+      </h2>
+      {/* Present before a check starts, so its start and end are announced. */}
+      <p role="status" className="sr-only">
+        {checkRunning ? t("setup.checkRunningBadge") : ""}
+      </p>
       <div className="min-w-0 space-y-3">
-        <div className="flex items-start gap-3 px-2 pt-1">
-          <Bot className="mt-0.5 size-5 shrink-0" aria-hidden />
-          <h2 id="seo-agent-title" className="text-base font-semibold">
-            {t("agent.title")}
-          </h2>
-        </div>
-        <div className={cn(HOLDER_ITEM_CLASS, "space-y-2 p-4")}>
-          <p className="text-lg font-semibold" data-testid="seo-agent-verdict">
-            {brief.issues
-              ? t("agent.verdict.issues", { count: brief.issues })
-              : brief.fixes
-                ? t("agent.verdict.fixes", { count: brief.fixes })
-                : brief.opportunities
-                  ? t("agent.verdict.waiting", { count: brief.opportunities })
-                  : brief.emptyState === "no_fixes" && lastCheckMeasured
-                    ? rarelyShown
-                      ? t("agent.verdict.clearRarelyShown", {
-                          pages: brief.lastCheck?.pages ?? 1,
-                        })
-                      : t("agent.verdict.clear")
-                    : brief.lastCheck
-                      ? t("actions.checksIncomplete")
-                      : t("agent.verdict.noCheck")}
-          </p>
-          {brief.lastCheck ? (
-            <p className="text-muted-foreground text-sm">
-              {t("agent.lastCheckOn")} <SeoDate value={brief.lastCheck.at} />
-              {" · "}
-              {t("agent.lastCheck", {
-                checked: brief.lastCheck.checked,
-                pages: brief.lastCheck.pages,
-              })}
-              {brief.suggestions
-                ? ` ${t("agent.suggestions", { count: brief.suggestions })}`
-                : null}
+        {setup ? (
+          <SeoSetupCard model={model} setup={setup} />
+        ) : (
+          <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
+            <p
+              className="text-lg font-semibold"
+              data-testid="seo-agent-verdict"
+            >
+              {brief.issues
+                ? t("agent.verdict.issues", { count: brief.issues })
+                : brief.fixes
+                  ? t("agent.verdict.fixes", { count: brief.fixes })
+                  : brief.opportunities
+                    ? t("agent.verdict.waiting", { count: brief.opportunities })
+                    : brief.emptyState === "no_fixes" && lastCheckMeasured
+                      ? rarelyShown
+                        ? t("agent.verdict.clearRarelyShown", {
+                            pages: brief.lastCheck?.pages ?? 1,
+                          })
+                        : t("agent.verdict.clear")
+                      : brief.lastCheck
+                        ? t("actions.checksIncomplete")
+                        : t("agent.verdict.noCheck")}
             </p>
-          ) : null}
-          {traffic ? (
-            <p className="text-sm" data-testid="seo-agent-traffic">
-              {t("agent.traffic", {
-                impressions: traffic.impressions,
-                clicks: traffic.clicks,
-                // Every Search Console read is filtered to the Audit's pages.
-                pages: model.data.scope.pageIds.length,
-              })}{" "}
-              · <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
-              {" · "}
-              <button
-                type="button"
-                className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-                onClick={() => {
-                  void model.setFilters({ tab: "traffic" });
-                }}
+            {brief.lastCheck ? (
+              <p className="text-muted-foreground text-sm">
+                {t("agent.lastCheckOn")} <SeoDate value={brief.lastCheck.at} />
+                {" · "}
+                {t("agent.lastCheck", {
+                  checked: brief.lastCheck.checked,
+                  pages: brief.lastCheck.pages,
+                })}
+                {brief.suggestions
+                  ? ` ${t("agent.suggestions", { count: brief.suggestions })}`
+                  : null}
+              </p>
+            ) : null}
+            {traffic ? (
+              <p className="text-sm" data-testid="seo-agent-traffic">
+                {t("agent.traffic", {
+                  impressions: traffic.impressions,
+                  clicks: traffic.clicks,
+                  // Every Search Console read is filtered to the Audit's pages.
+                  pages: model.data.scope.pageIds.length,
+                })}{" "}
+                ·{" "}
+                <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
+                {" · "}
+                <button
+                  type="button"
+                  className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+                  onClick={() => {
+                    void model.setFilters({ tab: "traffic" });
+                  }}
+                >
+                  {t("agent.openTraffic")}
+                </button>
+              </p>
+            ) : null}
+            {checkRunning ? (
+              // The status line above announces it; this badge is its picture.
+              <span aria-hidden className="block">
+                <StatusBadge tone="working" live>
+                  {t("setup.checkRunningBadge")}
+                </StatusBadge>
+              </span>
+            ) : null}
+            {/* A narrowed view has no setup card, so the first check starts here. */}
+            {!brief.lastCheck &&
+            !checkRunning &&
+            canRequestAnalysis &&
+            !model.filters.from &&
+            !model.filters.to ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => model.setDialog("analysis")}
               >
-                {t("agent.openTraffic")}
-              </button>
-            </p>
-          ) : null}
-          {autopilot.state === "refreshing" ? (
-            <p role="status" className="text-muted-foreground text-sm">
-              {t("agent.refreshing")}
-            </p>
-          ) : autopilot.state === "failed" ? (
-            <p role="alert" className="text-destructive text-sm">
-              {t("agent.refreshFailed")}
-            </p>
-          ) : null}
-        </div>
-        <SeoAutomation model={model} />
-        <div className="space-y-2">
-          <h3 className="px-2 text-sm font-semibold">{t("agent.nextTitle")}</h3>
-          {!model.data.observations.length ? (
-            <SeoGettingStarted model={model} />
-          ) : null}
-          {brief.steps.length ? (
-            <ul className="space-y-2">
-              {brief.steps.map((step, index) =>
-                step.kind === "action" ? (
-                  <li key={`${step.action.observationId}:${step.action.id}`}>
-                    <SeoActionCard
-                      action={step.action}
+                <Play />
+                {t("runAnalysis")}
+              </Button>
+            ) : null}
+            {autopilot.state === "refreshing" ? (
+              <p role="status" className="text-muted-foreground text-sm">
+                {t("agent.refreshing")}
+              </p>
+            ) : autopilot.state === "failed" ? (
+              <p role="alert" className="text-destructive text-sm">
+                {t("agent.refreshFailed")}
+              </p>
+            ) : null}
+          </div>
+        )}
+        {/* During setup a schedule is not the next step: show only one that exists. */}
+        {setup && !model.data.monitors.length ? null : (
+          <SeoAutomation model={model} />
+        )}
+        {!setup && !model.data.observations.length ? (
+          <SeoGettingStarted model={model} />
+        ) : null}
+        {setup && !steps.length ? null : (
+          <div className="space-y-2">
+            <h3 className="px-2 text-sm font-semibold">
+              {t(setup ? "setup.more" : "agent.nextTitle")}
+            </h3>
+            {steps.length ? (
+              <ul role="list" className="space-y-2">
+                {shown.map((step, index) =>
+                  step.kind === "action" ? (
+                    <li
+                      className="content-rise"
+                      key={`${step.action.observationId}:${step.action.id}`}
+                    >
+                      <SeoActionCard
+                        action={step.action}
+                        model={model}
+                        showKind
+                      />
+                    </li>
+                  ) : (
+                    <StepRow
+                      key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
+                      step={step}
                       model={model}
-                      showKind
+                      chat={chat}
+                      first={index === primary}
+                      refresh={() => {
+                        void autopilot.refresh();
+                      }}
+                      refreshing={autopilot.state === "refreshing"}
                     />
-                  </li>
-                ) : (
-                  <StepRow
-                    key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
-                    step={step}
-                    model={model}
-                    chat={chat}
-                    first={index === primary}
-                    refresh={() => {
-                      void autopilot.refresh();
-                    }}
-                    refreshing={autopilot.state === "refreshing"}
-                  />
-                ),
-              )}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground px-2 text-sm">
-              {t("agent.nothingNext")}
-            </p>
-          )}
-        </div>
+                  ),
+                )}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground max-w-prose px-2 text-sm">
+                {t("agent.nothingNext")}
+              </p>
+            )}
+            {steps.length > SEO_AGENT_VISIBLE_STEPS ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-expanded={showAllSteps}
+                onClick={() => setShowAllSteps((open) => !open)}
+              >
+                <ChevronDown
+                  className={cn(
+                    "transition-transform duration-150 ease-out motion-reduce:transition-none",
+                    showAllSteps && "rotate-180",
+                  )}
+                />
+                {showAllSteps
+                  ? t("overview.showLess")
+                  : t("agent.moreSteps", {
+                      count: steps.length - SEO_AGENT_VISIBLE_STEPS,
+                    })}
+              </Button>
+            ) : null}
+          </div>
+        )}
       </div>
       {model.data.auditId ? (
         <AgentConversation model={model} chat={chat} />

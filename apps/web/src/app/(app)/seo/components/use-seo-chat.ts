@@ -20,6 +20,10 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState("");
   const [sending, setSending] = useState(false);
+  // The question in flight. The thread shows it before Core answers.
+  const [pending, setPending] = useState<string | null>(null);
+  // The turn this panel sent last. Only its reply is announced.
+  const [sentId, setSentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const sendingRef = useRef(false);
   const alive = useRef(true);
@@ -106,7 +110,22 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
       return;
     sendingRef.current = true;
     setSending(true);
+    setPending(text);
+    // The last reply is no longer the news: this question is.
+    setSentId(null);
     setError(null);
+    // The typed question moves to the thread at once. A send that fails puts
+    // it back, ahead of anything the reader typed in the meantime.
+    const typed = prompt === undefined;
+    if (typed) setQuestion("");
+    const restore = () => {
+      if (!typed) return;
+      setQuestion((current) => {
+        if (!current.trim()) return text;
+        const both = `${text}\n${current}`;
+        return both.length > SEO_CHAT_QUESTION_LIMIT ? current : both;
+      });
+    };
     const scope = Object.fromEntries(
       Object.entries(model.filters).filter(
         ([name, value]) => name !== "tab" && value !== null,
@@ -135,6 +154,7 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
       if (!alive.current) return;
       if (response.status === 429) {
         setError(t("chat.dailyLimit"));
+        restore();
         return;
       }
       if (!response.ok) throw new Error("Audit reply unavailable");
@@ -151,17 +171,26 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
       }));
       // An acknowledged turn consumes this attempt. An uncertain response keeps it for safe replay.
       pendingAttempt.current = null;
-      if (turn.status === "failed") setError(t("chat.failed"));
-      else if (prompt === undefined) setQuestion("");
+      // The turn carries the question from here on.
+      setPending(null);
+      setSentId(turn.id);
+      if (turn.status === "failed") {
+        setError(t("chat.failed"));
+        restore();
+      }
       await history.refetch();
     } catch {
       if (!alive.current) return;
       setError(t("chat.failed"));
+      restore();
       await history.refetch();
     } finally {
       sendingRef.current = false;
       if (controller.current === requestController) controller.current = null;
-      if (alive.current) setSending(false);
+      if (alive.current) {
+        setSending(false);
+        setPending(null);
+      }
     }
   }
   return {
@@ -170,6 +199,8 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
     error,
     busy,
     sending,
+    pending,
+    sentId,
     history,
     turns,
     send,

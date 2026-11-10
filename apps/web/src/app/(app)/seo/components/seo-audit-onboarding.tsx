@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -12,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { seoProjectHref } from "../seo-href";
 import { SeoAuditForm } from "./seo-audit-form";
 import { SeoOnboardingArt } from "./seo-onboarding-art";
+import { SeoStep, SeoStepList } from "./seo-steps";
 import type { useCreateSeoAudit } from "./use-create-seo-audit";
 
 const TITLE_ID = "seo-onboarding-title";
@@ -49,27 +49,35 @@ export function SeoAuditOnboarding({
               {t("onboarding.body")}
             </p>
           </header>
-          <ol role="list" aria-label={t("onboarding.steps")}>
-            <SeoOnboardingStep
+          <SeoStepList label={t("onboarding.steps")}>
+            <SeoStep
+              stagger
               index={1}
-              active
+              mark="active"
               title={t("onboarding.addTitle")}
               body={t("onboarding.addBody")}
             >
-              <SeoAuditForm form={form} />
-            </SeoOnboardingStep>
-            <SeoOnboardingStep
+              {/* The dialog's width: the button stays near the fields it submits. */}
+              <div className="max-w-lg">
+                <SeoAuditForm form={form} />
+              </div>
+            </SeoStep>
+            <SeoStep
+              stagger
               index={2}
+              mark="todo"
               title={t("onboarding.connectTitle")}
               body={t("onboarding.connectBody")}
             />
-            <SeoOnboardingStep
+            <SeoStep
+              stagger
               index={3}
+              mark="todo"
               last
               title={t("onboarding.checkTitle")}
               body={t("onboarding.checkBody")}
             />
-          </ol>
+          </SeoStepList>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-muted-foreground text-sm">
               {t("onboarding.trust")}
@@ -83,58 +91,10 @@ export function SeoAuditOnboarding({
             ) : null}
           </div>
         </div>
-        <div className="bg-quinary border-border hidden items-center justify-center border-l p-8 lg:flex">
+        <div className="bg-quinary border-border hidden items-center justify-center border-s p-8 lg:flex">
           <SeoOnboardingArt />
         </div>
       </section>
     </div>
-  );
-}
-
-function SeoOnboardingStep({
-  index,
-  title,
-  body,
-  active = false,
-  last = false,
-  children,
-}: {
-  index: number;
-  title: string;
-  body: string;
-  active?: boolean;
-  last?: boolean;
-  children?: ReactNode;
-}) {
-  return (
-    <li
-      className={cn("relative flex gap-4", !last && "pb-8")}
-      aria-current={active ? "step" : undefined}
-    >
-      {last ? null : (
-        <span
-          aria-hidden
-          className="bg-border absolute top-10 bottom-2 left-4 w-px -translate-x-1/2"
-        />
-      )}
-      <span
-        aria-hidden
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium",
-          active
-            ? "bg-primary text-primary-foreground"
-            : "border-border bg-background text-muted-foreground border",
-        )}
-      >
-        {index}
-      </span>
-      <div className="min-w-0 flex-1 space-y-1 pt-1">
-        <h3 className={cn("font-medium", !active && "text-muted-foreground")}>
-          {title}
-        </h3>
-        <p className="text-muted-foreground max-w-prose text-sm">{body}</p>
-        {children ? <div className="pt-4">{children}</div> : null}
-      </div>
-    </li>
   );
 }

@@ -10951,10 +10951,6 @@
         "trafficSetup": "So entwickeln sich diese Seiten",
         "trafficSetupBody": "Verbinde Google Analytics für Besuche und Seitenaufrufe oder Search Console für Suchklicks, Impressionen und Rankings.",
         "recentChecks": "Letzte Prüfungen",
-        "getStarted": "Erste Ergebnisse für diese Seiten",
-        "getStartedBody": "Starte eine Seitenprüfung, um Probleme zu finden. Füge verwandte Seiten hinzu, um sie in einem Audit zu vergleichen.",
-        "getStartedUnavailable": "Prüfungen sind in diesem Arbeitsbereich nicht verfügbar. Verbinde unten eine Statistikquelle für Zugriffsmessungen.",
-        "getStartedNoPages": "Füge eine Seite hinzu, um zu beginnen.",
         "noMeasuredReports": "Keine Berichte in diesem Aktivitätszeitraum gemessen",
         "noMeasuredReportsBody": "Entferne die Aktivitätsdaten, um Berichte aus anderen Zeiträumen zu sehen. Statistiken behalten ihren eigenen Berichtszeitraum.",
         "clearActivityDates": "Aktivitätsdaten entfernen",
@@ -11292,7 +11288,7 @@
         "firstPage": "URL der ersten Seite",
         "createFailed": "Das Audit konnte nicht erstellt werden. Prüfe Name und URL und versuche es erneut.",
         "all": "Alle Audits",
-        "nameHelp": "Optional. Leer lassen, um die Domain der Seite zu verwenden.",
+        "nameHelp": "Optional. Lass das Feld leer, um die Domain der Seite zu verwenden.",
         "urlPlaceholder": "https://example.com/seite",
         "onboarding": {
           "eyebrow": "SEO-Agent",
@@ -11301,22 +11297,23 @@
           "body": "Dein Agent verfolgt Rankings, findet Probleme auf Seiten und entwirft Korrekturen. Du gibst jede einzeln frei.",
           "addTitle": "Seite hinzufügen",
           "addBody": "Beginne mit einer öffentlichen Seite. Weitere Seiten kannst du später hinzufügen.",
-          "connectTitle": "Google verbinden",
-          "connectBody": "Verknüpfe Search Console und Analytics über deine Sokosumi-Verbindung. Das machst du im Audit.",
+          "connectTitle": "Search Console verbinden",
+          "connectBody": "Verbinde Search Console, um Suchanfragen und Klicks deiner Seite zu sehen. Das machst du, nachdem du das Audit erstellt hast.",
           "checkTitle": "Erste Prüfung starten",
-          "checkBody": "Der Agent liest deine Seiten, findet Probleme und entwirft Aktionen, die du freigibst.",
+          "checkBody": "Der Agent liest deine Seiten, findet Probleme und entwirft Korrekturen.",
           "trust": "Eine Seite zu speichern ist kostenlos. Kostenpflichtige Prüfungen laufen nur, wenn du sie startest.",
           "steps": "Einrichtungsschritte"
         }
       },
       "chat": {
         "title": "SEO-Agent fragen",
-        "description": "Stell Fragen zu den Seiten und Ergebnissen dieses Audits. Der Agent schlägt Aktionen vor; du bestätigst jede einzeln.",
+        "description": "Stell Fragen zu den Seiten und Ergebnissen dieses Audits. Der Agent schlägt Aktionen vor; du gibst jede einzeln frei.",
         "empty": "Was möchtest du verbessern?",
-        "emptyBody": "Frage zu Seitenproblemen, Keyword-Positionen oder Zugriffen.",
+        "emptyBody": "Frag nach Seitenproblemen, Keyword-Positionen oder Zugriffen.",
         "question": "Deine Frage",
-        "send": "Nachricht senden",
+        "send": "Frage senden",
         "working": "Audit-Ergebnisse werden gelesen",
+        "replied": "Der SEO-Agent hat geantwortet.",
         "failed": "Die Antwort konnte nicht abgeschlossen werden. Versuche es erneut.",
         "loadFailed": "Die Unterhaltung konnte nicht geladen werden. Versuche es erneut.",
         "pages": "{count, plural, one {# Seite} other {# Seiten}}",
@@ -11331,7 +11328,10 @@
         "showEarlier": "{count, plural, one {# frühere Frage anzeigen} other {# frühere Fragen anzeigen}}",
         "showMore": "Ganze Frage zeigen",
         "showLess": "Weniger zeigen",
-        "loadingHistory": "Chat wird geladen"
+        "loadingHistory": "Chat wird geladen",
+        "placeholder": "Stell eine Frage",
+        "privateShort": "Nur du kannst diesen Chat lesen",
+        "sharedShort": "In deiner Organisation geteilt"
       },
       "connections": {
         "connect": "{provider} verbinden",
@@ -11432,7 +11432,7 @@
         "prompts": {
           "first": "Was soll ich zuerst tun?",
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
-          "competitors": "Was wissen wir über Wettbewerber?",
+          "competitors": "Was weißt du über meine Wettbewerber?",
           "keyword": "Entwirf einen Plan, damit diese Seiten für „{keyword}“ ranken. Nutze die gespeicherten Prüfungen und Search-Console-Daten und schlage die Änderungen als Aktionen vor, die ich bestätigen kann.",
           "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann."
         },
@@ -11451,7 +11451,8 @@
         "askShort": "Agent fragen",
         "openTraffic": "Zugriffe öffnen",
         "draftFix": "Korrektur entwerfen",
-        "suggestions": "{count, plural, one {# Vorschlag, kein Fehler.} other {# Vorschläge, keine Fehler.}}"
+        "suggestions": "{count, plural, one {# Vorschlag, kein Fehler.} other {# Vorschläge, keine Fehler.}}",
+        "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
@@ -11489,6 +11490,30 @@
         "lastCrawl": "Letzter Crawl:",
         "otherCanonical": "Google hat eine andere kanonische Seite gewählt:",
         "unanswered": "{count, plural, one {Für # Seite in der Ansicht gibt es noch keinen Indexstatus.} other {Für # Seiten in der Ansicht gibt es noch keinen Indexstatus.}}"
+      },
+      "setup": {
+        "title": "Dieses Audit einrichten",
+        "progress": "{done} von {total} erledigt",
+        "next": "Als Nächstes: {step}",
+        "steps": "Einrichtungsschritte",
+        "done": "erledigt",
+        "more": "Auch nützlich",
+        "page": "Seite hinzufügen",
+        "pageDone": "Seite hinzugefügt",
+        "pageBody": "Füge die öffentliche Seite hinzu, die ranken soll.",
+        "pageDoneBody": "{count, plural, one {# Seite ist in diesem Audit.} other {# Seiten sind in diesem Audit.}} Weitere Seiten kannst du später hinzufügen.",
+        "connect": "Search Console verbinden",
+        "connectDone": "Search Console verbunden",
+        "connectBody": "Verbinde dein Google-Konto, wähle die Property deiner Website und synchronisiere. Danach siehst du Suchanfragen, Klicks und Positionen dieser Seiten. Google Analytics ist optional.",
+        "connectDoneBody": "Die Suchstatistiken dieser Seiten findest du im Tab „Zugriffe“.",
+        "connectUnavailable": "Statistiken sind in diesem Workspace nicht verfügbar. Überspringe diesen Schritt und starte die erste Prüfung.",
+        "check": "Erste Prüfung starten",
+        "checkBody": "Der Agent liest deine Seiten, findet Probleme und entwirft Korrekturen. Du gibst jede einzeln frei.",
+        "checkRunning": "Der Agent prüft deine Seiten. Die Ergebnisse erscheinen hier, sobald die Prüfung fertig ist.",
+        "checkRunningBadge": "Prüfung läuft",
+        "waiting": "Füge zuerst eine Seite hinzu.",
+        "checkUnavailable": "Prüfungen sind in diesem Workspace nicht verfügbar. Du kannst weiterhin Search Console verbinden und Suchstatistiken sehen.",
+        "checkFailed": "Die letzte Prüfung wurde nicht abgeschlossen. Starte sie erneut."
       }
     }
   },

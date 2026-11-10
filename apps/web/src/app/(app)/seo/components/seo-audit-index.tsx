@@ -12,7 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import {
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { seoAuditHref, seoIndexHref, seoProjectHref } from "../seo-href";
 import { SeoAuditForm } from "./seo-audit-form";
@@ -63,13 +66,11 @@ export function SeoAuditIndex({
                     href={seoAuditHref(audit.id, audit.projectId)}
                     className={cn(
                       HOLDER_ITEM_CLASS,
-                      "hover:bg-quinary flex items-center gap-3 p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      HOLDER_ITEM_HOVER_CLASS,
+                      "press flex items-center gap-3 p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                     )}
                   >
-                    <SearchCheck
-                      className="mt-0.5 size-5 shrink-0"
-                      aria-hidden
-                    />
+                    <SearchCheck className="size-5 shrink-0" />
                     <div className="min-w-0 flex-1 space-y-2">
                       <h3 className="font-medium break-words">{audit.name}</h3>
                       <p className="text-muted-foreground text-sm">

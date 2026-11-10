@@ -10951,10 +10951,6 @@
         "trafficSetup": "See how these pages perform",
         "trafficSetupBody": "Connect Google Analytics for visits and page views, or Search Console for search clicks, impressions and rankings.",
         "recentChecks": "Recent checks",
-        "getStarted": "Get the first results for these pages",
-        "getStartedBody": "Run a page check to find issues. Add related pages to compare them in one audit.",
-        "getStartedUnavailable": "Checks are unavailable in this workspace. Connect a statistics source below for traffic measurements.",
-        "getStartedNoPages": "Add a page to start.",
         "noMeasuredReports": "No reports measured in these activity dates",
         "noMeasuredReportsBody": "Clear activity dates to see reports from other dates. Statistics keep their own reporting period.",
         "clearActivityDates": "Clear activity dates",
@@ -11299,12 +11295,12 @@
           "title": "Start your first SEO audit",
           "titleProject": "Start this project's first SEO audit",
           "body": "Your agent tracks rankings, finds page issues and drafts fixes. You approve each one.",
-          "addTitle": "Add your page",
+          "addTitle": "Add a page",
           "addBody": "Start with one public page. You can add related pages later.",
-          "connectTitle": "Connect Google",
-          "connectBody": "Link Search Console and Analytics through your Sokosumi connection. You do this inside the audit.",
+          "connectTitle": "Connect Search Console",
+          "connectBody": "Connect Search Console to see the searches and clicks of your page. You do this after you create the audit.",
           "checkTitle": "Run the first check",
-          "checkBody": "The agent reads your pages, finds issues and drafts actions for you to approve.",
+          "checkBody": "The agent reads your pages, finds issues and drafts fixes.",
           "trust": "Saving a page is free. Paid checks only run when you start them.",
           "steps": "Setup steps"
         }
@@ -11315,8 +11311,9 @@
         "empty": "What would you like to improve?",
         "emptyBody": "Ask about page issues, keyword positions or traffic.",
         "question": "Your question",
-        "send": "Send message",
+        "send": "Send question",
         "working": "Reading audit results",
+        "replied": "The SEO agent replied.",
         "failed": "The reply could not be completed. Try again.",
         "loadFailed": "Could not load this conversation. Try again.",
         "pages": "{count, plural, one {# page} other {# pages}}",
@@ -11331,7 +11328,10 @@
         "showEarlier": "{count, plural, one {Show # earlier question} other {Show # earlier questions}}",
         "showMore": "Show full question",
         "showLess": "Show less",
-        "loadingHistory": "Loading the chat"
+        "loadingHistory": "Loading the chat",
+        "placeholder": "Ask a question",
+        "privateShort": "Only you can read this chat",
+        "sharedShort": "Shared in your organization"
       },
       "connections": {
         "connect": "Connect {provider}",
@@ -11410,14 +11410,14 @@
         "refreshing": "The agent is refreshing Search Console.",
         "refreshFailed": "Search Console could not be refreshed. Try again from Next steps.",
         "nextTitle": "Next steps",
-        "nothingNext": "Nothing is waiting. The agent syncs Search Console when you open this Audit and the data is older than a day.",
+        "nothingNext": "Nothing is waiting. The agent syncs Search Console when you open this audit and the data is older than a day.",
         "steps": {
           "refresh": {
             "stale": "Search Console data is older than a day. Sync it to see current searches.",
             "no_queries": "Load the searches behind your Search Console totals, so the agent can suggest work."
           },
           "connect": {
-            "search_console": "Connect Search Console to measure clicks, impressions and the queries that show these pages.",
+            "search_console": "Connect Search Console to measure clicks, impressions and the searches that show these pages.",
             "ga4": "Connect Google Analytics to measure visits and page views."
           },
           "competitors": {
@@ -11432,7 +11432,7 @@
         "prompts": {
           "first": "What should I do first?",
           "queries": "Which searches bring people to these pages?",
-          "competitors": "What do we know about competitors?",
+          "competitors": "What do you know about my competitors?",
           "keyword": "Draft a plan to make these pages rank for “{keyword}”. Use the saved checks and Search Console data, and suggest the changes as actions I can approve.",
           "measure": "The check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Draft a change and suggest it as an action I can approve."
         },
@@ -11451,7 +11451,8 @@
         "askShort": "Ask",
         "openTraffic": "Open traffic",
         "draftFix": "Draft a fix",
-        "suggestions": "{count, plural, one {# suggestion, not an error.} other {# suggestions, not errors.}}"
+        "suggestions": "{count, plural, one {# suggestion, not an error.} other {# suggestions, not errors.}}",
+        "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
@@ -11489,6 +11490,30 @@
         "lastCrawl": "Last crawl:",
         "otherCanonical": "Google chose another canonical page:",
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"
+      },
+      "setup": {
+        "title": "Set up this audit",
+        "progress": "{done} of {total} done",
+        "next": "Next: {step}",
+        "steps": "Setup steps",
+        "done": "done",
+        "more": "Also useful",
+        "page": "Add a page",
+        "pageDone": "Page added",
+        "pageBody": "Add the public page you want to rank.",
+        "pageDoneBody": "{count, plural, one {# page is in this audit.} other {# pages are in this audit.}} You can add more pages later.",
+        "connect": "Connect Search Console",
+        "connectDone": "Search Console connected",
+        "connectBody": "Connect your Google account, choose the property of your site, then sync. You then see the searches, clicks and positions of these pages. Google Analytics is optional.",
+        "connectDoneBody": "Search statistics for these pages are in the Traffic tab.",
+        "connectUnavailable": "Statistics are unavailable in this workspace. Skip this step and run the first check.",
+        "check": "Run the first check",
+        "checkBody": "The agent reads your pages, finds issues and drafts fixes. You approve each one.",
+        "checkRunning": "The agent is checking your pages. The results show here when the check is done.",
+        "checkRunningBadge": "Check running",
+        "waiting": "Add a page first.",
+        "checkUnavailable": "Checks are unavailable in this workspace. You can still connect Search Console and see search statistics.",
+        "checkFailed": "The last check did not finish. Run it again."
       }
     }
   },

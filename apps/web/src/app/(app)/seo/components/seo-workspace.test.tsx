@@ -2120,9 +2120,11 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
+    // The check step says it once; the page banner does not repeat it.
     expect(
-      screen.getByText(messages.App.Seo.overview.getStartedUnavailable),
+      screen.getByText(messages.App.Seo.setup.checkUnavailable),
     ).toBeVisible();
+    expect(screen.queryByText(messages.App.Seo.dispatchPaused)).toBeNull();
     // "All audits" goes back to the Audit's Project scope.
     expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
       "href",
@@ -2138,13 +2140,67 @@ describe("SEO workspace integration", () => {
     // With no pages, the copy asks for a page instead of calling checks unavailable.
     cleanup();
     workspace.scope.pageIds = [];
+    // Core reports no sync right for an empty scope either: both later steps wait.
+    workspace.availableActions.canSyncMetrics = false;
     renderWorkspace(workspace);
+    expect(screen.getAllByText(messages.App.Seo.setup.waiting)).toHaveLength(2);
     expect(
-      screen.getByText(messages.App.Seo.overview.getStartedNoPages),
+      screen.queryByText(messages.App.Seo.setup.checkUnavailable),
+    ).toBeNull();
+    expect(
+      screen.queryByText(messages.App.Seo.setup.connectUnavailable),
+    ).toBeNull();
+  });
+
+  it("leads a new audit with its setup steps and shows a check in flight", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    const setup = screen.getByRole("region", { name: "Set up this audit" });
+    expect(within(setup).getByText("1 of 3 done")).toBeVisible();
+    const steps = within(
+      within(setup).getByRole("list", { name: "Setup steps" }),
+    ).getAllByRole("listitem");
+    // The page is saved, so connecting Google is the current step.
+    expect(steps.map((step) => step.getAttribute("aria-current"))).toEqual([
+      null,
+      "step",
+      null,
+    ]);
+    // The schedule offer and the old verdict wait until a check exists.
+    expect(screen.queryByTestId("seo-automation")).toBeNull();
+    expect(screen.queryByTestId("seo-agent-verdict")).toBeNull();
+    await user.click(
+      within(steps[2]).getByRole("button", { name: "Run a check" }),
+    );
+    expect(screen.getByRole("dialog")).toBeVisible();
+    cleanup();
+    workspace.analyses = [
+      {
+        id: "8a0f4a39-7a55-4f0c-9a43-6c1a4f1f2b11",
+        kind: "page_check",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date("2026-01-02T12:00:00Z"),
+      },
+    ];
+    renderWorkspace(workspace);
+    // The badge is the picture; the status line is what a screen reader hears.
+    expect(
+      within(screen.getByTestId("seo-setup")).getByText("Check running"),
     ).toBeVisible();
     expect(
-      screen.queryByText(messages.App.Seo.overview.getStartedUnavailable),
-    ).toBeNull();
+      screen
+        .getAllByRole("status")
+        .some((status) => status.textContent === "Check running"),
+    ).toBe(true);
+    expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
   });
 
   it("schedules finite native monitoring with its market and per-run budget", async () => {
@@ -2156,11 +2212,15 @@ describe("SEO workspace integration", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
+    // Before the first check the schedule is in the Manage menu, not on the agent home.
+    await user.click(screen.getByRole("button", { name: "Manage SEO" }));
     await user.click(
-      screen.getByRole("button", { name: "Let the agent check weekly" }),
+      await screen.findByRole("menuitem", {
+        name: messages.App.Seo.monitor.create,
+      }),
     );
     const dialog = screen.getByRole("dialog");
-    // The agent's offer opens on the weekly slot, named by its day and time.
+    // The schedule opens on the weekly slot, named by its day and time.
     expect(
       within(dialog).getByRole("combobox", { name: "Frequency" }),
     ).toHaveTextContent("Mondays at 09:00");
@@ -2262,8 +2322,11 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     const view = renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Manage SEO" }));
     await user.click(
-      screen.getByRole("button", { name: "Let the agent check weekly" }),
+      await screen.findByRole("menuitem", {
+        name: messages.App.Seo.monitor.create,
+      }),
     );
     const dialog = screen.getByRole("dialog");
     expect(
@@ -2311,7 +2374,7 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "from=2026-11-01&to=2026-11-02");
-    expect(screen.queryByText(messages.App.Seo.overview.getStarted)).toBeNull();
+    expect(screen.queryByText(messages.App.Seo.setup.title)).toBeNull();
     await user.click(
       screen.getByRole("button", { name: "Clear activity dates" }),
     );
@@ -2624,7 +2687,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     expect(screen.queryByText("Earlier visit question")).toBeNull();
     await user.type(screen.getByLabelText("Your question"), "New question");
-    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await user.click(screen.getByRole("button", { name: "Send question" }));
     expect(await screen.findByText("Answer to New question")).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Rankings" }));
     await user.click(screen.getByRole("tab", { name: "Agent" }));
@@ -2878,7 +2941,7 @@ describe("SEO workspace integration", () => {
       "Sheet question",
     );
     await user.click(
-      within(sheet).getByRole("button", { name: "Send message" }),
+      within(sheet).getByRole("button", { name: "Send question" }),
     );
     expect(
       await within(sheet).findByText("Answer to Sheet question"),
@@ -2920,7 +2983,7 @@ describe("SEO workspace integration", () => {
       await screen.findByLabelText("Your question"),
       "Early question",
     );
-    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await user.click(screen.getByRole("button", { name: "Send question" }));
     expect(
       await screen.findByText("Answer before history loaded"),
     ).toBeVisible();
@@ -2976,10 +3039,13 @@ describe("SEO workspace integration", () => {
     expect(within(panel).getByText("Alex")).toBeVisible();
     expect(within(panel).getByText("You")).toBeVisible();
     expect(
-      within(panel).getByText(
-        "This conversation and saved statistics are shared within this audit in your organization.",
-      ),
+      within(panel).getByText("Shared in your organization"),
     ).toBeVisible();
+    expect(
+      within(panel).getByRole("textbox", { name: "Your question" }),
+    ).toHaveAccessibleDescription(
+      "This conversation and saved statistics are shared within this audit in your organization.",
+    );
     expect(within(panel).queryByText(/visible only to you/)).toBeNull();
   });
 
@@ -3117,10 +3183,13 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=rankings");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     expect(
-      await screen.findByText(
-        "This conversation and your connected statistics are visible only to you.",
-      ),
+      await screen.findByText("Only you can read this chat"),
     ).toBeVisible();
+    expect(
+      screen.getByRole("textbox", { name: "Your question" }),
+    ).toHaveAccessibleDescription(
+      "This conversation and your connected statistics are visible only to you.",
+    );
     expect(screen.queryByText(/shared within this audit/)).toBeNull();
   });
 
@@ -3197,7 +3266,7 @@ describe("SEO workspace integration", () => {
         screen.getByLabelText("Your question"),
         "Pending question",
       );
-      await user.click(screen.getByRole("button", { name: "Send message" }));
+      await user.click(screen.getByRole("button", { name: "Send question" }));
       expect(
         fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
       ).toHaveLength(1);
@@ -3245,10 +3314,10 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
-    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await user.click(screen.getByRole("button", { name: "Send question" }));
     await waitFor(() => expect(question).toHaveValue(""));
     await user.type(question, "What should I fix first?");
-    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await user.click(screen.getByRole("button", { name: "Send question" }));
     await waitFor(() => expect(requests).toHaveLength(2));
     expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
     expect(requests[1].scope).toEqual({ pageId: workspace.pages[0].id });
@@ -3266,10 +3335,10 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
-    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await user.click(screen.getByRole("button", { name: "Send question" }));
     await screen.findAllByRole("alert");
     expect(question).toHaveValue("What should I fix first?");
-    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await user.click(screen.getByRole("button", { name: "Send question" }));
     await waitFor(() => expect(requests).toHaveLength(2));
     expect(requests[1].idempotencyKey).toBe(requests[0].idempotencyKey);
   });
@@ -3286,10 +3355,10 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
-    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await user.click(screen.getByRole("button", { name: "Send question" }));
     await screen.findAllByRole("alert");
     expect(question).toHaveValue("What should I fix first?");
-    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await user.click(screen.getByRole("button", { name: "Send question" }));
     await waitFor(() => expect(requests).toHaveLength(2));
     expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
   });

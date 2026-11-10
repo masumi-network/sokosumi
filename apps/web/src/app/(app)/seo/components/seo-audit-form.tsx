@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -33,7 +34,8 @@ export function SeoAuditForm({
           placeholder={t("audits.urlPlaceholder")}
           maxLength={4096}
           required
-          disabled={form.pending}
+          // Read-only keeps keyboard focus in the field; disabled drops it.
+          readOnly={form.pending}
         />
       </SeoField>
       <SeoField
@@ -46,7 +48,7 @@ export function SeoAuditForm({
           name="name"
           aria-describedby={seoFieldHelpId("seo-audit-name")}
           maxLength={SEO_AUDIT_NAME_MAX}
-          disabled={form.pending}
+          readOnly={form.pending}
         />
       </SeoField>
       {form.error ? (
@@ -54,7 +56,8 @@ export function SeoAuditForm({
           {form.error}
         </p>
       ) : null}
-      <DialogFooter>
+      {/* Outside a dialog the button sits on the edge the fields start on. */}
+      <DialogFooter className={showCancel ? undefined : "sm:justify-start"}>
         {showCancel ? (
           <Button
             type="button"
@@ -65,7 +68,13 @@ export function SeoAuditForm({
             {t("cancel")}
           </Button>
         ) : null}
-        <Button type="submit" loading={form.pending} disabled={form.pending}>
+        <Button
+          type="submit"
+          variant="primary"
+          loading={form.pending}
+          disabled={form.pending}
+        >
+          <Plus />
           {t("audits.create")}
         </Button>
       </DialogFooter>
