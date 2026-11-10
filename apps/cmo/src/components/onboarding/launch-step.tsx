@@ -188,7 +188,7 @@ export function LaunchStep({
   // A connect window says how it ended; Launch polls at once, no reload.
   useEffect(
     () =>
-      listenForConnectDone((result) => {
+      listenForConnectDone(overview.projectId, (result) => {
         window.clearInterval(popupCheck.current);
         setPending(null);
         setError(
@@ -200,7 +200,7 @@ export function LaunchStep({
         );
         void onReturn();
       }),
-    [onReturn],
+    [overview.projectId, onReturn],
   );
   function watch(popup: Window) {
     window.clearInterval(popupCheck.current);

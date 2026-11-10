@@ -9,9 +9,17 @@ export type ConnectResult = "connected" | "failed" | "none";
 const RESULTS: readonly ConnectResult[] = ["connected", "failed", "none"];
 const MESSAGE = "cmo-connect-done";
 
-/** Where a connect window ends: the page that tells Launch and closes. */
-export function connectDonePath(result: ConnectResult): string {
-  return `/connect/done?result=${result}`;
+/**
+ * Where a connect window ends: the page that tells Launch and closes. It
+ * names the Project, so only that Cuso's Launch hears it.
+ */
+export function connectDonePath(
+  result: ConnectResult,
+  project: string | null,
+): string {
+  const params = new URLSearchParams({ result });
+  if (project) params.set("project", project);
+  return `/connect/done?${params}`;
 }
 
 /** A result from the address or a message; anything unknown failed. */
@@ -19,7 +27,13 @@ export function readConnectResult(value: unknown): ConnectResult {
   return RESULTS.find((result) => result === value) ?? "failed";
 }
 
-function isDone(data: unknown): data is { type: string; result: unknown } {
+interface DoneMessage {
+  type: typeof MESSAGE;
+  result: ConnectResult;
+  project?: string;
+}
+
+function isDone(data: unknown): data is DoneMessage {
   return (
     typeof data === "object" &&
     data !== null &&
@@ -30,14 +44,23 @@ function isDone(data: unknown): data is { type: string; result: unknown } {
   );
 }
 
+/** A message for this Project; one naming no Project is for every Launch. */
+const isFor = (data: DoneMessage, project: string) =>
+  data.project === undefined || data.project === project;
+
 /**
  * Tells the page that opened this window, on CMO's own origin only. A
  * provider's sign-in can cut a popup from its opener
  * (Cross-Origin-Opener-Policy); then a same-origin channel carries it.
  * Returns whether there was an opener to tell.
  */
-export function tellOpener(result: ConnectResult): boolean {
-  const message = { type: MESSAGE, result };
+export function tellOpener(
+  result: ConnectResult,
+  project: string | null,
+): boolean {
+  const message: DoneMessage = project
+    ? { type: MESSAGE, result, project }
+    : { type: MESSAGE, result };
   const opener: Window | null = window.opener;
   if (opener) {
     opener.postMessage(message, window.location.origin);
@@ -51,13 +74,14 @@ export function tellOpener(result: ConnectResult): boolean {
   return false;
 }
 
-/** Calls `onDone` when a connect window of this origin finishes. */
+/** Calls `onDone` when a connect window of this origin and Project finishes. */
 export function listenForConnectDone(
+  project: string,
   onDone: (result: ConnectResult) => void,
 ): () => void {
   const onMessage = (event: MessageEvent) => {
     if (event.origin !== window.location.origin || !isDone(event.data)) return;
-    onDone(readConnectResult(event.data.result));
+    if (isFor(event.data, project)) onDone(event.data.result);
   };
   window.addEventListener("message", onMessage);
   const channel =
@@ -67,7 +91,9 @@ export function listenForConnectDone(
   if (channel) {
     // Same origin by definition.
     channel.onmessage = (event: MessageEvent) => {
-      if (isDone(event.data)) onDone(readConnectResult(event.data.result));
+      if (isDone(event.data) && isFor(event.data, project)) {
+        onDone(event.data.result);
+      }
     };
   }
   return () => {

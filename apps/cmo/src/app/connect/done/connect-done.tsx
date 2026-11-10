@@ -17,21 +17,34 @@ const BACK: Record<ConnectResult, string> = {
   none: "/?step=connect&from=onboarding&ads=none",
 };
 
+/** Back to the Cuso this window connected, not whichever Core picks. */
+function backTo(result: ConnectResult, project: string | null): string {
+  return project
+    ? `${BACK[result]}&project=${encodeURIComponent(project)}`
+    : BACK[result];
+}
+
 /**
  * The end of Launch's connect window: tell Launch, then close. A window cut
  * from its opener may stay open, so it says where to go back.
  */
-export function ConnectDone({ result }: { result: ConnectResult }) {
+export function ConnectDone({
+  result,
+  project,
+}: {
+  result: ConnectResult;
+  project: string | null;
+}) {
   useEffect(() => {
-    tellOpener(result);
+    tellOpener(result, project);
     window.close();
-  }, [result]);
+  }, [result, project]);
 
   return (
     <main className="hero">
       <div className="hero-copy">
         <h1>{COPY[result]}</h1>
-        <a className="button" href={BACK[result]}>
+        <a className="button" href={backTo(result, project)}>
           Back to CMO
         </a>
       </div>

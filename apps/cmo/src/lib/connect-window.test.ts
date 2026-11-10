@@ -14,16 +14,25 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const done = (result: string, origin = window.location.origin) =>
+const done = (
+  result: string,
+  origin = window.location.origin,
+  project?: string,
+) =>
   window.dispatchEvent(
     new MessageEvent("message", {
       origin,
-      data: { type: "cmo-connect-done", result },
+      data: { type: "cmo-connect-done", result, project },
     }),
   );
 
 it("names the page a connect window ends on", () => {
-  expect(connectDonePath("connected")).toBe("/connect/done?result=connected");
+  expect(connectDonePath("connected", null)).toBe(
+    "/connect/done?result=connected",
+  );
+  expect(connectDonePath("failed", "project-2")).toBe(
+    "/connect/done?result=failed&project=project-2",
+  );
 });
 
 it("reads only the results it knows, anything else as failed", () => {
@@ -36,7 +45,7 @@ it("reads only the results it knows, anything else as failed", () => {
 
 it("hears a connect window of its own origin", () => {
   const onDone = vi.fn();
-  const stop = listenForConnectDone(onDone);
+  const stop = listenForConnectDone("project-2", onDone);
 
   done("connected");
   expect(onDone).toHaveBeenCalledWith("connected");
@@ -48,7 +57,7 @@ it("hears a connect window of its own origin", () => {
 
 it("ignores another origin and messages of another shape", () => {
   const onDone = vi.fn();
-  const stop = listenForConnectDone(onDone);
+  const stop = listenForConnectDone("project-2", onDone);
 
   done("connected", "https://evil.example");
   window.dispatchEvent(
@@ -71,9 +80,9 @@ it("tells the opener only on its own origin", () => {
     value: { postMessage },
   });
 
-  expect(tellOpener("connected")).toBe(true);
+  expect(tellOpener("connected", "project-2")).toBe(true);
   expect(postMessage).toHaveBeenCalledWith(
-    { type: "cmo-connect-done", result: "connected" },
+    { type: "cmo-connect-done", result: "connected", project: "project-2" },
     window.location.origin,
   );
   Object.defineProperty(window, "opener", { configurable: true, value: null });
@@ -105,10 +114,23 @@ it("also tells CMO's own pages on a same-origin channel", () => {
   );
   Object.defineProperty(window, "opener", { configurable: true, value: null });
   const onDone = vi.fn();
-  const stop = listenForConnectDone(onDone);
+  const stop = listenForConnectDone("project-2", onDone);
 
-  expect(tellOpener("none")).toBe(false);
+  expect(tellOpener("none", "project-2")).toBe(false);
 
   expect(onDone).toHaveBeenCalledWith("none");
+  stop();
+});
+
+it("hears only its own Project's window, or one that names none", () => {
+  const onDone = vi.fn();
+  const stop = listenForConnectDone("project-2", onDone);
+
+  done("failed", window.location.origin, "project-3");
+  expect(onDone).not.toHaveBeenCalled();
+
+  done("connected", window.location.origin, "project-2");
+  done("failed");
+  expect(onDone.mock.calls).toEqual([["connected"], ["failed"]]);
   stop();
 });

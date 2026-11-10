@@ -61,20 +61,20 @@ describe("ads callback", () => {
       "from=popup&project=project-2&connectedAccountId=ca_1",
     );
     expect(done.headers.get("location")).toBe(
-      "http://localhost:3110/connect/done?result=connected",
+      "http://localhost:3110/connect/done?result=connected&project=project-2",
     );
     finalizeAds.mockResolvedValue({ state: "none" });
     const none = await callback(
       "from=popup&project=project-2&connectedAccountId=ca_1",
     );
     expect(none.headers.get("location")).toBe(
-      "http://localhost:3110/connect/done?result=none",
+      "http://localhost:3110/connect/done?result=none&project=project-2",
     );
     const refused = await callback(
       "from=popup&project=project-2&status=failed",
     );
     expect(refused.headers.get("location")).toBe(
-      "http://localhost:3110/connect/done?result=failed",
+      "http://localhost:3110/connect/done?result=failed&project=project-2",
     );
   });
 

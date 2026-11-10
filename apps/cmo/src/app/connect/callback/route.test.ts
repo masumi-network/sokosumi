@@ -43,13 +43,13 @@ describe("connect callback", () => {
       "from=popup&project=project-2&connectedAccountId=ca_1",
     );
     expect(done.headers.get("location")).toBe(
-      "http://localhost:3110/connect/done?result=connected",
+      "http://localhost:3110/connect/done?result=connected&project=project-2",
     );
     const failed = await callback(
       "from=popup&project=project-2&status=cancelled",
     );
     expect(failed.headers.get("location")).toBe(
-      "http://localhost:3110/connect/done?result=failed",
+      "http://localhost:3110/connect/done?result=failed&project=project-2",
     );
     // Without its Project nothing is finished, and the popup still ends.
     const orphan = await callback("from=popup&connectedAccountId=ca_1");

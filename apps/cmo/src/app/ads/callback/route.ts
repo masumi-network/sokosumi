@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
       result?.state === "connected" || result?.state === "none"
         ? result.state
         : "failed",
+      project,
     );
     return NextResponse.redirect(new URL(done, request.nextUrl));
   }

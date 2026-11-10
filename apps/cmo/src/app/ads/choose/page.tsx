@@ -28,9 +28,9 @@ export default async function ChooseAdAccountPage({
   const back = (inApp ? "/channels" : "/") + (params.size ? `?${params}` : "");
   // Launch's popup ends on the page that tells Launch, which polls.
   const failed = popup
-    ? connectDonePath("failed")
+    ? connectDonePath("failed", project ?? null)
     : `${back}${back.includes("?") ? "&" : "?"}ads=failed`;
-  const done = popup ? connectDonePath("connected") : back;
+  const done = popup ? connectDonePath("connected", project ?? null) : back;
   if (!connection || !project) redirect(popup ? failed : back);
   const accounts = await loadAdChoices(project, connection).catch(() => []);
   if (accounts.length === 0) redirect(popup ? failed : back);

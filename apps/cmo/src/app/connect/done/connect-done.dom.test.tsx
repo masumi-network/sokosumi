@@ -33,22 +33,26 @@ it("tells the onboarding it is done on its own origin, then closes", async () =>
   });
   const close = vi.spyOn(window, "close").mockImplementation(() => {});
 
-  await act(async () => root.render(<ConnectDone result="connected" />));
+  await act(async () =>
+    root.render(<ConnectDone result="connected" project="project-2" />),
+  );
 
   expect(postMessage).toHaveBeenCalledWith(
-    { type: "cmo-connect-done", result: "connected" },
+    { type: "cmo-connect-done", result: "connected", project: "project-2" },
     window.location.origin,
   );
   expect(close).toHaveBeenCalledTimes(1);
 });
 
-it("left open without an opener, links back to Launch", async () => {
+it("left open without an opener, links back to its own Cuso's Launch", async () => {
   vi.spyOn(window, "close").mockImplementation(() => {});
 
-  await act(async () => root.render(<ConnectDone result="failed" />));
+  await act(async () =>
+    root.render(<ConnectDone result="failed" project="project-2" />),
+  );
 
   expect(host.textContent).toContain("That connection didn't finish.");
   expect(host.querySelector("a")?.getAttribute("href")).toBe(
-    "/?step=connect&from=onboarding&connect=failed",
+    "/?step=connect&from=onboarding&connect=failed&project=project-2",
   );
 });

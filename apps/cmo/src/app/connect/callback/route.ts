@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       : false;
   const from = params.get("from");
   if (from === "popup") {
-    const done = connectDonePath(connected ? "connected" : "failed");
+    const done = connectDonePath(connected ? "connected" : "failed", project);
     return NextResponse.redirect(new URL(done, request.nextUrl));
   }
   const back = new URL("/", request.nextUrl);
