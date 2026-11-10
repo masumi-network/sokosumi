@@ -1168,11 +1168,14 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       });
       mountMoveTask(app);
 
-      const response = await app.request(`http://localhost/${task.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationId: null }),
-      });
+      const response = await app.request(
+        `http://localhost/${task.id}/workspace`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ organizationId: null }),
+        },
+      );
       expect(response.status, await response.clone().text()).toBe(200);
       await inContactTransaction((tx) =>
         mergeContacts(tx, asAlice, winnerId, [loserId]),
