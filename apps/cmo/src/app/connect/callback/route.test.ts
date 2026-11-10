@@ -19,7 +19,7 @@ describe("connect callback", () => {
     );
     expect(finalizeChannel).toHaveBeenCalledWith("project-2", "ca_1", "s_1");
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/?step=connect&from=onboarding",
+      "http://localhost:3110/?step=connect&from=onboarding&project=project-2",
     );
   });
 

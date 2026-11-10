@@ -24,5 +24,6 @@ export async function GET(request: NextRequest) {
   const from = params.get("from");
   if (from) back.searchParams.set("from", from);
   if (!connected) back.searchParams.set("connect", "failed");
+  if (project) back.searchParams.set("project", project);
   return NextResponse.redirect(back);
 }

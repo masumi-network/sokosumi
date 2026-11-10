@@ -86,6 +86,7 @@ async function signUpWebsite(
 export interface HomeSearchParams {
   error?: string | string[];
   step?: string | string[];
+  project?: string | string[];
   connect?: string | string[];
   from?: string | string[];
 }
@@ -127,9 +128,11 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
 
-  const overview = await loadOverview().catch(() => undefined);
+  const project = first(params.project) || undefined;
+  const overview = await loadOverview(project).catch(() => undefined);
   // Core unreachable: keep the signed-in shell rather than an error page.
-  if (overview === undefined) {
+  // An unavailable named Project also stays out of the hiring flow.
+  if (overview === undefined || (project && overview === null)) {
     return (
       <SignedIn
         name={session.user.name}
@@ -163,7 +166,9 @@ export async function Home({ searchParams, view }: HomeProps) {
   const { projectId } = overview;
   if (overview.onboardingStep !== "done" || backInHiring) {
     // The app's pages open once onboarding ends; until then it is the first run.
-    if (view !== "chat") redirect("/");
+    if (view !== "chat") {
+      redirect(project ? `/?project=${encodeURIComponent(project)}` : "/");
+    }
     return (
       <OnboardingFlow
         overview={overview}

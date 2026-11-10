@@ -25,7 +25,7 @@ describe("measure callback", () => {
       null,
     );
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/?step=results&from=onboarding",
+      "http://localhost:3110/?step=results&from=onboarding&project=project-2",
     );
   });
 
@@ -47,7 +47,7 @@ describe("measure callback", () => {
       "provider=google_analytics&from=app&project=project-2",
     );
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/results",
+      "http://localhost:3110/results?project=project-2",
     );
   });
 

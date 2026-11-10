@@ -18,7 +18,12 @@ export default async function ChooseAdAccountPage({
   searchParams,
 }: ChoosePageProps) {
   const { connection, from, project } = await searchParams;
-  const back = from === "app" ? "/channels" : "/?step=connect&from=onboarding";
+  const inApp = from === "app";
+  const params = new URLSearchParams(
+    inApp ? {} : { step: "connect", from: "onboarding" },
+  );
+  if (project) params.set("project", project);
+  const back = (inApp ? "/channels" : "/") + (params.size ? `?${params}` : "");
   if (!connection || !project) redirect(back);
   const accounts = await loadAdChoices(project, connection).catch(() => []);
   if (accounts.length === 0) redirect(back);

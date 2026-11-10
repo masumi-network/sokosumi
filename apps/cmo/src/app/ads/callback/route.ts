@@ -42,5 +42,6 @@ export async function GET(request: NextRequest) {
   if (result?.state !== "connected") {
     back.searchParams.set("ads", result?.state === "none" ? "none" : "failed");
   }
+  if (project) back.searchParams.set("project", project);
   return NextResponse.redirect(back);
 }

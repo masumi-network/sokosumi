@@ -19,7 +19,7 @@ describe("ads callback", () => {
     );
     expect(finalizeAds).toHaveBeenCalledWith("project-2", "ca_1", "s_1");
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/?step=connect&from=onboarding",
+      "http://localhost:3110/?step=connect&from=onboarding&project=project-2",
     );
   });
 
@@ -42,7 +42,7 @@ describe("ads callback", () => {
       "from=app&project=project-2&connectedAccountId=ca_1",
     );
     expect(none.headers.get("location")).toBe(
-      "http://localhost:3110/channels?ads=none",
+      "http://localhost:3110/channels?ads=none&project=project-2",
     );
     const refused = await callback("from=app&project=project-2&status=failed");
     expect(finalizeAds).toHaveBeenCalledOnce();

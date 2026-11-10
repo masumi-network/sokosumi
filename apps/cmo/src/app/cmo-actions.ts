@@ -81,26 +81,26 @@ async function withSkipped(overview: CmoOverview): Promise<CmoOverview> {
 /**
  * The Cuso the home page opens (Core's default: the preferred organization's,
  * else the newest), or null before they hire him. Every action after it names
- * his Project.
+ * his Project. A continuation can also open a specific Project directly.
  */
-export async function loadOverview(): Promise<CmoOverview | null> {
-  const core = await requireCore();
-  const { data, response } = await getCmoOverview(core);
-  if (response?.status === 404) return null;
-  if (!data) throw new Error("Could not load CMO");
-  return withSkipped(data.data);
+export async function loadOverview(
+  projectId?: string,
+): Promise<CmoOverview | null> {
+  return overviewOf(await requireCore(), projectId);
 }
 
 /**
  * The Cuso of the Project the page rendered, or null when that Project has
- * none (or the person may no longer see it).
+ * none (or the person may no longer see it). Without a Project, use the default.
  */
-async function overviewOf(projectId: string): Promise<CmoOverview | null> {
-  const core = await requireCore();
-  const { data, response } = await getCmoOverviewForProject({
-    ...core,
-    path: { projectId },
-  });
+async function overviewOf(
+  core: Awaited<ReturnType<typeof requireCore>>,
+  projectId?: string,
+): Promise<CmoOverview | null> {
+  const { data, response } =
+    projectId !== undefined
+      ? await getCmoOverviewForProject({ ...core, path: { projectId } })
+      : await getCmoOverview(core);
   if (response?.status === 404) return null;
   if (!data) throw new Error("Could not load CMO");
   return withSkipped(data.data);
@@ -130,7 +130,7 @@ async function skipStep(
 }
 
 async function requireOverview(projectId: string): Promise<CmoOverview> {
-  const overview = await overviewOf(projectId);
+  const overview = await loadOverview(projectId);
   if (!overview) throw new Error(`${AGENT_NAME} is not hired yet`);
   return overview;
 }
@@ -267,7 +267,7 @@ export async function applyPlanAnswers(projectId: string): Promise<{
     path: { projectId },
   });
   return {
-    overview: await overviewOf(projectId),
+    overview: await loadOverview(projectId),
     error: error ? errorText(error, "Could not update the plan") : null,
   };
 }
@@ -310,7 +310,7 @@ export async function retryLearning(projectId: string): Promise<{
     ...core,
     path: { projectId },
   });
-  const overview = await overviewOf(projectId);
+  const overview = await loadOverview(projectId);
   if (!overview) throw new Error("Could not load CMO");
   return {
     overview,
@@ -355,7 +355,7 @@ async function messagesFor(
 /** The latest messages with Cuso, oldest first. */
 export async function loadMessages(projectId: string): Promise<CusoMessage[]> {
   const core = await requireCore();
-  const overview = await overviewOf(projectId);
+  const overview = await overviewOf(core, projectId);
   if (!overview) return [];
   return messagesFor(core, overview);
 }
@@ -381,7 +381,7 @@ export async function loadState(projectId: string): Promise<{
   const core = await requireCore();
   // Any failure but a 404 throws, so it is not "not hired": showing the hire
   // flow would offer a second business.
-  const overview = await overviewOf(projectId);
+  const overview = await loadOverview(projectId);
   if (!overview) return { overview: null, messages: [] };
   return { overview, messages: await messagesFor(core, overview) };
 }
@@ -393,7 +393,7 @@ export async function sendMessage(
   const text = content.trim();
   if (!text) return;
   const core = await requireCore();
-  const overview = await overviewOf(projectId);
+  const overview = await overviewOf(core, projectId);
   if (!overview) throw new Error(`${AGENT_NAME} is not hired yet`);
   const { error } = await postChatsRoomsByIdMessages({
     client: core.client,
@@ -428,7 +428,7 @@ export async function requestStrategy(
     body: note?.trim() ? { note: note.trim() } : {},
   });
   return {
-    overview: await overviewOf(projectId),
+    overview: await loadOverview(projectId),
     error: error ? errorText(error, "Could not start planning") : null,
   };
 }
@@ -446,7 +446,7 @@ export async function setAdBudget(
     body: { monthly, currency },
   });
   return {
-    overview: await overviewOf(projectId),
+    overview: await overviewOf(core, projectId),
     error: error ? errorText(error, "Could not set the budget") : null,
   };
 }
@@ -460,7 +460,7 @@ export async function setAdBudget(
 export async function finishAccounts(projectId: string): Promise<never> {
   await skipStep(projectId, "accounts");
   revalidatePath("/");
-  redirect("/");
+  redirect(`/?project=${encodeURIComponent(projectId)}`);
 }
 
 /**
@@ -477,12 +477,12 @@ export async function skipBrandQuestions(
  * Archives the Cuso this person works with and opens the hiring form, to hire
  * him for another website. A refusal (not an owner or admin) comes back as text.
  * Core names the Project CMO goes on with: the person's next default Cuso,
- * which is the one the home page opens, or none, and the home page shows the
+ * which the home page opens directly, or none, and the home page shows the
  * hiring form.
  */
 export async function startOver(projectId: string): Promise<string | null> {
   const core = await requireCore();
-  const { error } = await startCmoOverForProject({
+  const { data, error } = await startCmoOverForProject({
     ...core,
     path: { projectId },
   });
@@ -492,7 +492,8 @@ export async function startOver(projectId: string): Promise<string | null> {
       : "Could not start over";
   }
   revalidatePath("/");
-  redirect("/");
+  const nextProject = data?.data.projectId;
+  redirect(nextProject ? `/?project=${encodeURIComponent(nextProject)}` : "/");
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */
@@ -521,7 +522,7 @@ export async function addMailingList(
   projectId: string,
   text: string,
 ): Promise<{ overview: CmoOverview | null; error: string | null }> {
-  const overview = await overviewOf(projectId);
+  const overview = await loadOverview(projectId);
   if (!overview) {
     return { overview: null, error: `${AGENT_NAME} is not hired yet` };
   }
@@ -539,7 +540,7 @@ export async function addMailingList(
       error: errorText(error, "Could not add the list"),
     };
   }
-  return { overview: await overviewOf(projectId), error: null };
+  return { overview: await loadOverview(projectId), error: null };
 }
 
 /**

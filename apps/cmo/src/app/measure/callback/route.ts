@@ -36,5 +36,6 @@ export async function GET(request: NextRequest) {
     back.searchParams.set("from", "onboarding");
   }
   if (!connected) back.searchParams.set("measure", "failed");
+  if (project) back.searchParams.set("project", project);
   return NextResponse.redirect(back);
 }

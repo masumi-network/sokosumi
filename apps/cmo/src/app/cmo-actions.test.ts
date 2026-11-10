@@ -348,7 +348,7 @@ describe("skipped hiring steps", () => {
 
   it("opens the app on Continue from the accounts step, kept in an httpOnly cookie", async () => {
     await finishAccounts("project-1").catch(() => undefined);
-    expect(redirect).toHaveBeenCalledWith("/");
+    expect(redirect).toHaveBeenCalledWith("/?project=project-1");
     expect(setCookie).toHaveBeenCalledWith(
       "cmo-skipped-project-1",
       "accounts",
@@ -381,11 +381,12 @@ describe("skipped brand questions", () => {
 });
 
 describe("start over", () => {
-  it("archives the Cuso on screen, then opens home, which opens the next default Cuso", async () => {
+  it("archives the Cuso on screen, then opens the Project Core selected", async () => {
     startCmoOverForProject.mockResolvedValue({
       data: { data: { startedOver: true, projectId: "project-3" } },
     });
     await expect(startOver("project-2")).rejects.toThrow("redirect /");
+    expect(redirect).toHaveBeenCalledWith("/?project=project-3");
     expect(startCmoOverForProject).toHaveBeenCalledWith(
       expect.objectContaining({ path: { projectId: "project-2" } }),
     );
@@ -398,6 +399,7 @@ describe("start over", () => {
       data: { data: { startedOver: true, projectId: null } },
     });
     await expect(startOver("project-2")).rejects.toThrow("redirect /");
+    expect(redirect).toHaveBeenCalledWith("/");
   });
 
   it("says why when Core refuses", async () => {
