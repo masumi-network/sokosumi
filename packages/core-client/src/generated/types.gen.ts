@@ -74222,7 +74222,7 @@ export type RequestCmoStrategyForProjectErrors = {
         };
     };
     /**
-     * The Brand Brain is not ready yet
+     * The Brand Brain is not ready yet, or Cuso is still writing the plan
      */
     409: {
         error: string;

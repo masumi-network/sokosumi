@@ -30,7 +30,9 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet"),
-    409: jsonErrorResponse("The Brand Brain is not ready yet"),
+    409: jsonErrorResponse(
+      "The Brand Brain is not ready yet, or Cuso is still writing the plan",
+    ),
   },
 });
 
