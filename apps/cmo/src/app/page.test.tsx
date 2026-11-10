@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
+import { InviteOnly } from "../components/invite-only";
 import { NameSetup } from "../components/name-setup";
 import { Onboarding } from "../components/onboarding";
 import { SignedIn } from "../components/signed-in";
@@ -61,6 +62,7 @@ type Page = ReactElement<{
   websiteUrl?: string;
   organizations?: { id: string; name: string }[];
   cusos?: { projectId: string }[];
+  mayHire?: boolean;
   overview?: { projectId: string };
 }>;
 
@@ -117,8 +119,8 @@ describe("CMO home page", () => {
       response: new Response(null, { status: 200 }),
     });
     cookieJar.clear();
-    // Not hired yet.
-    loadCusos.mockResolvedValue([]);
+    // Not hired yet, and on the hire allowlist.
+    loadCusos.mockResolvedValue({ cusos: [], mayHire: true });
     loadOverview.mockImplementation(async (projectId: string) =>
       ["project-1", "project-2", "project-3"].includes(projectId)
         ? hired(projectId)
@@ -154,7 +156,10 @@ describe("CMO home page", () => {
 
   it("opens the Cuso last opened on this device", async () => {
     cookieJar.set("cmo-last-cuso", "project-1");
-    loadCusos.mockResolvedValue([cuso("project-2"), cuso("project-1")]);
+    loadCusos.mockResolvedValue({
+      cusos: [cuso("project-2"), cuso("project-1")],
+      mayHire: true,
+    });
 
     const page = await render();
 
@@ -163,7 +168,7 @@ describe("CMO home page", () => {
   });
 
   it("opens the only Cuso directly, by an address this device remembers", async () => {
-    loadCusos.mockResolvedValue([cuso("project-3")]);
+    loadCusos.mockResolvedValue({ cusos: [cuso("project-3")], mayHire: true });
 
     // The proxy writes the cookie for an address naming his Project.
     await expect(render()).rejects.toThrow("redirect /?project=project-3");
@@ -171,7 +176,10 @@ describe("CMO home page", () => {
   });
 
   it("shows the Cuso picker for several Cusos and none opened here before", async () => {
-    loadCusos.mockResolvedValue([cuso("project-2"), cuso("project-1")]);
+    loadCusos.mockResolvedValue({
+      cusos: [cuso("project-2"), cuso("project-1")],
+      mayHire: true,
+    });
 
     const page = await render();
 
@@ -187,14 +195,17 @@ describe("CMO home page", () => {
     ["a remembered Cuso that was archived", {}],
   ])("falls through to the picker from %s", async (_label, params) => {
     cookieJar.set("cmo-last-cuso", "project-gone");
-    loadCusos.mockResolvedValue([cuso("project-2"), cuso("project-1")]);
+    loadCusos.mockResolvedValue({
+      cusos: [cuso("project-2"), cuso("project-1")],
+      mayHire: true,
+    });
 
     expect((await open(params)).type).toBe(CusoPicker);
   });
 
   it("shows the picker for an unavailable address even with a usable remembered Cuso", async () => {
     cookieJar.set("cmo-last-cuso", "project-1");
-    loadCusos.mockResolvedValue([cuso("project-1")]);
+    loadCusos.mockResolvedValue({ cusos: [cuso("project-1")], mayHire: true });
 
     expect((await open({ project: "project-gone" })).type).toBe(CusoPicker);
     expect(loadOverview).toHaveBeenCalledExactlyOnceWith("project-gone");
@@ -205,19 +216,59 @@ describe("CMO home page", () => {
   });
 
   it("shows the Cuso picker the account menu asks for, even for one Cuso", async () => {
-    loadCusos.mockResolvedValue([cuso("project-3")]);
+    loadCusos.mockResolvedValue({ cusos: [cuso("project-3")], mayHire: true });
 
     expect((await open({ cusos: "1" })).type).toBe(CusoPicker);
   });
 
   it("opens the hire form after Start over, even when Cusos remain", async () => {
     cookieJar.set("cmo-last-cuso", "project-1");
-    loadCusos.mockResolvedValue([cuso("project-1")]);
+    loadCusos.mockResolvedValue({ cusos: [cuso("project-1")], mayHire: true });
 
     const page = await open({ hire: "1" });
 
     expect(page.type).toBe(Onboarding);
     expect(loadOverview).not.toHaveBeenCalled();
+  });
+
+  describe("for a person not on the hire allowlist", () => {
+    it("shows the invite-only page instead of the hire form when they have no Cuso", async () => {
+      loadCusos.mockResolvedValue({ cusos: [], mayHire: false });
+
+      expect((await render()).type).toBe(InviteOnly);
+      expect(getUsersByIdOrganizations).not.toHaveBeenCalled();
+    });
+
+    it("still opens their Cuso", async () => {
+      loadCusos.mockResolvedValue({
+        cusos: [cuso("project-1")],
+        mayHire: false,
+      });
+
+      await expect(render()).rejects.toThrow("redirect /?project=project-1");
+      cookieJar.set("cmo-last-cuso", "project-1");
+      expect((await render()).type).toBe(CmoApp);
+    });
+
+    it("shows the invite-only page for the hire form's address", async () => {
+      loadCusos.mockResolvedValue({
+        cusos: [cuso("project-1")],
+        mayHire: false,
+      });
+
+      expect((await open({ hire: "1" })).type).toBe(InviteOnly);
+    });
+
+    it("shows the picker without hiring", async () => {
+      loadCusos.mockResolvedValue({
+        cusos: [cuso("project-1")],
+        mayHire: false,
+      });
+
+      const page = await open({ cusos: "1" });
+      expect(page.type).toBe(CusoPicker);
+      expect(page.props.mayHire).toBe(false);
+    });
   });
 
   it("asks where Cuso goes for a person with organizations", async () => {

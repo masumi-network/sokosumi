@@ -4548,8 +4548,13 @@ const cmoCusoSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const cmoCusoListSchemaResponseTransformer = (data: any) => {
+    data.cusos = data.cusos.map((item: any) => cmoCusoSchemaResponseTransformer(item));
+    return data;
+};
+
 export const listCmoCusosResponseTransformer = async (data: any): Promise<ListCmoCusosResponse> => {
-    data.data = data.data.map((item: any) => cmoCusoSchemaResponseTransformer(item));
+    data.data = cmoCusoListSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

@@ -41700,6 +41700,26 @@ export const PublicSharedTaskFileSchema = {
     ]
 } as const;
 
+export const CmoCusoListSchema = {
+    type: 'object',
+    properties: {
+        cusos: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCuso'
+            }
+        },
+        mayHire: {
+            type: 'boolean',
+            description: 'The caller is on Core\'s hire allowlist (CMO_HIRE_ALLOWLIST).'
+        }
+    },
+    required: [
+        'cusos',
+        'mayHire'
+    ]
+} as const;
+
 export const CmoCusoSchema = {
     type: 'object',
     properties: {

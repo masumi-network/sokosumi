@@ -65,7 +65,7 @@ it("remembers on this device the Cuso an address opens", async () => {
   );
 
   vi.mocked(listCmoCusos).mockResolvedValue({
-    data: { data: [{ projectId: "project-2" }] },
+    data: { data: { cusos: [{ projectId: "project-2" }], mayHire: true } },
   } as Awaited<ReturnType<typeof listCmoCusos>>);
 
   const opened = await proxy(

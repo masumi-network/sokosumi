@@ -77,7 +77,7 @@ export async function proxy(request: NextRequest) {
       const cusos = await asSignedInPersonInPage(request.headers)
         .then((person) => listCmoCusos(person))
         .catch(() => undefined);
-      if (cusos?.data?.data.some((cuso) => cuso.projectId === project)) {
+      if (cusos?.data?.data.cusos.some((cuso) => cuso.projectId === project)) {
         response.cookies.set(...lastCusoCookie(project));
       }
     }

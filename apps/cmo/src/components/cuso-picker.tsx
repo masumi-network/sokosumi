@@ -10,14 +10,16 @@ import { Logo } from "./logo";
 interface CusoPickerProps {
   /** Every Cuso the person can work with, newest first, as Core lists them. */
   cusos: CmoCuso[];
+  /** Core's hire allowlist lets this person hire another Cuso. */
+  mayHire: boolean;
 }
 
 /**
  * The Cuso picker (ADR 0065): one row per Cuso, across the person's
- * organizations, then "Hire a new Cuso". Opening a row names his Project in
+ * organizations, then "Hire a new Cuso" when the person may hire. Opening a row names his Project in
  * the address, which this device then remembers.
  */
-export function CusoPicker({ cusos }: CusoPickerProps) {
+export function CusoPicker({ cusos, mayHire }: CusoPickerProps) {
   return (
     <div className="ob">
       <header className="ob-top">
@@ -46,12 +48,14 @@ export function CusoPicker({ cusos }: CusoPickerProps) {
                 </a>
               </li>
             ))}
-            <li className="li">
-              <a className="ob-picker-row" href="/?hire=1">
-                <Plus size={16} aria-hidden="true" />
-                <span className="grow">Hire a new {AGENT_NAME}</span>
-              </a>
-            </li>
+            {mayHire && (
+              <li className="li">
+                <a className="ob-picker-row" href="/?hire=1">
+                  <Plus size={16} aria-hidden="true" />
+                  <span className="grow">Hire a new {AGENT_NAME}</span>
+                </a>
+              </li>
+            )}
           </ul>
         </div>
       </main>

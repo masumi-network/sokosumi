@@ -44,6 +44,16 @@ export const cmoCusoSchema = z
   })
   .openapi("CmoCuso");
 
+/** The caller's Cusos, and whether they may hire another (CMO is invite-only). */
+export const cmoCusoListSchema = z
+  .object({
+    cusos: z.array(cmoCusoSchema),
+    mayHire: z
+      .boolean()
+      .describe("The caller is on Core's hire allowlist (CMO_HIRE_ALLOWLIST)."),
+  })
+  .openapi("CmoCusoList");
+
 export const cmoMeasurementSchema = z
   .object({
     provider: z.enum(["google_analytics", "google_search_console", "shopify"]),

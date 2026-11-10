@@ -8,7 +8,7 @@ import {
   approveProjectMarketingStrategy,
   type CmoAdCampaigns,
   type CmoAdsFinalized,
-  type CmoCuso,
+  type CmoCusoList,
   type CmoMeasurement,
   type CmoOverview,
   chooseCmoAdAccountForProject,
@@ -54,6 +54,7 @@ import { AGENT_NAME } from "../lib/agent";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
+import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
 import { lastCusoCookie } from "../lib/last-cuso";
 import {
   readSkippedSteps,
@@ -111,8 +112,11 @@ async function overviewOf(
   return withSkipped(data.data);
 }
 
-/** Every Cuso the person can work with, newest first, for the Cuso picker. */
-export async function loadCusos(): Promise<CmoCuso[]> {
+/**
+ * Every Cuso the person can work with, newest first, for the Cuso picker,
+ * and whether Core's hire allowlist lets them hire another.
+ */
+export async function loadCusos(): Promise<CmoCusoList> {
   const { data } = await listCmoCusos(await requireCore());
   if (!data) throw new Error("Could not list the Cusos");
   return data.data;
@@ -161,6 +165,7 @@ export interface OnboardFormState {
 
 /** What the start form says for each refusal Core declares, by its kind. */
 const HIRE_REFUSALS: Partial<Record<CoreApiErrorKind, string>> = {
+  [CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED]: `${INVITE_ONLY_TITLE} ${INVITE_ONLY_NOTE}`,
   [CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED]: `You need a Seat in that organization to hire ${AGENT_NAME}. Ask its owner for one, or choose another organization.`,
   [CORE_API_ERROR_KINDS.ORGANIZATION_LIMIT_REACHED]:
     "You've reached the organization limit. Choose one of your organizations instead.",
@@ -529,7 +534,9 @@ export async function startOver(projectId: string): Promise<string | null> {
       : "Could not start over";
   }
   revalidatePath("/");
-  redirect("/?hire=1");
+  // A person who may not hire goes to the Cusos left, or the invite-only page.
+  const list = await loadCusos().catch(() => undefined);
+  redirect(list?.mayHire === false ? "/?cusos=1" : "/?hire=1");
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */

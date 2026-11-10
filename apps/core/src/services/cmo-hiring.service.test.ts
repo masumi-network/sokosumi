@@ -11,6 +11,7 @@ import {
   creditBucketFindFirst,
   cusoFind,
   cusoFindMany,
+  envOverrides,
   eventFindFirst,
   expireTurn,
   funding,
@@ -26,6 +27,7 @@ import {
   sokoBotFindUnique,
   startTurn,
   turnFindFirst,
+  userFindUnique,
 } from "@/test-fixtures/cmo-service";
 
 vi.mock(
@@ -97,6 +99,7 @@ import {
   cmoLearningState,
   cmoWork,
   describeCmoStep,
+  mayHireCuso,
   retryCmoOnboarding,
   startCmoOnboarding,
   startCmoOver,
@@ -473,6 +476,51 @@ describe("startCmoOnboarding", () => {
     expect(createOrganizationWorkspace).not.toHaveBeenCalled();
     expect(organizationUpdate).not.toHaveBeenCalled();
     expect(organizationFindFirst).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["their email", ["lena@harborbikes.com"]],
+    ["their domain", ["@harborbikes.com"]],
+  ])(
+    "hires for a person whose %s is on the allowlist",
+    async (_label, list) => {
+      envOverrides.CMO_HIRE_ALLOWLIST = list;
+      await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+        projectId: "project-1",
+      });
+    },
+  );
+
+  it.each([
+    ["an unlisted person", ["@nmkr.io", "someone@harborbikes.com"]],
+    ["everyone when the list is empty", []],
+  ])("refuses %s before anything exists", async (_label, list) => {
+    envOverrides.CMO_HIRE_ALLOWLIST = list;
+    await expect(
+      startCmoOnboarding({ ...input, organizationId: "org-team" }),
+    ).rejects.toMatchObject({ kind: "cmo_hire_not_allowed" });
+    await expect(startCmoOnboarding(input)).rejects.toMatchObject({
+      kind: "cmo_hire_not_allowed",
+    });
+    expect(createOrganizationWorkspace).not.toHaveBeenCalled();
+    expect(getUserWorkspace).not.toHaveBeenCalled();
+    expect(projectCreate).not.toHaveBeenCalled();
+    expect(createBot).not.toHaveBeenCalled();
+    expect(grantFreeCredits).not.toHaveBeenCalled();
+  });
+
+  it("reads the email Core holds, ignoring its case and spaces", async () => {
+    envOverrides.CMO_HIRE_ALLOWLIST = ["@harborbikes.com"];
+    userFindUnique.mockResolvedValue({ email: " Lena@HarborBikes.COM " });
+    await expect(mayHireCuso("user-1")).resolves.toBe(true);
+    expect(userFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "user-1" } }),
+    );
+    // A subdomain is another domain.
+    userFindUnique.mockResolvedValue({ email: "lena@shop.harborbikes.com" });
+    await expect(mayHireCuso("user-1")).resolves.toBe(false);
+    userFindUnique.mockResolvedValue(null);
+    await expect(mayHireCuso("user-1")).resolves.toBe(false);
   });
 
   it("refuses an organization the person is not a member of", async () => {
