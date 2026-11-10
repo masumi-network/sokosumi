@@ -351,18 +351,20 @@ describe("image studio job submission", () => {
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
-  it("persists the selected product independently of provider settings", async () => {
+  it("persists the selected product and batch independently of provider settings", async () => {
     jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
 
     await createImageJob({
       ...BASE_INPUT,
       product: { id: "product-a", name: "Clay mug" },
+      batchId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     });
 
     expect(jobCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
         productId: "product-a",
         productName: "Clay mug",
+        batchId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         settings: BASE_INPUT.settings,
       }),
     });

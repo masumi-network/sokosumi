@@ -258,6 +258,7 @@ export {
   validateDriveFolderPath,
 } from "./drive-file-path.js";
 export {
+  ENTITY_IMAGE_MAX_SIZE_BYTES,
   extensionForEntityImageMime,
   isVercelBlobPublicHost,
 } from "./entity-image-upload.js";
@@ -491,6 +492,11 @@ export {
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export { MAX_STUDIO_BATCH_IMAGES } from "./studio-limits.js";
+export {
+  isStudioLogoMime,
+  STUDIO_LOGO_MIME_TYPES,
+} from "./studio-logo-upload.js";
 export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";

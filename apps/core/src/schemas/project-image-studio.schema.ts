@@ -51,6 +51,16 @@ export const imageStudioAssetParamsSchema =
       }),
   });
 
+export const studioLogoPositionSchema = z
+  .enum(["top-left", "top-right", "bottom-left", "bottom-right"])
+  .openapi("StudioLogoPosition");
+
+export const imageStudioAssetContentQuerySchema = z.object({
+  logo: studioLogoPositionSchema.optional(),
+});
+
+export type StudioLogoPosition = z.infer<typeof studioLogoPositionSchema>;
+
 export const imageStudioCaptionSchema = z
   .object({
     text: z.string().min(1).max(500),
@@ -97,6 +107,7 @@ export const imageStudioAssetSchema = z
     /** The owning project's name, so a workspace-wide gallery can label it. */
     projectName: z.string(),
     product: studioProductIdentitySchema.optional(),
+    batchId: z.uuid().optional(),
     rootId: z.string().uuid(),
     parentId: z.string().uuid().nullable(),
     version: z.number().int().min(1),
@@ -233,6 +244,7 @@ export const createImageJobRequestSchema = z
       ),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     product: studioProductIdentitySchema.optional(),
+    batchId: z.uuid().optional(),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     referenceFileIds: z

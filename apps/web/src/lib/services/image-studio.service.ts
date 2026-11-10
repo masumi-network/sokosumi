@@ -6,6 +6,7 @@ import type {
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
+  SaveStudioBrandCopy,
   SocialPostMediaRef,
   StudioProductCatalog,
   StudioProductImport,
@@ -62,6 +63,30 @@ export const imageStudioService = {
   ): Promise<StudioProductPhoto> {
     const result = await coreClient.attachStudioProductPhoto(projectId, input);
     return result.data;
+  },
+
+  async getBrandKit(projectId: string) {
+    return (await coreClient.getStudioBrandKit(projectId)).data;
+  },
+
+  async getWebsiteCopy(projectId: string) {
+    return (await coreClient.getStudioWebsiteCopy(projectId)).data;
+  },
+
+  async prepareWebsiteDraft(projectId: string) {
+    return (await coreClient.prepareStudioWebsiteDraft(projectId)).data;
+  },
+
+  async listBatchAssets(projectId: string, batchId: string) {
+    return (await coreClient.listStudioBatchAssets(projectId, batchId)).data;
+  },
+
+  async saveBrandCopy(projectId: string, input: SaveStudioBrandCopy) {
+    return (await coreClient.saveStudioBrandCopy(projectId, input)).data;
+  },
+
+  async uploadProjectLogo(projectId: string, file: File) {
+    return (await coreClient.uploadStudioProjectLogo(projectId, file)).data;
   },
 
   async getProductCatalog(projectId: string): Promise<StudioProductCatalog> {

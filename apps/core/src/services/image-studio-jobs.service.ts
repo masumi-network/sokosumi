@@ -135,6 +135,7 @@ export interface CreateImageJobInput {
   sessionId: string | null;
   prompt: string;
   product?: StudioProductIdentity;
+  batchId?: string;
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
   referenceAssetIds: string[];
@@ -374,6 +375,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         prompt: input.prompt,
         productId: input.product?.id ?? source?.job.productId,
         productName: input.product?.name ?? source?.job.productName,
+        batchId: input.batchId,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds: input.referenceFileIds ?? [],

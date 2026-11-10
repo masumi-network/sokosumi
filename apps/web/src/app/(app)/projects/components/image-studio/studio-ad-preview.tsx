@@ -1,3 +1,4 @@
+import { StudioLogoPosition } from "@sokosumi/core-client";
 import {
   Bookmark,
   Ellipsis,
@@ -8,8 +9,10 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState, useTransition } from "react";
+import { toast } from "sonner";
 
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,8 +24,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
+import { fetchStudioAd, saveStudioDownload } from "./studio-ad-download";
 import { StudioImage } from "./studio-image";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import type { StudioAsset, StudioLabels } from "./types";
@@ -34,15 +38,18 @@ const PLATFORM_RATIOS = {
 } satisfies Record<string, [PlacementRatio, ...PlacementRatio[]]>;
 
 type PreviewPlatform = keyof typeof PLATFORM_RATIOS;
+const LOGO_POSITIONS = Object.values(StudioLogoPosition);
 
 export function StudioAdPreview({
   asset,
   caption,
   labels,
+  projectLogo,
 }: {
   asset: StudioAsset;
   caption?: string;
   labels: StudioLabels;
+  projectLogo?: string | null;
 }) {
   const t = useTranslations("App.Studio");
   const [ratio, setRatio] = useState<PlacementRatio>(
@@ -52,6 +59,9 @@ export function StudioAdPreview({
   const [platform, setPlatform] = useState<PreviewPlatform>(() =>
     ratio === "9:16" ? "reels" : ratio === "16:9" ? "facebook" : "instagram",
   );
+  const logoControlId = useId();
+  const [logoPosition, setLogoPosition] = useState<StudioLogoPosition>();
+  const [downloading, startDownload] = useTransition();
   const isReel = platform === "reels";
   const isFacebook = platform === "facebook";
   const platformRatios: readonly PlacementRatio[] = PLATFORM_RATIOS[platform];
@@ -59,12 +69,12 @@ export function StudioAdPreview({
   const displayCaption = caption?.trim();
   const attribution = (
     <div className="flex min-w-0 items-center gap-2">
-      <span
-        aria-hidden
-        className="bg-muted text-muted-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-medium"
-      >
-        {asset.projectName?.trim().at(0)?.toLocaleUpperCase()}
-      </span>
+      <ProjectAvatar
+        className="shrink-0 rounded-full"
+        fallbackClassName="rounded-full"
+        logo={projectLogo}
+        name={asset.projectName ?? ""}
+      />
       <div className="min-w-0">
         <p className="text-sm font-medium break-words">{asset.projectName}</p>
         <p className="text-muted-foreground text-xs">{t("previewSponsored")}</p>
@@ -77,6 +87,21 @@ export function StudioAdPreview({
       PLATFORM_RATIOS[next];
     setPlatform(next);
     setRatio((current) => (allowed.includes(current) ? current : allowed[0]));
+  }
+
+  function downloadWithLogo() {
+    if (!logoPosition || downloading) return;
+    startDownload(async () => {
+      try {
+        const response = await fetchStudioAd(asset, logoPosition);
+        saveStudioDownload(
+          await response.blob(),
+          `ad-v${asset.version}-branded.png`,
+        );
+      } catch {
+        toast.error(t("brandExportFailed"));
+      }
+    });
   }
 
   return (
@@ -112,6 +137,30 @@ export function StudioAdPreview({
             </Button>
           ))}
         </div>
+        {projectLogo ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Label htmlFor={logoControlId}>{t("logoOnCreative")}</Label>
+            <select
+              className="border-input bg-background focus-visible:ring-ring h-8 rounded-md border px-2 text-sm focus-visible:ring-2"
+              id={logoControlId}
+              onChange={(event) =>
+                setLogoPosition(
+                  LOGO_POSITIONS.find(
+                    (position) => position === event.currentTarget.value,
+                  ),
+                )
+              }
+              value={logoPosition ?? ""}
+            >
+              <option value="">{t("LogoPositions.none")}</option>
+              {LOGO_POSITIONS.map((position) => (
+                <option key={position} value={position}>
+                  {t(`LogoPositions.${position}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div
           aria-label={t("adPlacements")}
           className="flex flex-wrap gap-2"
@@ -158,7 +207,12 @@ export function StudioAdPreview({
             className="bg-muted"
             style={{ aspectRatio: ratio.replace(":", " / ") }}
           >
-            <StudioImage asset={asset} labels={labels} />
+            <StudioImage
+              asset={asset}
+              key={logoPosition ?? "original"}
+              labels={labels}
+              logoPosition={logoPosition}
+            />
           </div>
           {isReel ? (
             <>
@@ -202,6 +256,15 @@ export function StudioAdPreview({
           )}
         </div>
         <DialogFooter>
+          {logoPosition ? (
+            <Button
+              loading={downloading}
+              onClick={downloadWithLogo}
+              type="button"
+            >
+              {t("downloadWithLogo")}
+            </Button>
+          ) : null}
           <DialogClose asChild>
             <Button type="button" variant="outline">
               {labels.close}

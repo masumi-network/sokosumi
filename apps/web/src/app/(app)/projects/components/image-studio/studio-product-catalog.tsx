@@ -3,7 +3,11 @@ import type {
   StudioProductCatalog,
   StudioProductPhoto,
 } from "@sokosumi/core-client";
-import { isValidHttpUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
+import {
+  isValidHttpUrl,
+  MAX_STUDIO_BATCH_IMAGES as MAX_BATCH,
+  normalizeWebsiteUrl,
+} from "@sokosumi/utils";
 import { Package, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -28,20 +32,26 @@ import {
   saveStudioProducts,
 } from "@/lib/actions/image-studio/product-catalog";
 
-import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
+import type { StudioBatchProduct } from "./studio-batch";
 import { StudioProductPhotoControl } from "./studio-product-photo";
 
 const MAX_PRODUCTS = 20;
 
 export function StudioProductCatalogDialog({
+  disabled,
   projectId,
   websiteUrl,
+  websiteProducts,
+  onWebsiteProductsReviewed,
   onUseProduct,
   onUseBatch,
   canUseProduct = true,
 }: {
+  disabled?: boolean;
   projectId: string;
   websiteUrl?: string | null;
+  websiteProducts?: StudioProduct[] | null;
+  onWebsiteProductsReviewed?: () => void;
   onUseProduct: (
     product: StudioProduct,
     photo: StudioProductPhoto | null,
@@ -95,9 +105,14 @@ export function StudioProductCatalogDialog({
     startTransition(async () => {
       setMessage("");
       try {
-        setCatalog(await getStudioProducts({ projectId }));
+        const saved = await getStudioProducts({ projectId });
+        setCatalog(saved);
         setSaveFailed(false);
         setDirty(false);
+        if (websiteProducts) {
+          applyImportedProducts(websiteProducts, saved);
+          onWebsiteProductsReviewed?.();
+        }
       } catch {
         setMessage(t("loadError"));
       }
@@ -105,14 +120,20 @@ export function StudioProductCatalogDialog({
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (transitionPending || uploadingPhoto) return;
+    if (transitionPending || uploadingPhoto || disabled) return;
     if (!nextOpen) {
       batchPreparation.current?.abort();
       batchPreparation.current = null;
       setPreparingBatch(false);
     }
     setOpen(nextOpen);
-    if (nextOpen && !dirty) handleLoad();
+    if (!nextOpen) return;
+    if (!dirty) {
+      handleLoad();
+    } else if (websiteProducts && catalog) {
+      applyImportedProducts(websiteProducts, catalog);
+      onWebsiteProductsReviewed?.();
+    }
   }
 
   function setProducts(next: StudioProduct[]) {
@@ -139,36 +160,50 @@ export function StudioProductCatalogDialog({
     );
   }
 
+  function applyImportedProducts(
+    incoming: StudioProduct[],
+    base: StudioProductCatalog,
+  ) {
+    if (!incoming.length) {
+      setMessage(t("noImportResults"));
+      return;
+    }
+    const keys = new Set(
+      base.products.map(({ url, name }) => JSON.stringify([url, name])),
+    );
+    const additions = incoming
+      .filter((product) => {
+        const key = JSON.stringify([product.url, product.name]);
+        if (keys.has(key)) return false;
+        keys.add(key);
+        return true;
+      })
+      .slice(0, MAX_PRODUCTS - base.products.length);
+    const first = additions[0];
+    if (!first) {
+      setMessage(
+        t(
+          base.products.length >= MAX_PRODUCTS
+            ? "catalogFull"
+            : "alreadyImported",
+        ),
+      );
+      return;
+    }
+    setCatalog({ ...base, products: [...base.products, ...additions] });
+    setDirty(true);
+    setSelectedId(first.id);
+    setMessage(t("imported", { count: additions.length }));
+  }
+
   function handleImport() {
     const url = normalizeWebsiteUrl(website);
-    if (!url || full || pending) return;
+    if (!url || !catalog || full || pending) return;
     startTransition(async () => {
       setMessage("");
       try {
         const result = await importStudioProducts({ projectId, url });
-        if (!result.products.length) {
-          setMessage(t("noImportResults"));
-          return;
-        }
-        const keys = new Set(
-          products.map(({ url, name }) => JSON.stringify([url, name])),
-        );
-        const additions = result.products
-          .filter((product) => {
-            const key = JSON.stringify([product.url, product.name]);
-            if (keys.has(key)) return false;
-            keys.add(key);
-            return true;
-          })
-          .slice(0, MAX_PRODUCTS - products.length);
-        const first = additions[0];
-        if (!first) {
-          setMessage(t("alreadyImported"));
-          return;
-        }
-        setProducts([...products, ...additions]);
-        setSelectedId(first.id);
-        setMessage(t("imported", { count: additions.length }));
+        applyImportedProducts(result.products, catalog);
       } catch {
         setMessage(t("importError"));
       }
@@ -261,10 +296,10 @@ export function StudioProductCatalogDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm" type="button" variant="outline">
+      <DialogTrigger asChild disabled={disabled}>
+        <Button disabled={disabled} size="sm" type="button" variant="outline">
           <Package aria-hidden />
-          {t("title")}
+          {t(websiteProducts ? "reviewImportedProducts" : "title")}
         </Button>
       </DialogTrigger>
       <DialogContent

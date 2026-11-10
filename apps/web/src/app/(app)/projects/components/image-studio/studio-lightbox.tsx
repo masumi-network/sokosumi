@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Download, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -45,8 +45,11 @@ export function StudioLightbox({
   creditsByAssetId,
   elapsedByAssetId,
   labels,
+  projectLogo,
   onAnimate,
   onClose,
+  onDownloadBatch,
+  downloadingBatch,
   onEditWithAssistant,
   editWithAssistantLabel,
   onRegenerate,
@@ -68,9 +71,12 @@ export function StudioLightbox({
   /** How long the provider took per version, in milliseconds. */
   elapsedByAssetId: Record<string, number>;
   labels: StudioLabels;
+  projectLogo?: string | null;
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
+  onDownloadBatch?: (asset: StudioAsset) => void;
+  downloadingBatch?: boolean;
   onEditWithAssistant?: (asset: StudioAsset) => void;
   editWithAssistantLabel?: string;
   onRegenerate: (asset: StudioAsset) => void;
@@ -95,6 +101,7 @@ export function StudioLightbox({
   // server render to format them in, and a raw ISO string is not a date
   // anybody reads.
   const format = useFormatter();
+  const t = useTranslations("App.Studio");
   const formatDate = (value: string) =>
     format.dateTime(new Date(value), "dateTime");
   const single = assets.length === 1 ? assets[0] : null;
@@ -195,8 +202,30 @@ export function StudioLightbox({
                   caption={caption}
                   key={single.id}
                   labels={labels}
+                  projectLogo={projectLogo}
                 />
               )}
+              {single.batchId && onDownloadBatch ? (
+                <div className="space-y-1">
+                  <Button
+                    aria-describedby="studio-batch-download-note"
+                    loading={downloadingBatch}
+                    onClick={() => onDownloadBatch(single)}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    <Download aria-hidden />
+                    {t("downloadBatchZip")}
+                  </Button>
+                  <p
+                    id="studio-batch-download-note"
+                    className="text-muted-foreground text-xs"
+                  >
+                    {t("downloadBatchZipHint")}
+                  </p>
+                </div>
+              ) : null}
               {onEditWithAssistant && !isVideoAsset(single) ? (
                 <Button
                   onClick={() => onEditWithAssistant(single)}

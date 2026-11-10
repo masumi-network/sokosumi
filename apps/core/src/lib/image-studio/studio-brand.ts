@@ -1,5 +1,18 @@
+import { designMdBrandLook, isOwnedProjectLogoUrl } from "@sokosumi/utils";
+import { DomUtils, parseDocument } from "htmlparser2";
+
+import { badGateway, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
+import { importStudioProducts } from "@/lib/image-studio/product-import";
+import { parseOpenGraphFields } from "@/lib/open-graph-html";
+import { readHomepage } from "@/lib/site-platform";
+import {
+  studioBrandKitSchema,
+  studioWebsiteCopySchema,
+  studioWebsiteDraftSchema,
+} from "@/schemas/studio-brand-kit.schema";
+import { studioProductImportSchema } from "@/schemas/studio-product.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 
 /** Enough for colours, type, and voice. The stored job prompt stays the brief. */
@@ -10,6 +23,7 @@ export interface StudioBrand {
   memory: string | null;
   /** Who the business is and sounds like, from the Project's Brand Brain. */
   brandBrain: string | null;
+  approvedLines?: string;
 }
 
 const NO_BRAND: StudioBrand = {
@@ -31,9 +45,13 @@ export function applyStudioBrandPrompt(
   const design = clipBrandText(brand.designMd);
   const memory = clipBrandText(brand.memory);
   const brandBrain = clipBrandText(brand.brandBrain);
-  if (!design && !memory && !brandBrain) return prompt;
+  const approvedLines = clipBrandText(brand.approvedLines);
+  if (!design && !memory && !brandBrain && !approvedLines) return prompt;
 
   const parts = ["Follow this project's brand."];
+  if (approvedLines) {
+    parts.push(`Approved ad copy (use where relevant):\n${approvedLines}`);
+  }
   if (brandBrain) parts.push(`Brand Brain:\n${brandBrain}`);
   if (design) parts.push(`Design:\n${design}`);
   if (memory) parts.push(`Memory:\n${memory}`);
@@ -52,19 +70,122 @@ export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
       },
     });
     if (!project) return NO_BRAND;
+    const brain = parseBrandBrain(project.brandBrain?.body);
+    const approvedLines = clipBrandText(brain?.voice.examples.join("\n"));
     return {
       designMd: await readDesignMd(project.designMdUrl),
       memory: clipBrandText(project.contextMd),
-      brandBrain: brandBrainText(project.brandBrain?.body),
+      brandBrain: brandBrainText(brain),
+      ...(approvedLines ? { approvedLines } : {}),
     };
   } catch {
     return NO_BRAND;
   }
 }
 
+export async function readStudioBrandKit(projectId: string) {
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: {
+      logo: true,
+      briefing: true,
+      designMdUrl: true,
+      brandBrain: { select: { body: true, updatedAt: true } },
+    },
+  });
+  const design = await readDesignMdContent(project.designMdUrl);
+  const look = designMdBrandLook(design ?? "");
+  const brain = parseBrandBrain(project.brandBrain?.body);
+  return studioBrandKitSchema.parse({
+    logo:
+      project.logo && isOwnedProjectLogoUrl(project.logo, projectId)
+        ? project.logo
+        : null,
+    colors: look.colors,
+    fonts: look.fonts,
+    summary: brain?.summary ?? project.briefing?.slice(0, 2000) ?? "",
+    tone: brain?.voice.tone ?? look.tone ?? "",
+    audience: brain?.audience ?? [],
+    approvedLines: brain?.voice.examples ?? [],
+    version: project.brandBrain?.updatedAt?.toISOString() ?? null,
+  });
+}
+
+export async function readStudioWebsiteCopy(projectId: string) {
+  return readWebsiteCopy(await studioWebsiteUrl(projectId));
+}
+
+export async function prepareStudioWebsiteDraft(projectId: string) {
+  const websiteUrl = await studioWebsiteUrl(projectId);
+  const [brandCopy, products] = await Promise.allSettled([
+    readWebsiteCopy(websiteUrl),
+    importStudioProducts(websiteUrl).then((found) =>
+      studioProductImportSchema.parse({ products: found }),
+    ),
+  ]);
+  return studioWebsiteDraftSchema.parse({
+    brandCopy: brandCopy.status === "fulfilled" ? brandCopy.value : null,
+    products: products.status === "fulfilled" ? products.value.products : null,
+  });
+}
+
+async function studioWebsiteUrl(projectId: string) {
+  const { websiteUrl } = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: { websiteUrl: true },
+  });
+  if (!websiteUrl) throw unprocessableEntity("Set a project website first");
+  return websiteUrl;
+}
+
+async function readWebsiteCopy(websiteUrl: string) {
+  const page = await readHomepage(websiteUrl);
+  const contentType = page?.headers
+    .get("content-type")
+    ?.split(";")[0]
+    ?.trim()
+    .toLowerCase();
+  if (
+    !page ||
+    (contentType !== "text/html" && contentType !== "application/xhtml+xml")
+  ) {
+    throw badGateway("Could not read the project website");
+  }
+
+  const html = page.html.slice(0, 512 * 1024);
+  const document = parseDocument(html);
+  const description = DomUtils.getElementsByTagName(
+    "meta",
+    document.children,
+  ).find((tag) => tag.attribs.name?.toLowerCase() === "description")?.attribs
+    .content;
+  const summary = websiteCopyLine(
+    parseOpenGraphFields(html).description ?? description,
+  );
+  const main = DomUtils.getElementsByTagName("main", document.children)[0];
+  const headlines = DomUtils.getElementsByTagName(
+    (name) => name === "h1" || name === "h2",
+    main?.children ?? document.children,
+  );
+  const lines = [
+    ...new Set(
+      headlines
+        .map((heading) => websiteCopyLine(DomUtils.textContent(heading)))
+        .filter((line): line is string => line !== null && line !== summary),
+    ),
+  ].slice(0, 4);
+  return studioWebsiteCopySchema.parse({ summary, lines });
+}
+
+function websiteCopyLine(value: string | undefined | null): string | null {
+  const text = value?.replace(/\s+/g, " ").trim();
+  return text && text.length <= 2_000 ? text : null;
+}
+
 /** The Brand Brain lines a picture can follow: its summary, voice, audience and products. */
-function brandBrainText(body: unknown): string | null {
-  const brain = parseBrandBrain(body);
+function brandBrainText(
+  brain: ReturnType<typeof parseBrandBrain>,
+): string | null {
   if (!brain) return null;
   return clipBrandText(
     [

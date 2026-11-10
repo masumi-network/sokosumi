@@ -21444,6 +21444,10 @@ export const ProjectImageAssetSchema = {
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
         },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -38844,89 +38848,126 @@ export const ProjectImageSessionSchema = {
     ]
 } as const;
 
-export const CreateProjectImageJobRequestSchema = {
+export const StudioBrandKitSchema = {
     type: 'object',
     properties: {
-        modelId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 200,
-            default: 'muse-image'
-        },
-        prompt: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 4000
-        },
-        product: {
-            $ref: '#/components/schemas/StudioProductIdentity'
-        },
-        settings: {
-            $ref: '#/components/schemas/ProjectImageSettings'
-        },
-        referenceAssetIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                format: 'uuid'
-            },
-            maxItems: 4,
-            default: []
-        },
-        referenceFileIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                format: 'uuid'
-            },
-            maxItems: 4
-        },
-        parentAssetId: {
+        logo: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid',
-            default: null
+            format: 'uri'
         },
-        sessionId: {
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        summary: {
+            type: 'string'
+        },
+        tone: {
+            type: 'string'
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        },
+        version: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid',
-            default: null
-        },
-        idempotencyKey: {
-            type: 'string',
-            minLength: 8,
-            maxLength: 200
+            format: 'date-time'
         }
     },
     required: [
-        'prompt',
-        'idempotencyKey'
+        'logo',
+        'colors',
+        'fonts',
+        'summary',
+        'tone',
+        'audience',
+        'approvedLines',
+        'version'
     ]
 } as const;
 
-export const StudioProductCatalogSchema = {
+export const StudioWebsiteCopySchema = {
     type: 'object',
     properties: {
-        products: {
+        summary: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        lines: {
             type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        }
+    },
+    required: [
+        'summary',
+        'lines'
+    ]
+} as const;
+
+export const StudioWebsiteDraftSchema = {
+    type: 'object',
+    properties: {
+        brandCopy: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioWebsiteCopy'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        products: {
+            type: [
+                'array',
+                'null'
+            ],
             items: {
                 $ref: '#/components/schemas/StudioProduct'
             },
             maxItems: 20
-        },
-        revision: {
-            type: 'integer',
-            minimum: 0
         }
     },
     required: [
-        'products',
-        'revision'
+        'brandCopy',
+        'products'
     ]
 } as const;
 
@@ -38994,6 +39035,156 @@ export const StudioProductPhotoSchema = {
     required: [
         'id',
         'name'
+    ]
+} as const;
+
+export const SaveStudioBrandCopySchema = {
+    type: 'object',
+    properties: {
+        copy: {
+            $ref: '#/components/schemas/StudioBrandCopy'
+        },
+        version: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'copy',
+        'version'
+    ]
+} as const;
+
+export const StudioBrandCopySchema = {
+    type: 'object',
+    properties: {
+        summary: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        tone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        }
+    },
+    required: [
+        'summary',
+        'tone',
+        'audience',
+        'approvedLines'
+    ]
+} as const;
+
+export const CreateProjectImageJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200,
+            default: 'muse-image'
+        },
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        referenceAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 4,
+            default: []
+        },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 4
+        },
+        parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        sessionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'prompt',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const StudioProductCatalogSchema = {
+    type: 'object',
+    properties: {
+        products: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'products',
+        'revision'
     ]
 } as const;
 
@@ -39087,6 +39278,16 @@ export const CancelProjectImageJobResponseSchema = {
     },
     required: [
         'accepted'
+    ]
+} as const;
+
+export const StudioLogoPositionSchema = {
+    type: 'string',
+    enum: [
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right'
     ]
 } as const;
 

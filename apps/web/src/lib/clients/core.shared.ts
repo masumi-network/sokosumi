@@ -2,10 +2,17 @@ import {
   attachStudioProductPhoto as coreAttachStudioProductPhoto,
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
+  getStudioBrandKit as coreGetStudioBrandKit,
   getStudioProductCatalog as coreGetStudioProductCatalog,
+  getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
   importStudioProductCatalog as coreImportStudioProductCatalog,
+  listStudioBatchAssets as coreListStudioBatchAssets,
+  prepareStudioWebsiteDraft as corePrepareStudioWebsiteDraft,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
+  saveStudioBrandCopy as coreSaveStudioBrandCopy,
   suggestTaskTags as coreSuggestTaskTags,
+  uploadStudioProjectLogo as coreUploadStudioProjectLogo,
+  type SaveStudioBrandCopy,
   type StudioProductCatalog,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
@@ -4161,6 +4168,67 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getStudioBrandKit(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioBrandKit({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch the Studio brand kit",
+    );
+  }
+
+  async function saveStudioBrandCopy(id: string, body: SaveStudioBrandCopy) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSaveStudioBrandCopy({ client, path: { id }, body }),
+      "Failed to save Studio brand copy",
+    );
+  }
+
+  async function getStudioWebsiteCopy(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioWebsiteCopy({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch website copy for Studio",
+    );
+  }
+
+  async function prepareStudioWebsiteDraft(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePrepareStudioWebsiteDraft({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to prepare website suggestions for Studio",
+    );
+  }
+
+  async function listStudioBatchAssets(id: string, batchId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListStudioBatchAssets({
+          client,
+          path: { id, batchId },
+          cache: "no-store",
+        }),
+      "Failed to fetch ads from the Studio batch",
+    );
+  }
+
+  async function uploadStudioProjectLogo(id: string, file: File) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreUploadStudioProjectLogo({ client, path: { id }, body: { file } }),
+      "Failed to upload the Studio project logo",
+    );
+  }
+
   async function getStudioProductCatalog(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7029,6 +7097,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     getImageStudioState,
     attachStudioProductPhoto,
     getStudioProductCatalog,
+    getStudioBrandKit,
+    getStudioWebsiteCopy,
+    prepareStudioWebsiteDraft,
+    listStudioBatchAssets,
+    saveStudioBrandCopy,
+    uploadStudioProjectLogo,
     replaceStudioProductCatalog,
     importStudioProductCatalog,
     getProjectsByIdImageStudio,

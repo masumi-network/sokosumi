@@ -115,7 +115,7 @@ const ASSET: StudioAsset = {
   contentPath: "/asset-1",
 };
 
-function mount() {
+function mount(projectLogo?: string) {
   return render(
     <ImageStudio
       catalog={TEST_CATALOG}
@@ -123,6 +123,7 @@ function mount() {
       initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
       labels={TEST_LABELS}
       projectId="project-9"
+      projectLogo={projectLogo}
     />,
   );
 }
@@ -137,6 +138,28 @@ afterEach(() => {
 });
 
 describe("preview an ad", () => {
+  it("uses the same branded content route for the preview and keeps the original available", () => {
+    mount(
+      "https://abc123.public.blob.vercel-storage.com/projects/project-9/logos/logo.png",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
+    const content = () => preview.getByRole("img", { name: ASSET.prompt });
+    const original = content().getAttribute("src");
+    const logo = preview.getByLabelText("logoOnCreative");
+
+    fireEvent.change(logo, { target: { value: "top-right" } });
+    expect(content()).toHaveAttribute("src", `${original}?logo=top-right`);
+    expect(
+      preview.getByRole("button", { name: "downloadWithLogo" }),
+    ).toBeEnabled();
+    fireEvent.change(logo, { target: { value: "" } });
+    expect(content()).toHaveAttribute("src", original);
+    expect(
+      preview.queryByRole("button", { name: "downloadWithLogo" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("previews a crop of the open image and returns to the same asset", async () => {
     mount();
     const trigger = screen.getByRole("button", { name: "previewAd" });

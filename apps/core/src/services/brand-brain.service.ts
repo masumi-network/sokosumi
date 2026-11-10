@@ -18,6 +18,7 @@ import {
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { answerNote, keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
+import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
 
 /**
  * The Project's Brand Brain (ADR 0062): one per Project, read by every bot in
@@ -56,16 +57,12 @@ export async function getBrandBrain(
  * Locks the Project's Brand Brain writes, existing row or not: section saves
  * run in parallel, and none may overwrite another.
  */
-async function lockBrandBrain(
-  tx: Prisma.TransactionClient,
-  projectId: string,
-): Promise<unknown> {
+async function lockBrandBrain(tx: Prisma.TransactionClient, projectId: string) {
   await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
-  const row = await tx.brandBrain.findUnique({
+  return await tx.brandBrain.findUnique({
     where: { projectId },
-    select: { body: true },
+    select: { body: true, updatedAt: true },
   });
-  return row?.body ?? null;
 }
 
 /**
@@ -80,7 +77,8 @@ export async function saveBrandBrain(
 ): Promise<BrandBrainRecord> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
   const write = async (tx: Prisma.TransactionClient) => {
-    const stored = storedBrandBrain(await lockBrandBrain(tx, projectId));
+    const row = await lockBrandBrain(tx, projectId);
+    const stored = storedBrandBrain(row?.body);
     const incoming = { ...save.brandBrain?.profile, ...save.sections };
     // Cuso's packet carries no findings; a section he rewrites keeps them.
     const kept = Object.fromEntries(
@@ -134,6 +132,44 @@ export async function saveBrandBrain(
     });
   };
   return db ? write(db) : prisma.$transaction(write);
+}
+
+export async function saveStudioBrandCopy(
+  projectId: string,
+  copy: StudioBrandCopy,
+  version: string | null,
+): Promise<string> {
+  return await prisma.$transaction(async (tx) => {
+    const row = await lockBrandBrain(tx, projectId);
+    if ((row?.updatedAt?.toISOString() ?? null) !== version) {
+      throw conflict("The brand kit changed. Reload it before saving.");
+    }
+    const existing = parseBrandBrain(row?.body);
+    const body = brandBrainSchema.parse({
+      products: [],
+      competitors: [],
+      channels: [],
+      profile: storedBrandBrain(row?.body).profile,
+      ...existing,
+      summary: copy.summary,
+      audience: copy.audience,
+      voice: {
+        do: existing?.voice.do ?? [],
+        dont: existing?.voice.dont ?? [],
+        tone: copy.tone,
+        examples: copy.approvedLines,
+      },
+    });
+    const updatedAt = new Date(
+      Math.max(Date.now(), (row?.updatedAt?.getTime() ?? 0) + 1),
+    );
+    await tx.brandBrain.upsert({
+      where: { projectId },
+      create: { projectId, body, updatedAt },
+      update: { body, updatedAt },
+    });
+    return updatedAt.toISOString();
+  });
 }
 
 /** The sections whose answer a save changed. */
@@ -231,7 +267,7 @@ export async function answerBrandBrainQuestion(
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const brain = parseBrandBrain(await lockBrandBrain(tx, projectId));
+    const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
     const question = brain?.questions.find(
       (candidate) => candidate.id === input.questionId,
     );
