@@ -10,8 +10,9 @@ vi.mock("@/lib/services/chat-room.service", () => ({
     listArchivedRooms: (...args: unknown[]) => listArchivedRoomsMock(...args),
   },
 }));
-vi.mock("@/lib/services/user.service", () => ({
-  userService: {
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {},
+  coreClientNoRedirect: {
     getMyMembersWithOrganizations: (...args: unknown[]) =>
       getMyMembersWithOrganizationsMock(...args),
   },
@@ -32,9 +33,9 @@ describe("loadChatListChromeData", () => {
       rooms: [{ id: "archived-1" }],
       nextCursor: null,
     });
-    getMyMembersWithOrganizationsMock.mockResolvedValue([
-      { organizationId: "org-1", role: "owner" },
-    ]);
+    getMyMembersWithOrganizationsMock.mockResolvedValue({
+      data: [{ organizationId: "org-1", role: "owner" }],
+    });
   });
 
   it("issues one rooms + archived + members fetch per loadChatListChromeData call", async () => {
