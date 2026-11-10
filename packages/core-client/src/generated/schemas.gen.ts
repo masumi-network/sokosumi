@@ -45834,72 +45834,6 @@ export const CmoOnboardingRequestSchema = {
     ]
 } as const;
 
-export const CmoTurnStartedSchema = {
-    type: 'object',
-    properties: {
-        turnId: {
-            type: 'string'
-        }
-    },
-    required: [
-        'turnId'
-    ]
-} as const;
-
-export const CmoStrategyRequestSchema = {
-    type: 'object',
-    properties: {
-        note: {
-            type: 'string',
-            maxLength: 1000
-        }
-    }
-} as const;
-
-export const CmoAdBudgetRequestSchema = {
-    type: 'object',
-    properties: {
-        monthly: {
-            type: 'number',
-            minimum: 0,
-            maximum: 10000000
-        },
-        currency: {
-            type: 'string',
-            pattern: '^[A-Za-z]{3}$',
-            description: 'ISO 4217, such as EUR.'
-        }
-    },
-    required: [
-        'monthly',
-        'currency'
-    ]
-} as const;
-
-export const CmoPieceTextSchema = {
-    type: 'object',
-    properties: {
-        text: {
-            type: 'string'
-        }
-    },
-    required: [
-        'text'
-    ]
-} as const;
-
-export const CmoMeasurementConnectSchema = {
-    type: 'object',
-    properties: {
-        redirectUrl: {
-            type: 'string'
-        }
-    },
-    required: [
-        'redirectUrl'
-    ]
-} as const;
-
 export const CmoAdsConnectSchema = {
     type: 'object',
     properties: {
@@ -45909,32 +45843,6 @@ export const CmoAdsConnectSchema = {
     },
     required: [
         'redirectUrl'
-    ]
-} as const;
-
-export const CmoAdsFinalizedSchema = {
-    type: 'object',
-    properties: {
-        state: {
-            type: 'string',
-            enum: [
-                'connected',
-                'none',
-                'choose'
-            ]
-        },
-        adConnectionId: {
-            type: 'string'
-        },
-        accounts: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/AvailableAdAccount'
-            }
-        }
-    },
-    required: [
-        'state'
     ]
 } as const;
 
@@ -45990,6 +45898,98 @@ export const CmoAdCampaignsSchema = {
     required: [
         'accounts'
     ]
+} as const;
+
+export const CmoAdsFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'none',
+                'choose'
+            ]
+        },
+        adConnectionId: {
+            type: 'string'
+        },
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AvailableAdAccount'
+            }
+        }
+    },
+    required: [
+        'state'
+    ]
+} as const;
+
+export const CmoPieceTextSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string'
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
+export const CmoMeasurementConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
+    ]
+} as const;
+
+export const CmoTurnStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
+export const CmoAdBudgetRequestSchema = {
+    type: 'object',
+    properties: {
+        monthly: {
+            type: 'number',
+            minimum: 0,
+            maximum: 10000000
+        },
+        currency: {
+            type: 'string',
+            pattern: '^[A-Za-z]{3}$',
+            description: 'ISO 4217, such as EUR.'
+        }
+    },
+    required: [
+        'monthly',
+        'currency'
+    ]
+} as const;
+
+export const CmoStrategyRequestSchema = {
+    type: 'object',
+    properties: {
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
 } as const;
 
 export const SokoBotApiKeySchema = {

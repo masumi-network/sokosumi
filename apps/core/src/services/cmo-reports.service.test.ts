@@ -311,7 +311,11 @@ describe("weekly change and revert", () => {
     messageFindFirst.mockResolvedValue(
       reportMessage({ previousVersionId: before.id, versionId: review.id }),
     );
-    await revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID });
+    await revertCmoUpdate({
+      projectId: "project-1",
+      userId: "user-1",
+      updateId: MESSAGE_ID,
+    });
     expect(messageFindFirst.mock.calls[0]?.[0].where).toMatchObject({
       id: MESSAGE_ID,
       senderSokoBotId: "bot-1",
@@ -338,7 +342,11 @@ describe("weekly change and revert", () => {
       reportMessage({ previousVersionId: before.id, versionId: review.id }),
     );
 
-    await revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID });
+    await revertCmoUpdate({
+      projectId: "project-1",
+      userId: "user-1",
+      updateId: MESSAGE_ID,
+    });
 
     expect(strategyRows).toEqual([
       expect.objectContaining({ id: before.id, approvedByUserId: "user-2" }),
@@ -357,7 +365,11 @@ describe("weekly change and revert", () => {
     );
 
     await expect(
-      revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID }),
+      revertCmoUpdate({
+        projectId: "project-1",
+        userId: "user-1",
+        updateId: MESSAGE_ID,
+      }),
     ).rejects.toThrow("Nothing to revert");
     expect(messageUpdate).not.toHaveBeenCalled();
   });
@@ -384,7 +396,11 @@ describe("weekly change and revert", () => {
         revertedAt: "2026-10-05T10:00:00Z",
       }),
     );
-    await revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID });
+    await revertCmoUpdate({
+      projectId: "project-1",
+      userId: "user-1",
+      updateId: MESSAGE_ID,
+    });
     expect(strategyRows).toHaveLength(1);
     expect(messageUpdate).not.toHaveBeenCalled();
   });
@@ -393,7 +409,11 @@ describe("weekly change and revert", () => {
     cusoFind.mockResolvedValue(HIRE);
     messageFindFirst.mockResolvedValue(reportMessage({ kind: "daily" }));
     await expect(
-      revertCmoUpdate({ userId: "user-1", updateId: MESSAGE_ID }),
+      revertCmoUpdate({
+        projectId: "project-1",
+        userId: "user-1",
+        updateId: MESSAGE_ID,
+      }),
     ).rejects.toThrow("Nothing to revert");
   });
 });
