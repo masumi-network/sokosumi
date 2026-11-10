@@ -14,6 +14,8 @@ export type CmoPlanOfferVerdict = "ok" | "drift" | "unavailable" | "skipped";
 export interface CmoPlanReview {
   /** Which save of the turn that landed this was, from 1. */
   save: number;
+  /** The save was part calendar: a turn's first one is always reviewed. */
+  calendar: boolean;
   mainOffer: CmoPlanOfferVerdict;
   problems: string[];
 }

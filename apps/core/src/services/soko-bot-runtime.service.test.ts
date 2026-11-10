@@ -11058,8 +11058,14 @@ describe("CMO record saves", () => {
 
   it("reviews the first four saves that landed, so refusals never use the reviews up", async () => {
     const service = new SokoBotRuntimeService();
-    const review = (landedBefore: number) => {
+    const review = (
+      landedBefore: number,
+      calendarSent = false,
+      calendarsBefore = 0,
+    ) => {
       toolCallCountMock.mockResolvedValueOnce(landedBefore);
+      if (calendarSent)
+        toolCallCountMock.mockResolvedValueOnce(calendarsBefore);
       return service["reviewCmoPlan"](
         owner as never,
         {
@@ -11081,6 +11087,7 @@ describe("CMO record saves", () => {
             questions: [],
           } as never,
           planSent: false,
+          calendarSent,
         },
       );
     };
@@ -11095,6 +11102,22 @@ describe("CMO record saves", () => {
       },
     });
     await expect(review(4)).resolves.toBeNull();
+    // A plan saved in parts lands its calendar last: the first calendar save
+    // of the turn is always reviewed, however many saves came before it.
+    await expect(review(6, true, 0)).resolves.toMatchObject({
+      save: 7,
+      calendar: true,
+    });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+        result: { path: ["review", "calendar"], equals: true },
+      },
+    });
+    await expect(review(6, true, 1)).resolves.toBeNull();
   });
 
   it("saves the Brand Brain to Cuso's Project", async () => {

@@ -5724,22 +5724,36 @@ export class SokoBotRuntimeService {
       approved: boolean;
       strategy: MarketingStrategyPlan | null;
       planSent: boolean;
+      /** This save is part calendar. */
+      calendarSent: boolean;
     },
   ): Promise<CmoPlanReview | null> {
     const { strategy } = plan;
     if (!strategy || plan.approved) return null;
-    // Only saves that landed count: a refused save saved nothing to review,
-    // and a plan saved in parts would otherwise run out before its calendar.
-    const landed = await prisma.sokoBotToolCall.count({
-      where: {
-        turnId: authorized.turn.id,
-        capability: "save_strategy",
-        status: "COMPLETED",
-        NOT: { toolCallId: input.toolCallId },
-      },
-    });
-    const saves = landed + 1;
-    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
+    // Only saves that landed count: a refused save saved nothing to review.
+    const landedBefore = {
+      turnId: authorized.turn.id,
+      capability: "save_strategy",
+      status: "COMPLETED" as const,
+      NOT: { toolCallId: input.toolCallId },
+    };
+    const saves =
+      (await prisma.sokoBotToolCall.count({ where: landedBefore })) + 1;
+    // A plan saved in parts lands its calendar last, so the turn's first
+    // part calendar save is reviewed however many saves came before it.
+    if (
+      saves > CMO_PLAN_REVIEWS_PER_TURN &&
+      (!plan.calendarSent ||
+        (await prisma.sokoBotToolCall.count({
+          // The review, not the input: a calendar's input is too long to
+          // keep whole, so its part is not stored.
+          where: {
+            ...landedBefore,
+            result: { path: ["review", "calendar"], equals: true },
+          },
+        })) > 0)
+    )
+      return null;
     const problems = cmoPlanProblems(strategy);
     const bot = plan.planSent
       ? await prisma.sokoBot.findUnique({
@@ -5764,7 +5778,12 @@ export class SokoBotRuntimeService {
         );
       }
     }
-    const review = { save: saves, mainOffer, problems };
+    const review = {
+      save: saves,
+      calendar: plan.calendarSent,
+      mainOffer,
+      problems,
+    };
     tryUseLogger()?.set({
       cmoPlanReview: {
         sokoBotId: authorized.turn.sokoBotId,
@@ -5895,6 +5914,7 @@ export class SokoBotRuntimeService {
             approved,
             strategy: stored,
             planSent: sent.summary !== undefined,
+            calendarSent: part === "calendar",
           });
           // Once the plan runs, the drafts are checked against the copy rules,
           // a filed piece's words as sent (the calendar holds only its file).

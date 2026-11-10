@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
-import { commentChecks, monthPlanFromTomorrow } from "./eval-cmo-runner";
+import { cmoPlanRuleProblems } from "@/services/cmo-plan-review.service";
+import {
+  changeRequestPlan,
+  commentChecks,
+  monthPlanFromTomorrow,
+} from "./eval-cmo-runner";
 
 describe("commentChecks", () => {
   const ids = {
@@ -108,5 +113,21 @@ describe("monthPlanFromTomorrow", () => {
       },
     ]);
     expect(moved.summary).toBe("Plan");
+  });
+});
+
+describe("changeRequestPlan", () => {
+  it("gives the change request a month with LinkedIn three times a week that keeps every hard rule", () => {
+    const plan = changeRequestPlan(new Date("2026-11-09T04:00:00Z"));
+    const linkedin = plan.calendar.filter(
+      (entry) => entry.channel === "linkedin",
+    );
+    expect(linkedin).toHaveLength(12);
+    expect(plan.channels.find((c) => c.channel === "linkedin")?.cadence).toBe(
+      "3 posts a week",
+    );
+    expect(plan.calendar[0]?.date).toBe("2026-11-10");
+    expect(plan.calendar.at(-1)?.date).toBe("2026-12-05");
+    expect(cmoPlanRuleProblems(plan)).toEqual([]);
   });
 });

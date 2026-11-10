@@ -32,6 +32,7 @@ import {
 } from "./eval-cmo-cases";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
+import monthPlans from "./fixtures/cmo-month-plans.json";
 
 /** Research reads a whole site; a plan is one long turn. */
 const CMO_TURN_TIMEOUT_MS = 45 * 60_000;
@@ -116,6 +117,12 @@ async function cusoIsBusy(lane: EvalLaneRecord) {
   );
 }
 
+function brand(name: string) {
+  const found = CMO_EVAL_BRANDS.find((candidate) => candidate.name === name);
+  if (!found) throw new Error(`No CMO eval brand ${name}`);
+  return found;
+}
+
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
 async function pointCusoAt(
   lane: EvalLaneRecord,
@@ -142,6 +149,91 @@ async function pointCusoAt(
   return cuso;
 }
 
+/** `count` slots, each item in its share of them, spread evenly. */
+function spread<T extends { share: number }>(items: T[], count: number): T[] {
+  const slots = items.flatMap((item) => {
+    const times = (item.share / 100) * count;
+    return Array.from({ length: Math.round(times) }, (_, n) => ({
+      item,
+      at: (n + 0.5) / times,
+    }));
+  });
+  return slots.sort((a, b) => a.at - b.at).map((slot) => slot.item);
+}
+
+/**
+ * cal.com's month with LinkedIn three times a week from tomorrow, so the
+ * change request always has pieces to cut, whatever an earlier case left.
+ */
+export function changeRequestPlan(now: Date): MarketingStrategyPlan {
+  const frozen = (monthPlans as Record<string, unknown>)[
+    CMO_COMMENT_BRAND
+  ] as MarketingStrategyPlan;
+  const [post, article] = [
+    frozen.calendar.find((entry) => entry.channel === "linkedin"),
+    frozen.calendar.find((entry) => entry.channel === "seo"),
+  ];
+  if (!post || !article) throw new Error("cal.com's plan lost its pieces");
+  // Four weeks from tomorrow: LinkedIn on days 1, 3 and 5, SEO on 2 and 4.
+  const slots = [0, 1, 2, 3].flatMap((week) =>
+    [1, 2, 3, 4, 5].map((day) => ({
+      week,
+      day,
+      entry: day % 2 ? post : article,
+    })),
+  );
+  const approaches = spread(frozen.mix, slots.length);
+  const pillars = spread(frozen.pillars, slots.length);
+  return {
+    ...frozen,
+    channels: frozen.channels
+      .filter((channel) => channel.channel !== "google_ads")
+      .map((channel) =>
+        channel.channel === "linkedin"
+          ? { ...channel, cadence: "3 posts a week" }
+          : channel,
+      ),
+    funnel: frozen.funnel.map((stage) => ({
+      ...stage,
+      plays: stage.plays.filter((play) => play.channel !== "google_ads"),
+    })),
+    campaigns: frozen.campaigns?.map((campaign) => ({
+      ...campaign,
+      channels: campaign.channels?.filter(
+        (channel) => channel !== "google_ads",
+      ),
+    })),
+    beforeAfter: frozen.beforeAfter
+      ?.filter((row) => row.channel !== "google_ads")
+      .map((row) =>
+        row.channel === "linkedin" ? { ...row, after: "3 posts weekly" } : row,
+      ),
+    calendar: slots.map(({ week, day, entry }, index) => ({
+      ...entry,
+      id: `${entry.channel}-w${week + 1}-${day}`,
+      date: new Date(now.getTime() + (week * 7 + day) * DAY_MS)
+        .toISOString()
+        .slice(0, 10),
+      title: `${entry.title} (week ${week + 1}, ${index + 1})`,
+      approach: approaches[index]?.approach ?? entry.approach,
+      pillar: pillars[index]?.name ?? entry.pillar,
+    })),
+  };
+}
+
+/** The lane's Cuso on cal.com with the change request's month, waiting for approval. */
+export async function prepareCmoPlan(lane: EvalLaneRecord): Promise<void> {
+  const brain = (brandBrains as Record<string, unknown>)[CMO_COMMENT_BRAND];
+  await pointCusoAt(lane, brand(CMO_COMMENT_BRAND), brain ?? null);
+  await prisma.marketingStrategy.create({
+    data: {
+      projectId: lane.cusoProjectId,
+      plan: changeRequestPlan(new Date()) as object,
+      authorSokoBotId: lane.cusoBotId,
+    },
+  });
+}
+
 /**
  * A published Instagram post with the eval comments under it, on the lane's
  * Cuso Project pointed at the comment brand. The post has no external id,
@@ -151,10 +243,8 @@ async function pointCusoAt(
 export async function prepareCmoComments(
   lane: EvalLaneRecord,
 ): Promise<Record<string, string>> {
-  const brand = CMO_EVAL_BRANDS.find((b) => b.name === CMO_COMMENT_BRAND);
-  if (!brand) throw new Error(`No CMO eval brand ${CMO_COMMENT_BRAND}`);
   const brain = (brandBrains as Record<string, unknown>)[CMO_COMMENT_BRAND];
-  await pointCusoAt(lane, brand, brain ?? null);
+  await pointCusoAt(lane, brand(CMO_COMMENT_BRAND), brain ?? null);
   await prisma.socialComment.deleteMany({
     where: { projectId: lane.cusoProjectId },
   });
