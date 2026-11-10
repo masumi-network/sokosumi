@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
-import { InviteOnly } from "../components/invite-only";
 import { NameSetup } from "../components/name-setup";
 import { Onboarding } from "../components/onboarding";
 import { SignedIn } from "../components/signed-in";
@@ -63,6 +62,7 @@ type Page = ReactElement<{
   organizations?: { id: string; name: string }[];
   cusos?: { projectId: string }[];
   mayHire?: boolean;
+  inviteOnly?: boolean;
   overview?: { projectId: string };
 }>;
 
@@ -235,7 +235,9 @@ describe("CMO home page", () => {
     it("shows the invite-only page instead of the hire form when they have no Cuso", async () => {
       loadCusos.mockResolvedValue({ cusos: [], mayHire: false });
 
-      expect((await render()).type).toBe(InviteOnly);
+      const page = await render();
+      expect(page.type).toBe(SignedIn);
+      expect(page.props.inviteOnly).toBe(true);
       expect(getUsersByIdOrganizations).not.toHaveBeenCalled();
     });
 
@@ -256,7 +258,9 @@ describe("CMO home page", () => {
         mayHire: false,
       });
 
-      expect((await open({ hire: "1" })).type).toBe(InviteOnly);
+      const page = await open({ hire: "1" });
+      expect(page.type).toBe(SignedIn);
+      expect(page.props.inviteOnly).toBe(true);
     });
 
     it("shows the picker without hiring", async () => {

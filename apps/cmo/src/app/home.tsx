@@ -10,7 +10,6 @@ import { redirect } from "next/navigation";
 
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
-import { InviteOnly } from "../components/invite-only";
 import { NameSetup } from "../components/name-setup";
 import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
@@ -139,10 +138,10 @@ async function openedScreen(input: {
     }
   }
   const { cusos, mayHire } = await loadCusos();
-  const hire: OpenedScreen = { kind: mayHire ? "hire" : "inviteOnly" };
-  if (input.hire) return hire;
+  const hireScreen: OpenedScreen = { kind: mayHire ? "hire" : "inviteOnly" };
+  if (input.hire) return hireScreen;
   const [newest] = cusos;
-  if (!newest) return hire;
+  if (!newest) return hireScreen;
   if (input.pick || input.named || cusos.length > 1) {
     return { kind: "picker", cusos, mayHire };
   }
@@ -226,7 +225,14 @@ export async function Home({ searchParams, view }: HomeProps) {
     return <CusoPicker cusos={opened.cusos} mayHire={opened.mayHire} />;
   }
   if (opened.kind === "inviteOnly") {
-    return <InviteOnly email={session.user.email} signOut={signOut} />;
+    return (
+      <SignedIn
+        name={session.user.name}
+        email={session.user.email}
+        signOut={signOut}
+        inviteOnly
+      />
+    );
   }
   if (opened.kind === "hire") {
     const { firstName, lastName } = person.data.data;

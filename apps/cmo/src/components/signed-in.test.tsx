@@ -81,3 +81,19 @@ it.each(["", "   ", "\t\n"])(
     expect(html.split("ada@example.com")).toHaveLength(2);
   },
 );
+
+it("says CMO is invite-only in place of the hire form, with Sign out", () => {
+  const html = renderToStaticMarkup(
+    <SignedIn
+      name="Ada Lovelace"
+      email="ada@example.com"
+      signOut={async () => {}}
+      inviteOnly
+    />,
+  );
+
+  expect(html).toContain("<h1>CMO is invite-only for now.</h1>");
+  expect(html).not.toContain("You are in.");
+  expect(html).toContain('<p class="account-name">Ada Lovelace</p>');
+  expect(html).toContain("Sign out");
+});
