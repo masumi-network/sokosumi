@@ -140,6 +140,10 @@ _Avoid_: Schedule, scheduled task (for a single Task), once mode
 The day a Task should be done by: a calendar day with no time, set on the Task page in any status except Grant pending (Web only for now; the CLI and Apple apps do not show it). Past that day, by the reader's own time zone, an unfinished Task reads **Overdue**; a Completed or Canceled one never does. It does not start, remind or move the Task, and a duplicate does not copy it. Distinct from Run at, which is when the Task starts.
 _Avoid_: Deadline (in UI copy), due time
 
+**Archived Task**:
+A Task taken off the board with Archive. Its record stays; the Tasks page's Archived view lists the archived Tasks of the active workspace the reader can see, latest first, and Restore puts one back (same access as Archive). A Task that was Queued, Ready or Grant pending comes back as a Draft without its Run at, so restoring never starts work; Draft, Completed, Failed and Canceled keep their status. Notifications read at archive stay read.
+_Avoid_: Deleted task, trash
+
 **Task Schedule**:
 A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
 _Avoid_: Recurring task, series task, template Task, automation

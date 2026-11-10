@@ -554,6 +554,57 @@ export async function archiveTaskRecord(
   }
 }
 
+/** Statuses that come back unchanged; nothing runs from them. */
+const RESTORE_KEEPS_STATUS: readonly TaskStatus[] = [
+  TaskStatus.DRAFT,
+  TaskStatus.CANCELED,
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+];
+
+/**
+ * Brings an archived Task back onto the board after the caller has
+ * established manage access. A Task that was waiting to run (Queued, Ready,
+ * waiting for a vendor grant) comes back as a Draft without its Run at, so
+ * restoring never starts work or spends credits on its own. Notifications
+ * marked read at archive stay read.
+ */
+export async function restoreTaskRecord(
+  tx: Prisma.TransactionClient,
+  task: Task,
+  actor: TaskDomainActor,
+): Promise<void> {
+  const keepStatus = RESTORE_KEEPS_STATUS.includes(task.status);
+  const result = await tx.task.updateMany({
+    where: {
+      id: task.id,
+      archivedAt: { not: null },
+      updatedAt: task.updatedAt,
+    },
+    data: {
+      archivedAt: null,
+      ...(keepStatus
+        ? {}
+        : {
+            status: TaskStatus.DRAFT,
+            runAt: null,
+            pendingVendorGrantId: null,
+            grantResumeStatus: null,
+          }),
+    },
+  });
+  if (result.count !== 1)
+    throw conflict("Task was modified concurrently; retry restore");
+  await tx.taskEvent.create({
+    data: {
+      taskId: task.id,
+      comment: "Task restored",
+      ...(keepStatus ? {} : { status: TaskStatus.DRAFT }),
+      ...eventActorFields(actor),
+    },
+  });
+}
+
 /**
  * Canonical metadata/assignment operation. Soko Bot stays inside its bounded
  * pre-execution state ceiling; owner route keeps existing editable-state rules.

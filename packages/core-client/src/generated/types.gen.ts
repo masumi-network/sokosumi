@@ -81455,6 +81455,10 @@ export type GetTasksData = {
          */
         dueOnTo?: string;
         /**
+         * true lists archived Tasks instead, most recently archived first unless sort is given. People only; coworkers and Soko Bots get 400.
+         */
+        archived?: 'true' | 'false';
+        /**
          * Filter tasks by assignee coworker ID
          */
         assigneeId?: string;
@@ -84702,6 +84706,96 @@ export type PutTasksByIdWorkspaceResponses = {
 };
 
 export type PutTasksByIdWorkspaceResponse = PutTasksByIdWorkspaceResponses[keyof PutTasksByIdWorkspaceResponses];
+
+export type PostTasksByIdRestoreData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/restore';
+};
+
+export type PostTasksByIdRestoreErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdRestoreError = PostTasksByIdRestoreErrors[keyof PostTasksByIdRestoreErrors];
+
+export type PostTasksByIdRestoreResponses = {
+    /**
+     * Restore task
+     */
+    200: {
+        data: Task;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdRestoreResponse = PostTasksByIdRestoreResponses[keyof PostTasksByIdRestoreResponses];
 
 export type GetTasksByIdEventsData = {
     body?: never;
