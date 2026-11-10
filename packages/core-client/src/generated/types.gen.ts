@@ -3013,6 +3013,17 @@ export type ChatPerson = {
     image: string | null;
 };
 
+export type ChatRecentSokoBotMessage = {
+    roomId: string;
+    messageId: string;
+    /**
+     * The Thread's parent when the message is a reply.
+     */
+    parentMessageId: string | null;
+    content: string;
+    createdAt: Date;
+};
+
 export type ChatRoom = {
     /**
      * Room ID
@@ -23481,6 +23492,85 @@ export type ListChatPeopleResponses = {
 };
 
 export type ListChatPeopleResponse = ListChatPeopleResponses[keyof ListChatPeopleResponses];
+
+export type GetChatsRecentData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/recent';
+};
+
+export type GetChatsRecentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRecentError = GetChatsRecentErrors[keyof GetChatsRecentErrors];
+
+export type GetChatsRecentResponses = {
+    /**
+     * The caller's recent Soko Bot chats
+     */
+    200: {
+        data: Array<ChatRecentSokoBotMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRecentResponse = GetChatsRecentResponses[keyof GetChatsRecentResponses];
 
 export type GetChatsRoomsData = {
     body?: never;

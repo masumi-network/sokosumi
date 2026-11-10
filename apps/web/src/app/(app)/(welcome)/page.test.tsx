@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const getMine = vi.fn();
 const listRooms = vi.fn();
 const listMessages = vi.fn();
+const listRecentSokoBotMessages = vi.fn();
 const sokoBotHome = vi.fn();
 const needsYouPanel = vi.fn();
 const chatLanding = vi.fn();
@@ -39,6 +40,7 @@ vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     listRooms: (...args: unknown[]) => listRooms(...args),
     listMessages: (...args: unknown[]) => listMessages(...args),
+    listRecentSokoBotMessages: () => listRecentSokoBotMessages(),
   },
 }));
 vi.mock("@/lib/services/coworker.service", () => ({
@@ -117,6 +119,15 @@ describe("WelcomePage", () => {
         },
       ],
     });
+    listRecentSokoBotMessages.mockResolvedValue([
+      {
+        roomId: "room-1",
+        messageId: "reply-1",
+        parentMessageId: "parent-1",
+        content: "Plan my week",
+        createdAt: new Date(),
+      },
+    ]);
     listMessages.mockResolvedValue({
       messages: [
         {
@@ -181,14 +192,13 @@ describe("WelcomePage", () => {
     await renderPage();
     expect(screen.getByText("bot home")).toBeTruthy();
     expect(listRooms).toHaveBeenCalledWith();
-    expect(listMessages).toHaveBeenCalledWith("room-1", { limit: 20 });
     expect(sokoBotHome).toHaveBeenCalledWith(
       expect.objectContaining({
         roomId: "room-1",
         chats: [
           expect.objectContaining({
             roomId: "room-1",
-            messageId: "msg-1",
+            messageId: "reply-1",
             title: "Plan my week",
           }),
         ],

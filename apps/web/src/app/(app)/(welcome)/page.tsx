@@ -26,10 +26,9 @@ import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
-  recentSokoBotRooms,
   SOKO_BOT_HOME_TASK_LIMIT,
   type SokoBotHomeChat,
-  toSokoBotChat,
+  toSokoBotChats,
   toTeamDay,
 } from "./components/soko-bot-home-data";
 
@@ -47,39 +46,25 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * The bot's Direct (null when it has none yet or the read fails) and the
- * chats with a Soko Bot the reader took part in during the last day. Same
- * cached room list as the sidebar; messages only for the few rooms that
- * moved.
+ * chats with a Soko Bot the reader took part in during the last day. Core
+ * picks those chats; the room list is the sidebar's cached one.
  */
 async function loadSokoBotChats(
   sokoBotId: string,
-  userId: string,
-  organizationId: string | null,
 ): Promise<{ roomId: string | null; chats: SokoBotHomeChat[] }> {
-  const [{ rooms }, tChannels] = await Promise.all([
+  const [{ rooms }, recent, tChannels] = await Promise.all([
     chatRoomService.listRooms().catch(() => ({ rooms: [] })),
+    chatRoomService.listRecentSokoBotMessages().catch(() => []),
     getTranslations("App.Channels"),
   ]);
-  const now = new Date();
-  const chats = await Promise.all(
-    recentSokoBotRooms(rooms, organizationId, now).map((room) =>
-      chatRoomService
-        .listMessages(room.id, { limit: 20 })
-        .then(({ messages }) =>
-          toSokoBotChat(
-            room,
-            messages,
-            userId,
-            now,
-            tChannels("MentionAll.label"),
-          ),
-        )
-        .catch(() => null),
-    ),
-  );
   return {
     roomId: findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null,
-    chats: chats.filter((chat) => chat !== null),
+    chats: toSokoBotChats(
+      recent,
+      rooms,
+      tChannels("MentionAll.label"),
+      tChannels("SavedMessages.untitled"),
+    ),
   };
 }
 
@@ -140,7 +125,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     // In an org the day is the team's; in a personal workspace, the user's.
     const scope = activeOrganizationId ? "workspace" : "owned";
     const [{ roomId, chats }, summary, recent] = await Promise.all([
-      loadSokoBotChats(sokoBot.id, userId, activeOrganizationId),
+      loadSokoBotChats(sokoBot.id),
       taskService.getActivitySummary({ scope }),
       taskService
         .listTasks({

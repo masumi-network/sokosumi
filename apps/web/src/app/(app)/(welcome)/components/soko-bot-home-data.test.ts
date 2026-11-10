@@ -1,10 +1,9 @@
-import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
+import type { ChatRoom } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
 import {
   findSokoBotDirectRoom,
-  recentSokoBotRooms,
-  toSokoBotChat,
+  toSokoBotChats,
   toTeamDay,
 } from "./soko-bot-home-data";
 
@@ -76,105 +75,61 @@ describe("toTeamDay", () => {
   });
 });
 
-describe("recentSokoBotRooms", () => {
-  const now = new Date("2026-10-24T12:00:00Z");
-  const at = (hoursAgo: number) =>
-    new Date(now.getTime() - hoursAgo * 3_600_000);
+describe("toSokoBotChats", () => {
+  const lena = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+  const roomAt = new Date("2026-10-24T11:00:00Z");
   const rooms = [
-    room({ id: "bot-dm", organizationId: null, updatedAt: at(2) }),
-    room({ id: "newer", organizationId: null, updatedAt: at(1) }),
-    room({ id: "old", organizationId: null, updatedAt: at(25) }),
+    room({ id: "dm", updatedAt: roomAt }),
     room({
-      id: "people",
-      organizationId: null,
-      updatedAt: at(1),
-      sokoBotMembers: [],
+      id: "thread-room",
+      updatedAt: new Date("2026-10-23T08:00:00Z"),
+      userMembers: [{ id: lena, name: "Lena" }] as never,
     }),
-    room({ id: "other-org", organizationId: "org-2", updatedAt: at(1) }),
   ];
+  const row = (roomId: string, extra = {}) => ({
+    roomId,
+    messageId: `${roomId}-msg`,
+    parentMessageId: null,
+    content: `asked in ${roomId}`,
+    createdAt: new Date("2026-10-24T10:00:00Z"),
+    ...extra,
+  });
 
-  it("keeps bot rooms of this workspace that moved in the last day, newest first", () => {
-    expect(recentSokoBotRooms(rooms, null, now).map((r) => r.id)).toEqual([
-      "newer",
-      "bot-dm",
+  it("keeps Core's order and opens the exact message, a Thread reply included", () => {
+    const chats = toSokoBotChats(
+      [
+        row("thread-room", {
+          messageId: "reply-1",
+          parentMessageId: "parent-1",
+          createdAt: new Date("2026-10-24T11:30:00Z"),
+        }),
+        row("dm"),
+      ],
+      rooms,
+      "Everyone",
+      "Message without text",
+    );
+    expect(chats.map((chat) => [chat.roomId, chat.messageId])).toEqual([
+      ["thread-room", "reply-1"],
+      ["dm", "dm-msg"],
     ]);
+    // A reply leaves the room's timestamp alone: the row shows the reply's.
+    expect(chats[0]?.at).toEqual(new Date("2026-10-24T11:30:00Z"));
+    expect(chats[1]?.at).toEqual(roomAt);
   });
 
-  it("keeps another workspace's rooms out and lists a room once", () => {
+  it("names mentions, labels a message with no text, and drops a room the list lacks", () => {
     expect(
-      recentSokoBotRooms([...rooms, rooms[4] as ChatRoom], "org-2", now).map(
-        (r) => r.id,
-      ),
-    ).toEqual(["other-org"]);
-  });
-
-  it("caps how many rooms get read", () => {
-    expect(recentSokoBotRooms(rooms, null, now, 1)).toHaveLength(1);
-  });
-});
-
-describe("toSokoBotChat", () => {
-  const now = new Date("2026-10-24T12:00:00Z");
-  const bot = room({
-    id: "bot-dm",
-    updatedAt: new Date("2026-10-24T11:00:00Z"),
-  });
-  const message = (
-    id: string,
-    hoursAgo: number,
-    sender: ChatRoomMessage["sender"],
-    content = `text ${id}`,
-    deletedAt: Date | null = null,
-  ) =>
-    ({
-      id,
-      content,
-      sender,
-      deletedAt,
-      createdAt: new Date(now.getTime() - hoursAgo * 3_600_000),
-    }) as ChatRoomMessage;
-  const me = { type: "user", user: { id: "me" } } as ChatRoomMessage["sender"];
-  const other = {
-    type: "user",
-    user: { id: "u2" },
-  } as ChatRoomMessage["sender"];
-  const sokoBot = {
-    type: "sokoBot",
-    sokoBot: { id: "bot" },
-  } as ChatRoomMessage["sender"];
-
-  it("titles the chat with the reader's newest message of the day and opens there", () => {
-    expect(
-      toSokoBotChat(
-        bot,
+      toSokoBotChats(
         [
-          message("a", 3, me),
-          message("b", 2, me),
-          message("c", 1, sokoBot),
-          message("d", 0.5, other),
-          message("e", 0.2, me, "gone", new Date()),
+          row("thread-room", { content: `ask @${lena}` }),
+          row("dm", { content: "" }),
+          row("gone"),
         ],
-        "me",
-        now,
+        rooms,
         "Everyone",
-      ),
-    ).toEqual({
-      roomId: "bot-dm",
-      messageId: "b",
-      title: "text b",
-      at: bot.updatedAt,
-    });
-  });
-
-  it("is no chat when only the bot spoke or the reader wrote over a day ago", () => {
-    expect(
-      toSokoBotChat(
-        bot,
-        [message("welcome", 1, sokoBot), message("old", 30, me)],
-        "me",
-        now,
-        "Everyone",
-      ),
-    ).toBeNull();
+        "Message without text",
+      ).map((chat) => chat.title),
+    ).toEqual(["ask @Lena", "Message without text"]);
   });
 });
