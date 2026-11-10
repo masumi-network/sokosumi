@@ -562,6 +562,9 @@ function DrivePageWorkspace({
      * the store and appear nowhere until they searched for something.
      */
     setCatalogReloadToken((token) => token + 1);
+    // Core moves a room's path with a rename or move of it or of a folder
+    // above it; stale paths would mark the wrong folder as a data room.
+    await queryClient.invalidateQueries({ queryKey: ["drive", "data-rooms"] });
   }
 
   const loadTasksItems = useCallback(async () => {

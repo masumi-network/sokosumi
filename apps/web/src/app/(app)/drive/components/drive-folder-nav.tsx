@@ -109,6 +109,24 @@ export function DriveFolderNav({
                   className="text-muted-foreground size-4"
                   aria-hidden
                 />
+                {/* Its own control, so the hint is reachable by keyboard even
+                    on the current folder, whose button is disabled. */}
+                {roomPaths.includes(path) ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="text-muted-foreground focus-visible:ring-ring flex size-6 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2"
+                        aria-label={t("dataRoom")}
+                      >
+                        <FolderLock className="size-4" aria-hidden />
+                      </button>
+                    </TooltipTrigger>
+                    {roomHint ? (
+                      <TooltipContent>{roomHint}</TooltipContent>
+                    ) : null}
+                  </Tooltip>
+                ) : null}
                 <Button
                   type="button"
                   variant="ghost"
@@ -119,13 +137,7 @@ export function DriveFolderNav({
                   title={path}
                   onClick={() => onSelect(path)}
                 >
-                  {roomPaths.includes(path) ? (
-                    <FolderLock className="size-4 shrink-0" aria-hidden />
-                  ) : null}
                   <span className="truncate">{segment}</span>
-                  {roomPaths.includes(path) ? (
-                    <span className="sr-only">{t("dataRoom")}</span>
-                  ) : null}
                 </Button>
               </span>
             );
