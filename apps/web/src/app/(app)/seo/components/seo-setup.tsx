@@ -11,6 +11,7 @@ import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import type { SeoSetup, SeoSetupState } from "./seo-setup-model";
 import { SeoStep, SeoStepList, type SeoStepMark } from "./seo-steps";
+import { useSearchConsoleConnected } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const TITLE_ID = "seo-setup-title";
@@ -40,6 +41,17 @@ export function SeoSetupCard({
   const t = useTranslations("App.Seo");
   const [page, connect, check] = setup.steps;
   const pages = model.data.scope.pageIds.length;
+  // A connected account with no saved statistics: the step asks for the sync, not for the account.
+  // Read only while the step offers the connection: its button reads the same key.
+  const offered = connect.state === "next" || connect.state === "open";
+  const sync = useSearchConsoleConnected(offered) && offered;
+  const connectTitle = t(
+    connect.state === "done"
+      ? "setup.connectDone"
+      : sync
+        ? "syncStatistics"
+        : STEP_TITLE.connect,
+  );
   const progress = t("setup.progress", {
     done: setup.done,
     total: setup.total,
@@ -73,7 +85,12 @@ export function SeoSetupCard({
         />
         {setup.next ? (
           <p className="text-sm">
-            {t("setup.next", { step: t(STEP_TITLE[setup.next]) })}
+            {t("setup.next", {
+              step:
+                setup.next === "connect"
+                  ? connectTitle
+                  : t(STEP_TITLE[setup.next]),
+            })}
           </p>
         ) : null}
       </header>
@@ -104,9 +121,7 @@ export function SeoSetupCard({
           heading="h4"
           mark={MARK[connect.state]}
           doneLabel={t("setup.done")}
-          title={t(
-            connect.state === "done" ? "setup.connectDone" : "setup.connect",
-          )}
+          title={connectTitle}
           body={t(
             connect.state === "done"
               ? "setup.connectDoneBody"
@@ -114,7 +129,9 @@ export function SeoSetupCard({
                 ? "setup.connectUnavailable"
                 : connect.state === "waiting"
                   ? "setup.waiting"
-                  : "setup.connectBody",
+                  : sync
+                    ? "setup.syncBody"
+                    : "setup.connectBody",
           )}
         >
           {connect.state === "unavailable" ||

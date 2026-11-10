@@ -40,6 +40,7 @@ import { seoCheckRunning } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
+import { useSearchConsoleConnected } from "./use-seo-connection";
 import { useSeoSetup } from "./use-seo-setup";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -78,6 +79,10 @@ function StepRow({
   const bodyId = useId();
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const variant = first ? "primary" : "outline";
+  // A connected account with nothing synced: the step asks for the sync, not for the account.
+  const searchStep =
+    step.kind === "connect" && step.provider === "search_console";
+  const sync = useSearchConsoleConnected(searchStep) && searchStep;
   const [body, control] =
     step.kind === "measure"
       ? [
@@ -172,7 +177,11 @@ function StepRow({
               ]
             : step.kind === "connect"
               ? [
-                  t(`agent.steps.connect.${step.provider}`),
+                  t(
+                    sync
+                      ? "agent.steps.sync"
+                      : `agent.steps.connect.${step.provider}`,
+                  ),
                   step.provider === "search_console" ? (
                     <SeoGoogleConnection
                       key="connect"

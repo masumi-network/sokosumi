@@ -55,6 +55,17 @@ export function useSeoConnectionStatus(
   return { status, queryKey };
 }
 
+/**
+ * True when the Search Console account is connected. Saved statistics are a
+ * different fact: an account can be connected with nothing synced yet.
+ */
+export function useSearchConsoleConnected(enabled = true) {
+  return (
+    useSeoConnectionStatus("search_console", enabled).status.data?.status ===
+    "connected"
+  );
+}
+
 export function useSeoConnection(
   provider: SeoConnectionProvider,
   onConnected?: () => void,

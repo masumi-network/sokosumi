@@ -34,6 +34,7 @@ import {
   SeoSection,
 } from "./seo-shared";
 import { savedSeoStatistics, seoQueryPeriod } from "./seo-statistics-model";
+import { useSearchConsoleConnected } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Fewer queries than this read faster as rows than as position buckets. */
@@ -98,6 +99,9 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
         new Date(source.observedAt).getTime(),
   );
   const canSync = model.data.availableActions.canSyncMetrics;
+  // Only the empty card asks: a connected account with nothing synced is not "not connected".
+  const connected = useSearchConsoleConnected(!source && !saved);
+  const empty = saved ? "notLoaded" : connected ? "notSynced" : "notConnected";
   const rows = sortQueryRows(model.filteredQueries, sort);
   const buckets = positionBuckets(rows);
   const hidden = hiddenImpressions(model.data);
@@ -125,8 +129,8 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
       ) : null}
       {!source ? (
         <SeoEmpty
-          title={t(saved ? "queries.notLoaded" : "queries.notConnected")}
-          body={t(saved ? "queries.notLoadedBody" : "queries.notConnectedBody")}
+          title={t(`queries.${empty}`)}
+          body={t(`queries.${empty}Body`)}
         >
           {canSync && saved ? (
             <Button
@@ -143,7 +147,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
               variant="outline"
               onClick={() => model.openStatistics("search_console")}
             >
-              {t("queries.connect")}
+              {t(connected ? "syncStatistics" : "queries.connect")}
             </Button>
           ) : null}
         </SeoEmpty>

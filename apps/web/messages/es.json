@@ -10951,6 +10951,7 @@
         "timeZone": "Zona horaria del informe: {timeZone}",
         "trafficSetup": "Consulta el rendimiento de estas páginas",
         "trafficSetupBody": "Conecta Google Analytics para ver visitas y páginas vistas, o Search Console para ver clics de búsqueda, impresiones y posiciones.",
+        "trafficSyncBody": "Search Console está conectado. Sincroniza las estadísticas para ver clics de búsqueda, impresiones y posiciones. Google Analytics añade visitas y páginas vistas.",
         "recentChecks": "Comprobaciones recientes",
         "noMeasuredReports": "No hay informes medidos en estas fechas de actividad",
         "noMeasuredReportsBody": "Borra las fechas de actividad para ver informes de otras fechas. Las estadísticas conservan su propio periodo de informe.",
@@ -11008,7 +11009,7 @@
         "title": "Palabras clave seguidas",
         "edit": "Editar palabra clave",
         "empty": "Todavía no hay palabras clave seguidas",
-        "emptyBody": "Sigue una búsqueda de la lista de arriba o ejecuta una comprobación para encontrar palabras clave.",
+        "emptyBody": "Sigue una búsqueda en la pestaña Tráfico o ejecuta una comprobación para encontrar palabras clave.",
         "add": "Seguir una palabra clave",
         "keyword": "Palabra clave",
         "market": "Mercado",
@@ -11389,6 +11390,8 @@
         "notLoadedBody": "Tus estadísticas guardadas son anteriores a la recogida de búsquedas. Sincroniza las estadísticas para cargarlas.",
         "notConnected": "Search Console no está conectado",
         "notConnectedBody": "Conecta Search Console para ver qué búsquedas muestran estas páginas.",
+        "notSynced": "Aún no hay estadísticas de búsqueda",
+        "notSyncedBody": "Search Console está conectado. Sincroniza las estadísticas para ver qué búsquedas muestran estas páginas.",
         "connect": "Conectar Search Console",
         "query": "Consulta",
         "clicks": "Clics de búsqueda",
@@ -11434,6 +11437,7 @@
             "search_console": "Conecta Google para medir clics, impresiones y las búsquedas que muestran estas páginas. Google Analytics añade visitas y páginas vistas y es opcional.",
             "ga4": "Conecta Google Analytics para medir visitas y páginas vistas."
           },
+          "sync": "Search Console está conectado. Sincroniza las estadísticas para medir clics, impresiones y las búsquedas que muestran estas páginas.",
           "competitors": {
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
@@ -11519,6 +11523,7 @@
         "connect": "Conectar Google",
         "connectDone": "Search Console conectado",
         "connectBody": "Conecta tu cuenta de Google, elige la propiedad de tu sitio y sincroniza. Después verás las búsquedas, los clics y las posiciones de estas páginas. Google Analytics es opcional.",
+        "syncBody": "Search Console está conectado. Elige la propiedad de tu sitio y sincroniza. Después verás las búsquedas, los clics y las posiciones de estas páginas.",
         "connectDoneBody": "Las estadísticas de búsqueda de estas páginas están en la pestaña Tráfico.",
         "connectUnavailable": "Las estadísticas no están disponibles en este espacio de trabajo. Omite este paso e inicia la primera comprobación.",
         "check": "Inicia la primera comprobación",

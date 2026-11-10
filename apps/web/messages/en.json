@@ -10951,6 +10951,7 @@
         "timeZone": "Reporting time zone: {timeZone}",
         "trafficSetup": "See how these pages perform",
         "trafficSetupBody": "Connect Google Analytics for visits and page views, or Search Console for search clicks, impressions and rankings.",
+        "trafficSyncBody": "Search Console is connected. Sync statistics to see search clicks, impressions and rankings. Google Analytics adds visits and page views.",
         "recentChecks": "Recent checks",
         "noMeasuredReports": "No reports measured in these activity dates",
         "noMeasuredReportsBody": "Clear activity dates to see reports from other dates. Statistics keep their own reporting period.",
@@ -11008,7 +11009,7 @@
         "title": "Tracked keywords",
         "edit": "Edit keyword",
         "empty": "No tracked keywords yet",
-        "emptyBody": "Track a search from the list above, or run a check to find keywords.",
+        "emptyBody": "Track a search in the Traffic tab, or run a check to find keywords.",
         "add": "Track a keyword",
         "keyword": "Keyword",
         "market": "Market",
@@ -11389,6 +11390,8 @@
         "notLoadedBody": "Your saved statistics are from before searches were collected. Sync statistics to load them.",
         "notConnected": "Search Console is not connected",
         "notConnectedBody": "Connect Search Console to see which searches show these pages.",
+        "notSynced": "No search statistics yet",
+        "notSyncedBody": "Search Console is connected. Sync statistics to see which searches show these pages.",
         "connect": "Connect Search Console",
         "query": "Query",
         "clicks": "Search clicks",
@@ -11434,6 +11437,7 @@
             "search_console": "Connect Google to measure clicks, impressions and the searches that show these pages. Google Analytics adds visits and page views and is optional.",
             "ga4": "Connect Google Analytics to measure visits and page views."
           },
+          "sync": "Search Console is connected. Sync statistics to measure clicks, impressions and the searches that show these pages.",
           "competitors": {
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
@@ -11519,6 +11523,7 @@
         "connect": "Connect Google",
         "connectDone": "Search Console connected",
         "connectBody": "Connect your Google account, choose the property of your site, then sync. You then see the searches, clicks and positions of these pages. Google Analytics adds visits and page views and is optional.",
+        "syncBody": "Search Console is connected. Choose the property of your site, then sync. You then see the searches, clicks and positions of these pages.",
         "connectDoneBody": "Search statistics for these pages are in the Traffic tab.",
         "connectUnavailable": "Statistics are unavailable in this workspace. Skip this step and run the first check.",
         "check": "Run the first check",

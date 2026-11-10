@@ -10951,6 +10951,7 @@
         "timeZone": "Zeitzone des Berichts: {timeZone}",
         "trafficSetup": "So entwickeln sich diese Seiten",
         "trafficSetupBody": "Verbinde Google Analytics für Besuche und Seitenaufrufe oder Search Console für Suchklicks, Impressionen und Rankings.",
+        "trafficSyncBody": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um Suchklicks, Impressionen und Rankings zu sehen. Google Analytics ergänzt Besuche und Seitenaufrufe.",
         "recentChecks": "Letzte Prüfungen",
         "noMeasuredReports": "Keine Berichte in diesem Aktivitätszeitraum gemessen",
         "noMeasuredReportsBody": "Entferne die Aktivitätsdaten, um Berichte aus anderen Zeiträumen zu sehen. Statistiken behalten ihren eigenen Berichtszeitraum.",
@@ -11008,7 +11009,7 @@
         "title": "Verfolgte Keywords",
         "edit": "Keyword bearbeiten",
         "empty": "Noch keine verfolgten Keywords",
-        "emptyBody": "Verfolge eine Suchanfrage aus der Liste oben oder starte eine Prüfung, um Keywords zu finden.",
+        "emptyBody": "Verfolge eine Suchanfrage im Tab „Zugriffe“ oder starte eine Prüfung, um Keywords zu finden.",
         "add": "Keyword verfolgen",
         "keyword": "Keyword",
         "market": "Markt",
@@ -11389,6 +11390,8 @@
         "notLoadedBody": "Deine gespeicherten Statistiken stammen aus der Zeit vor dem Abruf von Suchanfragen. Synchronisiere die Statistiken, um sie zu laden.",
         "notConnected": "Search Console ist nicht verbunden",
         "notConnectedBody": "Verbinde die Search Console, um zu sehen, bei welchen Suchen diese Seiten erscheinen.",
+        "notSynced": "Noch keine Suchstatistiken",
+        "notSyncedBody": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um zu sehen, bei welchen Suchen diese Seiten erscheinen.",
         "connect": "Search Console verbinden",
         "query": "Suchanfrage",
         "clicks": "Suchklicks",
@@ -11434,6 +11437,7 @@
             "search_console": "Verbinde Google, um Klicks, Impressionen und Suchanfragen zu messen. Google Analytics ergänzt Besuche und Seitenaufrufe und ist optional.",
             "ga4": "Verbinde Google Analytics, um Besuche und Seitenaufrufe zu messen."
           },
+          "sync": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um Klicks, Impressionen und Suchanfragen zu messen.",
           "competitors": {
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
@@ -11519,6 +11523,7 @@
         "connect": "Google verbinden",
         "connectDone": "Search Console verbunden",
         "connectBody": "Verbinde dein Google-Konto, wähle die Property deiner Website und synchronisiere. Danach siehst du Suchanfragen, Klicks und Positionen dieser Seiten. Google Analytics ist optional.",
+        "syncBody": "Die Search Console ist verbunden. Wähle die Property deiner Website und synchronisiere. Danach siehst du Suchanfragen, Klicks und Positionen dieser Seiten.",
         "connectDoneBody": "Die Suchstatistiken dieser Seiten findest du im Tab „Zugriffe“.",
         "connectUnavailable": "Statistiken sind in diesem Workspace nicht verfügbar. Überspringe diesen Schritt und starte die erste Prüfung.",
         "check": "Erste Prüfung starten",

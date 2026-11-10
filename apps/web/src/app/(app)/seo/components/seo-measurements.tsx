@@ -23,6 +23,7 @@ import {
   seoReportedPeriod,
 } from "./seo-statistics-model";
 import { SeoTrendChart } from "./seo-trend-chart";
+import { useSearchConsoleConnected } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Measured traffic for the selected pages: totals, the newest 7 reported days against the 7 before, and the daily trend. */
@@ -48,6 +49,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   // read starts, because Google leaves quiet days out; the agent card and search queries do the same.
   const reported = seoReportedPeriod(visible);
   const canSync = workspace.availableActions.canSyncMetrics;
+  // Only the empty card asks: a connected account with nothing synced needs a sync, not a connection.
+  const connected = useSearchConsoleConnected(!active);
   function label(metric: ProjectSeoMetric) {
     return t.has(`metrics.${metric.key}`)
       ? t(`metrics.${metric.key}`)
@@ -431,15 +434,21 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         <div className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4 sm:p-5")}>
           <h3 className="font-medium">{t("overview.trafficSetup")}</h3>
           <p className="text-muted-foreground max-w-prose text-sm">
-            {t("overview.trafficSetupBody")}
+            {t(
+              connected
+                ? "overview.trafficSyncBody"
+                : "overview.trafficSetupBody",
+            )}
           </p>
           {canSync ? (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => model.openStatistics()}
+              onClick={() =>
+                model.openStatistics(connected ? "search_console" : undefined)
+              }
             >
-              {t("overview.manageConnections")}
+              {t(connected ? "syncStatistics" : "overview.manageConnections")}
             </Button>
           ) : null}
         </div>

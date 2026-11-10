@@ -143,6 +143,8 @@ describe("SEO audit first run", () => {
     const setup = screen.getByTestId("seo-setup");
     expect(within(setup).getByText("Next: Connect Google")).toBeVisible();
     await within(setup).findByRole("button", { name: "Connect Google" });
+    // Still so with the status read: the account is not connected.
+    expect(within(setup).getByText("Next: Connect Google")).toBeVisible();
     expect(primaryButtons(setup)).toEqual(["Connect Google"]);
     // One Google step: Analytics is a choice in it, not a second button.
     expect(
@@ -170,10 +172,98 @@ describe("SEO audit first run", () => {
     const setup = screen.getByTestId("seo-setup");
     await within(setup).findByText("Search Console connected");
     expect(primaryButtons(setup)).toEqual(["Sync statistics"]);
+    // The account is there, so the step asks for the sync and not for the account.
+    expect(within(setup).getByText("Next: Sync statistics")).toBeVisible();
+    expect(
+      within(setup).getByRole("heading", { name: "Sync statistics" }),
+    ).toBeVisible();
+    expect(within(setup).getByText(copy.setup.syncBody)).toBeVisible();
+    expect(within(setup).queryByText("Next: Connect Google")).toBeNull();
     await user.click(
       within(setup).getByRole("button", { name: "Sync statistics" }),
     );
     expect(await screen.findByRole("dialog")).toBeVisible();
+  });
+
+  it("asks for the sync, not the account, on the Traffic tab once the account is connected", async () => {
+    const workspace = seoTestWorkspace();
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: provider === "search_console" ? "connected" : "not_connected",
+        source: "native",
+      }),
+    });
+    renderWorkspace(workspace, "?tab=traffic");
+    expect(await screen.findByText(copy.queries.notSynced)).toBeVisible();
+    expect(screen.getByText(copy.queries.notSyncedBody)).toBeVisible();
+    expect(screen.getByText(copy.overview.trafficSyncBody)).toBeVisible();
+    expect(screen.queryByText(copy.queries.notConnected)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: copy.queries.connect }),
+    ).toBeNull();
+    // Performance and the queries card each lead to the same sync.
+    expect(
+      screen.getAllByRole("button", { name: "Sync statistics" }),
+    ).toHaveLength(2);
+  });
+
+  it("asks for the sync in the agent's next step once the account is connected", async () => {
+    const workspace = seoTestWorkspace();
+    // A finished check: the setup card is gone and the agent lists its next steps.
+    workspace.observations = [
+      {
+        id: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+        kind: "page_check",
+        source: "seo_coworker",
+        observedAt: new Date("2026-10-01T10:00:00Z"),
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        sourceTaskId: null,
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop"],
+        rulebookVersion: "html-v1",
+        artifactHash: "checked-html",
+        issues: 0,
+        coverage: { checked: 2, skipped: 0, failed: 0 },
+      },
+    ];
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: provider === "search_console" ? "connected" : "not_connected",
+        source: "native",
+      }),
+    });
+    renderWorkspace(workspace);
+    expect(await screen.findByText(copy.agent.steps.sync)).toBeVisible();
+    expect(
+      screen.queryByText(copy.agent.steps.connect.search_console),
+    ).toBeNull();
+  });
+
+  it("asks for the account on the Traffic tab while no account is connected", async () => {
+    const workspace = seoTestWorkspace();
+    network(workspace);
+    renderWorkspace(workspace, "?tab=traffic");
+    expect(await screen.findByText(copy.queries.notConnected)).toBeVisible();
+    // The answer "not connected" is in, so the text below is not the text of a pending read.
+    await waitFor(() =>
+      expect(
+        clients
+          .at(-1)
+          ?.getQueryCache()
+          .findAll({ queryKey: ["seo-connection"] })
+          .some((query) => query.state.data !== undefined),
+      ).toBe(true),
+    );
+    expect(screen.queryByText(copy.queries.notSynced)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: copy.queries.connect }),
+    ).toBeVisible();
   });
 
   it("puts a failed check on its own step, with the button that runs it again", async () => {
