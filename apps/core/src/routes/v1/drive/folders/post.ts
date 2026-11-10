@@ -91,7 +91,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unprocessableEntity("organizationId is required when scope=org");
       }
       const ownerId = body.organizationId;
-      await requireOrganizationDriveFileUploadAccess(authContext, ownerId);
+      await requireOrganizationDriveFileUploadAccess(authContext, ownerId, {
+        into: [folderPath],
+      });
       markerPathname = buildOrganizationDriveFolderMarkerPathname(
         ownerId,
         folderPath,

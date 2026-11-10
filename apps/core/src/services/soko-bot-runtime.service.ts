@@ -91,6 +91,7 @@ import type { GoogleDisplayImageRole } from "@sokosumi/utils";
 import {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,
+  buildOrganizationDriveFolderPrefix,
   buildTaskFilePathname,
   buildUserDriveFilePathname,
   buildUserDriveFilePathnameWithFolder,
@@ -3729,7 +3730,12 @@ export class SokoBotRuntimeService {
       },
       select: { id: true, sourceId: true, displayName: true },
     });
-    if (!resource)
+    // An organization's data rooms are for the people let in, never agents.
+    if (
+      !resource ||
+      (drive.key.scope === "organization" &&
+        (await isInDataRoom(resource.sourceId)))
+    )
       throw new SokoBotRefusedUnsentError(
         "No file with that id in your owner's Files; files from Tasks stay with their Task",
       );
@@ -3746,6 +3752,15 @@ export class SokoBotRuntimeService {
       authorized,
       input.fileId,
     );
+    if (
+      drive.key.scope === "organization" &&
+      (await isInDataRoom(
+        buildOrganizationDriveFolderPrefix(drive.key.ownerId, folder),
+      ))
+    )
+      throw new SokoBotRefusedUnsentError(
+        `"${folder}" is a data room; only the people let into it put files there`,
+      );
     try {
       await moveDriveFile({
         sourcePathname: resource.sourceId,

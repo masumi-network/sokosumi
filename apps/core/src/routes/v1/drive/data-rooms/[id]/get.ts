@@ -20,6 +20,8 @@ import {
   listDataRoomFiles,
 } from "@/services/data-room-files.service";
 import {
+  canChooseDataRoomColleagues,
+  listDataRoomColleagues,
   listDataRoomMembers,
   requireOwnedDataRoom,
 } from "@/services/data-room-members.service";
@@ -53,17 +55,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationId: query.organizationId,
     });
     const room = await requireOwnedDataRoom(store, c.req.valid("param").id);
-    const [members, files, order] = await Promise.all([
-      listDataRoomMembers(room),
-      listDataRoomFiles(room),
-      dataRoomOrder(room.id),
-    ]);
+    const inOrganization = store.scope === "organization";
+    const [members, files, order, colleagues, canChooseColleagues] =
+      await Promise.all([
+        listDataRoomMembers(room),
+        listDataRoomFiles(room),
+        dataRoomOrder(room.id),
+        inOrganization ? listDataRoomColleagues(room.id) : null,
+        canChooseDataRoomColleagues(room, store.actor),
+      ]);
     return ok(
       c,
       dataRoomDetailSchema.parse({
         room: toDataRoomDto(room),
         members: members.map(toDataRoomMemberDto),
         rows: buildDataRoomTree({ files, order }).map(toDataRoomTreeRowDto),
+        colleagues,
+        canChooseColleagues,
       }),
     );
   });

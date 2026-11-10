@@ -4685,6 +4685,7 @@ export type DataRoom = {
     allowDownload: boolean;
     watermark: boolean;
     notifyOnFirstVisit: boolean;
+    createdByUserId: string;
     createdAt: string;
 };
 
@@ -4704,6 +4705,14 @@ export type DataRoomDetail = {
     room: DataRoom;
     members: Array<DataRoomMember>;
     rows: Array<DataRoomTreeRow>;
+    /**
+     * Organization members let in besides the maker and the organization's owners and admins. Null for a personal room, which is its owner's alone.
+     */
+    colleagues: Array<DataRoomColleague> | null;
+    /**
+     * True for the room's maker and the organization's owners and admins.
+     */
+    canChooseColleagues: boolean;
 };
 
 export type DataRoomMember = {
@@ -4737,6 +4746,12 @@ export type DataRoomTreeRow = {
     mimeType: string | null;
     updatedAt: string | null;
     isNew: boolean;
+};
+
+export type DataRoomColleague = {
+    userId: string;
+    name: string;
+    email: string;
 };
 
 export type UpdateDataRoomRequest = {
@@ -4824,6 +4839,20 @@ export type SetDataRoomOrderRequest = {
         path: string;
         position: number;
     }>;
+};
+
+export type DataRoomColleagues = Array<DataRoomColleague>;
+
+export type SetDataRoomColleaguesRequest = {
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    organizationId?: string;
+    /**
+     * Every colleague who should be in the room; anyone left out loses access.
+     */
+    userIds: Array<string>;
 };
 
 export type DriveFileUploadSession = {
@@ -38699,6 +38728,110 @@ export type PutDriveDataRoomsByIdOrderResponses = {
 };
 
 export type PutDriveDataRoomsByIdOrderResponse = PutDriveDataRoomsByIdOrderResponses[keyof PutDriveDataRoomsByIdOrderResponses];
+
+export type PutDriveDataRoomsByIdColleaguesData = {
+    body: SetDataRoomColleaguesRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/data-rooms/{id}/colleagues';
+};
+
+export type PutDriveDataRoomsByIdColleaguesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutDriveDataRoomsByIdColleaguesError = PutDriveDataRoomsByIdColleaguesErrors[keyof PutDriveDataRoomsByIdColleaguesErrors];
+
+export type PutDriveDataRoomsByIdColleaguesResponses = {
+    /**
+     * Colleagues let in
+     */
+    200: {
+        data: DataRoomColleagues;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutDriveDataRoomsByIdColleaguesResponse = PutDriveDataRoomsByIdColleaguesResponses[keyof PutDriveDataRoomsByIdColleaguesResponses];
 
 export type GetDriveFilesData = {
     body?: never;

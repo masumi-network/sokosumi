@@ -4,6 +4,7 @@ import {
   buildOrganizationDriveFolderPrefix,
   buildUserDriveFolderPrefix,
   isDriveFolderMarker,
+  normalizeDriveFolderPath,
   sanitizeDriveFileName,
 } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
@@ -13,13 +14,14 @@ import {
   sortDriveBrowseItems,
 } from "@/helpers/drive-browse-sort";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import { badRequest, unprocessableEntity } from "@/helpers/error";
+import { badRequest, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import { insideHiddenRoom } from "@/lib/data-room-visibility";
 import {
   type DriveListedBlob,
   type DriveRoomRef,
@@ -128,6 +130,7 @@ function mapBlobPageToItems(input: {
   folders: string[];
   blobs: DriveListedBlob[];
   rooms: readonly DriveRoomRef[];
+  hiddenRoomFolders: readonly string[];
 }): { folderItems: DriveItem[]; fileItems: DriveItem[] } {
   const inPath = driveOwnerOf(input.prefix)?.path ?? "";
   const folderItems: DriveItem[] = [];
@@ -142,6 +145,8 @@ function mapBlobPageToItems(input: {
     const segments = normalized.split("/").filter((s) => s.length > 0);
     if (segments.length > 0) {
       const folderName = segments[0];
+      if (insideHiddenRoom(input.hiddenRoomFolders, `${inPath}${folderName}`))
+        continue;
       if (!folderItems.some((f) => f.name === folderName)) {
         folderItems.push({
           type: "folder",
@@ -185,6 +190,7 @@ async function listAllFolderItems(input: {
   searchPrefix: string;
   prefix: string;
   rooms: readonly DriveRoomRef[];
+  hiddenRoomFolders: readonly string[];
 }): Promise<DriveItem[]> {
   const folderByName = new Map<string, DriveItem>();
   const fileByPathname = new Map<string, DriveItem>();
@@ -212,6 +218,7 @@ async function listAllFolderItems(input: {
       folders: page.folders,
       blobs: page.blobs,
       rooms: input.rooms,
+      hiddenRoomFolders: input.hiddenRoomFolders,
     });
 
     for (const folder of folderItems) {
@@ -252,6 +259,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let prefix: string;
     let scope: "user" | "organization";
     let ownerId: string;
+    let hiddenRoomFolders: string[] = [];
 
     const folderPath = query.folder?.trim() || "";
 
@@ -266,7 +274,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       ownerId = query.organizationId;
       scope = "organization";
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      ({ hiddenRoomFolders } = await requireDriveFileAccess(
+        authContext,
+        scope,
+        ownerId,
+      ));
+      // Inside a room this caller is not in, the folder is simply not there.
+      if (
+        insideHiddenRoom(
+          hiddenRoomFolders,
+          normalizeDriveFolderPath(folderPath),
+        )
+      )
+        throw notFound("Folder not found");
       prefix = buildOrganizationDriveFolderPrefix(ownerId, folderPath);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
@@ -294,6 +314,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         searchPrefix,
         prefix,
         rooms,
+        hiddenRoomFolders,
       });
       const sorted = sortDriveBrowseItems(allItems, sort);
       const { page, nextCursor } = paginateSortedDriveBrowseItems({
@@ -337,6 +358,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       folders,
       blobs,
       rooms,
+      hiddenRoomFolders,
     });
 
     folderItems.sort((a, b) => a.name.localeCompare(b.name));

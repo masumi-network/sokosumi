@@ -8,7 +8,10 @@ import { BlobNotFoundError } from "@vercel/blob";
 import pLimit from "p-limit";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import {
+  drivePathOf,
+  requireDriveFileAccess,
+} from "@/helpers/drive-file-access";
 import {
   moveDriveFile,
   parseCacheControlMaxAge,
@@ -145,7 +148,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userContext.userId,
       );
 
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      await requireDriveFileAccess(authContext, scope, ownerId, {
+        changes: [drivePathOf(body.sourcePathname)],
+        into: [targetFolderPath],
+      });
 
       await moveDriveFile({
         sourcePathname: body.sourcePathname,
@@ -202,7 +208,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         ownerId = body.organizationId;
         scope = "organization";
-        await requireDriveFileAccess(authContext, scope, ownerId);
+        await requireDriveFileAccess(authContext, scope, ownerId, {
+          changes: [sourceFolderPath],
+          into: [targetFolderPath],
+        });
         oldPrefix = buildOrganizationDriveFolderPrefix(
           ownerId,
           sourceFolderPath,

@@ -89,6 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let prefix: string;
     let scope: "user" | "organization";
     let ownerId: string;
+    let hiddenRoomFolders: string[] = [];
 
     if (query.scope === "me") {
       ownerId = userContext.userId;
@@ -98,7 +99,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     } else if (query.scope === "org") {
       ownerId = query.organizationId!;
       scope = "organization";
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      ({ hiddenRoomFolders } = await requireDriveFileAccess(
+        authContext,
+        scope,
+        ownerId,
+      ));
       prefix = buildOrganizationDriveFilePrefix(ownerId);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
@@ -168,6 +173,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
       ...(searchQuery ? { searchQuery } : {}),
       ...(driveFilePathnames ? { driveFilePathnames } : {}),
+      hiddenRoomFolders,
       fetchTaskOutputs: ({ cursor: taskCursor, take: taskTake }) =>
         fetchDriveTaskOutputRecentsBatch({
           baseTaskWhere,

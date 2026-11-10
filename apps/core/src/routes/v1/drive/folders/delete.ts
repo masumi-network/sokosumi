@@ -80,7 +80,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       ownerId = body.organizationId;
       scope = "organization";
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      await requireDriveFileAccess(authContext, scope, ownerId, {
+        changes: [folderPath],
+      });
       prefix = buildOrganizationDriveFolderPrefix(ownerId, folderPath);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");

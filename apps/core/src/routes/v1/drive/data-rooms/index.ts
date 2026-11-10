@@ -1,5 +1,6 @@
 import { createNestedOpenAPIHono } from "@/lib/hono";
 
+import mountColleagues from "./[id]/colleagues.js";
 import mountDelete from "./[id]/delete.js";
 import mountEvents from "./[id]/events.js";
 import mountGetOne from "./[id]/get.js";
@@ -27,5 +28,6 @@ mountEvents(app);
 mountQuestions(app);
 mountAnswer(app);
 mountOrder(app);
+mountColleagues(app);
 
 export default app;

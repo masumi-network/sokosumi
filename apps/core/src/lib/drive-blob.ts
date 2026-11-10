@@ -493,7 +493,19 @@ async function listChained(
   }
   const page = await listStore(publicStore, options);
   if (page.hasMore) return page;
-  return { ...page, cursor: CHAIN_PRIVATE_PREFIX, hasMore: true };
+  // The rest of this page comes from the private store, so a room's folder
+  // shows up even where the public store has nothing left to list.
+  const next = await listStore(privateStore, {
+    ...options,
+    cursor: undefined,
+    limit: Math.max((options.limit ?? 1_000) - page.blobs.length, 1),
+  });
+  return {
+    blobs: [...page.blobs, ...next.blobs],
+    folders: [...new Set([...page.folders, ...next.folders])].sort(),
+    cursor: next.hasMore ? `${CHAIN_PRIVATE_PREFIX}${next.cursor}` : undefined,
+    hasMore: next.hasMore,
+  };
 }
 
 async function listMerged(

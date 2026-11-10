@@ -113,7 +113,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       ownerId = body.organizationId;
       scope = "organization";
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      await requireDriveFileAccess(authContext, scope, ownerId, {
+        changes: [oldFolderPath],
+        into: [newFolderPath],
+      });
       oldPrefix = buildOrganizationDriveFolderPrefix(ownerId, oldFolderPath);
       newPrefix = buildOrganizationDriveFolderPrefix(ownerId, newFolderPath);
     } else {

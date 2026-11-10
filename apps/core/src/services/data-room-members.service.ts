@@ -6,9 +6,11 @@ import {
 } from "@sokosumi/database";
 import { normalizeDriveFolderPath } from "@sokosumi/utils";
 
-import { badRequest, notFound } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
+import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
+import { canSeeDataRoom } from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
-import type { DataRoomStore } from "@/services/data-room.service";
+import type { DataRoomCaller } from "@/services/data-room.service";
 import {
   logDataRoomEvent,
   memberSeesPath,
@@ -16,9 +18,13 @@ import {
 } from "@/services/data-room-access.service";
 import { findDataRoomFile } from "@/services/data-room-files.service";
 
-/** A room of this Drive, or 404: one Drive's owner never reaches another's. */
+/**
+ * A room of this Drive the caller may run, or 404: one Drive's owner never
+ * reaches another's, and an organization member outside a room never learns
+ * it is there.
+ */
 export async function requireOwnedDataRoom(
-  store: DataRoomStore,
+  store: DataRoomCaller,
   roomId: string,
 ): Promise<DataRoom> {
   const room = await prisma.dataRoom.findFirst({
@@ -31,8 +37,77 @@ export async function requireOwnedDataRoom(
       ownerId: store.ownerId,
     },
   });
-  if (!room) throw notFound("Data room not found");
+  if (!room || !(await canSeeDataRoom(room, store.actor)))
+    throw notFound("Data room not found");
   return room;
+}
+
+/** The maker and the organization's owners and admins choose who else is in. */
+export async function canChooseDataRoomColleagues(
+  room: DataRoom,
+  actor: DataRoomCaller["actor"],
+): Promise<boolean> {
+  if (room.sourceScope !== FileSourceScope.ORGANIZATION) return false;
+  if (room.createdByUserId === actor.userId) return true;
+  const member = await prisma.member.findUnique({
+    where: {
+      userId_organizationId: {
+        userId: actor.userId,
+        organizationId: room.ownerId,
+      },
+    },
+    select: { role: true },
+  });
+  return member !== null && isOrganizationOwnerOrAdmin(member.role);
+}
+
+export async function listDataRoomColleagues(roomId: string) {
+  const rows = await prisma.dataRoomColleague.findMany({
+    where: { roomId },
+    select: { user: { select: { id: true, name: true, email: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.map(({ user }) => ({
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+  }));
+}
+
+/** Replaces who else in the organization is let in. Leaving someone out takes them out. */
+export async function setDataRoomColleagues(input: {
+  store: DataRoomCaller;
+  roomId: string;
+  userIds: readonly string[];
+}) {
+  const room = await requireOwnedDataRoom(input.store, input.roomId);
+  if (room.sourceScope !== FileSourceScope.ORGANIZATION)
+    throw badRequest("A personal data room is yours alone");
+  if (!(await canChooseDataRoomColleagues(room, input.store.actor)))
+    throw forbidden(
+      "Only the person who made this room and the organization's owners and admins choose who is in it",
+    );
+  const userIds = [...new Set(input.userIds)];
+  const members = await prisma.member.findMany({
+    where: { organizationId: room.ownerId, userId: { in: userIds } },
+    select: { userId: true },
+  });
+  if (members.length !== userIds.length)
+    throw badRequest("Everyone let in must be a member of the organization");
+  await prisma.$transaction([
+    prisma.dataRoomColleague.deleteMany({
+      where: { roomId: room.id, userId: { notIn: userIds } },
+    }),
+    prisma.dataRoomColleague.createMany({
+      data: userIds.map((userId) => ({
+        roomId: room.id,
+        userId,
+        addedByUserId: input.store.actor.userId,
+      })),
+      skipDuplicates: true,
+    }),
+  ]);
+  return listDataRoomColleagues(room.id);
 }
 
 const DOMAIN = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
@@ -54,7 +129,7 @@ function cleanFolderPaths(paths: readonly string[]): string[] {
 }
 
 export async function updateDataRoomSettings(input: {
-  store: DataRoomStore;
+  store: DataRoomCaller;
   roomId: string;
   title?: string | null;
   logoFileId?: string | null;
@@ -149,7 +224,7 @@ export async function listDataRoomMembers(
  * let in, for the invitation emails.
  */
 export async function inviteDataRoomMembers(input: {
-  store: DataRoomStore;
+  store: DataRoomCaller;
   roomId: string;
   emails: string[];
   name?: string | null;
@@ -194,7 +269,7 @@ export async function inviteDataRoomMembers(input: {
 }
 
 export async function updateDataRoomMember(input: {
-  store: DataRoomStore;
+  store: DataRoomCaller;
   roomId: string;
   memberId: string;
   name?: string | null;
@@ -223,7 +298,7 @@ export async function updateDataRoomMember(input: {
  * next request, and their code stops working.
  */
 export async function revokeDataRoomMember(input: {
-  store: DataRoomStore;
+  store: DataRoomCaller;
   roomId: string;
   memberId: string;
 }): Promise<void> {
@@ -260,7 +335,7 @@ export async function listDataRoomEvents(input: {
 
 /** Replaces the owner's order: positions count from 1 within each folder. */
 export async function setDataRoomOrder(input: {
-  store: DataRoomStore;
+  store: DataRoomCaller;
   roomId: string;
   entries: { path: string; position: number }[];
 }): Promise<void> {
@@ -295,7 +370,7 @@ export async function listDataRoomQuestions(input: {
 }
 
 export async function answerDataRoomQuestion(input: {
-  store: DataRoomStore;
+  store: DataRoomCaller;
   roomId: string;
   questionId: string;
   answer: string;

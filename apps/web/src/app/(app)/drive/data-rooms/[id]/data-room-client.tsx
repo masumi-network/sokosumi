@@ -15,6 +15,7 @@ import { fetchDataRoom } from "@/lib/utils/data-room.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
 import { DataRoomActivity } from "./data-room-activity";
+import { DataRoomColleagues } from "./data-room-colleagues";
 import { DataRoomContents } from "./data-room-contents";
 import { DataRoomPeople } from "./data-room-people";
 import { DataRoomQuestions } from "./data-room-questions";
@@ -51,7 +52,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
       </div>
     );
 
-  const { room, members, rows } = query.data;
+  const { room, members, rows, colleagues, canChooseColleagues } = query.data;
   const name =
     room.title ?? room.folderPath.split("/").at(-1) ?? room.folderPath;
   const link =
@@ -113,7 +114,18 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           <TabsTrigger value="settings">{t("tabs.settings")}</TabsTrigger>
         </TabsList>
         <div className={cn(HOLDER_CLASS, "grid gap-2")}>
-          <TabsContent value="people">
+          <TabsContent value="people" className="grid gap-2">
+            {store.scope === "org" && store.organizationId && colleagues ? (
+              <DataRoomColleagues
+                store={store}
+                organizationId={store.organizationId}
+                roomId={room.id}
+                makerId={room.createdByUserId}
+                colleagues={colleagues}
+                canChoose={canChooseColleagues}
+                onChanged={refresh}
+              />
+            ) : null}
             <DataRoomPeople
               store={store}
               roomId={room.id}

@@ -9355,6 +9355,7 @@
       "DataRoom": {
         "makeTitle": "Convertir “{name}” en una sala de datos",
         "makeDescription": "Sus archivos pasan a un almacenamiento privado y solo las personas que invites pueden abrirlos. Los enlaces a esta carpeta, o a cualquier cosa dentro, dejan de funcionar.",
+        "makeDescriptionOrg": "Sus archivos pasan a un almacenamiento privado, así que solo las personas a las que dejes entrar pueden abrirlos. En tu organización, solo tú, los propietarios y administradores y los colegas que añadas verán la carpeta. Los enlaces a esta carpeta, o a cualquier cosa dentro, dejan de funcionar.",
         "make": "Crear sala de datos",
         "made": "Sala de datos activa. Sus archivos están pasando al almacenamiento privado.",
         "roomTitle": "Sala de datos “{name}”",
@@ -9383,6 +9384,18 @@
           "questions": "Preguntas",
           "contents": "Contenido",
           "settings": "Ajustes"
+        },
+        "Colleagues": {
+          "title": "En tu organización",
+          "hint": "Solo quien creó esta sala, los propietarios y administradores de la organización y los colegas marcados aquí la ven en Archivos. Nadie más ve la carpeta, y los agentes como Soko Bot nunca la abren.",
+          "nobodyElse": "No se ha dejado entrar a nadie más.",
+          "madeIt": "La creó",
+          "admin": "Propietario o administrador",
+          "save": "Guardar quién entra",
+          "saved": "Guardado quién está en la sala.",
+          "saveFailed": "No se pudo guardar quién entra. Inténtalo de nuevo.",
+          "loadFailed": "No se pudieron cargar los miembros de tu organización.",
+          "loading": "Cargando miembros"
         },
         "People": {
           "emailsLabel": "Invitar por correo",

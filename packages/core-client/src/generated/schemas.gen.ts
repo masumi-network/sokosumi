@@ -16843,6 +16843,9 @@ export const DataRoomSchema = {
         notifyOnFirstVisit: {
             type: 'boolean'
         },
+        createdByUserId: {
+            type: 'string'
+        },
         createdAt: {
             type: 'string'
         }
@@ -16859,6 +16862,7 @@ export const DataRoomSchema = {
         'allowDownload',
         'watermark',
         'notifyOnFirstVisit',
+        'createdByUserId',
         'createdAt'
     ]
 } as const;
@@ -16909,12 +16913,32 @@ export const DataRoomDetailSchema = {
             items: {
                 $ref: '#/components/schemas/DataRoomTreeRow'
             }
+        },
+        colleagues: {
+            anyOf: [
+                {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/DataRoomColleague'
+                    }
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Organization members let in besides the maker and the organization\'s owners and admins. Null for a personal room, which is its owner\'s alone.'
+        },
+        canChooseColleagues: {
+            type: 'boolean',
+            description: 'True for the room\'s maker and the organization\'s owners and admins.'
         }
     },
     required: [
         'room',
         'members',
-        'rows'
+        'rows',
+        'colleagues',
+        'canChooseColleagues'
     ]
 } as const;
 
@@ -17088,6 +17112,26 @@ export const DataRoomTreeRowSchema = {
         'mimeType',
         'updatedAt',
         'isNew'
+    ]
+} as const;
+
+export const DataRoomColleagueSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        email: {
+            type: 'string'
+        }
+    },
+    required: [
+        'userId',
+        'name',
+        'email'
     ]
 } as const;
 
@@ -17507,6 +17551,44 @@ export const SetDataRoomOrderRequestSchema = {
     required: [
         'scope',
         'entries'
+    ]
+} as const;
+
+export const DataRoomColleaguesSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoomColleague'
+    }
+} as const;
+
+export const SetDataRoomColleaguesRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        userIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 200,
+            description: 'Every colleague who should be in the room; anyone left out loses access.'
+        }
+    },
+    required: [
+        'scope',
+        'userIds'
     ]
 } as const;
 

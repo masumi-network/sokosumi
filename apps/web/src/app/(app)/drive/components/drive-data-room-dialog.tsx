@@ -91,7 +91,9 @@ export function DriveDataRoomDialog({
                 ? isRoot
                   ? t(`storage.${room.storage}`)
                   : t("insideRoom", { room: room.folderPath })
-                : t("makeDescription")}
+                : store.scope === "org"
+                  ? t("makeDescriptionOrg")
+                  : t("makeDescription")}
             </DialogDescription>
           </DialogHeader>
 

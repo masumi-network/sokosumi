@@ -179,16 +179,26 @@ describe("listings", () => {
     expect(blob.list).toHaveBeenCalledTimes(1);
   });
 
-  it("pages the public store, then the private one, around a finished room", async () => {
+  it("fills the rest of the page from the private store once the public one runs out", async () => {
     stores(files);
     const first = await driveList({ prefix: OWNER });
-    expect(first.blobs.map((b) => b.pathname)).toEqual([
-      `${OWNER}Notes/plan.md`,
+    expect(first.blobs.map((b) => [b.pathname, b.access])).toEqual([
+      [`${OWNER}Notes/plan.md`, "public"],
+      [`${OWNER}Series A/deck.pdf`, "private"],
+      [`${OWNER}Series A/cap-table.xlsx`, "private"],
     ]);
-    expect(first.hasMore).toBe(true);
-    const second = await driveList({ prefix: OWNER, cursor: first.cursor });
-    expect(second.blobs.map((b) => b.access)).toEqual(["private", "private"]);
-    expect(second.hasMore).toBe(false);
+    expect(first.hasMore).toBe(false);
+  });
+
+  it("shows a room's folder on the first page when nothing else is public", async () => {
+    blob.list.mockImplementation(async (options: { token: string }) =>
+      options.token === "public-token"
+        ? { blobs: [], folders: [], hasMore: false }
+        : { blobs: [], folders: [`${OWNER}Series A/`], hasMore: false },
+    );
+    const page = await driveList({ prefix: OWNER, mode: "folded" });
+    expect(page.folders).toEqual([`${OWNER}Series A/`]);
+    expect(page.hasMore).toBe(false);
   });
 
   it("merges both stores while a room is moving, keeping one of each pathname", async () => {
