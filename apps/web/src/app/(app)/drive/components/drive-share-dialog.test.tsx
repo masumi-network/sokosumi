@@ -98,11 +98,12 @@ describe("DriveShareDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("says why Core refused the link", async () => {
+  it("explains in the reader's language why a data room file gets no link", async () => {
     api.fetchDriveShare.mockResolvedValue(null);
     api.saveDriveShare.mockRejectedValue({
       error: "BadRequest",
-      message: "This is in a data room.",
+      kind: "drive_share_in_data_room",
+      message: "Core's English wording",
     });
     render(
       <DriveShareDialog store={store} item={item} onOpenChange={() => {}} />,
@@ -112,8 +113,23 @@ describe("DriveShareDialog", () => {
       await screen.findByRole("button", { name: "create" }),
     );
 
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("This is in a data room."),
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("inDataRoom"));
+  });
+
+  it("keeps the translated fallback for other failures", async () => {
+    api.fetchDriveShare.mockResolvedValue(null);
+    api.saveDriveShare.mockRejectedValue({
+      error: "BadRequest",
+      message: "Some other English reason",
+    });
+    render(
+      <DriveShareDialog store={store} item={item} onOpenChange={() => {}} />,
     );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "create" }),
+    );
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("saveFailed"));
   });
 });

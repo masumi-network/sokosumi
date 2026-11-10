@@ -9350,7 +9350,8 @@
         "revoke": "Stop sharing",
         "revoked": "Link turned off",
         "loadFailed": "Could not load the link",
-        "saveFailed": "Could not save the link"
+        "saveFailed": "Could not save the link",
+        "inDataRoom": "This is in a data room. Invite people to the room instead of sharing a link."
       },
       "DataRoom": {
         "makeTitle": "Make “{name}” a data room",

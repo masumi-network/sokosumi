@@ -22,6 +22,7 @@ import {
   isUnlocked,
   shareFolderPath,
   unlockDriveShare,
+  upsertDriveShare,
   verifySharePassword,
 } from "./drive-share.service";
 
@@ -190,5 +191,26 @@ describe("driveShareDownloadUrl", () => {
         path: "deck.pdf",
       }),
     ).resolves.toBeNull();
+  });
+});
+
+describe("share links in a data room", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    forgetDriveRooms();
+  });
+
+  it("refuses a link with a stable kind the app can translate", async () => {
+    db.dataRoom.findMany.mockResolvedValue([
+      { folderPath: "Masumi Fundraising", storage: "PRIVATE" },
+    ]);
+    await expect(
+      upsertDriveShare({
+        store: { workspaceId: "w1", scope: "organization", ownerId: "org_1" },
+        target: { kind: "folder", folderPath: "Masumi Fundraising/Deck" },
+        userId: "u1",
+      }),
+    ).rejects.toMatchObject({ cause: { kind: "drive_share_in_data_room" } });
+    expect(db.driveShare.update).not.toHaveBeenCalled();
   });
 });

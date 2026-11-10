@@ -9350,7 +9350,8 @@
         "revoke": "Freigabe beenden",
         "revoked": "Link deaktiviert",
         "loadFailed": "Link konnte nicht geladen werden",
-        "saveFailed": "Link konnte nicht gespeichert werden"
+        "saveFailed": "Link konnte nicht gespeichert werden",
+        "inDataRoom": "Das liegt in einem Datenraum. Lade Personen in den Raum ein, statt einen Link zu teilen."
       },
       "DataRoom": {
         "makeTitle": "„{name}“ zum Datenraum machen",

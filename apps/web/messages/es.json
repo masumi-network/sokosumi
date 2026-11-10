@@ -9350,7 +9350,8 @@
         "revoke": "Dejar de compartir",
         "revoked": "Enlace desactivado",
         "loadFailed": "No se pudo cargar el enlace",
-        "saveFailed": "No se pudo guardar el enlace"
+        "saveFailed": "No se pudo guardar el enlace",
+        "inDataRoom": "Esto está en una sala de datos. Invita a personas a la sala en lugar de compartir un enlace."
       },
       "DataRoom": {
         "makeTitle": "Convertir “{name}” en una sala de datos",
