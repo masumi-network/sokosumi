@@ -4,7 +4,10 @@ import type {
   ScenarioCheck,
 } from "@sokosumi/soko-bot";
 import { parseBrandBrain } from "@/services/brand-brain.service";
-import { cmoPlanProblems } from "@/services/cmo-plan-review.service";
+import {
+  cmoPlanProblems,
+  cmoPlanRuleProblems,
+} from "@/services/cmo-plan-review.service";
 import { parseMarketingPlan } from "@/services/marketing-strategy.service";
 import type { CmoEvalBrand } from "./eval-cmo-cases";
 
@@ -85,7 +88,10 @@ export function strategyChecks(
       pass: new RegExp(brand.planLanguage, "i").test(strategy.summary),
       actual: strategy.summary.slice(0, 200),
     });
-  const problems = cmoPlanProblems(strategy);
+  const problems = [
+    ...cmoPlanRuleProblems(strategy),
+    ...cmoPlanProblems(strategy),
+  ];
   checks.push({
     label: "Keeps the strategy skill's rules",
     pass: problems.length === 0,

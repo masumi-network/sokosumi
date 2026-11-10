@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { keepAnswers } from "@/helpers/question-answers";
 import {
+  brainFindUnique,
+  brainUpdate,
   cancelSocialPost,
   connectionFindMany,
   cusoFind,
@@ -80,13 +82,16 @@ vi.mock("@/config/env", async (importOriginal) =>
 );
 
 import {
+  applyCmoPlanAnswers,
   cmoPlanAnswerNote,
+  fixCmoBrandSection,
   keepCalendarWork,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
   saveCmoStrategy,
   setCmoAdBudget,
   startCmoPlanAfterResearch,
+  startNextCmoChange,
   withoutDashes,
 } from "./cmo-strategy.service";
 
@@ -337,6 +342,41 @@ describe("the plan starts when the research ends", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
+  it("starts the first plan after a brand fix that ran before it", async () => {
+    turnFindFirst.mockResolvedValue({
+      ...planTurn(3, "COMPLETED"),
+      id: "fix-1",
+      clientTurnId: "cmo:strategy:bot-1:fix:1:1",
+    });
+    startTurn.mockResolvedValue({ turnId: "plan-2" });
+    await expect(
+      startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
+    ).resolves.toEqual({ turnId: "plan-2" });
+  });
+
+  it("never takes a running fix or patch for the plan", async () => {
+    for (const clientTurnId of [
+      "cmo:strategy:bot-1:fix:1:1",
+      "cmo:strategy:bot-1:patch:1",
+    ]) {
+      turnFindFirst.mockResolvedValue({
+        ...planTurn(13),
+        id: "change-1",
+        clientTurnId,
+      });
+      for (const ask of [{}, { restart: true }, { note: "Fewer posts" }]) {
+        await expect(
+          requestCmoStrategy(
+            { projectId: "project-1", userId: "user-1", ...ask },
+            now,
+          ),
+        ).rejects.toThrow("finishing a change");
+      }
+    }
+    expect(expireTurn).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
   it("lets Looks like us confirm without starting a second plan", async () => {
     turnFindFirst.mockResolvedValue(planTurn(2));
 
@@ -537,7 +577,7 @@ describe("saving versions", () => {
           newsletter,
         ],
       },
-      { turnId: "turn-2", pieces: true },
+      { turnId: "turn-2", part: "pieces" },
     );
 
     expect(postUpdate).toHaveBeenCalledWith({
@@ -585,7 +625,7 @@ describe("saving versions", () => {
       saveCmoStrategy(
         { sokoBotId: "bot-1" },
         { calendar: [{ ...strategy.calendar[0]!, draft: "Written." }] },
-        { turnId: "turn-2", pieces: true },
+        { turnId: "turn-2", part: "pieces" },
       ),
     ).rejects.toThrow(/approved/i);
 
@@ -846,5 +886,502 @@ describe("plan questions", () => {
       '"Do you get about 30 orders a week?" No. What is true: About 80',
     );
     expect(note).toContain("You had assumed: About 30 orders a week.");
+  });
+});
+
+/**
+ * A first plan that keeps the hard rules: 16 pieces whose approach and
+ * pillar shares match the plan's, and a short summary. Week one has its
+ * briefs; weeks two to four are titles.
+ */
+function wholePlan() {
+  const calendar = Array.from({ length: 16 }, (_, index) => ({
+    id: `e${index + 1}`,
+    date: `2026-11-${String(10 + index).padStart(2, "0")}`,
+    time: "09:00",
+    channel: "linkedin",
+    format: "text",
+    title: `Piece ${index + 1}`,
+    status: "idea" as const,
+    approach:
+      index % 2 === 0 ? ("educational" as const) : ("product-led" as const),
+    pillar: index % 2 === 0 ? "Setup" : "Proof",
+    ...(index < 4
+      ? { brief: `What piece ${index + 1} shows.`, why: "Week one." }
+      : {}),
+  }));
+  return {
+    month: "2026-11",
+    summary: "Weeks one and two teach setup; weeks three and four show proof.",
+    goals: ["More demo requests"],
+    pillars: [
+      { name: "Setup", share: 50 },
+      { name: "Proof", share: 50 },
+    ],
+    channels: [{ channel: "linkedin", cadence: "4 posts a week" }],
+    mix: [
+      {
+        approach: "educational" as const,
+        share: 50,
+        why: "Buyers learn first.",
+      },
+      { approach: "product-led" as const, share: 50, why: "Then they see it." },
+    ],
+    pace: { level: "steady" as const, why: "A calm start.", perWeek: 4 },
+    ads: {
+      monthly: 0,
+      currency: "EUR",
+      expect: "No ads yet.",
+      without: "Posts carry the month.",
+    },
+    calendar,
+  };
+}
+
+type WholePlan = ReturnType<typeof wholePlan> & {
+  patched: unknown[];
+  changes: string[];
+};
+const planOf = (row: { plan: unknown }) => row.plan as WholePlan;
+
+describe("a plan in two parts", () => {
+  beforeEach(() => cusoFind.mockResolvedValue(HIRE));
+
+  it("shows the plan part before the calendar part exists", async () => {
+    const { calendar, ...planPart } = wholePlan();
+
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, planPart, {
+      turnId: "turn-1",
+      rules: true,
+    });
+
+    expect(strategyRows).toHaveLength(1);
+    const shown = planOf(strategyRows[0]!);
+    expect(shown.summary).toBe(planPart.summary);
+    expect(shown.pace).toMatchObject({ level: "steady" });
+    expect(shown.calendar).toEqual([]);
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar },
+      { turnId: "turn-1", rules: true },
+    );
+    expect(strategyRows).toHaveLength(1);
+    expect(plan(strategyRows[0]!).calendar).toHaveLength(16);
+  });
+
+  it.each([
+    [
+      "20-word summary",
+      {
+        summary:
+          "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone.",
+      },
+    ],
+    ["16 pieces", { calendar: wholePlan().calendar.slice(0, 15) }],
+    [
+      "shares within 7 points",
+      {
+        calendar: wholePlan().calendar.map((entry) => ({
+          ...entry,
+          approach: "educational" as const,
+        })),
+      },
+    ],
+  ])(
+    "refuses a plan that breaks the %s rule and saves nothing",
+    async (rule, broken) => {
+      await expect(
+        saveCmoStrategy(
+          { sokoBotId: "bot-1" },
+          { ...wholePlan(), ...broken },
+          { turnId: "turn-1", rules: true },
+        ),
+      ).rejects.toThrow(`"${rule}"`);
+      expect(strategyRows).toHaveLength(0);
+    },
+  );
+});
+
+describe("a change in two parts", () => {
+  beforeEach(() => cusoFind.mockResolvedValue(HIRE));
+
+  it("checks the shares once the calendar arrives, not on the plan part before it", async () => {
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, wholePlan(), {
+      turnId: "turn-1",
+      rules: true,
+    });
+    const { calendar, ...planPart } = wholePlan();
+    const mix = [
+      { approach: "educational" as const, share: 75, why: "More teaching." },
+      { approach: "product-led" as const, share: 25, why: "Less product." },
+    ];
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...planPart, mix },
+      { turnId: "turn-2", rules: true },
+    );
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar },
+        {
+          turnId: "turn-2",
+          rules: true,
+        },
+      ),
+    ).rejects.toThrow('"shares within 7 points"');
+  });
+});
+
+describe("a patch", () => {
+  beforeEach(() => cusoFind.mockResolvedValue(HIRE));
+
+  async function written() {
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, wholePlan(), {
+      turnId: "turn-1",
+      rules: true,
+    });
+    return strategyRows[0]!;
+  }
+
+  it("changes only the entries it names; the rest of the plan stays byte for byte", async () => {
+    const first = await written();
+    const before = planOf(first);
+    const changed = { ...before.calendar[6]!, title: "A calmer piece seven" };
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [changed], changes: ["Piece seven is calmer."] },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+
+    expect(strategyRows).toHaveLength(2);
+    const after = planOf(strategyRows.find((row) => row.id !== first.id)!);
+    expect(after.calendar[6]!.title).toBe("A calmer piece seven");
+    const untouched = (calendar: { id: string }[]) =>
+      JSON.stringify(calendar.filter((entry) => entry.id !== "e7"));
+    expect(untouched(after.calendar)).toBe(untouched(before.calendar));
+    const { calendar: _a, changes: _c, patched: _p, ...afterPlan } = after;
+    const { calendar: _b, changes: _d, patched: _q, ...beforePlan } = before;
+    expect(JSON.stringify(afterPlan)).toBe(JSON.stringify(beforePlan));
+    // The entry as it was, so the screen can strike it through.
+    expect(after.patched).toEqual([{ id: "e7", was: before.calendar[6] }]);
+    expect(after.changes).toEqual(["Piece seven is calmer."]);
+  });
+
+  it("keeps how an entry was across a turn's saves, even when sent again", async () => {
+    const first = await written();
+    const before = planOf(first);
+    const changed = { ...before.calendar[6]!, title: "A calmer piece seven" };
+    const patch = (calendar: typeof before.calendar) =>
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar },
+        { turnId: "turn-2", part: "patch", rules: true },
+      );
+
+    await patch([changed]);
+    await patch([changed, { ...before.calendar[7]!, title: "Eight, sharper" }]);
+
+    const after = planOf(strategyRows.at(-1)!);
+    expect(after.patched).toEqual([
+      { id: "e7", was: before.calendar[6] },
+      { id: "e8", was: before.calendar[7] },
+    ]);
+  });
+
+  it("starts an ad budget's version with nothing struck through", async () => {
+    seedStrategy({
+      ...wholePlan(),
+      patched: [{ id: "e7", was: wholePlan().calendar[6] }],
+      changes: ["Piece seven is calmer."],
+    });
+    cusoFind.mockResolvedValue({
+      ...HIRE,
+      businessName: "Acme",
+      brandBrain: {
+        summary: "Acme sells rockets.",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: [],
+        products: [],
+        competitors: [],
+        channels: [],
+      },
+    });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await setCmoAdBudget({
+      projectId: "project-1",
+      userId: "user-1",
+      monthly: 300,
+      currency: "eur",
+    });
+
+    expect(planOf(strategyRows.at(-1)!)).toMatchObject({
+      patched: [],
+      changes: [],
+    });
+  });
+
+  it("keeps the plan whole: a patch that breaks a rule saves nothing", async () => {
+    const first = await written();
+    const before = planOf(first);
+
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: before.calendar
+            .slice(0, 3)
+            .map((entry) => ({ ...entry, status: "skipped" as const })),
+        },
+        { turnId: "turn-2", part: "patch", rules: true },
+      ),
+    ).rejects.toThrow('"16 pieces"');
+    expect(strategyRows).toHaveLength(1);
+  });
+
+  it("is cleared by the next whole save", async () => {
+    await written();
+    const before = planOf(strategyRows[0]!);
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [{ ...before.calendar[0]!, title: "New" }] },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, wholePlan(), {
+      turnId: "turn-3",
+      rules: true,
+    });
+
+    const newest = strategyRows.at(-1)!;
+    expect(plan(newest)).toMatchObject({ patched: [] });
+  });
+});
+
+describe("changes after the plan", () => {
+  const essentials = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+    profile: {
+      company: { answer: "Acme builds rockets in Ohio.", findings: [] },
+      pricing: { answer: "From 9 dollars a month.", findings: [] },
+    },
+  };
+  const cuso = {
+    ...HIRE,
+    userId: "user-1",
+    businessName: "Acme",
+    goals: "More sales",
+    brandBrain: essentials,
+  };
+  const now = new Date("2026-11-10T10:00:00Z");
+  const turn = (kind: string, minutesAgo: number, status = "RUNNING") => ({
+    id: `${kind}-turn`,
+    status,
+    eveSessionId: "sess-1",
+    clientTurnId: `cmo:strategy:bot-1:${kind === "plan" ? "" : `${kind}:`}1`,
+    createdAt: new Date(now.getTime() - minutesAgo * 60_000),
+  });
+  const message = () => JSON.stringify(startTurn.mock.lastCall);
+  const resetTurns = () => {
+    turnFindFirst.mockReset();
+    startTurn.mockReset();
+  };
+  afterEach(resetTurns);
+  beforeEach(() => {
+    resetTurns();
+    cusoFind.mockResolvedValue(cuso);
+    eventFindFirst.mockResolvedValue({ occurredAt: now });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+  });
+
+  it("patches the plan for a pace, never re-plans it", async () => {
+    seedStrategy(wholePlan());
+
+    await requestCmoStrategy(
+      {
+        projectId: "project-1",
+        userId: "user-1",
+        note: "Switch to the active pace.",
+        patch: true,
+      },
+      now,
+    );
+
+    expect(startTurn.mock.lastCall?.[0]).toMatchObject({
+      clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:patch:/),
+    });
+    expect(message()).toContain("Switch to the active pace.");
+    expect(message()).toContain("part patch");
+    expect(message()).not.toContain("Write Acme's marketing strategy");
+  });
+
+  it("patches the plan for the owner's nos and ad budget", async () => {
+    seedStrategy({
+      ...wholePlan(),
+      questions: [
+        {
+          id: "q1",
+          question: "Do buyers find you on LinkedIn?",
+          statement: "Buyers find Acme on LinkedIn",
+          answer: "no",
+          note: "Through Google",
+        },
+      ],
+    });
+
+    await applyCmoPlanAnswers({ projectId: "project-1", userId: "user-1" });
+    expect(message()).toContain("part patch");
+    expect(message()).toContain("Through Google");
+
+    await setCmoAdBudget({
+      projectId: "project-1",
+      userId: "user-1",
+      monthly: 300,
+      currency: "eur",
+    });
+    expect(startTurn.mock.lastCall?.[0]).toMatchObject({
+      clientTurnId: expect.stringMatching(/:patch:/),
+    });
+    expect(message()).toContain("EUR 300");
+  });
+
+  it("refuses a patch while the plan is still being written", async () => {
+    turnFindFirst.mockResolvedValue(turn("plan", 2));
+    await expect(
+      requestCmoStrategy(
+        {
+          projectId: "project-1",
+          userId: "user-1",
+          note: "Switch to the active pace.",
+          patch: true,
+        },
+        now,
+      ),
+    ).rejects.toThrow("still writing the plan");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("fixes one brand section in a short turn, then patches the plan it touches", async () => {
+    brainFindUnique.mockResolvedValue({ body: essentials });
+    seedStrategy(wholePlan());
+
+    await fixCmoBrandSection(
+      {
+        projectId: "project-1",
+        userId: "user-1",
+        section: "pricing",
+        note: "From 19 dollars a month.",
+      },
+      now,
+    );
+
+    // Only that section holds the fix; the others stay as they were.
+    const body = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(body.profile.pricing.fix).toMatchObject({
+      note: "From 19 dollars a month.",
+      fixed: false,
+    });
+    expect(body.profile.company).toEqual({
+      ...essentials.profile.company,
+      openQuestions: [],
+    });
+    expect(startTurn.mock.lastCall?.[0]).toMatchObject({
+      clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:fix:/),
+    });
+    expect(message()).toContain("- pricing: you wrote");
+    expect(message()).toContain("From 19 dollars a month.");
+    expect(message()).not.toContain("- company:");
+    expect(message()).toContain("sections holding only these sections");
+    expect(message()).toContain("part patch");
+  });
+
+  it("queues a fix while the plan is written and starts it when the plan ends", async () => {
+    brainFindUnique.mockResolvedValue({ body: essentials });
+    turnFindFirst.mockResolvedValue(turn("plan", 2));
+
+    await expect(
+      fixCmoBrandSection(
+        {
+          projectId: "project-1",
+          userId: "user-1",
+          section: "pricing",
+          note: "From 19 dollars a month.",
+        },
+        now,
+      ),
+    ).resolves.toEqual({ queued: true });
+    expect(startTurn).not.toHaveBeenCalled();
+
+    const pending = brainUpdate.mock.lastCall?.[0].data.body;
+    cusoFind.mockResolvedValue({ ...cuso, brandBrain: pending });
+    turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
+    await expect(
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+    ).resolves.toEqual({ turnId: "turn-9" });
+    expect(message()).toContain("- pricing: you wrote");
+  });
+
+  it("never loops on a fix its own turn could not make", async () => {
+    const asked = new Date(now.getTime() - 5 * 60_000).toISOString();
+    const pending = {
+      ...essentials,
+      profile: {
+        ...essentials.profile,
+        pricing: {
+          ...essentials.profile.pricing,
+          fix: { note: "From 19 dollars.", at: asked, fixed: false },
+        },
+      },
+    };
+    cusoFind.mockResolvedValue({ ...cuso, brandBrain: pending });
+    // The fix turn was sent this fix, and ended.
+    turnFindFirst.mockResolvedValue({
+      ...turn("fix", 3, "COMPLETED"),
+      clientTurnId: `cmo:strategy:bot-1:fix:1:${Date.parse(asked)}`,
+    });
+
+    await expect(
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("runs a fix asked while the last fix turn was starting, which it never saw", async () => {
+    const seen = new Date(now.getTime() - 5 * 60_000).toISOString();
+    const later = new Date(now.getTime() - 4 * 60_000).toISOString();
+    const pending = {
+      ...essentials,
+      profile: {
+        company: {
+          ...essentials.profile.company,
+          fix: { note: "Ohio and Texas.", at: later, fixed: false },
+        },
+        pricing: {
+          ...essentials.profile.pricing,
+          fix: { note: "From 19 dollars.", at: seen, fixed: false },
+        },
+      },
+    };
+    cusoFind.mockResolvedValue({ ...cuso, brandBrain: pending });
+    // Created after both fixes, but sent only the first.
+    turnFindFirst.mockResolvedValue({
+      ...turn("fix", 1, "COMPLETED"),
+      clientTurnId: `cmo:strategy:bot-1:fix:1:${Date.parse(seen)}`,
+    });
+
+    await expect(
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+    ).resolves.toEqual({ turnId: "turn-9" });
+    expect(startTurn.mock.lastCall?.[0].clientTurnId).toMatch(
+      new RegExp(`:fix:\\d+:${Date.parse(later)}$`),
+    );
   });
 });

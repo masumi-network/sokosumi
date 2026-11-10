@@ -31,7 +31,7 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet"),
     409: jsonErrorResponse(
-      "The Brand Brain is not ready yet, or Cuso is still writing the plan",
+      "The Brand Brain is not ready yet, or Cuso is still writing the plan or finishing a change",
     ),
   },
 });
@@ -40,11 +40,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
-    const { note, restart } = c.req.valid("json");
+    const { note, patch, restart } = c.req.valid("json");
     const started = await requestCmoStrategy({
       userId,
       projectId,
       note,
+      patch,
       restart,
     }).catch(rethrow);
     return created(c, cmoTurnStartedSchema.parse(started));

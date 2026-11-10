@@ -5847,7 +5847,8 @@ export class SokoBotRuntimeService {
         }
         case "save_strategy": {
           const sent = parseCmoStrategySave(input.input);
-          const pieces = cmoStrategySavePart(input.input) === "pieces";
+          const part = cmoStrategySavePart(input.input);
+          const pieces = part === "pieces";
           // A rhythm or production run builds on the approved version.
           const turn = await prisma.sokoBotTurn.findUnique({
             where: { id: authorized.turn.id },
@@ -5858,7 +5859,15 @@ export class SokoBotRuntimeService {
             saveCmoStrategy(
               where,
               sent,
-              { turnId: authorized.turn.id, pieces, executing },
+              // A plan, change or patch that breaks a hard rule is refused
+              // at save time. A rhythm's save sees only 31 days of the
+              // calendar, so the review only advises it.
+              {
+                turnId: authorized.turn.id,
+                part,
+                executing,
+                rules: !pieces && !executing,
+              },
               tx,
             ),
           );
