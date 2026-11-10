@@ -28,11 +28,8 @@ import {
   type SeoAgentStep,
   seoAgentBrief,
 } from "./seo-agent-model";
-import {
-  SeoChatHeading,
-  SeoChatThread,
-  useSeoChatIdentity,
-} from "./seo-chat-panel";
+import { SeoAskBar } from "./seo-ask-bar";
+import { useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
@@ -42,11 +39,9 @@ import { seoCheckRunning } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
-import { useSeoChat } from "./use-seo-chat";
 import { useSeoSetup } from "./use-seo-setup";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-export const SEO_AGENT_INPUT_ID = "seo-agent-question";
 /** Next steps past this count fold behind a "show more" button. */
 const SEO_AGENT_VISIBLE_STEPS = 3;
 const STEP_ICONS: Record<
@@ -62,19 +57,15 @@ const STEP_ICONS: Record<
   competitors: Radar,
 };
 
-type Chat = ReturnType<typeof useSeoChat>;
-
 function StepRow({
   step,
   model,
-  chat,
   refresh,
   refreshing,
   first,
 }: {
   step: Exclude<SeoAgentStep, { kind: "action" }>;
   model: SeoWorkspaceModel;
-  chat: Chat;
   refresh: () => void;
   refreshing: boolean;
   /** The agent's top proposal carries the one primary button. */
@@ -110,11 +101,8 @@ function StepRow({
               size="sm"
               variant={variant}
               aria-describedby={bodyId}
-              // Not the disabled attribute: that drops focus from the button just pressed.
-              aria-disabled={chat.busy || undefined}
-              className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
               onClick={() => {
-                void chat.send(
+                model.askAgent(
                   t("agent.prompts.measure", {
                     name: step.name,
                     value: step.value,
@@ -142,11 +130,8 @@ function StepRow({
                 size="sm"
                 variant={variant}
                 aria-describedby={bodyId}
-                // Not the disabled attribute: that drops focus from the button just pressed.
-                aria-disabled={chat.busy || undefined}
-                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                 onClick={() => {
-                  void chat.send(
+                  model.askAgent(
                     t("agent.prompts.keyword", { keyword: step.keyword }),
                   );
                 }}
@@ -249,47 +234,13 @@ function StepRow({
   );
 }
 
-function AgentConversation({
-  model,
-  chat,
-}: {
-  model: SeoWorkspaceModel;
-  chat: Chat;
-}) {
-  const t = useTranslations("App.Seo");
-  return (
-    // The card takes its content's height: a short thread leaves no gap above the questions.
-    <div className={cn(HOLDER_ITEM_CLASS, "flex min-w-0 flex-col self-start")}>
-      <div className="border-b px-4 py-3">
-        <SeoChatHeading
-          chat={chat}
-          title={<h3 className="text-sm font-semibold">{t("chat.title")}</h3>}
-          description={
-            <p className="text-muted-foreground text-sm">
-              {t("chat.description")}
-            </p>
-          }
-        />
-      </div>
-      <SeoChatThread
-        model={model}
-        chat={chat}
-        inputId={SEO_AGENT_INPUT_ID}
-        latestOnly
-        compactPrompts
-        className="max-h-[40rem]"
-      />
-    </div>
-  );
-}
-
-/** The SEO agent is the first thing on an Audit: what it knows, what it proposes, and the conversation. */
+/** The SEO agent is the first thing on an Audit: what it knows, what it proposes, and a field to ask it. */
 export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
   const [now] = useState(() => new Date());
   const brief = seoAgentBrief(model.data, now);
   // Upkeep lives outside the keyed panel, so a session that finishes loading does not restart it.
   const autopilot = useSeoAutopilot(model, brief);
-  // Keyed by viewer and Audit, so a changed account never shows a stale conversation.
+  // Keyed by viewer and Audit, so a changed account never sees another's unsent question.
   const identity = useSeoChatIdentity(model);
   return (
     <SeoAgentPanel
@@ -351,11 +302,6 @@ function SeoAgentPanel({
             ? canEdit && (canRequestAnalysis || !step.available)
             : step.kind !== "action",
       );
-  // History waits for a fresh Audit read, so a revoked or missing Audit is never read again.
-  const chat = useSeoChat(
-    model,
-    model.result.isFetchedAfterMount && model.result.isSuccess,
-  );
   // No check has saved a result in this view, and the reader can run one.
   const firstCheck =
     !brief.lastCheck &&
@@ -375,17 +321,11 @@ function SeoAgentPanel({
   return (
     <section
       aria-labelledby="seo-agent-title"
-      className={cn(
-        HOLDER_CLASS,
-        "grid min-w-0 gap-3",
-        // Without an Audit there is no chat, so the content keeps the full width.
-        model.data.auditId && "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
-      )}
+      className={cn(HOLDER_CLASS, "min-w-0 space-y-3")}
     >
-      {/* The panel label spans both columns, so both cards start on one line. */}
       <h2
         id="seo-agent-title"
-        className="text-muted-foreground col-span-full px-2 pt-1 text-xs font-medium"
+        className="text-muted-foreground px-2 pt-1 text-xs font-medium"
       >
         {t("agent.title")}
       </h2>
@@ -397,171 +337,166 @@ function SeoAgentPanel({
             ? t("setup.checkEnded")
             : ""}
       </p>
-      <div className="min-w-0 space-y-3">
-        {setup ? (
-          <SeoSetupCard model={model} setup={setup} />
-        ) : (
-          <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
-            <p
-              ref={verdict}
-              tabIndex={-1}
-              className="focus-visible:outline-ring rounded-sm text-lg font-semibold focus-visible:outline-2"
-              data-testid="seo-agent-verdict"
-            >
-              {brief.issues
-                ? t("agent.verdict.issues", { count: brief.issues })
-                : brief.fixes
-                  ? t("agent.verdict.fixes", { count: brief.fixes })
-                  : brief.opportunities
-                    ? t("agent.verdict.waiting", { count: brief.opportunities })
-                    : brief.emptyState === "no_fixes" && lastCheckMeasured
-                      ? rarelyShown
-                        ? t("agent.verdict.clearRarelyShown", {
-                            pages: brief.lastCheck?.pages ?? 1,
-                          })
-                        : t("agent.verdict.clear")
-                      : brief.lastCheck
-                        ? t("actions.checksIncomplete")
-                        : t("agent.verdict.noCheck")}
+      {setup ? (
+        <SeoSetupCard model={model} setup={setup} />
+      ) : (
+        <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
+          <p
+            ref={verdict}
+            tabIndex={-1}
+            className="focus-visible:outline-ring rounded-sm text-lg font-semibold focus-visible:outline-2"
+            data-testid="seo-agent-verdict"
+          >
+            {brief.issues
+              ? t("agent.verdict.issues", { count: brief.issues })
+              : brief.fixes
+                ? t("agent.verdict.fixes", { count: brief.fixes })
+                : brief.opportunities
+                  ? t("agent.verdict.waiting", { count: brief.opportunities })
+                  : brief.emptyState === "no_fixes" && lastCheckMeasured
+                    ? rarelyShown
+                      ? t("agent.verdict.clearRarelyShown", {
+                          pages: brief.lastCheck?.pages ?? 1,
+                        })
+                      : t("agent.verdict.clear")
+                    : brief.lastCheck
+                      ? t("actions.checksIncomplete")
+                      : t("agent.verdict.noCheck")}
+          </p>
+          {brief.lastCheck ? (
+            <p className="text-muted-foreground text-sm">
+              {t("agent.lastCheckOn")} <SeoDate value={brief.lastCheck.at} />
+              {" · "}
+              {t("agent.lastCheck", {
+                checked: brief.lastCheck.checked,
+                pages: brief.lastCheck.pages,
+              })}
+              {brief.suggestions
+                ? ` ${t("agent.suggestions", { count: brief.suggestions })}`
+                : null}
             </p>
-            {brief.lastCheck ? (
-              <p className="text-muted-foreground text-sm">
-                {t("agent.lastCheckOn")} <SeoDate value={brief.lastCheck.at} />
-                {" · "}
-                {t("agent.lastCheck", {
-                  checked: brief.lastCheck.checked,
-                  pages: brief.lastCheck.pages,
-                })}
-                {brief.suggestions
-                  ? ` ${t("agent.suggestions", { count: brief.suggestions })}`
-                  : null}
-              </p>
-            ) : null}
-            {traffic ? (
-              <p className="text-sm" data-testid="seo-agent-traffic">
-                {t("agent.traffic", {
-                  impressions: traffic.impressions,
-                  clicks: traffic.clicks,
-                  // Every Search Console read is filtered to the Audit's pages.
-                  pages: model.data.scope.pageIds.length,
-                })}{" "}
-                ·{" "}
-                <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
-                {" · "}
-                <button
-                  type="button"
-                  className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-                  onClick={() => {
-                    void model.setFilters({ tab: "traffic" });
-                  }}
-                >
-                  {t("agent.openTraffic")}
-                </button>
-              </p>
-            ) : null}
-            {firstCheck ? (
-              // A narrowed view has no setup card, so the first check starts
-              // here. The button stays while its check runs, so keyboard
-              // focus stays too.
-              <Button
-                size="sm"
-                variant="outline"
-                // Not the disabled attribute: that drops focus from the button.
-                aria-disabled={checkRunning || undefined}
-                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+          ) : null}
+          {traffic ? (
+            <p className="text-sm" data-testid="seo-agent-traffic">
+              {t("agent.traffic", {
+                impressions: traffic.impressions,
+                clicks: traffic.clicks,
+                // Every Search Console read is filtered to the Audit's pages.
+                pages: model.data.scope.pageIds.length,
+              })}{" "}
+              · <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
+              {" · "}
+              <button
+                type="button"
+                className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
                 onClick={() => {
-                  if (!checkRunning) model.setDialog("analysis");
+                  void model.setFilters({ tab: "traffic" });
                 }}
               >
-                <Play />
-                {t("runAnalysis")}
-              </Button>
-            ) : null}
-            {checkRunning ? (
-              // The status line above announces it; this badge is its picture.
-              <span aria-hidden className="block">
-                <StatusBadge tone="working" live>
-                  {t("setup.checkRunningBadge")}
-                </StatusBadge>
-              </span>
-            ) : null}
-            {upkeep}
-          </div>
-        )}
-        {/* The setup card has no line for upkeep, so it sits under the card. */}
-        {setup && upkeep ? <div className="px-2">{upkeep}</div> : null}
-        {/* During setup a schedule is not the next step: show only one that exists. */}
-        {setup && !model.data.monitors.length ? null : (
-          <SeoAutomation model={model} />
-        )}
-        {!setup && !model.data.observations.length ? (
-          <SeoGettingStarted model={model} />
-        ) : null}
-        {setup && !steps.length ? null : (
-          <div className="space-y-2">
-            <h3 className="px-2 text-sm font-semibold">
-              {t(setup ? "setup.more" : "agent.nextTitle")}
-            </h3>
-            {steps.length ? (
-              <ul role="list" className="space-y-2">
-                {shown.map((step, index) =>
-                  step.kind === "action" ? (
-                    <li
-                      className="content-rise"
-                      key={`${step.action.observationId}:${step.action.id}`}
-                    >
-                      <SeoActionCard
-                        action={step.action}
-                        model={model}
-                        showKind
-                      />
-                    </li>
-                  ) : (
-                    <StepRow
-                      key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
-                      step={step}
-                      model={model}
-                      chat={chat}
-                      first={index === primary}
-                      refresh={() => {
-                        void autopilot.refresh();
-                      }}
-                      refreshing={autopilot.state === "refreshing"}
-                    />
-                  ),
-                )}
-              </ul>
-            ) : (
-              <p className="text-muted-foreground max-w-prose px-2 text-sm">
-                {t("agent.nothingNext")}
-              </p>
-            )}
-            {steps.length > SEO_AGENT_VISIBLE_STEPS ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-expanded={showAllSteps}
-                onClick={() => setShowAllSteps((open) => !open)}
-              >
-                <ChevronDown
-                  className={cn(
-                    "transition-transform duration-150 ease-out motion-reduce:transition-none",
-                    showAllSteps && "rotate-180",
-                  )}
-                />
-                {showAllSteps
-                  ? t("overview.showLess")
-                  : t("agent.moreSteps", {
-                      count: steps.length - SEO_AGENT_VISIBLE_STEPS,
-                    })}
-              </Button>
-            ) : null}
-          </div>
-        )}
-      </div>
-      {model.data.auditId ? (
-        <AgentConversation model={model} chat={chat} />
+                {t("agent.openTraffic")}
+              </button>
+            </p>
+          ) : null}
+          {firstCheck ? (
+            // A narrowed view has no setup card, so the first check starts
+            // here. The button stays while its check runs, so keyboard
+            // focus stays too.
+            <Button
+              size="sm"
+              variant="outline"
+              // Not the disabled attribute: that drops focus from the button.
+              aria-disabled={checkRunning || undefined}
+              className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+              onClick={() => {
+                if (!checkRunning) model.setDialog("analysis");
+              }}
+            >
+              <Play />
+              {t("runAnalysis")}
+            </Button>
+          ) : null}
+          {checkRunning ? (
+            // The status line above announces it; this badge is its picture.
+            <span aria-hidden className="block">
+              <StatusBadge tone="working" live>
+                {t("setup.checkRunningBadge")}
+              </StatusBadge>
+            </span>
+          ) : null}
+          {upkeep}
+        </div>
+      )}
+      {/* The setup card has no line for upkeep, so it sits under the card. */}
+      {setup && upkeep ? <div className="px-2">{upkeep}</div> : null}
+      {/* The chat itself opens in the sheet, on every tab. */}
+      {model.data.auditId ? <SeoAskBar model={model} /> : null}
+      {/* During setup a schedule is not the next step: show only one that exists. */}
+      {setup && !model.data.monitors.length ? null : (
+        <SeoAutomation model={model} />
+      )}
+      {!setup && !model.data.observations.length ? (
+        <SeoGettingStarted model={model} />
       ) : null}
+      {setup && !steps.length ? null : (
+        <div className="space-y-2">
+          <h3 className="px-2 text-sm font-semibold">
+            {t(setup ? "setup.more" : "agent.nextTitle")}
+          </h3>
+          {steps.length ? (
+            <ul role="list" className="space-y-2">
+              {shown.map((step, index) =>
+                step.kind === "action" ? (
+                  <li
+                    className="content-rise"
+                    key={`${step.action.observationId}:${step.action.id}`}
+                  >
+                    <SeoActionCard
+                      action={step.action}
+                      model={model}
+                      showKind
+                    />
+                  </li>
+                ) : (
+                  <StepRow
+                    key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
+                    step={step}
+                    model={model}
+                    first={index === primary}
+                    refresh={() => {
+                      void autopilot.refresh();
+                    }}
+                    refreshing={autopilot.state === "refreshing"}
+                  />
+                ),
+              )}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground max-w-prose px-2 text-sm">
+              {t("agent.nothingNext")}
+            </p>
+          )}
+          {steps.length > SEO_AGENT_VISIBLE_STEPS ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-expanded={showAllSteps}
+              onClick={() => setShowAllSteps((open) => !open)}
+            >
+              <ChevronDown
+                className={cn(
+                  "transition-transform duration-150 ease-out motion-reduce:transition-none",
+                  showAllSteps && "rotate-180",
+                )}
+              />
+              {showAllSteps
+                ? t("overview.showLess")
+                : t("agent.moreSteps", {
+                    count: steps.length - SEO_AGENT_VISIBLE_STEPS,
+                  })}
+            </Button>
+          ) : null}
+        </div>
+      )}
     </section>
   );
 }

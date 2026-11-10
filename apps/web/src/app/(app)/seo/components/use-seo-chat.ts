@@ -14,7 +14,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 const SEO_CHAT_POLL_MS = 2_000;
 export const SEO_CHAT_QUESTION_LIMIT = 4_000;
 
-export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
+export function useSeoChat(model: SeoWorkspaceModel) {
   const t = useTranslations("App.Seo");
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -69,7 +69,7 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
         throw new DOMException("SEO viewer changed", "AbortError");
       return data;
     },
-    enabled: active && !!auditId && !!session?.user.id,
+    enabled: model.chatOpen && !!auditId && !!session?.user.id,
     refetchOnWindowFocus: false,
     refetchInterval: (query) =>
       query.state.data?.turns.some((turn) => turn.status === "running")
@@ -77,27 +77,12 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
         : false,
   });
   const turns = history.data?.turns ?? [];
-  // The first successful read in any panel fixes which turns came before this visit.
-  // Kept on the workspace model, so tabs and the sheet agree.
-  const identity = JSON.stringify(key);
-  function remember(saved: SeoAuditChatTurn[]) {
-    if (model.chatSeen.current?.key === identity) return;
-    model.chatSeen.current = {
-      key: identity,
-      ids: new Set(
-        saved
-          .filter((turn) => turn.status !== "running")
-          .map((turn) => turn.id),
-      ),
-    };
-  }
-  if (history.isSuccess) remember(turns);
-  const seen =
-    model.chatSeen.current?.key === identity
-      ? model.chatSeen.current.ids
-      : null;
   const busy = sending || turns.some((turn) => turn.status === "running");
-  async function send(prompt?: string) {
+  /**
+   * Sends the typed question, or `prompt`. A typed question comes back to the
+   * field when its send fails; `restorable` asks the same for a prompt.
+   */
+  async function send(prompt?: string, restorable = prompt === undefined) {
     const text = (prompt ?? question).trim();
     if (!auditId || !session?.user.id || !text || busy || sendingRef.current)
       return;
@@ -115,10 +100,9 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
     setError(null);
     // The typed question moves to the thread at once. A send that fails puts
     // it back, ahead of anything the reader typed in the meantime.
-    const typed = prompt === undefined;
-    if (typed) setQuestion("");
+    if (prompt === undefined) setQuestion("");
     const restore = () => {
-      if (!typed) return;
+      if (!restorable) return;
       setQuestion((current) => (current.trim() ? `${text}\n${current}` : text));
     };
     const scope = Object.fromEntries(
@@ -155,8 +139,6 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
       if (!response.ok) throw new Error("Audit reply unavailable");
       const turn: SeoAuditChatTurn = await response.json();
       if (!alive.current) return;
-      // Before the new turn enters the cache: a send ahead of the first read keeps its answer in view.
-      remember(queryClient.getQueryData<SeoAuditChatHistory>(key)?.turns ?? []);
       queryClient.setQueryData<SeoAuditChatHistory>(key, (previous) => ({
         sharing: previous?.sharing ?? model.data.sharing ?? "personal",
         turns: [
@@ -203,8 +185,6 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
     history,
     turns,
     send,
-    /** Turns saved before this visit, or null until history first loads. */
-    seen,
     sharing: history.data?.sharing ?? model.data.sharing ?? "personal",
     viewerId: session?.user.id,
   };

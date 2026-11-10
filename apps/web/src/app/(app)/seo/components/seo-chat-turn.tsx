@@ -214,24 +214,16 @@ export function SeoChatTurn({
   turn,
   model,
   mine,
-  ref,
-  tabIndex,
 }: {
   turn: SeoAuditChatTurn;
   model: SeoWorkspaceModel;
   /** The reader asked this question. */
   mine: boolean;
-  ref?: React.Ref<HTMLElement>;
-  tabIndex?: number;
 }) {
   const t = useTranslations("App.Seo");
   const running = turn.status === "running";
   return (
-    <article
-      ref={ref}
-      tabIndex={tabIndex}
-      className="content-rise focus-visible:outline-ring space-y-3 rounded-lg focus-visible:outline-2"
-    >
+    <article className="content-rise space-y-3">
       <div className="flex flex-col items-end gap-1">
         <p className={cn("text-xs font-medium", mine && "sr-only")}>
           {mine ? t("chat.you") : turn.author?.name || t("chat.member")}

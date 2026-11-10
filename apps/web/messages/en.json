@@ -11325,7 +11325,6 @@
         "auditRequired": "Open an audit to ask the SEO agent.",
         "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow.",
         "createTask": "Create draft task: {title}",
-        "showEarlier": "{count, plural, one {Show # earlier question} other {Show # earlier questions}}",
         "showMore": "Show full question",
         "showLess": "Show less",
         "loadingHistory": "Loading the chat",
@@ -11333,7 +11332,8 @@
         "privateShort": "Only you can read this chat",
         "sharedShort": "Shared in your organization",
         "asked": "Question sent. The SEO agent is working.",
-        "tooLong": "Your question is over {limit, number} characters. Shorten it and send it again."
+        "tooLong": "Your question is over {limit, number} characters. Shorten it and send it again.",
+        "openThread": "Open conversation"
       },
       "connections": {
         "connect": "Connect {provider}",

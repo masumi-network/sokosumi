@@ -11325,7 +11325,6 @@
         "auditRequired": "Abre una auditoría para preguntar al agente SEO.",
         "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana.",
         "createTask": "Crear borrador de tarea: {title}",
-        "showEarlier": "{count, plural, one {Mostrar # pregunta anterior} other {Mostrar # preguntas anteriores}}",
         "showMore": "Mostrar la pregunta completa",
         "showLess": "Mostrar menos",
         "loadingHistory": "Cargando el chat",
@@ -11333,7 +11332,8 @@
         "privateShort": "Solo tú puedes leer este chat",
         "sharedShort": "Compartido en tu organización",
         "asked": "Pregunta enviada. El agente SEO está trabajando.",
-        "tooLong": "Tu pregunta supera los {limit, number} caracteres. Acórtala y envíala de nuevo."
+        "tooLong": "Tu pregunta supera los {limit, number} caracteres. Acórtala y envíala de nuevo.",
+        "openThread": "Abrir conversación"
       },
       "connections": {
         "connect": "Conectar {provider}",
