@@ -106,7 +106,7 @@ export const imageStudioVideoSettingsSchema = z
 
 export const IMAGE_STUDIO_MEDIA_TYPES = ["IMAGE", "VIDEO"] as const;
 
-const studioHeadlineTextSchema = z
+export const studioHeadlineTextSchema = z
   .string()
   .min(1)
   .max(MAX_STUDIO_HEADLINE_LENGTH)

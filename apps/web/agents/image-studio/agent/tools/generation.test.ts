@@ -7,19 +7,26 @@ const {
   listImageOptions,
   readGeneration,
   listStudioProducts,
+  readAdHeadline,
+  saveAdHeadline,
 } = vi.hoisted(() => ({
   startGeneration: vi.fn(),
   listImageOptions: vi.fn(),
   readGeneration: vi.fn(),
   listStudioProducts: vi.fn(),
+  readAdHeadline: vi.fn(),
+  saveAdHeadline: vi.fn(),
 }));
 vi.mock("../lib/core", () => ({
   startGeneration,
   listImageOptions,
   readGeneration,
   listStudioProducts,
+  readAdHeadline,
+  saveAdHeadline,
 }));
 
+import adHeadline from "./ad_headline";
 import check from "./check_generation";
 import generate from "./generate_image";
 import options from "./list_image_options";
@@ -83,6 +90,42 @@ describe("image generation tools", () => {
         settings: {},
       },
     });
+  });
+
+  it("reads and saves an approved headline without starting a generation", async () => {
+    const assetId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const identity = { userId: "user-1", projectId: "project-1" };
+    const headline = { text: "Brew at your own pace.", revision: 4 };
+    const options = {
+      headline: { text: null, revision: 3 },
+      approvedLines: [headline.text],
+    };
+    readAdHeadline.mockResolvedValueOnce(options);
+    saveAdHeadline.mockResolvedValueOnce(headline);
+    expect(await adHeadline.execute({ action: "read", assetId }, ctx)).toEqual(
+      options,
+    );
+    expect(readAdHeadline).toHaveBeenCalledExactlyOnceWith(identity, assetId);
+    await expect(
+      adHeadline.execute({ action: "save", assetId, text: headline.text }, ctx),
+    ).rejects.toThrow(/revision/);
+    expect(saveAdHeadline).not.toHaveBeenCalled();
+    expect(
+      await adHeadline.execute(
+        {
+          action: "save",
+          assetId,
+          expectedRevision: 3,
+          text: headline.text,
+        },
+        ctx,
+      ),
+    ).toEqual({ assetId, headline });
+    expect(saveAdHeadline).toHaveBeenCalledExactlyOnceWith(identity, assetId, {
+      expectedRevision: 3,
+      text: headline.text,
+    });
+    expect(startGeneration).not.toHaveBeenCalled();
   });
 
   it("forwards chosen model, placement, output format and seed to Core without changing scope", async () => {

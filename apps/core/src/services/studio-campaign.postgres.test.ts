@@ -21,6 +21,7 @@ vi.mock("@/config/env", async (importOriginal) => {
       ...actual.getEnv(),
       BLOB_READ_WRITE_TOKEN: "campaign-public-fixture",
       IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "campaign-private-fixture",
+      IMAGE_STUDIO_AGENT_SECRET: "campaign-fixture-agent-secret".repeat(2),
       AI_GATEWAY_API_KEY: undefined,
     }),
     getBetterAuthPublicBaseUrl: () => null,
@@ -45,8 +46,11 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   writeStudioDriveFile: vi.fn(),
 }));
 
+import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
+import { mintAgentGrant } from "@/lib/image-studio/agent-grant";
+import agentRoutes from "@/routes/v1/image-studio-agent/index";
 import mountAssetContent from "@/routes/v1/projects/[id]/image-studio/asset-content-get";
 import mountAssetHeadline from "@/routes/v1/projects/[id]/image-studio/asset-headline-put";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
@@ -98,6 +102,8 @@ function app(actorId = userId) {
     });
     await next();
   });
+  server.onError(errorHandler);
+  server.route("/v1/image-studio-agent", agentRoutes);
   mountBrandKit(server);
   mountWebsiteLogo(server);
   mountPatchProject(server);
@@ -447,6 +453,58 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         }),
       ]),
     );
+    const agentPath = `/v1/image-studio-agent/assets/${firstAd.id}/headline`;
+    const agentAuth = (
+      audience: "agent" | "browser" = "agent",
+      actorId = userId,
+    ) => ({
+      authorization: `Bearer ${mintAgentGrant(
+        { userId: actorId, projectId, audience, ttlSeconds: 120 },
+        "campaign-fixture-agent-secret".repeat(2),
+      )}`,
+    });
+    const agentRead = await studio.request(agentPath, { headers: agentAuth() });
+    expect(agentRead.status).toBe(200);
+    expect((await agentRead.json()).data).toEqual({
+      headline: { text: null, revision: 2 },
+      approvedLines: [approvedLine, secondApprovedLine],
+    });
+    expect(
+      (await studio.request(agentPath, { headers: agentAuth("browser") }))
+        .status,
+    ).toBe(401);
+    expect(
+      (
+        await studio.request(agentPath, {
+          headers: agentAuth("agent", randomUUID()),
+        })
+      ).status,
+    ).toBe(404);
+    const changeFromChat = (text: string | null, expectedRevision: number) =>
+      studio.request(agentPath, {
+        method: "PUT",
+        headers: { ...agentAuth(), "content-type": "application/json" },
+        body: JSON.stringify({ text, expectedRevision }),
+      });
+    expect((await changeFromChat(unusedLine, 2)).status).toBe(422);
+    const updated = await changeFromChat(secondApprovedLine, 2);
+    expect(updated.status).toBe(200);
+    expect((await updated.json()).data).toEqual({
+      text: secondApprovedLine,
+      revision: 3,
+    });
+    expect((await changeFromChat(approvedLine, 2)).status).toBe(409);
+    expect((await changeFromChat(secondApprovedLine, 2)).status).toBe(200);
+    expect((await (await readBatch()).json()).data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: firstAd.id,
+          headline: { text: secondApprovedLine, revision: 3 },
+        }),
+      ]),
+    );
+    expect(external.submit).toHaveBeenCalledTimes(4);
+
     const output = `${path}/assets/${assets[0].id}/content?placement=9%3A16&logo=top-left`;
     const png = await studio.request(output);
     expect(png.status).toBe(200);

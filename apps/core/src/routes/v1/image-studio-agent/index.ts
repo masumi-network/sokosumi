@@ -6,6 +6,7 @@ import {
   requireAgentGrant,
 } from "@/routes/image-studio-agent/authorize";
 
+import mountAssetHeadline from "./asset-headline.js";
 import mountProducts from "./products-get.js";
 import mountRecordInitialTurn from "./sessions-initial-turn-post.js";
 import mountRegisterSession from "./sessions-post.js";
@@ -40,5 +41,6 @@ app.use("*", async (c, next) => {
 mountRegisterSession(app);
 mountRecordInitialTurn(app);
 mountProducts(app);
+mountAssetHeadline(app);
 
 export default app;

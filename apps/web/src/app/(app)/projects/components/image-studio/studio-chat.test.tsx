@@ -149,6 +149,68 @@ describe("the first message", () => {
 });
 
 describe("project conversation", () => {
+  it("applies completed headline saves and lets the user open the updated ad", () => {
+    const asset = {
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      projectId: "project-1",
+    } as StudioAsset;
+    const output = {
+      assetId: asset.id,
+      headline: { text: "Brew at your own pace.", revision: 2 },
+    };
+    const result = {
+      type: "tool",
+      callId: "save",
+      state: "completed",
+      name: "ad_headline",
+      output,
+    };
+    const messages = [
+      { id: "older", role: "assistant", parts: [result] },
+      {
+        id: "user",
+        role: "user",
+        parts: [{ type: "text", text: "Change the headline" }],
+      },
+      {
+        id: "updated",
+        role: "assistant",
+        parts: [
+          {
+            ...result,
+            callId: "read",
+            output: { headline: output.headline, approvedLines: [] },
+          },
+          result,
+          { ...result, callId: "failed", state: "failed" },
+        ],
+      },
+    ];
+    useEveAgentMock.mockImplementation(() =>
+      agentState({ messages: messages.slice(1) }),
+    );
+    const onActivity = vi.fn();
+    const onPreviewAd = vi.fn();
+    render(
+      <StudioChat
+        assets={[asset]}
+        labels={TEST_LABELS}
+        onActivity={onActivity}
+        onPreviewAd={onPreviewAd}
+        onSelectResult={() => {}}
+        projectId={asset.projectId}
+        selectedAsset={null}
+      />,
+    );
+    const finish = latestOptions().onFinish;
+    if (typeof finish !== "function")
+      throw new Error("Missing turn completion handler");
+    finish({ messages });
+    expect(onActivity).toHaveBeenCalledExactlyOnceWith([output]);
+    fireEvent.click(screen.getByRole("button", { name: "viewUpdatedAd" }));
+    expect(onPreviewAd).toHaveBeenCalledExactlyOnceWith(asset);
+  });
+
   it("lets the user keep editing a result once its job produces an ad", () => {
     const ad = {
       id: "new-ad",

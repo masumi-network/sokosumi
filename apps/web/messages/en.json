@@ -4251,6 +4251,7 @@
         "errorHint": "Check the gallery for a new version before you send the request again.",
         "newConversation": "New conversation",
         "editResult": "Edit version {version}",
+        "viewUpdatedAd": "View updated ad",
         "editingVersion": "Editing version {version}",
         "editingProduct": "Editing {name} · version {version}",
         "refreshFailed": "Could not connect to the assistant."

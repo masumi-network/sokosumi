@@ -4251,6 +4251,7 @@
         "errorHint": "Prüfe die Galerie auf eine neue Version, bevor du die Anfrage erneut sendest.",
         "newConversation": "Neue Unterhaltung",
         "editResult": "Version {version} bearbeiten",
+        "viewUpdatedAd": "Aktualisierte Anzeige ansehen",
         "editingVersion": "Version {version} wird bearbeitet",
         "editingProduct": "{name} · Version {version} wird bearbeitet",
         "refreshFailed": "Die Verbindung zum Assistenten konnte nicht hergestellt werden."

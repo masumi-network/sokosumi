@@ -424,6 +424,21 @@ export function ImageStudio({
     return latest?.text ?? "";
   }
 
+  function rememberHeadlines(
+    updates: { assetId: string; headline: StudioAdHeadline }[],
+  ) {
+    if (!updates.length) return;
+    setSavedHeadlines((current) => {
+      const next = { ...current };
+      for (const { assetId, headline } of updates) {
+        if ((next[assetId]?.revision ?? -1) < headline.revision) {
+          next[assetId] = headline;
+        }
+      }
+      return next;
+    });
+  }
+
   function changeHeadline(asset: StudioAsset, text: string) {
     if (headlineSaveInProgress.current || downloadingAds) return;
     headlineSaveInProgress.current = true;
@@ -434,7 +449,7 @@ export function ImageStudio({
           assetId: asset.id,
           text: text || null,
         });
-        setSavedHeadlines((current) => ({ ...current, [asset.id]: saved }));
+        rememberHeadlines([{ assetId: asset.id, headline: saved }]);
       } catch {
         toast.error(t("headlineSaveFailed"));
       } finally {
@@ -1468,7 +1483,14 @@ export function ImageStudio({
             assets={state.assets}
             key={activeProjectId}
             labels={labels}
-            onActivity={() => void refresh()}
+            onActivity={(updates) => {
+              rememberHeadlines(updates);
+              void refresh();
+            }}
+            onPreviewAd={(asset) => {
+              selectAsset(asset.id);
+              setViewing({ mode: "single" });
+            }}
             onSelectResult={(asset) => setAssistant({ open: true, asset })}
             projectId={activeProjectId}
             selectedAsset={assistant.asset}

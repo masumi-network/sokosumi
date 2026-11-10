@@ -1,3 +1,9 @@
+import {
+  readStudioAgentAdHeadline,
+  type SaveStudioAgentAdHeadline,
+  saveStudioAgentAdHeadline,
+} from "@sokosumi/core-client";
+
 import { mintGrant } from "./grant";
 
 /**
@@ -418,6 +424,56 @@ export async function listStudioProducts(identity: AgentIdentity): Promise<{
     data: { products: { id: string; name: string; hasPhoto: boolean }[] };
   }>(identity, "/v1/image-studio-agent/products", { method: "GET" });
   return data;
+}
+
+function headlineRequest(identity: AgentIdentity, assetId: string) {
+  return {
+    baseUrl: `${baseUrl()}/v1`,
+    headers: { authorization: `Bearer ${mintGrant(identity)}` },
+    path: { assetId },
+    cache: "no-store" as const,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  };
+}
+
+export async function readAdHeadline(identity: AgentIdentity, assetId: string) {
+  const { data, response } = await readStudioAgentAdHeadline(
+    headlineRequest(identity, assetId),
+  );
+  if (data?.data) return data.data;
+  if (!response) throw new Error("Sokosumi could not read the ad headline.");
+  throw new Error(
+    response.status === 404
+      ? "That image version is not in this project."
+      : `Sokosumi could not read the ad headline (${response.status}).`,
+  );
+}
+
+export async function saveAdHeadline(
+  identity: AgentIdentity,
+  assetId: string,
+  body: SaveStudioAgentAdHeadline,
+) {
+  const { data, error, response } = await saveStudioAgentAdHeadline({
+    ...headlineRequest(identity, assetId),
+    body,
+  });
+  if (data?.data) return data.data;
+  if (!response)
+    throw new Error("Sokosumi could not confirm the headline save.");
+  if (error?.kind === "studio_headline_not_approved") {
+    throw new Error(
+      "That line is no longer approved. Read the current approved lines and let the person choose.",
+    );
+  }
+  if (response.status === 409) {
+    throw new Error(
+      "The headline may have changed. Read the current choice and ask before replacing it.",
+    );
+  }
+  throw new Error(
+    `Sokosumi could not save the ad headline (${response.status}).`,
+  );
 }
 
 export interface VersionSummary {

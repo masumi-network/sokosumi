@@ -35,7 +35,9 @@ const NO_BRAND: StudioBrand = {
 
 export function requireApprovedStudioHeadline(text: string, brand: unknown) {
   if (!parseBrandBrain(brand)?.voice.examples.includes(text)) {
-    throw unprocessableEntity("Headline is no longer approved in Brand Kit");
+    throw unprocessableEntity("Headline is no longer approved in Brand Kit", {
+      kind: "studio_headline_not_approved",
+    });
   }
 }
 

@@ -4251,6 +4251,7 @@
         "errorHint": "Comprueba si hay una nueva versión en la galería antes de volver a enviar la solicitud.",
         "newConversation": "Nueva conversación",
         "editResult": "Editar la versión {version}",
+        "viewUpdatedAd": "Ver anuncio actualizado",
         "editingVersion": "Editando la versión {version}",
         "editingProduct": "Editando {name} · versión {version}",
         "refreshFailed": "No se pudo conectar con el asistente."
