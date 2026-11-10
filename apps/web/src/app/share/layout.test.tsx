@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import SharePageLayout from "./(page)/layout";
 import ShareLayout, { ShareImpersonationBanner } from "./layout";
 
 vi.mock("next-intl/server", () => ({
@@ -32,11 +33,11 @@ vi.mock("@/components/impersonation/impersonation-banner", () => ({
   ),
 }));
 
-vi.mock("./components/header", () => ({
+vi.mock("./(page)/components/header", () => ({
   default: () => <div data-testid="share-header" />,
 }));
 
-vi.mock("./components/share-page-cta", () => ({
+vi.mock("./(page)/components/share-page-cta", () => ({
   default: () => <div data-testid="share-page-cta" />,
 }));
 
@@ -55,11 +56,23 @@ describe("ShareLayout", () => {
     expect(ShareLayout.constructor.name).toBe("Function");
   });
 
-  it("renders children with the share chrome", () => {
+  it("renders children without the share chrome, so data rooms stay clean", () => {
     render(
       <ShareLayout>
         <div data-testid="share-child" />
       </ShareLayout>,
+    );
+
+    expect(screen.getByTestId("share-child")).toBeInTheDocument();
+    expect(screen.queryByTestId("share-header")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("share-page-cta")).not.toBeInTheDocument();
+  });
+
+  it("gives shared Tasks and files the share chrome", () => {
+    render(
+      <SharePageLayout>
+        <div data-testid="share-child" />
+      </SharePageLayout>,
     );
 
     expect(screen.getByTestId("share-child")).toBeInTheDocument();

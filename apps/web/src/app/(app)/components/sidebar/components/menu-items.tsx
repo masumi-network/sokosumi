@@ -70,6 +70,8 @@ interface MenuItemConfig {
   tile?: ReactNode;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
+  /** Current only on `href` itself, not on the pages under it. */
+  exact?: true | undefined;
 }
 
 /** The headings the nav's destinations sit under, in the order they show. */
@@ -128,30 +130,35 @@ function ScopedMenuItems({
       desktopOnly: true,
     },
     // Under Home: Home answers what needs you, Projects browses the work.
-    // One row for the scope: the Projects list, or the selected project's
-    // own page. The nav never shows both.
-    !hasProjectPage
-      ? {
-          key: "projects",
-          href: "/projects",
-          label: t("projects"),
-          Icon: FolderKanban,
-          group: "work",
-        }
-      : {
-          key: "overview",
-          href: `/projects/${encodeURIComponent(projectId)}`,
-          label: t("overview"),
-          // The glyph holds the slot until the project's name and logo load.
-          Icon: FolderKanban,
-          tile: selectedProject ? (
-            <ProjectAvatar
-              name={selectedProject.name}
-              logo={selectedProject.logo}
-            />
-          ) : undefined,
-          group: "work",
-        },
+    // Projects stays while a project is selected, so the list is always one
+    // click away; the selected project's own page follows it as Overview.
+    {
+      key: "projects",
+      href: "/projects",
+      label: t("projects"),
+      Icon: FolderKanban,
+      group: "work",
+      // Inside a project, Overview is the current row, not the list.
+      exact: hasProjectPage || undefined,
+    },
+    ...(hasProjectPage
+      ? [
+          {
+            key: "overview",
+            href: `/projects/${encodeURIComponent(projectId)}`,
+            label: t("overview"),
+            // The glyph holds the slot until the project's name and logo load.
+            Icon: FolderKanban,
+            tile: selectedProject ? (
+              <ProjectAvatar
+                name={selectedProject.name}
+                logo={selectedProject.logo}
+              />
+            ) : undefined,
+            group: "work",
+          } satisfies NavDestination,
+        ]
+      : []),
     {
       key: "explore-agents",
       href: "/agents",
@@ -259,8 +266,9 @@ function ScopedMenuItems({
     Icon,
     tile,
     feature,
+    exact,
   }: MenuItemConfig) {
-    const isActive = isPathActive(pathname, href);
+    const isActive = exact ? pathname === href : isPathActive(pathname, href);
 
     return (
       <SidebarMenuItem key={key}>

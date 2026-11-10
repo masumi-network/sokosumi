@@ -3,9 +3,14 @@ import {
   buildUserDriveFolderPrefix,
   isDriveFolderMarkerName,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
 
 import { badRequest, conflict, notFound } from "@/helpers/error";
+import {
+  driveExists,
+  driveHasAny,
+  driveHead,
+  driveRename,
+} from "@/lib/drive-blob";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 /**
@@ -21,18 +26,10 @@ export async function moveDriveFile(input: {
   scope: "user" | "organization";
   ownerId: string;
   workspaceId: string;
-  token: string;
 }): Promise<string> {
-  const { sourcePathname, token } = input;
-  let sourceMetadata;
-  try {
-    sourceMetadata = await head(sourcePathname, { token });
-  } catch (error) {
-    if (error instanceof BlobNotFoundError) {
-      throw notFound("Source file not found");
-    }
-    throw error;
-  }
+  const { sourcePathname } = input;
+  const sourceMetadata = await driveHead(sourcePathname);
+  if (!sourceMetadata) throw notFound("Source file not found");
 
   const filename = sourcePathname.split("/").at(-1) || "unnamed";
   if (isDriveFolderMarkerName(filename)) {
@@ -51,26 +48,14 @@ export async function moveDriveFile(input: {
   const targetPathname = `${targetPrefix}${filename}`;
   if (targetPathname === sourcePathname) return targetPathname;
 
-  try {
-    await head(targetPathname, { token });
+  if (await driveExists(targetPathname)) {
     throw conflict("Target file already exists");
-  } catch (error) {
-    if (!(error instanceof BlobNotFoundError)) throw error;
   }
-
-  const folderCheck = await list({
-    prefix: `${targetPathname}/`,
-    token,
-    limit: 1,
-  });
-  if (folderCheck.blobs.length > 0) {
+  if (await driveHasAny(`${targetPathname}/`)) {
     throw conflict("A folder with that name already exists");
   }
 
-  await rename(sourcePathname, targetPathname, {
-    token,
-    access: "public",
-    addRandomSuffix: false,
+  await driveRename(sourcePathname, targetPathname, {
     contentType: sourceMetadata.contentType,
     cacheControlMaxAge: parseCacheControlMaxAge(sourceMetadata.cacheControl),
   });

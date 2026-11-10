@@ -12,12 +12,18 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   );
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
-vi.mock("@/lib/db/prisma", () => ({ default: { $queryRaw: queryRawMock } }));
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $queryRaw: queryRawMock,
+    dataRoom: { findMany: vi.fn(async () => []) },
+  },
+}));
 vi.mock("@/helpers/file-workspace", () => ({
   resolveFileRequestContext: vi.fn().mockResolvedValue({
     workspaceId: "ws_1",
     scope: "organization",
     ownerId: "org_1",
+    actor: { userId: "u1", organizationId: "org_1", kind: "interactive" },
   }),
 }));
 vi.mock("@/config/env", async (importOriginal) => {

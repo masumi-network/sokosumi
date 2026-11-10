@@ -7,6 +7,7 @@ import mountGetChatRoomGuestInvitationsExpireSync from "./chat-room-guest-invita
 import mountGetCmoProductionSync from "./cmo-production/get.js";
 import mountGetContactCaptureSync from "./contact-capture/get.js";
 import mountGetCoworkerLateResponsesSync from "./coworker-late-responses/get.js";
+import mountGetDataRoomsSync from "./data-rooms/get.js";
 import mountGetDriveIndexSync from "./drive-index/get.js";
 import mountGetEnterpriseContractsRenewalSync from "./enterprise-contracts-renewal/get.js";
 import mountGetEvalsSync from "./evals/get.js";
@@ -55,6 +56,7 @@ mountGetNotificationFollowUpsSync(app);
 mountSendNewsletterIssues(app);
 mountGetNotificationPublishesSync(app);
 mountGetProjectClosesSync(app);
+mountGetDataRoomsSync(app);
 mountGetSkillCatalogSync(app);
 mountGetSocialPerformanceSync(app);
 mountGetSocialPostsPublishSync(app);

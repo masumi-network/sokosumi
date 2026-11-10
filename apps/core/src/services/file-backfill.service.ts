@@ -4,10 +4,10 @@ import {
   buildUserDriveFolderPrefix,
   isDriveFolderMarker,
 } from "@sokosumi/utils";
-import { list } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { driveList } from "@/lib/drive-blob";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import { adoptDriveUploadResource } from "@/services/file-catalog.service";
 
@@ -82,9 +82,8 @@ export async function backfillDriveStore(input: {
   let complete = false;
 
   for (let visit = 0; visit < BACKFILL_PAGES_PER_VISIT; visit += 1) {
-    const page = await list({
+    const page = await driveList({
       prefix,
-      token,
       cursor,
       limit: BACKFILL_PAGE_SIZE,
     });

@@ -1,4 +1,11 @@
-import type { ChatRoom, TaskListItem } from "@sokosumi/core-client";
+import type {
+  ChatRecentSokoBotMessage,
+  ChatRoom,
+  TaskListItem,
+} from "@sokosumi/core-client";
+import { buildChatMessagePreview } from "@sokosumi/utils";
+
+import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 
 type TeamTask = Pick<
   TaskListItem,
@@ -63,4 +70,53 @@ export function toTeamDay(
       updatedAt: task.updatedAt,
       who: taskWho(task),
     }));
+}
+
+/** A chat with a Soko Bot the reader took part in during the last day. */
+export interface SokoBotHomeChat {
+  roomId: string;
+  /** The reader's newest message there, a Thread reply included; the row
+   * opens at it. */
+  messageId: string;
+  /** That message as plain text: what the chat was about, in their words. */
+  title: string;
+  /** Last activity: the room's, or the reader's reply when that is newer
+   * (a reply leaves the room's timestamp alone). */
+  at: Date;
+}
+
+/**
+ * Core's per-room newest reader messages as Home rows. Core already picked
+ * the reader's own messages in this workspace's Soko Bot rooms, Thread
+ * replies included, newest first and capped; the room list supplies the
+ * names a mention token carries. A room missing from that list is left
+ * out. `allLabel` is what the room-wide mention reads as; `untitled` names
+ * a message with no text.
+ */
+export function toSokoBotChats(
+  recent: readonly ChatRecentSokoBotMessage[],
+  rooms: readonly ChatRoom[],
+  allLabel: string,
+  untitled: string,
+): SokoBotHomeChat[] {
+  const byId = new Map(rooms.map((room) => [room.id, room]));
+  return recent.flatMap((message) => {
+    const room = byId.get(message.roomId);
+    if (!room) return [];
+    return [
+      {
+        roomId: room.id,
+        messageId: message.messageId,
+        title:
+          buildChatMessagePreview(
+            message.content,
+            roomMentionNames(room, allLabel),
+          ) || untitled,
+        at:
+          message.createdAt > room.updatedAt
+            ? message.createdAt
+            : room.updatedAt,
+      },
+    ];
+  });
 }

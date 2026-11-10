@@ -388,6 +388,14 @@ const baseEnvSchema = z.object({
    */
   IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Read-write token for the **private-access** Blob store data rooms keep
+   * their files in, for the same reason the image studio has its own: the
+   * shared Drive store is public, and only a private store makes taking
+   * someone's access away final. Absent, a folder cannot become a data room.
+   * See `lib/drive-blob.ts`.
+   */
+  DATA_ROOM_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
    * @see https://vercel.com/docs/vercel-blob/vercel-signed-urls

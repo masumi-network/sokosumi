@@ -247,6 +247,17 @@ export function CreateOrganizationWizard({
   const linkStartedRef = useRef(false);
   /** The first logo replaces the drop target, so focus moves to "Replace". */
   const focusReplaceLogoRef = useRef(false);
+  /** Step whose heading last took focus. The opening step keeps Name focused. */
+  const focusedStepRef = useRef(0);
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  // Each step's buttons unmount with it, so focus fell back to the dialog and
+  // a screen reader heard only "2 / 4". Start the new step at its title.
+  const focusStepHeading = useCallback((node: HTMLHeadingElement | null) => {
+    if (!node || focusedStepRef.current === stepRef.current) return;
+    focusedStepRef.current = stepRef.current;
+    node.focus();
+  }, []);
   const orgCreateInFlightRef = useRef(false);
   // Lock callbacks synchronously, before React renders the pending state.
   const leavingRef = useRef(false);
@@ -302,6 +313,7 @@ export function CreateOrganizationWizard({
 
   const resetAll = useCallback(() => {
     setStep(0);
+    focusedStepRef.current = 0;
     setOrganizationId(null);
     setOrganizationName("");
     setNormalizedUrl(null);
@@ -726,7 +738,11 @@ export function CreateOrganizationWizard({
                   <div className="flex min-h-24 flex-none items-center justify-center">
                     <OrgInitialTile control={form.control} />
                   </div>
-                  <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                  <h2
+                    ref={focusStepHeading}
+                    tabIndex={-1}
+                    className="outline-none mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl"
+                  >
                     {t("Details.title")}
                   </h2>
                   <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
@@ -833,7 +849,11 @@ export function CreateOrganizationWizard({
                     )}
                   </div>
                 ) : null}
-                <h2 className="text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                <h2
+                  ref={focusStepHeading}
+                  tabIndex={-1}
+                  className="outline-none text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl"
+                >
                   {t("Logo.title")}
                 </h2>
                 <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
@@ -949,7 +969,11 @@ export function CreateOrganizationWizard({
                   )}
                 </div>
 
-                <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                <h2
+                  ref={focusStepHeading}
+                  tabIndex={-1}
+                  className="outline-none mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl"
+                >
                   {t("Brand.title")}
                 </h2>
 
@@ -1045,7 +1069,11 @@ export function CreateOrganizationWizard({
                     <Check className="text-foreground animate-in fade-in-0 size-6 duration-200" />
                   </div>
                 </div>
-                <h2 className="mt-4 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                <h2
+                  ref={focusStepHeading}
+                  tabIndex={-1}
+                  className="outline-none mt-4 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl"
+                >
                   {organizationName
                     ? t("Invite.title", { organization: organizationName })
                     : t("Invite.titleFallback")}

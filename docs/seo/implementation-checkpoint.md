@@ -8,7 +8,7 @@ REPORTED: the owner clarified that SEO must open as Audits, without a required S
 
 VERIFIED: correction to the earlier naming change: changing the heading left `ProjectScopeRequired` in the empty entry and forwarded SEO chat to the personal assistant. The retained UI regression failed all three entry cases with that earlier page source. The native entry now lists real Workspace Audits and creates the first Page atomically. Evidence: `apps/web/src/app/(app)/seo/page.test.tsx` and `apps/core/src/services/seo-audit.postgres.test.ts`.
 
-VERIFIED: `SeoAudit` owns related pages in a Workspace. The seven existing SEO tables use an explicit Audit or legacy Project owner, enforced by database checks and independent unique keys. Existing Project-owned evidence stays intact. Evidence: `20261109233100_workspace_seo_audits/migration.sql`.
+VERIFIED: `SeoAudit` owns related pages in a Workspace. The seven existing SEO tables use an explicit Audit or legacy Project owner, enforced by database checks and independent unique keys. Existing Project-owned evidence stays intact. Evidence: `20261110100100_workspace_seo_audits/migration.sql`.
 
 VERIFIED: SEO chat stays inside the Audit UI. Its per-user history, draft identity, selected pages and current dispatch restrictions stay separate from personal assistant chats. It can explain stored results and propose native UI actions. It has no execution tools. Evidence: `seo-chat.postgres.test.ts`, `chat-context.test.ts` and `seo-workspace.test.tsx`.
 
@@ -80,7 +80,7 @@ REPORTED: The owner clarified that organization Audit chat and statistics must b
 
 VERIFIED: Correction to the earlier reader-only design: its tests proved personal isolation but did not prove the requested organization collaboration. `lib/seo/data-visibility.ts` now distinguishes organization and personal context. `seo-chat.service.ts:120` reads the shared conversation, identifies each author and excludes legacy private turns. Shared inference also excludes the original author's private metrics. Account consent and Google account operations remain bound to the initiating user and Workspace.
 
-VERIFIED: Migration `20261109233200_seo_shared_organization_context` adds two visibility columns with `DEFAULT 'PRIVATE'` and two value checks. Its approved localhost run applied only that pending migration. Existing records are not published by the migration. `project-seo-store.ts:78` also applies linked Project scope and lifecycle checks to an Audit; public report and saved-data ownership remain separate.
+VERIFIED: Migration `20261110100200_seo_shared_organization_context` adds two visibility columns with `DEFAULT 'PRIVATE'` and two value checks. Its approved localhost run applied only that pending migration. Existing records are not published by the migration. `project-seo-store.ts:78` also applies linked Project scope and lifecycle checks to an Audit; public report and saved-data ownership remain separate.
 
 VERIFIED: Root checks reported `97 passed (97)` across fourteen Core/database files, `43 passed (43)` across the workspace/header Web files, `20 successful, 20 total` for normal checks and `10 successful, 10 total` for Core/Web builds. Evidence: `/private/tmp/seo-organization-context-core-root.log`, `seo-shared-context-web-root.log`, `seo-organization-context-precommit.log` and `seo-organization-context-build.log`.
 

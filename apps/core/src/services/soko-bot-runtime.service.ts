@@ -93,6 +93,7 @@ import type { GoogleDisplayImageRole } from "@sokosumi/utils";
 import {
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePathnameWithFolder,
+  buildOrganizationDriveFolderPrefix,
   buildTaskFilePathname,
   buildUserDriveFilePathname,
   buildUserDriveFilePathnameWithFolder,
@@ -111,7 +112,7 @@ import {
   tableMutationSchema,
   tableQuerySchema,
 } from "@sokosumi/utils";
-import { copy, del, head, list, put } from "@vercel/blob";
+import { copy, del, head, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
@@ -170,6 +171,18 @@ import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import { contactExportTable } from "@/lib/contacts/export-table";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  driveDel,
+  driveExists,
+  driveHead,
+  drivePut,
+  driveReadUrl,
+  driveWriteStore,
+  isInDataRoom,
+  publicDriveStore,
+  publicDriveUrl,
+  transferBetweenStores,
+} from "@/lib/drive-blob";
 import {
   evalCoworkerRefusal,
   globalCoworkersFor,
@@ -491,6 +504,11 @@ import {
   updateTaskForActor,
 } from "@/services/task-domain.service";
 import { resolveProjectXSubscriptionTypes } from "@/services/x-subscription-tier.service";
+
+/** What a bot is told when a file it chose sits in a data room. */
+function dataRoomRefusal(name: string): string {
+  return `"${name}" is in a data room, so it cannot leave Sokosumi this way. Ask your owner to move it out of the room first.`;
+}
 
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
@@ -2950,9 +2968,14 @@ export class SokoBotRuntimeService {
           throw new SokoBotRuntimeValidationError(
             `"${file.displayName}" is not an image or video a Social post can carry`,
           );
+        const fileUrl = await publicDriveUrl(file.sourceId);
+        if (!fileUrl)
+          throw new SokoBotRuntimeValidationError(
+            dataRoomRefusal(file.displayName),
+          );
         return {
           pathname: file.sourceId,
-          fileUrl: (await head(file.sourceId)).url,
+          fileUrl,
           name: file.displayName,
           size: file.sizeBytes ?? 0,
           mimeType,
@@ -2992,6 +3015,10 @@ export class SokoBotRuntimeService {
         )
           throw new SokoBotRefusedUnsentError(
             `"${file.displayName}" is not a JPEG, PNG, GIF or WebP image`,
+          );
+        if (await isInDataRoom(file.sourceId))
+          throw new SokoBotRefusedUnsentError(
+            dataRoomRefusal(file.displayName),
           );
         const bytes = await downloadBlob(file.sourceId);
         if (!bytes)
@@ -3216,6 +3243,13 @@ export class SokoBotRuntimeService {
         });
         continue;
       }
+      if (
+        file.sourceKind === "DRIVE_UPLOAD" &&
+        (await isInDataRoom(file.sourceId))
+      ) {
+        skipped.push({ fileId, reason: dataRoomRefusal(file.displayName) });
+        continue;
+      }
       const name = clampTaskFileName(file.displayName);
       // A page the bot built is attached as its source text: Task files are
       // public blobs, and served as HTML they would run in a reader's browser.
@@ -3286,7 +3320,12 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeValidationError(
         "Use an image from Files; upload a chat image with upload_file first",
       );
-    return (await head(file.sourceId)).url;
+    const url = await publicDriveUrl(file.sourceId);
+    if (!url)
+      throw new SokoBotRuntimeValidationError(
+        dataRoomRefusal(file.displayName),
+      );
+    return url;
   }
 
   /** A CSV as uploaded; extracted search text may not keep its rows intact. */
@@ -3401,17 +3440,13 @@ export class SokoBotRuntimeService {
     }
     // A reused name must not silently replace an owner's file: replacing one
     // takes an explicit `overwrite`, and only a text file can be replaced.
-    const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
-      (blob) => blob.pathname === pathname,
-    );
+    const existing = await driveHead(pathname);
     if (existing && !input.overwrite) {
       throw new SokoBotRefusedUnsentError(
         `A file named "${input.filename}" already exists. To replace its content, call upload_file again with overwrite: true; to keep it, choose another name.`,
       );
     }
-    const existingType = existing
-      ? (await head(existing.url)).contentType
-      : null;
+    const existingType = existing ? existing.contentType : null;
     if (
       existing &&
       !isTextMimeType(existingType) &&
@@ -3430,8 +3465,7 @@ export class SokoBotRuntimeService {
       mimeType: contentType,
       sizeBytes,
     });
-    await put(pathname, input.content, {
-      access: "public",
+    await drivePut(pathname, input.content, {
       contentType,
       addRandomSuffix: false,
       allowOverwrite: Boolean(existing),
@@ -3702,14 +3736,16 @@ export class SokoBotRuntimeService {
       },
       select: { id: true, sourceId: true, displayName: true },
     });
-    if (!resource)
+    // An organization's data rooms are for the people let in, never agents.
+    if (
+      !resource ||
+      (drive.key.scope === "organization" &&
+        (await isInDataRoom(resource.sourceId)))
+    )
       throw new SokoBotRefusedUnsentError(
         "No file with that id in your owner's Files; files from Tasks stay with their Task",
       );
-    const token = getEnv().BLOB_READ_WRITE_TOKEN;
-    if (!token)
-      throw new SokoBotRuntimeValidationError("File storage is not configured");
-    return { drive, resource, token };
+    return { drive, resource };
   }
 
   private async moveFile(
@@ -3718,10 +3754,19 @@ export class SokoBotRuntimeService {
     toolCallId: string,
   ) {
     const folder = driveFolderFor(input.folder);
-    const { drive, resource, token } = await this.ownerDriveFile(
+    const { drive, resource } = await this.ownerDriveFile(
       authorized,
       input.fileId,
     );
+    if (
+      drive.key.scope === "organization" &&
+      (await isInDataRoom(
+        buildOrganizationDriveFolderPrefix(drive.key.ownerId, folder),
+      ))
+    )
+      throw new SokoBotRefusedUnsentError(
+        `"${folder}" is a data room; only the people let into it put files there`,
+      );
     try {
       await moveDriveFile({
         sourcePathname: resource.sourceId,
@@ -3729,7 +3774,6 @@ export class SokoBotRuntimeService {
         scope: drive.key.scope,
         ownerId: drive.key.ownerId,
         workspaceId: drive.key.workspaceId,
-        token,
       });
     } catch (error) {
       if (error instanceof HTTPException && error.status < 500)
@@ -3760,11 +3804,11 @@ export class SokoBotRuntimeService {
       throw new SokoBotRefusedUnsentError(
         "Files are deleted only when your owner asks in their chat with you. Ask them, or move it with move_file.",
       );
-    const { drive, resource, token } = await this.ownerDriveFile(
+    const { drive, resource } = await this.ownerDriveFile(
       authorized,
       input.fileId,
     );
-    await del(resource.sourceId, { token });
+    await driveDel([resource.sourceId]);
     await tombstoneDriveUploadResource({
       workspaceId: drive.key.workspaceId,
       scope: drive.key.scope,
@@ -4000,7 +4044,8 @@ export class SokoBotRuntimeService {
         `${file.displayName} is over ${SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES / 1e6} MB`,
       );
     return {
-      url: (await head(file.sourceId)).url,
+      // Signed and short-lived for a data room's private file.
+      url: await driveReadUrl(file.sourceId),
       name: file.displayName,
       contentType: file.mimeType,
     };
@@ -4115,12 +4160,22 @@ export class SokoBotRuntimeService {
       mimeType: grant.contentType,
       sizeBytes: blob.size,
     });
-    await copy(input.uploadedPathname, pathname, {
-      access: "public",
-      contentType: grant.contentType,
-      addRandomSuffix: false,
-      allowOverwrite: false,
-    });
+    const target = await driveWriteStore(pathname);
+    if (target.access === "public")
+      await copy(input.uploadedPathname, pathname, {
+        access: "public",
+        contentType: grant.contentType,
+        addRandomSuffix: false,
+        allowOverwrite: false,
+      });
+    else
+      await transferBetweenStores({
+        fromPathname: input.uploadedPathname,
+        fromStore: publicDriveStore(),
+        toPathname: pathname,
+        toStore: target,
+        contentType: grant.contentType,
+      });
     await del(input.uploadedPathname).catch(() => undefined);
     const activated = await activateDriveUploadResource({
       key,
@@ -4161,9 +4216,7 @@ export class SokoBotRuntimeService {
       ? drive.pathnameIn(input.folder, input.filename)
       : drive.pathname(input.filename);
     const displayName = pathname.split("/").pop() ?? input.filename;
-    const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
-      (blob) => blob.pathname === pathname,
-    );
+    const existing = await driveExists(pathname);
     if (existing && !input.overwrite)
       throw new SokoBotRefusedUnsentError(
         `A file named "${input.filename}" already exists. To replace it, call upload_file again with overwrite: true; to keep it, choose another name.`,
@@ -4176,11 +4229,10 @@ export class SokoBotRuntimeService {
       mimeType: contentType,
       sizeBytes: bytes.byteLength,
     });
-    await put(pathname, bytes, {
-      access: "public",
+    await drivePut(pathname, bytes, {
       contentType,
       addRandomSuffix: false,
-      allowOverwrite: Boolean(existing),
+      allowOverwrite: existing,
     });
     const activated = await activateDriveUploadResource({
       key,
@@ -4191,7 +4243,7 @@ export class SokoBotRuntimeService {
     return {
       id: activated?.resourceId ?? null,
       filename: displayName,
-      replaced: Boolean(existing),
+      replaced: existing,
       link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: bytes.byteLength,
       folder: input.folder || null,
