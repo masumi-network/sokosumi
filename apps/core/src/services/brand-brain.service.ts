@@ -15,6 +15,7 @@ import {
   cmoBrandProfileSchema,
   cmoSaveBrandBrainInputSchema,
 } from "@sokosumi/soko-bot";
+import { z } from "zod";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { answerNote, keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
@@ -125,7 +126,10 @@ export async function saveBrandBrain(
           questions,
         }
       : null;
-    const body = essentials ? { ...essentials, profile } : { profile };
+    // The first look stays beside the sections until the essentials replace it.
+    const body = essentials
+      ? { ...essentials, profile }
+      : { profile, ...(stored.preview ? { preview: stored.preview } : {}) };
     const updatedAt = essentials ? { updatedAt: new Date() } : {};
     return tx.brandBrain.upsert({
       where: { projectId },
@@ -309,13 +313,59 @@ export function brandBrainSectionsSaved(value: unknown): CmoBrandSectionKey[] {
   return brandBrainSectionHeadlines(value).map(({ key }) => key);
 }
 
-function storedBrandBrain(value: unknown): { profile: CmoBrandProfile } {
+function storedBrandBrain(value: unknown): {
+  profile: CmoBrandProfile;
+  preview?: unknown;
+} {
   const record =
     value && typeof value === "object"
       ? (value as Record<string, unknown>)
       : {};
   const profile = cmoBrandProfileSchema.safeParse(record.profile ?? {});
   return { ...record, profile: profile.success ? profile.data : {} };
+}
+
+/**
+ * A first look at the business from its homepage alone: a line saying what
+ * it is and a few facts, shown while the research runs. It is never part of
+ * the Brand Brain a bot reads (`parseBrandBrain` drops it), and the
+ * essentials replace it.
+ */
+export const brandBrainPreviewSchema = z.object({
+  line: z.string().trim().min(1).max(240),
+  facts: z.array(z.string().trim().min(1).max(120)).max(4),
+});
+export type BrandBrainPreview = z.infer<typeof brandBrainPreviewSchema>;
+
+/** The stored first look, until the essentials exist. */
+export function brandBrainPreview(value: unknown): BrandBrainPreview | null {
+  if (parseBrandBrain(value)) return null;
+  const parsed = brandBrainPreviewSchema.safeParse(
+    storedBrandBrain(value).preview,
+  );
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Stores the first look beside the sections saved so far. False when the
+ * essentials are already there: the research has replaced it.
+ */
+export async function saveBrandBrainPreview(
+  projectId: string,
+  preview: BrandBrainPreview,
+): Promise<boolean> {
+  const parsed = brandBrainPreviewSchema.parse(preview);
+  return prisma.$transaction(async (tx) => {
+    const stored = await lockBrandBrain(tx, projectId);
+    if (parseBrandBrain(stored)) return false;
+    const body = { profile: storedBrandBrain(stored).profile, preview: parsed };
+    await tx.brandBrain.upsert({
+      where: { projectId },
+      create: { projectId, body },
+      update: { body },
+    });
+    return true;
+  });
 }
 
 /**

@@ -38,11 +38,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
-    const { note } = c.req.valid("json");
+    const { note, restart } = c.req.valid("json");
     const started = await requestCmoStrategy({
       userId,
       projectId,
       note,
+      restart,
     }).catch(rethrow);
     return created(c, cmoTurnStartedSchema.parse(started));
   });

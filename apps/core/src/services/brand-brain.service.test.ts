@@ -15,7 +15,11 @@ vi.mock(
 import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
+  brandBrainPreview,
+  compactBrandBrain,
+  parseBrandBrain,
   saveBrandBrain,
+  saveBrandBrainPreview,
 } from "./brand-brain.service";
 
 const PROJECT_ID = "project-1";
@@ -182,6 +186,74 @@ describe("saveBrandBrain", () => {
       ).rejects.toThrow();
       expect(brainUpsert).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("Brand Brain preview", () => {
+  const preview = {
+    line: "Acme sells rockets to founders who ship weekly.",
+    facts: ["From 9 dollars a month", "Based in Berlin"],
+  };
+  const essentials = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+    profile: {},
+  };
+  const section = {
+    answer: "From 9 dollars",
+    findings: [],
+    openQuestions: [],
+  };
+
+  it("stores a first look beside the sections saved so far", async () => {
+    brainFindUnique.mockResolvedValue({
+      body: { profile: { pricing: section } },
+    });
+    await expect(saveBrandBrainPreview(PROJECT_ID, preview)).resolves.toBe(
+      true,
+    );
+    const body = brainUpsert.mock.calls[0]?.[0].update.body;
+    expect(body).toEqual({ profile: { pricing: section }, preview });
+    expect(brandBrainPreview(body)).toEqual(preview);
+  });
+
+  it("keeps the first look while sections land", async () => {
+    brainFindUnique.mockResolvedValue({ body: { profile: {}, preview } });
+    await saveBrandBrain(PROJECT_ID, { sections: { pricing: section } });
+    const body = brainUpsert.mock.calls[0]?.[0].update.body;
+    expect(body.preview).toEqual(preview);
+  });
+
+  it("drops the first look once the essentials save", async () => {
+    brainFindUnique.mockResolvedValue({ body: { profile: {}, preview } });
+    await saveBrandBrain(PROJECT_ID, { brandBrain: essentials });
+    const body = brainUpsert.mock.calls[0]?.[0].update.body;
+    expect(body.preview).toBeUndefined();
+    expect(brandBrainPreview(body)).toBeNull();
+  });
+
+  it("never writes a first look over the essentials", async () => {
+    brainFindUnique.mockResolvedValue({ body: essentials });
+    await expect(saveBrandBrainPreview(PROJECT_ID, preview)).resolves.toBe(
+      false,
+    );
+    expect(brainUpsert).not.toHaveBeenCalled();
+  });
+
+  it("never reaches a turn's packet", () => {
+    const packet = compactBrandBrain(
+      parseBrandBrain({ ...essentials, preview }),
+    );
+    expect(JSON.stringify(packet)).not.toContain(preview.line);
+  });
+
+  it("reads nothing from a missing or malformed preview", () => {
+    expect(brandBrainPreview(null)).toBeNull();
+    expect(brandBrainPreview({ profile: {}, preview: { line: 3 } })).toBeNull();
   });
 });
 

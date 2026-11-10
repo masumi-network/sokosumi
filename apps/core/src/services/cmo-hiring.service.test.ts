@@ -85,6 +85,10 @@ vi.mock(
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
       .integrationConnection,
 );
+const { writeCmoQuickLook } = vi.hoisted(() => ({
+  writeCmoQuickLook: vi.fn(),
+}));
+vi.mock("@/services/cmo-quick-look.service", () => ({ writeCmoQuickLook }));
 vi.mock("@/config/env", async (importOriginal) =>
   (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.env(
     await importOriginal<typeof import("@/config/env")>(),
@@ -92,7 +96,9 @@ vi.mock("@/config/env", async (importOriginal) =>
 );
 
 import {
+  CMO_RESEARCH_GROUPS,
   cmoLearningState,
+  cmoResearch,
   cmoWork,
   describeCmoStep,
   retryCmoOnboarding,
@@ -151,7 +157,10 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+      await retryCmoOnboarding(
+        { projectId: "project-1", userId: "user-1" },
+        now,
+      ),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -163,8 +172,36 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("RUNNING", 1));
     eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
     ).rejects.toThrow("still learning");
+  });
+
+  it("restarts research that runs past twice the usual time", async () => {
+    cusoFind.mockResolvedValue(workspace);
+    // Still making progress, but 15 minutes in: the usual is 7.
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 15));
+    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    startTurn.mockResolvedValue({ turnId: "turn-2" });
+    expect(
+      await retryCmoOnboarding(
+        { projectId: "project-1", userId: "user-1" },
+        now,
+      ),
+    ).toEqual({
+      turnId: "turn-2",
+    });
+    expect(expireTurn).toHaveBeenCalledWith("turn-1");
+  });
+
+  it("keeps research running under twice the usual time", async () => {
+    cusoFind.mockResolvedValue(workspace);
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 13));
+    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    await expect(
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
+    ).rejects.toThrow("still learning");
+    expect(expireTurn).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("retries a finished turn that saved sections but no essentials, finishing them", async () => {
@@ -175,7 +212,10 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("COMPLETED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+      await retryCmoOnboarding(
+        { projectId: "project-1", userId: "user-1" },
+        now,
+      ),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -191,7 +231,7 @@ describe("learning state", () => {
       new funding.BillingError("no"),
     );
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
     ).rejects.toThrow("out of credits");
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -247,6 +287,98 @@ describe("work", () => {
     expect(work?.sections).toEqual([
       { key: "company", headline: "Acme sells rockets." },
     ]);
+  });
+});
+
+describe("research groups", () => {
+  const section = (answer: string) => ({ answer, findings: [] });
+  const saved = (...keys: string[]) => ({
+    profile: Object.fromEntries(keys.map((key) => [key, section(key)])),
+  });
+  const states = (brandBrain: unknown) =>
+    Object.fromEntries(
+      cmoResearch(brandBrain).groups.map((group) => [group.key, group.state]),
+    );
+
+  it("names the six groups, all running before anything is saved", () => {
+    expect(cmoResearch(null).groups).toEqual([
+      { key: "website", label: "Website", state: "running" },
+      { key: "buyers", label: "Buyers' world", state: "running" },
+      { key: "competitors", label: "Competitors", state: "running" },
+      { key: "social", label: "Social accounts", state: "running" },
+      { key: "reviews", label: "Reviews", state: "running" },
+      { key: "news", label: "News and people", state: "running" },
+    ]);
+  });
+
+  it("covers every Brand Brain section exactly once", () => {
+    const keys = CMO_RESEARCH_GROUPS.flatMap((group) => group.sections);
+    expect([...keys].sort()).toEqual(
+      [
+        "company",
+        "offer",
+        "problems",
+        "customers",
+        "buyers",
+        "value",
+        "pricing",
+        "positioning",
+        "competition",
+        "sales",
+        "marketing",
+        "content",
+        "proof",
+        "reputation",
+        "momentum",
+        "opportunities",
+      ].sort(),
+    );
+  });
+
+  it("marks a group done once all its sections are saved", () => {
+    // Cuso's first save: company, offer, pricing.
+    expect(states(saved("company", "offer", "pricing"))).toMatchObject({
+      website: "done",
+      buyers: "running",
+    });
+    // Half a group is still running.
+    expect(states(saved("company", "offer")).website).toBe("running");
+  });
+
+  it("keeps a group done when it saves again and others land", () => {
+    const first = saved("company", "offer", "pricing");
+    const again = {
+      profile: {
+        ...first.profile,
+        offer: section("Rockets and fuel"),
+        problems: section("Slow launches"),
+      },
+    };
+    expect(states(again)).toMatchObject({
+      website: "done",
+      buyers: "running",
+    });
+  });
+
+  it("is all done once the essentials save", () => {
+    const essentials = {
+      summary: "Acme sells rockets.",
+      voice: { tone: "Direct", do: [], dont: [], examples: [] },
+      audience: [],
+      products: [],
+      competitors: [],
+      channels: [],
+      profile: {},
+    };
+    expect(new Set(Object.values(states(essentials)))).toEqual(
+      new Set(["done"]),
+    );
+  });
+
+  it("shows the quick look until the essentials replace it", () => {
+    const preview = { line: "You sell rockets to founders.", facts: [] };
+    expect(cmoResearch({ profile: {}, preview }).preview).toEqual(preview);
+    expect(cmoResearch(null).preview).toBeNull();
   });
 });
 
@@ -378,6 +510,23 @@ describe("startCmoOnboarding", () => {
     projectDelete.mockResolvedValue({ id: "project-1" });
     createBot.mockResolvedValue({ id: "bot-1" });
     startTurn.mockResolvedValue({ turnId: "turn-1" });
+  });
+
+  it("starts the quick look with the hire, beside the research", async () => {
+    await startCmoOnboarding(input);
+    expect(writeCmoQuickLook).toHaveBeenCalledWith(
+      expect.objectContaining({ sokoBotId: "bot-1", projectId: "project-1" }),
+    );
+    expect(startTurn).toHaveBeenCalled();
+  });
+
+  it("never holds the research up on the quick look", async () => {
+    // A quick look that never answers.
+    writeCmoQuickLook.mockReturnValue(new Promise(() => {}));
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      sokoBotId: "bot-1",
+    });
+    expect(startTurn).toHaveBeenCalled();
   });
 
   it("gives a person's first Cuso his starter credits, once", async () => {

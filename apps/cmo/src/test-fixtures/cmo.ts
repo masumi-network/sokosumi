@@ -58,6 +58,8 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     botStatus: "IDLE",
     learning: "done",
     work: null,
+    // Older overviews had no research; the app falls back to today's screen.
+    research: { groups: [], preview: null },
     brandVisual: null,
     brandMedia: null,
     brandBrainConfirmedAt: null,

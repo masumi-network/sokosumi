@@ -2,6 +2,7 @@ import {
   CMO_BRAND_SECTION_KEYS,
   CMO_BRAND_SECTIONS,
   CMO_SOKO_BOT_VERSION_ID,
+  type CmoBrandSectionKey,
 } from "@sokosumi/soko-bot";
 import {
   buildOrganizationMetadataWithUrl,
@@ -14,6 +15,8 @@ import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
+  type BrandBrainPreview,
+  brandBrainPreview,
   brandBrainSectionHeadlines,
   brandBrainSectionsSaved,
   type CmoSectionHeadline,
@@ -30,12 +33,14 @@ import {
   type Cuso,
   type CusoTarget,
   cmoBusinessNameFromUrl,
+  cmoRunIsSlow,
   findCusoForBot,
   findCusoForUser,
   ONBOARDING_TURN_PREFIX,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
+import { writeCmoQuickLook } from "@/services/cmo-quick-look.service";
 import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import {
   settledTurnStatus,
@@ -102,19 +107,23 @@ function onboardingMessage(input: {
   ].join("\n");
 }
 
-export async function cmoLearningState(
-  cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
-  now: Date = new Date(),
-): Promise<CmoLearningState> {
-  if (parseBrandBrain(cuso.brandBrain)) return "done";
-  const turn = await prisma.sokoBotTurn.findFirst({
+function newestResearchTurn(sokoBotId: string) {
+  return prisma.sokoBotTurn.findFirst({
     where: {
-      sokoBotId: cuso.sokoBotId,
+      sokoBotId,
       clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX },
     },
     orderBy: { createdAt: "desc" },
     select: TURN_ROW_SELECT,
   });
+}
+
+export async function cmoLearningState(
+  cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
+  now: Date = new Date(),
+): Promise<CmoLearningState> {
+  if (parseBrandBrain(cuso.brandBrain)) return "done";
+  const turn = await newestResearchTurn(cuso.sokoBotId);
   // Cuso can finish without a Brand Brain on purpose: it asked questions.
   return turn ? settledTurnStatus(turn, now) : "failed";
 }
@@ -313,20 +322,92 @@ export async function cmoWork(
 }
 
 /**
- * Starts learning again after a failed or stuck first look, or after one that
- * ended without the Brand Brain's essentials and asked nothing.
+ * The research as the founder watches it, in six groups of Brand Brain
+ * sections, in the order Cuso's skill saves them. Derived from the sections
+ * saved, so nothing else is stored.
+ */
+export const CMO_RESEARCH_GROUPS: readonly {
+  key: string;
+  label: string;
+  sections: readonly CmoBrandSectionKey[];
+}[] = [
+  {
+    key: "website",
+    label: "Website",
+    sections: ["company", "offer", "pricing"],
+  },
+  {
+    key: "buyers",
+    label: "Buyers' world",
+    sections: ["problems", "customers", "buyers", "value"],
+  },
+  {
+    key: "competitors",
+    label: "Competitors",
+    sections: ["positioning", "competition", "sales"],
+  },
+  {
+    key: "social",
+    label: "Social accounts",
+    sections: ["marketing", "content"],
+  },
+  { key: "reviews", label: "Reviews", sections: ["proof", "reputation"] },
+  {
+    key: "news",
+    label: "News and people",
+    sections: ["momentum", "opportunities"],
+  },
+];
+
+export interface CmoResearch {
+  groups: { key: string; label: string; state: "running" | "done" }[];
+  /** The quick look, until the essentials replace it. */
+  preview: BrandBrainPreview | null;
+}
+
+/**
+ * Each group is done once all its sections are saved; the essentials end
+ * the research, so they mark every group done.
+ */
+export function cmoResearch(brandBrain: unknown): CmoResearch {
+  const saved = new Set(brandBrainSectionsSaved(brandBrain));
+  const finished = parseBrandBrain(brandBrain) !== null;
+  return {
+    groups: CMO_RESEARCH_GROUPS.map(({ key, label, sections }) => ({
+      key,
+      label,
+      state:
+        finished || sections.every((section) => saved.has(section))
+          ? "done"
+          : "running",
+    })),
+    preview: brandBrainPreview(brandBrain),
+  };
+}
+
+/**
+ * Starts learning again after a failed or stuck first look, after one that
+ * ended without the Brand Brain's essentials and asked nothing, or in place
+ * of one running past twice the usual time.
  */
 export async function retryCmoOnboarding(
   target: CusoTarget,
+  now: Date = new Date(),
 ): Promise<{ turnId: string }> {
   const { userId } = target;
   const cuso = await requireCuso(target);
-  const state = await cmoLearningState(cuso);
-  if (state === "running") {
-    throw new CmoConflictError("Cuso is still learning the business");
-  }
   if (parseBrandBrain(cuso.brandBrain)) {
     throw new CmoConflictError("Cuso already learned the business");
+  }
+  const turn = await newestResearchTurn(cuso.sokoBotId);
+  if (turn && (await settledTurnStatus(turn, now)) === "running") {
+    if (!cmoRunIsSlow("research", turn.createdAt, now)) {
+      throw new CmoConflictError("Cuso is still learning the business");
+    }
+    const { sokoBotControlPlane } = await import(
+      "@/services/soko-bot-control-plane.service"
+    );
+    await sokoBotControlPlane.expireTurn(turn.id);
   }
   const project = await prisma.project.findUnique({
     where: { id: cuso.projectId },
@@ -585,6 +666,9 @@ export async function startCmoOnboarding(input: {
       });
     }),
   );
+  // The quick look gives the founder a line to read while the research
+  // runs; it fails quietly and the research never waits for it.
+  waitUntil(writeCmoQuickLook(created));
   // The homepage screenshots need no research either, so the Brand Brain
   // opens with them instead of waiting for the full capture.
   waitUntil(

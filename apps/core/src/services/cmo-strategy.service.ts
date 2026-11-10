@@ -20,6 +20,9 @@ import {
   CmoNotFoundError,
   type Cuso,
   type CusoTarget,
+  cmoRunIsSlow,
+  cmoRunnerUserId,
+  findCusoForBot,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
@@ -33,6 +36,10 @@ import {
   sameTitle,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import {
+  settledTurnStatus,
+  TURN_ROW_SELECT,
+} from "@/services/soko-bot-turn-progress.service";
 
 /**
  * No sandbox on the strategy turn: it plans from the Brand Brain it already
@@ -138,19 +145,111 @@ export async function setCmoAdBudget(
   return started;
 }
 
+/** Cuso's newest strategy turn, whatever its state. */
+function newestStrategyTurn(sokoBotId: string) {
+  return prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId,
+      clientTurnId: { startsWith: STRATEGY_TURN_PREFIX },
+    },
+    orderBy: { createdAt: "desc" },
+    select: TURN_ROW_SELECT,
+  });
+}
+
+/** The strategy turn still running, if any. */
+async function strategyTurnRunning(sokoBotId: string, now: Date) {
+  const turn = await newestStrategyTurn(sokoBotId);
+  return turn && (await settledTurnStatus(turn, now)) === "running"
+    ? turn
+    : null;
+}
+
 /**
  * Asks Cuso for a new one-month strategy: he writes a new version, which an
- * owner or admin approves; the approved one keeps running until then.
+ * owner or admin approves; the approved one keeps running until then. While
+ * a plan is being written, asking again returns that turn ("Looks like us"
+ * starts nothing), a change is refused, and `restart` replaces a run past
+ * twice the usual time.
  */
 export async function requestCmoStrategy(
   input: CusoTarget & {
     note?: string;
+    restart?: boolean;
   },
+  now: Date = new Date(),
 ): Promise<{ turnId: string }> {
-  return requestStrategyForCuso(await requireCuso(input), input);
+  return requestStrategyForCuso(await requireCuso(input), input, now);
 }
 
+/**
+ * The guard every plan request goes through, the ad budget's and the plan
+ * answers' too: a change waits until the plan being written lands.
+ */
 async function requestStrategyForCuso(
+  cuso: Cuso,
+  input: { userId: string; note?: string; restart?: boolean },
+  now: Date = new Date(),
+): Promise<{ turnId: string }> {
+  const writing = await strategyTurnRunning(cuso.sokoBotId, now);
+  if (writing) {
+    if (input.note) {
+      throw new CmoConflictError("Cuso is still writing the plan");
+    }
+    if (!input.restart || !cmoRunIsSlow("strategy", writing.createdAt, now)) {
+      return { turnId: writing.id };
+    }
+    const { sokoBotControlPlane } = await import(
+      "@/services/soko-bot-control-plane.service"
+    );
+    await sokoBotControlPlane.expireTurn(writing.id);
+  }
+  return startCmoStrategy(cuso, input.userId, input.note, now);
+}
+
+/**
+ * The first plan starts once the research turn ends with the essentials
+ * saved, not when the founder confirms the brand: the founder reads the
+ * Brand Brain while Cuso writes. Core runs one turn per bot at a time, so it
+ * cannot start while the research turn that saved them still runs. Starts
+ * nothing once a plan was started or written; null when nothing started.
+ */
+export async function startCmoPlanAfterResearch(input: {
+  sokoBotId: string;
+  /** Who asked for the research; Cuso's runner when they are gone. */
+  userId: string | null;
+}): Promise<{ turnId: string } | null> {
+  const cuso = await findCusoForBot(input.sokoBotId);
+  if (!cuso || !parseBrandBrain(cuso.brandBrain)) return null;
+  const [turn, version] = await Promise.all([
+    newestStrategyTurn(cuso.sokoBotId),
+    newestMarketingStrategy(cuso.projectId),
+  ]);
+  if (turn || version) return null;
+  const userId = input.userId ?? (await cmoRunnerUserId(cuso));
+  if (!userId) return null;
+  return startCmoStrategy(cuso, userId, undefined, new Date());
+}
+
+async function startCmoStrategy(
+  cuso: Cuso,
+  userId: string,
+  note: string | undefined,
+  now: Date,
+): Promise<{ turnId: string }> {
+  try {
+    return await startStrategyTurn(cuso, { userId, note });
+  } catch (error) {
+    // One turn per bot: a plan another request started first is this one.
+    const writing = note
+      ? null
+      : await strategyTurnRunning(cuso.sokoBotId, now);
+    if (writing) return { turnId: writing.id };
+    throw error;
+  }
+}
+
+async function startStrategyTurn(
   cuso: Cuso,
   input: { userId: string; note?: string },
 ): Promise<{ turnId: string }> {

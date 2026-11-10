@@ -192,6 +192,12 @@ vi.mock("@/lib/soko-bot/preference-capture", () => ({
   capturePreference: capturePreferenceMock,
   MIN_PREFERENCE_CONFIDENCE: 0.85,
 }));
+const startCmoPlanAfterResearchMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(null),
+);
+vi.mock("@/services/cmo-strategy.service", () => ({
+  startCmoPlanAfterResearch: startCmoPlanAfterResearchMock,
+}));
 vi.mock("@/lib/soko-bot/route-outcome", () => ({
   logSokoBotRouteOutcome: vi.fn().mockResolvedValue(undefined),
 }));
@@ -562,6 +568,40 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect(granted.includes("search_exa")).toBe(offered);
       // The rest of Cuso's toolset stays either way.
       expect(granted).toContain("save_brand_brain");
+    },
+  );
+
+  it.each([
+    { clientTurnId: "cmo:onboarding:bot_1:1", starts: true },
+    { clientTurnId: "cmo:strategy:bot_1:1", starts: false },
+    { clientTurnId: null, starts: false },
+  ])(
+    "starts Cuso's plan when his research turn settles: $clientTurnId",
+    async ({ clientTurnId, starts }) => {
+      turnFindUniqueMock.mockResolvedValueOnce({
+        sokoBotId: BOT_ID,
+        clientTurnId,
+        requestedByUserId: "user_1",
+        startedAt: new Date(),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        finalAnswer: "Done.",
+        capabilityNames: [],
+        cancellationRequestedAt: null,
+        scheduleRun: null,
+      });
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status: "COMPLETED",
+      });
+      await vi.waitFor(() =>
+        starts
+          ? expect(startCmoPlanAfterResearchMock).toHaveBeenCalledWith({
+              sokoBotId: BOT_ID,
+              userId: "user_1",
+            })
+          : expect(startCmoPlanAfterResearchMock).not.toHaveBeenCalled(),
+      );
     },
   );
 

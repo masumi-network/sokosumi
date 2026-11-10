@@ -10938,6 +10938,7 @@ export type CmoOverview = {
      */
     viewerCanApprove: boolean;
     work: CmoWork | null;
+    research: CmoResearch;
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
@@ -11343,6 +11344,24 @@ export type CmoWorkStep = {
     url: string | null;
     status: 'running' | 'done' | 'failed';
     at: Date;
+};
+
+export type CmoResearch = {
+    /**
+     * The research in six groups of Brand Brain sections, in the order Cuso saves them; done once every section in a group is saved, or the essentials are.
+     */
+    groups: Array<{
+        key: string;
+        label: string;
+        state: 'running' | 'done';
+    }>;
+    /**
+     * The quick look from the homepage alone, until the essentials replace it. The plan never reads it.
+     */
+    preview: {
+        line: string;
+        facts: Array<string>;
+    } | null;
 };
 
 /**
@@ -11768,6 +11787,10 @@ export type CmoAdBudgetRequest = {
 
 export type CmoStrategyRequest = {
     note?: string;
+    /**
+     * Try again: replaces a plan running past twice the usual time. Otherwise a plan being written is returned as it is.
+     */
+    restart?: boolean;
 };
 
 export type SokoBotApiKey = {
