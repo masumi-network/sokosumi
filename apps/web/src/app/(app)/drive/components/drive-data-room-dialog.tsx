@@ -3,6 +3,7 @@
 import type { DataRoom } from "@sokosumi/core-client";
 import { LockKeyhole } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -41,6 +42,9 @@ export interface DriveDataRoomFolder {
 /**
  * Turns the folder the reader stands in into a data room, or shows the room
  * it belongs to and lets the owner close it.
+ *
+ * A new room opens on its People tab with the invite field focused, since
+ * inviting people is the next thing to do.
  */
 export function DriveDataRoomDialog({
   store,
@@ -54,6 +58,7 @@ export function DriveDataRoomDialog({
   onChanged: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom");
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const room = folder?.room;
@@ -123,10 +128,13 @@ export function DriveDataRoomDialog({
               loading={busy}
               onClick={() =>
                 folder &&
-                void run(
-                  () => createDataRoom({ store, folderPath: folder.path }),
-                  t("made"),
-                )
+                void run(async () => {
+                  const made = await createDataRoom({
+                    store,
+                    folderPath: folder.path,
+                  });
+                  router.push(`/drive/data-rooms/${made.id}?invite=1`);
+                }, t("made"))
               }
             >
               <LockKeyhole aria-hidden className="size-4" />

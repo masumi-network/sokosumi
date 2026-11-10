@@ -761,6 +761,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Aktivität",
       "accountNoticeIndicator": "Kontohinweis",
       "notifications": "Benachrichtigungen",
       "unreadBadge": "{count, plural, =1 {1 ungelesene Benachrichtigung} other {# ungelesene Benachrichtigungen}}",
@@ -1618,6 +1619,11 @@
           "label": "Suchen",
           "subtitle": "Spezialisierte Agenten"
         },
+        "MyDay": {
+          "title": "Mein Tag",
+          "more": "{count, plural, one {# weitere anzeigen} other {# weitere anzeigen}}",
+          "error": "Konnte nicht mehr laden. Versuche es erneut."
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "Was steht als Nächstes an?",
@@ -1625,6 +1631,8 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
+          "chatKind": "Chat",
+          "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
             "teamWins": "Was haben wir geschafft?",
@@ -1635,6 +1643,8 @@
       "SokoBot": {
         "connectTitle": "Gib {bot} Zugriff auf Postfach und Kalender",
         "connectBody": "Damit gibt es Meeting-Vorbereitung, Follow-up-Erinnerungen und dein tägliches Briefing.",
+        "connectCompactTitle": "Postfach und Kalender verbinden",
+        "connectButton": "Verbinden",
         "connectConnected": "{name} verbunden",
         "connectProvider": "{name} verbinden",
         "connectDismiss": "Ausblenden",
@@ -4873,6 +4883,7 @@
         "default": "Sokosumi - Marketplace für Mensch-Agent-Interaktionen",
         "template": "Sokosumi - %s"
       },
+      "home": "Startseite",
       "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
     "Sidebar": {
@@ -9321,6 +9332,9 @@
         "typeAll": "Alle",
         "foldersLabel": "Ordner",
         "foldersRoot": "Alle Dateien",
+        "dataRoom": "Datenraum",
+        "dataRoomAccess": "Nur du und die Personen, die du per E-Mail hereinlässt, können die Dateien öffnen.",
+        "dataRoomAccessOrg": "Nur die Person, die ihn angelegt hat, die Inhaber und Admins deiner Organisation, hereingelassene Kollegen und per E-Mail hereingelassene Personen können die Dateien öffnen.",
         "folderEmptyTitle": "In diesem Ordner ist noch nichts",
         "detailRejected": "Entfernte Labels",
         "rejectedExplainer": "Du hast diese entfernt, daher werden sie nicht erneut vorgeschlagen. Lass das Modell eines erneut prüfen, falls das ein Versehen war.",
@@ -9353,14 +9367,15 @@
         "revoke": "Freigabe beenden",
         "revoked": "Link deaktiviert",
         "loadFailed": "Link konnte nicht geladen werden",
-        "saveFailed": "Link konnte nicht gespeichert werden"
+        "saveFailed": "Link konnte nicht gespeichert werden",
+        "inDataRoom": "Das liegt in einem Datenraum. Lade Personen in den Raum ein, statt einen Link zu teilen."
       },
       "DataRoom": {
         "makeTitle": "„{name}“ zum Datenraum machen",
         "makeDescription": "Die Dateien ziehen in einen privaten Speicher. Nur Personen, die du einlädst, können sie öffnen. Links auf diesen Ordner oder etwas darin funktionieren nicht mehr.",
         "makeDescriptionOrg": "Seine Dateien wandern in privaten Speicher, sodass nur Menschen, die du hineinlässt, sie öffnen können. In deiner Organisation sehen nur du, die Inhaber und Admins und Kolleginnen und Kollegen, die du hinzufügst, den Ordner. Links zu diesem Ordner oder zu etwas darin funktionieren nicht mehr.",
         "make": "Datenraum einrichten",
-        "made": "Datenraum aktiv. Die Dateien ziehen in den privaten Speicher.",
+        "made": "Datenraum aktiv. Lade jetzt die ersten Personen ein.",
         "roomTitle": "Datenraum „{name}“",
         "insideRoom": "Dieser Ordner liegt im Datenraum „{room}“.",
         "storage": {

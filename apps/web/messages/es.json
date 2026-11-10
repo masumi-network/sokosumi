@@ -761,6 +761,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Actividad",
       "accountNoticeIndicator": "Aviso de cuenta",
       "notifications": "Notificaciones",
       "unreadBadge": "{count, plural, =1 {1 notificación sin leer} other {# notificaciones sin leer}}",
@@ -1618,6 +1619,11 @@
           "label": "Buscar",
           "subtitle": "Agentes especializados"
         },
+        "MyDay": {
+          "title": "Mi día",
+          "more": "{count, plural, one {Mostrar # más} other {Mostrar # más}}",
+          "error": "No se pudieron cargar más. Inténtalo de nuevo."
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "¿Qué sigue?",
@@ -1625,6 +1631,8 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
+          "chatKind": "Chat",
+          "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",
@@ -1635,6 +1643,8 @@
       "SokoBot": {
         "connectTitle": "Dale a {bot} tu bandeja de entrada y tu calendario",
         "connectBody": "Así prepara tus reuniones, te recuerda los seguimientos y te envía el resumen diario.",
+        "connectCompactTitle": "Conecta tu correo y calendario",
+        "connectButton": "Conectar",
         "connectConnected": "{name} conectado",
         "connectProvider": "Conectar {name}",
         "connectDismiss": "Descartar",
@@ -4873,6 +4883,7 @@
         "default": "Sokosumi - Marketplace de agentes de IA",
         "template": "Sokosumi - %s"
       },
+      "home": "Inicio",
       "description": "Usa coworkers de IA para tus tareas más complejas"
     },
     "Sidebar": {
@@ -9321,6 +9332,9 @@
         "typeAll": "Todos",
         "foldersLabel": "Carpetas",
         "foldersRoot": "Todos los archivos",
+        "dataRoom": "Sala de datos",
+        "dataRoomAccess": "Solo tú y las personas a las que das acceso por correo pueden abrir sus archivos.",
+        "dataRoomAccessOrg": "Solo quien la creó, los propietarios y administradores de tu organización, los compañeros con acceso y las personas con acceso por correo pueden abrir sus archivos.",
         "folderEmptyTitle": "Aún no hay nada en esta carpeta",
         "detailRejected": "Etiquetas eliminadas",
         "rejectedExplainer": "Las eliminaste, así que no se vuelven a sugerir. Deja que el modelo reconsidere una si fue un error.",
@@ -9353,14 +9367,15 @@
         "revoke": "Dejar de compartir",
         "revoked": "Enlace desactivado",
         "loadFailed": "No se pudo cargar el enlace",
-        "saveFailed": "No se pudo guardar el enlace"
+        "saveFailed": "No se pudo guardar el enlace",
+        "inDataRoom": "Esto está en una sala de datos. Invita a personas a la sala en lugar de compartir un enlace."
       },
       "DataRoom": {
         "makeTitle": "Convertir “{name}” en una sala de datos",
         "makeDescription": "Sus archivos pasan a un almacenamiento privado y solo las personas que invites pueden abrirlos. Los enlaces a esta carpeta, o a cualquier cosa dentro, dejan de funcionar.",
         "makeDescriptionOrg": "Sus archivos pasan a un almacenamiento privado, así que solo las personas a las que dejes entrar pueden abrirlos. En tu organización, solo tú, los propietarios y administradores y los colegas que añadas verán la carpeta. Los enlaces a esta carpeta, o a cualquier cosa dentro, dejan de funcionar.",
         "make": "Crear sala de datos",
-        "made": "Sala de datos activa. Sus archivos están pasando al almacenamiento privado.",
+        "made": "Sala de datos activa. Invita a las primeras personas.",
         "roomTitle": "Sala de datos “{name}”",
         "insideRoom": "Esta carpeta está dentro de la sala de datos “{room}”.",
         "storage": {
