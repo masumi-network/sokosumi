@@ -2,7 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { isDriveFolderMarker } from "@sokosumi/utils";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import {
+  drivePathOf,
+  requireDriveFileAccess,
+} from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
@@ -59,7 +62,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       query.pathname,
       userContext.userId,
     );
-    await requireDriveFileAccess(authContext, scope, ownerId);
+    await requireDriveFileAccess(authContext, scope, ownerId, {
+      changes: [drivePathOf(query.pathname)],
+    });
     if (isDriveFolderMarker(query.pathname)) throw notFound("File not found");
 
     const read = await driveRead(query.pathname);

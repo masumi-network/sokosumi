@@ -23,6 +23,7 @@ vi.mock("@/helpers/file-workspace", () => ({
     workspaceId: "ws_1",
     scope: "organization",
     ownerId: "org_1",
+    actor: { userId: "u1", organizationId: "org_1", kind: "interactive" },
   }),
 }));
 vi.mock("@/config/env", async (importOriginal) => {

@@ -31,6 +31,7 @@ const room = {
   allowDownload: false,
   watermark: true,
   notifyOnFirstVisit: true,
+  createdByUserId: "u1",
   createdAt: "2026-11-09T00:00:00.000Z",
 };
 
@@ -48,7 +49,7 @@ describe("DriveDataRoomDialog", () => {
         onChanged={onChanged}
       />,
     );
-    expect(screen.getByText("makeDescription")).toBeInTheDocument();
+    expect(screen.getByText("makeDescriptionOrg")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "make" }));
     expect(api.createDataRoom).toHaveBeenCalledWith({
       store,

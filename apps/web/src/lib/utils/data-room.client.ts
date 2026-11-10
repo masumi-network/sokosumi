@@ -2,9 +2,11 @@
 
 import type {
   DataRoom,
+  DataRoomColleague,
   DataRoomDetail,
   DataRoomEvents,
   DataRoomQuestion,
+  Member,
   UpdateDataRoomRequest,
 } from "@sokosumi/core-client";
 import {
@@ -14,11 +16,13 @@ import {
   getDriveDataRoomsById,
   getDriveDataRoomsByIdEvents,
   getDriveDataRoomsByIdQuestions,
+  getOrganizationsByIdMembers,
   patchDriveDataRoomsById,
   patchDriveDataRoomsByIdMembersByMemberId,
   patchDriveDataRoomsByIdQuestionsByQuestionId,
   postDriveDataRooms,
   postDriveDataRoomsByIdMembers,
+  putDriveDataRoomsByIdColleagues,
   putDriveDataRoomsByIdOrder,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -203,6 +207,33 @@ export async function saveDataRoomOrder(input: {
     body: { ...storeQuery(input.store), entries: input.entries },
     throwOnError: true,
   });
+}
+
+/** Everyone in the organization, to choose a room's colleagues from. */
+export async function fetchOrganizationMembers(
+  organizationId: string,
+): Promise<Member[]> {
+  const { data } = await getOrganizationsByIdMembers({
+    client: getBrowserCoreClient(),
+    path: { id: organizationId },
+    throwOnError: true,
+  });
+  return data.data;
+}
+
+/** Sets who else in the organization is let in; anyone left out loses access. */
+export async function saveDataRoomColleagues(input: {
+  store: FileStore;
+  roomId: string;
+  userIds: string[];
+}): Promise<DataRoomColleague[]> {
+  const { data } = await putDriveDataRoomsByIdColleagues({
+    client: getBrowserCoreClient(),
+    path: { id: input.roomId },
+    body: { ...storeQuery(input.store), userIds: input.userIds },
+    throwOnError: true,
+  });
+  return data.data;
 }
 
 /**

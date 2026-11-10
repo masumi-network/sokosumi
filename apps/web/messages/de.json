@@ -9355,6 +9355,7 @@
       "DataRoom": {
         "makeTitle": "„{name}“ zum Datenraum machen",
         "makeDescription": "Die Dateien ziehen in einen privaten Speicher. Nur Personen, die du einlädst, können sie öffnen. Links auf diesen Ordner oder etwas darin funktionieren nicht mehr.",
+        "makeDescriptionOrg": "Seine Dateien wandern in privaten Speicher, sodass nur Menschen, die du hineinlässt, sie öffnen können. In deiner Organisation sehen nur du, die Inhaber und Admins und Kolleginnen und Kollegen, die du hinzufügst, den Ordner. Links zu diesem Ordner oder zu etwas darin funktionieren nicht mehr.",
         "make": "Datenraum einrichten",
         "made": "Datenraum aktiv. Die Dateien ziehen in den privaten Speicher.",
         "roomTitle": "Datenraum „{name}“",
@@ -9383,6 +9384,18 @@
           "questions": "Fragen",
           "contents": "Inhalt",
           "settings": "Einstellungen"
+        },
+        "Colleagues": {
+          "title": "In deiner Organisation",
+          "hint": "Nur die Person, die diesen Raum erstellt hat, die Inhaber und Admins der Organisation und die hier angehakten Kolleginnen und Kollegen sehen ihn in Dateien. Alle anderen sehen den Ordner nicht, und Agenten wie Soko Bot öffnen ihn nie.",
+          "nobodyElse": "Sonst wurde niemand hineingelassen.",
+          "madeIt": "Hat ihn erstellt",
+          "admin": "Inhaber oder Admin",
+          "save": "Speichern, wer drin ist",
+          "saved": "Gespeichert, wer im Raum ist.",
+          "saveFailed": "Konnte nicht speichern, wer drin ist. Versuch es erneut.",
+          "loadFailed": "Die Mitglieder deiner Organisation konnten nicht geladen werden.",
+          "loading": "Mitglieder werden geladen"
         },
         "People": {
           "emailsLabel": "Per E-Mail einladen",

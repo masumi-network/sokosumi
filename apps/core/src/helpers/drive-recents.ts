@@ -2,7 +2,12 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { isDriveFolderMarker } from "@sokosumi/utils";
 import type { DriveTaskOutputRecentsRow } from "@/helpers/drive-task-output-catalog";
 import { badRequest } from "@/helpers/error";
-import { type DriveListedBlob, driveList } from "@/lib/drive-blob";
+import { insideHiddenRoom } from "@/lib/data-room-visibility";
+import {
+  type DriveListedBlob,
+  driveList,
+  driveOwnerOf,
+} from "@/lib/drive-blob";
 import type { DriveRecentsItem } from "@/schemas/drive-recents.schema";
 
 const RECENTS_CURSOR_VERSION = 4;
@@ -352,6 +357,8 @@ export async function fetchDriveRecentsPage(input: {
    * the tag filter, which only Drive files can match.
    */
   driveFilePathnames?: ReadonlySet<string>;
+  /** Data room folders, within the store, this caller is not in. */
+  hiddenRoomFolders?: readonly string[];
   cursorSecret: string;
   cursorBinding: DriveRecentsCursorBinding;
   /** Newest first (`updatedAt` desc), the order their `activityAt` sorts in. */
@@ -406,6 +413,15 @@ export async function fetchDriveRecentsPage(input: {
     if (
       driveFilePathnames &&
       (item.kind !== "drive-file" || !driveFilePathnames.has(item.pathname))
+    ) {
+      return false;
+    }
+    if (
+      item.kind === "drive-file" &&
+      insideHiddenRoom(
+        input.hiddenRoomFolders ?? [],
+        driveOwnerOf(item.pathname)?.path ?? "",
+      )
     ) {
       return false;
     }

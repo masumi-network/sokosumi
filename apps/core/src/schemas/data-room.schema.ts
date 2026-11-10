@@ -57,6 +57,7 @@ export const dataRoomSchema = z
     allowDownload: z.boolean(),
     watermark: z.boolean(),
     notifyOnFirstVisit: z.boolean(),
+    createdByUserId: z.string(),
     createdAt: z.string(),
   })
   .openapi("DataRoom");
@@ -76,6 +77,7 @@ export function toDataRoomDto(room: DataRoom): z.infer<typeof dataRoomSchema> {
     allowDownload: room.allowDownload,
     watermark: room.watermark,
     notifyOnFirstVisit: room.notifyOnFirstVisit,
+    createdByUserId: room.createdByUserId,
     createdAt: room.createdAt.toISOString(),
   };
 }
@@ -153,13 +155,43 @@ export function toDataRoomTreeRowDto(
   };
 }
 
+export const dataRoomColleagueSchema = z
+  .object({
+    userId: z.string(),
+    name: z.string(),
+    email: z.string(),
+  })
+  .openapi("DataRoomColleague");
+
+export const dataRoomColleaguesSchema = z
+  .array(dataRoomColleagueSchema)
+  .openapi("DataRoomColleagues");
+
 export const dataRoomDetailSchema = z
   .object({
     room: dataRoomSchema,
     members: z.array(dataRoomMemberSchema),
     rows: z.array(dataRoomTreeRowSchema),
+    colleagues: z.union([z.array(dataRoomColleagueSchema), z.null()]).openapi({
+      description:
+        "Organization members let in besides the maker and the organization's owners and admins. Null for a personal room, which is its owner's alone.",
+    }),
+    canChooseColleagues: z.boolean().openapi({
+      description:
+        "True for the room's maker and the organization's owners and admins.",
+    }),
   })
   .openapi("DataRoomDetail");
+
+export const setDataRoomColleaguesRequestSchema = z
+  .object({
+    ...storeFields,
+    userIds: z.array(z.string().min(1)).max(200).openapi({
+      description:
+        "Every colleague who should be in the room; anyone left out loses access.",
+    }),
+  })
+  .openapi("SetDataRoomColleaguesRequest");
 
 export const updateDataRoomRequestSchema = z
   .object({

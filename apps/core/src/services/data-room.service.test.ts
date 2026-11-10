@@ -28,9 +28,13 @@ const db = vi.hoisted(() => {
     tx,
     dataRoom: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn(),
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
     },
+    dataRoomColleague: { findUnique: vi.fn() },
+    member: { findUnique: vi.fn() },
     $transaction: vi.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
   };
 });
@@ -167,17 +171,52 @@ describe("createDataRoom", () => {
 });
 
 describe("closeDataRoom", () => {
+  const caller = {
+    ...store,
+    actor: {
+      userId: "u2",
+      organizationId: "org_1",
+      kind: "interactive" as const,
+    },
+  };
+  const room = {
+    id: "room-1",
+    sourceScope: "ORGANIZATION",
+    ownerId: "org_1",
+    createdByUserId: "u1",
+  };
+
   it("only closes a room of this Drive", async () => {
-    db.dataRoom.updateMany.mockResolvedValue({ count: 0 });
-    await expect(closeDataRoom(store, "room-of-someone-else")).rejects.toThrow(
+    db.dataRoom.findFirst.mockResolvedValue(null);
+    await expect(closeDataRoom(caller, "room-of-someone-else")).rejects.toThrow(
       "Data room not found",
     );
-    expect(db.dataRoom.updateMany).toHaveBeenCalledWith({
+    expect(db.dataRoom.findFirst).toHaveBeenCalledWith({
       where: {
         id: "room-of-someone-else",
         sourceScope: "ORGANIZATION",
         ownerId: "org_1",
       },
+    });
+    expect(db.dataRoom.update).not.toHaveBeenCalled();
+  });
+
+  it("does not let a member outside the room close it", async () => {
+    db.dataRoom.findFirst.mockResolvedValue(room);
+    db.dataRoomColleague.findUnique.mockResolvedValue(null);
+    db.member.findUnique.mockResolvedValue({ role: "member" });
+    await expect(closeDataRoom(caller, "room-1")).rejects.toThrow(
+      "Data room not found",
+    );
+    expect(db.dataRoom.update).not.toHaveBeenCalled();
+  });
+
+  it("lets a colleague close it", async () => {
+    db.dataRoom.findFirst.mockResolvedValue(room);
+    db.dataRoomColleague.findUnique.mockResolvedValue({ userId: "u2" });
+    await closeDataRoom(caller, "room-1");
+    expect(db.dataRoom.update).toHaveBeenCalledWith({
+      where: { id: "room-1" },
       data: { storage: "MOVING_OUT" },
     });
   });

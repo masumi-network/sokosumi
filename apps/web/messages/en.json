@@ -9355,6 +9355,7 @@
       "DataRoom": {
         "makeTitle": "Make “{name}” a data room",
         "makeDescription": "Its files move to private storage, so only people you let in can open them. Links to this folder, or to anything in it, stop working.",
+        "makeDescriptionOrg": "Its files move to private storage, so only people you let in can open them. In your organization, only you, the owners and admins, and colleagues you add will see the folder. Links to this folder, or to anything in it, stop working.",
         "make": "Make data room",
         "made": "Data room on. Its files are moving to private storage.",
         "roomTitle": "Data room “{name}”",
@@ -9383,6 +9384,18 @@
           "questions": "Questions",
           "contents": "Contents",
           "settings": "Settings"
+        },
+        "Colleagues": {
+          "title": "In your organization",
+          "hint": "Only the person who made this room, the organization's owners and admins, and the colleagues ticked here see it in Files. Everyone else doesn't see the folder, and agents like Soko Bot never open it.",
+          "nobodyElse": "Nobody else has been let in.",
+          "madeIt": "Made it",
+          "admin": "Owner or admin",
+          "save": "Save who's in",
+          "saved": "Saved who's in the room.",
+          "saveFailed": "Couldn't save who's in. Try again.",
+          "loadFailed": "Couldn't load your organization's members.",
+          "loading": "Loading members"
         },
         "People": {
           "emailsLabel": "Invite by email",

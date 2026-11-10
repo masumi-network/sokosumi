@@ -76,7 +76,8 @@ vi.mock("@/services/file-catalog.service", () => ({
 }));
 
 vi.mock("@/helpers/drive-file-access", () => ({
-  requireDriveFileAccess: vi.fn().mockResolvedValue(undefined),
+  drivePathOf: (pathname: string) => pathname.split("/").slice(3).join("/"),
+  requireDriveFileAccess: vi.fn().mockResolvedValue({ hiddenRoomFolders: [] }),
 }));
 
 vi.mock("@/helpers/drive-tasks-workspace", () => ({

@@ -8,6 +8,10 @@ import {
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  hiddenDataRoomFolders,
+  insideHiddenRoom,
+} from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
 import { driveList } from "@/lib/drive-blob";
 import {
@@ -108,7 +112,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    return ok(c, [...folders].sort());
+    const hidden =
+      context.scope === "organization"
+        ? await hiddenDataRoomFolders(context.ownerId, context.actor)
+        : [];
+    return ok(
+      c,
+      [...folders].filter((folder) => !insideHiddenRoom(hidden, folder)).sort(),
+    );
   });
 }
 

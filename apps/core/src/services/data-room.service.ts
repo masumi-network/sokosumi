@@ -19,6 +19,10 @@ import {
   notFound,
   serviceUnavailable,
 } from "@/helpers/error";
+import {
+  canSeeDataRoom,
+  hiddenDataRoomFolders,
+} from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
 import {
   type DriveBlobStore,
@@ -30,6 +34,7 @@ import {
   roomContaining,
   transferBetweenStores,
 } from "@/lib/drive-blob";
+import type { FileActor } from "@/lib/files/actor";
 import { CMO_BRAND_MEDIA_FOLDER } from "@/services/cmo-brand-media.service";
 import { IMAGE_STUDIO_DRIVE_FOLDER } from "@/services/image-studio-drive.service";
 import { MARKETING_FILES_FOLDER } from "@/services/marketing-strategy-files.service";
@@ -39,6 +44,11 @@ export interface DataRoomStore {
   workspaceId: string;
   scope: "user" | "organization";
   ownerId: string;
+}
+
+/** A store and who is asking: an organization room is only for its people. */
+export interface DataRoomCaller extends DataRoomStore {
+  actor: FileActor;
 }
 
 /**
@@ -90,11 +100,21 @@ export function findDataRoom(store: DataRoomStore, folderPath: string) {
   });
 }
 
-export function listDataRooms(store: DataRoomStore) {
-  return prisma.dataRoom.findMany({
-    where: { sourceScope: sourceScopeOf(store.scope), ownerId: store.ownerId },
-    orderBy: { folderPath: "asc" },
-  });
+/** The store's rooms this caller is in. */
+export async function listDataRooms(store: DataRoomCaller) {
+  const [rooms, hidden] = await Promise.all([
+    prisma.dataRoom.findMany({
+      where: {
+        sourceScope: sourceScopeOf(store.scope),
+        ownerId: store.ownerId,
+      },
+      orderBy: { folderPath: "asc" },
+    }),
+    store.scope === "organization"
+      ? hiddenDataRoomFolders(store.ownerId, store.actor)
+      : Promise.resolve<string[]>([]),
+  ]);
+  return rooms.filter((room) => !hidden.includes(room.folderPath));
 }
 
 /**
@@ -166,18 +186,22 @@ export async function createDataRoom(input: {
  * becomes an ordinary one once the last has moved.
  */
 export async function closeDataRoom(
-  store: DataRoomStore,
+  store: DataRoomCaller,
   roomId: string,
 ): Promise<void> {
-  const { count } = await prisma.dataRoom.updateMany({
+  const room = await prisma.dataRoom.findFirst({
     where: {
       id: roomId,
       sourceScope: sourceScopeOf(store.scope),
       ownerId: store.ownerId,
     },
+  });
+  if (!room || !(await canSeeDataRoom(room, store.actor)))
+    throw notFound("Data room not found");
+  await prisma.dataRoom.update({
+    where: { id: room.id },
     data: { storage: DataRoomStorage.MOVING_OUT },
   });
-  if (count === 0) throw notFound("Data room not found");
   forgetDriveRooms();
 }
 

@@ -9,7 +9,10 @@ import {
 import { BlobNotFoundError } from "@vercel/blob";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import {
+  drivePathOf,
+  requireDriveFileAccess,
+} from "@/helpers/drive-file-access";
 import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
@@ -79,7 +82,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
     );
 
-    await requireDriveFileAccess(authContext, scope, ownerId);
+    await requireDriveFileAccess(authContext, scope, ownerId, {
+      changes: [drivePathOf(oldPathname)],
+    });
 
     const prefix =
       scope === "user"

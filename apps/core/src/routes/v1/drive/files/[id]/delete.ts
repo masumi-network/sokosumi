@@ -1,7 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import {
+  drivePathOf,
+  requireDriveFileAccess,
+} from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { notFound } from "@/helpers/error";
@@ -61,7 +64,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
     );
 
-    await requireDriveFileAccess(authContext, scope, ownerId);
+    await requireDriveFileAccess(authContext, scope, ownerId, {
+      changes: [drivePathOf(pathname)],
+    });
 
     if (!(await driveExists(pathname))) {
       throw notFound("Drive file not found");

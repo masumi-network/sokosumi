@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/utils/data-room.client", () => ({}));
 
 import { rowLabel } from "./data-room-activity";
+import { alwaysIn } from "./data-room-colleagues";
 import { moveRow, orderEntries } from "./data-room-contents";
 import { parseEmails } from "./data-room-people";
 
@@ -74,5 +75,21 @@ describe("rowLabel", () => {
     ];
     expect(rowLabel(numbered, "Org_chart.png")).toBe("1 Org chart.png");
     expect(rowLabel(numbered, "Old/deck.pdf")).toBe("Old/deck.pdf");
+  });
+});
+
+describe("alwaysIn", () => {
+  const member = (id: string, role: "owner" | "admin" | "member") =>
+    ({
+      id: `m-${id}`,
+      role,
+      user: { id, name: id, email: `${id}@x.test` },
+    }) as Parameters<typeof alwaysIn>[0];
+
+  it("keeps the maker, owners and admins in whatever is ticked", () => {
+    expect(alwaysIn(member("maker", "member"), "maker")).toBe(true);
+    expect(alwaysIn(member("o", "owner"), "maker")).toBe(true);
+    expect(alwaysIn(member("a", "admin"), "maker")).toBe(true);
+    expect(alwaysIn(member("m", "member"), "maker")).toBe(false);
   });
 });
