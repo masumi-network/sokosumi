@@ -89,6 +89,24 @@ it("remembers on this device the Cuso an address opens", async () => {
   vi.mocked(hasSessionCookie).mockReturnValue(false);
 });
 
+it("still renders an address naming a Cuso while Core answers the old list shape", async () => {
+  vi.mocked(hasSessionCookie).mockReturnValue(true);
+  vi.mocked(renewSession).mockResolvedValue(
+    new Response(null, { status: 204 }),
+  );
+  // Deploy skew: Core before { cusos, mayHire } answered a bare array.
+  vi.mocked(listCmoCusos).mockResolvedValue({
+    data: { data: [{ projectId: "project-2" }] },
+  } as unknown as Awaited<ReturnType<typeof listCmoCusos>>);
+
+  const opened = await proxy(
+    new NextRequest("https://app.cmo.xyz/strategy?project=project-2"),
+  );
+  expect(opened.status).toBe(200);
+  expect(opened.cookies.get("cmo-last-cuso")).toBeUndefined();
+  vi.mocked(hasSessionCookie).mockReturnValue(false);
+});
+
 const BRANCH_ALIAS = "https://sokosumi-cmo-git-sok-1-fix.preview.cmo.xyz";
 
 it("moves a preview's deployment URL to its branch alias, where sign in lands", async () => {

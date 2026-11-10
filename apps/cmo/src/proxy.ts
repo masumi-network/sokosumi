@@ -77,7 +77,8 @@ export async function proxy(request: NextRequest) {
       const cusos = await asSignedInPersonInPage(request.headers)
         .then((person) => listCmoCusos(person))
         .catch(() => undefined);
-      if (cusos?.data?.data.cusos.some((cuso) => cuso.projectId === project)) {
+      // `cusos?.` keeps an older Core's bare array (deploy skew) from throwing.
+      if (cusos?.data?.data.cusos?.some((cuso) => cuso.projectId === project)) {
         response.cookies.set(...lastCusoCookie(project));
       }
     }
