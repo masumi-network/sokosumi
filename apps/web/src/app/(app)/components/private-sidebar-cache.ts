@@ -1,12 +1,14 @@
 import "server-only";
 
 import type {
+  ChatRoom,
   GetUsersByIdCreditsResponse,
   MemberWithOrganization,
 } from "@sokosumi/core-client";
 import { cacheLife, cacheTag, updateTag } from "next/cache";
 import { cache } from "react";
 import { coreClient } from "@/lib/clients/core.client";
+import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
   type ChatRoomsPage,
   chatRoomService,
@@ -129,8 +131,8 @@ export async function getPrivateCachedChatListArchivedAndMembers(
 
 /**
  * Full chat-list chrome: composes the rooms + archived/members private-cache
- * slices (same tags/life). The sidebar keeps this one-call API; `/chat`
- * awaits rooms first then streams archived+members.
+ * slices (same tags/life). The account footer and `/you` keep this one-call API; the
+ * sidebar's list and `/chat` await rooms first then stream archived+members.
  */
 export async function getPrivateCachedChatListChrome(
   args: PrivateChatListCacheArgs,
@@ -145,6 +147,48 @@ export async function getPrivateCachedChatListChrome(
     archivedChatRoomsPage: deferred.archivedChatRoomsPage,
     members: deferred.members,
   };
+}
+
+/** What the sidebar's chat list can render its rows without. */
+export interface SidebarChatListDeferred {
+  archivedRooms: ChatRoom[];
+  isOrgOwnerOrAdmin: boolean;
+}
+
+/**
+ * The sidebar's chat list: the rooms as soon as they are read, and the rest
+ * as a promise the list fills in when it settles.
+ *
+ * Archived rooms and memberships only feed the Archived section and the
+ * owner/admin menus. Awaited beside the rooms they held every row back until
+ * the slowest of the three reads ended. Both slices are the ones
+ * `getPrivateCachedChatListChrome` composes, so the account footer, `/you`
+ * and `/chat` still share them.
+ */
+export async function loadSidebarChatList(
+  args: PrivateChatListCacheArgs,
+): Promise<{
+  rooms: ChatRoom[];
+  deferred: Promise<SidebarChatListDeferred>;
+}> {
+  // Started before the rooms are awaited, so the two reads still overlap.
+  const deferred = getPrivateCachedChatListArchivedAndMembers(args).then(
+    ({ archivedChatRoomsPage, members }): SidebarChatListDeferred => ({
+      archivedRooms: archivedChatRoomsPage.rooms,
+      isOrgOwnerOrAdmin: viewerIsOrganizationOwnerOrAdmin(
+        args.activeOrganizationId,
+        members,
+      ),
+    }),
+  );
+  // Both reads inside are fail-soft, so this rejects only when the cache
+  // layer does. The rejection goes to
+  // the list as it is, and the list keeps its rows. This handler only stops
+  // it from being unhandled before the list receives it: while the rooms are
+  // still being read, or when that read throws.
+  deferred.catch(() => undefined);
+  const { rooms } = await getPrivateCachedMembershipVisibleRooms(args);
+  return { rooms, deferred };
 }
 
 /**
