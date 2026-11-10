@@ -5,6 +5,7 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -102,6 +103,9 @@ beforeEach(() => {
   viewer.userId = "owner";
 });
 afterEach(() => {
+  // Unmount first: a mounted connection query refetches when its client
+  // clears, and without the stub that request goes to the network.
+  cleanup();
   sessionStorage.clear();
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
