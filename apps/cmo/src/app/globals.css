@@ -900,10 +900,6 @@ button.cuso-status {
   white-space: nowrap;
 }
 
-.nav .nav-cuso-picker {
-  display: none;
-}
-
 .who {
   display: flex;
   align-items: center;
@@ -1693,10 +1689,6 @@ button.cuso-status {
 
   .business-text .note {
     display: none;
-  }
-
-  .nav .nav-cuso-picker {
-    display: flex;
   }
 
   .nav {

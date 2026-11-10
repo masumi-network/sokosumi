@@ -88,7 +88,8 @@ export function Sidebar({
             <span>{label}</span>
           </a>
         ))}
-        <a className="nav-cuso-picker" href="/?cusos=1">
+        {/* The Cuso picker: switch Business or hire another (ADR 0065). */}
+        <a href="/?cusos=1">
           <Users size={16} aria-hidden="true" />
           <span>Your {AGENT_NAME}s</span>
         </a>
