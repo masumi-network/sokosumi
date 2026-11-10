@@ -289,7 +289,10 @@ describe("the plan starts when the research ends", () => {
     turnFindFirst.mockReset();
     startTurn.mockReset();
   };
-  afterEach(resetTurns);
+  afterEach(() => {
+    resetTurns();
+    vi.useRealTimers();
+  });
 
   beforeEach(() => {
     resetTurns();
@@ -338,7 +341,7 @@ describe("the plan starts when the research ends", () => {
     turnFindFirst.mockResolvedValue(planTurn(2));
 
     await expect(
-      requestCmoStrategy({ userId: "user-1" }, now),
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
     ).resolves.toEqual({ turnId: "plan-1" });
 
     expect(startTurn).not.toHaveBeenCalled();
@@ -359,7 +362,7 @@ describe("the plan starts when the research ends", () => {
 
     const [fromResearch, fromApprove] = await Promise.all([
       startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
-      requestCmoStrategy({ userId: "user-1" }, now),
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
     ]);
 
     expect(fromResearch).toEqual({ turnId: "plan-1" });
@@ -370,7 +373,26 @@ describe("the plan starts when the research ends", () => {
   it("refuses a change while the plan is still being written", async () => {
     turnFindFirst.mockResolvedValue(planTurn(2));
     await expect(
-      requestCmoStrategy({ userId: "user-1", note: "Fewer posts" }, now),
+      requestCmoStrategy(
+        { projectId: "project-1", userId: "user-1", note: "Fewer posts" },
+        now,
+      ),
+    ).rejects.toThrow("still writing the plan");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("refuses an ad budget while the plan is still being written", async () => {
+    // The budget reads the clock itself.
+    vi.useFakeTimers({ now, toFake: ["Date"] });
+    turnFindFirst.mockResolvedValue(planTurn(2));
+    seedStrategy(strategy);
+    await expect(
+      setCmoAdBudget({
+        projectId: "project-1",
+        userId: "user-1",
+        monthly: 500,
+        currency: "eur",
+      }),
     ).rejects.toThrow("still writing the plan");
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -380,7 +402,10 @@ describe("the plan starts when the research ends", () => {
     startTurn.mockResolvedValue({ turnId: "plan-2" });
 
     await expect(
-      requestCmoStrategy({ userId: "user-1", restart: true }, now),
+      requestCmoStrategy(
+        { projectId: "project-1", userId: "user-1", restart: true },
+        now,
+      ),
     ).resolves.toEqual({ turnId: "plan-2" });
 
     expect(expireTurn).toHaveBeenCalledWith("plan-1");
@@ -390,7 +415,10 @@ describe("the plan starts when the research ends", () => {
     turnFindFirst.mockResolvedValue(planTurn(10));
 
     await expect(
-      requestCmoStrategy({ userId: "user-1", restart: true }, now),
+      requestCmoStrategy(
+        { projectId: "project-1", userId: "user-1", restart: true },
+        now,
+      ),
     ).resolves.toEqual({ turnId: "plan-1" });
 
     expect(expireTurn).not.toHaveBeenCalled();
