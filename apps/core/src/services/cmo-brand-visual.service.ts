@@ -169,9 +169,9 @@ export async function learnCmoBrandVisual(
     resolveSiteIconAsProjectLogo(cuso.websiteUrl, cuso.projectId)
       .then(async (logo) => {
         if (logo) {
-          await prisma.project.update({
-            where: { id: cuso.projectId },
-            data: { logo },
+          await prisma.project.updateMany({
+            where: { id: cuso.projectId, logo: null },
+            data: { logo, projectRevision: { increment: 1 } },
           });
         }
       })
