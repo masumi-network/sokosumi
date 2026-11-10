@@ -7296,7 +7296,7 @@
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
         "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
         "tagDirectMessagesTitle": "Sort my direct messages",
-        "tagDirectMessagesDescription": "Let Jev read person-to-person Directs to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
+        "tagDirectMessagesDescription": "When on, we read your Directs to point out questions and decisions for you. We only read a Direct when everyone in it has turned this on. We always do this in channels.",
         "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
         "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
@@ -8964,9 +8964,9 @@
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
-        "aiNote": "Jev sorts messages by what they ask of you. It can be wrong, so nothing is hidden: correct a tag on any message with one click.",
+        "aiNote": "We tag your messages for you, and sometimes we get it wrong. To fix a tag, open the message, point at it, and click the tag icon.",
         "removeTag": "Remove tag: {tag}",
-        "taskMade": "Task made",
+        "taskMade": "Task created",
         "loopClosed": "Done",
         "makeTask": "Make a task",
         "handOff": "Hand off",
@@ -8975,8 +8975,8 @@
         "noCoworkerFits": "No Coworker fits this yet.",
         "createTask": "Create a task",
         "editTags": "Edit tags",
-        "editTagsTitle": "What this message is",
-        "editTagsNote": "Your correction applies for everyone in the room.",
+        "editTagsTitle": "Tags for this message",
+        "editTagsNote": "Everyone in the room sees your change.",
         "taskDue": "Due {date}",
         "taskSource": "From the chat:",
         "taskFrom": "{name} wrote:",
@@ -9001,7 +9001,7 @@
           "blockers": "Blockers",
           "decisions": "Decisions",
           "announcements": "Announcements",
-          "openLoops": "Open loops",
+          "openLoops": "Still open",
           "highlights": "Highlights"
         },
         "Chips": {
@@ -9038,7 +9038,7 @@
           "title": "Decisions",
           "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
           "loadOlder": "Load older",
-          "note": "Collected by Jev. Remove a wrong one from its message."
+          "note": "We find these for you. If one is wrong, open its message and click the × on the tag."
         },
         "CatchUpTabs": {
           "label": "Catch up sections",
@@ -10509,7 +10509,7 @@
         "save": "Save",
         "create": "Create list",
         "smart": "Keep it filled from the current filters",
-        "smartHint": "A smart list: whoever matches these filters is on it, now and later."
+        "smartHint": "Anyone who matches these filters is on this list. The list updates by itself."
       },
       "addDialog": {
         "title": "Add contact",
@@ -10707,7 +10707,7 @@
         "waitingSince": "Since {date}, no answer yet",
         "heardFrom": "Last heard from them {when}",
         "automatic": "Automatic",
-        "classifier": "Automatic classification",
+        "classifier": "Sokosumi",
         "enrich": "Enrich",
         "enrichHint": "Look them up on the web and fill empty fields · 1 credit",
         "enriched": "Filled {fields} from the web · 1 credit",
@@ -10738,13 +10738,13 @@
         "medium": "Somewhat important",
         "low": "Not very important",
         "minimal": "Not important",
-        "auto": "Let Jev decide",
+        "auto": "Let Sokosumi decide",
         "change": "Change how important they are to you",
-        "byJev": "Judged by Jev",
-        "byJevBecause": "Jev: {reason}",
+        "byJev": "Set by Sokosumi",
+        "byJevBecause": "Set by Sokosumi ({reason})",
         "byYou": "Set by you",
         "byBot": "Set by your Soko Bot",
-        "notYet": "Not judged yet",
+        "notYet": "Not set yet",
         "familiarityHint": "From your own emails and meetings with them",
         "reasons": {
           "decides": "decision maker",

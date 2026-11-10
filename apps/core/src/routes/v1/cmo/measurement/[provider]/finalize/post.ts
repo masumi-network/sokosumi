@@ -4,14 +4,13 @@ import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { cmoMeasurementSchema, cmoOverviewSchema } from "@/schemas/cmo.schema";
+import type { CusoTarget } from "@/services/cmo-cuso.service";
 import { finalizeCmoMeasurement } from "@/services/cmo-measurement.service";
 
 import { requireOverview, rethrow } from "../../../helpers";
 
-const route = createRoute({
-  method: "post",
-  path: "/measurement/{provider}/finalize",
-  operationId: "finalizeCmoMeasurement",
+export const config = {
+  method: "post" as const,
   tags: ["CMO"],
   description:
     "Finishes connecting a measurement source once the owner is back from signing in.",
@@ -25,13 +24,23 @@ const route = createRoute({
     404: jsonErrorResponse("Not connected"),
     503: jsonErrorResponse("Connecting this is not set up"),
   },
+};
+
+const route = createRoute({
+  ...config,
+  path: "/measurement/{provider}/finalize",
+  operationId: "finalizeCmoMeasurement",
 });
+
+export async function finalize(target: CusoTarget, provider: string) {
+  await finalizeCmoMeasurement({ ...target, provider }).catch(rethrow);
+  return requireOverview(target);
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { provider } = c.req.valid("param");
-    await finalizeCmoMeasurement({ userId, provider }).catch(rethrow);
-    return ok(c, await requireOverview(userId));
+    return ok(c, await finalize({ userId }, provider));
   });
 }

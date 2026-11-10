@@ -28,6 +28,7 @@ import {
   type CmoLearningState,
   CUSO_BOT_WHERE,
   type Cuso,
+  type CusoTarget,
   cmoBusinessNameFromUrl,
   findCusoForBot,
   findCusoForUser,
@@ -316,9 +317,10 @@ export async function cmoWork(
  * ended without the Brand Brain's essentials and asked nothing.
  */
 export async function retryCmoOnboarding(
-  userId: string,
+  target: CusoTarget,
 ): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId });
+  const { userId } = target;
+  const cuso = await requireCuso(target);
   const state = await cmoLearningState(cuso);
   if (state === "running") {
     throw new CmoConflictError("Cuso is still learning the business");
@@ -345,8 +347,9 @@ const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
  * out are canceled. His organization, Project and Files stay in Sokosumi.
  * Only an organization owner or admin may (the archive checks).
  */
-export async function startCmoOver(userId: string): Promise<void> {
-  const cuso = await requireCuso({ userId });
+export async function startCmoOver(target: CusoTarget): Promise<void> {
+  const { userId } = target;
+  const cuso = await requireCuso(target);
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
