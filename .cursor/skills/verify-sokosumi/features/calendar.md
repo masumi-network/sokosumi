@@ -5,7 +5,7 @@ Calendar is a destination of its own (`/calendar`, a **Calendar** row in the sid
 ## Sub-features
 
 - `calendar-open` loads `/calendar` while authenticated. The URL may gain `?timezone=…`.
-- `calendar-shell` shows Month / Week / Agenda tabs, the **Show** filter and the period grid (empty copy **No scheduled releases match these filters.** is valid).
+- `calendar-shell` shows Month / Week / Agenda tabs, the **Show** filter and the period grid (empty copy **Nothing scheduled matches these filters.** is valid).
 - `calendar-show` is the **Show** menu: one checkbox per feature (**Newsletter** only where the workspace has it). It writes `types=…` to the URL (absent means every feature).
 - `calendar-gated` is covered by the shared app auth gate (anonymous users bounce to sign-in).
 
@@ -32,5 +32,5 @@ Preconditions:
 - Calendar is not a Tasks tab any more; `TASKS_TAB_VALUES` is gone. Social embeds the same component locked to Social posts (`types={["social"]}`).
 - Social posts are included on this calendar. They are one feature of **Show**, not a beta gate. **Ads** (`/ads`) is always a Marketing sidebar row.
 - A Contact follow-up is an all-day item on its date; a Marketing piece opens its Project file only once the file exists.
-- Empty week/month is valid. Copy **No scheduled releases match these filters.** is the empty filter state, not a routing failure.
+- Empty week/month is valid. Copy **Nothing scheduled matches these filters.** is the empty filter state, not a routing failure.
 - Creating tasks from the calendar is out of scope for this landing entry.

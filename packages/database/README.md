@@ -101,11 +101,10 @@ Transactions live in Core (`apps/core/src/lib/db/transaction.ts`), not in this p
 
 ```typescript
 import prisma from "@/lib/db/prisma";
-import { userRepository, jobRepository } from "@sokosumi/database/repositories";
+import { userRepository } from "@sokosumi/database/repositories";
 
 await prisma.$transaction(async (tx) => {
   const user = await userRepository.getUserById(userId, tx);
-  const job = await jobRepository.getJobById(jobId, tx);
 });
 ```
 
