@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { cmoOverview } from "../test-fixtures/cmo";
 import { NewsletterPage } from "./newsletter-page";
 
@@ -12,11 +12,20 @@ const actions = vi.hoisted(() => ({
   prepareCalendarIssue: vi.fn(),
   previewNewsletterIssue: vi.fn(),
   changeNewsletterIssue: vi.fn(),
-  searchNewsletterContacts: vi.fn(),
   subscribeNewsletterContacts: vi.fn(),
 }));
 
+const contacts = vi.hoisted(() => ({
+  addContact: vi.fn(),
+  loadContacts: vi.fn(),
+}));
+
+vi.mock("../app/cmo-actions", () => contacts);
 vi.mock("../app/newsletter-actions", () => actions);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 it("opens the linked calendar issue for review and keeps subscriber consent explicit", async () => {
   actions.loadNewsletter.mockResolvedValue({
@@ -132,9 +141,11 @@ it("subscribes a workspace contact without requiring a list", async () => {
     counts: { ACTIVE: 0, PENDING: 0 },
     issues: [],
   });
-  actions.searchNewsletterContacts.mockResolvedValue([
-    { id: "contact-1", name: "Pilot Reader", email: "reader@example.test" },
-  ]);
+  contacts.loadContacts.mockResolvedValue({
+    contacts: [
+      { id: "contact-1", name: "Pilot Reader", email: "reader@example.test" },
+    ],
+  });
   actions.subscribeNewsletterContacts.mockResolvedValue({
     result: {
       added: 1,
@@ -165,10 +176,9 @@ it("subscribes a workspace contact without requiring a list", async () => {
     if (!search) throw new Error("Newsletter contact search is missing");
     search.value = "Pilot Reader";
     await act(async () => search.form?.querySelector("button")?.click());
-    expect(actions.searchNewsletterContacts).toHaveBeenCalledWith(
-      "project-1",
-      "Pilot Reader",
-    );
+    expect(contacts.loadContacts).toHaveBeenCalledWith("project-1", {
+      search: "Pilot Reader",
+    });
 
     const audience = container.querySelector<HTMLSelectElement>(
       "#newsletter-audience",
@@ -201,5 +211,45 @@ it("subscribes a workspace contact without requiring a list", async () => {
   } finally {
     await act(async () => root.unmount());
     container.remove();
+  }
+});
+
+it("opens workspace Contacts inside Newsletter even before sending is enabled", async () => {
+  actions.loadNewsletter.mockResolvedValue({ state: "disabled" });
+  contacts.loadContacts.mockResolvedValue({
+    contacts: [],
+    total: 0,
+    nextCursor: null,
+  });
+  const container = document.createElement("div");
+  const root = createRoot(container);
+
+  try {
+    await act(async () => {
+      root.render(
+        <NewsletterPage
+          overview={cmoOverview()}
+          webOrigin="https://app.example.com"
+          draft={vi.fn()}
+        />,
+      );
+    });
+    const section = container.querySelector("details");
+    if (!section) throw new Error("Newsletter Contacts section is missing");
+    expect(section.querySelector("summary")?.textContent).toBe("Contacts");
+    expect(contacts.loadContacts).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Newsletter sending is in pilot");
+    await act(async () => {
+      section.open = true;
+      section.dispatchEvent(new Event("toggle"));
+    });
+    expect(section.textContent).toContain("Add a contact");
+    expect(section.textContent).toContain("Search contacts");
+    expect(contacts.loadContacts).toHaveBeenCalledWith("project-1", {
+      search: undefined,
+      cursor: undefined,
+    });
+  } finally {
+    await act(async () => root.unmount());
   }
 });

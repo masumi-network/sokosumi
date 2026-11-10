@@ -12,7 +12,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook } from "@/lib/hono";
-import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
+import { newsletterPilotScope } from "@/lib/newsletter/feature";
 import { pauseNewsletterSendingDomainIfUnhealthy } from "@/services/newsletter-sending-domain-warmup.service";
 
 const EVENT_TYPES = new Map<string, NewsletterEventType>([
@@ -86,7 +86,7 @@ app.openapi(route, async (c) => {
   const send = await prisma.newsletterSend.findUnique({
     where: {
       providerMessageId: data.email_id,
-      issue: NEWSLETTER_BETA_SCOPE,
+      issue: newsletterPilotScope(),
     },
     select: {
       id: true,

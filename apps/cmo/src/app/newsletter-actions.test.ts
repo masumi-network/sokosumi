@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadOverview = vi.fn();
-const getContacts = vi.fn();
 const getNewsletterAvailability = vi.fn();
 const getProjectsByIdNewsletter = vi.fn();
 const getProjectsByIdNewsletterIssues = vi.fn();
@@ -18,7 +17,6 @@ vi.mock("../lib/core", () => ({
   }),
 }));
 vi.mock("@sokosumi/core-client", () => ({
-  getContacts,
   getNewsletterAvailability,
   getProjectsByIdNewsletter,
   getProjectsByIdNewsletterIssues,
@@ -34,7 +32,6 @@ const {
   loadCalendarDrafts,
   loadNewsletter,
   previewNewsletterIssue,
-  searchNewsletterContacts,
   subscribeNewsletterContacts,
 } = await import("./newsletter-actions");
 
@@ -136,38 +133,7 @@ describe("CMO newsletter", () => {
     );
   });
 
-  it("finds an individual in the active workspace and subscribes only that contact", async () => {
-    getContacts.mockResolvedValue({
-      data: {
-        data: [
-          {
-            id: "contact-1",
-            name: "Pilot Reader",
-            channels: [
-              {
-                type: "EMAIL",
-                value: "secondary@example.test",
-                isPrimary: false,
-              },
-              { type: "EMAIL", value: "pilot@example.test", isPrimary: true },
-            ],
-          },
-        ],
-      },
-    });
-    await expect(
-      searchNewsletterContacts("stale-project", "Pilot"),
-    ).rejects.toThrow("active business");
-    expect(getContacts).not.toHaveBeenCalled();
-    expect(await searchNewsletterContacts("project-1", " Pilot ")).toEqual([
-      { id: "contact-1", name: "Pilot Reader", email: "pilot@example.test" },
-    ]);
-    expect(getContacts).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        headers: project.headers,
-        query: { search: "Pilot", sort: "name", direction: "asc", limit: 20 },
-      }),
-    );
+  it("subscribes only the selected individual contact", async () => {
     const result = { added: 1, pendingConfirmation: 0 };
     postProjectsByIdNewsletterSubscribersFromContacts.mockResolvedValue({
       data: { data: result },

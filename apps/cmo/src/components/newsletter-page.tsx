@@ -2,17 +2,18 @@
 
 import type { CmoOverview, NewsletterIssueStatus } from "@sokosumi/core-client";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { loadContacts } from "../app/cmo-actions";
 import {
   changeNewsletterIssue,
   loadCalendarDrafts,
   loadNewsletter,
   prepareCalendarIssue,
   previewNewsletterIssue,
-  searchNewsletterContacts,
   subscribeNewsletterContacts,
 } from "../app/newsletter-actions";
 import { businessDisplayName } from "./business-mark";
 import { FormField } from "./form-field";
+import { NewsletterContacts } from "./newsletter-contacts";
 import { SubmitButton } from "./submit-button";
 
 const BUTTON = "button button-secondary button-small";
@@ -28,7 +29,7 @@ const STATUS = {
 
 type Newsletter = Awaited<ReturnType<typeof loadNewsletter>>;
 type Preview = Awaited<ReturnType<typeof previewNewsletterIssue>>;
-type ContactMatches = Awaited<ReturnType<typeof searchNewsletterContacts>>;
+type ContactMatches = Awaited<ReturnType<typeof loadContacts>>["contacts"];
 
 export interface NewsletterCalendarDraft {
   entryId: string;
@@ -46,7 +47,28 @@ interface NewsletterPageProps {
   };
 }
 
-export function NewsletterPage({
+export function NewsletterPage(props: NewsletterPageProps) {
+  const [contactsOpened, setContactsOpened] = useState(false);
+
+  return (
+    <div className="page-body">
+      <details
+        className="card"
+        onToggle={(event) => {
+          if (event.currentTarget.open) setContactsOpened(true);
+        }}
+      >
+        <summary className="label">Contacts</summary>
+        {contactsOpened ? (
+          <NewsletterContacts projectId={props.overview.projectId} />
+        ) : null}
+      </details>
+      <NewsletterSending {...props} />
+    </div>
+  );
+}
+
+function NewsletterSending({
   overview,
   webOrigin,
   draft,
@@ -80,13 +102,16 @@ export function NewsletterPage({
   }, [reload]);
 
   async function searchContacts(formData: FormData) {
-    const search = formData.get("query");
-    if (typeof search !== "string" || !search.trim()) return;
+    const value = formData.get("query");
+    if (typeof value !== "string" || !value.trim()) return;
     setAudience("");
     setMatches(null);
     setSearchError(false);
     try {
-      setMatches(await searchNewsletterContacts(projectId, search));
+      const { contacts } = await loadContacts(projectId, {
+        search: value.trim(),
+      });
+      setMatches(contacts);
     } catch {
       setSearchError(true);
     }

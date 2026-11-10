@@ -17,10 +17,12 @@ import {
   connectCmoMeasurement,
   finalizeCmoAds,
   finalizeCmoMeasurement,
+  type GetContactsData,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryText,
   getCmoOverview,
   getContactLists,
+  getContacts,
   launchCmoSearchAd,
   listCmoAdCampaigns,
   listCmoAdChoices,
@@ -29,6 +31,7 @@ import {
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
+  postContacts,
   postProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate,
   requestCmoStrategy,
@@ -493,6 +496,72 @@ async function cusoProject() {
     ...(await inCusoWorkspace(overview)),
     path: { id: overview.projectId },
   };
+}
+
+/** Resolve the workspace again so a stale screen cannot act in another hire. */
+async function contactWorkspace(projectId: string) {
+  const overview = await requireOverview();
+  if (overview.projectId !== projectId || !overview.organizationSlug) {
+    throw new Error("The active business has changed");
+  }
+  return inCusoWorkspace(overview);
+}
+
+export async function loadContacts(
+  projectId: string,
+  query: Pick<NonNullable<GetContactsData["query"]>, "search" | "cursor">,
+) {
+  const options = await contactWorkspace(projectId);
+  const { data } = await getContacts({
+    ...options,
+    query: {
+      search: query.search,
+      cursor: query.cursor,
+      sort: "name",
+      direction: "asc",
+      limit: 50,
+    },
+  });
+  if (!data) throw new Error("Could not load contacts");
+  return {
+    contacts: data.data.map(
+      ({ id, name, organization, role, channels, lists }) => ({
+        id,
+        name,
+        organization,
+        role,
+        email:
+          channels.find(
+            (channel) => channel.type === "EMAIL" && channel.isPrimary,
+          )?.value ??
+          channels.find((channel) => channel.type === "EMAIL")?.value ??
+          null,
+        lists: lists.map((list) => list.name),
+      }),
+    ),
+    nextCursor: data.meta.pagination.nextCursor,
+    total: data.meta.pagination.total,
+  };
+}
+
+export async function addContact(
+  projectId: string,
+  formData: FormData,
+): Promise<string | null> {
+  const options = await contactWorkspace(projectId);
+  const name = formData.get("name");
+  const email = formData.get("email");
+  if (typeof name !== "string" || !name.trim()) return "Enter a name.";
+  const address = typeof email === "string" ? email.trim() : "";
+  const { data, error } = await postContacts({
+    ...options,
+    body: {
+      name: name.trim(),
+      channels: address ? [{ type: "EMAIL", value: address }] : [],
+    },
+  });
+  if (!data) return errorText(error, "Could not add the contact.");
+  return null;
 }
 
 /** Starts connecting a network; the browser goes to the returned URL. */
