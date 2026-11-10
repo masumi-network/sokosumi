@@ -245,12 +245,13 @@ describe("the page around the results", () => {
     ).toBeTruthy();
   });
 
-  it("shows the empty-state carousel above the composer", () => {
+  it("shows the empty-state heading above the composer", () => {
     mount([]);
     const composer = screen.getByRole("region", { name: "composerTitle" });
-    const tile = screen.getByRole("button", { name: "story-ad" });
+    const heading = screen.getByRole("heading", { name: "emptyTitle" });
     expect(
-      tile.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING,
+      heading.compareDocumentPosition(composer) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

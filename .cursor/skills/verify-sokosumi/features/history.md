@@ -23,7 +23,7 @@ Preconditions:
 - `verify-sokosumi doctor` ok.
 
 - **Open history.** Run `agent-browser open $WEB_URL/history` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL is `/history` (not `/signin`).
-- **List or empty.** Snapshot shows transaction rows **or** heading **No transactions yet**. Either is success; note which. Filters include Source values **Agent job** / **Image** / **Task** / **Coworker** / **Soko Bot** / **Top up** / **Other**. Do not require spend rows for a new fixture user.
+- **List or empty.** Snapshot shows transaction rows **or** heading **No transactions yet**. Either is success; note which. Filters include Source values **Agent job** / **Image** / **Task** / **Coworker** / **Soko Bot** / **Find people** / **Top up** / **Other**. Do not require spend rows for a new fixture user.
 - **Optional gate check.** In a fresh browser session without cookies, open `/history` and confirm redirect to `/signin?returnUrl=%2Fhistory`. Do not reuse `AGENT_BROWSER_SESSION` / `AGENT_BROWSER_SESSION_NAME` for this check (use another `--session` / `AGENT_BROWSER_SESSION` value, or `agent-browser close` then a new session). After `agent-browser close`, open the URL again before `get url` (a close can leave `about:blank`). Wait for network idle before `get url` / snapshot so the session is fully attached.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/history` then screenshot + snapshot of the authenticated history view.
 

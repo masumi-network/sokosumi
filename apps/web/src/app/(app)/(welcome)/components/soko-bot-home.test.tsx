@@ -175,6 +175,44 @@ describe("SokoBotHome", () => {
     );
   });
 
+  it("lists a chat with the bot among the Tasks by time, opening at the reader's message", async () => {
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Plan this week's bakery posts",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.closest("section[aria-labelledby]"));
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/chat/rooms/room-1?message=msg-9",
+      "/tasks/task-1",
+    ]);
+    expect(links[0]?.textContent).toContain("Plan this week's bakery posts");
+    expect(links[0]?.textContent).toContain("open");
+    expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
+  it("drops the quiet line once a chat happened, with no Tasks", async () => {
+    await renderHome({
+      teamTasks: [],
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Hi",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
   it("says so when nothing moved", async () => {
     await renderHome({ teamTasks: [], summary: null });
     expect(screen.getByText('quietDay:{"name":"Joseph"}')).toBeTruthy();
