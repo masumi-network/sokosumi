@@ -72,6 +72,7 @@ const shop = "https://fieldwork.example/";
 const blobOrigin = "https://campaign.public.blob.vercel-storage.com";
 const designMd = `${blobOrigin}/design-md/campaign-test.md`;
 const approvedLine = "Brew at your own pace.";
+const secondApprovedLine = "Good coffee for slower mornings.";
 const unusedLine = "An old promotion";
 const userId = randomUUID();
 const batchId = randomUUID();
@@ -311,7 +312,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
               summary: draft.brandCopy?.summary,
               tone: "Warm and direct",
               audience: ["Home brewers"],
-              approvedLines: [approvedLine],
+              approvedLines: [approvedLine, secondApprovedLine],
             },
           }),
         )
@@ -327,16 +328,23 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     ).toBe(200);
 
     const placementRatios = ["1:1", "9:16"];
-    const submissions = products.flatMap((product) =>
+    const submissions = products.flatMap((product, index) =>
       placementRatios.map((aspectRatio) => ({
         batchId,
         product: { id: product.id, name: product.name },
+        exportHeadline: index === 0 ? approvedLine : secondApprovedLine,
         modelId: "muse-image",
         settings: { aspectRatio },
         prompt: productBrief(product),
         idempotencyKey: randomUUID(),
       })),
     );
+    const unapproved = await studio.request(
+      `${path}/jobs`,
+      json("POST", { ...submissions[0], exportHeadline: unusedLine }),
+    );
+    expect(unapproved.status).toBe(422);
+    expect(external.submit).not.toHaveBeenCalled();
     for (const submission of submissions) {
       const response = await studio.request(
         `${path}/jobs`,
@@ -357,9 +365,11 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect(replay.status).toBe(201);
     expect(external.submit).toHaveBeenCalledTimes(4);
     for (const [index, [payload]] of external.submit.mock.calls.entries()) {
-      expect(payload.input.prompt).toContain(approvedLine);
+      expect(payload.input.prompt).not.toContain(approvedLine);
+      expect(payload.input.prompt).not.toContain(secondApprovedLine);
       expect(payload.input.prompt).toContain("#a33421");
       expect(payload.input.prompt).toContain(submissions[index].product.name);
+      expect(payload.input.prompt).toContain("Keep the upper area clear");
       expect(payload.input.prompt).not.toContain(unusedLine);
     }
     const jobs = await prisma.projectImageJob.findMany({
@@ -383,12 +393,23 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       .array()
       .parse((await batchResponse.json()).data);
     expect(assets).toHaveLength(4);
-    for (const product of products) {
-      expect(
-        assets.filter(({ product: identity }) => identity?.id === product.id),
-      ).toHaveLength(2);
+    for (const [index, product] of products.entries()) {
+      const results = assets.filter(
+        ({ product: identity }) => identity?.id === product.id,
+      );
+      expect(results).toHaveLength(2);
+      expect(results.map(({ headline }) => headline)).toEqual(
+        Array.from({ length: 2 }, () => ({
+          text: index === 0 ? approvedLine : secondApprovedLine,
+          revision: 1,
+        })),
+      );
     }
-    const headlinePath = `${path}/assets/${assets[0].id}/headline`;
+    const firstAd = assets.find(
+      ({ headline }) => headline?.text === approvedLine,
+    );
+    if (!firstAd) throw new Error("The first approved headline was not saved");
+    const headlinePath = `${path}/assets/${firstAd.id}/headline`;
     const saveHeadline = (text: string | null, actor = studio) =>
       actor.request(headlinePath, json("PUT", { text }));
     expect((await saveHeadline(unusedLine)).status).toBe(422);
@@ -409,7 +430,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect((await (await readBatch()).json()).data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: assets[0].id,
+          id: firstAd.id,
           headline: { text: approvedLine, revision: 1 },
         }),
       ]),
@@ -421,7 +442,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect((await (await readBatch()).json()).data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: assets[0].id,
+          id: firstAd.id,
           headline: { text: null, revision: 2 },
         }),
       ]),

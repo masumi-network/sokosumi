@@ -45,9 +45,9 @@ import { authorizeAgentGrant as authorize } from "./authorize";
  */
 
 const app = new Hono();
-const createAgentImageJobSchema = createImageJobRequestSchema.extend({
-  catalogProductId: z.string().uuid().optional(),
-});
+const createAgentImageJobSchema = createImageJobRequestSchema
+  .omit({ exportHeadline: true })
+  .extend({ catalogProductId: z.string().uuid().optional() });
 
 /**
  * Confirm the grant's user still has access to the grant's project.

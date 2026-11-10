@@ -33,6 +33,12 @@ const NO_BRAND: StudioBrand = {
   brandBrain: null,
 };
 
+export function requireApprovedStudioHeadline(text: string, brand: unknown) {
+  if (!parseBrandBrain(brand)?.voice.examples.includes(text)) {
+    throw unprocessableEntity("Headline is no longer approved in Brand Kit");
+  }
+}
+
 /**
  * Prefix the fal prompt with the project's Brand Brain, Design and Memory.
  *

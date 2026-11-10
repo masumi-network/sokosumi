@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { notFound, unprocessableEntity } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -9,6 +9,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { requireApprovedStudioHeadline } from "@/lib/image-studio/studio-brand";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -16,7 +17,6 @@ import {
   saveStudioAdHeadlineSchema,
   studioAdHeadlineSchema,
 } from "@/schemas/project-image-studio.schema";
-import { parseBrandBrain } from "@/services/brand-brain.service";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -58,12 +58,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         },
       });
       if (!asset) throw notFound("Image not found");
-      const brand = parseBrandBrain(asset.project.brandBrain?.body);
-      if (text !== null && !brand?.voice.examples.includes(text)) {
-        throw unprocessableEntity(
-          "Headline is no longer approved in Brand Kit",
-        );
-      }
+      if (text !== null)
+        requireApprovedStudioHeadline(text, asset.project.brandBrain?.body);
       if ((asset.headline?.text ?? null) === text) {
         return asset.headline ?? { text: null, revision: 0 };
       }

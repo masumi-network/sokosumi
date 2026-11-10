@@ -39167,6 +39167,11 @@ export const CreateProjectImageJobRequestSchema = {
             type: 'string',
             format: 'uuid'
         },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },

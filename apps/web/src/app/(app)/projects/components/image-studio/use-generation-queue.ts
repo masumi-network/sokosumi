@@ -49,6 +49,7 @@ export interface QueuedGeneration {
   referenceFileIds?: string[];
   product?: StudioProductIdentity;
   batchId?: string;
+  exportHeadline?: string;
   /** Fixed per request: a retry must return the first job, never buy a second. */
   idempotencyKey: string;
 }
@@ -183,6 +184,9 @@ export function useGenerationQueue({
           parentAssetId: next.parentAssetId,
           ...(next.product ? { product: next.product } : {}),
           ...(next.batchId ? { batchId: next.batchId } : {}),
+          ...(next.exportHeadline
+            ? { exportHeadline: next.exportHeadline }
+            : {}),
           referenceAssetIds: next.referenceAssetIds,
           ...(next.referenceFileIds?.length
             ? { referenceFileIds: next.referenceFileIds }

@@ -106,15 +106,14 @@ export const imageStudioVideoSettingsSchema = z
 
 export const IMAGE_STUDIO_MEDIA_TYPES = ["IMAGE", "VIDEO"] as const;
 
+const studioHeadlineTextSchema = z
+  .string()
+  .min(1)
+  .max(MAX_STUDIO_HEADLINE_LENGTH)
+  .refine((value) => value.trim().length > 0);
+
 export const saveStudioAdHeadlineSchema = z
-  .object({
-    text: z
-      .string()
-      .min(1)
-      .max(MAX_STUDIO_HEADLINE_LENGTH)
-      .refine((value) => value.trim().length > 0)
-      .nullable(),
-  })
+  .object({ text: studioHeadlineTextSchema.nullable() })
   .openapi("SaveStudioAdHeadline");
 
 export const studioAdHeadlineSchema = saveStudioAdHeadlineSchema
@@ -269,6 +268,7 @@ export const createImageJobRequestSchema = z
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     product: studioProductIdentitySchema.optional(),
     batchId: z.uuid().optional(),
+    exportHeadline: studioHeadlineTextSchema.optional(),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     referenceFileIds: z

@@ -63,6 +63,7 @@ import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files"
 import {
   applyStudioBrandPrompt,
   loadStudioBrand,
+  requireApprovedStudioHeadline,
 } from "@/lib/image-studio/studio-brand";
 import {
   findVideoModelForEndpoint,
@@ -134,6 +135,7 @@ export interface CreateImageJobInput {
   prompt: string;
   product?: StudioProductIdentity;
   batchId?: string;
+  exportHeadline?: string;
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
   referenceAssetIds: string[];
@@ -297,6 +299,14 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // second one — is what makes the HTTP endpoint safe to retry.
     if (existing) return { job: existing, created: false };
 
+    if (input.exportHeadline) {
+      const brand = await tx.brandBrain.findUnique({
+        where: { projectId: input.projectId },
+        select: { body: true },
+      });
+      requireApprovedStudioHeadline(input.exportHeadline, brand?.body);
+    }
+
     const source =
       !input.product && input.parentAssetId
         ? await tx.projectImageAsset.findFirst({
@@ -409,6 +419,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         productId: input.product?.id ?? source?.job.productId,
         productName: input.product?.name ?? source?.job.productName,
         batchId: input.batchId,
+        exportHeadline: input.exportHeadline,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
@@ -898,7 +909,10 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     preflightReason = "request_not_supported";
     // Brand is for fal only. The stored prompt stays the brief. A missing
     // Design or Memory is ignored so a brand read never blocks a generation.
-    const prompt = applyStudioBrandPrompt(job.prompt, brand);
+    const prompt = applyStudioBrandPrompt(
+      job.prompt,
+      job.exportHeadline ? { ...brand, approvedLines: undefined } : brand,
+    );
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
       if (!model) throw new Error("Unsupported video model endpoint.");
@@ -913,9 +927,12 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       const productPhotoGuidance = photoCount
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";
+      const headlineGuidance = job.exportHeadline
+        ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
+        : "";
       input = buildFalInput(
         {
-          prompt: prompt + productPhotoGuidance,
+          prompt: prompt + productPhotoGuidance + headlineGuidance,
           aspectRatio: settings.aspectRatio,
           resolution: settings.resolution,
           outputFormat: settings.outputFormat,
@@ -1618,6 +1635,7 @@ async function storeMedia(
         workspaceId: project.workspaceId,
         model: job.model,
         prompt: job.prompt,
+        exportHeadline: job.exportHeadline,
         settings: job.settings,
         parentAssetId: job.parentAssetId,
         requestedByUserId: job.requestedByUserId,
@@ -1678,6 +1696,7 @@ async function insertAsset(input: {
     workspaceId: string;
     model: string;
     prompt: string;
+    exportHeadline: string | null;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
     /** Who pays, and out of which pot. */
@@ -1785,6 +1804,10 @@ async function insertAsset(input: {
         height: input.height,
         bytes: input.bytes,
         checksum: input.checksum,
+        ...(input.job.exportHeadline &&
+        input.mediaType === ProjectImageMediaType.IMAGE
+          ? { headline: { create: { text: input.job.exportHeadline } } }
+          : {}),
       },
     });
 

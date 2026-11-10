@@ -10423,6 +10423,7 @@ export type CreateProjectImageJobRequest = {
     prompt: string;
     product?: StudioProductIdentity;
     batchId?: string;
+    exportHeadline?: string;
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
     referenceFileIds?: Array<string>;

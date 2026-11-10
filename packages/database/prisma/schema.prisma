@@ -5292,6 +5292,9 @@ model ProjectImageJob {
   /// All jobs from one Content Studio composer submission.
   batchId String? @db.Uuid
 
+  /// Approved copy to attach when the image is delivered.
+  exportHeadline String?
+
   status ProjectImageJobStatus @default(PENDING)
 
   /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),

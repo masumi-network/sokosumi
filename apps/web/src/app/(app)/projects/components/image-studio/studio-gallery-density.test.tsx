@@ -365,7 +365,10 @@ describe("a gallery with work in it", () => {
     });
 
     fireEvent.change(select, { target: { value: removed } });
-    await waitFor(() => expect(select).toHaveValue(removed));
+    await waitFor(() => {
+      expect(select).toHaveValue(removed);
+      expect(download).toBeEnabled();
+    });
     fireEvent.click(download);
     await waitFor(() =>
       expect(
@@ -375,7 +378,10 @@ describe("a gallery with work in it", () => {
     expect(mocks.saveDownload).not.toHaveBeenCalled();
 
     fireEvent.change(select, { target: { value: active } });
-    await waitFor(() => expect(select).toHaveValue(active));
+    await waitFor(() => {
+      expect(select).toHaveValue(active);
+      expect(download).toBeEnabled();
+    });
     fireEvent.click(download);
     await waitFor(() =>
       expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(

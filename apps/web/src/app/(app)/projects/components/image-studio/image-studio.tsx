@@ -362,6 +362,13 @@ export function ImageStudio({
       }),
     [checkedIds, state.assets],
   );
+  const referenceProjectIds = new Set(
+    checkedAssets.map(({ projectId }) => projectId),
+  );
+  const generationProjectId =
+    referenceProjectIds.size > 1
+      ? null
+      : ([...referenceProjectIds][0] ?? activeProjectId);
 
   function archiveLimitFor(assets: StudioAsset[]) {
     if (assets.length > MAX_ARCHIVE_IMAGES)
@@ -726,16 +733,36 @@ export function ImageStudio({
    */
   function handleGenerate(requests: GenerationRequest[]) {
     setTemplateUndo(null);
-    const referenceProjectIds = new Set(
-      checkedAssets.map((asset) => asset.projectId),
-    );
     if (referenceProjectIds.size > 1) {
       setActionError(t("referencesAcrossProjects"));
       return;
     }
-    const target = [...referenceProjectIds][0] ?? activeProjectId;
-    if (target) {
-      sendTo(target, requests);
+    if (generationProjectId) {
+      const headlines = requests.flatMap(({ exportHeadline }) =>
+        exportHeadline ? [exportHeadline] : [],
+      );
+      if (headlines.length) {
+        setActionError(null);
+        startTransition(async () => {
+          try {
+            const approved =
+              await readApprovedStudioHeadlines(generationProjectId);
+            if (headlines.some((line) => !approved.includes(line))) {
+              setTarget((current) => ({
+                ...current,
+                exportHeadlines: undefined,
+              }));
+              setActionError(t("campaignHeadlineRemoved"));
+              return;
+            }
+            sendTo(generationProjectId, requests);
+          } catch {
+            setActionError(t("headlineLoadFailed"));
+          }
+        });
+      } else {
+        sendTo(generationProjectId, requests);
+      }
       return;
     }
     openProjectScope({
@@ -759,9 +786,11 @@ export function ImageStudio({
         ...(batchId ? { batchId } : {}),
       })),
     );
-    setPrompt("");
-    setBatchProducts([]);
-    setDraftProduct(undefined);
+    setPrompt((current) => (current === prompt ? "" : current));
+    setBatchProducts((current) => (current === batchProducts ? [] : current));
+    setDraftProduct((current) =>
+      current === draftProduct ? undefined : current,
+    );
     setHasNewerSettings(false);
   }
 
@@ -994,6 +1023,7 @@ export function ImageStudio({
         modeSwitch={modeSwitch}
         busy={pending}
         catalog={catalog}
+        generationProjectId={generationProjectId}
         labels={labels}
         onApplyTemplate={applyTemplate}
         onClearReferences={clearReferences}
@@ -1163,6 +1193,14 @@ export function ImageStudio({
                       setTarget({
                         modelIds: [request.modelId],
                         settings: request.settings,
+                        ...(request.exportHeadline
+                          ? {
+                              exportHeadlines: {
+                                projectId: request.projectId,
+                                lines: [request.exportHeadline],
+                              },
+                            }
+                          : {}),
                       });
                       setCheckedIds(request.referenceAssetIds);
                       const photoId = request.referenceFileIds?.[0];
