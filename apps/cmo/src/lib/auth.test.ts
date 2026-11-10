@@ -448,15 +448,13 @@ describe("CMO auth handler", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    const [stateCookie, keptCookie, ...rest] = response.headers.getSetCookie();
+    const [stateCookie, ...rest] = response.headers.getSetCookie();
     expect(rest).toEqual([]);
     expect(stateCookie).toMatch(/^__Secure-cmo.oauth_state=/);
     for (const attribute of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) {
       expect(stateCookie).toContain(attribute);
     }
     expect(stateCookie).not.toMatch(/domain=/i);
-    // The website rides through sign in; Home starts reading it on return.
-    expect(keptCookie).toMatch(/^cmo-website=https%3A%2F%2Fnmkr.io%2F;/);
     const authorizeUrl = response.headers.get("location") ?? "";
     expect(new URL(authorizeUrl).searchParams.get("prompt")).toBe("create");
     await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
@@ -561,12 +559,7 @@ describe("CMO auth handler", () => {
       logged.mockRestore();
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.get("location")).toBe("/?error=unavailable");
-      // No sign-in state; a link's website is still kept for the retry.
-      expect(
-        response.headers
-          .getSetCookie()
-          .filter((cookie) => !cookie.startsWith("cmo-website=")),
-      ).toEqual([]);
+      expect(response.headers.getSetCookie()).toEqual([]);
     },
   );
 

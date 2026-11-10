@@ -14,6 +14,7 @@ import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
 import { AGENT_NAME } from "../lib/agent";
+import { SIGN_UP_CONTEXT_FIELD } from "../lib/kept-website";
 import { CusoAvatar } from "./cuso";
 import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
@@ -64,6 +65,8 @@ interface OnboardingProps {
   autoStart?: boolean;
   /** Before sign in: Continue goes to Create account, keeping the website. */
   signedOut?: boolean;
+  /** Before sign in: a Create account link's parameters, sent with the website. */
+  signUpContext?: Record<string, string>;
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -78,6 +81,7 @@ export function Onboarding({
   websiteUrl,
   autoStart = false,
   signedOut = false,
+  signUpContext = {},
   onboard,
 }: OnboardingProps) {
   const [state, formAction, starting] = useActionState(onboard, {
@@ -119,6 +123,14 @@ export function Onboarding({
             action={formAction}
             className="ob-hire-copy"
           >
+            {Object.entries(signUpContext).map(([key, value]) => (
+              <input
+                key={key}
+                type="hidden"
+                name={`${SIGN_UP_CONTEXT_FIELD}${key}`}
+                value={value}
+              />
+            ))}
             <div className="ob-intro">
               <CusoAvatar pose="needs-you" size={48} play={heroPlayed} />
               <p className="muted">

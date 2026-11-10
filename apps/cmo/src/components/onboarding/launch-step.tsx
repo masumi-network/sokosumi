@@ -87,6 +87,8 @@ const isAds = (key: string): key is "google_ads" | "meta_ads" =>
 /** How often Launch checks whether the founder closed the connect window. */
 const POPUP_CHECK_MS = 500;
 const CONNECT_FAILED = "That connection didn't finish. Try again.";
+/** One function for every render, so the done listener is not re-made. */
+const NO_RETURN = async () => {};
 
 interface LaunchStepProps {
   overview: CmoOverview;
@@ -147,7 +149,7 @@ export function LaunchStep({
   overview,
   onConnect,
   onConnectAds,
-  onReturn = async () => {},
+  onReturn = NO_RETURN,
   onLaunch,
   onGoToday,
   notice = null,
@@ -180,10 +182,14 @@ export function LaunchStep({
   const pieces = (key: string) =>
     calendar.filter((entry) => channelKey(entry.channel) === key).length;
 
+  // Closed without a word (the founder gave up, or the window lost us): check.
+  const popupCheck = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearInterval(popupCheck.current), []);
   // A connect window says how it ended; Launch polls at once, no reload.
   useEffect(
     () =>
       listenForConnectDone((result) => {
+        window.clearInterval(popupCheck.current);
         setPending(null);
         setError(
           result === "failed"
@@ -196,9 +202,6 @@ export function LaunchStep({
       }),
     [onReturn],
   );
-  // Closed without a word (the founder gave up, or the window lost us): check.
-  const popupCheck = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearInterval(popupCheck.current), []);
   function watch(popup: Window) {
     window.clearInterval(popupCheck.current);
     popupCheck.current = window.setInterval(() => {

@@ -1,10 +1,6 @@
 import { expect, it } from "vitest";
 
-import {
-  KEPT_WEBSITE_OPTIONS,
-  keptWebsite,
-  keptWebsiteSetCookie,
-} from "./kept-website";
+import { KEPT_WEBSITE_OPTIONS, keptWebsite } from "./kept-website";
 
 it("reads a kept website back as the founder would type it", () => {
   expect(keptWebsite("https://acme.io/")).toBe("acme.io");
@@ -28,10 +24,4 @@ it("keeps it for a day, out of scripts' reach, through the sign-in return", () =
     path: "/",
     maxAge: 24 * 60 * 60,
   });
-});
-
-it("writes the same cookie for a route's own response", () => {
-  expect(keptWebsiteSetCookie("https://acme.io/")).toBe(
-    "cmo-website=https%3A%2F%2Facme.io%2F; Path=/; Max-Age=86400; HttpOnly; SameSite=Lax",
-  );
 });

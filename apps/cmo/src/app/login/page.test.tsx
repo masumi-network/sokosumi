@@ -25,7 +25,9 @@ vi.mock("../../lib/auth", () => ({
   getAuth: () => ({ api: { getSession } }),
 }));
 
-vi.mock("../actions", () => ({ signIn: vi.fn() }));
+const signIn = vi.fn();
+const createAccountAgain = vi.fn();
+vi.mock("../actions", () => ({ signIn, createAccountAgain }));
 
 const { default: LoginPage, metadata } = await import("./page");
 
@@ -43,7 +45,7 @@ it("shows the error a sign in sent back", async () => {
   const page = await render("state_mismatch");
 
   expect(page.type).toBe(SignInProblem);
-  expect(page.props).toMatchObject({ error: "state_mismatch" });
+  expect(page.props).toMatchObject({ error: "state_mismatch", signIn });
 });
 
 it("says the website typed before a failed sign in is kept", async () => {

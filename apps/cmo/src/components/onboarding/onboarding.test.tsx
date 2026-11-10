@@ -125,6 +125,19 @@ describe("pre-hire Site", () => {
     expect(html).toContain("Next you sign in with Sokosumi");
     expect(html).toMatch(/<a[^>]*href="\/signin"[^>]*>Sign in<\/a>/);
   });
+
+  it("carries a Create account link's parameters as hidden fields", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        signedOut
+        signUpContext={{ ref: "partner" }}
+        onboard={async () => ({ attempt: 0, websiteUrl: "", errors: {} })}
+      />,
+    );
+    expect(html).toContain(
+      '<input type="hidden" name="signup.ref" value="partner"/>',
+    );
+  });
 });
 
 describe("step markers", () => {

@@ -28,6 +28,9 @@ vi.mock("../actions", () => ({ continueWithWebsite }));
 
 const { default: StartPage, metadata } = await import("./page");
 
+const render = (query: Record<string, string | string[]> = {}) =>
+  StartPage({ searchParams: Promise.resolve(query) });
+
 beforeEach(() => {
   getSession.mockReset();
   getSession.mockResolvedValue(null);
@@ -35,7 +38,7 @@ beforeEach(() => {
 });
 
 it("asks a signed-out founder for the website before sign in", async () => {
-  const page = await StartPage();
+  const page = await render();
 
   expect(page.type).toBe(Onboarding);
   expect(page.props).toMatchObject({
@@ -48,15 +51,25 @@ it("asks a signed-out founder for the website before sign in", async () => {
 it("fills the field with the website kept from an earlier try", async () => {
   cookieJar.set("cmo-website", "https://acme.io/");
 
-  const page = await StartPage();
+  const page = await render();
 
   expect(page.props.websiteUrl).toBe("acme.io");
+});
+
+it("carries a Create account link's parameters, but not its website", async () => {
+  const page = await render({
+    ref: ["partner", "other"],
+    url: "bad",
+    plan: "pro",
+  });
+
+  expect(page.props.signUpContext).toEqual({ ref: "partner", plan: "pro" });
 });
 
 it("sends a signed-in person home", async () => {
   getSession.mockResolvedValue({ user: { email: "ada@example.com" } });
 
-  await expect(StartPage()).rejects.toThrow("redirect /");
+  await expect(render()).rejects.toThrow("redirect /");
 });
 
 it("stays out of search while it is unlinked", () => {

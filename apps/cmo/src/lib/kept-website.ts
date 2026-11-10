@@ -22,15 +22,5 @@ export function keptWebsite(value: string | undefined): string | undefined {
   return url ? url.replace(/^https?:\/\//, "").replace(/\/$/, "") : undefined;
 }
 
-/** The `Set-Cookie` line that keeps a website, for a route's own response. */
-export function keptWebsiteSetCookie(url: string): string {
-  const { maxAge, path, secure } = KEPT_WEBSITE_OPTIONS;
-  return [
-    `${KEPT_WEBSITE_COOKIE}=${encodeURIComponent(url)}`,
-    `Path=${path}`,
-    `Max-Age=${maxAge}`,
-    "HttpOnly",
-    "SameSite=Lax",
-    ...(secure ? ["Secure"] : []),
-  ].join("; ");
-}
+/** Prefixes the hidden fields that carry a Create account link's parameters. */
+export const SIGN_UP_CONTEXT_FIELD = "signup.";

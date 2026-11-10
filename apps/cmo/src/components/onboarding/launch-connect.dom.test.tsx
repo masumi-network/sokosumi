@@ -130,6 +130,11 @@ it("connects in a popup and marks the account connected without a reload", async
   expect(text()).toContain("@acme");
   expect(text()).not.toContain("to launch.");
   expect(assign).not.toHaveBeenCalled();
+
+  // The window then closes itself: no second poll.
+  popup.closed = true;
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 600)));
+  expect(poll).toHaveBeenCalledTimes(1);
 });
 
 it("ignores a done message from another origin", async () => {

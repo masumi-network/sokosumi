@@ -9,6 +9,10 @@ const cookieJar = new Map<string, { value: string; options: unknown }>();
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
   cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name)
+        ? { name, value: cookieJar.get(name)?.value }
+        : undefined,
     set: (name: string, value: string, options: unknown) =>
       cookieJar.set(name, { value, options }),
   }),
@@ -34,7 +38,8 @@ vi.mock("../lib/auth", async (importOriginal) => ({
 }));
 
 const { notFound } = await import("next/navigation");
-const { continueWithWebsite, signIn, signOut } = await import("./actions");
+const { continueWithWebsite, createAccountAgain, signIn, signOut } =
+  await import("./actions");
 const { KEPT_WEBSITE_COOKIE, KEPT_WEBSITE_OPTIONS } = await import(
   "../lib/kept-website"
 );
@@ -142,6 +147,49 @@ describe("the website before sign in", () => {
       url: "https://acme.io/",
     });
     expect(redirectMock).toHaveBeenCalledWith("https://core.example/authorize");
+  });
+
+  it("sends a Create account link's parameters after the website", async () => {
+    const data = form("acme.io");
+    data.set("signup.ref", "partner");
+    data.set("signup.url", "elsewhere.io");
+    data.set("signup.constructor", "x");
+
+    await continueWithWebsite(EMPTY, data).catch((error: unknown) => {
+      if (!String(error).includes("NEXT_REDIRECT")) throw error;
+    });
+
+    const params = signInSocial.mock.lastCall?.[0].body.additionalParams;
+    expect(params?.signup_context).toBe(
+      JSON.stringify({
+        url: "https://acme.io/",
+        ref: "partner",
+        constructor: "x",
+      }),
+    );
+  });
+
+  it("tries Create account again with the kept website", async () => {
+    cookieJar.set(KEPT_WEBSITE_COOKIE, {
+      value: "https://acme.io/",
+      options: {},
+    });
+
+    await settle(createAccountAgain);
+
+    const params = signInSocial.mock.lastCall?.[0].body.additionalParams;
+    expect(params?.prompt).toBe("create");
+    expect(JSON.parse(params?.signup_context)).toEqual({
+      url: "https://acme.io/",
+    });
+  });
+
+  it("signs in again when no website is kept", async () => {
+    await settle(createAccountAgain);
+
+    expect(
+      signInSocial.mock.lastCall?.[0].body.additionalParams?.prompt,
+    ).toBeUndefined();
   });
 
   it("asks again for a website it cannot read, without signing in", async () => {
