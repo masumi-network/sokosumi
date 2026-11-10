@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { brandBrainSchema } from "@sokosumi/soko-bot";
 
-import { studioLogoPositionOrNullSchema } from "./project-image-studio.schema";
+import { studioLogoPositionOrNullSchema } from "./studio-logo-position.schema";
 import { studioProductImportSchema } from "./studio-product.schema";
 
 export const studioBrandCopySchema = z

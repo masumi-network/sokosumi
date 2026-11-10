@@ -24,7 +24,7 @@ import {
   taskStatusSchema,
 } from "@/schemas/domain-enums.schema";
 import { historyItemSchema } from "@/schemas/history.schema";
-import { studioLogoPositionOrNullSchema } from "./project-image-studio.schema";
+import { studioLogoPositionOrNullSchema } from "./studio-logo-position.schema";
 
 const PROJECT_MEMORY_UPDATING_WINDOW_MS = 5 * 60 * 1000;
 
