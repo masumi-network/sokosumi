@@ -1,7 +1,7 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import { chatRoomsForTask, taskChatMessage } from "./task-chat-share";
+import { chatRoomsForTask } from "./task-chat-share";
 
 function room(id: string, overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
@@ -11,21 +11,26 @@ function room(id: string, overrides: Partial<ChatRoom> = {}): ChatRoom {
     isSelfDirect: false,
     isReadOnly: false,
     discoverability: "public",
+    userMembers: [],
+    coworkerMembers: [],
+    sokoBotMembers: [],
     ...overrides,
   } as ChatRoom;
 }
+
+const notes = room("notes", {
+  kind: "direct",
+  isSelfDirect: true,
+  organizationId: null,
+  discoverability: null,
+});
 
 describe("chatRoomsForTask", () => {
   const rooms = [
     room("public"),
     room("private", { discoverability: "private" }),
     room("org-direct", { kind: "direct", discoverability: null }),
-    room("notes", {
-      kind: "direct",
-      isSelfDirect: true,
-      organizationId: null,
-      discoverability: null,
-    }),
+    notes,
     room("external", { discoverability: "external" }),
     room("matched", { discoverability: "matched", organizationId: null }),
     room("other-org", { organizationId: "org-2" }),
@@ -35,9 +40,20 @@ describe("chatRoomsForTask", () => {
       discoverability: null,
     }),
     room("read-only", { isReadOnly: true }),
+    room("bot-direct", {
+      kind: "direct",
+      discoverability: null,
+      sokoBotMembers: [{ id: "bot-1" }] as ChatRoom["sokoBotMembers"],
+    }),
+    room("coworker-channel", {
+      coworkerMembers: [{ id: "cw-1" }] as ChatRoom["coworkerMembers"],
+    }),
+    room("guest-channel", {
+      userMembers: [{ id: "g-1", access: "guest" }] as ChatRoom["userMembers"],
+    }),
   ];
 
-  it("keeps notes and the Task organization's rooms without guests", () => {
+  it("keeps notes and the Task organization's human-only rooms", () => {
     expect(chatRoomsForTask(rooms, "org-1").map((r) => r.id)).toEqual([
       "public",
       "private",
@@ -48,30 +64,5 @@ describe("chatRoomsForTask", () => {
 
   it("offers only notes for a personal Task", () => {
     expect(chatRoomsForTask(rooms, null).map((r) => r.id)).toEqual(["notes"]);
-  });
-
-  it("drops read-only notes", () => {
-    expect(
-      chatRoomsForTask(
-        [room("notes", { isSelfDirect: true, isReadOnly: true })],
-        "org-1",
-      ),
-    ).toEqual([]);
-  });
-});
-
-describe("taskChatMessage", () => {
-  const task = { id: "t-1", identifier: "SOK-12", name: "Fix [login] *now*" };
-
-  it("puts the note above an escaped app-path link", () => {
-    expect(taskChatMessage(task, "  Can someone take this?  ")).toBe(
-      "Can someone take this?\n\n[SOK-12 Fix \\[login\\] \\*now\\*](/tasks/SOK-12-fix-login-now)",
-    );
-  });
-
-  it("sends the link alone without a note", () => {
-    expect(
-      taskChatMessage({ id: "t-1", identifier: null, name: "Plan" }, " "),
-    ).toBe("[Plan](/tasks/t-1)");
   });
 });

@@ -53,7 +53,7 @@ import {
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
 import { chatRoomsForTask } from "@/app/tasks/utils/task-chat-share";
-import { type TaskHrefInput, taskHref } from "@/app/tasks/utils/task-href";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -167,9 +167,10 @@ interface TaskDetailActionsProps {
   taskBlueprint?: TaskScheduleBlueprintPrefill;
   /**
    * "Send to chat": post the Task's link into a chat room. Omitted for
-   * private Tasks and read-only views; the link never grants access.
+   * private Tasks and read-only views; Core re-checks both at send time and
+   * the link never grants access.
    */
-  sendToChat?: { task: TaskHrefInput; currentUserId: string };
+  sendToChat?: { currentUserId: string };
 }
 
 export function TaskDetailActions({
@@ -1071,7 +1072,7 @@ export function TaskDetailActions({
 
       {sendToChat && chatRooms ? (
         <TaskSendToChatDialog
-          task={sendToChat.task}
+          taskId={taskId}
           rooms={chatRooms}
           currentUserId={sendToChat.currentUserId}
           onClose={() => setChatRooms(null)}

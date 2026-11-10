@@ -445,6 +445,15 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  /** Post a Task's link into a room; Core re-checks Task and audience. */
+  async function sendTaskToChat(
+    taskId: string,
+    body: { roomId: string; note?: string; clientMessageId: string },
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.sendTaskToChat(taskId, body);
+    return response.data;
+  }
+
   async function unpinMessage(
     roomId: string,
     messageId: string,
@@ -790,6 +799,7 @@ export const chatRoomService = (() => {
     saveMessage,
     unsaveMessage,
     sendMessageToSelf,
+    sendTaskToChat,
     pinRoom,
     reorderPinnedRooms,
     listPinnedMessages,

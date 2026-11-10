@@ -1,4 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import mountPostTaskChatMessage from "./[id]/chat-messages/post.js";
 import mountDeleteTask from "./[id]/delete.js";
 import mountGetTaskEvents from "./[id]/events/get.js";
 import mountPostTaskEvents from "./[id]/events/post.js";
@@ -71,6 +72,7 @@ mountGetTaskById(app);
 mountGetTaskReceipt(app);
 mountPatchTask(app);
 mountPutTaskShareById(app);
+mountPostTaskChatMessage(app);
 mountDeleteTaskShareById(app);
 mountGetTaskWorkspace(app);
 mountPutTaskWorkspace(app);

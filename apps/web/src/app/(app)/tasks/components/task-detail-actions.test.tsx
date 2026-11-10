@@ -2275,10 +2275,7 @@ describe("TaskDetailActions", () => {
   });
 
   describe("Send to chat", () => {
-    const sendToChat = {
-      task: { id: "task-1", identifier: "SOK-1", name: "Weekly report" },
-      currentUserId: "user-1",
-    };
+    const sendToChat = { currentUserId: "user-1" };
     const chatRoom = (id: string, organizationId: string | null) => ({
       id,
       organizationId,
@@ -2286,6 +2283,9 @@ describe("TaskDetailActions", () => {
       isSelfDirect: false,
       isReadOnly: false,
       discoverability: "public",
+      userMembers: [],
+      coworkerMembers: [],
+      sokoBotMembers: [],
     });
 
     it("opens the dialog with only the Task workspace's rooms", async () => {
@@ -2309,10 +2309,7 @@ describe("TaskDetailActions", () => {
       });
       expect(dialog.textContent).toBe("same-org");
       expect(sendToChatDialogPropsMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          task: sendToChat.task,
-          currentUserId: "user-1",
-        }),
+        expect.objectContaining({ taskId: "task-1", currentUserId: "user-1" }),
       );
     });
 

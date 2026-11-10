@@ -1900,7 +1900,7 @@
           "sendToChat": {
             "menuItem": "Send to chat",
             "title": "Send task to chat",
-            "description": "Post a link to this task in a channel or direct message. Everyone there sees its title; only people who can open the task can see more.",
+            "description": "Post a link to this task in a channel or direct message. Everyone there sees its title; only people who can open the task see more. Rooms with AI coworkers or guests aren't offered.",
             "roomLabel": "Send to",
             "roomPlaceholder": "Choose a channel or direct message",
             "noteLabel": "Message (optional)",
@@ -1911,7 +1911,10 @@
             "success": "Task sent to chat",
             "openChat": "Open chat",
             "error": "Couldn't send the task. Try again.",
-            "loadError": "Couldn't load your chats. Try again."
+            "loadError": "Couldn't load your chats. Try again.",
+            "refused": "This chat can't receive this task anymore. Choose another one.",
+            "retry": "Send again",
+            "retryHint": "The last send may not have arrived. Sending again won't post it twice; changing the chat or message sends a new one."
           }
         },
         "ShareModal": {

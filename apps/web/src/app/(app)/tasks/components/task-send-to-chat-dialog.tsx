@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { sendRoomMessageAction } from "@/app/chat/actions";
+import { sendTaskToChatAction } from "@/app/chat/actions";
 import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
 import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
-import { taskChatMessage } from "@/app/tasks/utils/task-chat-share";
-import type { TaskHrefInput } from "@/app/tasks/utils/task-href";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,11 +26,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 
 const NOTE_MAX_LENGTH = 2000;
 
+/** One send: what was sent where, under the id that makes a retry land once. */
+interface SendAttempt {
+  roomId: string;
+  note: string;
+  clientMessageId: string;
+}
+
 interface TaskSendToChatDialogProps {
-  task: TaskHrefInput;
+  taskId: string;
   /** Rooms already narrowed by `chatRoomsForTask`. */
   rooms: ChatRoom[];
   currentUserId: string;
@@ -40,12 +46,15 @@ interface TaskSendToChatDialogProps {
 }
 
 /**
- * Send a Task's link, with an optional note, into one chat room. Mounted per
- * open, so each open is one send: the client message id makes a retry after
- * a lost response land once, and a failed send keeps the note.
+ * Send a Task's link, with an optional note, into one chat room. Core builds
+ * the message from the Task as it is at send time.
+ *
+ * The fields lock while a send runs. A failed send keeps its attempt: sending
+ * the same room and note again retries under the same id, so a send whose
+ * response was lost lands once. Changing either starts a new attempt.
  */
 export function TaskSendToChatDialog({
-  task,
+  taskId,
   rooms,
   currentUserId,
   onClose,
@@ -57,26 +66,34 @@ export function TaskSendToChatDialog({
   const noteFieldId = useId();
   const [roomId, setRoomId] = useState("");
   const [note, setNote] = useState("");
-  const [clientMessageId] = useState(() => crypto.randomUUID());
+  const [failedAttempt, setFailedAttempt] = useState<SendAttempt | null>(null);
   const [isSending, startSending] = useTransition();
+
+  const retrying =
+    failedAttempt !== null &&
+    failedAttempt.roomId === roomId &&
+    failedAttempt.note === note;
 
   const handleSend = () => {
     if (!roomId || isSending) return;
+    const attempt: SendAttempt =
+      retrying && failedAttempt
+        ? failedAttempt
+        : { roomId, note, clientMessageId: crypto.randomUUID() };
     startSending(async () => {
-      const result = await sendRoomMessageAction(
-        roomId,
-        taskChatMessage(task, note),
-        [],
-        { clientMessageId },
-      );
+      const result = await sendTaskToChatAction(taskId, attempt);
       if (!result.ok) {
-        toast.error(t("error"));
+        // A refusal cannot succeed on retry; anything else may have landed.
+        setFailedAttempt(
+          result.error.code === CommonErrorCode.UNAUTHORIZED ? null : attempt,
+        );
+        toast.error(result.error.message);
         return;
       }
       toast.success(t("success"), {
         action: {
           label: t("openChat"),
-          onClick: () => router.push(chatRoomHref(roomId)),
+          onClick: () => router.push(chatRoomHref(attempt.roomId)),
         },
       });
       onClose();
@@ -102,7 +119,11 @@ export function TaskSendToChatDialog({
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor={roomFieldId}>{t("roomLabel")}</Label>
-              <Select value={roomId} onValueChange={setRoomId}>
+              <Select
+                value={roomId}
+                onValueChange={setRoomId}
+                disabled={isSending}
+              >
                 <SelectTrigger id={roomFieldId} className="w-full">
                   <SelectValue placeholder={t("roomPlaceholder")} />
                 </SelectTrigger>
@@ -123,9 +144,15 @@ export function TaskSendToChatDialog({
                 value={note}
                 maxLength={NOTE_MAX_LENGTH}
                 placeholder={t("notePlaceholder")}
+                disabled={isSending}
                 onChange={(event) => setNote(event.target.value)}
               />
             </div>
+            {retrying ? (
+              <p className="text-muted-foreground text-sm" role="status">
+                {t("retryHint")}
+              </p>
+            ) : null}
           </div>
         )}
 
@@ -134,7 +161,7 @@ export function TaskSendToChatDialog({
             {t("cancel")}
           </Button>
           <Button disabled={!roomId} loading={isSending} onClick={handleSend}>
-            {t("send")}
+            {retrying ? t("retry") : t("send")}
           </Button>
         </DialogFooter>
       </DialogContent>

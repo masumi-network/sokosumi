@@ -691,15 +691,11 @@ async function TaskDetailActionsSlot({
           : undefined
       }
       sendToChat={
-        !forceReadOnly && task.visibility !== "PRIVATE" && session?.user.id
-          ? {
-              task: {
-                id: task.id,
-                identifier: task.identifier,
-                name: task.name,
-              },
-              currentUserId: session.user.id,
-            }
+        !forceReadOnly &&
+        hasAssignedSeat &&
+        task.visibility !== "PRIVATE" &&
+        session?.user.id
+          ? { currentUserId: session.user.id }
           : undefined
       }
       actionsMenuLabel={tMembersTableHeader("actions")}
