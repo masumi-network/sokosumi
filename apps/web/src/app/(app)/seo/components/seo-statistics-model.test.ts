@@ -13,6 +13,7 @@ import {
   seoDefaultMetric,
   seoQueryPeriod,
   seoStatisticsPeriod,
+  seoStatisticsPreset,
 } from "./seo-statistics-model";
 
 function metric(change: Partial<ProjectSeoMetric> = {}): ProjectSeoMetric {
@@ -73,6 +74,15 @@ describe("SEO statistics presentation", () => {
     expect(invalidSeoStatisticsPeriod("2026-11-05", "2026-11-04")).toBe(true);
     expect(invalidSeoStatisticsPeriod("bad-date", "2026-11-04")).toBe(true);
     expect(invalidSeoStatisticsPeriod("2026-11-04", "2026-11-04")).toBe(false);
+  });
+
+  it("names the preset of a period, and none for the reader's own dates", () => {
+    const now = new Date("2024-03-02T00:01:00Z");
+    expect(seoStatisticsPreset("2024-02-24", "2024-03-01", now)).toBe(7);
+    expect(seoStatisticsPreset("2024-02-03", "2024-03-01", now)).toBe(28);
+    // One day off at either end is not a preset.
+    expect(seoStatisticsPreset("2024-02-25", "2024-03-01", now)).toBeNull();
+    expect(seoStatisticsPreset("2024-02-24", "2024-02-29", now)).toBeNull();
   });
 });
 

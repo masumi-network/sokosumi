@@ -16,6 +16,7 @@ import {
   type SeoStatisticsProvider,
   savedSeoStatistics,
   seoStatisticsPeriod,
+  seoStatisticsPreset,
 } from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -148,6 +149,7 @@ export function useSeoStatistics(
     to,
     setTo,
     setPeriod,
+    preset: seoStatisticsPreset(from, to),
     invalidDates,
     submit,
   };

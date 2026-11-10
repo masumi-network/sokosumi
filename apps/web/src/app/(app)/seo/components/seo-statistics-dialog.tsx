@@ -11,8 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SEO_CHOSEN_CLASS } from "./seo-shared";
 import {
   SEO_STATISTICS_PERIODS,
   type SeoStatisticsProvider,
@@ -128,6 +130,9 @@ export function SeoStatisticsDialog({
                 type="button"
                 variant="outline"
                 size="sm"
+                aria-pressed={form.preset === days}
+                // The same mark as the chosen metric tile on the Traffic tab.
+                className={cn(form.preset === days && SEO_CHOSEN_CLASS)}
                 onClick={() => form.setPeriod(days)}
               >
                 {t("statistics.lastDays", { days })}

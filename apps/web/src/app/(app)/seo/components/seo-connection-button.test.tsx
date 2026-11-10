@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -217,12 +217,41 @@ describe("native SEO connection consent", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Disconnect Search Console" }),
     );
+    // The icon only asks: the account stays until the reader confirms.
+    const confirm = await screen.findByRole("alertdialog", {
+      name: "Disconnect Search Console?",
+    });
+    expect(m.disconnect).not.toHaveBeenCalled();
+    await userEvent.click(
+      within(confirm).getByRole("button", {
+        name: "Disconnect Search Console",
+      }),
+    );
     expect(m.disconnect).toHaveBeenCalledWith({
       provider: "search_console",
       viewerId: "owner",
       organizationId: "org",
     });
     expect(await connectButton()).toBeEnabled();
+  });
+
+  it("keeps the account when the reader cancels the disconnect", async () => {
+    m.status = "connected";
+    show();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Disconnect Search Console" }),
+    );
+    const confirm = await screen.findByRole("alertdialog");
+    await userEvent.click(
+      within(confirm).getByRole("button", { name: "Cancel" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(m.disconnect).not.toHaveBeenCalled();
+    // A keyboard reader continues where the question started.
+    expect(
+      screen.getByRole("button", { name: "Disconnect Search Console" }),
+    ).toHaveFocus();
+    expect(screen.getByText("Search Console connected")).toBeVisible();
   });
 
   it("resumes already redeemed approval without opening another Google consent window", async () => {

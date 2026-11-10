@@ -11341,6 +11341,8 @@
         "connect": "Connect {provider}",
         "connected": "{provider} connected",
         "disconnect": "Disconnect {provider}",
+        "disconnectTitle": "Disconnect {provider}?",
+        "disconnectBody": "You cannot start a new sync with this account, in any audit of this workspace, until you connect it again. Statistics that are already saved stay.",
         "unavailable": "Connections are unavailable in this environment.",
         "loadFailed": "Could not check this connection. Try again.",
         "connectFailed": "Could not connect {provider}. Try again.",

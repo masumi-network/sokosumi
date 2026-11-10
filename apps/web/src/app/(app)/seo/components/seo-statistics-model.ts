@@ -50,6 +50,20 @@ export function savedSeoStatistics(
   );
 }
 
+/** The preset whose dates these are, so its button shows as chosen. Null for other dates. */
+export function seoStatisticsPreset(
+  from: string,
+  to: string,
+  now = new Date(),
+) {
+  return (
+    SEO_STATISTICS_PERIODS.find((days) => {
+      const period = seoStatisticsPeriod(days, now);
+      return period.from === from && period.to === to;
+    }) ?? null
+  );
+}
+
 export function seoStatisticsPeriod(days: number, now = new Date()) {
   const until = new Date(now);
   until.setUTCDate(until.getUTCDate() - 1);

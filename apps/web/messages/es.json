@@ -11341,6 +11341,8 @@
         "connect": "Conectar {provider}",
         "connected": "{provider} conectado",
         "disconnect": "Desconectar {provider}",
+        "disconnectTitle": "¿Desconectar {provider}?",
+        "disconnectBody": "No podrás iniciar una nueva sincronización con esta cuenta, en ninguna auditoría de este espacio de trabajo, hasta que la vuelvas a conectar. Las estadísticas ya guardadas se conservan.",
         "unavailable": "Las conexiones no están disponibles en este entorno.",
         "loadFailed": "No se pudo comprobar esta conexión. Inténtalo de nuevo.",
         "connectFailed": "No se pudo conectar {provider}. Inténtalo de nuevo.",

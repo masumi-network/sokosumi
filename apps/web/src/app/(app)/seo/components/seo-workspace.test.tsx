@@ -2555,11 +2555,16 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("combobox", { name: "Property" }),
     ).toBeVisible();
-    expect(
-      await screen.findByRole("button", {
-        name: "Disconnect Google Analytics",
-      }),
-    ).toBeVisible();
+    const disconnect = await screen.findByRole("button", {
+      name: "Disconnect Google Analytics",
+    });
+    expect(disconnect).toBeVisible();
+    // The question opens above the statistics dialog; Escape closes the question only.
+    await userEvent.click(disconnect);
+    expect(await screen.findByRole("alertdialog")).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(screen.getByRole("combobox", { name: "Property" })).toBeVisible();
   });
 
   it("opens embedded SEO chat without assistant setup, navigation, or a paid send", async () => {

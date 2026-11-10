@@ -182,7 +182,22 @@ describe("SEO audit first run", () => {
     await user.click(
       within(setup).getByRole("button", { name: "Sync statistics" }),
     );
-    expect(await screen.findByRole("dialog")).toBeVisible();
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toBeVisible();
+    // The dates in the fields are the 28-day preset, and its button says so.
+    expect(
+      within(dialog)
+        .getAllByRole("button", { pressed: true })
+        .map((button) => button.textContent),
+    ).toEqual(["Last 28 days"]);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Last 7 days" }),
+    );
+    expect(
+      within(dialog)
+        .getAllByRole("button", { pressed: true })
+        .map((button) => button.textContent),
+    ).toEqual(["Last 7 days"]);
   });
 
   it("asks for the sync, not the account, on the Traffic tab once the account is connected", async () => {

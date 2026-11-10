@@ -14,7 +14,13 @@ import {
   seoShownValue,
   seoWeekOverWeek,
 } from "./seo-performance-model";
-import { SeoDate, SeoPeriod, SeoSection, SeoState } from "./seo-shared";
+import {
+  SEO_CHOSEN_CLASS,
+  SeoDate,
+  SeoPeriod,
+  SeoSection,
+  SeoState,
+} from "./seo-shared";
 import {
   latestSeoMeasurements,
   seoChangeMarkers,
@@ -278,7 +284,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   }
                   className={cn(
                     "h-auto min-w-0 flex-col items-start gap-1 px-3 py-3 text-start whitespace-normal",
-                    active.id === metric.id && "bg-quinary border-foreground",
+                    active.id === metric.id && SEO_CHOSEN_CLASS,
                   )}
                   onClick={() => setMetric(metric.id)}
                 >

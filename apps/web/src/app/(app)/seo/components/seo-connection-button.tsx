@@ -3,9 +3,21 @@
 import { Check, Plug, RefreshCw, RotateCw, Unplug } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth/auth.client";
+import { cn } from "@/lib/utils";
 import {
   type SeoConnectionAction,
   type SeoConnectionProvider,
@@ -124,33 +136,59 @@ function SeoConnectionControl({
               {t("syncStatistics")}
             </Button>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={WRAP_CLASS}
-            {...state("connect")}
-            onClick={() => {
-              void model.connect();
-            }}
-          >
-            {t("connections.changeAccount", { provider: name })}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            // The row's other buttons are 32px from md up; a phone keeps 40px.
-            className="size-10 md:size-8"
-            {...state("disconnect")}
-            aria-label={t("connections.disconnect", { provider: name })}
-            title={t("connections.disconnect", { provider: name })}
-            onClick={() => {
-              void model.disconnect();
-            }}
-          >
-            <Unplug className="size-4" />
-          </Button>
+          {/* The two account actions wrap as one unit, so the icon never sits alone on a row. */}
+          <div className="flex max-w-full min-w-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={cn(WRAP_CLASS, "min-w-0 shrink")}
+              {...state("connect")}
+              onClick={() => {
+                void model.connect();
+              }}
+            >
+              {t("connections.changeAccount", { provider: name })}
+            </Button>
+            {/* One press on a small icon must not remove the account: the reader confirms first.
+                The icon is the trigger, so focus returns to it when the question closes. */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  // The row's other buttons are 32px from md up; a phone keeps 40px.
+                  className="size-10 shrink-0 md:size-8"
+                  {...state("disconnect")}
+                  aria-label={t("connections.disconnect", { provider: name })}
+                  title={t("connections.disconnect", { provider: name })}
+                >
+                  <Unplug className="size-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t("connections.disconnectTitle", { provider: name })}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("connections.disconnectBody")}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      void model.disconnect();
+                    }}
+                  >
+                    {t("connections.disconnect", { provider: name })}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
         {model.error ? (
           <p role="alert" className="text-destructive text-sm">

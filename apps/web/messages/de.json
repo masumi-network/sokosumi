@@ -11341,6 +11341,8 @@
         "connect": "{provider} verbinden",
         "connected": "{provider} verbunden",
         "disconnect": "{provider} trennen",
+        "disconnectTitle": "{provider} trennen?",
+        "disconnectBody": "Mit diesem Konto kannst du dann in keinem Audit in diesem Workspace eine neue Synchronisierung starten, bis du es wieder verbindest. Bereits gespeicherte Statistiken bleiben erhalten.",
         "unavailable": "Verbindungen sind in dieser Umgebung nicht verfügbar.",
         "loadFailed": "Die Verbindung konnte nicht geprüft werden. Versuche es erneut.",
         "connectFailed": "{provider} konnte nicht verbunden werden. Versuche es erneut.",

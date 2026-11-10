@@ -56,6 +56,8 @@ export function seoMarketName(
 
 /** A search box helps only in a list longer than about one screen. */
 export const SEO_SEARCH_MIN_ROWS = 10;
+/** The mark of the chosen one in a set of bordered toggle buttons. */
+export const SEO_CHOSEN_CLASS = "bg-quinary border-foreground";
 
 /** One titled holder. Every SEO section uses it, so titles, help text and actions line up across tabs. */
 export function SeoSection({
