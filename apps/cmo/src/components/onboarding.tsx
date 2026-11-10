@@ -8,6 +8,7 @@ import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
 import { AGENT_NAME } from "../lib/agent";
+import { AccountMenu } from "./account-menu";
 import { CusoAvatar } from "./cuso";
 import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
@@ -56,6 +57,7 @@ interface OnboardingProps {
   websiteUrl?: string | undefined;
   /** The person's organizations, which Cuso may go into instead of a new one. */
   organizations?: { id: string; name: string }[];
+  signOut?: () => Promise<void>;
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -70,6 +72,7 @@ interface OnboardingProps {
 export function Onboarding({
   websiteUrl,
   organizations = [],
+  signOut,
   onboard,
 }: OnboardingProps) {
   const [state, formAction] = useActionState(onboard, {
@@ -91,7 +94,7 @@ export function Onboarding({
       <header className="ob-top">
         <Logo />
         <StepMarkers current={0} reached={0} />
-        <span />
+        {signOut ? <AccountMenu label="Account" signOut={signOut} /> : <span />}
       </header>
       <main className="ob-main">
         <div className="ob-hire">

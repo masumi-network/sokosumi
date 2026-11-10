@@ -34,6 +34,11 @@
   --radius-control: 8px;
   --radius-card: 10px;
   --radius-panel: 14px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-6: 24px;
+  --cuso-picker-width: 640px;
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --scrim: rgb(0 0 0 / 0.3);
   /* Channels' own marks keep their networks' colours. */
@@ -895,6 +900,10 @@ button.cuso-status {
   white-space: nowrap;
 }
 
+.nav .nav-cuso-picker {
+  display: none;
+}
+
 .who {
   display: flex;
   align-items: center;
@@ -937,25 +946,6 @@ button.cuso-status {
 
 .who-text .note {
   font-size: 0.75rem;
-}
-
-.who-theme {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  margin-left: auto;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.who-theme:hover {
-  background: var(--surface);
-  color: var(--foreground);
 }
 
 .main {
@@ -1703,6 +1693,10 @@ button.cuso-status {
 
   .business-text .note {
     display: none;
+  }
+
+  .nav .nav-cuso-picker {
+    display: flex;
   }
 
   .nav {

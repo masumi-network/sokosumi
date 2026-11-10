@@ -246,9 +246,6 @@ export async function requireSokoBotTurnFunding(
         })
       : null,
   ]);
-  const minimumCents = convertCreditsToCents(
-    getEnv().SOKO_BOT_MIN_TURN_CREDITS,
-  );
   const recentTurnCents = recentUsage.reduce(
     (maximum, usage) => (usage.cents > maximum ? usage.cents : maximum),
     0n,
@@ -271,6 +268,17 @@ export async function requireSokoBotTurnFunding(
       `Insufficient ${payerLabel(organizationId)} credits to cover the unpaid remainder from a prior Soko Bot turn.`,
     );
   }
+  requireTurnMinimum(balance, organizationId, recentTurnCents);
+}
+
+function requireTurnMinimum(
+  balance: bigint,
+  organizationId: string | null,
+  recentTurnCents = 0n,
+): void {
+  const minimumCents = convertCreditsToCents(
+    getEnv().SOKO_BOT_MIN_TURN_CREDITS,
+  );
   if (balance < minimumCents || balance < recentTurnCents) {
     throw new SokoBotBillingAccessError(
       `Insufficient ${payerLabel(organizationId)} credits to start a Soko Bot turn.`,
@@ -279,7 +287,7 @@ export async function requireSokoBotTurnFunding(
 }
 
 /** A member's turn in a paid organization needs their Seat (ADR 0057). */
-export async function requireMemberSeat(
+async function requireMemberSeat(
   userId: string,
   organizationId: string,
 ): Promise<void> {
@@ -300,6 +308,7 @@ export async function requireMemberSeat(
 export async function requireMemberTurnFunding(
   userId: string,
   organizationId: string,
+  starterCredits = 0,
 ): Promise<void> {
   await requireMemberSeat(userId, organizationId);
   const balance = await creditBucketRepository.getBalance(
@@ -307,11 +316,10 @@ export async function requireMemberTurnFunding(
     organizationId,
     prisma,
   );
-  if (balance < convertCreditsToCents(getEnv().SOKO_BOT_MIN_TURN_CREDITS)) {
-    throw new SokoBotBillingAccessError(
-      "Insufficient organization credits to start a Soko Bot turn.",
-    );
-  }
+  requireTurnMinimum(
+    balance + convertCreditsToCents(starterCredits),
+    organizationId,
+  );
 }
 
 export async function recordSokoBotTurnUsage(

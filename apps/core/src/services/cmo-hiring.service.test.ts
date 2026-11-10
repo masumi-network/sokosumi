@@ -386,7 +386,6 @@ describe("startCmoOnboarding", () => {
     startTurn.mockResolvedValue({ turnId: "turn-1" });
     creditBucketFindFirst.mockResolvedValue(null);
     // The hirer is seated and funded unless a test says otherwise.
-    funding.requireMemberSeat.mockReset();
     funding.requireMemberFunding.mockReset();
   });
 
@@ -486,40 +485,35 @@ describe("startCmoOnboarding", () => {
   });
 
   it("refuses an unseated member of a paid organization before creating anything", async () => {
-    funding.requireMemberSeat.mockRejectedValueOnce(
+    funding.requireMemberFunding.mockRejectedValueOnce(
       new funding.BillingError("no seat", "seat"),
     );
 
     await expect(
       startCmoOnboarding({ ...input, organizationId: "org-team" }),
     ).rejects.toMatchObject({ kind: "organization_seat_required" });
-    expect(funding.requireMemberSeat).toHaveBeenCalledWith(
+    expect(funding.requireMemberFunding).toHaveBeenCalledWith(
       "user-1",
       "org-team",
+      10_000,
     );
     expect(projectCreate).not.toHaveBeenCalled();
     expect(grantFreeCredits).not.toHaveBeenCalled();
   });
 
   it("hires into an empty existing organization on its starter credits", async () => {
-    // The organization has no credits until the hire's grant lands.
-    funding.requireMemberFunding.mockImplementation(async () => {
-      if (grantFreeCredits.mock.calls.length === 0) {
-        throw new funding.BillingError("no credits");
-      }
-    });
-
     await expect(
       startCmoOnboarding({ ...input, organizationId: "org-team" }),
     ).resolves.toMatchObject({ sokoBotId: "bot-1" });
     expect(funding.requireMemberFunding).toHaveBeenCalledWith(
       "user-1",
       "org-team",
+      10_000,
     );
     expect(startTurn).toHaveBeenCalled();
   });
 
-  it("refuses a hire its starter credits still cannot fund, removing its Project", async () => {
+  it("refuses a hire its starter credits still cannot fund before creating a Project", async () => {
     funding.requireMemberFunding.mockRejectedValue(
       new funding.BillingError("no credits"),
     );
@@ -527,9 +521,20 @@ describe("startCmoOnboarding", () => {
     await expect(
       startCmoOnboarding({ ...input, organizationId: "org-team" }),
     ).rejects.toMatchObject({ kind: "insufficient_balance" });
-    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(projectCreate).not.toHaveBeenCalled();
+    expect(grantFreeCredits).not.toHaveBeenCalled();
     expect(createBot).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("leaves no starter credits when Cuso provisioning fails", async () => {
+    createBot.mockRejectedValueOnce(new Error("Could not create Cuso"));
+
+    await expect(startCmoOnboarding(input)).rejects.toThrow(
+      "Could not create Cuso",
+    );
+    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(grantFreeCredits).not.toHaveBeenCalled();
   });
 
   it("hires another Cuso for a person who already works with one", async () => {

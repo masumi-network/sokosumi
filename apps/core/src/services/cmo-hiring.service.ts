@@ -18,7 +18,10 @@ import {
   type CmoSectionHeadline,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
-import { grantCmoStarterCredits } from "@/services/cmo-billing.service";
+import {
+  CMO_STARTER_CREDITS,
+  grantCmoStarterCredits,
+} from "@/services/cmo-billing.service";
 import { captureCmoHomepage } from "@/services/cmo-brand-media.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
@@ -512,26 +515,16 @@ async function existingOrganizationWorkspace(input: {
   return getUserWorkspace(userId, { organizationId });
 }
 
-/**
- * The hirer's funding, as their first research turn will read it: the Seat
- * (`credits: false`, checked before anything is created) or the credits too,
- * once the hire's starter credits landed.
- */
+/** The hirer's first turn can spend the starter credits from a successful hire. */
 async function requireHirerFunding(
   userId: string,
   organizationId: string,
-  { credits }: { credits: boolean },
 ): Promise<void> {
-  const {
-    requireMemberSeat,
-    requireMemberTurnFunding,
-    SokoBotBillingAccessError,
-  } = await import("@/services/soko-bot-billing.service");
+  const { requireMemberTurnFunding, SokoBotBillingAccessError } = await import(
+    "@/services/soko-bot-billing.service"
+  );
   try {
-    await (credits ? requireMemberTurnFunding : requireMemberSeat)(
-      userId,
-      organizationId,
-    );
+    await requireMemberTurnFunding(userId, organizationId, CMO_STARTER_CREDITS);
   } catch (error) {
     if (!(error instanceof SokoBotBillingAccessError)) throw error;
     if (error.reason === "seat") {
@@ -576,10 +569,9 @@ export async function startCmoOnboarding(input: {
     : await newOrganizationWorkspace({ ...input, businessName });
   const organizationId = workspace.organizationId;
   if (!organizationId) throw new Error("Cuso's workspace has no organization");
-  // An unseated member of a paid organization is refused before a Project
-  // exists; the credits are checked once the starter credits landed, so an
-  // empty organization hires on them.
-  await requireHirerFunding(input.userId, organizationId, { credits: false });
+  // Check Seat and spendable credits before creating a Project, including
+  // the starter credits the organization receives when the hire succeeds.
+  await requireHirerFunding(input.userId, organizationId);
 
   const project = await prisma.project.create({
     data: {
@@ -593,8 +585,6 @@ export async function startCmoOnboarding(input: {
   let created: Cuso;
   let sharedRoomId: string | null = null;
   try {
-    await grantCmoStarterCredits({ projectId: project.id, organizationId });
-    await requireHirerFunding(input.userId, organizationId, { credits: true });
     const { createSharedSokoBot } = await import(
       "@/services/soko-bot-shared-create.service"
     );
@@ -608,6 +598,7 @@ export async function startCmoOnboarding(input: {
     sharedRoomId = bot.sharedRoomId;
     const cuso = await findCusoForBot(bot.id);
     if (!cuso) throw new Error("Cuso was not created");
+    await grantCmoStarterCredits({ projectId: project.id, organizationId });
     created = cuso;
   } catch (error) {
     // No stray Project, Cuso or room: deleting the Project cascades to his

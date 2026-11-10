@@ -1,8 +1,11 @@
+import { listCmoCusos } from "@sokosumi/core-client";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { getAuth, hasSessionCookie, renewSession } from "./lib/auth";
-import { lastCusoCookie } from "./lib/last-cuso";
+import { asSignedInPersonInPage } from "./lib/core";
+import { LAST_CUSO_COOKIE, lastCusoCookie } from "./lib/last-cuso";
 import { CMO_SIGN_IN_ERROR } from "./lib/sign-in-errors";
+import { viewFromPath } from "./lib/views";
 
 /**
  * The marketing site (public/site, from the cmo-website repo), served as is.
@@ -52,18 +55,32 @@ export async function proxy(request: NextRequest) {
   }
   const cookies = renewal.headers.getSetCookie();
   if (cookies.length === 0) {
-    if (showsLanding(request.nextUrl, hasSessionCookie(auth, request))) {
+    const signedIn = hasSessionCookie(auth, request);
+    if (showsLanding(request.nextUrl, signedIn)) {
       return NextResponse.rewrite(new URL(LANDING_PATH, request.url));
     }
     const response = NextResponse.next();
     // An address that names a Cuso's Project (the picker, a shared link, a
     // provider callback) opens him; this device opens him next time too.
     // Pages render as Server Components, which cannot set cookies.
-    // shortcut: a link to a Project the person can no longer use replaces
-    // the remembered Cuso before home falls through to the picker; check
-    // the Project in a route handler first if that loses people's place.
-    const project = request.nextUrl.searchParams.get("project");
-    if (project) response.cookies.set(...lastCusoCookie(project));
+    // Validate a new choice before replacing the last opened Cuso.
+    const { pathname, searchParams } = request.nextUrl;
+    const project = searchParams.get("project");
+    if (
+      signedIn &&
+      project &&
+      viewFromPath(pathname) &&
+      !searchParams.has("hire") &&
+      !searchParams.has("cusos") &&
+      project !== request.cookies.get(LAST_CUSO_COOKIE)?.value
+    ) {
+      const cusos = await asSignedInPersonInPage(request.headers)
+        .then((person) => listCmoCusos(person))
+        .catch(() => undefined);
+      if (cusos?.data?.data.some((cuso) => cuso.projectId === project)) {
+        response.cookies.set(...lastCusoCookie(project));
+      }
+    }
     return response;
   }
 

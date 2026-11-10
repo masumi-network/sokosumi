@@ -129,8 +129,8 @@ async function openedScreen(input: {
 }): Promise<OpenedScreen> {
   if (input.hire) return { kind: "hire" };
   if (!input.pick) {
-    for (const projectId of new Set([input.named, input.remembered])) {
-      if (!projectId) continue;
+    const projectId = input.named ?? input.remembered;
+    if (projectId) {
       const overview = await loadOverview(projectId);
       if (overview) return { kind: "cuso", overview };
     }
@@ -138,7 +138,9 @@ async function openedScreen(input: {
   const cusos = await loadCusos();
   const [newest] = cusos;
   if (!newest) return { kind: "hire" };
-  if (input.pick || cusos.length > 1) return { kind: "picker", cusos };
+  if (input.pick || input.named || cusos.length > 1) {
+    return { kind: "picker", cusos };
+  }
   return { kind: "only", projectId: newest.projectId };
 }
 
@@ -230,6 +232,7 @@ export async function Home({ searchParams, view }: HomeProps) {
       <Onboarding
         websiteUrl={websiteUrl}
         organizations={organizations}
+        signOut={signOut}
         onboard={onboard}
       />
     );

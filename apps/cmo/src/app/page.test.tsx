@@ -192,6 +192,14 @@ describe("CMO home page", () => {
     expect((await open(params)).type).toBe(CusoPicker);
   });
 
+  it("shows the picker for an unavailable address even with a usable remembered Cuso", async () => {
+    cookieJar.set("cmo-last-cuso", "project-1");
+    loadCusos.mockResolvedValue([cuso("project-1")]);
+
+    expect((await open({ project: "project-gone" })).type).toBe(CusoPicker);
+    expect(loadOverview).toHaveBeenCalledExactlyOnceWith("project-gone");
+  });
+
   it("falls through to the hire form from a Project the person can no longer use and no Cuso", async () => {
     expect((await open({ project: "project-gone" })).type).toBe(Onboarding);
   });

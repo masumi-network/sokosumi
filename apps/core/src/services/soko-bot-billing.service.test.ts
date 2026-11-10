@@ -585,6 +585,15 @@ describe("Soko Bot billing", () => {
       expect(balanceMock).not.toHaveBeenCalled();
     });
 
+    it("counts starter credits toward the first turn before they are granted", async () => {
+      hasSeatMock.mockResolvedValue(true);
+      balanceMock.mockResolvedValue(0n);
+
+      await expect(
+        requireMemberTurnFunding("user-1", "org-1", 10_000),
+      ).resolves.toBeUndefined();
+    });
+
     it("refuses below the turn minimum and allows from it", async () => {
       hasSeatMock.mockResolvedValue(true);
       balanceMock.mockResolvedValueOnce(convertCreditsToCents(0.05));

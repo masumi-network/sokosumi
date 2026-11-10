@@ -1,3 +1,4 @@
+import { listCmoCusos } from "@sokosumi/core-client";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { afterEach, expect, it, vi } from "vitest";
@@ -14,10 +15,16 @@ vi.mock("./lib/auth", () => ({
   renewSession: vi.fn(),
 }));
 
+vi.mock("@sokosumi/core-client", () => ({ listCmoCusos: vi.fn() }));
+vi.mock("./lib/core", () => ({
+  asSignedInPersonInPage: vi.fn(async () => ({})),
+}));
+
 afterEach(() => {
   cmo.baseURL = "https://app.cmo.xyz";
   vi.unstubAllEnvs();
   vi.mocked(renewSession).mockReset();
+  vi.mocked(listCmoCusos).mockReset();
 });
 
 it("shows the waitlist site to a signed-out visitor of the home page", async () => {
@@ -57,6 +64,10 @@ it("remembers on this device the Cuso an address opens", async () => {
     new Response(null, { status: 204 }),
   );
 
+  vi.mocked(listCmoCusos).mockResolvedValue({
+    data: { data: [{ projectId: "project-2" }] },
+  } as Awaited<ReturnType<typeof listCmoCusos>>);
+
   const opened = await proxy(
     new NextRequest("https://app.cmo.xyz/strategy?project=project-2"),
   );
@@ -65,6 +76,13 @@ it("remembers on this device the Cuso an address opens", async () => {
     httpOnly: true,
     maxAge: 60 * 60 * 24 * 365,
   });
+
+  const unavailable = await proxy(
+    new NextRequest("https://app.cmo.xyz/?project=project-gone", {
+      headers: { cookie: "cmo-last-cuso=project-2" },
+    }),
+  );
+  expect(unavailable.cookies.get("cmo-last-cuso")).toBeUndefined();
 
   const plain = await proxy(new NextRequest("https://app.cmo.xyz/strategy"));
   expect(plain.cookies.get("cmo-last-cuso")).toBeUndefined();
