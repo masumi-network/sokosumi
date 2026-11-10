@@ -87,9 +87,17 @@ async function canFundFirstTurn(input: {
  * A retry after a turn that saved sections but not the essentials: the
  * research is done, so Cuso only writes what is missing.
  */
-function finishBrandBrainMessage(input: { businessName: string }): string {
+function finishBrandBrainMessage(
+  input: { businessName: string },
+  inParts = false,
+): string {
   return [
     `Your research on ${input.businessName} stopped before the Brand Brain essentials were saved. The profile sections you saved are kept.`,
+    ...(inParts
+      ? [
+          "The groups still missing were researched again in parts before this message: their sections are saved, but your packet does not show them; their hand-overs below do.",
+        ]
+      : []),
     "",
     "Read the saved sections, then save the essentials with save_brand_brain (summary, voice, audience, products, offers, competitors, alternatives and channels), following your Brand Brain skill. Research again only what the essentials still need.",
     "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
@@ -133,6 +141,15 @@ function essentialsFromPartsMessage(input: {
 /** The Brand Brain skill that reads in parts (SOKD-167). */
 const PARTS_SKILL = "cmo-brand-brain-groups";
 
+/** A research part reads the web and saves its sections; nothing else. */
+const RESEARCH_PART_TOOLS = [
+  "search_exa",
+  "web_search",
+  "web_fetch",
+  "read_social_profile",
+  "save_brand_brain",
+] as const;
+
 /** Whether a Cuso on this version reads the business in parts. */
 function readsInParts(versionId: string | null): boolean {
   return (
@@ -170,6 +187,7 @@ export function cmoResearchParts(
     key: group.key,
     title: group.label,
     message: researchPartMessage(cuso, group),
+    tools: RESEARCH_PART_TOOLS,
   }));
 }
 
@@ -538,11 +556,12 @@ export async function startCmoResearch(
     select: { versionId: true },
   });
   const resuming = brandBrainSectionsSaved(cuso.brandBrain).length > 0;
+  const inParts = readsInParts(bot?.versionId ?? null);
   return startCmoTurn(cuso, userId, {
     clientTurnId,
     message: resuming
-      ? finishBrandBrainMessage(cuso)
-      : readsInParts(bot?.versionId ?? null)
+      ? finishBrandBrainMessage(cuso, inParts)
+      : inParts
         ? essentialsFromPartsMessage(cuso)
         : onboardingMessage(cuso),
     route: CMO_ONBOARDING_ROUTE,

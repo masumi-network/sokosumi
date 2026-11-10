@@ -765,6 +765,10 @@ describe("research in parts (SOKD-167)", () => {
     expect(parts[0]?.message).toContain("acme.io (https://acme.io)");
     expect(parts[0]?.message).toContain('"### Website"');
     expect(parts[0]?.message).toContain("company, offer, pricing");
+    // Research and save only: never chat, posts or reports mid-read.
+    expect(parts[0]?.tools).toContain("save_brand_brain");
+    expect(parts[0]?.tools).not.toContain("post_chat");
+    expect(parts[0]?.tools).not.toContain("report_update");
   });
 
   it("gives a retry parts only for the groups still missing", () => {
@@ -815,6 +819,18 @@ describe("research in parts (SOKD-167)", () => {
     expect(message).toContain("hand-overs");
     expect(message).toContain("save the essentials");
     expect(message).not.toContain("read the website, search for the company");
+  });
+
+  it("tells a cmo-v2 retry its new sections are in the hand-overs", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(
+      { ...cuso, brandBrain: { profile: { company: section("Rockets.") } } },
+      "user-1",
+    );
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain("save the essentials");
+    expect(message).toContain("their hand-overs below do");
   });
 
   it("keeps cmo-v1's first read word for word", async () => {

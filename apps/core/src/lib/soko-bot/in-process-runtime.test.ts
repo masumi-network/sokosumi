@@ -179,8 +179,18 @@ describe("InProcessSokoBotRuntime", () => {
       grant: { capabilities: ["create_task"] },
     });
     cmoTurnPartsMock.mockResolvedValue([
-      { key: "website", title: "Website", message: "Read the site" },
-      { key: "reviews", title: "Reviews", message: "Read the reviews" },
+      {
+        key: "website",
+        title: "Website",
+        message: "Read the site",
+        tools: ["web_fetch"],
+      },
+      {
+        key: "reviews",
+        title: "Reviews",
+        message: "Read the reviews",
+        tools: ["web_fetch"],
+      },
     ]);
     let running = 0;
     let most = 0;
@@ -215,6 +225,9 @@ describe("InProcessSokoBotRuntime", () => {
     expect(most).toBe(2);
     // Parts get a short step cap; the turn keeps its own.
     expect(calls[0].stopWhen).toBe(12);
+    // A part never gets the turn's outward tools.
+    expect(Object.keys(calls[0].tools)).toEqual([]);
+    expect(Object.keys(calls[2].tools)).toEqual(["create_task"]);
     const last = calls[2].messages[0].content as string;
     expect(last.startsWith("Save the essentials")).toBe(true);
     expect(last).toContain("### Website\nFound: Read the site");

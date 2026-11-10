@@ -9,6 +9,21 @@ export interface TurnPart {
   key: string;
   title: string;
   message: string;
+  /**
+   * The only tools the part is offered, among the turn's: a part researches
+   * and saves, it never posts or reports while the others still run.
+   */
+  tools: readonly string[];
+}
+
+/** The turn's tools a part may use. */
+export function partTools<T>(
+  tools: Record<string, T>,
+  part: Pick<TurnPart, "tools">,
+): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(tools).filter(([name]) => part.tools.includes(name)),
+  );
 }
 
 /** A part is a short brief; it hands over well before the turn's cap. */

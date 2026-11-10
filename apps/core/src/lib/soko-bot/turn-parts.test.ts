@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { type TurnPart, withPartHandOvers } from "./turn-parts";
+import { partTools, type TurnPart, withPartHandOvers } from "./turn-parts";
 
 const parts: TurnPart[] = [
-  { key: "website", title: "Website", message: "Read the site" },
-  { key: "reviews", title: "Reviews", message: "Read the reviews" },
+  { key: "website", title: "Website", message: "Read the site", tools: [] },
+  { key: "reviews", title: "Reviews", message: "Read the reviews", tools: [] },
 ];
 
 describe("withPartHandOvers", () => {
@@ -53,5 +53,18 @@ describe("withPartHandOvers", () => {
       "### Website\nThis part failed before its hand-over (Model gateway timed out).",
     );
     expect(message).toContain("### Reviews\nThis part handed nothing over.");
+  });
+});
+
+describe("partTools", () => {
+  it("offers a part only its own tools among the turn's", () => {
+    expect(
+      Object.keys(
+        partTools(
+          { web_fetch: 1, post_chat: 2, save_brand_brain: 3 },
+          { tools: ["web_fetch", "save_brand_brain", "search_exa"] },
+        ),
+      ),
+    ).toEqual(["web_fetch", "save_brand_brain"]);
   });
 });

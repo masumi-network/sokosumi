@@ -44,6 +44,7 @@ import {
   SOKO_BOT_MAX_STEPS,
 } from "./turn-loop";
 import {
+  partTools,
   TURN_PART_MAX_MS,
   TURN_PART_MAX_STEPS,
   withPartHandOvers,
@@ -85,7 +86,8 @@ async function runTurn(
   const log = new RuntimeEventLog(input.turnId, sessionId);
 
   try {
-    const abortSignal = AbortSignal.timeout(await turnBudgetMs(input.turnId));
+    const budgetMs = await turnBudgetMs(input.turnId);
+    const abortSignal = AbortSignal.timeout(budgetMs);
     await announceTurn(log, input.message);
     const turn = await prepareTurn(sessionId, input.turnId, {
       sandbox: false,
@@ -137,6 +139,7 @@ async function runTurn(
       message: string,
       maxSteps: number,
       signal: AbortSignal,
+      offered: ToolSet = tools,
     ) => {
       await log.append(runtimeEvent("step.started", { modelId: turn.model }));
       const result = await withEvaluationTurn(input.turnId, () =>
@@ -148,7 +151,7 @@ async function runTurn(
           }),
           system: turn.system,
           messages: [{ role: "user", content: message }],
-          tools,
+          tools: offered,
           prepareStep: prepareEvaluationStep,
           stopWhen: stepCountIs(maxSteps),
           abortSignal: signal,
@@ -187,6 +190,9 @@ async function runTurn(
       return { text, finishReason: result.finishReason };
     };
 
+    // On Vercel the budget is one invocation: parts may use at most half of
+    // it, so the turn still has time to write from their hand-overs.
+    const partMs = Math.min(TURN_PART_MAX_MS, budgetMs / 2);
     const userMessage = await withPartHandOvers(
       await withActiveBackgroundRuns(
         input.turnId,
@@ -198,10 +204,8 @@ async function runTurn(
           await runModel(
             part.message,
             TURN_PART_MAX_STEPS,
-            AbortSignal.any([
-              abortSignal,
-              AbortSignal.timeout(TURN_PART_MAX_MS),
-            ]),
+            AbortSignal.any([abortSignal, AbortSignal.timeout(partMs)]),
+            partTools(tools, part),
           )
         ).text,
     );

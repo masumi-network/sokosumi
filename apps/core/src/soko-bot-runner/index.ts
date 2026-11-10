@@ -18,6 +18,7 @@ import { createGateway, stepCountIs, type ToolSet, tool } from "ai";
 import { streamModelCall } from "../lib/soko-bot/stream-model-call";
 
 import {
+  partTools,
   TURN_PART_MAX_MS,
   TURN_PART_MAX_STEPS,
   type TurnPart,
@@ -361,7 +362,7 @@ async function main(): Promise<void> {
             model: gateway(start.model),
             system: start.system,
             message: part.message,
-            tools,
+            tools: partTools(tools, part),
             maxSteps: TURN_PART_MAX_STEPS,
             background: false,
             deadline: Math.min(deadline, Date.now() + TURN_PART_MAX_MS),
