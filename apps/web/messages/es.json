@@ -10954,7 +10954,7 @@
         "getStarted": "Obtén los primeros resultados de estas páginas",
         "getStartedBody": "Ejecuta una comprobación de página para encontrar problemas. Añade páginas relacionadas para compararlas en una auditoría.",
         "getStartedUnavailable": "Las comprobaciones no están disponibles en este espacio de trabajo. Conecta una fuente de estadísticas abajo para medir el tráfico.",
-        "getStartedNoPages": "Añade una página para empezar. Después ejecuta una comprobación para encontrar problemas.",
+        "getStartedNoPages": "Añade una página para empezar.",
         "noMeasuredReports": "No hay informes medidos en estas fechas de actividad",
         "noMeasuredReportsBody": "Borra las fechas de actividad para ver informes de otras fechas. Las estadísticas conservan su propio periodo de informe.",
         "clearActivityDates": "Borrar fechas de actividad",

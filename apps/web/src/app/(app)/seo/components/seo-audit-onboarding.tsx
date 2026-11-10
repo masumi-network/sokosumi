@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { seoProjectHref } from "../seo-href";
 import { SeoAuditForm } from "./seo-audit-form";
@@ -23,66 +26,68 @@ export function SeoAuditOnboarding({
 }) {
   const t = useTranslations("App.Seo.audits");
   return (
-    <section
-      aria-labelledby={TITLE_ID}
-      className={cn(
-        HOLDER_ITEM_CLASS,
-        "grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]",
-      )}
-    >
-      <div className="space-y-8 p-5 sm:p-8">
-        <header className="space-y-3">
-          <p className="text-muted-foreground text-sm font-medium">
-            {t("onboarding.eyebrow")}
-          </p>
-          <h2
-            id={TITLE_ID}
-            className="text-2xl font-light tracking-tight md:text-3xl"
-          >
-            {projectId ? t("onboarding.titleProject") : t("onboarding.title")}
-          </h2>
-          <p className="text-muted-foreground max-w-prose text-sm">
-            {t("onboarding.body")}
-          </p>
-        </header>
-        <ol role="list" aria-label={t("onboarding.steps")}>
-          <SeoOnboardingStep
-            index={1}
-            active
-            title={t("onboarding.addTitle")}
-            body={t("onboarding.addBody")}
-          >
-            <SeoAuditForm form={form} />
-          </SeoOnboardingStep>
-          <SeoOnboardingStep
-            index={2}
-            title={t("onboarding.connectTitle")}
-            body={t("onboarding.connectBody")}
-          />
-          <SeoOnboardingStep
-            index={3}
-            last
-            title={t("onboarding.checkTitle")}
-            body={t("onboarding.checkBody")}
-          />
-        </ol>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-muted-foreground text-sm">
-            {t("onboarding.trust")}
-          </p>
-          {projectId ? (
-            <Button variant="outline" asChild>
-              <Link href={seoProjectHref(projectId)}>
-                {t("projectWorkspace")}
-              </Link>
-            </Button>
-          ) : null}
+    <div className={HOLDER_CLASS}>
+      <section
+        aria-labelledby={TITLE_ID}
+        className={cn(
+          HOLDER_ITEM_CLASS,
+          "grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]",
+        )}
+      >
+        <div className="space-y-8 p-5 sm:p-8">
+          <header className="space-y-3">
+            <p className="text-muted-foreground text-sm font-medium">
+              {t("onboarding.eyebrow")}
+            </p>
+            <h2
+              id={TITLE_ID}
+              className="text-2xl font-light tracking-tight md:text-3xl"
+            >
+              {projectId ? t("onboarding.titleProject") : t("onboarding.title")}
+            </h2>
+            <p className="text-muted-foreground max-w-prose text-sm">
+              {t("onboarding.body")}
+            </p>
+          </header>
+          <ol role="list" aria-label={t("onboarding.steps")}>
+            <SeoOnboardingStep
+              index={1}
+              active
+              title={t("onboarding.addTitle")}
+              body={t("onboarding.addBody")}
+            >
+              <SeoAuditForm form={form} />
+            </SeoOnboardingStep>
+            <SeoOnboardingStep
+              index={2}
+              title={t("onboarding.connectTitle")}
+              body={t("onboarding.connectBody")}
+            />
+            <SeoOnboardingStep
+              index={3}
+              last
+              title={t("onboarding.checkTitle")}
+              body={t("onboarding.checkBody")}
+            />
+          </ol>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-muted-foreground text-sm">
+              {t("onboarding.trust")}
+            </p>
+            {projectId ? (
+              <Button variant="outline" asChild>
+                <Link href={seoProjectHref(projectId)}>
+                  {t("projectWorkspace")}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         </div>
-      </div>
-      <div className="bg-quinary border-border hidden items-center justify-center border-l p-8 lg:flex">
-        <SeoOnboardingArt />
-      </div>
-    </section>
+        <div className="bg-quinary border-border hidden items-center justify-center border-l p-8 lg:flex">
+          <SeoOnboardingArt />
+        </div>
+      </section>
+    </div>
   );
 }
 

@@ -8,6 +8,12 @@ export const SEO_AUDIT_NAME_MAX = 100;
 export function seoAuditName(name: string, url: string): string {
   const typed = name.trim();
   if (typed) return typed;
-  const host = URL.parse(url.trim())?.hostname ?? "";
+  let host = "";
+  try {
+    // Not URL.parse: Next still supports Safari 16.4, which lacks it.
+    host = new URL(url.trim()).hostname;
+  } catch {
+    return "";
+  }
   return host.replace(/^www\./, "").slice(0, SEO_AUDIT_NAME_MAX);
 }

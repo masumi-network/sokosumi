@@ -10,6 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/** The id of a SeoField's help text, for the input's aria-describedby. */
+export function seoFieldHelpId(id: string) {
+  return `${id}-help`;
+}
+
 export function SeoField({
   label,
   id,
@@ -26,7 +31,7 @@ export function SeoField({
       <Label htmlFor={id}>{label}</Label>
       {children}
       {help ? (
-        <p id={`${id}-help`} className="text-muted-foreground text-sm">
+        <p id={seoFieldHelpId(id)} className="text-muted-foreground text-sm">
           {help}
         </p>
       ) : null}

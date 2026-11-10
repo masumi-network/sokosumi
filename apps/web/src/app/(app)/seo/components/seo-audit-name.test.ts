@@ -22,3 +22,20 @@ describe("seoAuditName", () => {
     expect(seoAuditName("", "not a url")).toBe("");
   });
 });
+
+describe("seoAuditName without URL.parse", () => {
+  it("still finds the host on browsers that lack URL.parse", () => {
+    const parse = URL.parse;
+    try {
+      Object.defineProperty(URL, "parse", {
+        value: undefined,
+        configurable: true,
+      });
+      expect(seoAuditName("", "https://www.example.test/a")).toBe(
+        "example.test",
+      );
+    } finally {
+      Object.defineProperty(URL, "parse", { value: parse, configurable: true });
+    }
+  });
+});

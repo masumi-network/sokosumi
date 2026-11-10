@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SEO_AUDIT_NAME_MAX } from "./seo-audit-name";
-import { SeoField } from "./seo-form-fields";
+import { SeoField, seoFieldHelpId } from "./seo-form-fields";
 import type { useCreateSeoAudit } from "./use-create-seo-audit";
 
 export function SeoAuditForm({
@@ -44,7 +44,7 @@ export function SeoAuditForm({
         <Input
           id="seo-audit-name"
           name="name"
-          aria-describedby="seo-audit-name-help"
+          aria-describedby={seoFieldHelpId("seo-audit-name")}
           maxLength={SEO_AUDIT_NAME_MAX}
           disabled={form.pending}
         />

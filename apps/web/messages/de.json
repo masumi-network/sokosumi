@@ -10954,7 +10954,7 @@
         "getStarted": "Erste Ergebnisse für diese Seiten",
         "getStartedBody": "Starte eine Seitenprüfung, um Probleme zu finden. Füge verwandte Seiten hinzu, um sie in einem Audit zu vergleichen.",
         "getStartedUnavailable": "Prüfungen sind in diesem Arbeitsbereich nicht verfügbar. Verbinde unten eine Statistikquelle für Zugriffsmessungen.",
-        "getStartedNoPages": "Füge eine Seite hinzu, um zu beginnen. Starte dann eine Seitenprüfung, um Probleme zu finden.",
+        "getStartedNoPages": "Füge eine Seite hinzu, um zu beginnen.",
         "noMeasuredReports": "Keine Berichte in diesem Aktivitätszeitraum gemessen",
         "noMeasuredReportsBody": "Entferne die Aktivitätsdaten, um Berichte aus anderen Zeiträumen zu sehen. Statistiken behalten ihren eigenen Berichtszeitraum.",
         "clearActivityDates": "Aktivitätsdaten entfernen",
