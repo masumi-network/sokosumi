@@ -130,6 +130,7 @@ export interface CmoOverview {
    * made. Differs from `strategy` while a change waits for approval.
    */
   approvedStrategy: MarketingStrategyPlan | null;
+  approvedStrategyId: string | null;
   /** Every version, newest first; the first is the one `strategy` shows. */
   strategyVersions: MarketingStrategyVersion[];
   /** When a plan was first approved; a later approval does not move it. */
@@ -389,6 +390,7 @@ export async function getCmoOverview(
     brandBrain,
     strategy,
     approvedStrategy: approved ? running : null,
+    approvedStrategyId: approved?.id ?? null,
     strategyVersions,
     hiredAt,
     botStatus: bot.status,

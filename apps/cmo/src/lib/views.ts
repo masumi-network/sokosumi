@@ -6,6 +6,7 @@ export const VIEW_PATHS = {
   results: "/results",
   brain: "/brand-brain",
   channels: "/channels",
+  newsletter: "/newsletter",
   settings: "/settings",
 } as const;
 

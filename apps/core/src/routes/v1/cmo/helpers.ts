@@ -44,6 +44,7 @@ function mapOverview(overview: CmoOverview) {
     brandMedia: overview.brandMedia,
     strategy: overview.strategy,
     approvedStrategy: overview.approvedStrategy,
+    approvedStrategyId: overview.approvedStrategyId,
     media: overview.media,
     strategyVersion: overview.strategyVersions[0] ?? null,
     strategyVersions: overview.strategyVersions,

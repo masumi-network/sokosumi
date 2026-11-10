@@ -104,6 +104,11 @@ const USER: AuthenticationContext = {
   role: "user",
   authenticationMethod: "session",
 };
+const FIRST_PARTY: AuthenticationContext = {
+  ...USER,
+  authenticationMethod: "oauth",
+  firstPartyClient: true,
+};
 const COWORKER: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_1",
@@ -325,6 +330,26 @@ describe("newsletter approval and delivery", () => {
       });
     },
   );
+  it.each(["approve", "schedule", "cancel"])(
+    "allows a first-party OAuth user to %s without starting a send inline",
+    async (action) => {
+      issue(
+        action === "cancel" ? "SCHEDULED" : "NEEDS_APPROVAL",
+        action !== "approve",
+      );
+      const input =
+        action === "schedule"
+          ? {
+              revision: 0,
+              scheduledAt: "2026-10-24T10:00:00Z",
+              timezone: "UTC",
+            }
+          : { revision: 0 };
+      expect((await request(action, input, FIRST_PARTY)).status).toBe(200);
+      expect(m.updateMany).toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    },
+  );
   it("reuses the approval Task on resubmission", async () => {
     issue("DRAFT");
     expect((await request("submit")).status).toBe(200);
@@ -535,7 +560,7 @@ describe("newsletter approval and delivery", () => {
     );
   });
   it.each(["schedule", "cancel"])(
-    "rejects agent and non-session %s with 403",
+    "rejects agent and third-party %s with 403",
     async (action) => {
       issue(action === "cancel" ? "SCHEDULED" : "NEEDS_APPROVAL", true);
       const input = {
@@ -547,6 +572,7 @@ describe("newsletter approval and delivery", () => {
         COWORKER,
         BOT,
         { ...USER, authenticationMethod: "api_key" as const },
+        { ...USER, authenticationMethod: "oauth" as const },
       ]) {
         expect((await request(action, input, actor)).status).toBe(403);
       }
