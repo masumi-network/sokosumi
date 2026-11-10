@@ -1,7 +1,12 @@
-import { designMdBrandLook, isOwnedProjectLogoUrl } from "@sokosumi/utils";
+import { Prisma } from "@sokosumi/database";
+import {
+  designMdBrandLook,
+  isOwnedProjectLogoUrl,
+  normalizeHex,
+} from "@sokosumi/utils";
 import { DomUtils, parseDocument } from "htmlparser2";
 
-import { badGateway, unprocessableEntity } from "@/helpers/error";
+import { badGateway, conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
 import { importStudioProducts } from "@/lib/image-studio/product-import";
@@ -9,7 +14,10 @@ import { suggestWebsiteBrandProfile } from "@/lib/image-studio/website-brand-pro
 import { parseOpenGraphFields } from "@/lib/open-graph-html";
 import { readHomepage } from "@/lib/site-platform";
 import {
+  type SaveStudioBrandLook,
   studioBrandKitSchema,
+  studioBrandLookSchema,
+  studioBrandLookStateSchema,
   studioWebsiteCopySchema,
   studioWebsiteDraftSchema,
 } from "@/schemas/studio-brand-kit.schema";
@@ -25,6 +33,7 @@ export interface StudioBrand {
   /** Who the business is and sounds like, from the Project's Brand Brain. */
   brandBrain: string | null;
   approvedLines?: string;
+  look?: NonNullable<SaveStudioBrandLook["look"]>;
 }
 
 const NO_BRAND: StudioBrand = {
@@ -62,9 +71,17 @@ export function applyStudioBrandPrompt(
   const memory = clipBrandText(brand.memory);
   const brandBrain = clipBrandText(brand.brandBrain);
   const approvedLines = clipBrandText(brand.approvedLines);
-  if (!design && !memory && !brandBrain && !approvedLines) return prompt;
+  if (!design && !memory && !brandBrain && !approvedLines && !brand.look)
+    return prompt;
 
   const parts = ["Follow this project's brand."];
+  if (brand.look) {
+    parts.push(
+      "Use these Studio choices for the ad's palette and fonts. They take precedence over any palette or typefaces in the other brand context.",
+      `Palette: ${brand.look.colors.join(", ") || "No fixed palette"}`,
+      `Fonts: ${brand.look.fonts.join(", ") || "No fixed fonts"}`,
+    );
+  }
   if (approvedLines) {
     parts.push(`Approved ad copy (use where relevant):\n${approvedLines}`);
   }
@@ -81,6 +98,7 @@ export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
       where: { id: projectId },
       select: {
         designMdUrl: true,
+        studioBrandLook: true,
         contextMd: true,
         brandBrain: { select: { body: true } },
       },
@@ -88,11 +106,13 @@ export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
     if (!project) return NO_BRAND;
     const brain = parseBrandBrain(project.brandBrain?.body);
     const approvedLines = clipBrandText(brain?.voice.examples.join("\n"));
+    const look = studioBrandLookSchema.safeParse(project.studioBrandLook);
     return {
       designMd: await readDesignMd(project.designMdUrl),
       memory: clipBrandText(project.contextMd),
       brandBrain: brandBrainText(brain),
       ...(approvedLines ? { approvedLines } : {}),
+      ...(look.success ? { look: look.data } : {}),
     };
   } catch {
     return NO_BRAND;
@@ -105,6 +125,8 @@ export async function readStudioBrandKit(projectId: string) {
     select: {
       logo: true,
       studioLogoPosition: true,
+      studioBrandLook: true,
+      studioBrandLookRevision: true,
       briefing: true,
       designMdUrl: true,
       brandBrain: { select: { body: true, updatedAt: true } },
@@ -112,6 +134,7 @@ export async function readStudioBrandKit(projectId: string) {
   });
   const design = await readDesignMdContent(project.designMdUrl);
   const look = designMdBrandLook(design ?? "");
+  const customLook = studioBrandLookSchema.safeParse(project.studioBrandLook);
   const brain = parseBrandBrain(project.brandBrain?.body);
   const logo =
     project.logo && isOwnedProjectLogoUrl(project.logo, projectId)
@@ -120,13 +143,53 @@ export async function readStudioBrandKit(projectId: string) {
   return studioBrandKitSchema.parse({
     logo,
     studioLogoPosition: logo ? (project.studioLogoPosition ?? null) : null,
-    colors: look.colors,
-    fonts: look.fonts,
+    colors: customLook.data?.colors ?? look.colors,
+    fonts: customLook.data?.fonts ?? look.fonts,
+    lookRevision: project.studioBrandLookRevision ?? 0,
+    hasCustomLook: customLook.success,
     summary: brain?.summary ?? project.briefing?.slice(0, 2000) ?? "",
     tone: brain?.voice.tone ?? look.tone ?? "",
     audience: brain?.audience ?? [],
     approvedLines: brain?.voice.examples ?? [],
     version: project.brandBrain?.updatedAt?.toISOString() ?? null,
+  });
+}
+
+export async function saveStudioBrandLook(
+  projectId: string,
+  workspaceId: string,
+  { look, lookRevision }: SaveStudioBrandLook,
+) {
+  const customLook = look && {
+    colors: [
+      ...new Set(look.colors.map((color) => normalizeHex(color) ?? color)),
+    ],
+    fonts: [...new Set(look.fonts)],
+  };
+  const [project] = await prisma.project.updateManyAndReturn({
+    where: {
+      id: projectId,
+      workspaceId,
+      studioBrandLookRevision: lookRevision,
+    },
+    data: {
+      studioBrandLook: customLook ?? Prisma.DbNull,
+      studioBrandLookRevision: { increment: 1 },
+    },
+    select: { designMdUrl: true, studioBrandLookRevision: true },
+  });
+  if (!project)
+    throw conflict(
+      "The Studio brand look changed. Reopen Brand Kit and try again.",
+    );
+  const effective =
+    customLook ??
+    designMdBrandLook((await readDesignMdContent(project.designMdUrl)) ?? "");
+  return studioBrandLookStateSchema.parse({
+    colors: effective.colors,
+    fonts: effective.fonts,
+    lookRevision: project.studioBrandLookRevision,
+    hasCustomLook: customLook !== null,
   });
 }
 

@@ -158,6 +158,44 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
+  it("uses each product's original cutout and blocks a batch with a missing photo", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    const props = {
+      catalog: TEST_CATALOG,
+      initial: { modelIds: ["model-a"], settings: SETTINGS },
+      onGenerate,
+    };
+    const view = render(<Harness {...props} batchProducts={BATCH_PRODUCTS} />);
+    const toggle = screen.getByRole("button", { name: "useProductCutout" });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    generate();
+    expect(
+      onGenerate.mock.calls[0][0].map(
+        ({ useProductCutout, referenceFileIds }) => ({
+          useProductCutout,
+          referenceFileIds,
+        }),
+      ),
+    ).toEqual([
+      { useProductCutout: true, referenceFileIds: ["vase-file"] },
+      { useProductCutout: true, referenceFileIds: ["vase-file"] },
+      { useProductCutout: true, referenceFileIds: ["mug-file"] },
+    ]);
+
+    view.rerender(
+      <Harness
+        {...props}
+        batchProducts={[
+          BATCH_PRODUCTS[0],
+          { ...BATCH_PRODUCTS[1], photo: null },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+  });
+
   it("cycles approved headlines by variation and keeps the same wording across sizes", async () => {
     getBrandKit.mockResolvedValueOnce({
       approvedLines: ["First claim", "Second claim"],

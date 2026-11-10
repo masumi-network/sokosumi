@@ -471,6 +471,8 @@ model Project {
   sitePlatform            String?
   logo                    String?
   studioLogoPosition      String?
+  studioBrandLook         Json?
+  studioBrandLookRevision Int       @default(0)
   designMdUrl             String?
   designMdExtractionId    String?
   /// Markdown guidance for drafting this Project's social posts (tone,
@@ -5300,6 +5302,10 @@ model ProjectImageJob {
   /// Approved copy to attach when the image is delivered.
   exportHeadline String?
 
+  /// Generate a backdrop, then composite the original transparent product photo.
+  useProductCutout      Boolean @default(false)
+  productCutoutChecksum String?
+
   status ProjectImageJobStatus @default(PENDING)
 
   /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),
@@ -5458,6 +5464,9 @@ model ProjectImageAsset {
   /// the authorized streaming route, which re-checks access per request.
   blobPathname    String
   contentType     String
+  /// Private background layer for refining a composited product ad.
+  backdropBlobPathname String?
+  backdropContentType String?
   /// What the bytes are. A video plays in the gallery and attaches to Social as one.
   mediaType       ProjectImageMediaType @default(IMAGE)
   /// Requested length of a video. Null for images.

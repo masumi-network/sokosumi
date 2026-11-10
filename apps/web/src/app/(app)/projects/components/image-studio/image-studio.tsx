@@ -632,6 +632,8 @@ export function ImageStudio({
     )
       return;
     const id = crypto.randomUUID();
+    const job = from === "job" ? (source as StudioJob) : null;
+    const inheritsCutout = job?.useProductCutout && job.parentAssetId !== null;
     const request: QueuedGeneration = {
       id,
       // Whatever it repeats already lives in a project, and Core only accepts
@@ -656,10 +658,11 @@ export function ImageStudio({
           ? [(source as StudioAsset).id]
           : (source as StudioJob).referenceAssetIds,
       ...(source.product ? { product: source.product } : {}),
-      ...(from === "job" &&
-      !reroll &&
-      (source as StudioJob).referenceFileIds?.length
-        ? { referenceFileIds: (source as StudioJob).referenceFileIds }
+      ...(!reroll && !inheritsCutout && job?.referenceFileIds?.length
+        ? { referenceFileIds: job.referenceFileIds }
+        : {}),
+      ...(!reroll && !inheritsCutout && job?.useProductCutout
+        ? { useProductCutout: true }
         : {}),
       idempotencyKey: `ui:${id}`,
     };
@@ -842,7 +845,8 @@ export function ImageStudio({
     const { referenceAssetIds, referenceFileIds, parentAssetId, settings } =
       request;
     const referenceCount =
-      referenceAssetIds.length + (referenceFileIds?.length ?? 0);
+      referenceAssetIds.length +
+      (request.useProductCutout ? 0 : (referenceFileIds?.length ?? 0));
     if (
       referenceCount > MAX_STUDIO_REFERENCES ||
       (referenceFileIds?.length ?? 0) > 1 ||
@@ -1254,6 +1258,7 @@ export function ImageStudio({
                       setTarget({
                         modelIds: [request.modelId],
                         settings: request.settings,
+                        useProductCutout: request.useProductCutout,
                         ...(request.exportHeadline
                           ? {
                               exportHeadlines: {

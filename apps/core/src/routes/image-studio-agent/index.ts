@@ -46,7 +46,7 @@ import { authorizeAgentGrant as authorize } from "./authorize";
 
 const app = new Hono();
 const createAgentImageJobSchema = createImageJobRequestSchema
-  .omit({ exportHeadline: true })
+  .omit({ exportHeadline: true, useProductCutout: true })
   .extend({ catalogProductId: z.string().uuid().optional() });
 
 /**
@@ -219,6 +219,7 @@ app.post("/generations", async (c) => {
         organizationId: context.organizationId,
       },
       reuseParentPhotoIfAvailable: !input.catalogProductId,
+      reuseParentCutout: !input.catalogProductId,
       reuseParentBatchSlot: true,
       reuseParentHeadlineIfAvailable: !input.catalogProductId,
       parentAssetId: input.parentAssetId,

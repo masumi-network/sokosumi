@@ -306,7 +306,16 @@ export function StudioComposer({
   const hasPhotoReference = hasProductBatch
     ? batchProducts.some(({ photo }) => photo !== null)
     : productPhoto != null;
-  const referenceCount = referenceAssets.length + (hasPhotoReference ? 1 : 0);
+  const wantsCutout = target.useProductCutout === true;
+  const canUseCutout =
+    !referenceAssets.length &&
+    !parentAssetId &&
+    (hasProductBatch
+      ? batchProducts.every(({ photo }) => photo !== null)
+      : Boolean(productPhoto));
+  const useCutout = wantsCutout && canUseCutout;
+  const referenceCount =
+    referenceAssets.length + (hasPhotoReference && !useCutout ? 1 : 0);
   const tooManyReferences = referenceCount > MAX_STUDIO_REFERENCES;
   const modelLimit = Math.floor(
     MAX_BATCH / (frameCount * Math.max(1, productCopies)),
@@ -525,6 +534,7 @@ export function StudioComposer({
     !busy &&
     !loadingHeadlines &&
     !uploadingPhoto &&
+    (!wantsCutout || canUseCutout) &&
     promptLength > 0 &&
     !promptTooLong &&
     totalJobs > 0;
@@ -585,6 +595,7 @@ export function StudioComposer({
         ...(leg.photo ? { referenceFileIds: [leg.photo.id] } : {}),
         ...(leg.product ? { product: leg.product } : {}),
         ...(leg.exportHeadline ? { exportHeadline: leg.exportHeadline } : {}),
+        ...(useCutout ? { useProductCutout: true } : {}),
         // One key per request, never shared across the batch: these are
         // deliberately different images, not retries of one.
         idempotencyKey: `ui:${id}`,
@@ -623,6 +634,7 @@ export function StudioComposer({
       ? t("copyCount", { count: plan.copies })
       : null,
     usesApprovedHeadlines ? t("approvedHeadlinesSummary") : null,
+    useCutout ? t("productCutoutSummary") : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -691,7 +703,16 @@ export function StudioComposer({
                 {t("tooManyReferences", { count: MAX_STUDIO_REFERENCES })}
               </p>
             ) : null}
-            {hasPhotoReference &&
+            {wantsCutout && !canUseCutout ? (
+              <p
+                className="text-muted-foreground px-4 pb-2 text-xs"
+                role="status"
+              >
+                {t("productCutoutNeedsPhoto")}
+              </p>
+            ) : null}
+            {!useCutout &&
+            hasPhotoReference &&
             !tooManyReferences &&
             selectedModels.length === 0 ? (
               <p
@@ -1046,6 +1067,30 @@ export function StudioComposer({
                     ) : null}
                   </div>
                 ) : null}
+                {canUseCutout || wantsCutout ? (
+                  <div className="space-y-1.5">
+                    <button
+                      aria-pressed={wantsCutout}
+                      className={chipClass(wantsCutout)}
+                      onClick={() =>
+                        onTargetChange((current) => ({
+                          ...current,
+                          useProductCutout: !current.useProductCutout,
+                        }))
+                      }
+                      type="button"
+                    >
+                      {t("useProductCutout")}
+                    </button>
+                    <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                      {t(
+                        canUseCutout
+                          ? "productCutoutHint"
+                          : "productCutoutNeedsPhoto",
+                      )}
+                    </p>
+                  </div>
+                ) : null}
                 {/* Every row below reads its options from the chosen models, so
                 with none chosen they are all empty. Saying so beats three
                 labelled rows with nothing in them. */}
@@ -1320,7 +1365,11 @@ export function StudioComposer({
 
                   {plan.legs.some(({ photo }) => photo) ? (
                     <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                      {t("productPhotoGuidance")}
+                      {t(
+                        useCutout
+                          ? "productCutoutHint"
+                          : "productPhotoGuidance",
+                      )}
                     </p>
                   ) : null}
 

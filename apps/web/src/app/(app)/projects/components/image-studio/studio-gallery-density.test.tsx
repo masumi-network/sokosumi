@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
   loadBrandKit: vi.fn().mockResolvedValue({ approvedLines: [] }),
   createArchive: vi.fn(),
   saveDownload: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -112,7 +113,7 @@ vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
     failed: [],
     queued: [],
-    enqueue: vi.fn(),
+    enqueue: mocks.enqueue,
     waitingForSlot: false,
   }),
 }));
@@ -632,6 +633,30 @@ describe("a gallery with work in it", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("provider_error");
     expect(screen.queryByText("failedDetails")).toBeNull();
+  });
+
+  it("retries a cutout refinement through its parent instead of submitting the product file as a reference", () => {
+    mount(
+      [],
+      [
+        {
+          ...job("cutout-refinement", "FAILED"),
+          parentAssetId: "source-ad",
+          referenceAssetIds: ["source-ad"],
+          referenceFileIds: ["private-photo"],
+          useProductCutout: true,
+        },
+      ],
+    );
+    fireEvent.click(screen.getByRole("button", { name: TEST_LABELS.tryAgain }));
+    expect(mocks.enqueue).toHaveBeenCalledOnce();
+    const [request] = mocks.enqueue.mock.calls[0][0];
+    expect(request).toMatchObject({
+      parentAssetId: "source-ad",
+      referenceAssetIds: ["source-ad"],
+    });
+    expect(request).not.toHaveProperty("referenceFileIds");
+    expect(request).not.toHaveProperty("useProductCutout");
   });
 
   /**

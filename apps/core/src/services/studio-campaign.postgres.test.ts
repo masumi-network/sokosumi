@@ -12,6 +12,7 @@ const external = vi.hoisted(() => ({
   submit: vi.fn(),
   download: vi.fn(),
   uploadReference: vi.fn(),
+  driveHead: vi.fn(),
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -37,6 +38,10 @@ vi.mock("@vercel/blob", async (importOriginal) => ({
   get: external.get,
   put: external.put,
 }));
+vi.mock("@/lib/drive-blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/drive-blob")>()),
+  driveHead: external.driveHead,
+}));
 vi.mock("@/lib/image-studio/fal-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/image-studio/fal-client")>()),
   submitToQueue: external.submit,
@@ -50,7 +55,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
 
 import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
-import type { EnvVariables } from "@/lib/hono";
+import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import { mintAgentGrant } from "@/lib/image-studio/agent-grant";
 import legacyAgentRoutes from "@/routes/image-studio-agent/index";
 import agentRoutes from "@/routes/v1/image-studio-agent/index";
@@ -88,7 +93,9 @@ let workspaceId: string;
 let projectId: string;
 
 function app(actorId = userId) {
-  const server = new OpenAPIHono<EnvVariables>();
+  const server = new OpenAPIHono<EnvVariables>({
+    defaultHook: defaultValidationHook,
+  });
   server.use("*", async (c, next) => {
     c.set("requestId", "studio-campaign-fixture");
     c.set("authContext", {
@@ -314,7 +321,52 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect((await savedKit.json()).data).toMatchObject({
       logo,
       studioLogoPosition: "bottom-left",
+      lookRevision: 0,
+      hasCustomLook: false,
     });
+    const lookPath = `${path}/brand-kit/look`;
+    const customLook = { colors: ["#134"], fonts: ["Source Serif 4"] };
+    const savedLook = await studio.request(
+      lookPath,
+      json("PUT", { look: customLook, lookRevision: 0 }),
+    );
+    expect(savedLook.status).toBe(200);
+    const savedLookState = {
+      colors: ["#113344"],
+      fonts: customLook.fonts,
+      lookRevision: 1,
+      hasCustomLook: true,
+    };
+    expect((await savedLook.json()).data).toEqual(savedLookState);
+    expect(
+      (
+        await studio.request(
+          lookPath,
+          json("PUT", { look: null, lookRevision: 0 }),
+        )
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await studio.request(
+          lookPath,
+          json("PUT", {
+            look: { colors: ["orange"], fonts: [] },
+            lookRevision: 1,
+          }),
+        )
+      ).status,
+    ).toBe(422);
+    expect(
+      (
+        await app(randomUUID()).request(
+          lookPath,
+          json("PUT", { look: null, lookRevision: 1 }),
+        )
+      ).status,
+    ).toBe(404);
+    const customKit = await studio.request(`${path}/brand-kit`);
+    expect((await customKit.json()).data).toMatchObject(savedLookState);
     expect(
       (
         await studio.request(
@@ -381,10 +433,23 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       expect(payload.input.prompt).not.toContain(approvedLine);
       expect(payload.input.prompt).not.toContain(secondApprovedLine);
       expect(payload.input.prompt).toContain("#a33421");
+      expect(payload.input.prompt).toContain("Palette: #113344");
+      expect(payload.input.prompt).toContain("Fonts: Source Serif 4");
       expect(payload.input.prompt).toContain(submissions[index].product.name);
       expect(payload.input.prompt).toContain("Keep the upper area clear");
       expect(payload.input.prompt).not.toContain(unusedLine);
     }
+    const resetLook = await studio.request(
+      lookPath,
+      json("PUT", { look: null, lookRevision: 1 }),
+    );
+    expect(resetLook.status).toBe(200);
+    expect((await resetLook.json()).data).toEqual({
+      colors: ["#a33421"],
+      fonts: ["Inter"],
+      lookRevision: 2,
+      hasCustomLook: false,
+    });
     const jobs = await prisma.projectImageJob.findMany({
       where: { projectId, batchId },
     });
@@ -670,5 +735,269 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect(revoke.status).toBe(200);
     const withoutHeadline = await finishRevision(await fromAssistant(), null);
     await expectedBatch(withoutHeadline.id);
+  });
+
+  it("composites a verified product cutout into the delivered artwork and checks the file again", async () => {
+    const path = `/${projectId}/image-studio`;
+    const studio = app();
+    const width = 20;
+    const height = 30;
+    const pixels = Buffer.alloc(width * height * 4);
+    for (let y = 2; y < height - 2; y++) {
+      for (let x = 2; x < width - 2; x++) {
+        const offset = (y * width + x) * 4;
+        const label = y >= 10 && y < 14;
+        pixels.set(label ? [246, 197, 27, 255] : [31, 104, 163, 255], offset);
+      }
+    }
+    const cutout = new Uint8Array(
+      await sharp(pixels, {
+        raw: { width, height, channels: 4 },
+      })
+        .png()
+        .toBuffer(),
+    );
+    const opaque = new Uint8Array(
+      await sharp({
+        create: { width, height, channels: 3, background: "blue" },
+      })
+        .png()
+        .toBuffer(),
+    );
+    const sourceId = "drive/campaign-fixture/product-cutout.png";
+    const fileUrl =
+      "https://campaign.public.blob.vercel-storage.com/drive/campaign-fixture/product-cutout.png";
+    const file = await prisma.fileResource.create({
+      data: {
+        workspaceId,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceScope: "USER",
+        ownerUserId: userId,
+        sourceId,
+        displayName: "product-cutout.png",
+        normalizedName: "product-cutout.png",
+        mimeType: "image/png",
+        sizeBytes: cutout.length,
+        lifecycle: "ACTIVE",
+      },
+    });
+    let served = opaque;
+    external.driveHead.mockImplementation((pathname) =>
+      pathname === sourceId
+        ? { access: "public", url: fileUrl, size: served.length }
+        : null,
+    );
+    const fetchPhoto = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (url) => {
+        expect(String(url)).toBe(fileUrl);
+        return new Response(served, {
+          headers: { "content-type": "image/png" },
+        });
+      });
+    try {
+      const requestCutout = async () => {
+        const response = await studio.request(
+          `${path}/jobs`,
+          json("POST", {
+            prompt: "A clean studio tabletop for a coffee ad.",
+            modelId: "muse-image",
+            useProductCutout: true,
+            referenceFileIds: [file.id],
+            idempotencyKey: randomUUID(),
+          }),
+        );
+        expect(response.status).toBe(201);
+        return imageStudioJobSchema.parse((await response.json()).data);
+      };
+      const previousSubmissions = external.submit.mock.calls.length;
+      const rejected = await requestCutout();
+      expect(rejected).toMatchObject({
+        status: "FAILED",
+        failureReason: "product_cutout_unavailable",
+      });
+      expect(external.submit).toHaveBeenCalledTimes(previousSubmissions);
+
+      served = cutout;
+      const previousUploads = external.uploadReference.mock.calls.length;
+      const accepted = await requestCutout();
+      expect(accepted).toMatchObject({
+        kind: "GENERATE",
+        status: "QUEUED",
+        useProductCutout: true,
+      });
+      expect(external.uploadReference).toHaveBeenCalledTimes(previousUploads);
+      expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
+        "empty advertising backdrop",
+      );
+      const backdrop = async (background: string) =>
+        new Uint8Array(
+          await sharp({
+            create: { width: 160, height: 120, channels: 3, background },
+          })
+            .png()
+            .toBuffer(),
+        );
+      const originalBackdrop = await backdrop("white");
+      external.download.mockResolvedValueOnce({
+        bytes: originalBackdrop,
+        contentType: "image/png",
+      });
+      await settleWithMedia(accepted.id, "https://fal.example/campaign.png");
+      const asset = await prisma.projectImageAsset.findUniqueOrThrow({
+        where: { jobId: accepted.id },
+      });
+      const response = await studio.request(
+        `${path}/assets/${asset.id}/content`,
+      );
+      expect(response.status).toBe(200);
+      const { data, info } = await sharp(await response.arrayBuffer())
+        .removeAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      expect(info).toMatchObject({ width: 160, height: 120 });
+      const pixel = (x: number, y: number) => [
+        ...data.subarray(
+          (y * info.width + x) * 3,
+          (y * info.width + x) * 3 + 3,
+        ),
+      ];
+      const left = (info.width - width) / 2;
+      const top = Math.floor(info.height * 0.86) - height;
+      expect(pixel(left, top)).toEqual([255, 255, 255]);
+      expect(pixel(left + 6, top + 6)).toEqual([31, 104, 163]);
+      expect(pixel(left + 8, top + 12)).toEqual([246, 197, 27]);
+
+      const requestBackdropEdit = (
+        assistant: boolean,
+        parentAssetId: string,
+      ) => {
+        const payload = {
+          prompt: "Make the backdrop darker.",
+          modelId: "muse-image",
+          parentAssetId,
+          referenceAssetIds: [parentAssetId],
+          idempotencyKey: randomUUID(),
+        };
+        if (!assistant)
+          return studio.request(`${path}/jobs`, json("POST", payload));
+        const grant = mintAgentGrant(
+          { userId, projectId, audience: "agent", ttlSeconds: 120 },
+          "campaign-fixture-agent-secret".repeat(2),
+        );
+        return studio.request("/image-studio-agent/generations", {
+          ...json("POST", payload),
+          headers: {
+            authorization: `Bearer ${grant}`,
+            "content-type": "application/json",
+          },
+        });
+      };
+      let parentId = asset.id;
+      let parentBackdrop = originalBackdrop;
+      const darkerBackdrop = await backdrop("#8f2a20");
+      for (const assistant of [false, true]) {
+        const edited = await requestBackdropEdit(assistant, parentId);
+        expect(edited.status).toBe(assistant ? 200 : 201);
+        const body = await edited.json();
+        const job = body.data ?? body.job;
+        expect(job.status).toBe("QUEUED");
+        const upload = external.uploadReference.mock.lastCall?.[0];
+        expect(new Uint8Array(upload.bytes)).toEqual(parentBackdrop);
+        expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
+          "Edit the supplied advertising backdrop",
+        );
+        external.download.mockResolvedValueOnce({
+          bytes: darkerBackdrop,
+          contentType: "image/png",
+        });
+        await settleWithMedia(job.id, "https://fal.example/campaign.png");
+        const version = await prisma.projectImageAsset.findUniqueOrThrow({
+          where: { jobId: job.id },
+        });
+        expect(version).toMatchObject({
+          parentId,
+          rootId: asset.rootId,
+          backdropContentType: "image/png",
+        });
+        const editedAd = await studio.request(
+          `${path}/assets/${version.id}/content`,
+        );
+        const composed = await sharp(await editedAd.arrayBuffer())
+          .removeAlpha()
+          .raw()
+          .toBuffer();
+        const at = (x: number, y: number) => [
+          ...composed.subarray(
+            (y * info.width + x) * 3,
+            (y * info.width + x) * 3 + 3,
+          ),
+        ];
+        expect(at(left, top)).toEqual([143, 42, 32]);
+        expect(at(left + 8, top + 12)).toEqual([246, 197, 27]);
+        parentId = version.id;
+        parentBackdrop = darkerBackdrop;
+      }
+      expect(external.uploadReference).toHaveBeenCalledTimes(
+        previousUploads + 2,
+      );
+
+      const changed = await requestCutout();
+      expect(changed.status).toBe("QUEUED");
+      served = new Uint8Array(
+        await sharp(cutout).modulate({ brightness: 0.8 }).png().toBuffer(),
+      );
+      const sentBeforeChangedEdit = external.submit.mock.calls.length;
+      const changedEdit = await requestBackdropEdit(false, parentId);
+      expect((await changedEdit.json()).data).toMatchObject({
+        status: "FAILED",
+        failureReason: "product_cutout_unavailable",
+      });
+      expect(external.submit).toHaveBeenCalledTimes(sentBeforeChangedEdit);
+      await settleWithMedia(changed.id, "https://fal.example/campaign.png");
+      expect(
+        await prisma.projectImageJob.findUniqueOrThrow({
+          where: { id: changed.id },
+          select: {
+            status: true,
+            asset: true,
+            transactionId: true,
+            failureReason: true,
+          },
+        }),
+      ).toEqual({
+        status: "FAILED",
+        asset: null,
+        transactionId: null,
+        failureReason: "product_cutout_unavailable",
+      });
+
+      served = cutout;
+      const revoked = await requestCutout();
+      expect(revoked.status).toBe("QUEUED");
+      await prisma.fileResource.update({
+        where: { id: file.id },
+        data: { tombstonedAt: new Date() },
+      });
+      await settleWithMedia(revoked.id, "https://fal.example/campaign.png");
+      expect(
+        await prisma.projectImageJob.findUniqueOrThrow({
+          where: { id: revoked.id },
+          select: {
+            status: true,
+            asset: true,
+            transactionId: true,
+            failureReason: true,
+          },
+        }),
+      ).toEqual({
+        status: "FAILED",
+        asset: null,
+        transactionId: null,
+        failureReason: "product_cutout_unavailable",
+      });
+    } finally {
+      fetchPhoto.mockRestore();
+    }
   });
 });
