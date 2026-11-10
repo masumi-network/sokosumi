@@ -34,6 +34,30 @@ describe("CMO version", () => {
     );
   });
 
+  it("keeps cmo-v1's strategy skill word for word and gives cmo-v2 the plan in pieces", () => {
+    const v1 = composeSystemPrompt(getSokoBotVersion("cmo-v1"));
+    const v2 = composeSystemPrompt(getSokoBotVersion("cmo-v2"));
+    expect(getSokoBotVersion("cmo-v2").id).toBe("cmo-v2");
+    expect(v1).toContain(
+      "Every entry has approach, pillar, date, time (HH:MM, a sensible slot for that channel's audience), channel, format, title, brief",
+    );
+    expect(v1).not.toMatch(/part patch|weeks two to four are titles/);
+    expect(v2).toMatch(/weeks two to four are titles/);
+    expect(v2).toMatch(/with part patch/);
+    expect(v2).toMatch(/refuses a save that breaks a hard rule/);
+    // Only the strategy skill differs.
+    const one = getSokoBotVersion("cmo-v1");
+    const two = getSokoBotVersion("cmo-v2");
+    expect(two.systemPrompt).toBe(one.systemPrompt);
+    expect(two.capabilities).toEqual(one.capabilities);
+    expect(two.model).toBe(one.model);
+    expect(two.skills).toEqual(
+      one.skills.map((skill) =>
+        skill === "cmo-strategy" ? "cmo-strategy-patches" : skill,
+      ),
+    );
+  });
+
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
