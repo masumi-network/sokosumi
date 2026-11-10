@@ -193,7 +193,10 @@ export {
   normalizeContactChannelValue,
   updateContactSchema,
 } from "./contacts.js";
-export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
+export {
+  CORE_API_ERROR_KINDS,
+  type CoreApiErrorKind,
+} from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,

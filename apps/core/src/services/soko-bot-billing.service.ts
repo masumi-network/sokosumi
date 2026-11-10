@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
@@ -9,7 +10,15 @@ import { serializableTransaction } from "@/lib/db/transaction";
 const SOKO_BOT_TURN_COST_HISTORY_SIZE = 3;
 const SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND = "insufficient_credits";
 
-export class SokoBotBillingAccessError extends Error {}
+/** A turn cannot start: the member has no Seat, or there are not enough credits. */
+export class SokoBotBillingAccessError extends Error {
+  constructor(
+    message: string,
+    readonly reason: "seat" | "credits" = "credits",
+  ) {
+    super(message);
+  }
+}
 
 export interface SokoBotUsageChargeResult {
   chargedCents: bigint;
@@ -265,6 +274,34 @@ export async function requireSokoBotTurnFunding(
   if (balance < minimumCents || balance < recentTurnCents) {
     throw new SokoBotBillingAccessError(
       `Insufficient ${payerLabel(organizationId)} credits to start a Soko Bot turn.`,
+    );
+  }
+}
+
+/**
+ * What a member's first turn on a bot that does not exist yet must pass (a
+ * Cuso being hired): with no cost history, the turn minimum against what the
+ * member can spend in the organization, Seat included, as
+ * `requireSokoBotTurnFunding` reads it.
+ */
+export async function requireMemberTurnFunding(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  if (!(await hasAssignedOrganizationSeat(userId, organizationId, prisma))) {
+    throw new SokoBotBillingAccessError(
+      "An assigned seat is required to use this organization",
+      "seat",
+    );
+  }
+  const balance = await creditBucketRepository.getBalance(
+    userId,
+    organizationId,
+    prisma,
+  );
+  if (balance < convertCreditsToCents(getEnv().SOKO_BOT_MIN_TURN_CREDITS)) {
+    throw new SokoBotBillingAccessError(
+      "Insufficient organization credits to start a Soko Bot turn.",
     );
   }
 }

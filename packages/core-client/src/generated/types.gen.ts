@@ -10918,6 +10918,20 @@ export type PublicSharedTaskFile = {
     createdAt: Date;
 };
 
+export type CmoCuso = {
+    projectId: string;
+    businessName: string;
+    websiteUrl: string;
+    projectLogo: string | null;
+    organizationId: string;
+    organizationName: string;
+    /**
+     * No plan of his is approved yet: he is still being hired.
+     */
+    hiring: boolean;
+    createdAt: Date;
+};
+
 export type CmoOverview = {
     businessName: string;
     websiteUrl: string;
@@ -11718,9 +11732,13 @@ export type CmoProduction = {
 
 export type CmoOnboardingRequest = {
     /**
-     * The business's website. Cuso is hired into a new organization named after it.
+     * The business's website, which names the new Project.
      */
     websiteUrl: string;
+    /**
+     * An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.
+     */
+    organizationId?: string;
 };
 
 export type CmoAdsConnect = {
@@ -72344,14 +72362,14 @@ export type GetShareByTokenResponses = {
 
 export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
 
-export type GetCmoOverviewData = {
+export type ListCmoCusosData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/cmo';
+    url: '/cmo/cusos';
 };
 
-export type GetCmoOverviewErrors = {
+export type ListCmoCusosErrors = {
     /**
      * Unauthorized
      */
@@ -72382,31 +72400,16 @@ export type GetCmoOverviewErrors = {
             method: string;
         };
     };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
 };
 
-export type GetCmoOverviewError = GetCmoOverviewErrors[keyof GetCmoOverviewErrors];
+export type ListCmoCusosError = ListCmoCusosErrors[keyof ListCmoCusosErrors];
 
-export type GetCmoOverviewResponses = {
+export type ListCmoCusosResponses = {
     /**
-     * The Cuso the caller works with
+     * The caller's Cusos
      */
     200: {
-        data: CmoOverview;
+        data: Array<CmoCuso>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -72415,7 +72418,7 @@ export type GetCmoOverviewResponses = {
     };
 };
 
-export type GetCmoOverviewResponse = GetCmoOverviewResponses[keyof GetCmoOverviewResponses];
+export type ListCmoCusosResponse = ListCmoCusosResponses[keyof ListCmoCusosResponses];
 
 export type StartCmoOnboardingData = {
     body?: CmoOnboardingRequest;
@@ -72441,7 +72444,7 @@ export type StartCmoOnboardingErrors = {
         };
     };
     /**
-     * Forbidden - The organization limit is reached
+     * Forbidden - Not a member of the organization (organization_membership_required), no Seat in it (organization_seat_required), or the organization limit is reached (organization_limit_reached)
      */
     403: {
         error: string;
@@ -72456,7 +72459,7 @@ export type StartCmoOnboardingErrors = {
         };
     };
     /**
-     * Conflict
+     * Conflict - The organization is out of credits (insufficient_balance)
      */
     409: {
         error: string;
@@ -73578,7 +73581,7 @@ export type GetCmoOverviewForProjectError = GetCmoOverviewForProjectErrors[keyof
 
 export type GetCmoOverviewForProjectResponses = {
     /**
-     * The Cuso the caller works with
+     * The Cuso of the Project the path names
      */
     200: {
         data: CmoOverview;
@@ -73942,12 +73945,11 @@ export type StartCmoOverForProjectError = StartCmoOverForProjectErrors[keyof Sta
 
 export type StartCmoOverForProjectResponses = {
     /**
-     * Cuso is archived and the next Project is selected
+     * Cuso is archived; CMO decides where to go next
      */
     200: {
         data: {
             startedOver: true;
-            projectId: string | null;
         };
         meta: {
             timestamp: Date;

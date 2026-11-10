@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   balanceMock,
   botFindUniqueMock,
+  hasSeatMock,
   getEnvMock,
   poolBalanceMock,
   postNoticeMock,
@@ -16,6 +17,7 @@ const {
 } = vi.hoisted(() => ({
   balanceMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
+  hasSeatMock: vi.fn(),
   postNoticeMock: vi.fn(),
   getEnvMock: vi.fn(),
   poolBalanceMock: vi.fn(),
@@ -49,6 +51,9 @@ vi.mock("@/lib/db/transaction", () => ({
 vi.mock("@/services/soko-bot-chat.service", () => ({
   postSokoBotOwnerNotice: postNoticeMock,
 }));
+vi.mock("@sokosumi/database/helpers", () => ({
+  hasAssignedOrganizationSeat: hasSeatMock,
+}));
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     getBalance: balanceMock,
@@ -63,6 +68,7 @@ import {
   notifySokoBotOutOfCredits,
   recordSokoBotCheckUsage,
   recordSokoBotTurnUsage,
+  requireMemberTurnFunding,
   requireSokoBotTurnFunding,
   SokoBotBillingAccessError,
   sokoBotIdsOutOfCredits,
@@ -567,5 +573,34 @@ describe("Soko Bot billing", () => {
     await notifySokoBotOutOfCredits(SOKO_BOT_ID);
     expect(postNoticeMock).toHaveBeenCalledTimes(1);
     expect(poolBalanceMock).not.toHaveBeenCalled();
+  });
+
+  describe("a member's first turn on a bot not made yet", () => {
+    it("refuses a member without a Seat, before reading credits", async () => {
+      hasSeatMock.mockResolvedValue(false);
+
+      await expect(
+        requireMemberTurnFunding("user-1", "org-1"),
+      ).rejects.toMatchObject({ reason: "seat" });
+      expect(balanceMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses below the turn minimum and allows from it", async () => {
+      hasSeatMock.mockResolvedValue(true);
+      balanceMock.mockResolvedValueOnce(convertCreditsToCents(0.05));
+      await expect(
+        requireMemberTurnFunding("user-1", "org-1"),
+      ).rejects.toMatchObject({ reason: "credits" });
+
+      balanceMock.mockResolvedValueOnce(convertCreditsToCents(0.1));
+      await expect(
+        requireMemberTurnFunding("user-1", "org-1"),
+      ).resolves.toBeUndefined();
+      expect(balanceMock).toHaveBeenCalledWith(
+        "user-1",
+        "org-1",
+        expect.anything(),
+      );
+    });
   });
 });
