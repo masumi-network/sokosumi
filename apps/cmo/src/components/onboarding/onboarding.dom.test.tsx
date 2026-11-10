@@ -7,7 +7,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
-import { asking, brain, draft, strategy } from "../../test-fixtures/onboarding";
+import {
+  asking,
+  brain,
+  draft,
+  research,
+  strategy,
+  work,
+} from "../../test-fixtures/onboarding";
 import { inertOnboardingActions, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
 import { OnboardingFlow } from "./flow";
@@ -272,6 +279,115 @@ it("approves the Brand Brain, then asks for the plan", async () => {
   await press("Looks like us");
   expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
   expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
+});
+
+// The plan starts when the research ends: Looks like us only confirms.
+
+it("confirms the brand without asking for a second plan while one writes", async () => {
+  const writing = asking({ research: research(6), work: work("strategy") });
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      draft({ ...writing, brandBrainConfirmedAt: new Date(), strategy: null }),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={writing}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
+  expect(actions.requestStrategy).not.toHaveBeenCalled();
+  expect(text()).toContain("Writing your plan");
+});
+
+it("confirms a brand whose plan is written without re-planning it", async () => {
+  const written = asking({ research: research(6), strategy });
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      draft({ ...written, brandBrainConfirmedAt: new Date() }),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={written}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.requestStrategy).not.toHaveBeenCalled();
+  expect(text()).toContain("Approve plan");
+});
+
+it("fits the written plan to a no the founder gave while it was written, once", async () => {
+  const [first, ...rest] = brain.questions ?? [];
+  const corrected = draft({
+    research: research(6),
+    brandBrain: {
+      ...brain,
+      questions: [
+        { ...first, answer: "no", corrected: false },
+        ...rest,
+      ] as typeof brain.questions,
+    },
+  });
+  const actions = actionsFor();
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={corrected}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await act(async () => {});
+  expect(actions.requestStrategy).toHaveBeenCalledTimes(1);
+  expect(actions.requestStrategy).toHaveBeenCalledWith(
+    expect.stringContaining("Fit the plan to the corrected Brand Brain"),
+  );
+});
+
+it("restarts a slow plan from Try again", async () => {
+  vi.useFakeTimers({
+    now: new Date("2026-10-05T09:15:00Z"),
+    toFake: ["Date"],
+  });
+  try {
+    const slow = draft({
+      research: research(6),
+      strategy: null,
+      work: work("strategy"),
+    });
+    const actions = actionsFor({
+      restartStrategy: vi.fn(async () => ({ overview: null, error: null })),
+    });
+    await act(async () =>
+      root.render(
+        <OnboardingFlow
+          overview={slow}
+          messages={[]}
+          skipped={["questions"]}
+          actions={actions}
+        />,
+      ),
+    );
+    await press("Try again");
+    expect(actions.restartStrategy).toHaveBeenCalledTimes(1);
+    expect(actions.requestStrategy).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 // Brand: a tile opens the side panel.

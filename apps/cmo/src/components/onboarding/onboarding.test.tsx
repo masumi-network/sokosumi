@@ -9,7 +9,9 @@ import {
   asking,
   brain,
   draft,
+  quickLook,
   reading,
+  research,
   richMedia,
   strategy,
   work,
@@ -335,6 +337,110 @@ describe("live line", () => {
   });
 });
 
+describe("research you can watch", () => {
+  const flow = (overview: CmoOverview, skipped: "questions"[] = []) =>
+    renderToStaticMarkup(
+      <OnboardingFlow
+        overview={overview}
+        messages={[]}
+        skipped={skipped}
+        actions={inertOnboardingActions(overview)}
+      />,
+    );
+  const chips = (html: string) =>
+    html.match(/<ol class="ob-chips"[\s\S]*?<\/ol>/)?.[0] ?? "";
+  const groupSlots = (html: string) =>
+    html.match(/class="ob-slot/g)?.length ?? 0;
+
+  it("ticks six group chips under the live line while Cuso reads", () => {
+    const html = flow(reading({ research: research(2) }));
+    const row = chips(html);
+    expect(row).toContain('Website<span class="ob-sr">, done');
+    expect(row).toContain('Buyers&#x27; world<span class="ob-sr">, done');
+    expect(row).toContain('Competitors<span class="ob-sr">, in progress');
+    expect(row.match(/<li/g)).toHaveLength(6);
+    // The chips are the progress: the reading card's guessed phases go.
+    expect(html).not.toContain("Comparing your competitors");
+  });
+
+  it("shows no chips once the research ended, or when Core sends no groups", () => {
+    expect(
+      chips(
+        flow(asking({ research: research(6), work: work("strategy") }), [
+          "questions",
+        ]),
+      ),
+    ).toBe("");
+    expect(chips(flow(reading()))).toBe("");
+    // Today's reading card stays when Core sends no groups.
+    expect(flow(reading())).toContain("Comparing your competitors");
+  });
+
+  it("fills one slot per group as it lands, skeletons for the rest", () => {
+    const html = site(
+      reading({
+        research: research(2),
+        work: work("research", { sectionsSaved: 7 }),
+      }),
+    );
+    expect(groupSlots(html)).toBe(6);
+    expect(html).toContain("Website");
+    expect(html).toContain("Rockets for founders, since 2019");
+    expect(html).toContain("Buyers&#x27; world");
+    expect(html).toContain("Launches take months, not days");
+    expect(html.match(/ob-slot ob-skeleton/g)).toHaveLength(4);
+  });
+
+  it("keeps the group slots once the Brand Brain lands", () => {
+    const html = site(asking({ research: research(6) }));
+    expect(groupSlots(html)).toBe(6);
+    expect(html).not.toContain("ob-slot ob-skeleton");
+  });
+
+  it("shows the quick look until the essentials replace it", () => {
+    const early = site(
+      reading({
+        research: research(0, quickLook),
+        work: work("research", { sectionsSaved: 0 }),
+      }),
+    );
+    expect(early).toContain("At a glance");
+    expect(early).toContain(quickLook.line);
+    expect(early).toContain("From $9 a month");
+    expect(early).toContain("From your homepage");
+
+    const later = site(asking({ research: research(6) }));
+    expect(later).toContain(brain.summary);
+    expect(later).not.toContain(quickLook.line);
+    expect(later).toContain("From the full read");
+  });
+
+  it("holds the quick look's place, empty, when it failed", () => {
+    const html = site(
+      reading({
+        research: research(0),
+        work: work("research", { sectionsSaved: 0 }),
+      }),
+    );
+    expect(html).toContain("ob-glance ob-skeleton");
+  });
+
+  it("keeps today's three found slots and no quick look without groups", () => {
+    const html = site(reading());
+    expect(groupSlots(html)).toBe(3);
+    expect(html).not.toContain("At a glance");
+  });
+
+  it("stays on Brand while the plan writes before the founder confirms it", () => {
+    const overview = asking({ research: research(6), work: work("strategy") });
+    expect(onboardingStep(overview, ["questions"])).toEqual({
+      step: "brand",
+      phase: "review",
+    });
+    expect(onboardingStep(overview).step).toBe("site");
+  });
+});
+
 describe("Brand", () => {
   const render = (
     overview: CmoOverview,
@@ -448,6 +554,51 @@ describe("Brand", () => {
     const html = render(draft(), { label: "Plan", onClick: () => {} });
     expect(html).toContain("Continue to Plan");
     expect(html).not.toContain("Looks like us");
+  });
+});
+
+describe("Brand while the plan writes", () => {
+  const render = (overview: CmoOverview) =>
+    renderToStaticMarkup(
+      <BrandStep
+        overview={overview}
+        messages={[]}
+        onCorrect={noop}
+        onSave={noop}
+        onApprove={async () => null}
+      />,
+    );
+
+  it("opens the plan's slot and keeps Looks like us pressable", () => {
+    const html = render(
+      asking({
+        research: research(6),
+        work: work("strategy"),
+        botStatus: "RUNNING",
+      }),
+    );
+    expect(html).toContain("ob-plan-slot");
+    expect(html).toContain("Writing your plan");
+    expect(html).toContain("Looks like us");
+    expect(html).not.toContain("Finishing up");
+  });
+
+  it("says the plan is ready once it is written", () => {
+    const html = render(
+      asking({
+        research: research(6),
+        strategy,
+        work: work("strategy", { status: "done" }),
+      }),
+    );
+    expect(html).toContain("Your plan is ready");
+  });
+
+  it("shows no plan slot when Cuso writes no plan yet", () => {
+    expect(render(asking())).not.toContain("ob-plan-slot");
+    expect(render(asking({ research: research(6) }))).not.toContain(
+      "ob-plan-slot",
+    );
   });
 });
 

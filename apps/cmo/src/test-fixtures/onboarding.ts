@@ -122,6 +122,57 @@ export const work = (
   ...patch,
 });
 
+/** Core's six research groups, in the order Cuso saves them. */
+const RESEARCH_GROUPS: Omit<
+  NonNullable<CmoOverview["research"]>["groups"][number],
+  "state"
+>[] = [
+  {
+    key: "website",
+    label: "Website",
+    sections: ["company", "offer", "pricing"],
+  },
+  {
+    key: "buyers",
+    label: "Buyers' world",
+    sections: ["problems", "customers", "buyers", "value"],
+  },
+  {
+    key: "competitors",
+    label: "Competitors",
+    sections: ["positioning", "competition", "sales"],
+  },
+  {
+    key: "social",
+    label: "Social accounts",
+    sections: ["marketing", "content"],
+  },
+  { key: "reviews", label: "Reviews", sections: ["proof", "reputation"] },
+  {
+    key: "news",
+    label: "News and people",
+    sections: ["momentum", "opportunities"],
+  },
+];
+
+/** The quick look Core writes from the homepage at the hire. */
+export const quickLook = {
+  line: "You sell launch rockets to small space startups.",
+  facts: ["From $9 a month", "Based in Berlin"],
+};
+
+/** The research with its first `done` groups in, and the quick look if any. */
+export const research = (
+  done: number,
+  preview: CmoOverview["research"]["preview"] = null,
+): CmoOverview["research"] => ({
+  groups: RESEARCH_GROUPS.map((group, at) => ({
+    ...group,
+    state: at < done ? "done" : "running",
+  })),
+  preview,
+});
+
 /** Reading the site: no Brand Brain yet. */
 export const reading = (patch: Partial<CmoOverview> = {}) =>
   cmoOverview({

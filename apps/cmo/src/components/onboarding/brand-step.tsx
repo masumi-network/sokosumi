@@ -35,7 +35,8 @@ import { BusinessMark } from "../business-mark";
 import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
-import { stepTitle } from "./live";
+import { TypeIn } from "../type-in";
+import { planWriting, researchGroups, stepTitle } from "./live";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -248,8 +249,17 @@ export function BrandStep({
     return () => window.clearTimeout(timer);
   }, [sent, answered, idle]);
   const fixing = sent !== null && !answered && !stale;
-  // Right after research Cuso is still wrapping up his turn for a few seconds.
-  const finishing = !fixing && !stale && overview.botStatus === "RUNNING";
+  // Right after research Cuso is still wrapping up his turn for a few
+  // seconds. The plan Core starts after it never holds the founder back.
+  const writing = planWriting(overview);
+  const finishing =
+    !fixing && !stale && overview.botStatus === "RUNNING" && !writing;
+  // The plan's slot: Core started it when the research ended, and it opens
+  // once the founder confirms the brand.
+  const planSlot =
+    researchGroups(overview) !== null &&
+    !overview.brandBrainConfirmedAt &&
+    (writing || overview.strategy !== null);
 
   async function ask(text: string) {
     setSent({ text, after: lastWord?.id ?? null });
@@ -357,6 +367,20 @@ export function BrandStep({
             <PromiseCard brain={brain} site={site} onSave={onSave} />
             {hasShot ? <SiteCard overview={overview} host={site} /> : null}
           </div>
+
+          {planSlot ? (
+            <div className="card ob-plan-slot" aria-live="polite">
+              <span className="ob-small muted">Your plan</span>
+              <b>
+                <TypeIn
+                  text={writing ? "Writing your plan" : "Your plan is ready"}
+                />
+              </b>
+              <span className="ob-small muted">
+                It opens when you say Looks like us.
+              </span>
+            </div>
+          ) : null}
 
           {left.length > 0 ? (
             <div className="card card-focus ob-left">

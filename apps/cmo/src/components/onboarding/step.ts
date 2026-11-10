@@ -83,7 +83,14 @@ export function onboardingStep(
   // skip, so a reload after Launch resumes in the app.
   if (strategy && approved) return { step: "launch", phase: "review" };
 
-  if (!strategy && work?.kind === "strategy" && work.status !== "done") {
+  // Core starts the first plan when the research ends; it is the Plan step
+  // only once the founder confirmed the brand.
+  if (
+    !strategy &&
+    work?.kind === "strategy" &&
+    work.status !== "done" &&
+    overview.brandBrainConfirmedAt
+  ) {
     return { step: "plan", phase: "planning" };
   }
   if (!overview.brandBrainConfirmedAt && !approved) {

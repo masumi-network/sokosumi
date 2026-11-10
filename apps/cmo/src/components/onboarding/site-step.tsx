@@ -10,14 +10,14 @@ import {
   sourceHost,
 } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
-import { hostOf } from "../brand-profile";
+import { clip, hostOf } from "../brand-profile";
 import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
 import { TypeIn } from "../type-in";
 import { brandTiles, SiteCard, tileSource } from "./brand-step";
 import { Checklist, RESEARCH_PHASES, workChecklist } from "./checklist";
-import { setupRows, siteQuestion } from "./live";
+import { researchGroups, setupRows, siteQuestion } from "./live";
 import {
   type Answer,
   QuestionCard,
@@ -127,6 +127,36 @@ export function SiteStep({
         label: BRAND_SECTIONS[section.key].title,
         value: section.headline,
       }));
+  // Core's research groups: one slot each, filled as the group lands.
+  const groups = researchGroups(overview);
+  const profile = brain ? brandProfile(brain) : {};
+  const headline = (key: keyof typeof BRAND_SECTIONS) => {
+    const saved = found?.sections.find((section) => section.key === key);
+    const section = profile[key];
+    return (
+      saved?.headline ??
+      section?.headline ??
+      (section ? clip(section.answer, 72) : undefined)
+    );
+  };
+  const groupItems = groups?.map((group): FoundItem | null =>
+    group.state === "done"
+      ? {
+          id: group.key,
+          label: group.label,
+          value:
+            group.sections.map(headline).find(Boolean) ??
+            "Nothing public found",
+        }
+      : null,
+  );
+  // The quick look until the essentials replace it with the summary.
+  const preview = overview.research?.preview ?? null;
+  const glance = brain
+    ? { text: brain.summary, facts: [], from: "From the full read" }
+    : preview
+      ? { text: preview.line, facts: preview.facts, from: "From your homepage" }
+      : null;
   const rivals =
     (brain?.competitors.length ?? 0) + (brain?.alternatives?.length ?? 0);
   const checklist = workChecklist(
@@ -158,7 +188,8 @@ export function SiteStep({
               ? `${AGENT_NAME} is reading`
               : `${AGENT_NAME} read your site`}
           </p>
-          <Checklist items={checklist} />
+          {/* The group chips under the heading are the progress. */}
+          {groups ? null : <Checklist items={checklist} />}
         </div>
         <SiteCard
           overview={overview}
@@ -176,33 +207,59 @@ export function SiteStep({
               </span>
             ) : null}
           </div>
-          <ul className="ob-found-list">
-            {Array.from({ length: MAX_FOUND }, (_, slot) => {
-              const item = items[slot];
-              // A slot is its place in the list: it stays mounted as it fills.
-              return item ? (
-                <li key={slot} className="ob-slot">
-                  <span className="ob-small muted">{item.label}</span>
-                  <b>
-                    <TypeIn text={item.value} />
-                  </b>
-                  {item.source ? (
-                    <span className="ob-tile-source">
-                      Source: {item.source}
-                    </span>
-                  ) : null}
-                </li>
-              ) : (
-                <li
-                  key={slot}
-                  className="ob-slot ob-skeleton"
-                  aria-hidden="true"
-                >
-                  <span />
-                  <span />
-                </li>
-              );
-            })}
+          {groups ? (
+            glance ? (
+              <div className="ob-glance">
+                <span className="ob-small muted">At a glance</span>
+                <b>
+                  <TypeIn text={glance.text} />
+                </b>
+                {glance.facts.length > 0 ? (
+                  <span className="ob-small">{glance.facts.join(" · ")}</span>
+                ) : null}
+                <span className="ob-tile-source">{glance.from}</span>
+              </div>
+            ) : (
+              <div className="ob-glance ob-skeleton" aria-hidden="true">
+                <span />
+                <span />
+              </div>
+            )
+          ) : null}
+          <ul
+            className={
+              groupItems ? "ob-found-list ob-found-groups" : "ob-found-list"
+            }
+          >
+            {Array.from(
+              { length: groupItems?.length ?? MAX_FOUND },
+              (_, slot) => {
+                const item = groupItems ? groupItems[slot] : items[slot];
+                // A slot is its place in the list: it stays mounted as it fills.
+                return item ? (
+                  <li key={slot} className="ob-slot">
+                    <span className="ob-small muted">{item.label}</span>
+                    <b>
+                      <TypeIn text={item.value} />
+                    </b>
+                    {item.source ? (
+                      <span className="ob-tile-source">
+                        Source: {item.source}
+                      </span>
+                    ) : null}
+                  </li>
+                ) : (
+                  <li
+                    key={slot}
+                    className="ob-slot ob-skeleton"
+                    aria-hidden="true"
+                  >
+                    <span />
+                    <span />
+                  </li>
+                );
+              },
+            )}
           </ul>
         </div>
       </div>

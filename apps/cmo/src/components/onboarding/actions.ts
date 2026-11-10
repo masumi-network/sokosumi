@@ -40,6 +40,11 @@ export interface OnboardingPlanActions {
     overview: CmoOverview | null;
     error: string | null;
   }>;
+  /** Try again: Core replaces a plan running past twice the usual time. */
+  restartStrategy: () => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
   approveStrategy: () => Promise<CmoOverview>;
   /** The owner's own monthly ad budget; Cuso re-plans around it. */
   setAdBudget: (
@@ -104,6 +109,7 @@ export function inertOnboardingActions(
     sendMessage: async () => {},
     retryLearning: async () => ({ overview, error: null }),
     requestStrategy: result,
+    restartStrategy: result,
     approveStrategy: same,
     setAdBudget: result,
     approveBrandBrain: same,

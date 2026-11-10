@@ -433,6 +433,23 @@ export async function requestStrategy(
   };
 }
 
+/** Try again on a slow plan: Core replaces a run past twice the usual time. */
+export async function restartStrategy(projectId: string): Promise<{
+  overview: CmoOverview | null;
+  error: string | null;
+}> {
+  const core = await requireCore();
+  const { error } = await requestCmoStrategyForProject({
+    ...core,
+    path: { projectId },
+    body: { restart: true },
+  });
+  return {
+    overview: await loadOverview(projectId),
+    error: error ? errorText(error, "Could not start planning") : null,
+  };
+}
+
 /** The owner's own monthly ad budget; Cuso re-plans the ads around it. */
 export async function setAdBudget(
   projectId: string,

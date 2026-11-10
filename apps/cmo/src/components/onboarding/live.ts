@@ -20,10 +20,42 @@ export const USUAL_SECONDS: Record<Work["kind"], number> = {
 };
 
 /**
- * Core settles a turn as failed after five minutes without progress; until
- * then a retry is refused (research) or would start a second turn (plan).
+ * Core settles a turn as failed after five minutes without progress. A Core
+ * without the research groups refuses a retry until then (research) or
+ * starts a second turn (plan).
  */
 export const QUIET_SECONDS = 5 * 60;
+
+type Group = CmoOverview["research"]["groups"][number];
+
+/** Core's research groups; null from a Core that sends none, so today's screen stays. */
+export function researchGroups(overview: CmoOverview): Group[] | null {
+  const groups = overview.research?.groups;
+  return groups && groups.length > 0 ? groups : null;
+}
+
+/** The chips under the live line: the groups while Cuso researches. */
+export function researchChips(overview: CmoOverview): Group[] | null {
+  const research =
+    overview.work?.kind === "research" && overview.work.status === "running";
+  return research ? researchGroups(overview) : null;
+}
+
+/** Cuso is writing the plan now. */
+export function planWriting(overview: CmoOverview): boolean {
+  return (
+    overview.work?.kind === "strategy" && overview.work.status === "running"
+  );
+}
+
+/** The ids of the founder's nos that Cuso has not written into the Brand Brain yet. */
+export function brandCorrections(overview: CmoOverview): string[] {
+  return (overview.brandBrain?.questions ?? [])
+    .filter(
+      (question) => question.answer === "no" && question.corrected === false,
+    )
+    .map((question) => question.id);
+}
 
 /** One line of slow copy, and whether Try again shows beside it. */
 export interface SlowCopy {
@@ -33,14 +65,20 @@ export interface SlowCopy {
 
 /**
  * The time so far against the usual time. Past the usual time it says so;
- * from twice the usual time it offers Try again, once the work has shown no
- * progress for `QUIET_SECONDS`. Never a percentage.
+ * from twice the usual time it offers Try again: at once when Core restarts
+ * a slow run (`restartable`), else once the work has shown no progress for
+ * `QUIET_SECONDS`. Never a percentage.
  */
-export function slowCopy(elapsed: number, usual: number, quiet = 0): SlowCopy {
+export function slowCopy(
+  elapsed: number,
+  usual: number,
+  quiet = 0,
+  restartable = false,
+): SlowCopy {
   const so = elapsedLabel(elapsed);
   const typical = `usually about ${Math.round(usual / 60)} min`;
   if (elapsed >= usual * 2) {
-    const stuck = quiet >= QUIET_SECONDS;
+    const stuck = restartable || quiet >= QUIET_SECONDS;
     return {
       line: `Taking much longer than usual: ${so}, ${typical}. ${stuck ? "Nothing is lost if you try again." : "Still working."}`,
       retry: stuck,

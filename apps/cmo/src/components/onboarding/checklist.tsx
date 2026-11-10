@@ -12,11 +12,16 @@ interface ChecklistItem {
 
 interface ChecklistProps {
   items: ChecklistItem[];
+  /** "ob-chips" lays the same items out in a row. */
+  className?: string;
 }
 
-export function Checklist({ items }: ChecklistProps) {
+export function Checklist({
+  items,
+  className = "ob-checklist",
+}: ChecklistProps) {
   return (
-    <ol className="ob-checklist">
+    <ol className={className}>
       {items.map((item) => (
         <li key={item.label} className={item.state}>
           <span className="ob-box" aria-hidden="true">

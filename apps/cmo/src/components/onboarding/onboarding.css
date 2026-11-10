@@ -1940,3 +1940,70 @@ body:has(.ob) .site-header {
     justify-content: center;
   }
 }
+
+/* ── Research you can watch: the six groups, the first look, the plan's slot ── */
+
+/* The groups under the live line: the checklist's boxes, in one row. */
+.ob-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ob-chips li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.ob-chips li.done,
+.ob-chips li.working {
+  color: var(--foreground);
+}
+
+/* One slot per group, two across when there is room. */
+.ob-found-list.ob-found-groups {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+/* The first look keeps one height from skeleton to summary. */
+.ob-glance {
+  display: grid;
+  gap: 2px;
+  min-height: 92px;
+  align-content: start;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.ob-glance b {
+  font-weight: 500;
+}
+
+.ob-glance .ob-tile-source {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ob-glance.ob-skeleton {
+  align-content: center;
+  border-style: dashed;
+}
+
+.ob-plan-slot {
+  display: grid;
+  gap: 2px;
+  padding: 12px 16px;
+}
+
+.ob-plan-slot b {
+  font-weight: 500;
+}

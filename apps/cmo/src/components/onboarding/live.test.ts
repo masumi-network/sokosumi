@@ -44,6 +44,15 @@ describe("slow copy", () => {
     expect(slowCopy(14 * MIN - 1, 7 * MIN, QUIET_SECONDS).retry).toBe(false);
   });
 
+  it("offers Try again from twice the usual time when Core can restart the run", () => {
+    // Core replaces a slow run on Try again, so no quiet stretch is needed.
+    expect(slowCopy(14 * MIN, 7 * MIN, 0, true)).toEqual({
+      line: "Taking much longer than usual: 14 min so far, usually about 7 min. Nothing is lost if you try again.",
+      retry: true,
+    });
+    expect(slowCopy(14 * MIN - 1, 7 * MIN, 0, true).retry).toBe(false);
+  });
+
   it("never shows a percentage", () => {
     for (const seconds of [0, 30, 300, 900, 3_600]) {
       expect(slowCopy(seconds, USUAL_SECONDS.research).line).not.toMatch(/%/);

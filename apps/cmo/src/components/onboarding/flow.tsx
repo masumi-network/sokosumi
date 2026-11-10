@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { SkippedStep } from "../../lib/skipped-steps";
+import { strategyApproved } from "../../lib/strategy";
 import { adsReturnError } from "../ads";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
@@ -16,14 +17,46 @@ import { ThemeToggle } from "../theme-toggle";
 import { TypeIn } from "../type-in";
 import { type AnswerInput, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
-import { useElapsedSeconds } from "./checklist";
+import { Checklist, useElapsedSeconds } from "./checklist";
 import { LaunchStep } from "./launch-step";
-import { liveLine, slowCopy, stepTitle, USUAL_SECONDS } from "./live";
+import {
+  brandCorrections,
+  liveLine,
+  planWriting,
+  researchGroups,
+  slowCopy,
+  stepTitle,
+  USUAL_SECONDS,
+} from "./live";
 import { PlanStep } from "./plan-step";
 import { RetryButton } from "./questions";
 import { SiteStep } from "./site-step";
 import { type OnboardingStep, onboardingStep, STEPS, stepIndex } from "./step";
 import { StepMarkers } from "./step-markers";
+
+interface ResearchChipsProps {
+  overview: CmoOverview;
+}
+
+/**
+ * The research's six groups under the live line, on Site: each ticks off
+ * as Cuso saves its sections. A group the read never reached stays open.
+ */
+function ResearchChips({ overview }: ResearchChipsProps) {
+  const groups = researchGroups(overview);
+  if (!groups) return null;
+  const reading =
+    overview.work?.kind === "research" && overview.work.status === "running";
+  return (
+    <Checklist
+      className="ob-chips"
+      items={groups.map((group) => ({
+        label: group.label,
+        state: group.state === "done" ? "done" : reading ? "working" : "next",
+      }))}
+    />
+  );
+}
 
 /** The steps the founder can open again once past them; Site only leads to Brand. */
 function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
@@ -108,9 +141,9 @@ interface LiveLineProps {
 
 /**
  * One line under the heading: what Cuso is doing now, from Core's work
- * labels, and the time so far against the usual. Past twice the usual time,
- * with no progress for five minutes, it offers Try again. It keeps its
- * height when nothing runs.
+ * labels, and the time so far against the usual. Past twice the usual time
+ * it offers Try again (Core restarts the slow run; an older Core first needs
+ * five quiet minutes). It keeps its height when nothing runs.
  */
 function LiveLine({ overview, starting, onRetry, topUpUrl }: LiveLineProps) {
   const live = liveLine(overview);
@@ -119,7 +152,12 @@ function LiveLine({ overview, starting, onRetry, topUpUrl }: LiveLineProps) {
   const label = live?.label ?? (starting ? "Planning your month" : "");
   const slow =
     live && elapsed !== null
-      ? slowCopy(elapsed, USUAL_SECONDS[live.work.kind], quiet ?? 0)
+      ? slowCopy(
+          elapsed,
+          USUAL_SECONDS[live.work.kind],
+          quiet ?? 0,
+          researchGroups(overview) !== null,
+        )
       : null;
   return (
     <div className="ob-live-line">
@@ -282,6 +320,24 @@ export function OnboardingFlow({
   const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));
   };
+  // Core starts the first plan when the research ends, so a no the founder
+  // gave while it was written is fitted afterwards. Each set of nos is sent
+  // once per visit, so a re-plan that leaves one open never loops.
+  const fitted = useRef("");
+  const corrections =
+    researchGroups(overview) !== null &&
+    step !== "brand" &&
+    overview.brandBrainConfirmedAt !== null &&
+    overview.strategy !== null &&
+    !planWriting(overview) &&
+    !strategyApproved(overview)
+      ? brandCorrections(overview).join(",")
+      : "";
+  useEffect(() => {
+    if (!corrections || fitted.current === corrections) return;
+    fitted.current = corrections;
+    void request(BRAND_CORRECTED).catch(() => {});
+  });
   const retryLearning = async () => {
     const result = await actions.retryLearning();
     setOverview(result.overview);
@@ -345,12 +401,15 @@ export function OnboardingFlow({
             overview={overview}
             starting={starting}
             onRetry={
-              overview.work?.kind === "strategy"
-                ? () => request()
-                : retryLearning
+              overview.work?.kind !== "strategy"
+                ? retryLearning
+                : researchGroups(overview)
+                  ? async () => settle(await actions.restartStrategy())
+                  : () => request()
             }
             topUpUrl={overview.subscribeUrl}
           />
+          {step === "site" ? <ResearchChips overview={overview} /> : null}
         </div>
         {step === "site" ? (
           <SiteStep
@@ -394,6 +453,15 @@ export function OnboardingFlow({
             }
             onApprove={async () => {
               setOverview(await actions.approveBrandBrain());
+              // Core started the plan when the research ended: confirming
+              // starts nothing, and a no is fitted once the plan is written.
+              const started =
+                researchGroups(overview) !== null &&
+                (overview.strategy !== null || planWriting(overview));
+              if (started) {
+                setViewing(null);
+                return null;
+              }
               // Once a plan exists, the corrected Brand Brain changes it.
               const refused = await request(
                 overview.strategy ? BRAND_CORRECTED : undefined,

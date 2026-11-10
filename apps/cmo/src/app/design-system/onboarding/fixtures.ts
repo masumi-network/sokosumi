@@ -6,7 +6,9 @@ import {
   brain,
   draft,
   hex,
+  quickLook,
   reading,
+  research,
   richBrain,
   richMedia,
   richPlan,
@@ -17,11 +19,14 @@ import {
 export const SCREENS = [
   "hire",
   "start",
+  "quick-look",
   "reading",
   "reading-slow",
+  "groups",
   "writing",
   "asking",
   "brand",
+  "brand-planning",
   "plan",
   "planning",
   "planning-slow",
@@ -65,6 +70,58 @@ export function screenOverview(screen: Screen): CmoOverview {
           subscriptionStatus: null,
           availableCredits: 10_000,
         },
+      });
+    case "quick-look":
+      // Seconds in: the quick look is back, no group has landed yet.
+      return reading({
+        research: research(0, quickLook),
+        work: work("research", {
+          startedAt: ago(0.7),
+          steps: [
+            {
+              id: "s1",
+              kind: "read",
+              label: "Reading acme.io",
+              url: "https://acme.io",
+              status: "running",
+              at: ago(0.5),
+            },
+          ],
+          sections: [],
+          sectionsSaved: 0,
+        }),
+        brandMedia: richMedia,
+        brandVisual: visual,
+      });
+    case "groups":
+      // Two groups in, four running; their slots fill as they land.
+      return reading({
+        research: research(2, quickLook),
+        work: work("research", { sectionsSaved: 7, startedAt: ago(3) }),
+        brandMedia: richMedia,
+        brandVisual: visual,
+      });
+    case "brand-planning":
+      // The research is in and Core started the plan: Brand, while it writes.
+      return asking({
+        brandBrain: richBrain,
+        research: research(6),
+        brandMedia: richMedia,
+        brandVisual: visual,
+        botStatus: "RUNNING",
+        work: work("strategy", {
+          startedAt: ago(1),
+          steps: [
+            {
+              id: "p1",
+              kind: "strategy",
+              label: "Writing your strategy",
+              url: null,
+              status: "running",
+              at: ago(0.5),
+            },
+          ],
+        }),
       });
     case "reading":
     case "reading-slow":
