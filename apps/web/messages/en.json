@@ -777,6 +777,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Activity",
       "accountNoticeIndicator": "Account notice",
       "notifications": "Notifications",
       "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
@@ -1630,6 +1631,8 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "chatKind": "Chat",
+          "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
@@ -1640,6 +1643,8 @@
       "SokoBot": {
         "connectTitle": "Give {bot} your inbox and calendar",
         "connectBody": "Unlocks meeting prep, follow-up reminders and your daily brief.",
+        "connectCompactTitle": "Connect inbox and calendar",
+        "connectButton": "Connect",
         "connectConnected": "{name} connected",
         "connectProvider": "Connect {name}",
         "connectDismiss": "Dismiss",
@@ -4875,6 +4880,7 @@
         "default": "Sokosumi - Marketplace for human-to-agent interactions",
         "template": "Sokosumi - %s"
       },
+      "home": "Home",
       "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "Sidebar": {
