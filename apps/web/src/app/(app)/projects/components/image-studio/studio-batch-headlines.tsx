@@ -15,6 +15,7 @@ import {
 import { listStudioBatchAssets } from "@/lib/actions/image-studio/action";
 
 import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
+import type { StudioBatchDownloadReview } from "./studio-batch";
 import { StudioHeadlineSelect } from "./studio-headline-select";
 import { StudioImage } from "./studio-image";
 import { isVideoAsset, type StudioAsset, type StudioLabels } from "./types";
@@ -36,7 +37,7 @@ export function StudioBatchHeadlines({
   labels: StudioLabels;
   downloading?: boolean;
   onHeadlineChange: (asset: StudioAsset, headline: string) => void;
-  onDownload: () => void;
+  onDownload: (review: StudioBatchDownloadReview) => void;
 }) {
   const t = useTranslations("App.Studio");
   const [review, setReview] = useState<{
@@ -44,6 +45,7 @@ export function StudioBatchHeadlines({
     options: string[];
   }>();
   const [failed, setFailed] = useState(false);
+  const [changed, setChanged] = useState(false);
   const [loading, startLoad] = useTransition();
   const requestId = useRef(0);
 
@@ -78,6 +80,7 @@ export function StudioBatchHeadlines({
       onOpenChange={(open) => {
         if (open) {
           setReview(undefined);
+          setChanged(false);
           load();
         }
       }}
@@ -124,6 +127,9 @@ export function StudioBatchHeadlines({
                         t("batchAdNumber", { number: index + 1 })}
                     </p>
                     <p className="text-muted-foreground text-xs">
+                      {asset.version > 1
+                        ? `${labels.version} ${asset.version} · `
+                        : null}
                       {asset.width} × {asset.height}
                     </p>
                     <StudioHeadlineSelect
@@ -147,6 +153,11 @@ export function StudioBatchHeadlines({
             {t("headlineSaving")}
           </p>
         ) : null}
+        {changed ? (
+          <p className="text-muted-foreground text-sm" role="status">
+            {t("batchReviewChanged")}
+          </p>
+        ) : null}
         <DialogFooter>
           <Button
             disabled={
@@ -156,7 +167,17 @@ export function StudioBatchHeadlines({
               unavailableHeadline
             }
             loading={downloading}
-            onClick={onDownload}
+            onClick={() => {
+              if (!review) return;
+              setChanged(false);
+              onDownload({
+                assets: review.assets,
+                onChanged: () => {
+                  setChanged(true);
+                  load();
+                },
+              });
+            }}
             type="button"
           >
             {t("downloadBatchZip")}

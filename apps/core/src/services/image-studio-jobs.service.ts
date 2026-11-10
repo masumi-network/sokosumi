@@ -136,6 +136,8 @@ export interface CreateImageJobInput {
   prompt: string;
   product?: StudioProductIdentity;
   batchId?: string;
+  /** Continue the same campaign ad when the request edits one source image. */
+  reuseParentBatchSlot?: boolean;
   exportHeadline?: string;
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
@@ -304,7 +306,9 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
 
     const source =
       input.parentAssetId &&
-      (!input.product || input.reuseParentHeadlineIfAvailable)
+      (!input.product ||
+        input.reuseParentHeadlineIfAvailable ||
+        input.reuseParentBatchSlot)
         ? await tx.projectImageAsset.findFirst({
             where: { id: input.parentAssetId, projectId: input.projectId },
             select: {
@@ -316,12 +320,18 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
                   productId: true,
                   productName: true,
                   referenceFileIds: true,
+                  ...(input.reuseParentBatchSlot
+                    ? { id: true, batchId: true, batchSlotId: true }
+                    : {}),
                 },
               },
             },
           })
         : null;
 
+    const batchSlotId =
+      source?.job.batchSlotId ??
+      (source?.job.batchId ? source.job.id : undefined);
     const sameProduct = input.product
       ? input.product.id === source?.job.productId
       : !input.referenceFileIds?.length;
@@ -438,6 +448,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         productId: input.product?.id ?? source?.job.productId,
         productName: input.product?.name ?? source?.job.productName,
         batchId: input.batchId,
+        batchSlotId,
         exportHeadline,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
@@ -761,6 +772,8 @@ export async function createImageJob(input: CreateImageJobInput) {
   const refinesParent =
     input.parentAssetId !== null &&
     input.referenceAssetIds.includes(input.parentAssetId);
+  const refinesSingleSource =
+    refinesParent && input.referenceAssetIds.length === 1;
   return await reserveAndSend({
     ...request,
     reuseParentPhotoIfAvailable:
@@ -770,9 +783,9 @@ export async function createImageJob(input: CreateImageJobInput) {
       refinesParent &&
       references < maxReferences,
     reuseParentHeadlineIfAvailable:
-      input.reuseParentHeadlineIfAvailable &&
-      refinesParent &&
-      input.referenceAssetIds.length === 1,
+      input.reuseParentHeadlineIfAvailable && refinesSingleSource,
+    reuseParentBatchSlot:
+      input.reuseParentBatchSlot && !input.batchId && refinesSingleSource,
     kind,
     model: falModelForKind(kind, modelId),
     settings,
@@ -1290,10 +1303,14 @@ async function noteUnreachable(
       lastPollError: message.slice(0, 500),
       unreachableSource: source,
     },
-    select: { [column]: true } as Record<string, true>,
+    select: {
+      statusUnreachableSince: true,
+      resultUnreachableSince: true,
+      authUnreachableSince: true,
+    },
   });
 
-  const startedAt = (updated as Record<string, Date | null>)[column] ?? null;
+  const startedAt = updated[column];
 
   // First failure of this dependency's current run: start its clock and wait.
   if (!startedAt) {

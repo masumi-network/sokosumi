@@ -540,11 +540,18 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
           idempotencyKey: randomUUID(),
         }),
       });
-    const fromBrowser = (product = firstAd.product) =>
+    const fromBrowser = (
+      product = firstAd.product,
+      parentAssetId = firstAd.id,
+      explicitBatchId?: string,
+    ) =>
       studio.request(
         `${path}/jobs`,
         json("POST", {
           ...refinement,
+          parentAssetId,
+          referenceAssetIds: [parentAssetId],
+          batchId: explicitBatchId,
           product,
           settings: { aspectRatio: "9:16" },
           idempotencyKey: randomUUID(),
@@ -553,6 +560,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     const finishRevision = async (
       response: Response,
       expectedHeadline: string | null,
+      expectedParentId = firstAd.id,
     ) => {
       expect(response.ok).toBe(true);
       const body = await response.json();
@@ -561,9 +569,15 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       await settleWithMedia(job.id, "https://fal.example/campaign.png");
       const result = await prisma.projectImageAsset.findUniqueOrThrow({
         where: { jobId: job.id },
-        select: { parentId: true, rootId: true, headline: true },
+        select: {
+          id: true,
+          parentId: true,
+          rootId: true,
+          headline: true,
+          job: { select: { batchSlotId: true } },
+        },
       });
-      expect(result.parentId).toBe(firstAd.id);
+      expect(result.parentId).toBe(expectedParentId);
       expect(result.rootId).toBe(firstAd.rootId);
       if (expectedHeadline) {
         expect(result.headline).toMatchObject({
@@ -576,16 +590,67 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       } else {
         expect(result.headline).toBeNull();
       }
+      return result;
     };
-    await finishRevision(await fromAssistant(), secondApprovedLine);
-    await finishRevision(await fromBrowser(), secondApprovedLine);
+    const pendingRevision = await fromAssistant();
+    const expectedBatch = async (replacementId: string) => {
+      const response = await readBatch();
+      expect(response.status).toBe(200);
+      const ready = imageStudioAssetSchema
+        .array()
+        .parse((await response.json()).data);
+      expect(new Set(ready.map(({ id }) => id))).toEqual(
+        new Set(
+          assets.map(({ id }) => (id === firstAd.id ? replacementId : id)),
+        ),
+      );
+      expect(ready).toHaveLength(assets.length);
+      expect(ready.every((asset) => asset.batchId === batchId)).toBe(true);
+    };
+    await expectedBatch(firstAd.id);
+    const firstRevision = await finishRevision(
+      pendingRevision,
+      secondApprovedLine,
+    );
+    expect(firstRevision.job.batchSlotId).toBe(firstAd.jobId);
+    await expectedBatch(firstRevision.id);
+    const laterRevision = await finishRevision(
+      await fromBrowser(firstAd.product, firstRevision.id),
+      secondApprovedLine,
+      firstRevision.id,
+    );
+    expect(laterRevision.job.batchSlotId).toBe(firstAd.jobId);
+    await expectedBatch(laterRevision.id);
     const replacement = products.find(({ id }) => id !== firstAd.product?.id);
     if (!replacement)
       throw new Error("A different product is required for the swap");
-    await finishRevision(
+    const swapped = await finishRevision(
       await fromBrowser({ id: replacement.id, name: replacement.name }),
       null,
     );
+    await expectedBatch(swapped.id);
+
+    const anotherBatchId = randomUUID();
+    const independentAds = [];
+    for (let index = 0; index < 2; index++) {
+      const revision = await finishRevision(
+        await fromBrowser(firstAd.product, firstAd.id, anotherBatchId),
+        secondApprovedLine,
+      );
+      expect(revision.job.batchSlotId).toBeNull();
+      independentAds.push(revision.id);
+    }
+    const anotherBatch = await studio.request(
+      `${path}/batches/${anotherBatchId}/assets`,
+    );
+    expect(anotherBatch.status).toBe(200);
+    const independent = imageStudioAssetSchema
+      .array()
+      .parse((await anotherBatch.json()).data);
+    expect(new Set(independent.map(({ id }) => id))).toEqual(
+      new Set(independentAds),
+    );
+    await expectedBatch(swapped.id);
 
     const currentKit = studioBrandKitSchema.parse(
       (await (await studio.request(`${path}/brand-kit`)).json()).data,
@@ -603,6 +668,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       }),
     );
     expect(revoke.status).toBe(200);
-    await finishRevision(await fromAssistant(), null);
+    const withoutHeadline = await finishRevision(await fromAssistant(), null);
+    await expectedBatch(withoutHeadline.id);
   });
 });

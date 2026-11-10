@@ -421,11 +421,16 @@ describe("a gallery with work in it", () => {
     expect(pickers).toHaveLength(2);
     expect(review.getByText("Kettle")).toBeVisible();
     fireEvent.change(pickers[0], { target: { value: first } });
-    await waitFor(() => expect(pickers[0]).toHaveValue(first));
+    await waitFor(() => {
+      expect(pickers[0]).toHaveValue(first);
+      expect(pickers[1]).toBeEnabled();
+    });
     fireEvent.change(pickers[1], { target: { value: second } });
-    await waitFor(() => expect(pickers[1]).toHaveValue(second));
-
     const download = review.getByRole("button", { name: "downloadBatchZip" });
+    await waitFor(() => {
+      expect(pickers[1]).toHaveValue(second);
+      expect(download).toBeEnabled();
+    });
     mocks.loadBrandKit.mockResolvedValueOnce({ approvedLines: [first] });
     fireEvent.click(download);
     await waitFor(() => expect(mocks.loadBrandKit).toHaveBeenCalledTimes(2));
@@ -438,6 +443,40 @@ describe("a gallery with work in it", () => {
         [open, older],
         undefined,
         { [open.id]: first, [older.id]: second },
+      ),
+    );
+  });
+
+  it("refreshes batch review before exporting a newly finished revision", async () => {
+    const original = { ...ASSET, projectId: "p", batchId: "batch-a" };
+    const revised = { ...original, id: "revised-ad", version: 2 };
+    mocks.listBatchAssets
+      .mockResolvedValueOnce([original])
+      .mockResolvedValue([revised]);
+    mocks.loadBrandKit.mockResolvedValue({ approvedLines: [] });
+    mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+    mount([original]);
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(
+      screen.getByRole("button", { name: "reviewBatchHeadlines" }),
+    );
+    const review = within(
+      screen.getByRole("dialog", { name: "reviewBatchHeadlines" }),
+    );
+    await review.findByLabelText("approvedHeadline");
+    const download = review.getByRole("button", { name: "downloadBatchZip" });
+    fireEvent.click(download);
+    await review.findByText("batchReviewChanged");
+    await review.findByText(/^Version 2 · /i);
+    expect(mocks.createArchive).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(download).toBeEnabled());
+    fireEvent.click(download);
+    await waitFor(() =>
+      expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+        [revised],
+        undefined,
       ),
     );
   });

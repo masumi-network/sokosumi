@@ -64,7 +64,10 @@ import {
   saveStudioDownload,
 } from "./studio-ad-download";
 import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
-import type { StudioBatchProduct } from "./studio-batch";
+import type {
+  StudioBatchDownloadReview,
+  StudioBatchProduct,
+} from "./studio-batch";
 import { StudioChat } from "./studio-chat";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
@@ -502,11 +505,27 @@ export function ImageStudio({
   function handleDownloadBatch(
     { projectId, batchId }: StudioAsset,
     logo?: StudioLogoPosition,
+    review?: StudioBatchDownloadReview,
   ) {
     if (downloadingAds || headlineSaveInProgress.current || !batchId) return;
     startAdDownload(async () => {
       try {
         const assets = await listStudioBatchAssets({ projectId, batchId });
+        if (review) {
+          const reviewedHeadlines = new Map(
+            review.assets.map((asset) => [asset.id, headlineForAsset(asset)]),
+          );
+          if (
+            assets.length !== review.assets.length ||
+            assets.some(
+              (asset) =>
+                reviewedHeadlines.get(asset.id) !== headlineForAsset(asset),
+            )
+          ) {
+            review.onChanged();
+            return;
+          }
+        }
         const limit = archiveLimitFor(assets);
         if (limit) {
           toast.error(limit);

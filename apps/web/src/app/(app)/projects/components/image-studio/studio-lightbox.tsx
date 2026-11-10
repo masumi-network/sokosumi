@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 import { resolveModel, supportsVariation } from "./catalog";
 import { StudioAdPreview } from "./studio-ad-preview";
+import type { StudioBatchDownloadReview } from "./studio-batch";
 import { StudioBatchHeadlines } from "./studio-batch-headlines";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
@@ -83,7 +84,11 @@ export function StudioLightbox({
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
-  onDownloadBatch?: (asset: StudioAsset, logo?: StudioLogoPosition) => void;
+  onDownloadBatch?: (
+    asset: StudioAsset,
+    logo?: StudioLogoPosition,
+    review?: StudioBatchDownloadReview,
+  ) => void;
   downloadingBatch?: boolean;
   headlineForAsset?: (asset: StudioAsset) => string;
   savingHeadline?: boolean;
@@ -333,7 +338,9 @@ export function StudioLightbox({
                       savingHeadline={savingHeadline}
                       key={logoScope}
                       labels={labels}
-                      onDownload={() => onDownloadBatch(single, logoPosition)}
+                      onDownload={(review) =>
+                        onDownloadBatch(single, logoPosition, review)
+                      }
                       onHeadlineChange={onHeadlineChange}
                       projectId={single.projectId}
                     />

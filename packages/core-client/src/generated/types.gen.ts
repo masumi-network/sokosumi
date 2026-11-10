@@ -67690,7 +67690,7 @@ export type ListStudioBatchAssetsError = ListStudioBatchAssetsErrors[keyof ListS
 
 export type ListStudioBatchAssetsResponses = {
     /**
-     * Finished ads in a Studio batch
+     * Latest finished version of each ad in a Studio batch
      */
     200: {
         data: Array<ProjectImageAsset>;
