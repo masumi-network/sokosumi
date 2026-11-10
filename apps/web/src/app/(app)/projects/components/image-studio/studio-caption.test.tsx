@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -114,7 +115,7 @@ const ASSET: StudioAsset = {
   contentPath: "/asset-1",
 };
 
-function mount() {
+function mount(projectLogo?: string) {
   return render(
     <ImageStudio
       catalog={TEST_CATALOG}
@@ -122,6 +123,7 @@ function mount() {
       initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
       labels={TEST_LABELS}
       projectId="project-9"
+      projectLogo={projectLogo}
     />,
   );
 }
@@ -133,6 +135,117 @@ beforeEach(() => {
 
 afterEach(() => {
   document.documentElement.classList.remove("dark");
+});
+
+describe("preview an ad", () => {
+  it("downloads the same cropped and branded image shown in the preview", async () => {
+    mount(
+      "https://abc123.public.blob.vercel-storage.com/projects/project-9/logos/logo.png",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
+    const content = () => preview.getByRole("img", { name: ASSET.prompt });
+    const original = content().getAttribute("src");
+    const { pathname } = new URL(original ?? "", "https://example.com");
+    const logo = preview.getByLabelText("logoOnCreative");
+
+    fireEvent.click(
+      preview.getByRole("button", { name: "PreviewPlatforms.reels" }),
+    );
+    fireEvent.change(logo, { target: { value: "top-right" } });
+    const branded = `${pathname}?logo=top-right&placement=9%3A16`;
+    expect(content()).toHaveAttribute("src", branded);
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Uint8Array([1]), {
+        headers: { "content-type": "image/png" },
+      }),
+    );
+    const objectUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:https://example.com/placement");
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    try {
+      fireEvent.click(
+        preview.getByRole("button", { name: "downloadPlacementPng" }),
+      );
+      await waitFor(() => expect(click).toHaveBeenCalledOnce());
+      expect(fetch).toHaveBeenCalledWith(branded, expect.any(Object));
+      expect(click.mock.contexts[0]).toHaveAttribute(
+        "download",
+        "ad-v1-9x16-branded.png",
+      );
+    } finally {
+      fetch.mockRestore();
+      click.mockRestore();
+      objectUrl.mockRestore();
+    }
+    fireEvent.change(logo, { target: { value: "" } });
+    expect(content()).toHaveAttribute("src", `${pathname}?placement=9%3A16`);
+    expect(
+      preview.getByRole("button", { name: "downloadPlacementPng" }),
+    ).toBeEnabled();
+  });
+
+  it("previews a crop of the open image and returns to the same asset", async () => {
+    mount();
+    const trigger = screen.getByRole("button", { name: "previewAd" });
+    fireEvent.click(trigger);
+
+    const preview = screen.getByRole("dialog", { name: "previewAd" });
+    expect(within(preview).getByText("Launch")).toBeInTheDocument();
+    expect(within(preview).getByText("previewSponsored")).toBeInTheDocument();
+    expect(
+      within(preview).getByRole("button", { name: /Placements.squareFeed/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const image = within(preview).getByRole("img", { name: ASSET.prompt });
+    const src = image.getAttribute("src");
+    const path = new URL(src ?? "", "https://example.com").pathname;
+    expect(
+      within(preview).getByRole("button", {
+        name: "PreviewPlatforms.instagram",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(preview).queryByRole("button", {
+        name: /Placements.landscapeFeed/,
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(preview).getByRole("button", {
+        name: "PreviewPlatforms.facebook",
+      }),
+    );
+    fireEvent.click(
+      within(preview).getByRole("button", { name: /Placements.landscapeFeed/ }),
+    );
+    const facebook = within(preview).getByRole("group", {
+      name: "PreviewPlatforms.facebook",
+    });
+    expect(within(facebook).getByRole("img").parentElement).toHaveStyle({
+      aspectRatio: "16 / 9",
+    });
+
+    fireEvent.click(
+      within(preview).getByRole("button", { name: "PreviewPlatforms.reels" }),
+    );
+    const stories = within(preview).getByRole("button", {
+      name: /Placements.stories/,
+    });
+    expect(stories).toHaveAttribute("aria-pressed", "true");
+    const reel = within(preview).getByRole("group", {
+      name: "PreviewPlatforms.reels",
+    });
+    const reelImage = within(reel).getByRole("img");
+    expect(reelImage.parentElement).toHaveStyle({ aspectRatio: "9 / 16" });
+    expect(reelImage).toHaveAttribute("src", `${path}?placement=9%3A16`);
+
+    fireEvent.click(within(preview).getByRole("button", { name: "close" }));
+    await waitFor(() => expect(preview).not.toBeInTheDocument());
+    expect(trigger).toHaveFocus();
+  });
 });
 
 describe("write a caption", () => {
