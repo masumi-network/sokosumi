@@ -1,6 +1,6 @@
 "use client";
 
-import { Plug, RefreshCw, RotateCw } from "lucide-react";
+import { Plug, RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,8 +20,6 @@ type ConnectionButtonProps = {
   provider: SeoConnectionProvider;
   /** Runs after approval. */
   onConnected?: () => void;
-  /** Opens the property choice and the sync. A connected account then has a sync button on its own row. */
-  onSync?: () => void;
   /** The view's one primary action passes "primary"; every other use stays outlined. */
   variant?: "primary" | "outline";
   /** The first connection's button text, where one step covers more than this provider. */
@@ -33,7 +31,6 @@ type ConnectionButtonProps = {
 export function SeoConnectionButton({
   provider,
   onConnected,
-  onSync,
   variant = "outline",
   connectLabel,
   inRow,
@@ -49,7 +46,6 @@ export function SeoConnectionButton({
       key={identity}
       provider={provider}
       onConnected={onConnected}
-      onSync={onSync}
       variant={variant}
       connectLabel={connectLabel}
       inRow={inRow}
@@ -60,7 +56,6 @@ export function SeoConnectionButton({
 function SeoConnectionControl({
   provider,
   onConnected,
-  onSync,
   variant,
   connectLabel,
   inRow,
@@ -76,7 +71,8 @@ function SeoConnectionControl({
   });
   // The state is not known yet, so no button can have the right label.
   if (model.status.isPending) return <Skeleton className="h-8 w-44" />;
-  if (model.status.isError)
+  // A later read that fails keeps the state that the last good read gave.
+  if (model.status.isError && !data)
     return (
       <div className={STACK_CLASS}>
         <p role="alert" className="text-muted-foreground text-sm">
@@ -105,19 +101,6 @@ function SeoConnectionControl({
   if (data?.status === "connected")
     return (
       <div className={STACK_CLASS}>
-        {/* Connected is not the end: the property choice and the sync follow. */}
-        {onSync ? (
-          <Button
-            type="button"
-            variant={variant}
-            size="sm"
-            disabled={model.busy !== null}
-            onClick={onSync}
-          >
-            <RefreshCw />
-            {t("syncStatistics")}
-          </Button>
-        ) : null}
         <SeoConnectedAccount name={name} model={model} inRow={inRow} />
         {model.error ? (
           <p role="alert" className="text-destructive text-sm">

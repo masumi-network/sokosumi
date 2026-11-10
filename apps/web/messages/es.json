@@ -11440,7 +11440,10 @@
             "search_console": "Conecta Google para medir clics, impresiones y las búsquedas que muestran estas páginas. Google Analytics añade visitas y páginas vistas y es opcional.",
             "ga4": "Conecta Google Analytics para medir visitas y páginas vistas."
           },
-          "sync": "Search Console está conectado. Sincroniza las estadísticas para medir clics, impresiones y las búsquedas que muestran estas páginas.",
+          "sync": {
+            "search_console": "Search Console está conectado. Sincroniza las estadísticas para medir clics, impresiones y las búsquedas que muestran estas páginas.",
+            "ga4": "Google Analytics está conectado. Sincroniza las estadísticas para medir visitas y páginas vistas."
+          },
           "competitors": {
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."

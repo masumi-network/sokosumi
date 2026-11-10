@@ -147,8 +147,9 @@ export function useSeoConnection(
       const outcome = run.kind === "completed" ? run.value : { kind: run.kind };
       if (outcome.kind === "connected") {
         queryClient.setQueryData(queryKey, outcome.value);
+        // Before the wait: the new status can remove this control from the view.
+        onConnected?.();
         await queryClient.invalidateQueries({ queryKey: ["seo-properties"] });
-        if (alive.current) onConnected?.();
       } else if (outcome.kind !== "cancelled") {
         const name =
           status.data?.name ??
@@ -202,8 +203,9 @@ export function useSeoConnection(
         return;
       }
       queryClient.setQueryData(queryKey, result.value);
+      // Before the wait: the new status can remove this control from the view.
+      onConnected?.();
       await queryClient.invalidateQueries({ queryKey: ["seo-properties"] });
-      if (alive.current) onConnected?.();
     } catch (error) {
       if (alive.current)
         setError(
@@ -233,7 +235,9 @@ export function useSeoConnection(
         );
         return;
       }
-      await status.refetch();
+      // The account is gone. A read that fails must not keep the old answer in view.
+      if ((await status.refetch()).isError)
+        await queryClient.resetQueries({ queryKey, exact: true });
       await queryClient.invalidateQueries({ queryKey: ["seo-properties"] });
     } catch {
       if (alive.current)

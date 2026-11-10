@@ -40,7 +40,7 @@ import { seoCheckRunning } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
-import { useSearchConsoleConnected } from "./use-seo-connection";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 import { useSeoSetup } from "./use-seo-setup";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -80,9 +80,13 @@ function StepRow({
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const variant = first ? "primary" : "outline";
   // A connected account with nothing synced: the step asks for the sync, not for the account.
-  const searchStep =
-    step.kind === "connect" && step.provider === "search_console";
-  const sync = useSearchConsoleConnected(searchStep) && searchStep;
+  // The account's own actions are in the sync dialog.
+  const connectStep = step.kind === "connect";
+  const sync =
+    useSeoConnectionStatus(
+      connectStep ? step.provider : "search_console",
+      connectStep,
+    ).status.data?.status === "connected" && connectStep;
   const [body, control] =
     step.kind === "measure"
       ? [
@@ -179,15 +183,25 @@ function StepRow({
               ? [
                   t(
                     sync
-                      ? "agent.steps.sync"
+                      ? `agent.steps.sync.${step.provider}`
                       : `agent.steps.connect.${step.provider}`,
                   ),
-                  step.provider === "search_console" ? (
+                  sync ? (
+                    <Button
+                      key="sync"
+                      size="sm"
+                      variant={variant}
+                      onClick={() => model.openStatistics(step.provider)}
+                    >
+                      <RefreshCw />
+                      {t("syncStatistics")}
+                    </Button>
+                  ) : step.provider === "search_console" ? (
                     <SeoGoogleConnection
                       key="connect"
                       variant={variant}
                       onConnected={model.openStatistics}
-                      onSync={model.openStatistics}
+                      inRow
                     />
                   ) : (
                     <SeoConnectionButton
@@ -195,7 +209,6 @@ function StepRow({
                       provider={step.provider}
                       variant={variant}
                       onConnected={() => model.openStatistics(step.provider)}
-                      onSync={() => model.openStatistics(step.provider)}
                     />
                   ),
                 ]

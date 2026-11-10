@@ -309,10 +309,25 @@ describe("SEO audit first run", () => {
       }),
     });
     renderWorkspace(workspace);
-    expect(await screen.findByText(copy.agent.steps.sync)).toBeVisible();
+    const text = await screen.findByText(copy.agent.steps.sync.search_console);
     expect(
       screen.queryByText(copy.agent.steps.connect.search_console),
     ).toBeNull();
+    // One action, like every other row: the account's menu is in the sync dialog.
+    const row = text.closest("li");
+    if (!row) throw new Error("no step row");
+    expect(
+      within(row)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Sync statistics"]);
+    // The dialog opens on this row's source; without one it starts on Google Analytics.
+    await userEvent.click(within(row).getByRole("button"));
+    expect(
+      within(
+        await screen.findByRole("dialog", { name: "Sync statistics" }),
+      ).getByRole("combobox", { name: "Source" }),
+    ).toHaveTextContent("Search Console");
   });
 
   it("asks for the account on the Traffic tab while no account is connected", async () => {

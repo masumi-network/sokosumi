@@ -58,14 +58,18 @@ export function seoMarketName(
 export const SEO_SEARCH_MIN_ROWS = 10;
 /** The mark of the chosen one in a set of bordered toggle buttons. */
 export const SEO_CHOSEN_CLASS = "bg-quinary border-foreground";
-/** A long label wraps inside a narrow column; the app's buttons do not by default. */
+/**
+ * A long label wraps inside a narrow column; the app's buttons do not by default.
+ * 5px of padding and the 1px border keep one line at the 32px of a small button.
+ */
 export const SEO_WRAP_CLASS =
-  "h-auto min-h-8 max-w-full py-1.5 text-start whitespace-normal";
+  "h-auto min-h-8 max-w-full py-[5px] text-start whitespace-normal";
 /**
  * A small ghost button with an icon, in a column of text and bordered buttons:
- * its padding moves out, so the icon sits on the column edge.
+ * it moves out by its padding and the icon's own margin, so the icon's drawing
+ * sits on the column edge. The width limit grows by the same amount.
  */
-export const SEO_GHOST_EDGE_CLASS = "-ms-2.5";
+export const SEO_GHOST_EDGE_CLASS = "-ms-3 max-w-[calc(100%+0.75rem)]";
 
 /** One titled holder. Every SEO section uses it, so titles, help text and actions line up across tabs. */
 export function SeoSection({

@@ -11440,7 +11440,10 @@
             "search_console": "Verbinde Google, um Klicks, Impressionen und Suchanfragen zu messen. Google Analytics ergänzt Besuche und Seitenaufrufe und ist optional.",
             "ga4": "Verbinde Google Analytics, um Besuche und Seitenaufrufe zu messen."
           },
-          "sync": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um Klicks, Impressionen und Suchanfragen zu messen.",
+          "sync": {
+            "search_console": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um Klicks, Impressionen und Suchanfragen zu messen.",
+            "ga4": "Google Analytics ist verbunden. Synchronisiere die Statistiken, um Besuche und Seitenaufrufe zu messen."
+          },
           "competitors": {
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."

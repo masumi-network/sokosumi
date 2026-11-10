@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../../../messages/en.json";
@@ -30,10 +29,7 @@ type Status =
   | "failed"
   | "unavailable";
 
-function show(
-  statuses: { search_console: Status; ga4: Status },
-  { ownSyncStep = false } = {},
-) {
+function show(statuses: { search_console: Status; ga4: Status }) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
@@ -59,18 +55,13 @@ function show(
     defaultOptions: { queries: { retry: false } },
   });
   clients.push(client);
-  const onSync = vi.fn();
   render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider locale="en" messages={messages}>
-        <SeoGoogleConnection
-          onConnected={vi.fn()}
-          onSync={ownSyncStep ? undefined : onSync}
-        />
+        <SeoGoogleConnection onConnected={vi.fn()} />
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
-  return onSync;
 }
 
 describe("SEO Google connection", () => {
@@ -91,28 +82,20 @@ describe("SEO Google connection", () => {
   });
 
   it("says Google Analytics is not connected and offers it once Search Console is connected", async () => {
-    const onSync = show({ search_console: "connected", ga4: "not_connected" });
+    show({ search_console: "connected", ga4: "not_connected" });
     await screen.findByRole("button", CONNECT_ANALYTICS);
     expect(screen.getByText(copy.analyticsOff)).toBeVisible();
     expect(screen.queryByText(copy.analyticsNext)).toBeNull();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Sync statistics" }),
-    );
-    expect(onSync).toHaveBeenCalledExactlyOnceWith("search_console");
   });
 
   it("shows no missing-account text for a Google Analytics account that is connected", async () => {
     show({ search_console: "connected", ga4: "connected" });
     await screen.findByText("Google Analytics connected");
     expect(screen.queryByText(copy.analyticsOff)).toBeNull();
-    // One sync for the step and one line per account, in this order.
+    // One line per account and no sync: the view has its own sync action.
     expect(
       screen.getAllByRole("button").map((button) => button.textContent),
-    ).toEqual([
-      "Sync statistics",
-      "Search Console connected",
-      "Google Analytics connected",
-    ]);
+    ).toEqual(["Search Console connected", "Google Analytics connected"]);
   });
 
   it("keeps the Google Analytics control mounted when the Search Console status changes", async () => {
@@ -132,17 +115,6 @@ describe("SEO Google connection", () => {
     expect(
       screen.getByRole("button", { name: "Google Analytics connected" }),
     ).toBe(analytics);
-  });
-
-  it("leaves the sync to a view that has its own sync step", async () => {
-    show(
-      { search_console: "connected", ga4: "connected" },
-      { ownSyncStep: true },
-    );
-    await screen.findByText("Google Analytics connected");
-    expect(
-      screen.queryByRole("button", { name: "Sync statistics" }),
-    ).toBeNull();
   });
 
   it("keeps the repair of a Google Analytics account in reach before Search Console is connected", async () => {

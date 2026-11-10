@@ -11440,7 +11440,10 @@
             "search_console": "Connect Google to measure clicks, impressions and the searches that show these pages. Google Analytics adds visits and page views and is optional.",
             "ga4": "Connect Google Analytics to measure visits and page views."
           },
-          "sync": "Search Console is connected. Sync statistics to measure clicks, impressions and the searches that show these pages.",
+          "sync": {
+            "search_console": "Search Console is connected. Sync statistics to measure clicks, impressions and the searches that show these pages.",
+            "ga4": "Google Analytics is connected. Sync statistics to measure visits and page views."
+          },
           "competitors": {
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."

@@ -1,4 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -6,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComposioOAuthPopupFlow } from "@/lib/composio/use-composio-oauth-popup";
 import messages from "../../../../../messages/en.json";
 import { SeoConnectionButton } from "./seo-connection-button";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 
 const m = vi.hoisted(() => ({
   initiate: vi.fn(),
@@ -241,6 +246,70 @@ describe("native SEO connection consent", () => {
     expect(await connectButton()).toBeEnabled();
   });
 
+  it("does not call a disconnected account connected when the next status read fails", async () => {
+    m.status = "connected";
+    m.disconnect.mockImplementation(async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(null, { status: 503 })),
+      );
+      return { ok: true, value: { disconnected: true } };
+    });
+    show();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Search Console connected" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Disconnect" }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Disconnect Search Console",
+      }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Try again" }),
+    ).toBeVisible();
+    expect(screen.queryByText("Search Console connected")).toBeNull();
+  });
+
+  it("runs the caller's next step when the new status removes the control", async () => {
+    const onConnected = vi.fn();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    // A properties read in the view: the connect waits for its new answer.
+    function View() {
+      useQuery({
+        queryKey: ["seo-properties", "search_console"],
+        queryFn: () => new Promise((done) => setTimeout(() => done([]), 50)),
+      });
+      const connected =
+        useSeoConnectionStatus("search_console").status.data?.status ===
+        "connected";
+      return connected ? (
+        <p>synced view</p>
+      ) : (
+        <SeoConnectionButton
+          provider="search_console"
+          onConnected={onConnected}
+        />
+      );
+    }
+    render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <View />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(await connectButton());
+    expect(await screen.findByText("synced view")).toBeVisible();
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(onConnected).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the account when the reader cancels the disconnect", async () => {
     m.status = "connected";
     show();
@@ -298,6 +367,25 @@ describe("native SEO connection consent", () => {
     expect(screen.getByText("Search Console connected")).toBeVisible();
     expect(m.disconnect).not.toHaveBeenCalled();
     expect(m.finalize).not.toHaveBeenCalled();
+  });
+
+  it("keeps a connected account in view when a later status read fails", async () => {
+    m.status = "connected";
+    show();
+    await screen.findByRole("button", { name: "Search Console connected" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 503 })),
+    );
+    await clients.at(-1)?.invalidateQueries();
+    await waitFor(() =>
+      expect(clients.at(-1)?.getQueryCache().getAll()[0]?.state.status).toBe(
+        "error",
+      ),
+    );
+    expect(
+      screen.getByRole("button", { name: "Search Console connected" }),
+    ).toBeVisible();
   });
 
   it("shows a retryable verification error instead of claiming the source connected", async () => {

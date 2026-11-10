@@ -177,7 +177,9 @@ export function SeoSetupCard({
           {sync.state === "done" ? (
             <Button
               size="sm"
-              variant="outline"
+              // A done step's action is quiet, like the one of the page step.
+              variant="ghost"
+              className={SEO_GHOST_EDGE_CLASS}
               onClick={() => {
                 void model.setFilters({ tab: "traffic" });
               }}
