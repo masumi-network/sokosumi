@@ -69,6 +69,9 @@ not obvious which, ask rather than guessing.
 Refinement is the default when the person is reacting to an image in front of
 them. Read its model/settings from list_versions and preserve them unless the
 person requested a change; map the endpoint to a catalog model ID. Use `generate_image` only for a genuinely new idea.
+Visual refinements that keep the product carry the source ad's still-approved
+export headline into the new version. If the person also asks to change or
+clear the headline, use `ad_headline` on the new version once it is ready.
 
 When the person asks to feature or replace a product, use `list_products` to
 match their request to a saved product. If the match is ambiguous or missing,

@@ -62,6 +62,7 @@ import { creditsPerImage } from "@/lib/image-studio/image-model";
 import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import {
   applyStudioBrandPrompt,
+  isApprovedStudioHeadline,
   loadStudioBrand,
   requireApprovedStudioHeadline,
 } from "@/lib/image-studio/studio-brand";
@@ -148,6 +149,8 @@ export interface CreateImageJobInput {
   referenceFileActor?: FileActor;
   /** Keep the source ad's product photo when an assistant edit can use it. */
   reuseParentPhotoIfAvailable?: boolean;
+  /** Keep a source ad's currently approved headline on a visual refinement. */
+  reuseParentHeadlineIfAvailable?: boolean;
   /** The version being refined, when the user started from a selection. */
   parentAssetId: string | null;
   idempotencyKey: string;
@@ -299,19 +302,15 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // second one — is what makes the HTTP endpoint safe to retry.
     if (existing) return { job: existing, created: false };
 
-    if (input.exportHeadline) {
-      const brand = await tx.brandBrain.findUnique({
-        where: { projectId: input.projectId },
-        select: { body: true },
-      });
-      requireApprovedStudioHeadline(input.exportHeadline, brand?.body);
-    }
-
     const source =
-      !input.product && input.parentAssetId
+      input.parentAssetId &&
+      (!input.product || input.reuseParentHeadlineIfAvailable)
         ? await tx.projectImageAsset.findFirst({
             where: { id: input.parentAssetId, projectId: input.projectId },
             select: {
+              ...(input.reuseParentHeadlineIfAvailable
+                ? { headline: { select: { text: true } } }
+                : {}),
               job: {
                 select: {
                   productId: true,
@@ -322,6 +321,26 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
             },
           })
         : null;
+
+    const sameProduct = input.product
+      ? input.product.id === source?.job.productId
+      : !input.referenceFileIds?.length;
+    const inheritedHeadline = sameProduct ? source?.headline?.text : undefined;
+    let exportHeadline = input.exportHeadline;
+    if (exportHeadline || inheritedHeadline) {
+      const brand = await tx.brandBrain.findUnique({
+        where: { projectId: input.projectId },
+        select: { body: true },
+      });
+      if (exportHeadline)
+        requireApprovedStudioHeadline(exportHeadline, brand?.body);
+      else if (
+        inheritedHeadline &&
+        isApprovedStudioHeadline(inheritedHeadline, brand?.body)
+      ) {
+        exportHeadline = inheritedHeadline;
+      }
+    }
 
     const referenceCount =
       input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
@@ -419,7 +438,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         productId: input.product?.id ?? source?.job.productId,
         productName: input.product?.name ?? source?.job.productName,
         batchId: input.batchId,
-        exportHeadline: input.exportHeadline,
+        exportHeadline,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
@@ -739,15 +758,21 @@ export async function createImageJob(input: CreateImageJobInput) {
   const kind =
     references > 0 ? ProjectImageJobKind.EDIT : ProjectImageJobKind.GENERATE;
   const { modelId, ...request } = input;
+  const refinesParent =
+    input.parentAssetId !== null &&
+    input.referenceAssetIds.includes(input.parentAssetId);
   return await reserveAndSend({
     ...request,
     reuseParentPhotoIfAvailable:
       input.reuseParentPhotoIfAvailable &&
       !input.product &&
       !input.referenceFileIds?.length &&
-      input.parentAssetId !== null &&
-      input.referenceAssetIds.includes(input.parentAssetId) &&
+      refinesParent &&
       references < maxReferences,
+    reuseParentHeadlineIfAvailable:
+      input.reuseParentHeadlineIfAvailable &&
+      refinesParent &&
+      input.referenceAssetIds.length === 1,
     kind,
     model: falModelForKind(kind, modelId),
     settings,

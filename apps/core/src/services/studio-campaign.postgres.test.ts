@@ -11,6 +11,7 @@ const external = vi.hoisted(() => ({
   get: vi.fn(),
   submit: vi.fn(),
   download: vi.fn(),
+  uploadReference: vi.fn(),
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -40,6 +41,7 @@ vi.mock("@/lib/image-studio/fal-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/image-studio/fal-client")>()),
   submitToQueue: external.submit,
   downloadMedia: external.download,
+  uploadReference: external.uploadReference,
 }));
 vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
@@ -50,6 +52,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import { mintAgentGrant } from "@/lib/image-studio/agent-grant";
+import legacyAgentRoutes from "@/routes/image-studio-agent/index";
 import agentRoutes from "@/routes/v1/image-studio-agent/index";
 import mountAssetContent from "@/routes/v1/projects/[id]/image-studio/asset-content-get";
 import mountAssetHeadline from "@/routes/v1/projects/[id]/image-studio/asset-headline-put";
@@ -104,6 +107,7 @@ function app(actorId = userId) {
   });
   server.onError(errorHandler);
   server.route("/v1/image-studio-agent", agentRoutes);
+  server.route("/image-studio-agent", legacyAgentRoutes);
   mountBrandKit(server);
   mountWebsiteLogo(server);
   mountPatchProject(server);
@@ -226,6 +230,9 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       }
       return new Response(null, { status: 404 });
     });
+    external.uploadReference.mockResolvedValue(
+      "https://fal.example/reference.png",
+    );
     external.submit.mockImplementation(() => ({
       kind: "queued",
       requestId: randomUUID(),
@@ -516,5 +523,86 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     const logoPixel = (4 * info.width + 4) * info.channels;
     expect([...data.subarray(logoPixel, logoPixel + 3)]).toEqual([163, 52, 33]);
     expect((await app(randomUUID()).request(output)).status).toBe(404);
+
+    const refinement = {
+      prompt: "Use a darker background and keep the layout.",
+      parentAssetId: firstAd.id,
+      referenceAssetIds: [firstAd.id],
+      modelId: "muse-image",
+    };
+    const fromAssistant = () =>
+      studio.request("/image-studio-agent/generations", {
+        method: "POST",
+        headers: { ...agentAuth(), "content-type": "application/json" },
+        body: JSON.stringify({
+          ...refinement,
+          aspectRatio: "9:16",
+          idempotencyKey: randomUUID(),
+        }),
+      });
+    const fromBrowser = (product = firstAd.product) =>
+      studio.request(
+        `${path}/jobs`,
+        json("POST", {
+          ...refinement,
+          product,
+          settings: { aspectRatio: "9:16" },
+          idempotencyKey: randomUUID(),
+        }),
+      );
+    const finishRevision = async (
+      response: Response,
+      expectedHeadline: string | null,
+    ) => {
+      expect(response.ok).toBe(true);
+      const body = await response.json();
+      const job = body.data ?? body.job;
+      expect(job).toMatchObject({ status: "QUEUED" });
+      await settleWithMedia(job.id, "https://fal.example/campaign.png");
+      const result = await prisma.projectImageAsset.findUniqueOrThrow({
+        where: { jobId: job.id },
+        select: { parentId: true, rootId: true, headline: true },
+      });
+      expect(result.parentId).toBe(firstAd.id);
+      expect(result.rootId).toBe(firstAd.rootId);
+      if (expectedHeadline) {
+        expect(result.headline).toMatchObject({
+          text: expectedHeadline,
+          revision: 1,
+        });
+        expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
+          "Keep the upper area clear",
+        );
+      } else {
+        expect(result.headline).toBeNull();
+      }
+    };
+    await finishRevision(await fromAssistant(), secondApprovedLine);
+    await finishRevision(await fromBrowser(), secondApprovedLine);
+    const replacement = products.find(({ id }) => id !== firstAd.product?.id);
+    if (!replacement)
+      throw new Error("A different product is required for the swap");
+    await finishRevision(
+      await fromBrowser({ id: replacement.id, name: replacement.name }),
+      null,
+    );
+
+    const currentKit = studioBrandKitSchema.parse(
+      (await (await studio.request(`${path}/brand-kit`)).json()).data,
+    );
+    const revoke = await studio.request(
+      `${path}/brand-kit`,
+      json("PUT", {
+        version: currentKit.version,
+        copy: {
+          summary: currentKit.summary,
+          tone: currentKit.tone,
+          audience: currentKit.audience,
+          approvedLines: [approvedLine],
+        },
+      }),
+    );
+    expect(revoke.status).toBe(200);
+    await finishRevision(await fromAssistant(), null);
   });
 });
