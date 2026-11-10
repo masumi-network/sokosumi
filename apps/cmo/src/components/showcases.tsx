@@ -55,7 +55,7 @@ export function showcaseKind(
   return null;
 }
 
-/** The plan's pieces per showcase, earliest first, written drafts before ideas. */
+/** The plan's pieces per showcase, earliest first, written drafts before ideas; skipped ones left out. */
 export function showcaseEntries(
   strategy: Strategy,
 ): Map<ShowcaseKind, Entry[]> {
@@ -66,6 +66,7 @@ export function showcaseEntries(
       `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`),
   );
   for (const entry of sorted) {
+    if (entry.status === "skipped") continue;
     const kind = showcaseKind(entry);
     if (kind) groups.set(kind, [...(groups.get(kind) ?? []), entry]);
   }
@@ -247,7 +248,7 @@ function Post({
 /** An ad the plan has not written yet holds its place. */
 function WritingAd() {
   return (
-    <div className="ss-writing" role="status">
+    <div className="ss-writing">
       <span className="ss-writing-label">
         <span className="ss-pulse" aria-hidden="true" />
         Writing this ad

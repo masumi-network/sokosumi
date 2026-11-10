@@ -338,10 +338,13 @@ img.sl-card-image {
   font-weight: 600;
 }
 
-/* October's grid: cards at least 300px wide, in the brand's fills or ink. */
+/*
+ * October's grid: cards at least 300px wide, in the brand's fills. Without a
+ * real brand colour they stay ink in both themes, under their white text.
+ */
 .ob-showcases {
-  --brand: var(--foreground);
-  --brand-2: var(--muted);
+  --brand: var(--mark-black);
+  --brand-2: var(--mark-black);
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));

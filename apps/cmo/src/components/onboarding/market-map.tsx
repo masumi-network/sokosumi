@@ -3,7 +3,7 @@
 import type { CmoBrandMedia } from "@sokosumi/core-client";
 import { ArrowUpRight } from "lucide-react";
 import { useState } from "react";
-import type { BrandBrain } from "../../lib/brand-sections";
+import { type BrandBrain, sameCompany as same } from "../../lib/brand-sections";
 import { CompetitorCards } from "../brand-media";
 import { RivalFacts } from "../brand-profile";
 
@@ -12,9 +12,6 @@ type Rival = BrandBrain["competitors"][number];
 
 /** Past this x a label sits left of its dot, so no name runs off the plot. */
 const FLIP_X = 75;
-
-const same = (a: string, b: string) =>
-  a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /**
  * The Competitors tile: the market map over the rival rows when the read
@@ -114,6 +111,7 @@ function Plot({
             return player.you ? (
               <span key={player.name} className={className} style={style}>
                 {player.name}
+                <span className="ob-sr">, you</span>
               </span>
             ) : (
               <button

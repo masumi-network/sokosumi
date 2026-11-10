@@ -882,7 +882,9 @@ describe("Competitor map", () => {
   it("marks the founder as the one larger dot, not a button", () => {
     const html = competitors(mappedBrain);
     expect(html.match(/ob-map-dot you/g)).toHaveLength(1);
-    expect(html).toMatch(/<span class="ob-map-dot you"[^>]*>Acme</);
+    expect(html).toMatch(
+      /<span class="ob-map-dot you"[^>]*>Acme<span class="ob-sr">, you</,
+    );
     expect(dot(html, "Acme")).toBeUndefined();
   });
 
@@ -895,7 +897,7 @@ describe("Competitor map", () => {
   it("names every rival as a row the map can pick, above nothing but the map", () => {
     const html = competitors(mappedBrain);
     expect(html.indexOf("ob-map-plot")).toBeLessThan(html.indexOf("ob-rival"));
-    for (const name of ["Moonshot", "Orbit Labs", "Build it in house"]) {
+    for (const name of ["Moonshot", "Orbit Labs", "Build it"]) {
       expect(html).toMatch(
         new RegExp(`<button[^>]*class="ob-rival"[^>]*aria-pressed="false"`),
       );
@@ -955,6 +957,24 @@ describe("Account previews", () => {
     expect([...at].sort((a, b) => a - b)).toEqual(at);
     expect(html.match(/ob-showcase-label/g)).toHaveLength(7);
     expect(html).not.toContain("Your article in Google");
+  });
+
+  it("leaves out skipped pieces, and a channel with only skipped pieces", () => {
+    const html = month(
+      draft({
+        strategy: {
+          ...sevenPlan,
+          calendar: sevenPlan.calendar.map((entry) =>
+            entry.channel === "instagram"
+              ? { ...entry, status: "skipped" as const }
+              : entry,
+          ),
+        },
+        brandVisual: visual,
+      }),
+    );
+    expect(html.match(/ob-showcase-label/g)).toHaveLength(6);
+    expect(html).not.toContain("Your Instagram grid");
   });
 
   it("leaves out the channels the plan does not use", () => {

@@ -970,6 +970,10 @@ it("picks a rival's row from its dot, and its dot from its row", async () => {
   // Picking it again lets go.
   await act(async () => dot("Orbit Labs")?.click());
   expect(pressed(row("Orbit Labs"))).toBe("false");
+
+  // A dot named a little longer still finds its row.
+  await act(async () => row("Build it")?.click());
+  expect(pressed(dot("Build it in house"))).toBe("true");
 });
 
 // Plan: account previews land one at a time while the plan writes.

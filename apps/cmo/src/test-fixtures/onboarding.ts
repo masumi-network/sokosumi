@@ -349,7 +349,7 @@ export const mappedBrain: Brain = {
     },
     { name: "Orbit Labs", note: "Rockets for enterprises, sold by sales." },
   ],
-  alternatives: [{ name: "Build it in house" }],
+  alternatives: [{ name: "Build it" }],
   reveal: {
     ...(richBrain.reveal as NonNullable<Brain["reveal"]>),
     map: {
