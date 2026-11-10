@@ -826,7 +826,7 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
   expect(onLaunch).toHaveBeenCalledTimes(1);
   expect(text()).not.toContain("is on it.");
   await act(async () => finish());
-  expect(text()).toContain("Cuso is on it.");
+  expect(text()).toContain("Still running:");
   expect(text()).toContain("Active, 7 pieces a week");
   expect(text()).toContain("€200 a month");
   expect(text()).toContain("posts on your plan's schedule");
@@ -835,7 +835,7 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
   expect(text()).not.toContain("Approvals");
   expect(goToday).not.toHaveBeenCalled();
   await press("Change settings");
-  expect(text()).toContain("One thing, then I start.");
+  expect(text()).toContain("Connect where I post.");
   await press("Launch Cuso");
   await act(async () => finish());
   await press("Go to Today");
@@ -891,6 +891,8 @@ it("keeps one mounted shell from Site to Launch, changing the heading in place",
 });
 
 it("ends Launch with a recap: what is done and what still runs", async () => {
+  // The first post is the next one on a connected network.
+  vi.useFakeTimers({ now: new Date("2026-10-01T08:00:00Z"), toFake: ["Date"] });
   await act(async () =>
     root.render(
       <LaunchStep
@@ -912,4 +914,5 @@ it("ends Launch with a recap: what is done and what still runs", async () => {
   expect(text()).toContain(
     "Still running: Cuso is making your month, piece by piece. Watch them land on Today.",
   );
+  vi.useRealTimers();
 });

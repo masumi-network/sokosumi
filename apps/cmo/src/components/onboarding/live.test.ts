@@ -4,6 +4,7 @@ import { cmoOverview } from "../../test-fixtures/cmo";
 import { asking, draft, reading, work } from "../../test-fixtures/onboarding";
 import {
   liveLine,
+  QUIET_SECONDS,
   setupRows,
   slowCopy,
   stepTitle,
@@ -28,12 +29,19 @@ describe("slow copy", () => {
     });
   });
 
-  it("offers Try again from twice the usual time", () => {
-    expect(slowCopy(14 * MIN, 7 * MIN)).toEqual({
+  it("holds Try again back while the work still moves, so nothing runs twice", () => {
+    expect(slowCopy(14 * MIN, 7 * MIN, QUIET_SECONDS - 1)).toEqual({
+      line: "Taking much longer than usual: 14 min so far, usually about 7 min. Still working.",
+      retry: false,
+    });
+  });
+
+  it("offers Try again from twice the usual time, once the work went quiet", () => {
+    expect(slowCopy(14 * MIN, 7 * MIN, QUIET_SECONDS)).toEqual({
       line: "Taking much longer than usual: 14 min so far, usually about 7 min. Nothing is lost if you try again.",
       retry: true,
     });
-    expect(slowCopy(14 * MIN - 1, 7 * MIN).retry).toBe(false);
+    expect(slowCopy(14 * MIN - 1, 7 * MIN, QUIET_SECONDS).retry).toBe(false);
   });
 
   it("never shows a percentage", () => {
@@ -138,7 +146,7 @@ describe("setup card", () => {
     });
     expect(setupRows(overview)).toEqual([
       'Organization "Fernhouse" and its workspace',
-      "10,000 starter credits",
+      "Starter credits, 10,000 left",
       'Project "CMO.xyz · Fernhouse"',
       "Cuso hired, with his own chat",
     ]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 /** How long new text takes to type in, whatever its length. */
 export const TYPE_IN_MS = 1_000;
@@ -17,32 +17,36 @@ const reducedMotion = () =>
  * once. The one place CMO animates text.
  */
 export function useTypeIn(text: string): { shown: string; typing: boolean } {
-  const seen = useRef(text);
-  const [shown, setShown] = useState(text);
+  const [state, setState] = useState({ target: text, shown: text });
+  // Set while rendering, so the old text never flashes before typing starts.
+  if (state.target !== text) {
+    const kept = text.startsWith(state.shown) ? state.shown.length : 0;
+    setState({
+      target: text,
+      shown: reducedMotion() ? text : text.slice(0, kept),
+    });
+  }
 
+  const { target } = state;
+  const from = state.shown.length;
+  // Starts once per new target, from what it showed then.
   useEffect(() => {
-    const before = seen.current;
-    seen.current = text;
-    if (text === before) return;
-    const kept = text.startsWith(before) ? before.length : 0;
-    if (reducedMotion() || kept === text.length) {
-      setShown(text);
-      return;
-    }
-    const step = Math.max(
-      1,
-      Math.ceil((text.length - kept) / (TYPE_IN_MS / TICK_MS)),
-    );
-    let at = kept;
-    setShown(text.slice(0, at));
+    if (from >= target.length) return;
+    const step = Math.max(1, Math.ceil(target.length / (TYPE_IN_MS / TICK_MS)));
+    let at = from;
     const timer = window.setInterval(() => {
-      at = Math.min(text.length, at + step);
-      setShown(text.slice(0, at));
-      if (at === text.length) window.clearInterval(timer);
+      at = Math.min(target.length, at + step);
+      setState((current) =>
+        current.target === target
+          ? { target, shown: target.slice(0, at) }
+          : current,
+      );
+      if (at === target.length) window.clearInterval(timer);
     }, TICK_MS);
     return () => window.clearInterval(timer);
-  }, [text]);
+  }, [target]);
 
+  const shown = state.target === text ? state.shown : text;
   return { shown, typing: shown !== text };
 }
 

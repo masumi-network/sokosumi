@@ -727,7 +727,7 @@ function ProductionCard({
                 : `${AGENT_NAME} is making your month`}
         </b>
         <span className="note num">
-          {landed} of {production.total} ready
+          {ready ? production.ready : landed} of {production.total} ready
         </span>
       </p>
       <span

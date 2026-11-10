@@ -17,7 +17,7 @@ import { SubmitButton } from "../submit-button";
 import { TypeIn } from "../type-in";
 import { brandTiles, SiteCard, tileSource } from "./brand-step";
 import { Checklist, RESEARCH_PHASES, workChecklist } from "./checklist";
-import { setupRows, siteQuestion, stepTitle } from "./live";
+import { setupRows, siteQuestion } from "./live";
 import {
   type Answer,
   QuestionCard,
@@ -51,8 +51,6 @@ interface SiteStepProps {
   onContinue: () => void;
   onRetry: () => Promise<string | null>;
   onReply: (text: string) => Promise<void>;
-  /** Renders the heading itself; the onboarding shell shows it instead. */
-  titled?: boolean;
 }
 
 interface FoundItem {
@@ -78,7 +76,6 @@ export function SiteStep({
   onContinue,
   onRetry,
   onReply,
-  titled = true,
 }: SiteStepProps) {
   const brain = overview.brandBrain;
   const work = overview.work?.kind === "research" ? overview.work : null;
@@ -161,14 +158,13 @@ export function SiteStep({
               ? `${AGENT_NAME} is reading`
               : `${AGENT_NAME} read your site`}
           </p>
-          {titled ? (
-            <h1 className="ob-h1">
-              {stepTitle({ step: "site", overview, messages, phase, finished })}
-            </h1>
-          ) : null}
           <Checklist items={checklist} />
         </div>
-        <SiteCard overview={overview} host={site} pending={!failed} />
+        <SiteCard
+          overview={overview}
+          host={site}
+          pending={phase === "reading"}
+        />
         <div className="card ob-found">
           <div className="ob-found-head">
             <h2>What I found so far</h2>

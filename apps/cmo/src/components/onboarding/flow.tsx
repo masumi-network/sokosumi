@@ -108,16 +108,18 @@ interface LiveLineProps {
 
 /**
  * One line under the heading: what Cuso is doing now, from Core's work
- * labels, and the time so far against the usual. Past twice the usual time
- * it offers Try again. It keeps its height when nothing runs.
+ * labels, and the time so far against the usual. Past twice the usual time,
+ * with no progress for five minutes, it offers Try again. It keeps its
+ * height when nothing runs.
  */
 function LiveLine({ overview, starting, onRetry, topUpUrl }: LiveLineProps) {
   const live = liveLine(overview);
   const elapsed = useElapsedSeconds(live?.work.startedAt, live !== null);
+  const quiet = useElapsedSeconds(live?.lastAt, live !== null);
   const label = live?.label ?? (starting ? "Planning your month" : "");
   const slow =
     live && elapsed !== null
-      ? slowCopy(elapsed, USUAL_SECONDS[live.work.kind])
+      ? slowCopy(elapsed, USUAL_SECONDS[live.work.kind], quiet ?? 0)
       : null;
   return (
     <div className="ob-live-line">
@@ -352,7 +354,6 @@ export function OnboardingFlow({
         </div>
         {step === "site" ? (
           <SiteStep
-            titled={false}
             overview={overview}
             messages={messages}
             phase={sitePhase}
@@ -430,7 +431,6 @@ export function OnboardingFlow({
           />
         ) : (
           <LaunchStep
-            titled={false}
             onCelebrate={setLaunched}
             overview={overview}
             onConnect={actions.connectChannel}

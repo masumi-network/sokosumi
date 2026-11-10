@@ -141,7 +141,6 @@ describe("step markers", () => {
 describe("Site while Cuso reads", () => {
   it("shows the read live and says questions come when it lands", () => {
     const html = site(reading());
-    expect(html).toContain("Reading acme.io.");
     expect(html).toContain("Cuso is reading");
     expect(html).toContain("Reading your site");
     expect(html).toContain("/cuso/reading.png");
@@ -188,7 +187,6 @@ describe("Site while Cuso reads", () => {
 
   it("asks the questions once the read lands, with Skip", () => {
     const html = site(asking({ work: work("research") }));
-    expect(html).toContain("Answer a few while you wait");
     expect(html).toContain("Quick read");
     expect(html).toContain("1 of 2");
     expect(html).toContain("Do most customers find you through Google?");
@@ -217,7 +215,6 @@ describe("Site while Cuso reads", () => {
 
   it("offers a retry when the read ended without a Brand Brain", () => {
     const html = site(reading({ work: work("research", { status: "done" }) }));
-    expect(html).toContain("The read stopped.");
     expect(html).toContain("Try again");
   });
 
@@ -459,7 +456,6 @@ describe("Plan", () => {
       draft({ strategy: null, work: work("strategy") }),
       "planning",
     );
-    expect(html).toContain("Writing your plan");
     expect(html).toContain("This takes a few minutes.");
     expect(html).toContain("Your channels");
     expect(html).toContain("Choosing your idea, channels and pillars");
@@ -493,7 +489,6 @@ describe("Plan", () => {
       draft({ strategy: null, work: work("strategy", { status: "failed" }) }),
       "planning",
     );
-    expect(html).toContain("Planning stopped");
     expect(html).toContain("Try again");
   });
 
@@ -745,7 +740,7 @@ describe("Launch", () => {
 
   it("lists only the plan's networks, with their pieces, and no newsletter", () => {
     const html = render(approved());
-    expect(html).toContain("One thing, then I start.");
+    expect(html).toContain("Connect where I post.");
     expect(html).toContain("LinkedIn");
     expect(html).toContain("1 of 4 pieces go here");
     // Either network unlocks Launch, so neither row claims to be needed.
@@ -806,7 +801,7 @@ describe("Launch", () => {
         proposals: [],
       },
     });
-    expect(html).toContain("Ready when you are.");
+    expect(html).toContain("Your plan is approved.");
     expect(html).not.toContain("Connect where I post.");
     expect(html).toContain("Add later");
     expect(html).toContain("Facebook &amp; Instagram ads");

@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
+  formatDay,
   isSocialProvider,
   type SocialProvider,
 } from "../../lib/calendar";
@@ -91,24 +92,29 @@ interface LaunchStepProps {
   onGoToday: () => void;
   /** Why a connection came back without an account, from the return address. */
   notice?: string | null;
-  /** Renders the heading itself; the onboarding shell shows it instead. */
-  titled?: boolean;
   /** Launch was pressed, or taken back with Change settings. */
   onCelebrate?: (celebrating: boolean) => void;
 }
 
-/** The plan's first piece, as "Tue 6 Oct, 09:00". */
-function firstPost(calendar: { date: string; time?: string | null }[]) {
+/** The next post on a connected network, as "Tue 6 Oct, 09:00"; empty when none. */
+function firstPost(
+  calendar: { date: string; time?: string; channel: string }[],
+  connected: ReadonlySet<string>,
+) {
+  const today = new Date().toISOString().slice(0, 10);
   const first = calendar
+    .filter(
+      (entry) =>
+        entry.date >= today && connected.has(channelKey(entry.channel) ?? ""),
+    )
     .map((entry) => `${entry.date} ${entry.time ?? ""}`.trim())
     .sort()[0];
   if (!first) return "";
   const [date = "", time] = first.split(" ");
-  const day = new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", {
+  const day = formatDay(date, {
     weekday: "short",
     day: "numeric",
     month: "short",
-    timeZone: "UTC",
   });
   return time ? `${day}, ${time}` : day;
 }
@@ -125,7 +131,6 @@ export function LaunchStep({
   onLaunch,
   onGoToday,
   notice = null,
-  titled = true,
   onCelebrate,
 }: LaunchStepProps) {
   const required = strategySocialChannels(overview);
@@ -211,7 +216,7 @@ export function LaunchStep({
         term: "This month",
         value: total > 0 ? `${total} ${total === 1 ? "piece" : "pieces"}` : "",
       },
-      { term: "First post", value: firstPost(month) },
+      { term: "First post", value: firstPost(month, connected) },
     ].filter((row) => row.value);
     return (
       <section className="ob-launch ob-launch-done">
@@ -226,7 +231,6 @@ export function LaunchStep({
           </div>
         </div>
         <div className="ob-celebration-copy">
-          {titled ? <h1 className="ob-h1">{AGENT_NAME} is on it.</h1> : null}
           <p className="muted">
             {AGENT_NAME} makes your month now and posts on your plan's schedule.
             Pause or change any piece from the calendar.
@@ -272,11 +276,6 @@ export function LaunchStep({
   return (
     <section className="ob-launch">
       <CusoAvatar pose="done" size={96} />
-      {titled ? (
-        <h1 className="ob-h1">
-          {accounts ? "One thing, then I start." : "Ready when you are."}
-        </h1>
-      ) : null}
       <p className="muted">
         {accounts
           ? "Your plan is approved. Connect where I post."

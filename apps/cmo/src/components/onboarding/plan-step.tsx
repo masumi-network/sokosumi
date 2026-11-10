@@ -15,7 +15,6 @@ import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import { Checklist, PLANNING_PHASES, workChecklist } from "./checklist";
-import { stepTitle } from "./live";
 import {
   type ConnectMeasurement,
   MonthPanel,
@@ -145,7 +144,7 @@ interface PlanStepProps {
   starting?: boolean;
   /** Set when the founder opened the plan again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
-  /** Renders the heading itself; the onboarding shell shows it instead. */
+  /** False in the onboarding shell, which shows the heading: the goal is not the H1. */
   titled?: boolean;
 }
 
@@ -155,25 +154,18 @@ interface PlanStepProps {
  * While Cuso writes or changes it, the plan stays on screen and fills in.
  */
 export function PlanStep(props: PlanStepProps) {
-  const { overview, phase, onRequest, titled = true } = props;
+  const { overview, phase, onRequest } = props;
   if (phase === "planning") {
     return (
       <Planning
         overview={overview}
         starting={props.starting ?? false}
-        titled={titled}
         onRetry={() => onRequest()}
       />
     );
   }
   if (phase === "writing-needed" || !overview.strategy) {
-    return (
-      <WriteNeeded
-        overview={overview}
-        titled={titled}
-        onWrite={() => onRequest()}
-      />
-    );
+    return <WriteNeeded overview={overview} onWrite={() => onRequest()} />;
   }
   return <PlanReview {...props} />;
 }
@@ -181,12 +173,11 @@ export function PlanStep(props: PlanStepProps) {
 interface PlanningProps {
   overview: CmoOverview;
   starting: boolean;
-  titled: boolean;
   onRetry: () => Promise<string | null>;
 }
 
 /** The first plan is being written: the checklist, and the way to try again. */
-function Planning({ overview, starting, titled, onRetry }: PlanningProps) {
+function Planning({ overview, starting, onRetry }: PlanningProps) {
   const work = overview.work;
   const running =
     starting || (work?.kind === "strategy" && work.status === "running");
@@ -200,11 +191,6 @@ function Planning({ overview, starting, titled, onRetry }: PlanningProps) {
     <section className="panel ob-wait">
       <div className={running ? "card ob-says" : "card card-focus ob-says"}>
         <CusoAvatar pose="reporting" size={96} />
-        {titled ? (
-          <h1 className="ob-h1">
-            {stepTitle({ step: "plan", overview, phase: "planning", running })}
-          </h1>
-        ) : null}
         {noCredits ? (
           <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
         ) : (
@@ -272,19 +258,17 @@ function Planning({ overview, starting, titled, onRetry }: PlanningProps) {
 
 interface WriteNeededProps {
   overview: CmoOverview;
-  titled: boolean;
   onWrite: () => Promise<string | null>;
 }
 
 /** Brand is confirmed and nothing writes the plan: one button does. */
-function WriteNeeded({ overview, titled, onWrite }: WriteNeededProps) {
+function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
     <section className="panel ob-wait">
       <div className="card card-focus ob-says">
         <CusoAvatar pose="reporting" size={96} />
-        {titled ? <h1 className="ob-h1">Ready to write your plan</h1> : null}
         <p className="muted">
           I build it from your Brand Brain and your answers.
         </p>

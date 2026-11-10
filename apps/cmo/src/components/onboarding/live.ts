@@ -19,6 +19,12 @@ export const USUAL_SECONDS: Record<Work["kind"], number> = {
   strategy: 6 * 60,
 };
 
+/**
+ * Core settles a turn as failed after five minutes without progress; until
+ * then a retry is refused (research) or would start a second turn (plan).
+ */
+export const QUIET_SECONDS = 5 * 60;
+
 /** One line of slow copy, and whether Try again shows beside it. */
 export interface SlowCopy {
   line: string;
@@ -27,15 +33,17 @@ export interface SlowCopy {
 
 /**
  * The time so far against the usual time. Past the usual time it says so;
- * from twice the usual time it offers Try again. Never a percentage.
+ * from twice the usual time it offers Try again, once the work has shown no
+ * progress for `QUIET_SECONDS`. Never a percentage.
  */
-export function slowCopy(elapsed: number, usual: number): SlowCopy {
+export function slowCopy(elapsed: number, usual: number, quiet = 0): SlowCopy {
   const so = elapsedLabel(elapsed);
   const typical = `usually about ${Math.round(usual / 60)} min`;
   if (elapsed >= usual * 2) {
+    const stuck = quiet >= QUIET_SECONDS;
     return {
-      line: `Taking much longer than usual: ${so}, ${typical}. Nothing is lost if you try again.`,
-      retry: true,
+      line: `Taking much longer than usual: ${so}, ${typical}. ${stuck ? "Nothing is lost if you try again." : "Still working."}`,
+      retry: stuck,
     };
   }
   if (elapsed >= usual) {
@@ -50,7 +58,7 @@ export function slowCopy(elapsed: number, usual: number): SlowCopy {
 /** What Cuso is doing now, from Core's work labels; null once he stopped. */
 export function liveLine(
   overview: CmoOverview,
-): { label: string; work: Work } | null {
+): { label: string; work: Work; lastAt: Date | string } | null {
   const work = overview.work;
   if (work?.status !== "running") return null;
   const step =
@@ -63,6 +71,8 @@ export function liveLine(
         ? `Reading ${hostOf(overview.websiteUrl)}`
         : "Planning your month"),
     work,
+    // The last sign of progress: the newest step, else the start.
+    lastAt: work.steps.at(-1)?.at ?? work.startedAt,
   };
 }
 
@@ -138,7 +148,7 @@ export function setupRows(overview: CmoOverview): string[] {
   return [
     `Organization "${overview.businessName}" and its workspace`,
     ...(credits > 0
-      ? [`${credits.toLocaleString("en-US")} starter credits`]
+      ? [`Starter credits, ${credits.toLocaleString("en-US")} left`]
       : []),
     `Project "${overview.projectName}"`,
     `${AGENT_NAME} hired, with his own chat`,
