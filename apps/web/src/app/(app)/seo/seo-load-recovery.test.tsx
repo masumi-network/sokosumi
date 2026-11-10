@@ -23,22 +23,30 @@ import { SeoWorkspace } from "./components/seo-workspace";
 import { useSeoWorkspace } from "./components/use-seo-workspace";
 import SeoPage from "./page";
 
-const boundary = vi.hoisted(() => ({
-  getWorkspace: vi.fn(),
-  getAuditWorkspaceMapping: vi.fn(),
-  getServerSession: vi.fn(),
-  members: vi.fn(),
-  listAudits: vi.fn(),
-  refresh: vi.fn(),
-  session: { user: { id: "owner" }, session: { activeOrganizationId: "org" } },
-}));
+const boundary = vi.hoisted(() => {
+  const refresh = vi.fn();
+  return {
+    // One router for all renders, as in the app.
+    router: { refresh },
+    getWorkspace: vi.fn(),
+    getAuditWorkspaceMapping: vi.fn(),
+    getServerSession: vi.fn(),
+    members: vi.fn(),
+    listAudits: vi.fn(),
+    refresh,
+    session: {
+      user: { id: "owner" },
+      session: { activeOrganizationId: "org" },
+    },
+  };
+});
 vi.mock("next/server", async (original) => ({
   ...(await original<typeof import("next/server")>()),
   connection: async () => {},
 }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
-  useRouter: () => ({ refresh: boundary.refresh }),
+  useRouter: () => boundary.router,
 }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: "App.Seo" = "App.Seo") =>
@@ -279,6 +287,40 @@ describe("SEO load recovery", () => {
       ),
     ).toHaveLength(1);
   });
+
+  it.each([
+    [404, "audit", 1],
+    [403, "audit", 1],
+    // This tab still names the workspace that the reader left in another tab.
+    [409, "audit", 1],
+    [401, "audit", 0],
+    [503, "audit", 0],
+    [404, "project", 0],
+  ] as const)(
+    "loads the page again after a workspace change and a client %i for the %s: %i time",
+    async (status, kind, times) => {
+      const data = kind === "audit" ? workspace() : seoTestWorkspace();
+      const value = client();
+      const view = render(wrap(<SeoWorkspace workspace={data} />, value));
+      await screen.findByRole("tab", { name: "Agent" });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ error: "SEO failed" }, { status })),
+      );
+      boundary.session = {
+        user: { id: "owner" },
+        session: { activeOrganizationId: OTHER_ORGANIZATION },
+      };
+      view.rerender(wrap(<SeoWorkspace workspace={data} />, value));
+      // The error view replaces the Audit. Only the page can ask to switch.
+      expect(
+        await screen.findByRole("link", { name: "All audits" }),
+      ).toBeVisible();
+      expect(screen.queryByRole("tab", { name: "Agent" })).toBeNull();
+      view.rerender(wrap(<SeoWorkspace workspace={data} />, value));
+      expect(boundary.refresh).toHaveBeenCalledTimes(times);
+    },
+  );
 
   it("stops running-analysis polling after the Audit becomes unavailable", async () => {
     vi.useFakeTimers();

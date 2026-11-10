@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {
+  seoClientReadNeedsPage,
   seoLoadErrorStatus,
   seoLoadRecovery,
 } from "@/app/seo/seo-load-error-model";
@@ -131,6 +132,7 @@ export function SeoWorkspace({
         status={loadStatus}
         owner={model.owner}
         hasSelection={Boolean(model.filters.pageId || model.filters.scopeId)}
+        askPage={seoClientReadNeedsPage(model.owner, loadStatus)}
         onRetry={() => {
           void model.result.refetch();
         }}

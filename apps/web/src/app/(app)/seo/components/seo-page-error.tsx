@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 import { seoLoadRecovery } from "@/app/seo/seo-load-error-model";
 import { Button } from "@/components/ui/button";
 import type { SeoOwner } from "@/lib/seo/owner";
@@ -14,6 +15,7 @@ export function SeoPageError({
   status,
   owner,
   hasSelection = false,
+  askPage = false,
   onRetry,
 }: {
   resetHref: string;
@@ -21,10 +23,15 @@ export function SeoPageError({
   status?: number;
   owner?: SeoOwner;
   hasSelection?: boolean;
+  /** Load the page again: only the page can find the Audit's workspace and ask to switch. */
+  askPage?: boolean;
   onRetry?: () => void;
 }) {
   const t = useTranslations("App.Seo");
   const router = useRouter();
+  useEffect(() => {
+    if (askPage) router.refresh();
+  }, [askPage, router]);
   const model = seoLoadRecovery({
     status,
     invalidFilters,

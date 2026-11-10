@@ -1,6 +1,11 @@
 import type { SeoOwner } from "@/lib/seo/owner";
 
 const CONTEXT_UNAVAILABLE_STATUSES = new Set([401, 403, 404, 409]);
+// 404: the active workspace does not hold the Audit. 403: the reader has no
+// seat in the active workspace, which says nothing about where the Audit is.
+const ELSEWHERE_STATUSES = new Set([403, 404]);
+// The web route answers 409 when a tab still names the workspace that the reader left in another tab.
+const VIEWER_CHANGED = 409;
 // Match the app's browser QueryClient default for transient failures only.
 const MAX_TRANSIENT_RETRIES = 3;
 
@@ -17,6 +22,33 @@ export function seoLoadErrorStatus(error: unknown): number | undefined {
   )
     return error.status;
   return undefined;
+}
+
+/** A failed Audit read that can mean: the Audit is in another workspace of this reader. */
+export function seoAuditMayBeElsewhere(
+  owner: SeoOwner | undefined,
+  status: number | undefined,
+): boolean {
+  return (
+    owner?.kind === "audit" &&
+    status !== undefined &&
+    ELSEWHERE_STATUSES.has(status)
+  );
+}
+
+/**
+ * A failed read in the browser that the page must see: the workspace changed
+ * after the page opened. Only the page can find the Audit's workspace and ask
+ * to switch.
+ */
+export function seoClientReadNeedsPage(
+  owner: SeoOwner | undefined,
+  status: number | undefined,
+): boolean {
+  return (
+    seoAuditMayBeElsewhere(owner, status) ||
+    (owner?.kind === "audit" && status === VIEWER_CHANGED)
+  );
 }
 
 export class SeoWorkspaceLoadError extends Error {
