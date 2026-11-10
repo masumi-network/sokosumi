@@ -15,6 +15,8 @@ export function buildStudioLabels(t: Translator): StudioLabels {
   return {
     emptyTitle: t("emptyTitle"),
     emptyBody: t("emptyBody"),
+    pauseTemplateMotion: t("pauseTemplateMotion"),
+    resumeTemplateMotion: t("resumeTemplateMotion"),
     promptPlaceholder: t("promptPlaceholder"),
     generate: t("generate"),
     refine: t("refine"),
