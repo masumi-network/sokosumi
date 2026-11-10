@@ -223,6 +223,7 @@ describe("requestCmoStrategy", () => {
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
     await setCmoAdBudget({ userId: "user-1", monthly: 500, currency: "eur" });
+    expect(cusoFind).toHaveBeenCalledTimes(1);
     await saveCmoStrategy(
       { sokoBotId: "bot-1" },
       { summary: "Ads around the owner's budget." },
