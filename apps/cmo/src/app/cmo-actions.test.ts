@@ -265,11 +265,12 @@ describe("social accounts", () => {
       data: { data: { redirectUrl: "https://connect.example/x" } },
     });
 
-    await connectSetupChannel("x", "popup");
+    await connectSetupChannel("project-1", "x", "popup");
     expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
-          callbackUrl: "https://app.cmo.xyz/connect/callback?from=popup",
+          callbackUrl:
+            "https://app.cmo.xyz/connect/callback?from=popup&project=project-1",
         }),
       }),
     );

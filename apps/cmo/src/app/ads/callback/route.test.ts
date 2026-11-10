@@ -57,16 +57,22 @@ describe("ads callback", () => {
 
   it("ends a popup's connect on the page that tells the opener", async () => {
     finalizeAds.mockResolvedValue({ state: "connected" });
-    const done = await callback("from=popup&project=project-2&connectedAccountId=ca_1");
+    const done = await callback(
+      "from=popup&project=project-2&connectedAccountId=ca_1",
+    );
     expect(done.headers.get("location")).toBe(
       "http://localhost:3110/connect/done?result=connected",
     );
     finalizeAds.mockResolvedValue({ state: "none" });
-    const none = await callback("from=popup&project=project-2&connectedAccountId=ca_1");
+    const none = await callback(
+      "from=popup&project=project-2&connectedAccountId=ca_1",
+    );
     expect(none.headers.get("location")).toBe(
       "http://localhost:3110/connect/done?result=none",
     );
-    const refused = await callback("from=popup&project=project-2&status=failed");
+    const refused = await callback(
+      "from=popup&project=project-2&status=failed",
+    );
     expect(refused.headers.get("location")).toBe(
       "http://localhost:3110/connect/done?result=failed",
     );
@@ -77,7 +83,9 @@ describe("ads callback", () => {
       state: "choose",
       adConnectionId: "conn-1",
     });
-    const response = await callback("from=popup&project=project-2&connectedAccountId=ca_1");
+    const response = await callback(
+      "from=popup&project=project-2&connectedAccountId=ca_1",
+    );
     expect(response.headers.get("location")).toBe(
       "http://localhost:3110/ads/choose?connection=conn-1&project=project-2&from=popup",
     );

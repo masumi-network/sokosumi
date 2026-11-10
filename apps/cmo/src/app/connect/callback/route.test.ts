@@ -39,12 +39,21 @@ describe("connect callback", () => {
 
   it("ends a popup's connect on the page that tells the opener", async () => {
     finalizeChannel.mockResolvedValue(true);
-    const done = await callback("from=popup&connectedAccountId=ca_1");
+    const done = await callback(
+      "from=popup&project=project-2&connectedAccountId=ca_1",
+    );
     expect(done.headers.get("location")).toBe(
       "http://localhost:3110/connect/done?result=connected",
     );
-    const failed = await callback("from=popup&status=cancelled");
+    const failed = await callback(
+      "from=popup&project=project-2&status=cancelled",
+    );
     expect(failed.headers.get("location")).toBe(
+      "http://localhost:3110/connect/done?result=failed",
+    );
+    // Without its Project nothing is finished, and the popup still ends.
+    const orphan = await callback("from=popup&connectedAccountId=ca_1");
+    expect(orphan.headers.get("location")).toBe(
       "http://localhost:3110/connect/done?result=failed",
     );
   });
