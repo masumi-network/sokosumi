@@ -9,7 +9,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -24,8 +24,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { getStudioBrandKit } from "@/lib/actions/image-studio/brand-kit";
 import { cn } from "@/lib/utils";
 import { fetchStudioAd, saveStudioDownload } from "./studio-ad-download";
+import {
+  MAX_STUDIO_HEADLINE_LENGTH,
+  useStudioHeadlineImage,
+} from "./studio-headline-image";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
@@ -63,6 +69,17 @@ export function StudioAdPreview({
     ratio === "9:16" ? "reels" : ratio === "16:9" ? "facebook" : "instagram",
   );
   const [downloading, startDownload] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [headlines, setHeadlines] = useState<string[]>([]);
+  const [headline, setHeadline] = useState("");
+  const [headlineLoadFailed, setHeadlineLoadFailed] = useState(false);
+  const [loadingHeadlines, startHeadlineLoad] = useTransition();
+  const headlineId = useId();
+  const headlineRequest = useRef(0);
+  const selectedHeadline =
+    open && headlines.includes(headline) ? headline : undefined;
+  const { result: headlineImage, retry: retryHeadline } =
+    useStudioHeadlineImage(asset, ratio, logoPosition, selectedHeadline);
   const isReel = platform === "reels";
   const isFacebook = platform === "facebook";
   const platformRatios: readonly PlacementRatio[] = PLATFORM_RATIOS[platform];
@@ -90,17 +107,54 @@ export function StudioAdPreview({
     setRatio((current) => (allowed.includes(current) ? current : allowed[0]));
   }
 
+  function loadHeadlines() {
+    const request = ++headlineRequest.current;
+    setHeadlineLoadFailed(false);
+    startHeadlineLoad(async () => {
+      try {
+        const kit = await getStudioBrandKit({ projectId: asset.projectId });
+        if (request !== headlineRequest.current) return;
+        const options = [...new Set(kit.approvedLines)].filter(
+          (line) => line.trim() && line.length <= MAX_STUDIO_HEADLINE_LENGTH,
+        );
+        setHeadlines(options);
+        setHeadline((current) => (options.includes(current) ? current : ""));
+      } catch {
+        if (request === headlineRequest.current) setHeadlineLoadFailed(true);
+      }
+    });
+  }
+
   function downloadPlacement() {
     if (downloading) return;
     startDownload(async () => {
       try {
-        const response = await fetchStudioAd(asset, {
-          logo: logoPosition,
-          placement: ratio,
-        });
-        const suffix = logoPosition ? "-branded" : "";
+        if (selectedHeadline) {
+          if (headlineImage?.status !== "ready") return;
+          const kit = await getStudioBrandKit({ projectId: asset.projectId });
+          if (!kit.approvedLines.includes(selectedHeadline)) {
+            setHeadlines((current) =>
+              current.filter((line) => kit.approvedLines.includes(line)),
+            );
+            setHeadline((current) =>
+              current === selectedHeadline ? "" : current,
+            );
+            toast.error(t("headlineRemoved"));
+            return;
+          }
+        }
+        const blob =
+          headlineImage?.status === "ready"
+            ? headlineImage.blob
+            : await fetchStudioAd(asset, {
+                logo: logoPosition,
+                placement: ratio,
+              }).then((response) => response.blob());
+        const suffix =
+          (logoPosition ? "-branded" : "") +
+          (selectedHeadline ? "-headline" : "");
         saveStudioDownload(
-          await response.blob(),
+          blob,
           `ad-v${asset.version}-${ratio.replace(":", "x")}${suffix}.png`,
         );
       } catch {
@@ -110,7 +164,16 @@ export function StudioAdPreview({
   }
 
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setHeadlines([]);
+          loadHeadlines();
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button type="button" size="sm" variant="secondary">
           {t("previewAd")}
@@ -148,6 +211,43 @@ export function StudioAdPreview({
             onChange={onLogoPositionChange}
             value={logoPosition}
           />
+        ) : null}
+        {loadingHeadlines ? (
+          <p className="text-muted-foreground text-xs" role="status">
+            {t("headlineLoading")}
+          </p>
+        ) : headlineLoadFailed ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-muted-foreground text-xs" role="status">
+              {t("headlineLoadFailed")}
+            </p>
+            <Button
+              onClick={loadHeadlines}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              {labels.imageRetry}
+            </Button>
+          </div>
+        ) : headlines.length ? (
+          <div className="min-w-0 space-y-1">
+            <Label htmlFor={headlineId}>{t("approvedHeadline")}</Label>
+            <select
+              className="border-input bg-background focus-visible:ring-ring h-8 w-full min-w-0 rounded-md border px-2 text-sm focus-visible:ring-2"
+              id={headlineId}
+              onChange={(event) => setHeadline(event.currentTarget.value)}
+              value={headline}
+            >
+              <option value="">{t("noHeadline")}</option>
+              {headlines.map((line) => (
+                <option key={line} value={line}>
+                  {line}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-xs">{t("headlineHint")}</p>
+          </div>
         ) : null}
         <div
           aria-label={t("adPlacements")}
@@ -195,13 +295,43 @@ export function StudioAdPreview({
             className="bg-muted"
             style={{ aspectRatio: ratio.replace(":", " / ") }}
           >
-            <StudioImage
-              asset={asset}
-              key={`${ratio}:${logoPosition ?? "original"}`}
-              labels={labels}
-              logoPosition={logoPosition}
-              placement={ratio}
-            />
+            {selectedHeadline ? (
+              headlineImage?.status === "ready" ? (
+                <img
+                  alt={`${asset.prompt} — ${selectedHeadline}`}
+                  className="size-full object-cover"
+                  src={headlineImage.url}
+                />
+              ) : (
+                <div className="text-muted-foreground flex size-full flex-col items-center justify-center gap-2 p-3 text-center text-xs">
+                  <p role="status">
+                    {t(
+                      headlineImage?.status === "error"
+                        ? "headlineRenderFailed"
+                        : "headlineRendering",
+                    )}
+                  </p>
+                  {headlineImage?.status === "error" ? (
+                    <Button
+                      onClick={retryHeadline}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      {labels.imageRetry}
+                    </Button>
+                  ) : null}
+                </div>
+              )
+            ) : (
+              <StudioImage
+                asset={asset}
+                key={`${ratio}:${logoPosition ?? "original"}`}
+                labels={labels}
+                logoPosition={logoPosition}
+                placement={ratio}
+              />
+            )}
           </div>
           {isReel ? (
             <>
@@ -246,6 +376,9 @@ export function StudioAdPreview({
         </div>
         <DialogFooter>
           <Button
+            disabled={Boolean(
+              selectedHeadline && headlineImage?.status !== "ready",
+            )}
             loading={downloading}
             onClick={downloadPlacement}
             type="button"

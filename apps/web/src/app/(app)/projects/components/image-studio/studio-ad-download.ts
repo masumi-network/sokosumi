@@ -11,11 +11,13 @@ export const MAX_ARCHIVE_MIB = 96;
 export const MAX_ARCHIVE_BYTES = MAX_ARCHIVE_MIB * 1024 * 1024;
 
 export async function fetchStudioAd(
-  asset: StudioAsset,
+  asset: Pick<StudioAsset, "id" | "projectId">,
   options?: StudioAdRenderOptions,
+  signal?: AbortSignal,
 ): Promise<Response> {
+  const timeout = AbortSignal.timeout(30_000);
   const response = await fetch(assetContentUrl(asset, options), {
-    signal: AbortSignal.timeout(30_000),
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   });
   if (!response.ok) throw new Error(`Studio image returned ${response.status}`);
   if (

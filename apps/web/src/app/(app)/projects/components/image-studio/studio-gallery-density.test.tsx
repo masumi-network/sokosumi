@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
   listBatchAssets: vi.fn(),
+  loadBrandKit: vi.fn().mockResolvedValue({ approvedLines: [] }),
   createArchive: vi.fn(),
   saveDownload: vi.fn(),
 }));
@@ -51,6 +52,28 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: mocks.cancel,
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/image-studio/brand-kit", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/actions/image-studio/brand-kit")
+  >()),
+  getStudioBrandKit: mocks.loadBrandKit,
+}));
+
+vi.mock("./studio-headline-image", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./studio-headline-image")>()),
+  useStudioHeadlineImage: (
+    _asset: StudioAsset,
+    _ratio: string,
+    _logo: StudioLogoPosition | undefined,
+    headline: string | undefined,
+  ) => ({
+    result: headline
+      ? { status: "ready", blob: new Blob([headline]), url: "blob:studio-ad" }
+      : null,
+    retry: vi.fn(),
+  }),
 }));
 
 vi.mock("./studio-ad-download", async (importOriginal) => ({
@@ -131,6 +154,7 @@ function mount(
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+  mocks.loadBrandKit.mockResolvedValue({ approvedLines: [] });
   mocks.cancel.mockResolvedValue({ accepted: true });
 });
 
@@ -315,6 +339,42 @@ describe("a gallery with work in it", () => {
       );
     },
   );
+
+  it("downloads only approved headline copy and blocks a line removed during review", async () => {
+    const active = "Made with reclaimed clay.";
+    const removed = "Save 50% this weekend.";
+    mocks.loadBrandKit
+      .mockResolvedValueOnce({ approvedLines: [active, removed] })
+      .mockResolvedValue({ approvedLines: [active] });
+
+    mount([{ ...ASSET, projectId: "p" }]);
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+
+    const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
+    const select = await preview.findByLabelText("approvedHeadline");
+    const download = preview.getByRole("button", {
+      name: /^downloadPlacementPng/,
+    });
+
+    fireEvent.change(select, { target: { value: removed } });
+    fireEvent.click(download);
+    await waitFor(() =>
+      expect(
+        preview.queryByRole("option", { name: removed }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(mocks.saveDownload).not.toHaveBeenCalled();
+
+    fireEvent.change(select, { target: { value: active } });
+    fireEvent.click(download);
+    await waitFor(() =>
+      expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
+        expect.any(Blob),
+        "ad-v1-1x1-headline.png",
+      ),
+    );
+  });
 
   it("hands the selected ad to the assistant and keeps the generation draft", () => {
     const product = { id: "mug", name: "Stoneware mug" };
