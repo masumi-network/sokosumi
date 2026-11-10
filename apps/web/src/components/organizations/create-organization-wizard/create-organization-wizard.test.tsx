@@ -403,7 +403,8 @@ describe("CreateOrganizationWizard", () => {
       expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
 
-    expect(screen.getByText("Logo.title")).toBeTruthy();
+    // The pressed button left with its step; focus starts at the new title.
+    expect(screen.getByRole("heading", { name: "Logo.title" })).toHaveFocus();
     // No logo: one drop target, no empty tile offering to replace nothing.
     expect(
       await screen.findByRole("button", { name: "Logo.dropzone" }),
@@ -412,9 +413,12 @@ describe("CreateOrganizationWizard", () => {
       screen.queryByRole("button", { name: /Logo.replace/ }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
-    expect(screen.getByText("Brand.title")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Brand.title" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: /Nav.back/i }));
+    expect(screen.getByRole("heading", { name: "Logo.title" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: /Nav.skipForNow/i }));
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
-    expect(screen.getByText("Invite.title")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Invite.title" })).toHaveFocus();
   });
 
   it("says a rejected logo failed in the page's language, not FileUpload's English", async () => {

@@ -15,6 +15,7 @@ import {
 import {
   buildOrganizationDriveFolderPrefix,
   buildUserDriveFolderPrefix,
+  CORE_API_ERROR_KINDS,
   isDriveFolderMarker,
   normalizeDriveFolderPath,
   validateDriveFolderPath,
@@ -213,6 +214,7 @@ export async function upsertDriveShare(input: {
   if (await targetInDataRoom(store, target))
     throw badRequest(
       "This is in a data room. Invite people to the room instead of sharing a link.",
+      { kind: CORE_API_ERROR_KINDS.DRIVE_SHARE_IN_DATA_ROOM },
     );
   const passwordHash =
     input.password === undefined

@@ -26,6 +26,19 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
+  --animate-studio-template-float: studio-template-float 14s ease-in-out
+    infinite;
+
+  @keyframes studio-template-float {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(10px, -14px, 0);
+    }
+  }
+
   /* Entrances: fast out of the gate, then a long settle, so a dialog is
      already moving on the first frame. The browser's `ease` starts slow,
      which reads as lag on something that should answer a click. */
