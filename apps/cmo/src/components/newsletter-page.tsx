@@ -58,7 +58,7 @@ export function NewsletterPage(props: NewsletterPageProps) {
           if (event.currentTarget.open) setContactsOpened(true);
         }}
       >
-        <summary className="label">Contacts</summary>
+        <summary>Contacts</summary>
         {contactsOpened ? (
           <NewsletterContacts projectId={props.overview.projectId} />
         ) : null}
