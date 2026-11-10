@@ -1,28 +1,43 @@
 import { createRoute } from "@hono/zod-openapi";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { config, readText } from "@/routes/v1/cmo/calendar/[id]/text/get";
+import { rethrow } from "@/routes/v1/cmo/helpers";
 import {
+  cmoPieceTextSchema,
   cmoProjectParamsSchema,
   cmoUpdateIdParamsSchema,
 } from "@/schemas/cmo.schema";
+import { readCmoPieceText } from "@/services/cmo-strategy.service";
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
+const route = createRoute({
+  method: "get",
   path: "/projects/{projectId}/calendar/{id}/text",
   operationId: "getCmoCalendarEntryTextForProject",
+  tags: ["CMO"],
+  description:
+    "The words of one approved calendar piece that lives in the Project's Files (an article, a page fix, ad copy, a newsletter issue).",
   request: {
-    ...config.request,
     params: cmoProjectParamsSchema.extend(cmoUpdateIdParamsSchema.shape),
+  },
+  responses: {
+    200: jsonSuccessResponse(cmoPieceTextSchema, "The piece's words"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not written yet, or Cuso is not hired"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(projectRoute, async (c) => {
+  app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId, id } = c.req.valid("param");
-    return ok(c, await readText({ userId, projectId }, id));
+    const text = await readCmoPieceText({
+      userId,
+      projectId,
+      entryId: id,
+    }).catch(rethrow);
+    return ok(c, { text });
   });
 }

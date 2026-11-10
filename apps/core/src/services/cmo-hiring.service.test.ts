@@ -150,7 +150,9 @@ describe("learning state", () => {
     cusoFind.mockResolvedValue(workspace);
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
-    expect(await retryCmoOnboarding({ userId: "user-1" })).toEqual({
+    expect(
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+    ).toEqual({
       turnId: "turn-2",
     });
     const input = startTurn.mock.calls[0]?.[0];
@@ -160,9 +162,9 @@ describe("learning state", () => {
 
     turnFindFirst.mockResolvedValue(turn("RUNNING", 1));
     eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
-    await expect(retryCmoOnboarding({ userId: "user-1" })).rejects.toThrow(
-      "still learning",
-    );
+    await expect(
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("still learning");
   });
 
   it("retries a finished turn that saved sections but no essentials, finishing them", async () => {
@@ -172,7 +174,9 @@ describe("learning state", () => {
     });
     turnFindFirst.mockResolvedValue(turn("COMPLETED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
-    expect(await retryCmoOnboarding({ userId: "user-1" })).toEqual({
+    expect(
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+    ).toEqual({
       turnId: "turn-2",
     });
     expect(startTurn.mock.calls[0]?.[0].message).toContain(
@@ -186,9 +190,9 @@ describe("learning state", () => {
     funding.requireFunding.mockRejectedValueOnce(
       new funding.BillingError("no"),
     );
-    await expect(retryCmoOnboarding({ userId: "user-1" })).rejects.toThrow(
-      "out of credits",
-    );
+    await expect(
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("out of credits");
     expect(startTurn).not.toHaveBeenCalled();
   });
 });
@@ -251,7 +255,7 @@ describe("starting over", () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     postFindMany.mockResolvedValue([{ id: "post-1", revision: 3 }]);
     cancelSocialPost.mockResolvedValue({});
-    await startCmoOver({ userId: "user-1" });
+    await startCmoOver({ projectId: "project-1", userId: "user-1" });
     expect(archiveBot).toHaveBeenCalledWith("user-1", "ws-1", {
       kind: "id",
       sokoBotId: "bot-1",
@@ -274,7 +278,7 @@ describe("starting over", () => {
     });
     sokoBotFindUnique.mockResolvedValue({ sharedRoomId: "room-1" });
     postFindMany.mockResolvedValue([]);
-    await startCmoOver({ userId: "user-1" });
+    await startCmoOver({ projectId: "project-1", userId: "user-1" });
     expect(chatRoomUpdate).toHaveBeenCalledWith({
       where: { id: "room-1" },
       data: { name: "Cuso · acme.io" },
@@ -284,7 +288,9 @@ describe("starting over", () => {
   it("leaves posts alone when the person may not archive him", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     archiveBot.mockRejectedValueOnce(new Error("Only an organization owner"));
-    await expect(startCmoOver({ userId: "user-1" })).rejects.toThrow("owner");
+    await expect(
+      startCmoOver({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("owner");
     expect(cancelSocialPost).not.toHaveBeenCalled();
   });
 });

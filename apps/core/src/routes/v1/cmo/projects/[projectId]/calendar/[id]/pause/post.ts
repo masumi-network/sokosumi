@@ -1,28 +1,44 @@
 import { createRoute } from "@hono/zod-openapi";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { config, pause } from "@/routes/v1/cmo/calendar/[id]/pause/post";
+import { requireOverview, rethrow } from "@/routes/v1/cmo/helpers";
 import {
+  cmoOverviewSchema,
   cmoProjectParamsSchema,
   cmoUpdateIdParamsSchema,
 } from "@/schemas/cmo.schema";
+import { pauseCmoCalendarEntry } from "@/services/cmo-strategy.service";
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
+const route = createRoute({
+  method: "post",
   path: "/projects/{projectId}/calendar/{id}/pause",
   operationId: "pauseCmoCalendarEntryForProject",
+  tags: ["CMO"],
+  description:
+    "Pauses one calendar entry's Social post: cancels it so it cannot go out. The approved plan stays as it is.",
   request: {
-    ...config.request,
     params: cmoProjectParamsSchema.extend(cmoUpdateIdParamsSchema.shape),
+  },
+  responses: {
+    200: jsonSuccessResponse(cmoOverviewSchema, "Entry paused"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Cuso is not hired yet"),
+    409: jsonErrorResponse(
+      "Not a planned Social post, or it can no longer be canceled",
+    ),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(projectRoute, async (c) => {
+  app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId, id } = c.req.valid("param");
-    return ok(c, await pause({ userId, projectId }, id));
+    await pauseCmoCalendarEntry({ userId, projectId, entryId: id }).catch(
+      rethrow,
+    );
+    return ok(c, await requireOverview({ userId, projectId }));
   });
 }
