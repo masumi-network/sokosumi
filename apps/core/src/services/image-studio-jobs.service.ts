@@ -36,6 +36,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
 import type { FileActor } from "@/lib/files/actor";
 import {
+  type ProjectAccess,
   requireProjectAccess,
   requireProjectAccessForUser,
 } from "@/lib/image-studio/access";
@@ -497,12 +498,16 @@ const SETTLE_LEASE_MS = 180_000;
  * storage and never acquire a durable public URL, so nothing in a job record,
  * an API response, or a tool result hands out a readable handle on them.
  */
-async function buildReferenceUrls(job: {
-  projectId: string;
-  workspaceId: string;
-  referenceAssetIds: string[];
-  referenceFileIds: string[];
-}): Promise<string[]> {
+async function buildReferenceUrls(
+  job: {
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    referenceAssetIds: string[];
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+): Promise<string[]> {
   const count = job.referenceAssetIds.length + job.referenceFileIds.length;
   if (count === 0) return [];
   if (count > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB) {
@@ -549,7 +554,13 @@ async function buildReferenceUrls(job: {
     );
   }
   for (const fileId of job.referenceFileIds) {
-    urls.push(await uploadFileReference(job.workspaceId, fileId));
+    urls.push(
+      await uploadFileReference(job.workspaceId, fileId, {
+        userId: job.requestedByUserId,
+        organizationId,
+        kind: "interactive",
+      }),
+    );
   }
   return urls;
 }
@@ -558,17 +569,21 @@ async function buildReferenceUrls(job: {
 async function uploadFileReference(
   workspaceId: string,
   fileId: string,
+  actor: FileActor,
 ): Promise<string> {
-  const file = await prisma.fileResource.findFirst({
-    where: {
-      id: fileId,
-      workspaceId,
-      sourceKind: FileSourceKind.DRIVE_UPLOAD,
-    },
-    select: { sourceId: true, mimeType: true },
+  // The requester can lose access to a private room while the reservation is
+  // pending. Resolve the current, authorized pathname before opening the file.
+  const [file] = await loadLiveResources({
+    workspaceId,
+    actor,
+    resourceIds: [fileId],
   });
-  if (!file?.mimeType?.startsWith("image/"))
-    throw notFound("A reference image was not found in this workspace");
+  if (
+    file?.sourceKind !== FileSourceKind.DRIVE_UPLOAD ||
+    !file.mimeType?.startsWith("image/")
+  ) {
+    throw notFound("A reference image was not found in your Files.");
+  }
   const blob = await driveHead(file.sourceId);
   if (!blob) throw new DriveFileDownloadError("unavailable");
   if (blob.size > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
@@ -788,11 +803,11 @@ async function reserveAndSend(input: ReserveImageJobInput) {
     }))!;
   }
 
-  return await sendClaimedJob(job.id);
+  return await sendClaimedJob(job.id, input.organizationId);
 }
 
 /** Sends a job whose lease this caller already holds. */
-async function sendClaimedJob(jobId: string) {
+async function sendClaimedJob(jobId: string, organizationId: string | null) {
   const job = await prisma.projectImageJob.findUniqueOrThrow({
     where: { id: jobId },
   });
@@ -815,7 +830,7 @@ async function sendClaimedJob(jobId: string) {
   let preflightReason: ImageJobFailureReason = "reference_not_sendable";
   try {
     const [imageUrls, brand] = await Promise.all([
-      buildReferenceUrls(job),
+      buildReferenceUrls(job, organizationId),
       loadStudioBrand(job.projectId),
     ]);
     preflightReason = "request_not_supported";
@@ -2017,13 +2032,12 @@ export async function recoverUnclaimedReservations(
     // it has to ask again. Without this, a reservation left behind by someone
     // since removed from the organization was still sent to the provider and
     // charged.
-    let permitted: boolean;
+    let access: ProjectAccess | null = null;
     try {
-      await requireProjectAccessForUser({
+      access = await requireProjectAccessForUser({
         projectId: job.projectId,
         userId: job.requestedByUserId,
       });
-      permitted = true;
     } catch (error) {
       if (!isAccessDenied(error)) {
         // Could not ask. Leave the row alone and try on the next sweep;
@@ -2034,10 +2048,9 @@ export async function recoverUnclaimedReservations(
         });
         continue;
       }
-      permitted = false;
     }
 
-    if (!permitted) {
+    if (!access) {
       const released = await prisma.projectImageJob.updateMany({
         where: {
           id: job.id,
@@ -2057,7 +2070,7 @@ export async function recoverUnclaimedReservations(
 
     if (!(await claimForSubmission(job.id))) continue;
     try {
-      await sendClaimedJob(job.id);
+      await sendClaimedJob(job.id, access.organizationId);
       submitted += 1;
     } catch (error) {
       console.warn("[image-studio] recovery submit failed", {
