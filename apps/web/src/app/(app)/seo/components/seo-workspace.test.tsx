@@ -1594,6 +1594,8 @@ describe("SEO workspace integration", () => {
       { length: 14 },
       (_, day) => `2026-01-${String(day + 1).padStart(2, "0")}`,
     );
+    // One sync has one time: metrics of two times are two syncs, and only the newest shows.
+    const observedAt = new Date();
     workspace.metrics = [
       {
         id: "sync:impressions",
@@ -1606,7 +1608,7 @@ describe("SEO workspace integration", () => {
         from: days[0],
         to: days[13],
         timeZone: "UTC",
-        observedAt: new Date(),
+        observedAt,
         coverage: "complete",
         notes: [],
         value: 4935,
@@ -1624,7 +1626,7 @@ describe("SEO workspace integration", () => {
         from: days[0],
         to: days[13],
         timeZone: "UTC",
-        observedAt: new Date(),
+        observedAt,
         coverage: "complete",
         notes: [],
         value: 4.5,
