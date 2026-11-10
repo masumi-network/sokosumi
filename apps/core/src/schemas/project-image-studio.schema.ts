@@ -16,6 +16,7 @@ import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_DURATIONS_SECONDS,
 } from "@/lib/image-studio/video-model";
+import { studioLogoPositionSchema } from "./studio-logo-position.schema";
 import { studioProductIdentitySchema } from "./studio-product.schema";
 
 export const IMAGE_JOB_STATUSES = [
@@ -50,10 +51,6 @@ export const imageStudioAssetParamsSchema =
         example: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       }),
   });
-
-export const studioLogoPositionSchema = z
-  .enum(["top-left", "top-right", "bottom-left", "bottom-right"])
-  .openapi("StudioLogoPosition");
 
 export const studioAdPlacementRatioSchema = z
   .enum(["1:1", "4:5", "9:16", "16:9"])

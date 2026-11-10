@@ -1,6 +1,7 @@
 import type {
   StudioBrandCopy,
   StudioBrandKit,
+  StudioLogoPosition,
   StudioWebsiteCopy,
 } from "@sokosumi/core-client";
 import {
@@ -40,9 +41,12 @@ import {
   getStudioBrandKit,
   getStudioWebsiteCopy,
   saveStudioBrandCopy,
+  saveStudioLogoPosition,
   saveStudioWebsiteLogo,
   uploadStudioProjectLogo,
 } from "@/lib/actions/image-studio/brand-kit";
+
+import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 
 const MAX_LINES = 8;
 const MAX_AUDIENCE_LENGTH = 400;
@@ -64,7 +68,10 @@ export function StudioBrandKitDialog({
   websiteUrl,
 }: {
   disabled?: boolean;
-  onLogoChange: (logo: string | null) => void;
+  onLogoChange: (
+    logo: string | null,
+    position: StudioLogoPosition | null,
+  ) => void;
   onWebsiteCopyReviewed?: () => void;
   projectId: string;
   websiteCopy?: StudioWebsiteCopy | null;
@@ -80,6 +87,8 @@ export function StudioBrandKitDialog({
     approvedLines: "",
   });
   const [dirty, setDirty] = useState(false);
+  const [logoPositionDraft, setLogoPositionDraft] =
+    useState<StudioLogoPosition | null>(null);
   const [websiteStyleSaved, setWebsiteStyleSaved] = useState(false);
   const [message, setMessage] = useState<
     "saved" | "loadError" | "saveError" | "conflict" | null
@@ -94,6 +103,8 @@ export function StudioBrandKitDialog({
   const [logoCandidate, setLogoCandidate] = useState<string | null>(null);
   const [logoMessage, setLogoMessage] = useState<
     | "logoSaved"
+    | "logoPositionSaved"
+    | "logoPositionError"
     | "logoUploadError"
     | "logoFileInvalid"
     | "websiteLogoMissing"
@@ -129,7 +140,9 @@ export function StudioBrandKitDialog({
       try {
         const next = await getStudioBrandKit({ projectId });
         setKit(next);
-        onLogoChange(next.logo);
+        const position = next.studioLogoPosition ?? null;
+        setLogoPositionDraft(position);
+        onLogoChange(next.logo, position);
         const savedDraft = {
           summary: next.summary,
           tone: next.tone,
@@ -173,9 +186,28 @@ export function StudioBrandKitDialog({
 
   function applyLogo(logo: string | null) {
     setKit((current) => (current ? { ...current, logo } : current));
-    onLogoChange(logo);
+    onLogoChange(logo, kit?.studioLogoPosition ?? null);
     setLogoCandidate(null);
     setLogoMessage("logoSaved");
+  }
+
+  function saveLogoPosition() {
+    if (pending || !kit?.logo) return;
+    startLogoTransition(async () => {
+      setLogoMessage(null);
+      try {
+        const { logo, position } = await saveStudioLogoPosition({
+          projectId,
+          position: logoPositionDraft,
+        });
+        setKit({ ...kit, logo, studioLogoPosition: position });
+        setLogoPositionDraft(position);
+        onLogoChange(logo, position);
+        setLogoMessage("logoPositionSaved");
+      } catch {
+        setLogoMessage("logoPositionError");
+      }
+    });
   }
 
   function findWebsiteLogo() {
@@ -395,6 +427,34 @@ export function StudioBrandKitDialog({
               <p className="text-muted-foreground text-xs">
                 {t("BrandKit.logoRequirements")}
               </p>
+              {kit.logo ? (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StudioLogoPositionSelect
+                      label={t("BrandKit.logoPosition")}
+                      onChange={(position) =>
+                        setLogoPositionDraft(position ?? null)
+                      }
+                      value={logoPositionDraft ?? undefined}
+                    />
+                    <Button
+                      disabled={
+                        logoPositionDraft === (kit.studioLogoPosition ?? null)
+                      }
+                      loading={logoPending}
+                      onClick={saveLogoPosition}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {t("BrandKit.saveLogoPosition")}
+                    </Button>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    {t("BrandKit.logoPositionHint")}
+                  </p>
+                </div>
+              ) : null}
               {logoCandidate ? (
                 <div className="border-border space-y-2 rounded-md border p-3">
                   <Image

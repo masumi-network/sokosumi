@@ -85,6 +85,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         labels={buildStudioLabels(t)}
         projectId={scopeId}
         projectLogo={project?.logo}
+        studioLogoPosition={project?.studioLogoPosition}
         websiteUrl={project?.websiteUrl}
         projectScopePrompt={
           scopeId ? undefined : (

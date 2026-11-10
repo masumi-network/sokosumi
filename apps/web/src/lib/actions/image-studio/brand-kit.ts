@@ -3,6 +3,7 @@
 import type {
   SaveStudioBrandCopy,
   StudioBrandKit,
+  StudioLogoPosition,
   StudioWebsiteCopy,
   StudioWebsiteDraft,
 } from "@sokosumi/core-client";
@@ -57,6 +58,21 @@ export const saveStudioWebsiteLogo = withSession<
   revalidatePath("/projects");
   revalidatePath(`/projects/${projectId}`);
   return { logo };
+});
+
+export const saveStudioLogoPosition = withSession<
+  ProjectInput & { position: StudioLogoPosition | null },
+  { logo: string | null; position: StudioLogoPosition | null }
+>(async ({ projectId, position }) => {
+  const project = await projectService.patchProject(projectId, {
+    studioLogoPosition: position,
+  });
+  revalidatePath("/studio");
+  const logo =
+    project.logo && isOwnedProjectLogoUrl(project.logo, projectId)
+      ? project.logo
+      : null;
+  return { logo, position: project.studioLogoPosition ?? null };
 });
 
 export const saveStudioBrandCopy = withSession<

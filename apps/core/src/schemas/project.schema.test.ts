@@ -38,6 +38,7 @@ function createDatabaseProject(
     websiteUrl: null,
     sitePlatform: null,
     logo: null,
+    studioLogoPosition: null,
     designMdUrl: null,
     designMdExtractionId: null,
     postingInstructionsMd: null,
@@ -74,6 +75,27 @@ describe("project schemas", () => {
         briefing: "x".repeat(20_001),
       }),
     ).toThrow();
+  });
+
+  it("accepts or clears a Studio default and only exposes it with the approved project logo", () => {
+    expect(
+      patchProjectRequestSchema.parse({ studioLogoPosition: "top-left" }),
+    ).toMatchObject({ studioLogoPosition: "top-left" });
+    expect(
+      patchProjectRequestSchema.parse({ studioLogoPosition: null }),
+    ).toMatchObject({ studioLogoPosition: null });
+    expect(
+      patchProjectRequestSchema.safeParse({ studioLogoPosition: "center" })
+        .success,
+    ).toBe(false);
+    const project = createDatabaseProject({ studioLogoPosition: "top-left" });
+    expect(mapProjectForApi(project).studioLogoPosition).toBeUndefined();
+    expect(
+      mapProjectForApi({
+        ...project,
+        logo: `https://abc123.public.blob.vercel-storage.com/projects/${project.id}/logos/hash`,
+      }).studioLogoPosition,
+    ).toBe("top-left");
   });
 
   it("validates website and PATCH logo while stripping create-only legacy brand fields", () => {

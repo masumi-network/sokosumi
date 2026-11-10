@@ -45,6 +45,7 @@ const mocks = vi.hoisted(() => ({
   assets: [] as unknown[],
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
+  saveLogoPosition: vi.fn(),
   uploadLogo: vi.fn(),
   findWebsiteLogo: vi.fn(),
   saveWebsiteLogo: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   getStudioWebsiteCopy: mocks.loadWebsiteCopy,
   prepareStudioWebsiteDraft: mocks.prepareWebsiteDraft,
   saveStudioBrandCopy: mocks.saveBrandCopy,
+  saveStudioLogoPosition: mocks.saveLogoPosition,
   saveStudioWebsiteLogo: mocks.saveWebsiteLogo,
   uploadStudioProjectLogo: mocks.uploadLogo,
 }));
@@ -277,7 +279,9 @@ describe("starting from a template", () => {
     );
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "BrandKit.save" }));
+    const save = screen.getByRole("button", { name: "BrandKit.save" });
+    await waitFor(() => expect(save).toBeEnabled());
+    fireEvent.click(save);
     await screen.findByText("BrandKit.saved");
     expect(mocks.saveBrandCopy).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
@@ -522,6 +526,44 @@ describe("starting from a template", () => {
       projectId: "p",
       logo,
     });
+  });
+
+  it("saves the default logo placement separately from an unsaved copy edit", async () => {
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: "https://blob.example/project-logo.png",
+      studioLogoPosition: null,
+      colors: [],
+      fonts: [],
+      summary: "Studio project",
+      tone: "Warm",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    mocks.saveLogoPosition.mockResolvedValueOnce({
+      logo: "https://blob.example/project-logo.png",
+      position: "bottom-left",
+    });
+
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    const tone = await screen.findByLabelText("BrandKit.tone");
+    await waitFor(() => expect(tone).toBeEnabled());
+    fireEvent.change(tone, { target: { value: "Direct and warm" } });
+    fireEvent.change(screen.getByLabelText("BrandKit.logoPosition"), {
+      target: { value: "bottom-left" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "BrandKit.saveLogoPosition" }),
+    );
+
+    await screen.findByText("BrandKit.logoPositionSaved");
+    expect(mocks.saveLogoPosition).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      position: "bottom-left",
+    });
+    expect(tone).toHaveValue("Direct and warm");
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
   });
 
   it("uploads an approved logo while preserving an unsaved brand copy edit", async () => {
