@@ -770,6 +770,19 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
         "empty advertising backdrop",
       );
+      const backdrop = async (background: string) =>
+        new Uint8Array(
+          await sharp({
+            create: { width: 160, height: 120, channels: 3, background },
+          })
+            .png()
+            .toBuffer(),
+        );
+      const originalBackdrop = await backdrop("white");
+      external.download.mockResolvedValueOnce({
+        bytes: originalBackdrop,
+        contentType: "image/png",
+      });
       await settleWithMedia(accepted.id, "https://fal.example/campaign.png");
       const asset = await prisma.projectImageAsset.findUniqueOrThrow({
         where: { jobId: accepted.id },
@@ -795,11 +808,92 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       expect(pixel(left + 6, top + 6)).toEqual([31, 104, 163]);
       expect(pixel(left + 8, top + 12)).toEqual([246, 197, 27]);
 
+      const requestBackdropEdit = (
+        assistant: boolean,
+        parentAssetId: string,
+      ) => {
+        const payload = {
+          prompt: "Make the backdrop darker.",
+          modelId: "muse-image",
+          parentAssetId,
+          referenceAssetIds: [parentAssetId],
+          idempotencyKey: randomUUID(),
+        };
+        if (!assistant)
+          return studio.request(`${path}/jobs`, json("POST", payload));
+        const grant = mintAgentGrant(
+          { userId, projectId, audience: "agent", ttlSeconds: 120 },
+          "campaign-fixture-agent-secret".repeat(2),
+        );
+        return studio.request("/image-studio-agent/generations", {
+          ...json("POST", payload),
+          headers: {
+            authorization: `Bearer ${grant}`,
+            "content-type": "application/json",
+          },
+        });
+      };
+      let parentId = asset.id;
+      let parentBackdrop = originalBackdrop;
+      const darkerBackdrop = await backdrop("#8f2a20");
+      for (const assistant of [false, true]) {
+        const edited = await requestBackdropEdit(assistant, parentId);
+        expect(edited.status).toBe(assistant ? 200 : 201);
+        const body = await edited.json();
+        const job = body.data ?? body.job;
+        expect(job.status).toBe("QUEUED");
+        const upload = external.uploadReference.mock.lastCall?.[0];
+        expect(new Uint8Array(upload.bytes)).toEqual(parentBackdrop);
+        expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
+          "Edit the supplied advertising backdrop",
+        );
+        external.download.mockResolvedValueOnce({
+          bytes: darkerBackdrop,
+          contentType: "image/png",
+        });
+        await settleWithMedia(job.id, "https://fal.example/campaign.png");
+        const version = await prisma.projectImageAsset.findUniqueOrThrow({
+          where: { jobId: job.id },
+        });
+        expect(version).toMatchObject({
+          parentId,
+          rootId: asset.rootId,
+          backdropContentType: "image/png",
+        });
+        const editedAd = await studio.request(
+          `${path}/assets/${version.id}/content`,
+        );
+        const composed = await sharp(await editedAd.arrayBuffer())
+          .removeAlpha()
+          .raw()
+          .toBuffer();
+        const at = (x: number, y: number) => [
+          ...composed.subarray(
+            (y * info.width + x) * 3,
+            (y * info.width + x) * 3 + 3,
+          ),
+        ];
+        expect(at(left, top)).toEqual([143, 42, 32]);
+        expect(at(left + 8, top + 12)).toEqual([246, 197, 27]);
+        parentId = version.id;
+        parentBackdrop = darkerBackdrop;
+      }
+      expect(external.uploadReference).toHaveBeenCalledTimes(
+        previousUploads + 2,
+      );
+
       const changed = await requestCutout();
       expect(changed.status).toBe("QUEUED");
       served = new Uint8Array(
         await sharp(cutout).modulate({ brightness: 0.8 }).png().toBuffer(),
       );
+      const sentBeforeChangedEdit = external.submit.mock.calls.length;
+      const changedEdit = await requestBackdropEdit(false, parentId);
+      expect((await changedEdit.json()).data).toMatchObject({
+        status: "FAILED",
+        failureReason: "product_cutout_unavailable",
+      });
+      expect(external.submit).toHaveBeenCalledTimes(sentBeforeChangedEdit);
       await settleWithMedia(changed.id, "https://fal.example/campaign.png");
       expect(
         await prisma.projectImageJob.findUniqueOrThrow({

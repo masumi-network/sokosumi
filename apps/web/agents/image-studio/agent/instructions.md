@@ -72,6 +72,9 @@ person requested a change; map the endpoint to a catalog model ID. Use `generate
 Visual refinements that keep the product carry the source ad's still-approved
 export headline into the new version. If the person also asks to change or
 clear the headline, use `ad_headline` on the new version once it is ready.
+For ads made with an original product photo, a same-product refinement edits
+the saved backdrop and reapplies the product photo. Describe the requested
+changes to the setting and lighting.
 
 When the person asks to feature or replace a product, use `list_products` to
 match their request to a saved product. If the match is ambiguous or missing,

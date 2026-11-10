@@ -219,6 +219,7 @@ app.post("/generations", async (c) => {
         organizationId: context.organizationId,
       },
       reuseParentPhotoIfAvailable: !input.catalogProductId,
+      reuseParentCutout: !input.catalogProductId,
       reuseParentBatchSlot: true,
       reuseParentHeadlineIfAvailable: !input.catalogProductId,
       parentAssetId: input.parentAssetId,
