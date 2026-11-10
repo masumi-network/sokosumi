@@ -21052,6 +21052,122 @@ export const HistoryImageItemSchema = {
     ]
 } as const;
 
+export const StudioAgentProductSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        {
+            type: 'object',
+            properties: {
+                hasPhoto: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'hasPhoto'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioProductIdentitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const StudioAgentAdHeadlineSchema = {
+    type: 'object',
+    properties: {
+        headline: {
+            $ref: '#/components/schemas/StudioAdHeadline'
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 120
+            }
+        }
+    },
+    required: [
+        'headline',
+        'approvedLines'
+    ]
+} as const;
+
+export const StudioAdHeadlineSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioAdHeadline'
+        },
+        {
+            type: 'object',
+            properties: {
+                revision: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'revision'
+            ]
+        }
+    ]
+} as const;
+
+export const SaveStudioAdHeadlineSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 120
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
+export const SaveStudioAgentAdHeadlineSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioAdHeadline'
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'expectedRevision'
+            ]
+        }
+    ]
+} as const;
+
 export const ProjectImageStudioCatalogSchema = {
     type: 'object',
     properties: {
@@ -21403,6 +21519,16 @@ export const ProjectImageAssetSchema = {
         projectName: {
             type: 'string'
         },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        headline: {
+            $ref: '#/components/schemas/StudioAdHeadline'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -21623,6 +21749,19 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        useProductCutout: {
+            type: 'boolean'
+        },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
         error: {
             type: [
                 'string',
@@ -21641,6 +21780,7 @@ export const ProjectImageJobSchema = {
                 'provider_unreachable',
                 'submission_uncertain',
                 'reference_not_sendable',
+                'product_cutout_unavailable',
                 'request_not_supported',
                 'cancelled',
                 'abandoned_before_send',
@@ -24324,6 +24464,16 @@ export const ProjectLatestUpdateSchema = {
     ]
 } as const;
 
+export const StudioLogoPositionSchema = {
+    type: 'string',
+    enum: [
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right'
+    ]
+} as const;
+
 export const ProjectDesignMdSchema = {
     type: 'object',
     properties: {
@@ -24473,6 +24623,17 @@ export const ProjectSchema = {
             ],
             format: 'uri',
             example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png'
+        },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Default project logo placement for Studio ad exports.'
         },
         designMd: {
             anyOf: [
@@ -38793,6 +38954,403 @@ export const ProjectImageSessionSchema = {
     ]
 } as const;
 
+export const StudioBrandKitSchema = {
+    type: 'object',
+    properties: {
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        hasCustomLook: {
+            type: 'boolean'
+        },
+        summary: {
+            type: 'string'
+        },
+        tone: {
+            type: 'string'
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        },
+        version: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'logo',
+        'colors',
+        'fonts',
+        'summary',
+        'tone',
+        'audience',
+        'approvedLines',
+        'version'
+    ]
+} as const;
+
+export const StudioWebsiteCopySchema = {
+    type: 'object',
+    properties: {
+        summary: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        lines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        },
+        tone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        }
+    },
+    required: [
+        'summary',
+        'lines'
+    ]
+} as const;
+
+export const StudioWebsiteDraftSchema = {
+    type: 'object',
+    properties: {
+        brandCopy: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioWebsiteCopy'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        products: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        },
+        visual: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioWebsiteVisual'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'brandCopy',
+        'products'
+    ]
+} as const;
+
+export const StudioProductSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        },
+        description: {
+            type: 'string',
+            maxLength: 800
+        },
+        price: {
+            type: 'string',
+            maxLength: 80
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        imageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        photo: {
+            $ref: '#/components/schemas/StudioProductPhoto'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'description',
+        'price',
+        'url',
+        'imageUrl'
+    ]
+} as const;
+
+export const StudioProductPhotoSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const StudioWebsiteVisualSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/StudioBrandLook'
+        },
+        {
+            type: 'object',
+            properties: {
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri'
+                }
+            },
+            required: [
+                'logo'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioBrandLookSchema = {
+    type: 'object',
+    properties: {
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i'
+            },
+            maxItems: 8
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 80,
+                pattern: '^[^\\p{Cc}\\p{Cf}]+$/u'
+            },
+            maxItems: 4
+        }
+    },
+    required: [
+        'colors',
+        'fonts'
+    ]
+} as const;
+
+export const SaveStudioBrandCopySchema = {
+    type: 'object',
+    properties: {
+        copy: {
+            $ref: '#/components/schemas/StudioBrandCopy'
+        },
+        version: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'copy',
+        'version'
+    ]
+} as const;
+
+export const StudioBrandCopySchema = {
+    type: 'object',
+    properties: {
+        summary: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        tone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        }
+    },
+    required: [
+        'summary',
+        'tone',
+        'audience',
+        'approvedLines'
+    ]
+} as const;
+
+export const StudioBrandLookStateSchema = {
+    type: 'object',
+    properties: {
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        hasCustomLook: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'colors',
+        'fonts',
+        'lookRevision',
+        'hasCustomLook'
+    ]
+} as const;
+
+export const SaveStudioBrandLookSchema = {
+    type: 'object',
+    properties: {
+        look: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioBrandLook'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'look',
+        'lookRevision'
+    ]
+} as const;
+
 export const CreateProjectImageJobRequestSchema = {
     type: 'object',
     properties: {
@@ -38807,6 +39365,21 @@ export const CreateProjectImageJobRequestSchema = {
             minLength: 1,
             maxLength: 4000
         },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        useProductCutout: {
+            type: 'boolean'
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },
@@ -38818,6 +39391,14 @@ export const CreateProjectImageJobRequestSchema = {
             },
             maxItems: 4,
             default: []
+        },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 4
         },
         parentAssetId: {
             type: [
@@ -38844,6 +39425,43 @@ export const CreateProjectImageJobRequestSchema = {
     required: [
         'prompt',
         'idempotencyKey'
+    ]
+} as const;
+
+export const StudioProductCatalogSchema = {
+    type: 'object',
+    properties: {
+        products: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'products',
+        'revision'
+    ]
+} as const;
+
+export const StudioProductImportSchema = {
+    type: 'object',
+    properties: {
+        products: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'products'
     ]
 } as const;
 
@@ -38924,6 +39542,16 @@ export const CancelProjectImageJobResponseSchema = {
     ]
 } as const;
 
+export const StudioAdPlacementRatioSchema = {
+    type: 'string',
+    enum: [
+        '1:1',
+        '4:5',
+        '9:16',
+        '16:9'
+    ]
+} as const;
+
 export const ProjectImageStudioCaptionSchema = {
     type: 'object',
     properties: {
@@ -38976,6 +39604,16 @@ export const PatchProjectRequestSchema = {
                 'null'
             ],
             format: 'uri'
+        },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         identifier: {
             type: 'string',
@@ -41058,6 +41696,56 @@ export const PublicSharedTaskFileSchema = {
         'fileUrl',
         'mimeType',
         'size',
+        'createdAt'
+    ]
+} as const;
+
+export const CmoCusoSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string'
+        },
+        businessName: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: 'string'
+        },
+        projectLogo: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        organizationId: {
+            type: 'string'
+        },
+        organizationName: {
+            type: 'string'
+        },
+        hiring: {
+            type: 'boolean',
+            description: 'No plan of his is approved yet: he is still being hired.'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'businessName',
+        'websiteUrl',
+        'projectLogo',
+        'organizationId',
+        'organizationName',
+        'hiring',
         'createdAt'
     ]
 } as const;
@@ -45435,77 +46123,16 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             maxLength: 500,
             format: 'uri',
-            description: 'The business\'s website. Cuso is hired into a new organization named after it.'
+            description: 'The business\'s website, which names the new Project.'
+        },
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
         }
     },
     required: [
         'websiteUrl'
-    ]
-} as const;
-
-export const CmoTurnStartedSchema = {
-    type: 'object',
-    properties: {
-        turnId: {
-            type: 'string'
-        }
-    },
-    required: [
-        'turnId'
-    ]
-} as const;
-
-export const CmoStrategyRequestSchema = {
-    type: 'object',
-    properties: {
-        note: {
-            type: 'string',
-            maxLength: 1000
-        }
-    }
-} as const;
-
-export const CmoAdBudgetRequestSchema = {
-    type: 'object',
-    properties: {
-        monthly: {
-            type: 'number',
-            minimum: 0,
-            maximum: 10000000
-        },
-        currency: {
-            type: 'string',
-            pattern: '^[A-Za-z]{3}$',
-            description: 'ISO 4217, such as EUR.'
-        }
-    },
-    required: [
-        'monthly',
-        'currency'
-    ]
-} as const;
-
-export const CmoPieceTextSchema = {
-    type: 'object',
-    properties: {
-        text: {
-            type: 'string'
-        }
-    },
-    required: [
-        'text'
-    ]
-} as const;
-
-export const CmoMeasurementConnectSchema = {
-    type: 'object',
-    properties: {
-        redirectUrl: {
-            type: 'string'
-        }
-    },
-    required: [
-        'redirectUrl'
     ]
 } as const;
 
@@ -45518,32 +46145,6 @@ export const CmoAdsConnectSchema = {
     },
     required: [
         'redirectUrl'
-    ]
-} as const;
-
-export const CmoAdsFinalizedSchema = {
-    type: 'object',
-    properties: {
-        state: {
-            type: 'string',
-            enum: [
-                'connected',
-                'none',
-                'choose'
-            ]
-        },
-        adConnectionId: {
-            type: 'string'
-        },
-        accounts: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/AvailableAdAccount'
-            }
-        }
-    },
-    required: [
-        'state'
     ]
 } as const;
 
@@ -45599,6 +46200,98 @@ export const CmoAdCampaignsSchema = {
     required: [
         'accounts'
     ]
+} as const;
+
+export const CmoAdsFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'none',
+                'choose'
+            ]
+        },
+        adConnectionId: {
+            type: 'string'
+        },
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AvailableAdAccount'
+            }
+        }
+    },
+    required: [
+        'state'
+    ]
+} as const;
+
+export const CmoPieceTextSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string'
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
+export const CmoMeasurementConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
+    ]
+} as const;
+
+export const CmoTurnStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
+export const CmoAdBudgetRequestSchema = {
+    type: 'object',
+    properties: {
+        monthly: {
+            type: 'number',
+            minimum: 0,
+            maximum: 10000000
+        },
+        currency: {
+            type: 'string',
+            pattern: '^[A-Za-z]{3}$',
+            description: 'ISO 4217, such as EUR.'
+        }
+    },
+    required: [
+        'monthly',
+        'currency'
+    ]
+} as const;
+
+export const CmoStrategyRequestSchema = {
+    type: 'object',
+    properties: {
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
 } as const;
 
 export const SokoBotApiKeySchema = {

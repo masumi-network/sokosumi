@@ -1,3 +1,9 @@
+import {
+  readStudioAgentAdHeadline,
+  type SaveStudioAgentAdHeadline,
+  saveStudioAgentAdHeadline,
+} from "@sokosumi/core-client";
+
 import { mintGrant } from "./grant";
 
 /**
@@ -42,7 +48,7 @@ async function call<T>(
   path: string,
   init: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${baseUrl()}/image-studio-agent${path}`, {
+  const response = await fetch(`${baseUrl()}${path}`, {
     ...init,
     headers: {
       ...init.headers,
@@ -56,10 +62,17 @@ async function call<T>(
     | null;
   if (!response.ok || !body || body.ok === false) {
     // Surface the shape, never the credential or the raw upstream body.
+    const messages: Record<string, string> = {
+      not_found: "That image version is not in this project.",
+      product_not_found: "That product is no longer in this project's catalog.",
+      product_brief_too_long:
+        "Shorten the creative brief to leave room for the saved product details.",
+      product_photo_unavailable:
+        "The saved product photo could not be loaded. Ask the user to update it before trying again.",
+    };
     throw new Error(
-      body?.error === "not_found"
-        ? "That image version is not in this project."
-        : `Sokosumi rejected the request (${response.status}).`,
+      messages[body?.error ?? ""] ??
+        `Sokosumi rejected the request (${response.status}).`,
     );
   }
   return body;
@@ -401,7 +414,66 @@ function readDeliveryFacts(value: unknown): DeliveryFacts | null {
 export async function listImageOptions(
   identity: AgentIdentity,
 ): Promise<{ catalog: unknown }> {
-  return await call(identity, "/options", { method: "GET" });
+  return await call(identity, "/image-studio-agent/options", { method: "GET" });
+}
+
+export async function listStudioProducts(identity: AgentIdentity): Promise<{
+  products: { id: string; name: string; hasPhoto: boolean }[];
+}> {
+  const { data } = await call<{
+    data: { products: { id: string; name: string; hasPhoto: boolean }[] };
+  }>(identity, "/v1/image-studio-agent/products", { method: "GET" });
+  return data;
+}
+
+function headlineRequest(identity: AgentIdentity, assetId: string) {
+  return {
+    baseUrl: `${baseUrl()}/v1`,
+    headers: { authorization: `Bearer ${mintGrant(identity)}` },
+    path: { assetId },
+    cache: "no-store" as const,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  };
+}
+
+export async function readAdHeadline(identity: AgentIdentity, assetId: string) {
+  const { data, response } = await readStudioAgentAdHeadline(
+    headlineRequest(identity, assetId),
+  );
+  if (data?.data) return data.data;
+  if (!response) throw new Error("Sokosumi could not read the ad headline.");
+  throw new Error(
+    response.status === 404
+      ? "That image version is not in this project."
+      : `Sokosumi could not read the ad headline (${response.status}).`,
+  );
+}
+
+export async function saveAdHeadline(
+  identity: AgentIdentity,
+  assetId: string,
+  body: SaveStudioAgentAdHeadline,
+) {
+  const { data, error, response } = await saveStudioAgentAdHeadline({
+    ...headlineRequest(identity, assetId),
+    body,
+  });
+  if (data?.data) return data.data;
+  if (!response)
+    throw new Error("Sokosumi could not confirm the headline save.");
+  if (error?.kind === "studio_headline_not_approved") {
+    throw new Error(
+      "That line is no longer approved. Read the current approved lines and let the person choose.",
+    );
+  }
+  if (response.status === 409) {
+    throw new Error(
+      "The headline may have changed. Read the current choice and ask before replacing it.",
+    );
+  }
+  throw new Error(
+    `Sokosumi could not save the ad headline (${response.status}).`,
+  );
 }
 
 export interface VersionSummary {
@@ -427,7 +499,9 @@ export async function listVersions(identity: AgentIdentity): Promise<{
     settings: unknown;
   }[];
 }> {
-  return await call(identity, "/versions", { method: "GET" });
+  return await call(identity, "/image-studio-agent/versions", {
+    method: "GET",
+  });
 }
 
 export async function startGeneration(
@@ -436,6 +510,7 @@ export async function startGeneration(
     prompt: string;
     parentAssetId: string | null;
     referenceAssetIds: string[];
+    catalogProductId?: string;
     aspectRatio: string;
     resolution: string;
     modelId?: string;
@@ -453,7 +528,7 @@ export async function startGeneration(
     settings: unknown;
   };
 }> {
-  return await call(identity, "/generations", {
+  return await call(identity, "/image-studio-agent/generations", {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -479,5 +554,7 @@ export async function readGeneration(
     settings: unknown;
   } | null;
 }> {
-  return await call(identity, `/generations/${jobId}`, { method: "GET" });
+  return await call(identity, `/image-studio-agent/generations/${jobId}`, {
+    method: "GET",
+  });
 }

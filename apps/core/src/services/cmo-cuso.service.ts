@@ -1,12 +1,14 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
+import type { CoreApiErrorKind } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
+import { requireProjectAccessForUser } from "@/lib/image-studio/access";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.service";
 
 /**
- * CMO.xyz (Cuso) on Soko Bots. Cuso works in the Workspace the person chose
- * (ADR 0053), as an ordinary Soko Bot in a Project of his own, so every
+ * CMO.xyz (Cuso) on Soko Bots. Each hire puts Cuso in a new Project of a new
+ * or an existing organization (ADR 0065), as an ordinary Soko Bot, so every
  * existing seam — turns, schedules, chat, Social, Content Studio, Tasks —
  * works unchanged. The `cmo-*.service` modules add what CMO needs on
  * top: onboarding, the Brand Brain and strategy records, the subscription
@@ -14,13 +16,22 @@ import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.servic
  * bot's Cuso, who pays for him, and starts and reads his turns.
  */
 
-export class CmoNotFoundError extends Error {}
-export class CmoConflictError extends Error {}
-export class CmoForbiddenError extends Error {}
+/** A CMO refusal; `kind` is the stable error kind CMO matches on, if any. */
+export class CmoError extends Error {
+  constructor(
+    message: string,
+    readonly kind?: CoreApiErrorKind,
+  ) {
+    super(message);
+  }
+}
+export class CmoNotFoundError extends CmoError {}
+export class CmoConflictError extends CmoError {}
+export class CmoForbiddenError extends CmoError {}
 
 /**
- * Who pays for Cuso and whose plan opens execution: the business's
- * organization, which every hire gets (ADR 0060).
+ * Who pays for Cuso and whose plan opens execution: his Project's
+ * organization, where every hire goes (ADR 0065).
  */
 export async function cmoPayer(
   cuso: Pick<Cuso, "workspaceId">,
@@ -117,34 +128,90 @@ function cusoView({ id, createdAt, project }: CusoRow): Cuso | null {
   };
 }
 
+/** One Cuso a person can work with, as the Cuso picker shows him. */
+export interface CusoListItem {
+  projectId: string;
+  businessName: string;
+  websiteUrl: string;
+  projectLogo: string | null;
+  organizationId: string;
+  organizationName: string;
+  /** No plan of his is approved yet: he is still being hired. */
+  hiring: boolean;
+  createdAt: Date;
+}
+
 /**
- * The Cuso this person works with (ADR 0061): the live one in their preferred
- * organization, which hiring made preferred, else the newest live one of any
- * organization they belong to. A deleted or archived Cuso hired no one.
+ * Every live Cuso in the person's organizations, newest first (ADR 0065):
+ * CMO picks among them.
  */
-export async function findCusoForUser(userId: string): Promise<Cuso | null> {
-  const [user, bots] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { preferredOrganizationId: true },
-    }),
-    prisma.sokoBot.findMany({
-      where: {
-        ...LIVE_CUSO_WHERE,
-        project: {
-          workspace: { organization: { members: { some: { userId } } } },
+export async function listCusosForUser(
+  userId: string,
+): Promise<CusoListItem[]> {
+  const bots = await prisma.sokoBot.findMany({
+    where: {
+      ...LIVE_CUSO_WHERE,
+      project: {
+        workspace: { organization: { members: { some: { userId } } } },
+      },
+    },
+    select: {
+      id: true,
+      createdAt: true,
+      project: {
+        select: {
+          id: true,
+          websiteUrl: true,
+          logo: true,
+          workspace: {
+            select: { organization: { select: { id: true, name: true } } },
+          },
+          marketingStrategies: {
+            where: { approvedAt: { not: null } },
+            select: { id: true },
+            take: 1,
+          },
         },
       },
-      select: CUSO_SELECT,
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
-  const found =
-    bots.find(
-      (bot) =>
-        bot.project?.workspace.organizationId === user?.preferredOrganizationId,
-    ) ?? bots[0];
-  return found ? cusoView(found) : null;
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return bots.flatMap(({ createdAt, project }) => {
+    const organization = project?.workspace.organization;
+    if (!project || !organization) return [];
+    const websiteUrl = project.websiteUrl ?? "";
+    return [
+      {
+        projectId: project.id,
+        businessName: cmoBusinessNameFromUrl(websiteUrl),
+        websiteUrl,
+        projectLogo: project.logo,
+        organizationId: organization.id,
+        organizationName: organization.name,
+        hiring: project.marketingStrategies.length === 0,
+        createdAt,
+      },
+    ];
+  });
+}
+
+/**
+ * The Cuso of the Project a member named, as CMO's Project-scoped routes
+ * act on him: 404 (as the Project routes answer) unless the Project exists
+ * and the caller is still a member of its organization; null when the
+ * Project has no live Cuso.
+ */
+export async function findCusoForProject(
+  where: { userId: string; projectId: string },
+  db: Prisma.TransactionClient = prisma,
+): Promise<Cuso | null> {
+  const { organizationId } = await requireProjectAccessForUser(where, db);
+  if (!organizationId) return null;
+  const bot = await db.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId: where.projectId },
+    select: CUSO_SELECT,
+  });
+  return bot ? cusoView(bot) : null;
 }
 
 /** This bot as Cuso, or null for any bot that is not one. */
@@ -275,15 +342,24 @@ export async function cmoRunnerUserId(
   );
 }
 
-/** A write's target: the Cuso a member works with, or the bot itself. */
+/** Who a CMO call names: a member and the Project of the Cuso they act on. */
+export interface CusoTarget {
+  userId: string;
+  projectId: string;
+}
+
+/**
+ * A write's target: the Cuso a CMO call names (`findCusoForProject`), or the
+ * bot itself.
+ */
 export async function requireCuso(
-  where: { userId: string } | { sokoBotId: string },
+  where: CusoTarget | { sokoBotId: string },
   db: Prisma.TransactionClient = prisma,
 ): Promise<Cuso> {
   const cuso =
     "sokoBotId" in where
       ? await findCusoForBot(where.sokoBotId, db)
-      : await findCusoForUser(where.userId);
+      : await findCusoForProject(where, db);
   if (!cuso) throw new CmoNotFoundError("Cuso is not hired yet");
   return cuso;
 }

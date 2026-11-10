@@ -1,8 +1,21 @@
 "use client";
 
-import type { CreateProjectVideoJobRequest } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { AlertTriangle, Columns2, X } from "lucide-react";
+import type {
+  CreateProjectVideoJobRequest,
+  StudioAdHeadline,
+  StudioLogoPosition,
+  StudioProduct,
+  StudioProductIdentity,
+  StudioProductPhoto,
+} from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS, productBrief } from "@sokosumi/utils";
+import {
+  AlertTriangle,
+  Columns2,
+  Download,
+  MessageSquare,
+  X,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -23,8 +36,10 @@ import { Button } from "@/components/ui/button";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
+  listStudioBatchAssets,
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
+  saveStudioAdHeadline,
   startVideoGeneration,
   writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
@@ -42,27 +57,45 @@ import {
   videoModelsFor,
 } from "./catalog";
 import {
+  createStudioAdArchive,
+  MAX_ARCHIVE_BYTES,
+  MAX_ARCHIVE_IMAGES,
+  MAX_ARCHIVE_MIB,
+  saveStudioDownload,
+} from "./studio-ad-download";
+import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
+import type {
+  StudioBatchDownloadReview,
+  StudioBatchProduct,
+} from "./studio-batch";
+import { StudioChat } from "./studio-chat";
+import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
   STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
+import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
-import { StudioTemplateCarousel } from "./studio-template-picker";
-import type { StudioTemplate } from "./studio-templates";
+import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioTemplateCanvas } from "./studio-template-canvas";
+import type { StudioBrief } from "./studio-templates";
 import {
   StudioModeSwitch,
   StudioVideoComposer,
   type StudioVideoDraft,
   videoDraftFor,
 } from "./studio-video-composer";
+import { StudioWebsiteTools } from "./studio-website-tools";
 import {
   creditsByAssetId,
   elapsedByAssetId,
   isActive,
+  isVideoAsset,
+  MAX_STUDIO_REFERENCES,
   type StudioAsset,
   type StudioCatalog,
   type StudioJob,
@@ -108,6 +141,7 @@ interface StudioCaptionDraft {
  * many models one brief can reach and how quickly their results can be read
  * side by side. A chat column bought none of that and spent a quarter of the
  * width on it.
+ * The ad editor is now opened on demand, beside the gallery on wide screens.
  *
  * What the person is aiming at — models and frame — is still held here rather
  * than inside the composer, because the lightbox's "new variation" and the
@@ -119,7 +153,10 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
+  projectLogo: initialProjectLogo,
+  studioLogoPosition: initialLogoPosition,
   projectScopePrompt,
+  websiteUrl,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -138,7 +175,10 @@ export function ImageStudio({
    * project before anything is sent.
    */
   projectId: string | null;
+  projectLogo?: string | null;
+  studioLogoPosition?: StudioLogoPosition | null;
   projectScopePrompt?: React.ReactNode;
+  websiteUrl?: string | null;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -164,7 +204,21 @@ export function ImageStudio({
   const [viewing, setViewing] = useState<Viewing>(
     initialSelectedAssetId ? { mode: "single" } : null,
   );
+  const [assistant, setAssistant] = useState<{
+    open: boolean;
+    asset: StudioAsset | null;
+  } | null>(null);
+  const assistantTriggerRef = useRef<HTMLButtonElement>(null);
+  const assistantCloseRef = useRef<HTMLButtonElement>(null);
   const [prompt, setPrompt] = useState("");
+  const [draftProduct, setDraftProduct] = useState<StudioProductIdentity>();
+  const productDetailsRef = useRef<string | null>(null);
+  const [batchProducts, setBatchProducts] = useState<StudioBatchProduct[]>([]);
+  const catalogPhotoRef = useRef<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [productPhoto, setProductPhoto] = useState<StudioProductPhoto | null>(
+    null,
+  );
   const [hasNewerSettings, setHasNewerSettings] = useState(false);
   const [composerKey, setComposerKey] = useState(0);
   const [parentAssetId, setParentAssetId] = useState<
@@ -179,6 +233,19 @@ export function ImageStudio({
     [],
   );
   const [pending, startTransition] = useTransition();
+  const [downloadingAds, startAdDownload] = useTransition();
+  const [savedHeadlines, setSavedHeadlines] = useState<
+    Record<string, StudioAdHeadline>
+  >({});
+  const [savingHeadline, startHeadlineSave] = useTransition();
+  const headlineSaveInProgress = useRef(false);
+  const [archiveLogoOverride, setArchiveLogoOverride] =
+    useState<StudioLogoPosition | null>();
+  const [brandKitLogo, setBrandKitLogo] = useState<{
+    projectId: string;
+    logo: string | null;
+    position: StudioLogoPosition | null;
+  }>();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
   const [captionByAssetId, setCaptionByAssetId] = useState<
@@ -233,6 +300,14 @@ export function ImageStudio({
   // Keep the queue mounted while the landing page starts work in a project.
   const [pickedProjectId, setPickedProjectId] = useState<string | null>(null);
   const activeProjectId = projectId ?? pickedProjectId;
+  const currentBrandLogo =
+    brandKitLogo?.projectId === activeProjectId ? brandKitLogo : undefined;
+  const projectLogo = currentBrandLogo
+    ? currentBrandLogo.logo
+    : initialProjectLogo;
+  const defaultLogoPosition = currentBrandLogo
+    ? currentBrandLogo.position
+    : initialLogoPosition;
 
   const studio = useStudioState({
     projectId: activeProjectId,
@@ -291,6 +366,182 @@ export function ImageStudio({
       }),
     [checkedIds, state.assets],
   );
+  const referenceProjectIds = new Set(
+    checkedAssets.map(({ projectId }) => projectId),
+  );
+  const generationProjectId =
+    referenceProjectIds.size > 1
+      ? null
+      : ([...referenceProjectIds][0] ?? activeProjectId);
+
+  function archiveLimitFor(assets: StudioAsset[]) {
+    if (assets.length > MAX_ARCHIVE_IMAGES)
+      return t("archiveImageLimit", { count: MAX_ARCHIVE_IMAGES });
+    if (assets.reduce((sum, asset) => sum + asset.bytes, 0) > MAX_ARCHIVE_BYTES)
+      return t("archiveSizeLimit", { size: MAX_ARCHIVE_MIB });
+    return null;
+  }
+
+  const archiveLimit = archiveLimitFor(checkedAssets);
+  const canBrandArchive =
+    Boolean(projectLogo) &&
+    checkedAssets.length > 1 &&
+    checkedAssets.every(
+      (asset) => asset.projectId === activeProjectId && !isVideoAsset(asset),
+    );
+
+  const archiveLogo = canBrandArchive
+    ? archiveLogoOverride === undefined
+      ? (defaultLogoPosition ?? undefined)
+      : (archiveLogoOverride ?? undefined)
+    : undefined;
+
+  function handleDownloadAds() {
+    if (
+      downloadingAds ||
+      headlineSaveInProgress.current ||
+      archiveLimit ||
+      checkedAssets.length < 2
+    )
+      return;
+    startAdDownload(async () => {
+      try {
+        await downloadArchive(
+          checkedAssets,
+          archiveLogo ? "studio-branded-ads.zip" : "studio-ads.zip",
+          archiveLogo,
+        );
+      } catch {
+        toast.error(
+          t(archiveLogo ? "brandExportFailed" : "archiveDownloadFailed"),
+        );
+      }
+    });
+  }
+
+  function headlineForAsset(asset: StudioAsset) {
+    const saved = savedHeadlines[asset.id];
+    const latest =
+      saved && saved.revision > (asset.headline?.revision ?? 0)
+        ? saved
+        : asset.headline;
+    return latest?.text ?? "";
+  }
+
+  function rememberHeadlines(
+    updates: { assetId: string; headline: StudioAdHeadline }[],
+  ) {
+    if (!updates.length) return;
+    setSavedHeadlines((current) => {
+      const next = { ...current };
+      for (const { assetId, headline } of updates) {
+        if ((next[assetId]?.revision ?? -1) < headline.revision) {
+          next[assetId] = headline;
+        }
+      }
+      return next;
+    });
+  }
+
+  function changeHeadline(asset: StudioAsset, text: string) {
+    if (headlineSaveInProgress.current || downloadingAds) return;
+    headlineSaveInProgress.current = true;
+    startHeadlineSave(async () => {
+      try {
+        const saved = await saveStudioAdHeadline({
+          projectId: asset.projectId,
+          assetId: asset.id,
+          text: text || null,
+        });
+        rememberHeadlines([{ assetId: asset.id, headline: saved }]);
+      } catch {
+        toast.error(t("headlineSaveFailed"));
+      } finally {
+        headlineSaveInProgress.current = false;
+      }
+    });
+  }
+
+  async function downloadArchive(
+    assets: StudioAsset[],
+    filename: string,
+    logo?: StudioLogoPosition,
+  ) {
+    const reviewedAssets = assets.flatMap((asset) => {
+      const text = isVideoAsset(asset) ? "" : headlineForAsset(asset);
+      return text ? [{ id: asset.id, projectId: asset.projectId, text }] : [];
+    });
+    const reviewedProjects = [
+      ...new Set(reviewedAssets.map(({ projectId }) => projectId)),
+    ];
+    const approvals = new Map(
+      await Promise.all(
+        reviewedProjects.map(
+          async (projectId) =>
+            [projectId, await readApprovedStudioHeadlines(projectId)] as const,
+        ),
+      ),
+    );
+    if (
+      reviewedAssets.some(
+        ({ text, projectId }) => !approvals.get(projectId)?.includes(text),
+      )
+    ) {
+      toast.error(t("archiveHeadlineRemoved"));
+      return;
+    }
+    const archive = reviewedAssets.length
+      ? await createStudioAdArchive(
+          assets,
+          logo,
+          Object.fromEntries(reviewedAssets.map(({ id, text }) => [id, text])),
+        )
+      : await createStudioAdArchive(assets, logo);
+    saveStudioDownload(
+      new Blob([archive], { type: "application/zip" }),
+      filename,
+    );
+  }
+
+  function handleDownloadBatch(
+    { projectId, batchId }: StudioAsset,
+    logo?: StudioLogoPosition,
+    review?: StudioBatchDownloadReview,
+  ) {
+    if (downloadingAds || headlineSaveInProgress.current || !batchId) return;
+    startAdDownload(async () => {
+      try {
+        const assets = await listStudioBatchAssets({ projectId, batchId });
+        if (review) {
+          const reviewedHeadlines = new Map(
+            review.assets.map((asset) => [asset.id, headlineForAsset(asset)]),
+          );
+          if (
+            assets.length !== review.assets.length ||
+            assets.some(
+              (asset) =>
+                reviewedHeadlines.get(asset.id) !== headlineForAsset(asset),
+            )
+          ) {
+            review.onChanged();
+            return;
+          }
+        }
+        const limit = archiveLimitFor(assets);
+        if (limit) {
+          toast.error(limit);
+          return;
+        }
+        await downloadArchive(
+          assets,
+          logo ? "studio-branded-ad-batch.zip" : "studio-ad-batch.zip",
+          logo,
+        );
+      } catch {
+        toast.error(t(logo ? "brandExportFailed" : "archiveDownloadFailed"));
+      }
+    });
+  }
 
   /**
    * The most recent generation that ended badly and has not been superseded.
@@ -381,6 +632,8 @@ export function ImageStudio({
     )
       return;
     const id = crypto.randomUUID();
+    const job = from === "job" ? (source as StudioJob) : null;
+    const inheritsCutout = job?.useProductCutout && job.parentAssetId !== null;
     const request: QueuedGeneration = {
       id,
       // Whatever it repeats already lives in a project, and Core only accepts
@@ -404,6 +657,13 @@ export function ImageStudio({
         : from === "asset"
           ? [(source as StudioAsset).id]
           : (source as StudioJob).referenceAssetIds,
+      ...(source.product ? { product: source.product } : {}),
+      ...(!reroll && !inheritsCutout && job?.referenceFileIds?.length
+        ? { referenceFileIds: job.referenceFileIds }
+        : {}),
+      ...(!reroll && !inheritsCutout && job?.useProductCutout
+        ? { useProductCutout: true }
+        : {}),
       idempotencyKey: `ui:${id}`,
     };
     queue.enqueue([request]);
@@ -421,26 +681,87 @@ export function ImageStudio({
    * clamped per leg when the batch is built (`clampToModel`), which is the same
    * rule any other frame choice goes through.
    */
-  function applyTemplate(template: StudioTemplate) {
+  function applyTemplate(template: StudioBrief) {
     setHasNewerSettings(true);
     setTemplateUndo(
       (current) => current ?? (prompt.trim() ? { prompt, target } : null),
     );
-    setPrompt(template.prompt);
+    const details = productDetailsRef.current;
+    setPrompt(
+      details && prompt.endsWith(details)
+        ? `${template.prompt}\n\n${details}`
+        : template.prompt,
+    );
     setTarget((current) => ({
       ...current,
+      placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
-    promptRef.current?.focus();
+    if (mode === "video") {
+      setMode("image");
+      setVideoSource(null);
+      requestAnimationFrame(() => promptRef.current?.focus());
+    } else {
+      promptRef.current?.focus();
+    }
+  }
+
+  function useProduct(
+    product: StudioProduct,
+    photo: StudioProductPhoto | null,
+  ) {
+    setBatchProducts([]);
+    setDraftProduct({ id: product.id, name: product.name });
+    const previousPhotoId = catalogPhotoRef.current;
+    catalogPhotoRef.current = photo?.id ?? null;
+    setProductPhoto(
+      (current) => photo ?? (current?.id === previousPhotoId ? null : current),
+    );
+    const details = productBrief(product);
+    setMode("image");
+    setHasNewerSettings(true);
+    setTemplateUndo(null);
+    const previousDetails = productDetailsRef.current;
+    productDetailsRef.current = details;
+    setPrompt((current) => {
+      const rest =
+        previousDetails && current.endsWith(previousDetails)
+          ? current.slice(0, -previousDetails.length).trim()
+          : current.trim();
+      return [rest, details].filter(Boolean).join("\n\n");
+    });
+    requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
+  function useProductBatch(products: StudioBatchProduct[]) {
+    const previousDetails = productDetailsRef.current;
+    productDetailsRef.current = null;
+    catalogPhotoRef.current = null;
+    setProductPhoto(null);
+    setDraftProduct(undefined);
+    setBatchProducts(products);
+    setMode("image");
+    setHasNewerSettings(true);
+    setTemplateUndo(null);
+    setPrompt((current) =>
+      previousDetails && current.endsWith(previousDetails)
+        ? current.slice(0, -previousDetails.length).trim()
+        : current,
+    );
+    requestAnimationFrame(() => promptRef.current?.focus());
   }
 
   /** Put an image's brief and frame back in the composer, ready to edit. */
   function reusePrompt(asset: StudioAsset) {
+    setBatchProducts([]);
+    setDraftProduct(asset.product);
     setHasNewerSettings(true);
     setTemplateUndo(null);
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
+      creativeDirection: undefined,
+      placementRatios: undefined,
       settings: { ...current.settings, ...settingsOf(asset), seed: null },
     }));
     promptRef.current?.focus();
@@ -456,16 +777,36 @@ export function ImageStudio({
    */
   function handleGenerate(requests: GenerationRequest[]) {
     setTemplateUndo(null);
-    const referenceProjectIds = new Set(
-      checkedAssets.map((asset) => asset.projectId),
-    );
     if (referenceProjectIds.size > 1) {
       setActionError(t("referencesAcrossProjects"));
       return;
     }
-    const target = [...referenceProjectIds][0] ?? activeProjectId;
-    if (target) {
-      sendTo(target, requests);
+    if (generationProjectId) {
+      const headlines = requests.flatMap(({ exportHeadline }) =>
+        exportHeadline ? [exportHeadline] : [],
+      );
+      if (headlines.length) {
+        setActionError(null);
+        startTransition(async () => {
+          try {
+            const approved =
+              await readApprovedStudioHeadlines(generationProjectId);
+            if (headlines.some((line) => !approved.includes(line))) {
+              setTarget((current) => ({
+                ...current,
+                exportHeadlines: undefined,
+              }));
+              setActionError(t("campaignHeadlineRemoved"));
+              return;
+            }
+            sendTo(generationProjectId, requests);
+          } catch {
+            setActionError(t("headlineLoadFailed"));
+          }
+        });
+      } else {
+        sendTo(generationProjectId, requests);
+      }
       return;
     }
     openProjectScope({
@@ -481,18 +822,34 @@ export function ImageStudio({
   function sendTo(target: string, requests: GenerationRequest[]) {
     setTemplateUndo(null);
     setActionError(null);
+    const batchId = requests.length > 1 ? crypto.randomUUID() : undefined;
     queue.enqueue(
-      requests.map((request) => ({ ...request, projectId: target })),
+      requests.map((request) => ({
+        ...request,
+        projectId: target,
+        ...(batchId ? { batchId } : {}),
+      })),
     );
-    setPrompt("");
+    setPrompt((current) => (current === prompt ? "" : current));
+    setBatchProducts((current) => (current === batchProducts ? [] : current));
+    setDraftProduct((current) =>
+      current === draftProduct ? undefined : current,
+    );
     setHasNewerSettings(false);
   }
 
   function canEditRequest(request: QueuedGeneration) {
     const model = modelById(catalog, request.modelId);
-    if (!model || request.projectId !== activeProjectId) return false;
-    const { referenceAssetIds, parentAssetId, settings } = request;
+    if (uploadingPhoto || !model || request.projectId !== activeProjectId)
+      return false;
+    const { referenceAssetIds, referenceFileIds, parentAssetId, settings } =
+      request;
+    const referenceCount =
+      referenceAssetIds.length +
+      (request.useProductCutout ? 0 : (referenceFileIds?.length ?? 0));
     if (
+      referenceCount > MAX_STUDIO_REFERENCES ||
+      (referenceFileIds?.length ?? 0) > 1 ||
       referenceAssetIds.some(
         (id) =>
           !state.assets.some(
@@ -504,8 +861,8 @@ export function ImageStudio({
           (asset) =>
             asset.id === parentAssetId && asset.projectId === request.projectId,
         )) ||
-      (referenceAssetIds.length > 0 &&
-        (!model.editEndpoint || model.maxReferences < referenceAssetIds.length))
+      (referenceCount > 0 &&
+        (!model.editEndpoint || model.maxReferences < referenceCount))
     ) {
       return false;
     }
@@ -519,6 +876,7 @@ export function ImageStudio({
   }
 
   function clearReferences() {
+    setArchiveLogoOverride(undefined);
     setTemplateUndo(null);
     setCheckedIds([]);
     setParentAssetId(undefined);
@@ -656,7 +1014,19 @@ export function ImageStudio({
     // Re-armed per page: a page that does not fill the viewport must fire again.
   }, [hasOlder, state.assets.length]);
 
-  const dock = useSteadyDock(promptRef);
+  const dock = useSteadyDock(promptRef, showsNothing);
+  const assistantOpen = assistant?.open === true;
+
+  function openAssistant(asset: StudioAsset | null) {
+    setAssistant({ open: true, asset });
+    setViewing(null);
+    requestAnimationFrame(() => assistantCloseRef.current?.focus());
+  }
+
+  function closeAssistant() {
+    setAssistant((current) => (current ? { ...current, open: false } : null));
+    requestAnimationFrame(() => assistantTriggerRef.current?.focus());
+  }
 
   const modeSwitch = hasVideo ? (
     <StudioModeSwitch
@@ -698,6 +1068,7 @@ export function ImageStudio({
         modeSwitch={modeSwitch}
         busy={pending}
         catalog={catalog}
+        generationProjectId={generationProjectId}
         labels={labels}
         onApplyTemplate={applyTemplate}
         onClearReferences={clearReferences}
@@ -706,6 +1077,20 @@ export function ImageStudio({
           setHasNewerSettings(true);
         }}
         onGenerate={handleGenerate}
+        onProductPhotoChange={(photo) => {
+          setProductPhoto(photo);
+          setTemplateUndo(null);
+          setHasNewerSettings(true);
+        }}
+        productPhoto={productPhoto}
+        product={draftProduct}
+        batchProducts={batchProducts}
+        onClearProductBatch={() => {
+          setBatchProducts([]);
+          setHasNewerSettings(true);
+        }}
+        uploadingPhoto={uploadingPhoto}
+        onPhotoUploadChange={setUploadingPhoto}
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
@@ -720,7 +1105,6 @@ export function ImageStudio({
         promptRef={promptRef}
         referenceAssets={checkedAssets}
         target={target}
-        showTemplates={!showsNothing}
         onUndoTemplate={
           templateUndo
             ? () => {
@@ -734,24 +1118,68 @@ export function ImageStudio({
       />
     );
 
-  return (
+  const studioColumn = (
     <div
       className={cn(
-        "flex min-h-0 min-w-0 flex-col",
-        STUDIO_COLUMN_MOBILE_SHELL_CLASS,
-        isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
-        STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+        "min-h-0 min-w-0 flex-1 flex-col",
+        assistantOpen ? "hidden lg:flex" : "flex",
+        showsNothing &&
+          "relative isolate overflow-y-auto max-md:overflow-y-auto",
       )}
     >
+      {showsNothing ? (
+        <StudioTemplateCanvas labels={labels} onApplyTemplate={applyTemplate} />
+      ) : null}
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
+      {activeProjectId ? (
+        <div
+          className={cn(
+            "flex flex-wrap justify-end gap-2 pt-2",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
+        >
+          <StudioWebsiteTools
+            key={activeProjectId}
+            canUseProduct={!uploadingPhoto}
+            onLogoChange={(logo, position) =>
+              setBrandKitLogo({ projectId: activeProjectId, logo, position })
+            }
+            onUseProduct={useProduct}
+            onUseBatch={useProductBatch}
+            projectId={activeProjectId}
+            websiteUrl={websiteUrl}
+          />
+          <Button
+            aria-controls={assistant ? "studio-assistant-panel" : undefined}
+            aria-expanded={assistantOpen}
+            onClick={() => {
+              if (assistantOpen) closeAssistant();
+              else openAssistant(assistant?.asset ?? null);
+            }}
+            ref={assistantTriggerRef}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <MessageSquare aria-hidden />
+            {t("Assistant.title")}
+          </Button>
+        </div>
+      ) : null}
 
-      <div className="app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]">
+      <div
+        className={cn(
+          showsNothing
+            ? "pointer-events-none mt-auto"
+            : "app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]",
+        )}
+      >
         <div
           className={cn(
             "flex min-h-full w-full min-w-0 shrink-0 flex-col gap-4 pb-2",
             // The column cancels the page pad so the prompt docks to the
             // edge; the gallery takes the composer's gutter back. The empty
-            // state's carousel stays edge to edge on purpose.
+            // state's artwork stays edge to edge on purpose.
             showsNothing
               ? "justify-center"
               : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
@@ -765,11 +1193,21 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <StudioTemplateCarousel
-              labels={labels}
-              onApplyTemplate={applyTemplate}
-              projectAction={projectScopePrompt}
-            />
+            <div className="space-y-2 px-4 pt-8 text-center">
+              <h2 className="text-foreground text-3xl font-semibold text-balance">
+                {labels.emptyTitle}
+              </h2>
+              <p className="text-muted-foreground text-sm text-pretty">
+                {labels.emptyBody}
+              </p>
+              <div className="pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2">
+                {projectScopePrompt}
+                <StudioCreativeStart
+                  onApplyBrief={applyTemplate}
+                  onFocusPrompt={() => promptRef.current?.focus()}
+                />
+              </div>
+            </div>
           ) : (
             <StudioGallery
               activeJobs={activeJobs}
@@ -813,13 +1251,30 @@ export function ImageStudio({
                   ? () => {
                       if (prompt.trim().length > 0 || hasNewerSettings) return;
                       const { request } = failure;
+                      setBatchProducts([]);
+                      setDraftProduct(request.product);
                       setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
                         modelIds: [request.modelId],
                         settings: request.settings,
+                        useProductCutout: request.useProductCutout,
+                        ...(request.exportHeadline
+                          ? {
+                              exportHeadlines: {
+                                projectId: request.projectId,
+                                lines: [request.exportHeadline],
+                              },
+                            }
+                          : {}),
                       });
                       setCheckedIds(request.referenceAssetIds);
+                      const photoId = request.referenceFileIds?.[0];
+                      setProductPhoto((current) => {
+                        if (!photoId) return null;
+                        if (current?.id === photoId) return current;
+                        return { id: photoId, name: t("productPhoto") };
+                      });
                       setParentAssetId(request.parentAssetId);
                       setHasNewerSettings(true);
                       // A saved failure is one leg, even if its batch had copies.
@@ -886,15 +1341,56 @@ export function ImageStudio({
             <Columns2 aria-hidden />
             {labels.compareSelected}
           </Button>
+          {checkedAssets.length > 1 ? (
+            <Button
+              aria-describedby={
+                archiveLimit ? "studio-archive-limit" : undefined
+              }
+              aria-disabled={archiveLimit ? true : undefined}
+              disabled={savingHeadline}
+              loading={downloadingAds}
+              onClick={handleDownloadAds}
+              size="sm"
+              variant="secondary"
+            >
+              <Download aria-hidden />
+              {t("downloadAdsZip")}
+            </Button>
+          ) : null}
+          {canBrandArchive ? (
+            <StudioLogoPositionSelect
+              disabled={downloadingAds}
+              label={t("archiveLogoPosition")}
+              onChange={(position) => setArchiveLogoOverride(position ?? null)}
+              value={archiveLogo}
+            />
+          ) : null}
+          {archiveLimit ? (
+            <p
+              className="text-muted-foreground basis-full text-right text-xs"
+              id="studio-archive-limit"
+            >
+              {archiveLimit}
+            </p>
+          ) : null}
           <Button onClick={clearReferences} size="sm" variant="ghost">
             {labels.clearSelection}
           </Button>
         </div>
       ) : null}
 
-      <div className="relative shrink-0" ref={dock.slotRef}>
+      <div
+        className={cn(
+          "relative shrink-0",
+          showsNothing && "mx-auto mb-auto w-full max-w-3xl pb-14",
+        )}
+        ref={dock.slotRef}
+      >
         <div
-          className="bg-background absolute inset-x-0 bottom-0 pt-2"
+          className={cn(
+            "pt-2",
+            !showsNothing && "bg-background absolute inset-x-0 bottom-0",
+          )}
           ref={dock.dockRef}
         >
           {composer}
@@ -907,15 +1403,30 @@ export function ImageStudio({
           catalog={catalog}
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}
+          defaultLogoPosition={defaultLogoPosition}
           labels={labels}
+          projectLogo={
+            lightboxAssets[0]?.projectId === activeProjectId
+              ? projectLogo
+              : undefined
+          }
           onAnimate={
             videoModelsFor(catalog, "image").length > 0 ? animate : undefined
           }
           onClose={() => setViewing(null)}
+          onDownloadBatch={handleDownloadBatch}
+          downloadingBatch={downloadingAds}
+          headlineForAsset={headlineForAsset}
+          savingHeadline={savingHeadline}
+          onHeadlineChange={changeHeadline}
+          onEditWithAssistant={activeProjectId ? openAssistant : undefined}
+          editWithAssistantLabel={t("Assistant.edit")}
           onRegenerate={(asset) => repeat(asset, "asset")}
           onSchedule={scheduleAsset}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
+            setBatchProducts([]);
+            setDraftProduct(asset.product);
             setParentAssetId(undefined);
             setHasNewerSettings(true);
             setTemplateUndo(null);
@@ -923,6 +1434,8 @@ export function ImageStudio({
             setPrompt("");
             setTarget((current) => ({
               ...current,
+              creativeDirection: undefined,
+              placementRatios: undefined,
               settings: { ...settingsOf(asset), seed: null },
             }));
             setViewing(null);
@@ -990,6 +1503,62 @@ export function ImageStudio({
       ) : null}
     </div>
   );
+
+  return (
+    <div
+      className={cn(
+        "flex min-w-0",
+        STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+        isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
+        STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+      )}
+    >
+      {studioColumn}
+      {assistant && activeProjectId ? (
+        <aside
+          aria-labelledby="studio-assistant-heading"
+          className={cn(
+            "border-border bg-card-background min-h-0 min-w-0 w-full flex-col lg:w-96 lg:shrink-0 lg:border-l",
+            assistantOpen ? "flex" : "hidden",
+          )}
+          id="studio-assistant-panel"
+          hidden={!assistantOpen}
+        >
+          <div className="border-border flex items-center justify-between gap-2 border-b px-4 py-2">
+            <h2 className="text-sm font-medium" id="studio-assistant-heading">
+              {t("Assistant.title")}
+            </h2>
+            <Button
+              aria-label={labels.close}
+              onClick={closeAssistant}
+              ref={assistantCloseRef}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <X aria-hidden />
+            </Button>
+          </div>
+          <StudioChat
+            assets={state.assets}
+            key={activeProjectId}
+            labels={labels}
+            onActivity={(updates) => {
+              rememberHeadlines(updates);
+              void refresh();
+            }}
+            onPreviewAd={(asset) => {
+              selectAsset(asset.id);
+              setViewing({ mode: "single" });
+            }}
+            onSelectResult={(asset) => setAssistant({ open: true, asset })}
+            projectId={activeProjectId}
+            selectedAsset={assistant.asset}
+          />
+        </aside>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -1002,13 +1571,20 @@ export function ImageStudio({
  * resting height. A growing brief then rises over the feed, the way a sheet
  * would, and the feed's height only follows the composer's own rows.
  */
-function useSteadyDock(promptRef: RefObject<HTMLTextAreaElement | null>) {
+function useSteadyDock(
+  promptRef: RefObject<HTMLTextAreaElement | null>,
+  floating: boolean,
+) {
   const slotRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const slot = slotRef.current;
     const dock = dockRef.current;
     if (!slot || !dock) return;
+    if (floating) {
+      slot.style.height = "";
+      return;
+    }
     const sync = () => {
       const prompt = promptRef.current;
       const growth = prompt
@@ -1021,7 +1597,7 @@ function useSteadyDock(promptRef: RefObject<HTMLTextAreaElement | null>) {
     const observer = new ResizeObserver(sync);
     observer.observe(dock);
     return () => observer.disconnect();
-  }, [promptRef]);
+  }, [promptRef, floating]);
   return { slotRef, dockRef };
 }
 

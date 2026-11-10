@@ -226,7 +226,7 @@ const client = {
     findUnique: projectFindUnique,
     update: projectUpdate,
     updateMany: projectUpdateMany,
-    // Cuso's Project lives in the business's organization (ADR 0060).
+    // Cuso's Project lives in the business's organization (ADR 0065).
     findFirst: async () => ({
       workspace: { id: "ws-1", userId: null, organizationId: "org-1" },
     }),
@@ -269,7 +269,16 @@ const client = {
 export const funding = {
   spendable: 100,
   requireFunding: vi.fn(),
-  BillingError: class extends Error {},
+  /** A hirer's Seat and first turn on a Cuso being hired: allowed unless a test refuses them. */
+  requireMemberFunding: vi.fn(),
+  BillingError: class extends Error {
+    constructor(
+      message: string,
+      readonly reason: "seat" | "credits" = "credits",
+    ) {
+      super(message);
+    }
+  },
 };
 
 /** The module mocks, keyed by what they stand for. */
@@ -291,6 +300,7 @@ export const cmoServiceMocks = {
   },
   billing: {
     requireSokoBotTurnFunding: funding.requireFunding,
+    requireMemberTurnFunding: funding.requireMemberFunding,
     SokoBotBillingAccessError: funding.BillingError,
   },
   vercelFunctions: { waitUntil: vi.fn() },
@@ -351,12 +361,16 @@ export function resetCmoServiceMocks(): void {
   }));
   projectUpdateMany.mockResolvedValue({ count: 1 });
   messageFindMany.mockResolvedValue([]);
-  // Every hire lives in the business's organization (ADR 0060), and the
+  // Every hire lives in the business's organization (ADR 0065), and the
   // member asking owns it unless a test says otherwise.
   workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });
   memberFindUnique.mockResolvedValue({ role: "owner" });
-  // A Project with no logo, DESIGN.md, site platform or Brand research files.
+  // A Project with no logo, DESIGN.md, site platform or Brand research files,
+  // in the business's organization (the access check a named Project passes).
   projectFindUnique.mockResolvedValue({
+    id: "project-1",
+    workspaceId: "ws-1",
+    workspace: { userId: null, organizationId: "org-1" },
     logo: null,
     designMdUrl: null,
     sitePlatform: null,
