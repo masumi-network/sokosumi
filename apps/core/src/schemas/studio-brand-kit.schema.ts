@@ -24,13 +24,6 @@ export const studioWebsiteCopySchema = z
   })
   .openapi("StudioWebsiteCopy");
 
-export const studioWebsiteDraftSchema = z
-  .object({
-    brandCopy: z.union([studioWebsiteCopySchema, z.null()]),
-    products: studioProductImportSchema.shape.products.nullable(),
-  })
-  .openapi("StudioWebsiteDraft");
-
 export const studioBrandLookSchema = z
   .object({
     colors: z
@@ -53,6 +46,18 @@ export const studioBrandLookSchema = z
       .max(4),
   })
   .openapi("StudioBrandLook");
+
+const studioWebsiteVisualSchema = studioBrandLookSchema
+  .extend({ logo: z.url().nullable() })
+  .openapi("StudioWebsiteVisual");
+
+export const studioWebsiteDraftSchema = z
+  .object({
+    brandCopy: z.union([studioWebsiteCopySchema, z.null()]),
+    products: studioProductImportSchema.shape.products.nullable(),
+    visual: z.union([studioWebsiteVisualSchema, z.null()]).optional(),
+  })
+  .openapi("StudioWebsiteDraft");
 
 const studioBrandLookRevision = z.number().int().nonnegative();
 

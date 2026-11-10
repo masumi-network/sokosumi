@@ -841,6 +841,82 @@ const RESULT = {
   contentPath: "/a",
 } as unknown as StudioAsset;
 
+describe("website brand visuals", () => {
+  it("reviews website logo and look alongside copy and products before saving", async () => {
+    const logo = "https://blob.example/project/wordmark.png";
+    const colors = ["#000000", "#123456", "#ffffff"];
+    mocks.saveWebsiteLogo.mockClear().mockResolvedValueOnce({ logo });
+    mocks.saveBrandLook.mockClear().mockResolvedValueOnce({
+      ok: true,
+      look: {
+        colors,
+        fonts: ["Georgia"],
+        hasCustomLook: true,
+        lookRevision: 3,
+      },
+    });
+    mocks.prepareWebsiteDraft.mockResolvedValueOnce({
+      brandCopy: {
+        summary: "Handmade cups",
+        lines: ["Wheel-thrown in Prague."],
+      },
+      products: [{ id: "mug", name: "Travel mug", price: "$20" }],
+      visual: { logo, colors, fonts: [] },
+    });
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: ["#654321"],
+      fonts: ["Georgia"],
+      summary: "",
+      tone: "Direct",
+      audience: [],
+      approvedLines: [],
+      version: null,
+      lookRevision: 2,
+    });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "prepare" }));
+    const review = await screen.findByRole("button", {
+      name: "WebsiteDraft.reviewBrand",
+    });
+    expect(
+      screen.getByRole("button", { name: "reviewImportedProducts" }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(review).toBeEnabled());
+    fireEvent.click(review);
+    const palette = await screen.findByLabelText("BrandKit.colors");
+    expect(palette).toHaveValue(colors.join("\n"));
+    expect(screen.getByLabelText("BrandKit.fonts")).toHaveValue("Georgia");
+    expect(screen.getByLabelText("BrandKit.summary")).toHaveValue(
+      "Handmade cups",
+    );
+    expect(
+      screen.getByRole("img", { name: "BrandKit.websiteLogoPreview" }),
+    ).toHaveAttribute("src", logo);
+    expect(mocks.saveBrandLook).not.toHaveBeenCalled();
+    expect(mocks.saveWebsiteLogo).not.toHaveBeenCalled();
+    const useLogo = screen.getByRole("button", {
+      name: "BrandKit.useWebsiteLogo",
+    });
+    await waitFor(() => expect(useLogo).toBeEnabled());
+    fireEvent.click(useLogo);
+    await screen.findByText("BrandKit.logoSaved");
+    expect(mocks.saveWebsiteLogo).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      logo,
+    });
+    const saveLook = screen.getByRole("button", { name: "BrandKit.saveLook" });
+    await waitFor(() => expect(saveLook).toBeEnabled());
+    fireEvent.click(saveLook);
+    await screen.findByText("BrandKit.lookSaved");
+    expect(mocks.saveBrandLook).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      look: { colors, fonts: ["Georgia"] },
+      lookRevision: 2,
+    });
+  });
+});
+
 describe("templates once there are images", () => {
   afterEach(() => {
     mocks.assets = [];
