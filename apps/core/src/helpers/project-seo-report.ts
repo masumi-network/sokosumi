@@ -133,6 +133,21 @@ const normalizedUrl = (value: string) => {
   return url.href;
 };
 
+// A site audit keeps going when one page Run fails. The worker names that page in `selection.skipped`.
+const siteSkipped = z.object({
+  selection: z.object({
+    skipped: z
+      .array(z.object({ url: seoUrlSchema, reason: z.string() }))
+      .max(10),
+  }),
+});
+const skippedPages = (raw: unknown) => {
+  if (object(raw)?.kind !== "site") return [];
+  const parsed = siteSkipped.safeParse(raw);
+  return parsed.success ? parsed.data.selection.skipped : [];
+};
+const SKIPPED_REASON_CHARS = 300;
+
 /** Bind evidence to the durable request, including Market, devices and approved external targets. */
 export function assertSeoArtifactMatchesRequest(
   raw: unknown,
@@ -143,10 +158,15 @@ export function assertSeoArtifactMatchesRequest(
   if (!parsed.success)
     throw badRequest("The frozen SEO request is not readable");
   const request = parsed.data,
-    pageUrls = request.pageUrls.map(normalizedUrl);
+    pageUrls = request.pageUrls.map(normalizedUrl),
+    reported = payload.pageUrls.map(normalizedUrl),
+    skipped = skippedPages(raw).map((page) => normalizedUrl(page.url));
+  // Every reported page is in scope, and every page in scope is reported or named as skipped.
   if (
     payload.kind !== expected.kind ||
-    !sameSet(payload.pageUrls.map(normalizedUrl), pageUrls) ||
+    new Set(reported).size !== reported.length ||
+    reported.some((url) => !pageUrls.includes(url)) ||
+    pageUrls.some((url) => !reported.includes(url) && !skipped.includes(url)) ||
     payload.countryCode !== request.countryCode ||
     payload.languageCode !== request.languageCode
   )
@@ -457,7 +477,13 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         skipped: pages.reduce((sum, page) => sum + page.coverage.skipped, 0),
         failed: pages.reduce((sum, page) => sum + page.coverage.failed, 0),
       },
-      notes: pages.flatMap((page) => page.notes),
+      notes: [
+        ...pages.flatMap((page) => page.notes),
+        ...skippedPages(raw).map(
+          (page) =>
+            `Page not audited: ${page.url} (${page.reason.slice(0, SKIPPED_REASON_CHARS)})`,
+        ),
+      ],
     });
   }
   if (object(raw)?.schema === "sokosumi.seo-result/1") {

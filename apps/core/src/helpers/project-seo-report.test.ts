@@ -115,6 +115,44 @@ describe("public SEO report trust boundary", () => {
     ).toThrow("Private search evidence");
   });
 
+  it("imports a site audit whose failed page the worker names as skipped, and refuses one that drops a page silently", () => {
+    const second = "https://example.test/second";
+    const site = (skipped: { url: string; reason: string }[]) => ({
+      kind: "site",
+      rulebookVersion: "test",
+      pages: [legacyReport()],
+      selection: { pages: [], skipped, picked: [] },
+    });
+    const request = {
+      id: SEO_TEST_REQUEST_ID,
+      kind: "audit_full",
+      request: {
+        pageUrls: [SEO_TEST_PAGE, second],
+        countryCode: "US",
+        languageCode: "en",
+      },
+    };
+    const partial = site([
+        { url: second, reason: "the page Run failed: timeout" },
+      ]),
+      parsed = parsePublicSeoArtifact(partial);
+    expect(parsed.pageUrls).toEqual([SEO_TEST_PAGE]);
+    expect(parsed.notes).toContain(
+      `Page not audited: ${second} (the page Run failed: timeout)`,
+    );
+    expect(() =>
+      assertSeoArtifactMatchesRequest(partial, parsed, request),
+    ).not.toThrow();
+    const silent = site([]);
+    expect(() =>
+      assertSeoArtifactMatchesRequest(
+        silent,
+        parsePublicSeoArtifact(silent),
+        request,
+      ),
+    ).toThrow("frozen page scope");
+  });
+
   it("rejects a valid result relabeled for a different Market, device, keyword or external target", () => {
     const raw = focusedReport(),
       parsed = parsePublicSeoArtifact(raw);
