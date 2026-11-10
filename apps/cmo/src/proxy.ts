@@ -59,6 +59,9 @@ export async function proxy(request: NextRequest) {
     // An address that names a Cuso's Project (the picker, a shared link, a
     // provider callback) opens him; this device opens him next time too.
     // Pages render as Server Components, which cannot set cookies.
+    // shortcut: a link to a Project the person can no longer use replaces
+    // the remembered Cuso before home falls through to the picker; check
+    // the Project in a route handler first if that loses people's place.
     const project = request.nextUrl.searchParams.get("project");
     if (project) response.cookies.set(...lastCusoCookie(project));
     return response;

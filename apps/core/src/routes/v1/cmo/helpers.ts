@@ -11,6 +11,7 @@ import { mapControlPlaneError } from "@/routes/v1/soko-bots/helpers";
 import { cmoOverviewSchema } from "@/schemas/cmo.schema";
 import {
   CmoConflictError,
+  CmoError,
   CmoForbiddenError,
   CmoNotFoundError,
   type CusoTarget,
@@ -94,9 +95,7 @@ export async function requireOverview(target: CusoTarget) {
 
 export function rethrow(error: unknown): never {
   const kind =
-    error instanceof Error && "kind" in error && typeof error.kind === "string"
-      ? { kind: error.kind }
-      : undefined;
+    error instanceof CmoError && error.kind ? { kind: error.kind } : undefined;
   if (error instanceof CmoNotFoundError) throw notFound(error.message, kind);
   if (error instanceof CmoConflictError) throw conflict(error.message, kind);
   if (error instanceof CmoForbiddenError) throw forbidden(error.message, kind);

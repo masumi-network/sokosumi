@@ -42,7 +42,11 @@ import {
   startCmoOverForProject,
   updateProjectBrandBrain,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS, normalizeWebsiteUrl } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  type CoreApiErrorKind,
+  normalizeWebsiteUrl,
+} from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -90,6 +94,10 @@ export async function loadOverview(
   return overviewOf(await requireCore(), projectId);
 }
 
+/**
+ * The Cuso of the Project the page rendered, or null when that Project has
+ * none (or the person may no longer see it).
+ */
 async function overviewOf(
   core: Awaited<ReturnType<typeof requireCore>>,
   projectId: string,
@@ -152,7 +160,7 @@ export interface OnboardFormState {
 }
 
 /** What the start form says for each refusal Core declares, by its kind. */
-const HIRE_REFUSALS: Record<string, string> = {
+const HIRE_REFUSALS: Partial<Record<CoreApiErrorKind, string>> = {
   [CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED]: `You need a Seat in that organization to hire ${AGENT_NAME}. Ask its owner for one, or choose another organization.`,
   [CORE_API_ERROR_KINDS.ORGANIZATION_LIMIT_REACHED]:
     "You've reached the organization limit. Choose one of your organizations instead.",
@@ -204,7 +212,7 @@ export async function onboard(
         topUpUrl: `${readSokosumiAppBaseUrl()}/billing`,
       };
     }
-    const refusal = kind ? HIRE_REFUSALS[kind] : undefined;
+    const refusal = kind ? HIRE_REFUSALS[kind as CoreApiErrorKind] : undefined;
     return {
       ...result,
       errors: { form: refusal ?? "That did not work. Try again." },

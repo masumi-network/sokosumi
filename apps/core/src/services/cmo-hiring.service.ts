@@ -544,8 +544,9 @@ export async function startCmoOnboarding(input: {
   websiteUrl: string;
   organizationId?: string | undefined;
 }): Promise<Cuso> {
-  // shortcut: two racing submits can hire twice; the start form submits
-  // once. Add a per-person lock if duplicates show up.
+  // shortcut: two racing submits can hire twice, in two organizations or in
+  // one; the start form submits once. Add a per-person lock if duplicates
+  // show up.
 
   // Organization names take 2 to 50 characters.
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)

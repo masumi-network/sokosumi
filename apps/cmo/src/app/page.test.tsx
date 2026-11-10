@@ -162,13 +162,12 @@ describe("CMO home page", () => {
     expect(loadCusos).not.toHaveBeenCalled();
   });
 
-  it("opens the only Cuso directly", async () => {
+  it("opens the only Cuso directly, by an address this device remembers", async () => {
     loadCusos.mockResolvedValue([cuso("project-3")]);
 
-    const page = await render();
-
-    expect(page.type).toBe(CmoApp);
-    expect(page.props.overview?.projectId).toBe("project-3");
+    // The proxy writes the cookie for an address naming his Project.
+    await expect(render()).rejects.toThrow("redirect /?project=project-3");
+    expect(loadOverview).not.toHaveBeenCalled();
   });
 
   it("shows the Cuso picker for several Cusos and none opened here before", async () => {

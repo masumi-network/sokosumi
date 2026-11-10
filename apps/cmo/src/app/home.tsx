@@ -19,7 +19,7 @@ import { asSignedInPersonInPage } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
-import type { View } from "../lib/views";
+import { VIEW_PATHS, type View } from "../lib/views";
 import { signOut } from "./actions";
 import {
   addMailingList,
@@ -110,6 +110,8 @@ async function organizationsOf(
 
 type OpenedScreen =
   | { kind: "cuso"; overview: CmoOverview }
+  /** The only Cuso, opened by an address naming him, which the proxy remembers. */
+  | { kind: "only"; projectId: string }
   | { kind: "picker"; cusos: CmoCuso[] }
   | { kind: "hire" };
 
@@ -134,11 +136,10 @@ async function openedScreen(input: {
     }
   }
   const cusos = await loadCusos();
-  const [only] = cusos;
-  if (input.pick && only) return { kind: "picker", cusos };
-  if (cusos.length > 1) return { kind: "picker", cusos };
-  const overview = only ? await loadOverview(only.projectId) : null;
-  return overview ? { kind: "cuso", overview } : { kind: "hire" };
+  const [newest] = cusos;
+  if (!newest) return { kind: "hire" };
+  if (input.pick || cusos.length > 1) return { kind: "picker", cusos };
+  return { kind: "only", projectId: newest.projectId };
 }
 
 export interface HomeSearchParams {
@@ -198,6 +199,8 @@ export async function Home({ searchParams, view }: HomeProps) {
     remembered: (await cookies()).get(LAST_CUSO_COOKIE)?.value || undefined,
   }).catch(() => undefined);
   // Core unreachable: keep the signed-in shell rather than an error page.
+  // An unavailable named Project falls through to the picker or the hire
+  // form (ADR 0065).
   if (opened === undefined) {
     return (
       <SignedIn
@@ -205,6 +208,11 @@ export async function Home({ searchParams, view }: HomeProps) {
         email={session.user.email}
         signOut={signOut}
       />
+    );
+  }
+  if (opened.kind === "only") {
+    redirect(
+      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}`,
     );
   }
   if (opened.kind === "picker") return <CusoPicker cusos={opened.cusos} />;

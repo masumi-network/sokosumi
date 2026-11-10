@@ -17,7 +17,7 @@ import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.servic
  */
 
 /** A CMO refusal; `kind` is the stable error kind CMO matches on, if any. */
-class CmoError extends Error {
+export class CmoError extends Error {
   constructor(
     message: string,
     readonly kind?: CoreApiErrorKind,
