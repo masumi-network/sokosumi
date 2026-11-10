@@ -6858,7 +6858,7 @@ export const putTasksByIdShare = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Post a link to a Task, with an optional note, into a chat room the caller belongs to. The Task and the room are read at write time: the Task must be readable and not private, and the room must be the caller's notes or a room of the Task's organization with no guests, Coworkers or Soko Bots. The message mentions no one and starts no agent. A retry with the same clientMessageId and the same content returns the first message.
+ * Post a link to a Task, with an optional note, into a chat room the caller belongs to. The Task and the room are read at write time: the Task must be readable and not private, and the room must be the caller's notes or a room of the Task's organization with no guests, Coworkers or Soko Bots. The message mentions no one and starts no agent. The Task, the sender's memberships and the room stay locked until the message commits. A retry with the same clientMessageId, Task and note returns the first message, even after the Task was renamed or the message edited; anything else under that id is a 409.
  */
 export const postTasksByIdChatMessages = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdChatMessagesData, ThrowOnError>): RequestResult<PostTasksByIdChatMessagesResponses, PostTasksByIdChatMessagesErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdChatMessagesResponses, PostTasksByIdChatMessagesErrors, ThrowOnError>({
     responseTransformer: postTasksByIdChatMessagesResponseTransformer,

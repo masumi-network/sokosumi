@@ -14,6 +14,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  lockMock,
   requireTaskReadMock,
   requireWritableChatRoomMock,
   emitEffectsMock,
@@ -35,8 +36,10 @@ const {
   roomUpdateMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
   transactionMock: vi.fn(),
+  lockMock: vi.fn(),
 }));
 
+vi.mock("./send-lock", () => ({ lockTaskChatSend: lockMock }));
 vi.mock("@/helpers/access-control", () => ({
   requireTaskReadForRouteVars: requireTaskReadMock,
 }));
@@ -130,7 +133,16 @@ function room(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function message(content: string, senderUserId = USER_ID) {
+function message(
+  content: string,
+  {
+    senderUserId = USER_ID,
+    attempt = { taskId: TASK_ID, note: "" },
+  }: {
+    senderUserId?: string;
+    attempt?: { taskId: string; note: string };
+  } = {},
+) {
   return {
     id: MESSAGE_ID,
     roomId: ROOM_ID,
@@ -139,7 +151,7 @@ function message(content: string, senderUserId = USER_ID) {
     senderCoworkerId: null,
     senderSokoBotId: null,
     content,
-    metadata: { client_message_id: CLIENT_ID },
+    metadata: { client_message_id: CLIENT_ID, task_chat_attempt: attempt },
     createdAt: new Date("2026-11-10T10:00:00.000Z"),
     editedAt: null,
     senderUser: {
@@ -176,8 +188,9 @@ beforeEach(() => {
   requireTaskReadMock.mockResolvedValue(task());
   requireWritableChatRoomMock.mockResolvedValue(room());
   messageFindUniqueMock.mockResolvedValue(null);
+  lockMock.mockResolvedValue(undefined);
   messageCreateMock.mockImplementation(async ({ data }) =>
-    message(data.content),
+    message(data.content, { attempt: data.metadata.task_chat_attempt }),
   );
   roomUpdateMock.mockResolvedValue({});
   readStateUpsertMock.mockResolvedValue({});
@@ -202,7 +215,10 @@ describe("POST /tasks/{id}/chat-messages", () => {
       senderUserId: USER_ID,
       content: `Can you take this?\n\n${LINK}`,
       clientMessageId: CLIENT_ID,
-      metadata: { client_message_id: CLIENT_ID },
+      metadata: {
+        client_message_id: CLIENT_ID,
+        task_chat_attempt: { taskId: TASK_ID, note: "Can you take this?" },
+      },
     });
     expect(data).not.toHaveProperty("mentionsAsSource");
     expect(data).not.toHaveProperty("userMentionsAsSource");
@@ -310,6 +326,33 @@ describe("POST /tasks/{id}/chat-messages", () => {
     );
   });
 
+  it("locks the Task, memberships and room before it reads them", async () => {
+    await send();
+
+    expect(lockMock).toHaveBeenCalledWith(tx, {
+      taskId: TASK_ID,
+      roomId: ROOM_ID,
+      userId: USER_ID,
+    });
+    const lockedAt = lockMock.mock.invocationCallOrder[0]!;
+    expect(lockedAt).toBeLessThan(
+      requireTaskReadMock.mock.invocationCallOrder[0]!,
+    );
+    expect(lockedAt).toBeLessThan(
+      requireWritableChatRoomMock.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("answers 404 when the sender left the organization or room", async () => {
+    lockMock.mockRejectedValue(notFound("Room not found"));
+
+    const response = await send();
+
+    expect(response.status).toBe(404);
+    expect(requireTaskReadMock).not.toHaveBeenCalled();
+    expect(messageCreateMock).not.toHaveBeenCalled();
+  });
+
   it("answers a retry of the same attempt with the first message, once", async () => {
     messageFindUniqueMock.mockResolvedValue(message(LINK));
 
@@ -320,15 +363,42 @@ describe("POST /tasks/{id}/chat-messages", () => {
     expect(emitEffectsMock).not.toHaveBeenCalled();
   });
 
-  it("refuses the same id with different content instead of replaying the old message", async () => {
-    // The first send committed but its response was lost; the note changed.
-    messageFindUniqueMock.mockResolvedValue(message(`Old note\n\n${LINK}`));
+  it.each([
+    ["the Task was renamed", "[SOK-12 Old name](/tasks/x)"],
+    ["the message was edited", "edited by its sender"],
+  ])(
+    "replays the first message when %s after a lost response",
+    async (_label, storedContent) => {
+      messageFindUniqueMock.mockResolvedValue(
+        message(storedContent, { attempt: { taskId: TASK_ID, note: "Hi" } }),
+      );
 
-    const response = await send({ note: "New note" });
+      const response = await send({ note: "  Hi " });
 
-    expect(response.status).toBe(409);
-    expect(messageCreateMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(201);
+      const body = (await response.json()) as { data: { id: string } };
+      expect(body.data.id).toBe(MESSAGE_ID);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["another note", { taskId: TASK_ID, note: "Old note" }, USER_ID],
+    ["another Task", { taskId: "other-task", note: "" }, USER_ID],
+    ["another sender", { taskId: TASK_ID, note: "" }, "user_2"],
+  ])(
+    "refuses an id already used for %s",
+    async (_label, attempt, senderUserId) => {
+      messageFindUniqueMock.mockResolvedValue(
+        message(LINK, { attempt, senderUserId }),
+      );
+
+      const response = await send();
+
+      expect(response.status).toBe(409);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns the winner when two sends of one attempt race", async () => {
     transactionMock.mockRejectedValueOnce(
@@ -341,5 +411,19 @@ describe("POST /tasks/{id}/chat-messages", () => {
     expect(response.status).toBe(201);
     expect(emitEffectsMock).not.toHaveBeenCalled();
     expect(publishMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a race winner that carried another note or Task", async () => {
+    transactionMock.mockRejectedValueOnce(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+    messageFindUniqueMock.mockResolvedValue(
+      message(LINK, { attempt: { taskId: "other-task", note: "Other" } }),
+    );
+
+    const response = await send();
+
+    expect(response.status).toBe(409);
+    expect(publishMock).not.toHaveBeenCalled();
   });
 });

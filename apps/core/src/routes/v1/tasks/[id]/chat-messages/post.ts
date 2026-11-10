@@ -26,6 +26,8 @@ import { emitHumanRoomMessageEffects } from "@/routes/v1/chats/rooms/human-messa
 import { requireWritableChatRoom } from "@/routes/v1/chats/rooms/writable-chat-room";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 
+import { lockTaskChatSend } from "./send-lock";
+
 const NOTE_MAX_LENGTH = 2000;
 
 const paramsSchema = z.object({
@@ -50,7 +52,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/chat-messages",
   description:
-    "Post a link to a Task, with an optional note, into a chat room the caller belongs to. The Task and the room are read at write time: the Task must be readable and not private, and the room must be the caller's notes or a room of the Task's organization with no guests, Coworkers or Soko Bots. The message mentions no one and starts no agent. A retry with the same clientMessageId and the same content returns the first message.",
+    "Post a link to a Task, with an optional note, into a chat room the caller belongs to. The Task and the room are read at write time: the Task must be readable and not private, and the room must be the caller's notes or a room of the Task's organization with no guests, Coworkers or Soko Bots. The message mentions no one and starts no agent. The Task, the sender's memberships and the room stay locked until the message commits. A retry with the same clientMessageId, Task and note returns the first message, even after the Task was renamed or the message edited; anything else under that id is a 409.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -78,12 +80,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    const { roomId, note = "", clientMessageId } = c.req.valid("json");
+    const { roomId, note: rawNote = "", clientMessageId } = c.req.valid("json");
+    // What the attempt is, as sent; rendered content changes with the Task.
+    const attempt = { taskId: id, note: rawNote.trim() };
 
     const sent = await prisma
       .$transaction(async (tx) => {
         // Both reads happen at write time, so a Task made private or moved,
         // or a room opened to guests, after the dialog loaded is refused.
+        // The locks keep what they read in force until the message commits.
+        await lockTaskChatSend(tx, { taskId: id, roomId, userId });
         const task = await requireTaskReadForRouteVars(c.var, id, tx, {
           project: { select: { identifier: true } },
           workspace: { select: { organizationId: true } },
@@ -125,7 +131,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ),
             name: task.name,
           },
-          note,
+          attempt.note,
         );
         const roomSummary = {
           id: room.id,
@@ -143,7 +149,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
         if (existing) {
           return {
-            message: assertSameAttempt(existing, userId, content),
+            message: assertSameAttempt(existing, userId, attempt),
             room: roomSummary,
             didCreate: false,
           };
@@ -156,7 +162,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             senderUserId: userId,
             content,
             clientMessageId,
-            metadata: { client_message_id: clientMessageId },
+            metadata: {
+              client_message_id: clientMessageId,
+              [TASK_CHAT_ATTEMPT_KEY]: attempt,
+            },
           },
           include: chatRoomMessageInclude,
         });
@@ -179,10 +188,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           include: chatRoomMessageInclude,
         });
         if (!raced) throw error;
-        if (raced.senderUserId !== userId) {
-          throw conflict("clientMessageId already used for another message");
-        }
-        return { message: raced, room: null, didCreate: false };
+        return {
+          message: assertSameAttempt(raced, userId, attempt),
+          room: null,
+          didCreate: false,
+        };
       });
 
     const { message, room, didCreate } = sent;
@@ -208,15 +218,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   });
 }
 
+/** Where a sent Task's attempt is kept on its message. */
+const TASK_CHAT_ATTEMPT_KEY = "task_chat_attempt";
+
 /**
- * A retry is the same attempt only when the same person sent the same
- * content. Anything else under the id is a different message, so it is
- * refused rather than answered with the old one.
+ * A retry is the same attempt when the same person sent the same Task with
+ * the same note into the room (the room is part of the id's key). It is
+ * compared on what was sent, not on the rendered message, so a Task renamed
+ * or a message edited since still answers with the first message. Anything
+ * else under the id is a different message and is refused.
  */
-function assertSameAttempt<
-  T extends { senderUserId: string | null; content: string },
->(message: T, userId: string, content: string): T {
-  if (message.senderUserId !== userId || message.content !== content) {
+export function assertSameAttempt<
+  T extends { senderUserId: string | null; metadata: unknown },
+>(message: T, userId: string, attempt: { taskId: string; note: string }): T {
+  const stored =
+    message.metadata && typeof message.metadata === "object"
+      ? (message.metadata as Record<string, unknown>)[TASK_CHAT_ATTEMPT_KEY]
+      : undefined;
+  const same =
+    message.senderUserId === userId &&
+    stored !== null &&
+    typeof stored === "object" &&
+    (stored as { taskId?: unknown }).taskId === attempt.taskId &&
+    (stored as { note?: unknown }).note === attempt.note;
+  if (!same) {
     throw conflict("clientMessageId already used for another message");
   }
   return message;
