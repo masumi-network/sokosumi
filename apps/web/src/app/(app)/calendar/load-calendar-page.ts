@@ -10,6 +10,7 @@ import { isValidTimezone } from "@sokosumi/utils";
 import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { getTimeZone } from "next-intl/server";
 import { Temporal } from "temporal-polyfill";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -66,6 +67,8 @@ export interface LoadedWorkspaceCalendarPage {
   project: Project | null;
   projectOptions: ProjectFilterOption[];
   range: { from: Date; to: Date };
+  /** The zone `items`, `range` and `initialDate` were computed in. */
+  renderedTimezone: string;
   sources: WorkspaceCalendarSource[];
 }
 
@@ -245,7 +248,11 @@ export async function loadWorkspaceCalendarPage({
     params.date,
     params.status,
     params.view,
-    params.timezone,
+    // A URL without a valid zone renders in the zone from the
+    // `sokosumi.timezone` cookie, which the browser reported (UTC until it
+    // has). When the browser still reports that zone, the calendar has no
+    // reason to ask again with it.
+    isValidTimezone(params.timezone) ? params.timezone : await getTimeZone(),
     latestScheduledFeatureAt,
   );
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
@@ -286,6 +293,7 @@ export async function loadWorkspaceCalendarPage({
       project,
       projectOptions: [projectOptionFromProject(project)],
       range,
+      renderedTimezone: calendarTimezone,
       sources: projectSource ? [projectSource] : [],
     };
   }
@@ -327,6 +335,7 @@ export async function loadWorkspaceCalendarPage({
       schedulableProjectIds.has(project.id),
     ),
     range,
+    renderedTimezone: calendarTimezone,
     sources,
   };
 }

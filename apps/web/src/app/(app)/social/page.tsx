@@ -300,6 +300,7 @@ function SocialCalendar({
       lockedProjectId={lockedProjectId}
       pagination={calendar.pagination}
       range={calendar.range}
+      renderedTimezone={calendar.renderedTimezone}
       sources={calendar.sources}
       // Nothing but Social posts belongs on Social's own calendar, so the
       // other features are left out here rather than behind a filter the

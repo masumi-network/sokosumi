@@ -418,6 +418,31 @@ describe("WorkspaceCalendar", () => {
     ).toBeInTheDocument();
   });
 
+  it("puts the zone in a URL without one, with no second server render", async () => {
+    const onUrlUpdate = vi.fn();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      ...new Intl.DateTimeFormat().resolvedOptions(),
+      timeZone: "UTC",
+    });
+
+    render(
+      <NuqsTestingAdapter onUrlUpdate={onUrlUpdate} searchParams="">
+        <WorkspaceCalendar
+          items={ITEMS}
+          initialDate="2026-08-18"
+          renderedTimezone="UTC"
+          sources={SOURCES}
+          workspaceId="workspace-1"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+    const [event] = onUrlUpdate.mock.calls[0];
+    expect(event.searchParams.get("timezone")).toBe("UTC");
+    expect(event.options.shallow).toBe(true);
+  });
+
   it("uses the task-style scope filter", async () => {
     const onUrlUpdate = vi.fn();
 
