@@ -17,9 +17,13 @@ describe("measure callback", () => {
   it("finishes the connection and resumes onboarding on Results", async () => {
     finalizeMeasurement.mockResolvedValue(true);
     const response = await callback(
-      "provider=shopify&from=onboarding&status=success",
+      "provider=shopify&from=onboarding&project=project-2&status=success",
     );
-    expect(finalizeMeasurement).toHaveBeenCalledWith("shopify", null);
+    expect(finalizeMeasurement).toHaveBeenCalledWith(
+      "project-2",
+      "shopify",
+      null,
+    );
     expect(response.headers.get("location")).toBe(
       "http://localhost:3110/?step=results&from=onboarding",
     );
@@ -27,23 +31,39 @@ describe("measure callback", () => {
 
   it("hands Composio's session on, so Cuso's bot redeems it", async () => {
     finalizeMeasurement.mockResolvedValue(true);
-    await callback("provider=shopify&from=onboarding&session_uri=one-use");
-    expect(finalizeMeasurement).toHaveBeenCalledWith("shopify", "one-use");
+    await callback(
+      "provider=shopify&from=onboarding&project=project-2&session_uri=one-use",
+    );
+    expect(finalizeMeasurement).toHaveBeenCalledWith(
+      "project-2",
+      "shopify",
+      "one-use",
+    );
   });
 
   it("returns to the Results page in the app", async () => {
     finalizeMeasurement.mockResolvedValue(true);
-    const response = await callback("provider=google_analytics&from=app");
+    const response = await callback(
+      "provider=google_analytics&from=app&project=project-2",
+    );
     expect(response.headers.get("location")).toBe(
       "http://localhost:3110/results",
     );
   });
 
   it("says it failed for a refusal or an unknown source", async () => {
-    const refused = await callback("provider=shopify&status=failed");
-    const unknown = await callback("provider=gmail");
+    const refused = await callback(
+      "provider=shopify&project=project-2&status=failed",
+    );
+    const unknown = await callback("provider=gmail&project=project-2");
     expect(finalizeMeasurement).not.toHaveBeenCalled();
     expect(refused.headers.get("location")).toContain("measure=failed");
     expect(unknown.headers.get("location")).toContain("measure=failed");
+  });
+
+  it("finishes nothing without the Project it started from", async () => {
+    const response = await callback("provider=shopify&from=app");
+    expect(finalizeMeasurement).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toContain("measure=failed");
   });
 });

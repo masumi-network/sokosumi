@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const startCmoOnboarding = vi.fn();
 const getCmoOverview = vi.fn();
@@ -8,6 +8,8 @@ const postContactListsByIdImport = vi.fn();
 const postProjectsByIdSocialConnectionsInitiate = vi.fn();
 const postProjectsByIdSocialConnectionsFinalize = vi.fn();
 const startCmoOver = vi.fn();
+const getCmoOverviewForProject = vi.fn();
+const startCmoOverForProject = vi.fn();
 const revalidatePath = vi.fn();
 const redirect = vi.fn((to: string) => {
   throw new Error(`redirect ${to}`);
@@ -16,6 +18,43 @@ const cookieJar = new Map<string, string>();
 const setCookie = vi.fn((name: string, value: string) => {
   cookieJar.set(name, value);
 });
+
+/** The …ForProject operations a Cuso action calls, by name. */
+const forProject = Object.fromEntries(
+  [
+    "applyCmoPlanAnswersForProject",
+    "chooseCmoAdAccountForProject",
+    "connectCmoAdsForProject",
+    "connectCmoMeasurementForProject",
+    "finalizeCmoAdsForProject",
+    "finalizeCmoMeasurementForProject",
+    "getCmoCalendarEntryTextForProject",
+    "launchCmoSearchAdForProject",
+    "listCmoAdCampaignsForProject",
+    "listCmoAdChoicesForProject",
+    "pauseCmoCalendarEntryForProject",
+    "requestCmoStrategyForProject",
+    "retryCmoOnboardingForProject",
+    "revertCmoUpdateForProject",
+    "setCmoAdBudgetForProject",
+    "setCmoAdCampaignStatusForProject",
+  ].map((name) => [name, vi.fn()]),
+);
+
+/** The standard Project, chat and bot routes a Cuso action calls, by name. */
+const standardRoutes = Object.fromEntries(
+  [
+    "answerProjectBrandBrainQuestion",
+    "answerProjectMarketingStrategyQuestion",
+    "approveProjectMarketingStrategy",
+    "completeSokoBotIntegrationAuth",
+    "confirmProjectBrandBrain",
+    "getChatsRoomsByIdMessages",
+    "postChatsRoomsByIdMessages",
+    "postComposioCallbackComplete",
+    "updateProjectBrandBrain",
+  ].map((name) => [name, vi.fn()]),
+);
 
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect }));
@@ -46,10 +85,38 @@ vi.mock("@sokosumi/core-client", () => ({
   postProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialConnectionsFinalize,
   startCmoOver,
+  getCmoOverviewForProject,
+  startCmoOverForProject,
+  ...forProject,
+  ...standardRoutes,
 }));
 
 const {
   addMailingList,
+  answerBrandQuestion,
+  answerPlanQuestion,
+  applyPlanAnswers,
+  approveBrandBrain,
+  approveStrategy,
+  chooseAdAccount,
+  connectAds,
+  connectMeasurement,
+  finalizeAds,
+  finalizeMeasurement,
+  launchAd,
+  loadAdCampaigns,
+  loadAdChoices,
+  loadMessages,
+  loadPieceText,
+  loadState,
+  pauseEntry,
+  requestStrategy,
+  retryLearning,
+  revertUpdate,
+  saveBrandBrain,
+  sendMessage,
+  setAdBudget,
+  setAdCampaignStatus,
   connectChannel,
   connectSetupChannel,
   finalizeChannel,
@@ -126,7 +193,7 @@ describe("social accounts", () => {
   };
 
   beforeEach(() => {
-    getCmoOverview.mockResolvedValue({
+    getCmoOverviewForProject.mockResolvedValue({
       data: { data: { projectId: "project-1", organizationSlug: "acme" } },
       response: { status: 200 },
     });
@@ -137,7 +204,7 @@ describe("social accounts", () => {
       data: { data: { redirectUrl: "https://connect.example/x" } },
     });
 
-    expect(await connectChannel("x")).toEqual({
+    expect(await connectChannel("project-1", "x")).toEqual({
       url: "https://connect.example/x",
       error: null,
     });
@@ -147,7 +214,8 @@ describe("social accounts", () => {
         body: {
           action: "connect",
           provider: "x",
-          callbackUrl: "https://app.cmo.xyz/connect/callback?from=app",
+          callbackUrl:
+            "https://app.cmo.xyz/connect/callback?from=app&project=project-1",
         },
       }),
     );
@@ -158,11 +226,12 @@ describe("social accounts", () => {
       data: { data: { redirectUrl: "https://connect.example/x" } },
     });
 
-    await connectSetupChannel("x");
+    await connectSetupChannel("project-1", "x");
     expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
-          callbackUrl: "https://app.cmo.xyz/connect/callback?from=onboarding",
+          callbackUrl:
+            "https://app.cmo.xyz/connect/callback?from=onboarding&project=project-1",
         }),
       }),
     );
@@ -171,7 +240,7 @@ describe("social accounts", () => {
   it("finishes the connection on Cuso's Project", async () => {
     postProjectsByIdSocialConnectionsFinalize.mockResolvedValue({ data: {} });
 
-    expect(await finalizeChannel("ca_1")).toBe(true);
+    expect(await finalizeChannel("project-1", "ca_1")).toBe(true);
     expect(postProjectsByIdSocialConnectionsFinalize).toHaveBeenCalledWith(
       expect.objectContaining({
         ...projectCall,
@@ -187,7 +256,7 @@ describe("addMailingList", () => {
   };
 
   beforeEach(() => {
-    getCmoOverview.mockResolvedValue({
+    getCmoOverviewForProject.mockResolvedValue({
       data: { data: { projectId: "project-1", organizationSlug: "acme" } },
       response: { status: 200 },
     });
@@ -204,7 +273,7 @@ describe("addMailingList", () => {
       },
     });
 
-    const result = await addMailingList("ada@example.com");
+    const result = await addMailingList("project-1", "ada@example.com");
 
     expect(result.error).toBeNull();
     expect(postContactLists).not.toHaveBeenCalled();
@@ -221,7 +290,7 @@ describe("addMailingList", () => {
     getContactLists.mockResolvedValue({ data: { data: [] } });
     postContactLists.mockResolvedValue({ data: { data: { id: "list-9" } } });
 
-    await addMailingList("ada@example.com");
+    await addMailingList("project-1", "ada@example.com");
 
     expect(postContactLists).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -242,7 +311,7 @@ describe("addMailingList", () => {
       error: { message: "No email addresses found in that text" },
     });
 
-    expect(await addMailingList("nothing")).toEqual({
+    expect(await addMailingList("project-1", "nothing")).toEqual({
       overview: null,
       error: "No email addresses found in that text",
     });
@@ -251,10 +320,12 @@ describe("addMailingList", () => {
 
 describe("skipped hiring steps", () => {
   beforeEach(() => {
-    getCmoOverview.mockResolvedValue({
+    const overview = {
       data: { data: { projectId: "project-1", onboardingStep: "accounts" } },
       response: { status: 200 },
-    });
+    };
+    getCmoOverview.mockResolvedValue(overview);
+    getCmoOverviewForProject.mockResolvedValue(overview);
   });
 
   it("resumes on Core's step without CMO's cookie", async () => {
@@ -271,7 +342,7 @@ describe("skipped hiring steps", () => {
   });
 
   it("opens the app on Continue from the accounts step, kept in an httpOnly cookie", async () => {
-    await finishAccounts().catch(() => undefined);
+    await finishAccounts("project-1").catch(() => undefined);
     expect(redirect).toHaveBeenCalledWith("/");
     expect(setCookie).toHaveBeenCalledWith(
       "cmo-skipped-project-1",
@@ -284,7 +355,7 @@ describe("skipped hiring steps", () => {
 
 describe("skipped brand questions", () => {
   beforeEach(() => {
-    getCmoOverview.mockResolvedValue({
+    getCmoOverviewForProject.mockResolvedValue({
       data: { data: { projectId: "project-1", onboardingStep: "brandBrain" } },
       response: { status: 200 },
     });
@@ -292,7 +363,7 @@ describe("skipped brand questions", () => {
 
   it("keeps the skip in the cookie beside the accounts, without moving Core's step", async () => {
     cookieJar.set("cmo-skipped-project-1", "accounts");
-    const overview = await skipBrandQuestions();
+    const overview = await skipBrandQuestions("project-1");
     expect(overview.onboardingStep).toBe("brandBrain");
     expect(setCookie).toHaveBeenCalledWith(
       "cmo-skipped-project-1",
@@ -305,19 +376,271 @@ describe("skipped brand questions", () => {
 });
 
 describe("start over", () => {
-  it("opens the hiring form once Cuso is archived", async () => {
-    startCmoOver.mockResolvedValue({ data: { data: { startedOver: true } } });
-    await expect(startOver()).rejects.toThrow("redirect /");
+  it("archives the Cuso on screen, then opens home on the Project Core names", async () => {
+    startCmoOverForProject.mockResolvedValue({
+      data: { data: { startedOver: true, projectId: "project-3" } },
+    });
+    await expect(startOver("project-2")).rejects.toThrow("redirect /");
+    expect(startCmoOverForProject).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { projectId: "project-2" } }),
+    );
+    expect(startCmoOver).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 
+  it("opens the hiring form when no Cuso is left", async () => {
+    startCmoOverForProject.mockResolvedValue({
+      data: { data: { startedOver: true, projectId: null } },
+    });
+    await expect(startOver("project-2")).rejects.toThrow("redirect /");
+  });
+
   it("says why when Core refuses", async () => {
-    startCmoOver.mockResolvedValue({
+    startCmoOverForProject.mockResolvedValue({
       error: { message: "Only an organization owner or admin can archive" },
     });
-    expect(await startOver()).toBe(
+    expect(await startOver("project-2")).toBe(
       "Only an organization owner or admin can archive",
     );
     expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe("the Cuso on screen", () => {
+  // The person's default Cuso is project-1 in acme; the page shows project-2.
+  const onScreen = {
+    projectId: "project-2",
+    organizationSlug: "beta",
+    sokoBotId: "bot-2",
+    roomId: "room-2",
+    strategyVersion: { id: "strategy-2" },
+  };
+  const inBeta = {
+    headers: { authorization: "Bearer t", "x-organization-slug": "beta" },
+  };
+
+  beforeEach(() => {
+    getCmoOverview.mockResolvedValue({
+      data: { data: { ...onScreen, projectId: "project-1" } },
+      response: { status: 200 },
+    });
+    getCmoOverviewForProject.mockImplementation(async ({ path }) => ({
+      data: { data: { ...onScreen, projectId: path.projectId } },
+      response: { status: 200 },
+    }));
+    for (const route of [
+      ...Object.values(forProject),
+      ...Object.values(standardRoutes),
+    ]) {
+      route.mockResolvedValue({
+        data: { data: { ...onScreen, redirectUrl: "https://p.example" } },
+      });
+    }
+  });
+
+  afterEach(() => {
+    // No action falls back to the default Cuso.
+    expect(getCmoOverview).not.toHaveBeenCalled();
+    for (const call of getCmoOverviewForProject.mock.calls) {
+      expect(call[0].path).toEqual({ projectId: "project-2" });
+    }
+  });
+
+  const brief = { questionId: "q1", answer: "yes" as const };
+  const cmoRoutes: [string, () => Promise<unknown>, string, object?][] = [
+    [
+      "requestStrategy",
+      () => requestStrategy("project-2", "more"),
+      "requestCmoStrategyForProject",
+    ],
+    [
+      "setAdBudget",
+      () => setAdBudget("project-2", 500, "EUR"),
+      "setCmoAdBudgetForProject",
+    ],
+    [
+      "applyPlanAnswers",
+      () => applyPlanAnswers("project-2"),
+      "applyCmoPlanAnswersForProject",
+    ],
+    [
+      "retryLearning",
+      () => retryLearning("project-2"),
+      "retryCmoOnboardingForProject",
+    ],
+    [
+      "pauseEntry",
+      () => pauseEntry("project-2", "e1"),
+      "pauseCmoCalendarEntryForProject",
+      { id: "e1" },
+    ],
+    [
+      "loadPieceText",
+      () => loadPieceText("project-2", "e1"),
+      "getCmoCalendarEntryTextForProject",
+      { id: "e1" },
+    ],
+    [
+      "revertUpdate",
+      () => revertUpdate("project-2", "u1"),
+      "revertCmoUpdateForProject",
+      { id: "u1" },
+    ],
+    [
+      "connectAds",
+      () => connectAds("project-2", "google_ads", "app"),
+      "connectCmoAdsForProject",
+      { provider: "google_ads" },
+    ],
+    [
+      "finalizeAds",
+      () => finalizeAds("project-2", "ca_1", null),
+      "finalizeCmoAdsForProject",
+    ],
+    [
+      "loadAdChoices",
+      () => loadAdChoices("project-2", "ad-1"),
+      "listCmoAdChoicesForProject",
+      { adConnectionId: "ad-1" },
+    ],
+    [
+      "chooseAdAccount",
+      () => chooseAdAccount("project-2", "ad-1", "123"),
+      "chooseCmoAdAccountForProject",
+    ],
+    [
+      "loadAdCampaigns",
+      () => loadAdCampaigns("project-2", "LAST_7_DAYS"),
+      "listCmoAdCampaignsForProject",
+    ],
+    [
+      "launchAd",
+      () => launchAd("project-2", "e1"),
+      "launchCmoSearchAdForProject",
+    ],
+    [
+      "setAdCampaignStatus",
+      () =>
+        setAdCampaignStatus("project-2", {
+          accountId: "a",
+          campaignId: "c",
+          status: "PAUSED",
+        }),
+      "setCmoAdCampaignStatusForProject",
+    ],
+    [
+      "connectMeasurement",
+      () => connectMeasurement("project-2", "shopify", "app"),
+      "connectCmoMeasurementForProject",
+      { provider: "shopify" },
+    ],
+    [
+      "finalizeMeasurement",
+      () => finalizeMeasurement("project-2", "shopify", null),
+      "finalizeCmoMeasurementForProject",
+      { provider: "shopify" },
+    ],
+  ];
+
+  it.each(cmoRoutes)(
+    "%s acts on the Project on screen",
+    async (_name, act, route, path = {}) => {
+      await act();
+      expect(forProject[route]).toHaveBeenCalledWith(
+        expect.objectContaining({ path: { projectId: "project-2", ...path } }),
+      );
+    },
+  );
+
+  const projectRoutes: [string, () => Promise<unknown>, string][] = [
+    [
+      "approveStrategy",
+      () => approveStrategy("project-2"),
+      "approveProjectMarketingStrategy",
+    ],
+    [
+      "approveBrandBrain",
+      () => approveBrandBrain("project-2"),
+      "confirmProjectBrandBrain",
+    ],
+    [
+      "answerBrandQuestion",
+      () => answerBrandQuestion("project-2", brief),
+      "answerProjectBrandBrainQuestion",
+    ],
+    [
+      "answerPlanQuestion",
+      () => answerPlanQuestion("project-2", brief),
+      "answerProjectMarketingStrategyQuestion",
+    ],
+    [
+      "saveBrandBrain",
+      () => saveBrandBrain("project-2", {} as never),
+      "updateProjectBrandBrain",
+    ],
+  ];
+
+  it.each(projectRoutes)(
+    "%s uses the Project route of the Project on screen",
+    async (_name, act, route) => {
+      await act();
+      expect(standardRoutes[route]).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...inBeta,
+          path: expect.objectContaining({ id: "project-2" }),
+        }),
+      );
+    },
+  );
+
+  it("reads and writes the chat of the Cuso on screen", async () => {
+    const chatInBeta = {
+      headers: { authorization: "Bearer t", "X-Organization-Slug": "beta" },
+    };
+    standardRoutes.getChatsRoomsByIdMessages.mockResolvedValue({
+      data: { data: [] },
+    });
+    await loadState("project-2");
+    await loadMessages("project-2");
+    await sendMessage("project-2", "hi");
+    expect(standardRoutes.getChatsRoomsByIdMessages).toHaveBeenCalledTimes(2);
+    expect(standardRoutes.getChatsRoomsByIdMessages).toHaveBeenCalledWith(
+      expect.objectContaining({ ...chatInBeta, path: { id: "room-2" } }),
+    );
+    expect(standardRoutes.postChatsRoomsByIdMessages).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...chatInBeta,
+        path: { id: "room-2" },
+        body: { content: "hi", mentionedSokoBotIds: ["bot-2"] },
+      }),
+    );
+  });
+
+  it("finishes a measurement session on the bot of the Cuso on screen", async () => {
+    await finalizeMeasurement("project-2", "shopify", "s_1");
+    expect(standardRoutes.completeSokoBotIntegrationAuth).toHaveBeenCalledWith(
+      expect.objectContaining({ ...inBeta, path: { sokoBotId: "bot-2" } }),
+    );
+  });
+
+  it("sends the provider back with the Project it started from", async () => {
+    await connectAds("project-2", "meta_ads", "onboarding");
+    await connectMeasurement("project-2", "google_analytics", "app");
+    expect(forProject.connectCmoAdsForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          returnUrl:
+            "https://app.cmo.xyz/ads/callback?from=onboarding&project=project-2",
+        },
+      }),
+    );
+    expect(forProject.connectCmoMeasurementForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          returnUrl:
+            "https://app.cmo.xyz/measure/callback?provider=google_analytics&from=app&project=project-2",
+        },
+      }),
+    );
   });
 });

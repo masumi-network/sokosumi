@@ -11,9 +11,13 @@ export async function GET(request: NextRequest) {
     params.get("connectionId");
   const sessionUri = params.get("session_uri") ?? params.get("sessionUri");
   const failed = /fail|error|cancel/i.test(params.get("status") ?? "");
+  // The Project the connect started from; without it nothing is finished.
+  const project = params.get("project");
   const connected =
-    connectionId && !failed
-      ? await finalizeChannel(connectionId, sessionUri).catch(() => false)
+    project && connectionId && !failed
+      ? await finalizeChannel(project, connectionId, sessionUri).catch(
+          () => false,
+        )
       : false;
   const back = new URL("/", request.nextUrl);
   back.searchParams.set("step", "connect");

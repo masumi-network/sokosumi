@@ -15,9 +15,9 @@ describe("ads callback", () => {
   it("finishes with the session and goes back to the Accounts step", async () => {
     finalizeAds.mockResolvedValue({ state: "connected" });
     const response = await callback(
-      "from=onboarding&status=success&connected_account_id=ca_1&session_uri=s_1",
+      "from=onboarding&project=project-2&status=success&connected_account_id=ca_1&session_uri=s_1",
     );
-    expect(finalizeAds).toHaveBeenCalledWith("ca_1", "s_1");
+    expect(finalizeAds).toHaveBeenCalledWith("project-2", "ca_1", "s_1");
     expect(response.headers.get("location")).toBe(
       "http://localhost:3110/?step=connect&from=onboarding",
     );
@@ -28,20 +28,30 @@ describe("ads callback", () => {
       state: "choose",
       adConnectionId: "conn-1",
     });
-    const response = await callback("from=app&connectedAccountId=ca_1");
+    const response = await callback(
+      "from=app&project=project-2&connectedAccountId=ca_1",
+    );
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/ads/choose?connection=conn-1&from=app",
+      "http://localhost:3110/ads/choose?connection=conn-1&project=project-2&from=app",
     );
   });
 
   it("says why when nothing was connected", async () => {
     finalizeAds.mockResolvedValue({ state: "none" });
-    const none = await callback("from=app&connectedAccountId=ca_1");
+    const none = await callback(
+      "from=app&project=project-2&connectedAccountId=ca_1",
+    );
     expect(none.headers.get("location")).toBe(
       "http://localhost:3110/channels?ads=none",
     );
-    const refused = await callback("from=app&status=failed");
+    const refused = await callback("from=app&project=project-2&status=failed");
     expect(finalizeAds).toHaveBeenCalledOnce();
     expect(refused.headers.get("location")).toContain("ads=failed");
+  });
+
+  it("finishes nothing without the Project it started from", async () => {
+    const response = await callback("from=app&connectedAccountId=ca_1");
+    expect(finalizeAds).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toContain("ads=failed");
   });
 });

@@ -19,9 +19,13 @@ export async function GET(request: NextRequest) {
   const provider = params.get("provider");
   const failed = /fail|error|cancel/i.test(params.get("status") ?? "");
   const sessionUri = params.get("session_uri") ?? params.get("sessionUri");
+  // The Project the connect started from; without it nothing is finished.
+  const project = params.get("project");
   const connected =
-    isProvider(provider) && !failed
-      ? await finalizeMeasurement(provider, sessionUri).catch(() => false)
+    project && isProvider(provider) && !failed
+      ? await finalizeMeasurement(project, provider, sessionUri).catch(
+          () => false,
+        )
       : false;
   const back =
     params.get("from") === "app"

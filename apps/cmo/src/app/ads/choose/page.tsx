@@ -5,25 +5,30 @@ import { AGENT_NAME } from "../../../lib/agent";
 import { chooseAdAccount, loadAdChoices } from "../../cmo-actions";
 
 interface ChoosePageProps {
-  searchParams: Promise<{ connection?: string; from?: string }>;
+  searchParams: Promise<{
+    connection?: string;
+    from?: string;
+    /** The Project the ad connection started from. */
+    project?: string;
+  }>;
 }
 
 /** The login reaches several ad accounts: the founder picks the one for Cuso's ads. */
 export default async function ChooseAdAccountPage({
   searchParams,
 }: ChoosePageProps) {
-  const { connection, from } = await searchParams;
+  const { connection, from, project } = await searchParams;
   const back = from === "app" ? "/channels" : "/?step=connect&from=onboarding";
-  if (!connection) redirect(back);
-  const accounts = await loadAdChoices(connection).catch(() => []);
+  if (!connection || !project) redirect(back);
+  const accounts = await loadAdChoices(project, connection).catch(() => []);
   if (accounts.length === 0) redirect(back);
 
   async function choose(formData: FormData) {
     "use server";
     const id = formData.get("account");
     const chosen =
-      typeof id === "string" && connection
-        ? await chooseAdAccount(connection, id)
+      typeof id === "string" && connection && project
+        ? await chooseAdAccount(project, connection, id)
         : false;
     redirect(
       chosen ? back : `${back}${back.includes("?") ? "&" : "?"}ads=failed`,

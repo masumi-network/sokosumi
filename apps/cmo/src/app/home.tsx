@@ -158,33 +158,36 @@ export async function Home({ searchParams, view }: HomeProps) {
     (step === "connect" || step === "results") &&
     first(params.from) === "onboarding" &&
     overview.strategyVersion?.approvedAt != null;
+  // Every Cuso action names the Project of the overview this page rendered,
+  // so a workspace switch elsewhere cannot move them to another Cuso.
+  const { projectId } = overview;
   if (overview.onboardingStep !== "done" || backInHiring) {
     // The app's pages open once onboarding ends; until then it is the first run.
     if (view !== "chat") redirect("/");
     return (
       <OnboardingFlow
         overview={overview}
-        messages={await loadMessages().catch(() => [])}
+        messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
         skipped={await skippedSteps(overview.projectId)}
         actions={{
-          loadState,
-          sendMessage,
-          retryLearning,
-          requestStrategy,
-          saveBrandBrain,
-          approveStrategy,
-          setAdBudget,
-          approveBrandBrain,
-          answerBrandQuestion,
-          answerPlanQuestion,
-          applyPlanAnswers,
-          skipBrandQuestions,
-          finishAccounts,
-          connectChannel: connectSetupChannel,
-          connectMeasurement,
-          connectAds,
-          startOver,
+          loadState: loadState.bind(null, projectId),
+          sendMessage: sendMessage.bind(null, projectId),
+          retryLearning: retryLearning.bind(null, projectId),
+          requestStrategy: requestStrategy.bind(null, projectId),
+          saveBrandBrain: saveBrandBrain.bind(null, projectId),
+          approveStrategy: approveStrategy.bind(null, projectId),
+          setAdBudget: setAdBudget.bind(null, projectId),
+          approveBrandBrain: approveBrandBrain.bind(null, projectId),
+          answerBrandQuestion: answerBrandQuestion.bind(null, projectId),
+          answerPlanQuestion: answerPlanQuestion.bind(null, projectId),
+          applyPlanAnswers: applyPlanAnswers.bind(null, projectId),
+          skipBrandQuestions: skipBrandQuestions.bind(null, projectId),
+          finishAccounts: finishAccounts.bind(null, projectId),
+          connectChannel: connectSetupChannel.bind(null, projectId),
+          connectMeasurement: connectMeasurement.bind(null, projectId),
+          connectAds: connectAds.bind(null, projectId),
+          startOver: startOver.bind(null, projectId),
           signOut,
         }}
       />
@@ -193,29 +196,29 @@ export async function Home({ searchParams, view }: HomeProps) {
   return (
     <CmoApp
       overview={overview}
-      messages={await loadMessages().catch(() => [])}
+      messages={await loadMessages(projectId).catch(() => [])}
       name={session.user.name}
       email={session.user.email}
       initialView={step === "connect" ? "channels" : view}
       connectFailed={step === "connect" && first(params.connect) === "failed"}
       actions={{
-        loadState,
-        sendMessage,
-        loadPieceText,
-        approveStrategy,
-        setAdBudget,
-        revertUpdate,
-        retryLearning,
-        saveBrandBrain,
-        pauseEntry,
-        connectChannel,
-        addMailingList,
-        connectMeasurement,
-        connectAds,
-        launchAd,
-        setAdCampaignStatus,
-        loadAdCampaigns,
-        startOver,
+        loadState: loadState.bind(null, projectId),
+        sendMessage: sendMessage.bind(null, projectId),
+        loadPieceText: loadPieceText.bind(null, projectId),
+        approveStrategy: approveStrategy.bind(null, projectId),
+        setAdBudget: setAdBudget.bind(null, projectId),
+        revertUpdate: revertUpdate.bind(null, projectId),
+        retryLearning: retryLearning.bind(null, projectId),
+        saveBrandBrain: saveBrandBrain.bind(null, projectId),
+        pauseEntry: pauseEntry.bind(null, projectId),
+        connectChannel: connectChannel.bind(null, projectId),
+        addMailingList: addMailingList.bind(null, projectId),
+        connectMeasurement: connectMeasurement.bind(null, projectId),
+        connectAds: connectAds.bind(null, projectId),
+        launchAd: launchAd.bind(null, projectId),
+        setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
+        loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
+        startOver: startOver.bind(null, projectId),
         signOut,
       }}
     />
