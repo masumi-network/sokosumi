@@ -1,7 +1,6 @@
-import {
-  SOCIAL_POST_MEDIA_RULES,
-  type SocialPostMediaKind,
-} from "@sokosumi/utils";
+import { randomBytes } from "node:crypto";
+import type { SocialPostMediaKind } from "@sokosumi/utils";
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
 import {
@@ -28,9 +27,23 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
   ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
-vi.mock("@/helpers/social-post-media", () => ({
+vi.mock("@/helpers/social-post-media", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/social-post-media")>()),
   downloadSocialPostMedia: downloadSocialPostMediaMock,
 }));
+
+const PNG_BYTES = await sharp({
+  create: {
+    width: 2,
+    height: 2,
+    channels: 4,
+    background: { r: 100, g: 50, b: 25, alpha: 0.5 },
+  },
+})
+  .png()
+  .toBuffer();
+const JPEG_BYTES = await sharp(PNG_BYTES).jpeg().toBuffer();
+const WEBP_BYTES = await sharp(PNG_BYTES).webp({ lossless: true }).toBuffer();
 
 function xResult(externalId: string) {
   return {
@@ -48,7 +61,8 @@ function mediaRef(
   const name = options.name ?? "attachment";
   downloadSocialPostMediaMock.mockResolvedValue([
     {
-      bytes: options.bytes ?? new Uint8Array([1]),
+      bytes:
+        options.bytes ?? (kind === "image" ? PNG_BYTES : new Uint8Array([1])),
       name,
       mimeType,
       kind,
@@ -324,19 +338,13 @@ describe("publishXPost", () => {
 });
 
 describe("publishXPost with media", () => {
-  const COMPOSIO_TOOL_MIME_TYPES: Record<
-    "TWITTER_UPLOAD_MEDIA" | "TWITTER_UPLOAD_LARGE_MEDIA",
-    readonly string[]
-  > = {
-    TWITTER_UPLOAD_MEDIA: ["image/jpeg", "image/png", "image/webp"],
-    TWITTER_UPLOAD_LARGE_MEDIA: [
-      "video/mp4",
-      "video/webm",
-      "image/gif",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ],
+  const imageInput = {
+    provider: "x" as const,
+    connectedAccountId: "ca_123",
+    externalAccountId: "x_123",
+    externalHandle: null,
+    executorUserId: "executor",
+    text: "Picture",
   };
 
   interface ExecuteCall {
@@ -396,18 +404,6 @@ describe("publishXPost with media", () => {
     });
   });
 
-  it("keeps every accepted MIME type within its selected Composio tool contract", () => {
-    const rules = SOCIAL_POST_MEDIA_RULES.x;
-    for (const mimeType of rules.imageMimeTypes) {
-      expect(COMPOSIO_TOOL_MIME_TYPES.TWITTER_UPLOAD_MEDIA).toContain(mimeType);
-    }
-    for (const mimeType of [...rules.gifMimeTypes, ...rules.videoMimeTypes]) {
-      expect(COMPOSIO_TOOL_MIME_TYPES.TWITTER_UPLOAD_LARGE_MEDIA).toContain(
-        mimeType,
-      );
-    }
-  });
-
   it.each([
     {
       kind: "image" as const,
@@ -431,7 +427,8 @@ describe("publishXPost with media", () => {
     "stages $kind bytes and uses the published FileUploadable contract",
     async ({ kind, mimeType, tool, category }) => {
       const fetchMock = stubMediaSession();
-      const bytes = new Uint8Array([0, 128, 255]);
+      const bytes =
+        kind === "image" ? PNG_BYTES : new Uint8Array([0, 128, 255]);
       const signal = new AbortController().signal;
       await expect(
         publishXPost({
@@ -475,6 +472,7 @@ describe("publishXPost with media", () => {
               s3key: "staged-media",
             },
             media_category: category,
+            ...(kind === "image" ? { media_type: mimeType } : {}),
           },
         },
         {
@@ -484,6 +482,220 @@ describe("publishXPost with media", () => {
       ]);
     },
   );
+
+  it.each([
+    { bytes: JPEG_BYTES, mimeType: "image/jpeg" },
+    { bytes: PNG_BYTES, mimeType: "image/png" },
+  ])(
+    "preserves ordinary $mimeType image bytes",
+    async ({ bytes, mimeType }) => {
+      const fetchMock = stubMediaSession();
+      await publishXPost({
+        ...imageInput,
+        media: [mediaRef(mimeType, "image", { bytes })],
+      });
+
+      expect(ssrfSafeFetchMock.mock.calls[0][1]).toMatchObject({
+        body: bytes,
+        headers: { "Content-Type": mimeType },
+      });
+      expect(executeCalls(fetchMock)[0].arguments).toMatchObject({
+        media: { mimetype: mimeType },
+        media_type: mimeType,
+      });
+    },
+  );
+
+  it("uses the decoded image type when the declared MIME type is wrong", async () => {
+    const fetchMock = stubMediaSession();
+    await publishXPost({
+      ...imageInput,
+      media: [
+        mediaRef("image/webp", "image", {
+          bytes: JPEG_BYTES,
+          name: "picture.webp",
+        }),
+      ],
+    });
+
+    const staging = fetchMock.mock.calls.find(([url]) =>
+      url.pathname.endsWith("/files/upload/request"),
+    );
+    expect(JSON.parse(String(staging?.[1]?.body))).toMatchObject({
+      filename: "picture.jpeg",
+      mimetype: "image/jpeg",
+    });
+    expect(ssrfSafeFetchMock.mock.calls[0][1]).toMatchObject({
+      body: JPEG_BYTES,
+      headers: { "Content-Type": "image/jpeg" },
+    });
+    expect(executeCalls(fetchMock)[0].arguments).toMatchObject({
+      media: { name: "picture.jpeg", mimetype: "image/jpeg" },
+      media_type: "image/jpeg",
+    });
+  });
+
+  it("converts WebP to PNG before staging without changing dimensions or transparency", async () => {
+    const fetchMock = stubMediaSession();
+    await publishXPost({
+      ...imageInput,
+      media: [
+        mediaRef("image/webp", "image", {
+          bytes: WEBP_BYTES,
+          name: "picture.webp",
+        }),
+      ],
+    });
+
+    const staging = fetchMock.mock.calls.find(([url]) =>
+      url.pathname.endsWith("/files/upload/request"),
+    );
+    expect(JSON.parse(String(staging?.[1]?.body))).toMatchObject({
+      tool_slug: "TWITTER_UPLOAD_MEDIA",
+      filename: "picture.png",
+      mimetype: "image/png",
+    });
+    const stagedBytes = ssrfSafeFetchMock.mock.calls[0][1].body;
+    expect(await sharp(stagedBytes).metadata()).toMatchObject({
+      format: "png",
+      width: 2,
+      height: 2,
+      hasAlpha: true,
+    });
+    expect(await sharp(stagedBytes).raw().toBuffer()).toEqual(
+      await sharp(WEBP_BYTES).raw().toBuffer(),
+    );
+    expect(executeCalls(fetchMock)[0]).toMatchObject({
+      tool_slug: "TWITTER_UPLOAD_MEDIA",
+      arguments: {
+        media: { name: "picture.png", mimetype: "image/png" },
+        media_category: "tweet_image",
+        media_type: "image/png",
+      },
+    });
+  });
+
+  it.each([
+    {
+      bytes: new Uint8Array(),
+      message:
+        "The image could not be read. Attach a JPEG, PNG or WebP image and try again.",
+    },
+    {
+      bytes: new Uint8Array([0, 128, 255]),
+      message:
+        "The image could not be read. Attach a JPEG, PNG or WebP image and try again.",
+    },
+    {
+      bytes: new Uint8Array(5_000_001),
+      message:
+        "The image is larger than X's 5 MB limit. Choose a smaller image and try again.",
+    },
+  ])(
+    "rejects unsuitable image bytes before staging ($message)",
+    async ({ bytes, message }) => {
+      const fetchMock = stubMediaSession();
+      await expect(
+        publishXPost({
+          ...imageInput,
+          media: [mediaRef("image/png", "image", { bytes })],
+        }),
+      ).rejects.toThrow(message);
+      expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+      expect(executeCalls(fetchMock)).toEqual([]);
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+    },
+  );
+
+  it("rejects a converted WebP that exceeds the upload limit before staging", async () => {
+    const webp = await sharp(randomBytes(1500 * 1500 * 3), {
+      raw: { width: 1500, height: 1500, channels: 3 },
+    })
+      .webp({ quality: 90 })
+      .toBuffer();
+    expect(webp.byteLength).toBeLessThan(5_000_000);
+    expect((await sharp(webp).png().toBuffer()).byteLength).toBeGreaterThan(
+      5_000_000,
+    );
+    const fetchMock = stubMediaSession();
+
+    await expect(
+      publishXPost({
+        ...imageInput,
+        media: [mediaRef("image/webp", "image", { bytes: webp })],
+      }),
+    ).rejects.toThrow(
+      "The converted image is larger than X's 5 MB limit. Choose a smaller image and try again.",
+    );
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    expect(executeCalls(fetchMock)).toEqual([]);
+  });
+
+  it("accepts exactly 5 MB without changing valid PNG bytes", async () => {
+    stubMediaSession();
+    const bytes = new Uint8Array(5_000_000);
+    bytes.set(PNG_BYTES);
+    await expect(
+      publishXPost({
+        ...imageInput,
+        media: [mediaRef("image/png", "image", { bytes })],
+      }),
+    ).resolves.toEqual(xResult("1907"));
+    expect(ssrfSafeFetchMock.mock.calls[0][1].body).toBe(bytes);
+  });
+
+  it("keeps wide still-image dimensions without an invented pixel cap", async () => {
+    stubMediaSession();
+    const bytes = await sharp({
+      create: { width: 20_000, height: 1, channels: 3, background: "white" },
+    })
+      .png()
+      .toBuffer();
+    await expect(
+      publishXPost({
+        ...imageInput,
+        media: [mediaRef("image/png", "image", { bytes })],
+      }),
+    ).resolves.toEqual(xResult("1907"));
+    expect(ssrfSafeFetchMock.mock.calls[0][1].body).toBe(bytes);
+  });
+
+  it("preserves the displayed orientation when converting WebP", async () => {
+    stubMediaSession();
+    const bytes = await sharp({
+      create: { width: 3, height: 2, channels: 3, background: "white" },
+    })
+      .withMetadata({ orientation: 6 })
+      .webp()
+      .toBuffer();
+    await publishXPost({
+      ...imageInput,
+      media: [mediaRef("image/webp", "image", { bytes })],
+    });
+    expect(
+      await sharp(ssrfSafeFetchMock.mock.calls[0][1].body).metadata(),
+    ).toMatchObject({ format: "png", width: 2, height: 3 });
+  });
+
+  it("rejects animated WebP without silently uploading its first frame", async () => {
+    const fetchMock = stubMediaSession();
+    const pixels = new Uint8Array(2 * 4 * 3);
+    pixels.fill(255, pixels.length / 2);
+    const bytes = await sharp(pixels, {
+      raw: { width: 2, height: 4, channels: 3, pageHeight: 2 },
+    })
+      .webp({ delay: [100, 100], loop: 0 })
+      .toBuffer();
+    expect((await sharp(bytes).metadata()).pages).toBe(2);
+    await expect(
+      publishXPost({
+        ...imageInput,
+        media: [mediaRef("image/webp", "image", { bytes })],
+      }),
+    ).rejects.toThrow("X image uploads need a still image");
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    expect(executeCalls(fetchMock)).toEqual([]);
+  });
 
   it("polls processing before publishing and propagates cancellation into the wait", async () => {
     const controller = new AbortController();

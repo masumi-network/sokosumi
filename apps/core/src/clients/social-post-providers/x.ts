@@ -3,6 +3,7 @@ import {
   type SocialPostMediaKind,
   socialPostProviderLabel,
 } from "@sokosumi/utils";
+import sharp from "sharp";
 
 import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
@@ -19,7 +20,10 @@ import type {
   SocialPostPublishContext,
   SocialPostPublishResult,
 } from "@/clients/social-post-providers/types";
-import { downloadSocialPostMedia } from "@/helpers/social-post-media";
+import {
+  downloadSocialPostMedia,
+  SocialPostMediaError,
+} from "@/helpers/social-post-media";
 
 const X_CREATE_POST_TOOL_SLUG = "TWITTER_CREATION_OF_A_POST";
 
@@ -36,7 +40,7 @@ const X_PUBLISH_TOOL_STEPS: Record<
 > = {
   TWITTER_UPLOAD_MEDIA: {
     context: "upload X image",
-    refused: "X refused the image upload",
+    refused: "X could not upload the image",
   },
   TWITTER_UPLOAD_LARGE_MEDIA: {
     context: "upload X video or GIF",
@@ -58,6 +62,74 @@ const X_PUBLISH_TOOL_SLUGS = Object.keys(
 const MEDIA_PROCESSING_DEFAULT_WAIT_MS = 2_000;
 /** X can take up to two minutes to process a video or GIF. */
 const MEDIA_PROCESSING_TIMEOUT_MS = 120_000;
+// X documents 5 MB; stay within that and Composio's 5 MiB simple-upload limit.
+const X_IMAGE_MAX_BYTES = 5_000_000;
+
+async function prepareXImage(
+  media: SocialPostMediaBytes,
+): Promise<SocialPostMediaBytes> {
+  if (media.bytes.byteLength > X_IMAGE_MAX_BYTES) {
+    throw new SocialPostMediaError(
+      "media_too_large",
+      "The image is larger than X's 5 MB limit. Choose a smaller image and try again.",
+    );
+  }
+  const metadata =
+    media.bytes.byteLength > 0
+      ? await sharp(media.bytes)
+          .metadata()
+          .catch(() => null)
+      : null;
+  if (!metadata || !["jpeg", "png", "webp"].includes(metadata.format)) {
+    throw new SocialPostMediaError(
+      "media_type_mismatch",
+      "The image could not be read. Attach a JPEG, PNG or WebP image and try again.",
+    );
+  }
+  if ((metadata.pages ?? 1) > 1) {
+    throw new SocialPostMediaError(
+      "media_type_mismatch",
+      "X image uploads need a still image. Attach a still JPEG, PNG or WebP image and try again.",
+    );
+  }
+  if (metadata.format !== "webp") {
+    const extensionMatches =
+      metadata.format === "jpeg"
+        ? /\.jpe?g$/i.test(media.name)
+        : /\.png$/i.test(media.name);
+    return {
+      ...media,
+      mimeType: `image/${metadata.format}`,
+      name: extensionMatches
+        ? media.name
+        : media.name.replace(/\.[^/.]+$/, `.${metadata.format}`),
+    };
+  }
+  // X accepts WebP, but Composio's simple-upload examples only cover JPEG/PNG.
+  const bytes = await sharp(media.bytes)
+    .autoOrient()
+    .png()
+    .toBuffer()
+    .catch(() => null);
+  if (!bytes) {
+    throw new SocialPostMediaError(
+      "media_type_mismatch",
+      "The image could not be converted for X. Attach a JPEG or PNG image and try again.",
+    );
+  }
+  if (bytes.byteLength > X_IMAGE_MAX_BYTES) {
+    throw new SocialPostMediaError(
+      "media_too_large",
+      "The converted image is larger than X's 5 MB limit. Choose a smaller image and try again.",
+    );
+  }
+  return {
+    ...media,
+    bytes: new Uint8Array(bytes),
+    name: `${(media.name || "attachment").replace(/\.[^/.]+$/, "")}.png`,
+    mimeType: "image/png",
+  };
+}
 
 function mediaCategory(kind: SocialPostMediaKind): string {
   switch (kind) {
@@ -190,6 +262,7 @@ async function uploadXMedia(
     arguments: {
       media: { name, mimetype: media.mimeType, s3key },
       media_category: mediaCategory(media.kind),
+      ...(media.kind === "image" ? { media_type: media.mimeType } : {}),
     },
     context: step.context,
     refused: step.refused,
@@ -240,7 +313,10 @@ export async function publishXPost(
         : [];
     const mediaIds: string[] = [];
     for (const media of downloaded) {
-      mediaIds.push(await uploadXMedia(sessionId, media, context.signal));
+      const prepared =
+        media.kind === "image" ? await prepareXImage(media) : media;
+      context.signal?.throwIfAborted();
+      mediaIds.push(await uploadXMedia(sessionId, prepared, context.signal));
     }
     const createStep = X_PUBLISH_TOOL_STEPS[X_CREATE_POST_TOOL_SLUG];
     const post = await guardSocialCreateOutcome(label, () =>
