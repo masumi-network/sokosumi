@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  isTaskArchived,
+  markTaskArchived,
+} from "@/app/tasks/utils/archived-task-ids";
+
 import { ArchivedTasksList } from "./archived-tasks-list";
 
 const { restoreMock, pushMock, refreshMock, toastSuccessMock, toastErrorMock } =
@@ -40,12 +45,15 @@ describe("ArchivedTasksList", () => {
 
   it("restores a Task, drops its row and offers to open it", async () => {
     restoreMock.mockResolvedValue(undefined);
+    // Archived earlier in this tab, so the board still hides it.
+    markTaskArchived("t1");
     render(<ArchivedTasksList tasks={[...tasks]} />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "restoreNamed" })[0]);
 
     await waitFor(() => expect(screen.queryByText("Plan launch")).toBeNull());
     expect(restoreMock).toHaveBeenCalledWith("t1");
+    expect(isTaskArchived("t1")).toBe(false);
     expect(screen.getByText("Write recap")).toBeTruthy();
     expect(refreshMock).toHaveBeenCalled();
 

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import { unmarkTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +35,8 @@ export function ArchivedTasksList({ tasks }: { tasks: ArchivedTaskRow[] }) {
     setRestoringId(task.id);
     try {
       await taskClientService.restore(task.id);
+      // The board hides ids archived in this tab; let it show this one again.
+      unmarkTaskArchived(task.id);
       setRows((current) => current.filter((row) => row.id !== task.id));
       toast.success(t("restored", { name: task.name }), {
         action: {
