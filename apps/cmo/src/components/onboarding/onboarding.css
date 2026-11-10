@@ -2007,3 +2007,24 @@ body:has(.ob) .site-header {
 .ob-plan-slot b {
   font-weight: 500;
 }
+
+/* A patched entry: its old words struck through above the new ones. */
+.ob-was {
+  display: block;
+  color: var(--muted);
+}
+
+.ob-tile-mark {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.ob-patching {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}

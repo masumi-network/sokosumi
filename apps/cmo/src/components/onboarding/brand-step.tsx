@@ -191,6 +191,8 @@ interface BrandStepProps {
   overview: CmoOverview;
   messages: CusoMessage[];
   onCorrect: (text: string) => Promise<void>;
+  /** Sends a fix to one section; without it a fix goes to the chat. */
+  onFix?: (section: BrandSectionKey, note: string) => Promise<void>;
   onSave: (brain: BrandBrain) => Promise<void>;
   /** Approves the Brand Brain and asks for the plan; a refusal comes back as text. Without it the step only shows the Brand Brain. */
   onApprove?: () => Promise<string | null>;
@@ -211,6 +213,7 @@ export function BrandStep({
   overview,
   messages,
   onCorrect,
+  onFix,
   onSave,
   onApprove,
   onAnswer,
@@ -413,6 +416,7 @@ export function BrandStep({
               <Tile
                 key={tile.id}
                 label={tile.label}
+                mark={fixMark(tile.section ? profile[tile.section] : undefined)}
                 value={tile.value}
                 detail={tile.detail}
                 source={`Source: ${sourceHost(tileSource(tile, profile, overview.websiteUrl))}`}
@@ -471,7 +475,15 @@ export function BrandStep({
                 inputId="ob-tell"
                 cta="Send"
                 placeholder="Say what to fix"
-                onAsk={ask}
+                {...(shown.section && onFix
+                  ? {
+                      sentNote: overview.strategy
+                        ? `Sent. ${AGENT_NAME} rewrites this part, then fits your plan to it.`
+                        : `Sent. ${AGENT_NAME} rewrites this part.`,
+                      onAsk: (text: string) =>
+                        onFix(shown.section as BrandSectionKey, text),
+                    }
+                  : { onAsk: ask })}
               />
             </div>
             {sent && answered && lastWord ? (
@@ -484,6 +496,12 @@ export function BrandStep({
       </div>
     </section>
   );
+}
+
+/** Whether the founder's fix on a section is in, or Cuso is still on it. */
+function fixMark(section: BrandSection | undefined): string | undefined {
+  if (!section?.fix) return undefined;
+  return section.fix.fixed ? "Fixed by you" : `${AGENT_NAME} is fixing this`;
 }
 
 interface TileDetailProps {

@@ -29,6 +29,7 @@ import {
   strategySocialChannels,
 } from "./launch-step";
 import { PlanStep, planTabAfterKey } from "./plan-step";
+import { MonthPanel } from "./plan-tabs";
 import { SiteStep } from "./site-step";
 import { onboardingStep, type SitePhase } from "./step";
 import { StepMarkers } from "./step-markers";
@@ -467,6 +468,25 @@ describe("Brand", () => {
     expect(html).toContain("Source: acme.io");
   });
 
+  it("marks a tile the founder fixed, and one Cuso is still fixing", () => {
+    const fix = (fixed: boolean) => ({
+      answer: "Rocket Pro, from 19 dollars a month.",
+      findings: [],
+      openQuestions: [],
+      fix: { note: "From 19 dollars.", at: "2026-10-05T09:00:00Z", fixed },
+    });
+    const fixed = render(
+      draft({ brandBrain: { ...brain, profile: { offer: fix(true) } } }),
+    );
+    expect(fixed).toContain("Fixed by you");
+    expect(fixed).not.toContain("Cuso is fixing this");
+    const fixing = render(
+      draft({ brandBrain: { ...brain, profile: { offer: fix(false) } } }),
+    );
+    expect(fixing).toContain("Cuso is fixing this");
+    expect(render(draft())).not.toContain("Fixed by you");
+  });
+
   it("shows only the tiles that have data, in order", () => {
     const html = render(draft());
     const order = [
@@ -634,6 +654,47 @@ describe("Plan", () => {
     expect(after).toContain("Product stories: 100% of pieces");
     expect(after).toContain("Writing four weeks, day by day");
     expect(after).not.toContain("Writing your strategy");
+  });
+
+  it("shows the plan part before the calendar exists", () => {
+    const html = plan(
+      draft({
+        work: work("strategy"),
+        strategy: { ...strategy, calendar: [], changes: [] },
+      }),
+    );
+    expect(html).toContain("Show the rockets working.");
+    expect(html).toContain("writing your month, week one first");
+    expect(html).toContain("Cuso is finishing");
+    expect(html).not.toContain(">Approve plan<");
+  });
+
+  it("strikes a patched entry through beside its new words, and leaves the rest", () => {
+    const [first, second, third] = strategy.calendar;
+    const html = renderToStaticMarkup(
+      <MonthPanel
+        strategy={{
+          ...strategy,
+          calendar: [
+            first!,
+            { ...second!, title: "Launch week", hook: undefined },
+            { ...third!, status: "skipped" },
+          ],
+          patched: [
+            { id: second!.id, was: second! },
+            { id: third!.id, was: third! },
+          ],
+        }}
+        onOpen={() => {}}
+      />,
+    );
+    expect(html).toContain('<del class="ob-was">Three, two, one.</del>');
+    expect(html).toContain("Launch week");
+    expect(html).toContain('<del class="ob-was">October launches</del>');
+    // Untouched entries render as before, with nothing struck.
+    expect(html).toContain("We built a rocket in a garage.");
+    // Each struck entry shows in Up first and on its day; no other is struck.
+    expect(html.match(/<del/g)).toHaveLength(4);
   });
 
   it("offers to try again when planning stopped", () => {

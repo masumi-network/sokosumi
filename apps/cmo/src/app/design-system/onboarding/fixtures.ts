@@ -28,6 +28,9 @@ export const SCREENS = [
   "brand",
   "brand-planning",
   "plan",
+  "plan-writing",
+  "plan-patched",
+  "brand-fixed",
   "planning",
   "planning-slow",
   "launch",
@@ -210,6 +213,76 @@ export function screenOverview(screen: Screen): CmoOverview {
           ],
         }),
       });
+    case "plan-writing":
+      // The plan part is saved; Cuso writes the calendar, week one first.
+      return draft({
+        brandBrain: richBrain,
+        strategy: { ...richPlan, calendar: [] },
+        work: work("strategy", {
+          startedAt: ago(2),
+          steps: [
+            {
+              id: "p2",
+              kind: "strategy",
+              label: "Writing the calendar",
+              url: null,
+              status: "running",
+              at: ago(0.5),
+            },
+          ],
+        }),
+      });
+    case "plan-patched": {
+      // A pace change patched two entries: the old words struck through.
+      const [first, second, ...rest] = richPlan.calendar;
+      return draft({
+        brandBrain: richBrain,
+        strategy: {
+          ...richPlan,
+          calendar: [
+            { ...first!, hook: "Two engineers, one garage, one rocket." },
+            { ...second!, status: "skipped" },
+            ...rest,
+          ],
+          patched: [
+            { id: first!.id, was: first! },
+            { id: second!.id, was: second! },
+          ],
+          changes: ["The launch-day post moved into the garage story."],
+        },
+      });
+    }
+    case "brand-fixed": {
+      // One tile the founder fixed, one Cuso is still fixing.
+      const fix = (fixed: boolean) => ({
+        note: "Rocket Pro is 19 dollars a month.",
+        at: ago(2).toISOString(),
+        fixed,
+      });
+      return draft({
+        brandBrain: {
+          ...richBrain,
+          profile: {
+            offer: {
+              answer: "Rocket Pro, 19 dollars a month for teams.",
+              findings: [],
+              openQuestions: [],
+              fix: fix(true),
+            },
+            customers: {
+              answer: "Product teams of ten to fifty.",
+              findings: [],
+              openQuestions: [],
+              fix: fix(false),
+            },
+          },
+        },
+        brandBrainConfirmedAt: null,
+        strategy: null,
+        brandMedia: richMedia,
+        brandVisual: visual,
+      });
+    }
     case "launch":
     case "launch-connected":
       return draft({

@@ -278,7 +278,8 @@ it("approves the Brand Brain, then asks for the plan", async () => {
   );
   await press("Looks like us");
   expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
-  expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
+  expect(actions.requestStrategy).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(actions.requestStrategy).mock.calls[0]?.[0]).toBeUndefined();
 });
 
 // The plan starts when the research ends: Looks like us only confirms.
@@ -328,66 +329,51 @@ it("confirms a brand whose plan is written without re-planning it", async () => 
   expect(text()).toContain("Approve plan");
 });
 
-it("fits the written plan to a no the founder gave while it was written, once", async () => {
-  const [first, ...rest] = brain.questions ?? [];
-  const corrected = draft({
-    research: research(6),
-    brandBrain: {
-      ...brain,
-      questions: [
-        { ...first, answer: "no", corrected: false },
-        ...rest,
-      ] as typeof brain.questions,
-    },
-  });
-  const actions = actionsFor();
+it("sends a no as a fix to its one section once the research is in", async () => {
+  const actions = actionsFor({ fixBrandSection: vi.fn(async () => null) });
   await act(async () =>
     root.render(
-      <OnboardingFlow
-        overview={corrected}
-        messages={[]}
-        skipped={["questions"]}
-        actions={actions}
-      />,
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
     ),
   );
-  await act(async () => {});
-  expect(actions.requestStrategy).toHaveBeenCalledTimes(1);
-  expect(actions.requestStrategy).toHaveBeenCalledWith(
-    expect.stringContaining("Fit the plan to the corrected Brand Brain"),
+  await press("Yes");
+  await press("No");
+  await press("Save");
+  expect(actions.fixBrandSection).toHaveBeenCalledTimes(1);
+  expect(actions.fixBrandSection).toHaveBeenCalledWith(
+    "offer",
+    "Not true: The 14-day trial is the main offer",
   );
 });
 
-it("says why fitting the plan to a no was refused", async () => {
-  const [first, ...rest] = brain.questions ?? [];
-  const corrected = draft({
-    research: research(6),
-    brandBrain: {
-      ...brain,
-      questions: [
-        { ...first, answer: "no", corrected: false },
-        ...rest,
-      ] as typeof brain.questions,
-    },
-  });
+it("says why Core refused the fix a no sent", async () => {
   const actions = actionsFor({
-    requestStrategy: vi.fn(async () => ({
-      overview: null,
-      error: "Cuso is still writing the plan",
-    })),
+    fixBrandSection: vi.fn(async () => "Cuso is out of credits"),
   });
   await act(async () =>
     root.render(
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
+    ),
+  );
+  await press("No");
+  await press("Save");
+  expect(text()).toContain("out of credits");
+});
+
+it("sends no fix while Cuso still reads: the plan takes the no in", async () => {
+  const actions = actionsFor({ fixBrandSection: vi.fn(async () => null) });
+  await act(async () =>
+    root.render(
       <OnboardingFlow
-        overview={corrected}
+        overview={asking({ work: work("research") })}
         messages={[]}
-        skipped={["questions"]}
         actions={actions}
       />,
     ),
   );
-  await act(async () => {});
-  expect(text()).toContain("Cuso is still writing the plan");
+  await press("No");
+  await press("Save");
+  expect(actions.fixBrandSection).not.toHaveBeenCalled();
 });
 
 it("restarts a slow plan from Try again", async () => {
@@ -535,10 +521,11 @@ it("resets the section editor when switching brand tiles", async () => {
   expect(editor()?.querySelector("input")?.value).toBe("");
 });
 
-// Plan: a change, a pace, a budget put the plan away until Cuso answers.
+// Plan: a written change puts the plan away until Cuso answers; a pace or a
+// budget patches it in place.
 
 async function renderPlan(
-  onRequest: (note?: string) => Promise<string | null>,
+  onRequest: (note?: string, patch?: boolean) => Promise<string | null>,
   onSetAds: (monthly: number, currency: string) => Promise<string | null>,
 ) {
   await act(async () =>
@@ -575,25 +562,27 @@ const planHidden = () =>
   container.querySelector(".ob-plan-body")?.hasAttribute("hidden");
 const replanning = () => text().includes("Cuso is re-planning your month");
 
-it("swaps the plan for a re-planning screen the moment a pace is tapped", async () => {
+const patching = () => text().includes("Cuso is changing");
+
+it("patches the plan in place the moment a pace is tapped", async () => {
   const core = pending();
   await renderPlan(core.call, async () => null);
   await press("All-in");
 
   expect(core.call).toHaveBeenCalledWith(
     expect.stringContaining("Change the pace to All-in"),
+    true,
   );
-  expect(replanning()).toBe(true);
-  expect(text()).toContain("All-in pace.");
-  expect(planHidden()).toBe(true);
-
-  await act(async () => core.answer("Not enough credits"));
   expect(replanning()).toBe(false);
   expect(planHidden()).toBe(false);
+  expect(patching()).toBe(true);
+
+  await act(async () => core.answer("Not enough credits"));
+  expect(patching()).toBe(false);
   expect(text()).toContain("You're out of credits.");
 });
 
-it("re-plans on a new ad budget at once, and keeps the amount when it is refused", async () => {
+it("patches the plan for a new ad budget, and keeps the amount when it is refused", async () => {
   const core = pending();
   await renderPlan(async () => null, core.call);
   await press("Change");
@@ -603,14 +592,15 @@ it("re-plans on a new ad budget at once, and keeps the amount when it is refused
   await press("Set budget");
 
   expect(core.call).toHaveBeenCalledWith(300, "EUR");
-  expect(replanning()).toBe(true);
+  expect(planHidden()).toBe(false);
+  expect(patching()).toBe(true);
 
   await act(async () => core.answer("Not enough credits"));
-  expect(replanning()).toBe(false);
+  expect(patching()).toBe(false);
   expect(container.querySelector(amount)).not.toBeNull();
 });
 
-it("shows the re-planning screen for a written change before Core answers", async () => {
+it("shows the re-planning screen for a written change, with the usual time", async () => {
   const core = pending();
   await renderPlan(core.call, async () => null);
   await press("Ask for a change");
@@ -622,9 +612,35 @@ it("shows the re-planning screen for a written change before Core answers", asyn
 
   expect(core.call).toHaveBeenCalledWith("More videos");
   expect(replanning()).toBe(true);
+  expect(text()).toContain("Usually about 6 min");
+  expect(text()).not.toContain("About two minutes");
 
   await act(async () => core.answer(null));
   expect(replanning()).toBe(false);
+});
+
+it("sends a tile's fix to its section, not to the chat", async () => {
+  const onFix = vi.fn(async () => {});
+  const onCorrect = vi.fn(async () => {});
+  await act(async () =>
+    root.render(
+      <BrandStep
+        overview={draft({ brandBrainConfirmedAt: null })}
+        messages={[]}
+        onCorrect={onCorrect}
+        onFix={onFix}
+        onSave={noop}
+      />,
+    ),
+  );
+  await press("What you sell");
+  typeInto(
+    container.querySelector<HTMLInputElement>("#ob-tell"),
+    "From 19 dollars a month.",
+  );
+  await press("Send");
+  expect(onFix).toHaveBeenCalledWith("offer", "From 19 dollars a month.");
+  expect(onCorrect).not.toHaveBeenCalled();
 });
 
 it("opens the tab the founder picks, and keeps Results one tap away", async () => {

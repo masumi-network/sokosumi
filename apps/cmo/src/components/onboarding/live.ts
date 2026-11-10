@@ -34,20 +34,13 @@ export function researchGroups(overview: CmoOverview): Group[] | null {
   return groups && groups.length > 0 ? groups : null;
 }
 
-/** Cuso is writing the plan now. */
+/** Cuso is writing a whole plan now; a brand fix or a patch is not one. */
 export function planWriting(overview: CmoOverview): boolean {
   return (
-    overview.work?.kind === "strategy" && overview.work.status === "running"
+    overview.work?.kind === "strategy" &&
+    overview.work.status === "running" &&
+    !overview.work.change
   );
-}
-
-/** The ids of the founder's nos that Cuso has not written into the Brand Brain yet. */
-export function brandCorrections(overview: CmoOverview): string[] {
-  return (overview.brandBrain?.questions ?? [])
-    .filter(
-      (question) => question.answer === "no" && question.corrected === false,
-    )
-    .map((question) => question.id);
 }
 
 /** One line of slow copy, and whether Try again shows beside it. */

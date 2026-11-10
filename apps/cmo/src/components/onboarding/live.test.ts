@@ -4,6 +4,7 @@ import { cmoOverview } from "../../test-fixtures/cmo";
 import { asking, draft, reading, work } from "../../test-fixtures/onboarding";
 import {
   liveLine,
+  planWriting,
   QUIET_SECONDS,
   setupRows,
   slowCopy,
@@ -91,6 +92,18 @@ describe("live line", () => {
     expect(
       liveLine(reading({ work: { ...work("research"), status: "done" } })),
     ).toBeNull();
+  });
+});
+
+describe("plan writing", () => {
+  it("is a whole plan, not a brand fix or a patch", () => {
+    expect(planWriting(draft({ work: work("strategy") }))).toBe(true);
+    expect(
+      planWriting(draft({ work: work("strategy", { change: "fix" }) })),
+    ).toBe(false);
+    expect(
+      planWriting(draft({ work: work("strategy", { change: "patch" }) })),
+    ).toBe(false);
   });
 });
 

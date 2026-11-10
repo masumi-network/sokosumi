@@ -26,6 +26,7 @@ import {
   outcomeLine,
   Pillars,
 } from "../strategy-reveal";
+import { TypeIn } from "../type-in";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -196,8 +197,39 @@ interface MonthPanelProps {
   onOpen: (entry: Entry) => void;
 }
 
+interface EntryTitleProps {
+  entry: Entry;
+  /** How a patch found it: null when it added the entry, unset when untouched. */
+  was: Entry | null | undefined;
+}
+
+/**
+ * An entry's words. One a patch changed shows its old words struck through
+ * and its new ones typing in; a dropped one only the struck words.
+ */
+function EntryTitle({ entry, was }: EntryTitleProps) {
+  const now = withoutLabel(entry.hook ?? entry.title);
+  const before = was ? withoutLabel(was.hook ?? was.title) : null;
+  const dropped = was !== undefined && entry.status === "skipped";
+  if (was === undefined || (before === now && !dropped)) {
+    return <span className="ob-entry-title">{now}</span>;
+  }
+  return (
+    <span className="ob-entry-title">
+      {before && (dropped || before !== now) ? (
+        <del className="ob-was">{before}</del>
+      ) : null}
+      {dropped ? null : <TypeIn text={now} />}
+    </span>
+  );
+}
+
 /** What goes out first, then every day of the plan. */
 export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
+  const patched = useMemo(
+    () => new Map((strategy.patched ?? []).map((item) => [item.id, item.was])),
+    [strategy.patched],
+  );
   const weeks = useMemo(
     () => planWeeks(strategy.calendar),
     [strategy.calendar],
@@ -224,6 +256,11 @@ export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
   );
   return (
     <div className="ob-month">
+      {strategy.calendar.length === 0 ? (
+        <p className="muted" role="status">
+          {AGENT_NAME} is writing your month, week one first.
+        </p>
+      ) : null}
       {first.length > 0 ? (
         <div className="ob-upfirst">
           <h2>Up first</h2>
@@ -244,9 +281,7 @@ export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
                     })}
                     {entry.time ? ` ${entry.time}` : ""}
                   </span>
-                  <span className="ob-entry-title">
-                    {withoutLabel(entry.hook ?? entry.title)}
-                  </span>
+                  <EntryTitle entry={entry} was={patched.get(entry.id)} />
                 </button>
               </li>
             ))}
@@ -299,9 +334,7 @@ export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
                           <ChannelIcon channel={entry.channel} size={12} />
                           {entry.time ?? ""}
                         </span>
-                        <span className="ob-entry-title">
-                          {withoutLabel(entry.hook ?? entry.title)}
-                        </span>
+                        <EntryTitle entry={entry} was={patched.get(entry.id)} />
                       </button>
                     ))}
                   </div>

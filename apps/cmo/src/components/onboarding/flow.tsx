@@ -8,7 +8,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { SkippedStep } from "../../lib/skipped-steps";
-import { strategyApproved } from "../../lib/strategy";
 import { adsReturnError } from "../ads";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
@@ -20,7 +19,6 @@ import { BrandStep } from "./brand-step";
 import { Checklist, useElapsedSeconds } from "./checklist";
 import { LaunchStep } from "./launch-step";
 import {
-  brandCorrections,
   liveLine,
   planWriting,
   researchGroups,
@@ -68,9 +66,6 @@ function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
 const POLL_MS = 2_500;
 /** A hidden tab still checks in, so coming back shows where Cuso is now. */
 const HIDDEN_POLL_MS = 20_000;
-/** The change request after a no, once a plan exists. */
-const BRAND_CORRECTED =
-  "I said no to some of your Brand Brain questions. Fit the plan to the corrected Brand Brain.";
 
 interface AccountMenuProps {
   overview: CmoOverview;
@@ -307,10 +302,10 @@ export function OnboardingFlow({
     if (result.overview) setOverview(result.overview);
     return result.error;
   };
-  const request = async (note?: string) => {
+  const request = async (note?: string, patch?: boolean) => {
     setPlanRequested(true);
     try {
-      const refused = settle(await actions.requestStrategy(note));
+      const refused = settle(await actions.requestStrategy(note, patch));
       if (refused) setPlanRequested(false);
       return refused;
     } catch (error) {
@@ -318,30 +313,32 @@ export function OnboardingFlow({
       throw error;
     }
   };
+  // Why Core refused the founder's last fix, shown under the heading.
+  const [fixRefusal, setFixRefusal] = useState<string | null>(null);
+  const fixSection = async (
+    section: Parameters<OnboardingActions["fixBrandSection"]>[0],
+    note: string,
+  ) => {
+    const refused = await actions.fixBrandSection(section, note);
+    setFixRefusal(refused);
+    return refused;
+  };
   const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));
+    // While Cuso reads, the plan he starts next takes the no in. Afterwards
+    // it is a fix to its one section, which Core runs now or once his
+    // current turn ends.
+    const question = overview.brandBrain?.questions?.find(
+      (candidate) => candidate.id === input.questionId,
+    );
+    const reading =
+      overview.work?.kind === "research" && overview.work.status === "running";
+    if (input.answer !== "no" || !question || reading) return;
+    await fixSection(
+      question.section,
+      input.note?.trim() || `Not true: ${question.statement}`,
+    );
   };
-  // Core starts the first plan when the research ends, so a no the founder
-  // gave while it was written is fitted afterwards. Each set of nos is sent
-  // once per visit, so a re-plan that leaves one open never loops.
-  const fitted = useRef("");
-  const [fitRefusal, setFitRefusal] = useState<string | null>(null);
-  const corrections =
-    researchGroups(overview) !== null &&
-    step !== "brand" &&
-    overview.brandBrainConfirmedAt !== null &&
-    overview.strategy !== null &&
-    !planWriting(overview) &&
-    !strategyApproved(overview)
-      ? brandCorrections(overview).join(",")
-      : "";
-  useEffect(() => {
-    if (!corrections || fitted.current === corrections) return;
-    fitted.current = corrections;
-    request(BRAND_CORRECTED)
-      .then(setFitRefusal)
-      .catch(() => setFitRefusal("That didn't go through. Try again."));
-  });
   const retryLearning = async () => {
     const result = await actions.retryLearning();
     setOverview(result.overview);
@@ -414,8 +411,8 @@ export function OnboardingFlow({
             topUpUrl={overview.subscribeUrl}
           />
           {step === "site" ? <ResearchChips overview={overview} /> : null}
-          {fitRefusal && step === "plan" ? (
-            <Refusal text={fitRefusal} topUpUrl={overview.subscribeUrl} />
+          {fixRefusal ? (
+            <Refusal text={fixRefusal} topUpUrl={overview.subscribeUrl} />
           ) : null}
         </div>
         {step === "site" ? (
@@ -452,6 +449,11 @@ export function OnboardingFlow({
               await actions.sendMessage(text);
               await refresh();
             }}
+            onFix={async (section, note) => {
+              const refused = await fixSection(section, note);
+              if (refused) throw new Error(refused);
+              await refresh();
+            }}
             onSave={async (brandBrain) => {
               setOverview(await actions.saveBrandBrain(brandBrain));
             }}
@@ -460,19 +462,14 @@ export function OnboardingFlow({
             }
             onApprove={async () => {
               setOverview(await actions.approveBrandBrain());
-              // Core started the plan when the research ended: confirming
-              // starts nothing, and a no is fitted once the plan is written.
-              const started =
-                researchGroups(overview) !== null &&
-                (overview.strategy !== null || planWriting(overview));
-              if (started) {
+              // Core starts the plan when the research ends, and a no is a
+              // fix of its own: confirming starts nothing once a plan is on
+              // its way or written.
+              if (overview.strategy !== null || planWriting(overview)) {
                 setViewing(null);
                 return null;
               }
-              // Once a plan exists, the corrected Brand Brain changes it.
-              const refused = await request(
-                overview.strategy ? BRAND_CORRECTED : undefined,
-              );
+              const refused = await request();
               if (!refused) setViewing(null);
               return refused;
             }}

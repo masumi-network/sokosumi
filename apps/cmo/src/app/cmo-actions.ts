@@ -17,6 +17,7 @@ import {
   connectCmoMeasurementForProject,
   finalizeCmoAdsForProject,
   finalizeCmoMeasurementForProject,
+  fixCmoBrandSectionForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
   getCmoOverview,
@@ -47,6 +48,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AGENT_NAME } from "../lib/agent";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
+import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
 import {
@@ -411,12 +413,14 @@ function errorText(error: unknown, fallback: string): string {
 }
 
 /**
- * Asks Cuso for the strategy, or for a change to it. Returns the overview
- * with his new work running, or why it could not start.
+ * Asks Cuso for the strategy, or for a change to it; with `patch`, only the
+ * entries the note touches change. Returns the overview with his new work
+ * running, or why it could not start.
  */
 export async function requestStrategy(
   projectId: string,
   note?: string,
+  patch?: boolean,
 ): Promise<{
   overview: CmoOverview | null;
   error: string | null;
@@ -425,12 +429,32 @@ export async function requestStrategy(
   const { error } = await requestCmoStrategyForProject({
     ...core,
     path: { projectId },
-    body: note?.trim() ? { note: note.trim() } : {},
+    body: note?.trim()
+      ? { note: note.trim(), ...(patch ? { patch: true } : {}) }
+      : {},
   });
   return {
     overview: await loadOverview(projectId),
     error: error ? errorText(error, "Could not start planning") : null,
   };
+}
+
+/**
+ * One Brand Brain section is wrong: Core keeps the fix on it, and Cuso
+ * rewrites only that section now or once his current turn ends.
+ */
+export async function fixBrandSection(
+  projectId: string,
+  section: BrandSectionKey,
+  note: string,
+): Promise<string | null> {
+  const core = await requireCore();
+  const { error } = await fixCmoBrandSectionForProject({
+    ...core,
+    path: { projectId },
+    body: { section, note },
+  });
+  return error ? errorText(error, "Could not send that fix") : null;
 }
 
 /** Try again on a slow plan: Core replaces a run past twice the usual time. */
@@ -450,7 +474,7 @@ export async function restartStrategy(projectId: string): Promise<{
   };
 }
 
-/** The owner's own monthly ad budget; Cuso re-plans the ads around it. */
+/** The owner's own monthly ad budget; Cuso patches the ads around it. */
 export async function setAdBudget(
   projectId: string,
   monthly: number,

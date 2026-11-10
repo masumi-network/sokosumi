@@ -158,10 +158,20 @@ describe("onboardingStep", () => {
       step: "brand",
       phase: "review",
     });
+    // The plan part shows while Cuso writes the calendar.
     expect(onboardingStep(draft({ work: running("strategy") }))).toEqual({
       step: "plan",
-      phase: "planning",
+      phase: "review",
     });
+    expect(
+      onboardingStep(
+        draft({
+          strategy: { ...cmoStrategy, changes: [], calendar: [] },
+          work: running("strategy"),
+        }),
+      ).phase,
+    ).toBe("review");
+    // A first plan that stopped before its calendar offers a retry.
     expect(
       onboardingStep(
         draft({ strategy: { ...cmoStrategy, changes: [], calendar: [] } }),

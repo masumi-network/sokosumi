@@ -15,6 +15,7 @@ import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import { Checklist, PLANNING_PHASES, workChecklist } from "./checklist";
+import { USUAL_SECONDS } from "./live";
 import {
   type ConnectMeasurement,
   MonthPanel,
@@ -127,8 +128,11 @@ interface PlanStepProps {
   phase: PlanPhase;
   /** The tab to open, such as Results after a measurement connection. */
   initialTab?: PlanTab;
-  /** Cuso writes or changes the plan; a refusal comes back as text. */
-  onRequest: (note?: string) => Promise<string | null>;
+  /**
+   * Cuso writes or changes the plan; with `patch` only the entries the note
+   * touches change. A refusal comes back as text.
+   */
+  onRequest: (note?: string, patch?: boolean) => Promise<string | null>;
   /** The owner's own monthly ad budget; a refusal comes back as text. */
   onSetAds: (monthly: number, currency: string) => Promise<string | null>;
   onAnswer: (
@@ -321,9 +325,11 @@ export function PlanReview({
   const [open, setOpen] = useState<Entry | null>(null);
   const [asking, setAsking] = useState(false);
   const [note, setNote] = useState("");
-  const [asked, setAsked] = useState<string | null>(null);
-  // The change on its way to Cuso, in a few words.
-  const [sending, setSending] = useState<string | null>(null);
+  // The change on its way to Cuso and the last one asked, in a few words. A
+  // patch (a no, the pace, a budget) keeps the plan on screen.
+  type Asked = { label: string; patch: boolean };
+  const [asked, setAsked] = useState<Asked | null>(null);
+  const [sending, setSending] = useState<Asked | null>(null);
   const changing = sending !== null;
   const [going, startGoing] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -335,8 +341,16 @@ export function PlanReview({
   const stopped =
     work?.kind === "strategy" && work.status === "failed" && asked !== null;
   const busy = writing || changing;
-  // From the tap until the new plan lands, the old one is not shown as if it held.
-  const replanning = sending ?? (writing && asked ? asked : null);
+  // From the tap until a new plan lands, the old one is not shown as if it
+  // held. A patch changes entries in place, so the plan stays.
+  const changed = sending ?? (writing ? asked : null);
+  const replanning = changed && !changed.patch ? changed.label : null;
+  const patching =
+    changed?.patch === true
+      ? `: ${changed.label.replace(/\.$/, "")}`
+      : writing && work?.change === "patch"
+        ? ""
+        : null;
   const changes = strategy.changes ?? [];
   const approved = strategyApproved(overview);
   const locked = readOnly || approved;
@@ -354,14 +368,18 @@ export function PlanReview({
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
   // throws so the control that asked can stay open.
-  async function send(label: string, run: () => Promise<string | null>) {
-    setSending(label);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  async function send(
+    label: string,
+    run: () => Promise<string | null>,
+    patch = false,
+  ) {
+    setSending({ label, patch });
+    if (!patch) window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       const refused = await run();
       setRefusal(refused);
       if (refused) throw new Error(refused);
-      setAsked(label);
+      setAsked({ label, patch });
     } finally {
       setSending(null);
     }
@@ -383,9 +401,11 @@ export function PlanReview({
     ? ` Written in ${strategy.contentLanguage}.`
     : "";
   const line =
-    pages > 0
-      ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the plan."}`;
+    pieces === 0 && writing
+      ? `${AGENT_NAME} · writing your month, week one first.${written}`
+      : pages > 0
+        ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
+        : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the plan."}`;
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -407,7 +427,9 @@ export function PlanReview({
         // Same path as a change, and not in a transition (which would hold
         // the waiting screen back): the plan waits while Cuso refits it.
         if (unfitted) {
-          send("Fitting your plan to your answers", onUpdate).catch(() => {});
+          send("Fitting your plan to your answers", onUpdate, true).catch(
+            () => {},
+          );
           return;
         }
         // A refused approval (a new version on its way) stays here.
@@ -533,10 +555,19 @@ export function PlanReview({
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
             <p className="muted">
-              {replanning}. About two minutes; your new plan opens here.
+              {replanning}. Usually about{" "}
+              {Math.round(USUAL_SECONDS.strategy / 60)} min; your new plan opens
+              here.
             </p>
           </div>
         </div>
+      ) : null}
+      {patching !== null ? (
+        <p className="ob-patching" role="status">
+          <Loader2 size={14} className="spin" aria-hidden="true" />
+          {AGENT_NAME} is changing your plan{patching}. Only the entries it
+          touches move.
+        </p>
       ) : null}
 
       <div className="ob-plan-body panel" hidden={replanning !== null}>
@@ -607,7 +638,7 @@ export function PlanReview({
                 <PacePicker
                   pace={strategy.pace}
                   onAsk={(text, label) =>
-                    send(label ?? text, () => onRequest(text))
+                    send(label ?? text, () => onRequest(text, true), true)
                   }
                 />
               </div>
@@ -633,8 +664,10 @@ export function PlanReview({
                   <AdBudget
                     ads={ads}
                     onSetAds={(monthly, currency) =>
-                      send(`Ad budget: ${currency} ${monthly} a month`, () =>
-                        onSetAds(monthly, currency),
+                      send(
+                        `Ad budget: ${currency} ${monthly} a month`,
+                        () => onSetAds(monthly, currency),
+                        true,
                       )
                     }
                   />

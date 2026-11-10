@@ -1,5 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
+import type { BrandSectionKey } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { AdActions } from "../ads";
 import type { Answer } from "./questions";
@@ -32,11 +33,23 @@ export interface OnboardingBrandActions {
   saveBrandBrain: (
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
   ) => Promise<CmoOverview>;
+  /**
+   * The founder says one section is wrong: Cuso rewrites only it, now or
+   * once his current turn ends. A refusal comes back as text.
+   */
+  fixBrandSection: (
+    section: BrandSectionKey,
+    note: string,
+  ) => Promise<string | null>;
 }
 
 /** Ask for, check, and approve the plan. */
 export interface OnboardingPlanActions {
-  requestStrategy: (note?: string) => Promise<{
+  /** With `patch`, the note changes only the entries it touches. */
+  requestStrategy: (
+    note?: string,
+    patch?: boolean,
+  ) => Promise<{
     overview: CmoOverview | null;
     error: string | null;
   }>;
@@ -46,7 +59,7 @@ export interface OnboardingPlanActions {
     error: string | null;
   }>;
   approveStrategy: () => Promise<CmoOverview>;
-  /** The owner's own monthly ad budget; Cuso re-plans around it. */
+  /** The owner's own monthly ad budget; Cuso patches the ads around it. */
   setAdBudget: (
     monthly: number,
     currency: string,
@@ -116,6 +129,7 @@ export function inertOnboardingActions(
     answerBrandQuestion: same,
     skipBrandQuestions: same,
     saveBrandBrain: same,
+    fixBrandSection: async () => null,
     answerPlanQuestion: same,
     applyPlanAnswers: result,
     finishAccounts: () => new Promise<never>(() => {}),
