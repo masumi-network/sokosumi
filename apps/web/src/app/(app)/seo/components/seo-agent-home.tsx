@@ -14,7 +14,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,11 +38,12 @@ import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning, seoSetup } from "./seo-setup-model";
+import { seoCheckRunning } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import { useSeoChat } from "./use-seo-chat";
+import { useSeoSetup } from "./use-seo-setup";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export const SEO_AGENT_INPUT_ID = "seo-agent-question";
@@ -318,8 +319,18 @@ function SeoAgentPanel({
     traffic && seoRarelyShown(traffic.impressions, traffic.period),
   );
   // Before the first check the setup card leads; a filtered view has its own empty state.
-  const setup = seoSetup(model.data, model.filters);
+  const setup = useSeoSetup(model);
   const checkRunning = seoCheckRunning(model.data);
+  // A check that ran during this visit: its end is news for a screen reader.
+  const [checkSeen, setCheckSeen] = useState(checkRunning);
+  if (checkRunning && !checkSeen) setCheckSeen(true);
+  // The button that started the check leaves with the setup card. Focus that
+  // fell to the page moves to the result; focus anywhere else is left alone.
+  const verdict = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (checkSeen && !checkRunning && document.activeElement === document.body)
+      verdict.current?.focus();
+  }, [checkSeen, checkRunning]);
   // The setup card already offers the connections and the page step.
   const steps = setup
     ? brief.steps.filter(
@@ -345,6 +356,22 @@ function SeoAgentPanel({
     model,
     model.result.isFetchedAfterMount && model.result.isSuccess,
   );
+  // No check has saved a result in this view, and the reader can run one.
+  const firstCheck =
+    !brief.lastCheck &&
+    canRequestAnalysis &&
+    !model.filters.from &&
+    !model.filters.to;
+  const upkeep =
+    autopilot.state === "refreshing" ? (
+      <p role="status" className="text-muted-foreground text-sm">
+        {t("agent.refreshing")}
+      </p>
+    ) : autopilot.state === "failed" ? (
+      <p role="alert" className="text-destructive text-sm">
+        {t("agent.refreshFailed")}
+      </p>
+    ) : null;
   return (
     <section
       aria-labelledby="seo-agent-title"
@@ -364,7 +391,11 @@ function SeoAgentPanel({
       </h2>
       {/* Present before a check starts, so its start and end are announced. */}
       <p role="status" className="sr-only">
-        {checkRunning ? t("setup.checkRunningBadge") : ""}
+        {checkRunning
+          ? t("setup.checkRunningBadge")
+          : checkSeen
+            ? t("setup.checkEnded")
+            : ""}
       </p>
       <div className="min-w-0 space-y-3">
         {setup ? (
@@ -372,7 +403,9 @@ function SeoAgentPanel({
         ) : (
           <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
             <p
-              className="text-lg font-semibold"
+              ref={verdict}
+              tabIndex={-1}
+              className="focus-visible:outline-ring rounded-sm text-lg font-semibold focus-visible:outline-2"
               data-testid="seo-agent-verdict"
             >
               {brief.issues
@@ -426,6 +459,24 @@ function SeoAgentPanel({
                 </button>
               </p>
             ) : null}
+            {firstCheck ? (
+              // A narrowed view has no setup card, so the first check starts
+              // here. The button stays while its check runs, so keyboard
+              // focus stays too.
+              <Button
+                size="sm"
+                variant="outline"
+                // Not the disabled attribute: that drops focus from the button.
+                aria-disabled={checkRunning || undefined}
+                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                onClick={() => {
+                  if (!checkRunning) model.setDialog("analysis");
+                }}
+              >
+                <Play />
+                {t("runAnalysis")}
+              </Button>
+            ) : null}
             {checkRunning ? (
               // The status line above announces it; this badge is its picture.
               <span aria-hidden className="block">
@@ -434,32 +485,11 @@ function SeoAgentPanel({
                 </StatusBadge>
               </span>
             ) : null}
-            {/* A narrowed view has no setup card, so the first check starts here. */}
-            {!brief.lastCheck &&
-            !checkRunning &&
-            canRequestAnalysis &&
-            !model.filters.from &&
-            !model.filters.to ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => model.setDialog("analysis")}
-              >
-                <Play />
-                {t("runAnalysis")}
-              </Button>
-            ) : null}
-            {autopilot.state === "refreshing" ? (
-              <p role="status" className="text-muted-foreground text-sm">
-                {t("agent.refreshing")}
-              </p>
-            ) : autopilot.state === "failed" ? (
-              <p role="alert" className="text-destructive text-sm">
-                {t("agent.refreshFailed")}
-              </p>
-            ) : null}
+            {upkeep}
           </div>
         )}
+        {/* The setup card has no line for upkeep, so it sits under the card. */}
+        {setup && upkeep ? <div className="px-2">{upkeep}</div> : null}
         {/* During setup a schedule is not the next step: show only one that exists. */}
         {setup && !model.data.monitors.length ? null : (
           <SeoAutomation model={model} />

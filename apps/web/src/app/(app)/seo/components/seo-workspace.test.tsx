@@ -2200,7 +2200,11 @@ describe("SEO workspace integration", () => {
         .getAllByRole("status")
         .some((status) => status.textContent === "Check running"),
     ).toBe(true);
-    expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
+    // The button stays for keyboard focus, but starts no second check.
+    const again = screen.getByRole("button", { name: "Run a check" });
+    expect(again).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(again);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("schedules finite native monitoring with its market and per-run budget", async () => {

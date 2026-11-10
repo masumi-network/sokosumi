@@ -38,10 +38,12 @@ export type SeoSetupFilters = {
  * add a page, connect Search Console, run the first check.
  * Null once a check has saved a result, when the reader cannot edit, when a
  * filter narrows the view, and when no step is left that the reader can do.
+ * `connectable` is false when the workspace has no way to connect Google.
  */
 export function seoSetup(
   workspace: ProjectSeoWorkspace,
   filters?: SeoSetupFilters,
+  connectable = true,
 ) {
   const { canEdit, canSyncMetrics, canRequestAnalysis } =
     workspace.availableActions;
@@ -75,7 +77,7 @@ export function seoSetup(
     !hasPages ? "waiting" : allowed ? "todo" : "unavailable";
   const states: [SeoSetupStepKind, SeoSetupState | "todo"][] = [
     ["page", hasPages ? "done" : "todo"],
-    ["connect", searchSaved ? "done" : blocked(canSyncMetrics)],
+    ["connect", searchSaved ? "done" : blocked(canSyncMetrics && connectable)],
     ["check", running ? "running" : blocked(canRequestAnalysis)],
   ];
   const check = states.length - 1;

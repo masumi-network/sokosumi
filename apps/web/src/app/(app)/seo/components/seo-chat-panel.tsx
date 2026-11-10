@@ -154,10 +154,17 @@ export function SeoChatThread({
     box.scrollTop =
       landed && last ? last.offsetTop - LANDED_INSET_PX : box.scrollHeight;
   }, [follow, landed]);
-  // Spoken once, and short: the reply to the question this panel sent has
-  // landed. Old turns stay quiet, and a failed send speaks through its alert.
+  // Spoken, and short: the question this panel sent is out, its reply has
+  // landed, or its turn failed after the send. Old turns stay quiet, and a
+  // send that fails speaks through the composer's alert.
   const announcement =
-    sent?.status === "completed" && !chat.pending ? t("chat.replied") : "";
+    chat.pending || sent?.status === "running"
+      ? t("chat.asked")
+      : sent?.status === "completed"
+        ? t("chat.replied")
+        : sent?.status === "failed" && !chat.error
+          ? t("chat.failed")
+          : "";
   const welcome =
     !chat.turns.length &&
     !chat.pending &&
@@ -288,6 +295,8 @@ export function SeoChatThread({
           isSending={chat.busy}
           sendDisabled={!chat.question.trim()}
           sendAriaLabel={t("chat.send")}
+          // Send keeps the app composer's filled style in every chat, next to
+          // this page's own primary button.
           toolbarStart={
             // Who can read the chat sits next to Send, where it matters.
             <span className="flex min-w-0 items-center gap-1.5 text-xs">
@@ -328,9 +337,26 @@ export function SeoChatThread({
                 isSuggestionKeyboardActive: false,
                 isTouchDevice: !devicePrefersHover(),
               });
-              if (action !== "submit") return;
-              event.preventDefault();
-              void chat.send();
+              if (action === "submit") {
+                event.preventDefault();
+                void chat.send();
+              } else if (event.metaKey || event.ctrlKey) {
+                // A text field starts no line on Ctrl or Cmd+Enter by itself.
+                event.preventDefault();
+                const field = event.currentTarget;
+                const { selectionStart, selectionEnd, value } = field;
+                // The field's own limit does not cover an edit made here.
+                if (
+                  value.length - (selectionEnd - selectionStart) >=
+                  SEO_CHAT_QUESTION_LIMIT
+                )
+                  return;
+                field.setRangeText("\n", selectionStart, selectionEnd, "end");
+                // React keeps its own record of the field's value. The input
+                // event brings that record in step, so the next edit counts.
+                field.dispatchEvent(new Event("input", { bubbles: true }));
+                chat.setQuestion(field.value);
+              }
             }}
             maxLength={SEO_CHAT_QUESTION_LIMIT}
             rows={1}

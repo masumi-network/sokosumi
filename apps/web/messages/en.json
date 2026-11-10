@@ -11331,7 +11331,9 @@
         "loadingHistory": "Loading the chat",
         "placeholder": "Ask a question",
         "privateShort": "Only you can read this chat",
-        "sharedShort": "Shared in your organization"
+        "sharedShort": "Shared in your organization",
+        "asked": "Question sent. The SEO agent is working.",
+        "tooLong": "Your question is over {limit, number} characters. Shorten it and send it again."
       },
       "connections": {
         "connect": "Connect {provider}",
@@ -11408,7 +11410,7 @@
         "title": "SEO agent",
         "lastCheck": "{checked, plural, one {# test} other {# tests}} on {pages, plural, one {# page} other {# pages}}.",
         "refreshing": "The agent is refreshing Search Console.",
-        "refreshFailed": "Search Console could not be refreshed. Try again from Next steps.",
+        "refreshFailed": "Search Console could not be refreshed. Use “Sync now” to try again.",
         "nextTitle": "Next steps",
         "nothingNext": "Nothing is waiting. The agent syncs Search Console when you open this audit and the data is older than a day.",
         "steps": {
@@ -11513,7 +11515,8 @@
         "checkRunningBadge": "Check running",
         "waiting": "Add a page first.",
         "checkUnavailable": "Checks are unavailable in this workspace. You can still connect Search Console and see search statistics.",
-        "checkFailed": "The last check did not finish. Run it again."
+        "checkFailed": "The last check did not finish. Run it again.",
+        "checkEnded": "The check ended."
       }
     }
   },

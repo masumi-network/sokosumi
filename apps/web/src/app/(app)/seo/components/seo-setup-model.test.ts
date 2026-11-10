@@ -59,6 +59,18 @@ describe("SEO first-run setup", () => {
     });
   });
 
+  it("skips the connect step in a workspace that cannot connect Google", () => {
+    const workspace = seoTestWorkspace();
+    expect(seoSetup(workspace, undefined, false)).toMatchObject({
+      done: 1,
+      total: 2,
+      next: "check",
+    });
+    // Nothing is left to do, so the card ends and the notice explains.
+    workspace.availableActions.canRequestAnalysis = false;
+    expect(seoSetup(workspace, undefined, false)).toBeNull();
+  });
+
   it("ends when no step is left that the reader can do", () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;

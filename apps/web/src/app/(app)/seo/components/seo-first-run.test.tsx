@@ -14,8 +14,11 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
+import { SeoSetupCard } from "./seo-setup";
+import { seoSetup } from "./seo-setup-model";
 import { SEO_TEST_AUDIT, seoTestWorkspace } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
+import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: vi.fn() }));
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -30,12 +33,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
 const copy = messages.App.Seo;
 const clients: QueryClient[] = [];
 
-function renderWorkspace(workspace: ProjectSeoWorkspace, searchParams = "") {
+function page(content: React.ReactNode, searchParams = "") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   clients.push(client);
-  render(
+  return (
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
         locale="en"
@@ -44,10 +47,24 @@ function renderWorkspace(workspace: ProjectSeoWorkspace, searchParams = "") {
         messages={messages}
       >
         <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-          <SeoWorkspace workspace={workspace} />
+          {content}
         </NuqsTestingAdapter>
       </NextIntlClientProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
+  );
+}
+
+function renderWorkspace(workspace: ProjectSeoWorkspace, searchParams = "") {
+  render(page(<SeoWorkspace workspace={workspace} />, searchParams));
+}
+
+/** The setup card alone, for a state change the page gets from a new read. */
+function setupCard(workspace: ProjectSeoWorkspace) {
+  const setup = seoSetup(workspace);
+  if (!setup) throw new Error("This workspace has no setup");
+  const model = { data: workspace, setDialog: vi.fn() };
+  return (
+    <SeoSetupCard model={model as unknown as SeoWorkspaceModel} setup={setup} />
   );
 }
 
@@ -205,7 +222,60 @@ describe("SEO audit first run", () => {
         within(setup).getAllByRole("button", { name: "Sync statistics" }),
       ).toHaveLength(2),
     );
+    // Same name twice, so each says which account it syncs.
+    expect(
+      within(setup)
+        .getAllByRole("button", { name: "Sync statistics" })
+        .map((button) => button.getAttribute("aria-describedby"))
+        .map((id) => document.getElementById(id ?? "")?.textContent),
+    ).toEqual(["Search Console connected", "Google Analytics connected"]);
     expect(primaryButtons(setup)).toEqual(["Run a check"]);
+  });
+
+  it("moves the next action to the check when the workspace cannot connect Google", async () => {
+    const workspace = seoTestWorkspace();
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "unavailable",
+        source: "none",
+      }),
+    });
+    renderWorkspace(workspace);
+    const setup = screen.getByTestId("seo-setup");
+    expect(
+      await within(setup).findByText("Next: Run the first check"),
+    ).toBeVisible();
+    expect(
+      within(setup).getByText(copy.setup.connectUnavailable),
+    ).toBeVisible();
+    expect(primaryButtons(setup)).toEqual(["Run a check"]);
+  });
+
+  it("keeps keyboard focus on the check button when the check starts to run", () => {
+    const workspace = seoTestWorkspace();
+    network(workspace);
+    const client = page(setupCard(workspace));
+    const view = render(client);
+    const button = screen.getByRole("button", { name: "Run a check" });
+    button.focus();
+    const running = seoTestWorkspace();
+    running.analyses = [
+      {
+        id: "a1",
+        kind: "page_check",
+        status: "running",
+        taskId: null,
+        pageIds: running.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date("2026-01-02T12:00:00Z"),
+      },
+    ];
+    view.rerender(page(setupCard(running)));
+    expect(document.activeElement).toBe(button);
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("Check running")).toBeVisible();
   });
 
   it("says why checks are off: on the check step during setup, in a notice elsewhere", async () => {
@@ -262,6 +332,8 @@ describe("SEO agent chat", () => {
       "Title?",
       "The <title> is 82 characters. ![x](https://outside.example/p.png)",
     );
+    // A newer Core can name a dialog this build does not have.
+    Object.assign(saved, { actions: [{ kind: "dialog", dialog: "future" }] });
     network(workspace, {
       chat: () => Response.json({ sharing: "personal", turns: [saved] }),
     });
@@ -295,6 +367,12 @@ describe("SEO agent chat", () => {
     const box = await screen.findByLabelText("Your question");
     fireEvent.change(box, { target: { value: "First" } });
     fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
+    // A text field starts no line on Ctrl+Enter by itself: the panel adds it.
+    fireEvent.keyDown(box, { key: "Enter", ctrlKey: true });
+    expect(box).toHaveValue("First\n");
+    (box as HTMLTextAreaElement).setSelectionRange(2, 2);
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    expect(box).toHaveValue("Fi\nrst\n");
     // Safari reports the Enter that confirms a composition with this key code.
     fireEvent.keyDown(box, { key: "Enter", keyCode: 229 });
     vi.mocked(window.matchMedia).mockImplementation(
@@ -307,7 +385,7 @@ describe("SEO agent chat", () => {
     );
     fireEvent.keyDown(box, { key: "Enter" });
     expect(await screen.findByText("Answer one")).toBeVisible();
-    expect(posts).toEqual(["First"]);
+    expect(posts).toEqual(["Fi\nrst"]);
   });
 
   it("shows the question at once, and gives it back when the send fails", async () => {
@@ -330,6 +408,7 @@ describe("SEO agent chat", () => {
     expect(await screen.findByText("Reading audit results")).toBeVisible();
     expect(screen.getByText("Why did clicks fall?")).toBeVisible();
     expect(box).toHaveValue("");
+    expect(screen.getByText(copy.chat.asked)).toBeInTheDocument();
     answer(new Response(null, { status: 500 }));
     await waitFor(() => expect(box).toHaveValue("Why did clicks fall?"));
     expect(screen.getByRole("alert")).toHaveTextContent(copy.chat.failed);
@@ -365,5 +444,43 @@ describe("SEO agent chat", () => {
     fail(new Response(null, { status: 500 }));
     await waitFor(() => expect(box).toHaveValue("Second\nThird"));
     expect(screen.queryByText(copy.chat.replied)).toBeNull();
+  });
+
+  it("gives the question back at the daily limit, and says why a restored draft is too long to send", async () => {
+    const workspace = chatWorkspace();
+    let posts = 0;
+    let limit: (response: Response) => void = () => {};
+    network(workspace, {
+      chat: (init) => {
+        if (init?.method !== "POST")
+          return Response.json({ sharing: "personal", turns: [] });
+        posts += 1;
+        return new Promise<Response>((resolve) => {
+          limit = resolve;
+        });
+      },
+    });
+    renderWorkspace(workspace);
+    const box = await screen.findByLabelText("Your question");
+    const first = "a".repeat(2_500);
+    const second = "b".repeat(2_500);
+    fireEvent.change(box, { target: { value: first } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await screen.findByText(copy.chat.asked);
+    fireEvent.change(box, { target: { value: second } });
+    limit(new Response(null, { status: 429 }));
+    // Neither draft is lost, though both together pass the limit.
+    await waitFor(() => expect(box).toHaveValue(`${first}\n${second}`));
+    expect(screen.getByRole("alert")).toHaveTextContent(copy.chat.dailyLimit);
+    fireEvent.keyDown(box, { key: "Enter" });
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "over 4,000 characters",
+      ),
+    );
+    expect(posts).toBe(1);
+    // The reason leaves once the text fits again.
+    fireEvent.change(box, { target: { value: first } });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

@@ -11331,7 +11331,9 @@
         "loadingHistory": "Chat wird geladen",
         "placeholder": "Stell eine Frage",
         "privateShort": "Nur du kannst diesen Chat lesen",
-        "sharedShort": "In deiner Organisation geteilt"
+        "sharedShort": "In deiner Organisation geteilt",
+        "asked": "Frage gesendet. Der SEO-Agent arbeitet.",
+        "tooLong": "Deine Frage hat mehr als {limit, number} Zeichen. Kürze sie und sende sie erneut."
       },
       "connections": {
         "connect": "{provider} verbinden",
@@ -11408,7 +11410,7 @@
         "title": "SEO-Agent",
         "lastCheck": "{checked, plural, one {# Test} other {# Tests}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
         "refreshing": "Der Agent aktualisiert die Search Console.",
-        "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es unter Nächste Schritte erneut.",
+        "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es mit „Jetzt synchronisieren“ erneut.",
         "nextTitle": "Nächste Schritte",
         "nothingNext": "Nichts wartet. Der Agent synchronisiert die Search Console, wenn du dieses Audit öffnest und die Daten älter als einen Tag sind.",
         "steps": {
@@ -11513,7 +11515,8 @@
         "checkRunningBadge": "Prüfung läuft",
         "waiting": "Füge zuerst eine Seite hinzu.",
         "checkUnavailable": "Prüfungen sind in diesem Workspace nicht verfügbar. Du kannst weiterhin Search Console verbinden und Suchstatistiken sehen.",
-        "checkFailed": "Die letzte Prüfung wurde nicht abgeschlossen. Starte sie erneut."
+        "checkFailed": "Die letzte Prüfung wurde nicht abgeschlossen. Starte sie erneut.",
+        "checkEnded": "Die Prüfung ist beendet."
       }
     }
   },

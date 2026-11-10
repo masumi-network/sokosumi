@@ -172,22 +172,33 @@ export function SeoSetupCard({
             )
           }
         >
-          {check.state === "running" ? (
-            // The agent panel announces a running check; this badge is its picture.
-            <span aria-hidden>
-              <StatusBadge tone="working" live>
-                {t("setup.checkRunningBadge")}
-              </StatusBadge>
-            </span>
-          ) : check.state === "next" || check.state === "open" ? (
-            <Button
-              size="sm"
-              variant={variant(check.state)}
-              onClick={() => model.setDialog("analysis")}
-            >
-              {setup.failed ? <RotateCw /> : <Play />}
-              {t("runAnalysis")}
-            </Button>
+          {check.state === "running" ||
+          check.state === "next" ||
+          check.state === "open" ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* The button stays while its check runs, so keyboard focus stays too. */}
+              <Button
+                size="sm"
+                variant={variant(check.state)}
+                // Not the disabled attribute: that drops focus from the button.
+                aria-disabled={check.state === "running" || undefined}
+                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                onClick={() => {
+                  if (check.state !== "running") model.setDialog("analysis");
+                }}
+              >
+                {setup.failed ? <RotateCw /> : <Play />}
+                {t("runAnalysis")}
+              </Button>
+              {check.state === "running" ? (
+                // The agent panel announces a running check; this badge is its picture.
+                <span aria-hidden>
+                  <StatusBadge tone="working" live>
+                    {t("setup.checkRunningBadge")}
+                  </StatusBadge>
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </SeoStep>
       </SeoStepList>

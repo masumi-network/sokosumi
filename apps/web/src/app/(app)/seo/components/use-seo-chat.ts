@@ -99,15 +99,14 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
   const busy = sending || turns.some((turn) => turn.status === "running");
   async function send(prompt?: string) {
     const text = (prompt ?? question).trim();
-    if (
-      !auditId ||
-      !session?.user.id ||
-      !text ||
-      text.length > SEO_CHAT_QUESTION_LIMIT ||
-      busy ||
-      sendingRef.current
-    )
+    if (!auditId || !session?.user.id || !text || busy || sendingRef.current)
       return;
+    // Only a restored question can pass the field's own limit. The reason
+    // shows below until the reader shortens the text.
+    if (text.length > SEO_CHAT_QUESTION_LIMIT) {
+      setError(null);
+      return;
+    }
     sendingRef.current = true;
     setSending(true);
     setPending(text);
@@ -120,11 +119,7 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
     if (typed) setQuestion("");
     const restore = () => {
       if (!typed) return;
-      setQuestion((current) => {
-        if (!current.trim()) return text;
-        const both = `${text}\n${current}`;
-        return both.length > SEO_CHAT_QUESTION_LIMIT ? current : both;
-      });
+      setQuestion((current) => (current.trim() ? `${text}\n${current}` : text));
     };
     const scope = Object.fromEntries(
       Object.entries(model.filters).filter(
@@ -196,7 +191,11 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
   return {
     question,
     setQuestion,
-    error,
+    error:
+      error ??
+      (question.trim().length > SEO_CHAT_QUESTION_LIMIT
+        ? t("chat.tooLong", { limit: SEO_CHAT_QUESTION_LIMIT })
+        : null),
     busy,
     sending,
     pending,

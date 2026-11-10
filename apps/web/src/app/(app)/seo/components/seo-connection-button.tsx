@@ -2,6 +2,7 @@
 
 import { Check, Plug, RefreshCw, RotateCw, Unplug } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth/auth.client";
@@ -58,6 +59,7 @@ function SeoConnectionControl({
   const model = useSeoConnection(provider, onConnected);
   const { data } = model.status;
   const name = t(`statistics.${provider}`);
+  const connectedId = useId();
   // Only the pressed button loads; the others wait.
   const state = (action: SeoConnectionAction) => ({
     loading: model.busy === action,
@@ -95,7 +97,10 @@ function SeoConnectionControl({
     return (
       <div className="max-w-full min-w-0 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-sm">
+          <span
+            id={connectedId}
+            className="inline-flex items-center gap-1.5 text-sm"
+          >
             <Check className="size-4" />
             {t("connections.connected", { provider: name })}
           </span>
@@ -106,6 +111,8 @@ function SeoConnectionControl({
               variant={variant}
               size="sm"
               disabled={model.busy !== null}
+              // Two accounts can sit side by side: this says which one syncs.
+              aria-describedby={connectedId}
               onClick={onSync}
             >
               <RefreshCw />

@@ -167,6 +167,8 @@ function ChatActions({
         )
           return null;
         const Icon = ACTION_ICONS[action.dialog];
+        // A newer Core can name a dialog this build does not have.
+        if (!Icon) return null;
         return (
           <Button
             key={`${action.dialog}:${index}`}

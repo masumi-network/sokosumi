@@ -22,6 +22,39 @@ import { seoViewerHeaders } from "@/lib/seo/owner";
 export type SeoConnectionProvider = SeoConnectionStatus["provider"];
 export type SeoConnectionAction = "connect" | "resume" | "disconnect";
 
+/** The saved state of one Google connection. Every reader of a provider shares one request. */
+export function useSeoConnectionStatus(
+  provider: SeoConnectionProvider,
+  enabled = true,
+) {
+  const { data: session } = useSession();
+  const queryKey = [
+    "seo-connection",
+    session?.session.activeOrganizationId,
+    session?.user.id,
+    provider,
+  ];
+  const status = useQuery<SeoConnectionStatus>({
+    queryKey,
+    enabled: enabled && Boolean(session?.user.id),
+    queryFn: async ({ signal }) => {
+      const response = await fetch(`/api/seo/connections/${provider}`, {
+        signal,
+        headers: seoViewerHeaders(
+          session?.user.id,
+          session?.session.activeOrganizationId,
+        ),
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("SEO connection unavailable");
+      return response.json();
+    },
+    refetchOnWindowFocus: true,
+  });
+  return { status, queryKey };
+}
+
 export function useSeoConnection(
   provider: SeoConnectionProvider,
   onConnected?: () => void,
@@ -45,30 +78,7 @@ export function useSeoConnection(
     viewerId: session?.user.id ?? "",
     organizationId: session?.session.activeOrganizationId ?? null,
   };
-  const queryKey = [
-    "seo-connection",
-    session?.session.activeOrganizationId,
-    session?.user.id,
-    provider,
-  ];
-  const status = useQuery<SeoConnectionStatus>({
-    queryKey,
-    enabled: Boolean(session?.user.id),
-    queryFn: async ({ signal }) => {
-      const response = await fetch(`/api/seo/connections/${provider}`, {
-        signal,
-        headers: seoViewerHeaders(
-          session?.user.id,
-          session?.session.activeOrganizationId,
-        ),
-        credentials: "same-origin",
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("SEO connection unavailable");
-      return response.json();
-    },
-    refetchOnWindowFocus: true,
-  });
+  const { status, queryKey } = useSeoConnectionStatus(provider);
   async function connect() {
     if (busyRef.current) return;
     busyRef.current = true;
