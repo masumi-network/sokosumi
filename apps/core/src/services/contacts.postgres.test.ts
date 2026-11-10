@@ -41,6 +41,15 @@ import {
 import { linkNewsletterContacts } from "./newsletter-contacts.service";
 import { createTaskForActor } from "./task-domain.service";
 
+// The Task move route is mounted with an injected session.
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
+
 // Calendar delivery after a Task move is not under test here.
 vi.mock("@/helpers/calendar-invalidation", () => ({
   deliverCalendarInvalidationsNow: vi.fn(),
