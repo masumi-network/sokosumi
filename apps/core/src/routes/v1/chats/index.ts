@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 
 import invitationsRouter from "./invitations/index.js";
 import peopleRouter from "./people/index.js";
+import recentRouter from "./recent/index.js";
 import roomsRouter from "./rooms/index.js";
 import savedMessagesRouter from "./saved-messages/index.js";
 import signalsRouter from "./signals/index.js";
@@ -13,6 +14,7 @@ const app = new OpenAPIHono();
 
 app.route("/invitations", invitationsRouter);
 app.route("/people", peopleRouter);
+app.route("/recent", recentRouter);
 app.route("/rooms", roomsRouter);
 app.route("/saved-messages", savedMessagesRouter);
 app.route("/signals", signalsRouter);

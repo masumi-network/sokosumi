@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { connectSokoBotIntegrationAction } from "@/lib/actions/soko-bot/action";
@@ -49,10 +50,20 @@ describe("SokoBotConnectPrompt", () => {
     expect(screen.queryByTestId("soko-bot-connect-prompt")).toBeNull();
   });
 
-  it("starts a connection only for a provider not yet connected", async () => {
+  it("names no bot in the compact title and offers one Connect button", () => {
+    render(<SokoBotConnectPrompt sokoBotId="bot-1" />);
+    const card = screen.getByTestId("soko-bot-connect-prompt");
+    expect(card.getAttribute("aria-label")).toBe("connectCompactTitle");
+    expect(card.textContent).not.toContain("Joseph");
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "connectButton",
+      "",
+    ]);
+  });
+
+  it("opens the provider choice by keyboard and connects only a provider not yet connected", async () => {
     render(
       <SokoBotConnectCard
-        botName="Joseph"
         offers={[
           { provider: "gmail", name: "Gmail", connected: true },
           { provider: "outlook", name: "Outlook", connected: false },
@@ -61,17 +72,51 @@ describe("SokoBotConnectPrompt", () => {
       />,
     );
 
+    screen.getByRole("button", { name: "connectButton" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(
+      screen
+        .getByRole("menuitem", { name: "connectConnected:Gmail" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
     await userEvent.click(
-      screen.getByRole("button", { name: "connectConnected:Gmail" }),
+      screen.getByRole("menuitem", { name: "connectConnected:Gmail" }),
     );
     expect(connectSokoBotIntegrationAction).not.toHaveBeenCalled();
 
     await userEvent.click(
-      screen.getByRole("button", { name: "connectProvider:Outlook" }),
+      screen.getByRole("menuitem", { name: "connectProvider:Outlook" }),
     );
     expect(connectSokoBotIntegrationAction).toHaveBeenCalledWith(
       expect.objectContaining({ provider: "outlook" }),
     );
+  });
+
+  it("re-enables Connect and says so when the connect never answers", async () => {
+    vi.mocked(connectSokoBotIntegrationAction).mockRejectedValueOnce(
+      new TypeError("Failed to fetch"),
+    );
+    render(
+      <SokoBotConnectCard
+        offers={[{ provider: "gmail", name: "Gmail", connected: false }]}
+        onDismiss={() => {}}
+      />,
+    );
+    screen.getByRole("button", { name: "connectButton" }).focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "connectProvider:Gmail" }),
+    );
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("connectError"),
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "connectButton",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
   });
 
   it("clears a shared bot left by an abandoned connect, so the DM connects the caller's own bot", async () => {
@@ -88,13 +133,14 @@ describe("SokoBotConnectPrompt", () => {
     try {
       render(
         <SokoBotConnectCard
-          botName="Joseph"
           offers={[{ provider: "gmail", name: "Gmail", connected: false }]}
           onDismiss={() => {}}
         />,
       );
+      screen.getByRole("button", { name: "connectButton" }).focus();
+      await userEvent.keyboard("{Enter}");
       await userEvent.click(
-        screen.getByRole("button", { name: "connectProvider:Gmail" }),
+        screen.getByRole("menuitem", { name: "connectProvider:Gmail" }),
       );
       await waitFor(() =>
         expect(assign).toHaveBeenCalledWith("https://composio.example/connect"),

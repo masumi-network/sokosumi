@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const getMine = vi.fn();
 const listRooms = vi.fn();
 const listMessages = vi.fn();
+const listRecentSokoBotMessages = vi.fn();
 const sokoBotHome = vi.fn();
 const needsYouPanel = vi.fn();
 const chatLanding = vi.fn();
@@ -19,6 +20,8 @@ const redirect = vi.fn((path: string) => {
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
 vi.mock("next-intl/server", () => ({
+  getTranslations: async (namespace: string) => (key: string) =>
+    `${namespace}.${key}`,
   // 23:30 UTC is already the next day in Zurich.
   getNow: async () => new Date("2026-11-09T23:30:00.000Z"),
   getTimeZone: async () => "Europe/Zurich",
@@ -49,6 +52,7 @@ vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     listRooms: (...args: unknown[]) => listRooms(...args),
     listMessages: (...args: unknown[]) => listMessages(...args),
+    listRecentSokoBotMessages: () => listRecentSokoBotMessages(),
   },
 }));
 vi.mock("@/lib/services/coworker.service", () => ({
@@ -109,7 +113,7 @@ vi.mock("./components/soko-bot-home", () => ({
   },
 }));
 
-import WelcomePage from "./page";
+import WelcomePage, { generateMetadata } from "./page";
 
 async function renderPage() {
   render(await WelcomePage({ searchParams: Promise.resolve({}) }));
@@ -123,12 +127,23 @@ describe("WelcomePage", () => {
         {
           id: "room-1",
           kind: "direct",
+          organizationId: null,
+          updatedAt: new Date(),
           userMembers: [{ id: "user-1" }],
           coworkerMembers: [],
           sokoBotMembers: [{ id: "bot-1" }],
         },
       ],
     });
+    listRecentSokoBotMessages.mockResolvedValue([
+      {
+        roomId: "room-1",
+        messageId: "reply-1",
+        parentMessageId: "parent-1",
+        content: "Plan my week",
+        createdAt: new Date(),
+      },
+    ]);
     listMessages.mockResolvedValue({
       messages: [
         {
@@ -201,15 +216,30 @@ describe("WelcomePage", () => {
     });
     await renderPage();
     expect(screen.getByText("bot home")).toBeTruthy();
-    expect(listRooms).toHaveBeenCalledWith("direct");
+    expect(listRooms).toHaveBeenCalledWith();
     expect(sokoBotHome).toHaveBeenCalledWith(
       expect.objectContaining({
         roomId: "room-1",
+        chats: [
+          expect.objectContaining({
+            roomId: "room-1",
+            messageId: "reply-1",
+            title: "Plan my week",
+          }),
+        ],
         summary: { awaitingInput: 2 },
         teamTasks: [expect.objectContaining({ name: "Plan my week" })],
         myDay: expect.anything(),
         needsYou: expect.anything(),
       }),
     );
+  });
+});
+
+describe("generateMetadata", () => {
+  it("names the tab Home instead of the layout's marketing line", async () => {
+    await expect(generateMetadata()).resolves.toEqual({
+      title: "App.Metadata.home",
+    });
   });
 });
