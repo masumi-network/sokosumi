@@ -20,7 +20,6 @@ import { Checklist, useElapsedSeconds } from "./checklist";
 import { LaunchStep } from "./launch-step";
 import {
   liveLine,
-  planWriting,
   researchGroups,
   slowCopy,
   stepTitle,
@@ -411,7 +410,8 @@ export function OnboardingFlow({
             topUpUrl={overview.subscribeUrl}
           />
           {step === "site" ? <ResearchChips overview={overview} /> : null}
-          {fixRefusal ? (
+          {/* Fixes are asked on Site and Brand; the refusal stays there. */}
+          {fixRefusal && (step === "site" || step === "brand") ? (
             <Refusal text={fixRefusal} topUpUrl={overview.subscribeUrl} />
           ) : null}
         </div>
@@ -462,10 +462,13 @@ export function OnboardingFlow({
             }
             onApprove={async () => {
               setOverview(await actions.approveBrandBrain());
-              // Core starts the plan when the research ends, and a no is a
-              // fix of its own: confirming starts nothing once a plan is on
-              // its way or written.
-              if (overview.strategy !== null || planWriting(overview)) {
+              // Core starts the plan when the research ends, and again once a
+              // fix that ran first lands: confirming starts nothing while Cuso
+              // writes a plan or a fix, or once a plan is written.
+              const busy =
+                overview.work?.kind === "strategy" &&
+                overview.work.status === "running";
+              if (overview.strategy !== null || busy) {
                 setViewing(null);
                 return null;
               }

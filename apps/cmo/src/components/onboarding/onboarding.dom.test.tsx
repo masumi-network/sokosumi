@@ -307,6 +307,31 @@ it("confirms the brand without asking for a second plan while one writes", async
   expect(text()).toContain("Writing your plan");
 });
 
+it("confirms the brand while a fix runs: Core starts the plan after it", async () => {
+  const fixing = asking({
+    research: research(6),
+    work: work("strategy", { change: "fix" }),
+  });
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      draft({ ...fixing, brandBrainConfirmedAt: new Date(), strategy: null }),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={fixing}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
+  expect(actions.requestStrategy).not.toHaveBeenCalled();
+});
+
 it("confirms a brand whose plan is written without re-planning it", async () => {
   const written = asking({ research: research(6), strategy });
   const actions = actionsFor({
