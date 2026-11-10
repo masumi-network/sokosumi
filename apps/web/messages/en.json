@@ -11370,6 +11370,10 @@
       "auditNotHereTitle": "This audit is not available in this workspace",
       "projectNotHereTitle": "This project is not available in this workspace",
       "notHereBody": "It may belong to another workspace. Switch workspace in the sidebar, or open the audits of this workspace.",
+      "workspaceSwitchPrompt": {
+        "title": "This audit is in another workspace",
+        "description": "\"{auditName}\" is in the <accountName>{account}</accountName> workspace. Switch workspace to open it."
+      },
       "openAllPages": "Open all pages",
       "queries": {
         "title": "Search Console queries",

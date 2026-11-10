@@ -11370,6 +11370,10 @@
       "auditNotHereTitle": "Dieses Audit ist in diesem Workspace nicht verfügbar",
       "projectNotHereTitle": "Dieses Projekt ist in diesem Workspace nicht verfügbar",
       "notHereBody": "Es gehört möglicherweise zu einem anderen Workspace. Wechsle den Workspace in der Seitenleiste oder öffne die Audits dieses Workspace.",
+      "workspaceSwitchPrompt": {
+        "title": "Dieses Audit liegt in einem anderen Arbeitsbereich",
+        "description": "„{auditName}“ liegt im Arbeitsbereich <accountName>{account}</accountName>. Wechsle den Arbeitsbereich, um es zu öffnen."
+      },
       "openAllPages": "Alle Seiten öffnen",
       "queries": {
         "title": "Search-Console-Suchanfragen",

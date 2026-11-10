@@ -58,11 +58,16 @@ export function getOrganizationSettingsPath(
   return "/organization";
 }
 
-interface SwitchOrganizationWorkspaceOptions {
+/** What the caller of a switch decides: the path redirects to skip, and the success text. */
+export interface WorkspaceSwitchChoices {
   shouldRedirectAgentJobsBasePath?: boolean;
   shouldRedirectTaskDetailPath?: boolean;
+  shouldRedirectSeoPath?: boolean;
   shouldRedirectOrganizationSettingsPath?: boolean;
   successMessage?: string;
+}
+
+interface SwitchOrganizationWorkspaceOptions extends WorkspaceSwitchChoices {
   router?: AppRouterInstance;
   pathname?: string;
   startTransition?: (callback: () => void) => void;
@@ -147,7 +152,9 @@ export async function switchOrganizationWorkspace(
     }
   }
 
-  if (options?.router && options?.pathname) {
+  // A switch prompt for an Audit link skips this: the link's Audit is in the new workspace.
+  const shouldRedirectSeoPath = options?.shouldRedirectSeoPath ?? true;
+  if (shouldRedirectSeoPath && options?.router && options?.pathname) {
     // Without this the old Audit stays in the address and the page says it is unavailable.
     const seoBasePath = getSeoBasePath(options.pathname);
     if (seoBasePath) {
@@ -209,12 +216,7 @@ export function useWorkspaceSwitcher() {
 
   const handleSelectWorkspace = (
     organizationId: string | null,
-    options?: {
-      shouldRedirectAgentJobsBasePath?: boolean;
-      shouldRedirectTaskDetailPath?: boolean;
-      shouldRedirectOrganizationSettingsPath?: boolean;
-      successMessage?: string;
-    },
+    options?: WorkspaceSwitchChoices,
   ): Promise<void> => {
     setIsActivating(true);
 

@@ -27,6 +27,7 @@ import {
   createSeoAuditScope,
   getProjectSeoWorkspace,
   getSeoAuditWorkspace,
+  getSeoAuditWorkspaceMapping,
   importProjectSeoAudit,
   importSeoAuditReport,
   listProjectSeoStatisticsProperties,
@@ -83,6 +84,20 @@ export const seoServiceNoRedirect = {
       "Failed to load SEO workspace",
     );
     return response.data;
+  },
+  /** The workspace that holds an Audit, or null when this reader cannot open the Audit in any workspace. */
+  async getAuditWorkspaceMapping(auditId: string) {
+    try {
+      const response = await executeCoreOperation(
+        createCoreGeneratedClient,
+        (client) =>
+          getSeoAuditWorkspaceMapping({ client, path: { id: auditId } }),
+        "Failed to find the workspace of the SEO audit",
+      );
+      return response.data;
+    } catch {
+      return null;
+    }
   },
   async addPage(owner: SeoOwner, body: AddProjectSeoPageRequest) {
     const response = await executeCoreOperation(

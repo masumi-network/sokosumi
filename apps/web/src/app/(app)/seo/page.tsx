@@ -8,9 +8,11 @@ import { seoService } from "@/lib/services/seo.service";
 import { SeoAuditIndex } from "./components/seo-audit-index";
 import { SeoPageError } from "./components/seo-page-error";
 import { SeoWorkspace } from "./components/seo-workspace";
+import { SeoWorkspaceSwitchDialog } from "./components/seo-workspace-switch-dialog";
 import { seoRescopedHref } from "./seo-href";
 import { seoLoadErrorStatus } from "./seo-load-error-model";
 import { readSeoPageQuery } from "./seo-query";
+import { seoAuditSwitchFor } from "./seo-workspace-switch";
 
 export const instant = false;
 export async function generateMetadata(): Promise<Metadata> {
@@ -68,11 +70,19 @@ export default async function SeoPage({
     );
   } catch (error) {
     unstable_rethrow(error);
+    const status = seoLoadErrorStatus(error);
+    const auditSwitch = await seoAuditSwitchFor(owner, status);
+    if (auditSwitch)
+      return (
+        <WorkspacePageShell title={t("title")}>
+          <SeoWorkspaceSwitchDialog {...auditSwitch} />
+        </WorkspacePageShell>
+      );
     return (
       <WorkspacePageShell title={t("title")}>
         <SeoPageError
           resetHref="/seo"
-          status={seoLoadErrorStatus(error)}
+          status={status}
           owner={owner}
           hasSelection={Boolean(query.pageId || query.scopeId)}
         />

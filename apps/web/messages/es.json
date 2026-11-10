@@ -11370,6 +11370,10 @@
       "auditNotHereTitle": "Esta auditoría no está disponible en este espacio de trabajo",
       "projectNotHereTitle": "Este proyecto no está disponible en este espacio de trabajo",
       "notHereBody": "Puede pertenecer a otro espacio de trabajo. Cambia de espacio de trabajo en la barra lateral o abre las auditorías de este espacio de trabajo.",
+      "workspaceSwitchPrompt": {
+        "title": "Esta auditoría está en otro espacio de trabajo",
+        "description": "“{auditName}” está en el espacio de trabajo <accountName>{account}</accountName>. Cambia de espacio de trabajo para abrirla."
+      },
       "openAllPages": "Abrir todas las páginas",
       "queries": {
         "title": "Consultas de Search Console",

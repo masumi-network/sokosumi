@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, renderHook, screen } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -19,6 +25,9 @@ import SeoPage from "./page";
 
 const boundary = vi.hoisted(() => ({
   getWorkspace: vi.fn(),
+  getAuditWorkspaceMapping: vi.fn(),
+  getServerSession: vi.fn(),
+  members: vi.fn(),
   listAudits: vi.fn(),
   refresh: vi.fn(),
   session: { user: { id: "owner" }, session: { activeOrganizationId: "org" } },
@@ -32,14 +41,21 @@ vi.mock("next/navigation", async (original) => ({
   useRouter: () => ({ refresh: boundary.refresh }),
 }));
 vi.mock("next-intl/server", () => ({
-  getTranslations: async () =>
-    createTranslator({ locale: "en", messages, namespace: "App.Seo" }),
+  getTranslations: async (namespace: "App.Seo" = "App.Seo") =>
+    createTranslator({ locale: "en", messages, namespace }),
 }));
 vi.mock("@/lib/services/seo.service", () => ({
   seoService: {
     getWorkspace: boundary.getWorkspace,
+    getAuditWorkspaceMapping: boundary.getAuditWorkspaceMapping,
     listAudits: boundary.listAudits,
   },
+}));
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSession: boundary.getServerSession,
+}));
+vi.mock("@/lib/services/user.service", () => ({
+  userService: { getMyMembersWithOrganizations: boundary.members },
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: boundary.session }),
@@ -47,6 +63,25 @@ vi.mock("@/lib/auth/auth.client", () => ({
 
 const clients: QueryClient[] = [];
 const CACHED_AUDIT_NAME = "Previously visible audit";
+const ACTIVE_ORGANIZATION = "org";
+const OTHER_ORGANIZATION = "other-org";
+const NOT_HERE_TITLE = "This audit is not available in this workspace";
+const SWITCH_TITLE = "This audit is in another workspace";
+function member(organizationId: string, name: string) {
+  return { organizationId, organization: { id: organizationId, name } };
+}
+function auditIn(organizationId: string | null) {
+  boundary.getAuditWorkspaceMapping.mockResolvedValue({
+    name: "Battery audit",
+    workspaceId: "workspace",
+    organizationId,
+  });
+}
+function auditMissingHere() {
+  boundary.getWorkspace.mockRejectedValue(
+    new CoreApiRequestError("SEO audit not found", { status: 404 }),
+  );
+}
 function wrap(children: ReactNode, client: QueryClient) {
   return (
     <QueryClientProvider client={client}>
@@ -86,6 +121,15 @@ beforeEach(() => {
     user: { id: "owner" },
     session: { activeOrganizationId: "org" },
   };
+  boundary.getAuditWorkspaceMapping.mockResolvedValue(null);
+  boundary.getServerSession.mockResolvedValue({
+    user: { id: "owner", name: "Owner", email: "owner@example.com" },
+    session: { activeOrganizationId: ACTIVE_ORGANIZATION },
+  });
+  boundary.members.mockResolvedValue([
+    member(ACTIVE_ORGANIZATION, "Acme"),
+    member(OTHER_ORGANIZATION, "Globex"),
+  ]);
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => Response.json(workspace())),
@@ -97,16 +141,14 @@ afterEach(() => {
 });
 
 describe("SEO load recovery", () => {
-  it("explains a wrong-Workspace 404 without discovering or switching another Workspace", async () => {
-    boundary.getWorkspace.mockRejectedValue(
-      new CoreApiRequestError("SEO audit not found", { status: 404 }),
-    );
+  it("explains a 404 when no other workspace of the reader holds the Audit", async () => {
+    auditMissingHere();
     await showPage({ auditId: SEO_TEST_AUDIT });
-    expect(
-      screen.getByRole("heading", {
-        name: "This audit is not available in this workspace",
-      }),
-    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: NOT_HERE_TITLE })).toBeVisible();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(boundary.getAuditWorkspaceMapping).toHaveBeenCalledExactlyOnceWith(
+      SEO_TEST_AUDIT,
+    );
     expect(
       screen.getByText(/It may belong to another workspace/),
     ).toBeVisible();
@@ -120,6 +162,71 @@ describe("SEO load recovery", () => {
       {},
     );
     expect(boundary.listAudits).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [OTHER_ORGANIZATION, "Globex"],
+    [null, "Personal account"],
+  ])(
+    "asks to switch when the Audit is in another workspace of the reader (%s)",
+    async (organizationId, account) => {
+      auditMissingHere();
+      auditIn(organizationId);
+      // A selected page travels with the link: the switch opens the same address.
+      await showPage({ auditId: SEO_TEST_AUDIT, pageId: SEO_TEST_PAGE });
+      const prompt = screen.getByRole("alertdialog", { name: SWITCH_TITLE });
+      expect(prompt).toHaveTextContent(
+        `"Battery audit" is in the ${account} workspace.`,
+      );
+      expect(
+        within(prompt).getByLabelText(`From Acme to ${account}`),
+      ).toBeVisible();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(boundary.listAudits).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the 404 text when the Audit is in the active workspace", async () => {
+    auditMissingHere();
+    auditIn(ACTIVE_ORGANIZATION);
+    await showPage({ auditId: SEO_TEST_AUDIT });
+    expect(screen.getByRole("heading", { name: NOT_HERE_TITLE })).toBeVisible();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("asks to switch when the reader has no seat in the active workspace", async () => {
+    // Core refuses the seat before it looks for the Audit, so 403 does not say where the Audit is.
+    auditIn(OTHER_ORGANIZATION);
+    boundary.getWorkspace.mockRejectedValue(
+      new CoreApiRequestError("Seat required", { status: 403 }),
+    );
+    await showPage({ auditId: SEO_TEST_AUDIT });
+    expect(
+      screen.getByRole("alertdialog", { name: SWITCH_TITLE }),
+    ).toBeVisible();
+  });
+
+  it("does not look in other workspaces after an upstream failure or for a Project", async () => {
+    auditIn(OTHER_ORGANIZATION);
+    boundary.getWorkspace.mockRejectedValue(
+      new CoreApiRequestError("Upstream failed", { status: 500 }),
+    );
+    await showPage({ auditId: SEO_TEST_AUDIT });
+    auditMissingHere();
+    await showPage({ projectId: SEO_TEST_AUDIT, view: "project" });
+    expect(boundary.getAuditWorkspaceMapping).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("keeps the 404 text when the reader's organizations cannot be read", async () => {
+    auditMissingHere();
+    auditIn(OTHER_ORGANIZATION);
+    boundary.members.mockRejectedValue(
+      new CoreApiRequestError("Upstream failed", { status: 500 }),
+    );
+    await showPage({ auditId: SEO_TEST_AUDIT });
+    expect(screen.getByRole("heading", { name: NOT_HERE_TITLE })).toBeVisible();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
   it.each(["pageId", "scopeId"])(
