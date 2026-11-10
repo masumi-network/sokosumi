@@ -9323,6 +9323,9 @@
         "typeAll": "All",
         "foldersLabel": "Folders",
         "foldersRoot": "All files",
+        "dataRoom": "Data room",
+        "dataRoomAccess": "Only you and the people you let in by email can open its files.",
+        "dataRoomAccessOrg": "Only whoever made it, your organization’s owners and admins, colleagues let in, and people let in by email can open its files.",
         "folderEmptyTitle": "Nothing in this folder yet",
         "detailRejected": "Removed labels",
         "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
@@ -9355,14 +9358,15 @@
         "revoke": "Stop sharing",
         "revoked": "Link turned off",
         "loadFailed": "Could not load the link",
-        "saveFailed": "Could not save the link"
+        "saveFailed": "Could not save the link",
+        "inDataRoom": "This is in a data room. Invite people to the room instead of sharing a link."
       },
       "DataRoom": {
         "makeTitle": "Make “{name}” a data room",
         "makeDescription": "Its files move to private storage, so only people you let in can open them. Links to this folder, or to anything in it, stop working.",
         "makeDescriptionOrg": "Its files move to private storage, so only people you let in can open them. In your organization, only you, the owners and admins, and colleagues you add will see the folder. Links to this folder, or to anything in it, stop working.",
         "make": "Make data room",
-        "made": "Data room on. Its files are moving to private storage.",
+        "made": "Data room on. Invite the first people.",
         "roomTitle": "Data room “{name}”",
         "insideRoom": "This folder is inside the data room “{room}”.",
         "storage": {
