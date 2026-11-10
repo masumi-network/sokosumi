@@ -18,7 +18,6 @@ import {
   getDriveDataRoomsByIdQuestions,
   getOrganizationsByIdMembers,
   patchDriveDataRoomsById,
-  patchDriveDataRoomsByIdMembersByMemberId,
   patchDriveDataRoomsByIdQuestionsByQuestionId,
   postDriveDataRooms,
   postDriveDataRoomsByIdMembers,
@@ -110,28 +109,6 @@ export async function inviteToDataRoom(input: {
       emails: input.emails,
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       folderPaths: input.folderPaths,
-    },
-    throwOnError: true,
-  });
-}
-
-export async function updateDataRoomMember(input: {
-  store: FileStore;
-  roomId: string;
-  memberId: string;
-  expiresAt?: string | null;
-  folderPaths?: string[];
-}): Promise<void> {
-  const { store, roomId, memberId, expiresAt, folderPaths } = input;
-  await patchDriveDataRoomsByIdMembersByMemberId({
-    client: getBrowserCoreClient(),
-    path: { id: roomId, memberId },
-    body: {
-      ...storeQuery(store),
-      ...(expiresAt !== undefined
-        ? { expiresAt: expiresAt ? new Date(expiresAt) : null }
-        : {}),
-      ...(folderPaths ? { folderPaths } : {}),
     },
     throwOnError: true,
   });

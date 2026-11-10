@@ -87,6 +87,17 @@ export const cmoStrategyRequestSchema = z
   .object({ note: z.string().trim().max(1_000).optional() })
   .openapi("CmoStrategyRequest");
 
+/** The Project of the Cuso a CMO route acts on. */
+export const cmoProjectParamsSchema = z.object({
+  projectId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "projectId", in: "path" },
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    }),
+});
+
 export const cmoUpdateIdParamsSchema = z.object({
   id: z.string().min(1).max(64),
 });
