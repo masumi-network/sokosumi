@@ -58,29 +58,32 @@ export function SeoBreakdown({ model }: { model: SeoWorkspaceModel }) {
         </>
       }
     >
-      <div className="grid min-w-0 gap-3 lg:grid-cols-2">
-        {countries?.rows.length ? (
-          <BreakdownTable
-            heading={t("breakdown.country")}
-            rows={countries.rows}
-            name={country}
-            truncated={countries.truncated}
-            unlisted={unlisted("country")}
-          />
-        ) : null}
-        {devices?.rows.length ? (
-          <BreakdownTable
-            heading={t("breakdown.device")}
-            rows={devices.rows}
-            name={(key) =>
-              t.has(`breakdown.devices.${key}`)
-                ? t(`breakdown.devices.${key}`)
-                : key
-            }
-            truncated={devices.truncated}
-            unlisted={unlisted("device")}
-          />
-        ) : null}
+      {/* Side by side only where each table has its 5 columns in full: the page's width says little, the section's says all. */}
+      <div className="@container min-w-0">
+        <div className="grid min-w-0 grid-cols-1 gap-3 @7xl:grid-cols-2">
+          {countries?.rows.length ? (
+            <BreakdownTable
+              heading={t("breakdown.country")}
+              rows={countries.rows}
+              name={country}
+              truncated={countries.truncated}
+              unlisted={unlisted("country")}
+            />
+          ) : null}
+          {devices?.rows.length ? (
+            <BreakdownTable
+              heading={t("breakdown.device")}
+              rows={devices.rows}
+              name={(key) =>
+                t.has(`breakdown.devices.${key}`)
+                  ? t(`breakdown.devices.${key}`)
+                  : key
+              }
+              truncated={devices.truncated}
+              unlisted={unlisted("device")}
+            />
+          ) : null}
+        </div>
       </div>
     </SeoSection>
   );
@@ -151,7 +154,8 @@ function BreakdownTable({
                 })}
               </TableCell>
               <TableCell
-                className="text-right tabular-nums"
+                // The last cell is a number here, not the row's actions: it keeps its half.
+                className="text-right tabular-nums max-sm:col-span-1!"
                 data-label={t("queries.position")}
               >
                 {format.number(row.averagePosition, {

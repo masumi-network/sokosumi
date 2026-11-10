@@ -11466,6 +11466,7 @@
           "waiting": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
           "clear": "No issues found in the last check",
           "noCheck": "No check yet. Run one to find issues.",
+          "noCheckOff": "No check yet",
           "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}",
           "clearRarelyShown": "{pages, plural, one {Your page passes the last check, but Google rarely shows it yet} other {Your pages pass the last check, but Google rarely shows them yet}}"
         },

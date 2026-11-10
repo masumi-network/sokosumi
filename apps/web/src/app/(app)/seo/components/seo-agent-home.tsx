@@ -396,7 +396,12 @@ function SeoAgentPanel({
                       : t("agent.verdict.clear")
                     : brief.lastCheck
                       ? t("actions.checksIncomplete")
-                      : t("agent.verdict.noCheck")}
+                      : t(
+                          // No call to run a check where no check can run.
+                          canRequestAnalysis
+                            ? "agent.verdict.noCheck"
+                            : "agent.verdict.noCheckOff",
+                        )}
           </p>
           {brief.lastCheck ? (
             <p className="text-muted-foreground text-sm">

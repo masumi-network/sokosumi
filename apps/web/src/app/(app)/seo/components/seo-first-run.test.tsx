@@ -478,6 +478,10 @@ describe("SEO audit first run", () => {
     expect(screen.queryByTestId("seo-setup")).toBeNull();
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
+    // The headline does not ask for a check that cannot run here.
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
+      /^No check yet$/,
+    );
   });
 
   it("offers the first check in a filtered view, which has no setup card", async () => {
@@ -486,6 +490,9 @@ describe("SEO audit first run", () => {
     network(workspace);
     renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
     expect(screen.queryByTestId("seo-setup")).toBeNull();
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
+      /^No check yet\. Run one to find issues\.$/,
+    );
     await user.click(screen.getByRole("button", { name: "Run a check" }));
     expect(await screen.findByRole("dialog")).toBeVisible();
   });

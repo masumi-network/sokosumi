@@ -11466,6 +11466,7 @@
           "waiting": "{count, plural, one {# Vorschlag zu prüfen} other {# Vorschläge zu prüfen}}",
           "clear": "Keine Probleme in der letzten Prüfung",
           "noCheck": "Noch keine Prüfung. Starte eine, um Probleme zu finden.",
+          "noCheckOff": "Noch keine Prüfung",
           "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}",
           "clearRarelyShown": "{pages, plural, one {Deine Seite besteht die letzte Prüfung, aber Google zeigt sie noch selten} other {Deine Seiten bestehen die letzte Prüfung, aber Google zeigt sie noch selten}}"
         },
