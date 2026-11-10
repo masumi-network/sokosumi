@@ -2,19 +2,9 @@
 
 import type { OAuthConsent, Scope } from "@better-auth/oauth-provider";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,25 +29,6 @@ export function OAuthAuthorizedClients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<string | null>(null);
-  const [revokeTarget, setRevokeTarget] =
-    useState<AuthorizedClientWithDetails | null>(null);
-  // The dialog opens from a row's button rather than an AlertDialogTrigger,
-  // so Radix has nothing to hand focus back to. Remember the opener's row.
-  const openerIndex = useRef(0);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  function restoreFocus(event: Event) {
-    event.preventDefault();
-    // Cancel or Escape: the opener is still there. After a revoke its row is
-    // gone, so the row that took its place (or the one above, or the empty
-    // message) gets focus.
-    const buttons =
-      contentRef.current?.querySelectorAll<HTMLElement>("[data-revoke]") ?? [];
-    const target =
-      buttons[Math.min(openerIndex.current, buttons.length - 1)] ??
-      contentRef.current?.querySelector<HTMLElement>("[data-empty]");
-    target?.focus();
-  }
 
   useEffect(() => {
     async function fetchConsents() {
@@ -112,6 +83,10 @@ export function OAuthAuthorizedClients() {
   }, [t]);
 
   async function handleRevoke(consentId: string, clientId: string) {
+    if (!confirm(t("confirmRevoke"))) {
+      return;
+    }
+
     setRevoking(clientId);
     try {
       const result = await revokeOAuthClientAccess(consentId, clientId);
@@ -121,7 +96,6 @@ export function OAuthAuthorizedClients() {
       }
 
       setConsents(consents.filter((c) => c.clientId !== clientId));
-      setRevokeTarget(null);
       toast.success(t("revokeSuccess"));
     } catch (err) {
       const errorMessage =
@@ -160,14 +134,12 @@ export function OAuthAuthorizedClients() {
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent ref={contentRef}>
+      <CardContent>
         {consents.length === 0 ? (
-          <p data-empty tabIndex={-1} className="text-muted-foreground">
-            {t("noApplications")}
-          </p>
+          <p className="text-muted-foreground">{t("noApplications")}</p>
         ) : (
           <div className="space-y-4">
-            {consents.map((consent, index) => (
+            {consents.map((consent) => (
               <div
                 key={consent.clientId}
                 className="flex items-center justify-between rounded-lg border p-4"
@@ -187,11 +159,7 @@ export function OAuthAuthorizedClients() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  data-revoke
-                  onClick={() => {
-                    openerIndex.current = index;
-                    setRevokeTarget(consent);
-                  }}
+                  onClick={() => handleRevoke(consent.id, consent.clientId)}
                   loading={revoking === consent.clientId}
                 >
                   {t("revokeAccess")}
@@ -200,44 +168,6 @@ export function OAuthAuthorizedClients() {
             ))}
           </div>
         )}
-        <AlertDialog
-          open={revokeTarget !== null}
-          onOpenChange={(open) => {
-            if (!open && revoking === null) {
-              setRevokeTarget(null);
-            }
-          }}
-        >
-          <AlertDialogContent onCloseAutoFocus={restoreFocus}>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="break-words">
-                {t("confirmRevoke", {
-                  name: revokeTarget?.clientName ?? "",
-                })}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("confirmRevokeDescription")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={revoking !== null}>
-                {t("cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                loading={revoking !== null}
-                className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (revokeTarget) {
-                    void handleRevoke(revokeTarget.id, revokeTarget.clientId);
-                  }
-                }}
-              >
-                {t("revokeAccess")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </CardContent>
     </Card>
   );

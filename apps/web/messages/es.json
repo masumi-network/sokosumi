@@ -7394,9 +7394,7 @@
         "noApplications": "No se ha autorizado ninguna aplicación.",
         "authorized": "Autorizado: {date}",
         "revokeAccess": "Revocar acceso",
-        "confirmRevoke": "¿Revocar el acceso de {name}?",
-        "confirmRevokeDescription": "Ya no podrá acceder a tu cuenta. Para volver a usarla, conéctala de nuevo e inicia sesión.",
-        "cancel": "Cancelar",
+        "confirmRevoke": "¿Seguro que quieres revocar el acceso a esta aplicación?",
         "revokeSuccess": "Acceso revocado correctamente",
         "revokeError": "No se pudo revocar el acceso",
         "fetchError": "No se pudieron cargar los clientes autorizados"

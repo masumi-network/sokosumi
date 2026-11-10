@@ -7430,9 +7430,7 @@
         "noApplications": "No applications have been authorized.",
         "authorized": "Authorized: {date}",
         "revokeAccess": "Revoke access",
-        "confirmRevoke": "Revoke access for {name}?",
-        "confirmRevokeDescription": "It can no longer reach your account. To use it again, connect it again and sign in.",
-        "cancel": "Cancel",
+        "confirmRevoke": "Are you sure you want to revoke access for this application?",
         "revokeSuccess": "Access revoked successfully",
         "revokeError": "Failed to revoke access",
         "fetchError": "Failed to fetch authorized clients"
