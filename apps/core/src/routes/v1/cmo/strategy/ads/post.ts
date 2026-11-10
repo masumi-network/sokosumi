@@ -5,16 +5,16 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   cmoAdBudgetRequestSchema,
+  cmoProjectParamsSchema,
   cmoTurnStartedSchema,
 } from "@/schemas/cmo.schema";
+import type { CusoTarget } from "@/services/cmo-cuso.service";
 import { setCmoAdBudget } from "@/services/cmo-strategy.service";
 
 import { rethrow } from "../../helpers";
 
-const route = createRoute({
-  method: "post",
-  path: "/strategy/ads",
-  operationId: "setCmoAdBudget",
+const config = {
+  method: "post" as const,
   tags: ["CMO"],
   description:
     "The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it. Zero leaves paid ads out.",
@@ -30,13 +30,42 @@ const route = createRoute({
     404: jsonErrorResponse("Cuso is not hired yet"),
     409: jsonErrorResponse("There is no strategy yet"),
   },
+};
+
+const route = createRoute({
+  ...config,
+  path: "/strategy/ads",
+  operationId: "setCmoAdBudget",
 });
+
+/** The same, for the Cuso of the Project the path names. */
+const projectRoute = createRoute({
+  ...config,
+  path: "/projects/{projectId}/strategy/ads",
+  operationId: "setCmoAdBudgetForProject",
+  request: { ...config.request, params: cmoProjectParamsSchema },
+});
+
+async function setBudget(
+  target: CusoTarget,
+  budget: { monthly: number; currency: string },
+) {
+  const started = await setCmoAdBudget({ ...target, ...budget }).catch(rethrow);
+  return cmoTurnStartedSchema.parse(started);
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    const body = c.req.valid("json");
-    const started = await setCmoAdBudget({ userId, ...body }).catch(rethrow);
-    return created(c, cmoTurnStartedSchema.parse(started));
+    return created(c, await setBudget({ userId }, c.req.valid("json")));
+  });
+
+  app.openapi(projectRoute, async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { projectId } = c.req.valid("param");
+    return created(
+      c,
+      await setBudget({ userId, projectId }, c.req.valid("json")),
+    );
   });
 }

@@ -19,6 +19,7 @@ import {
   CmoConflictError,
   CmoNotFoundError,
   type Cuso,
+  type CusoTarget,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
@@ -93,10 +94,11 @@ export function planWindow(now: Date = new Date()): {
  */
 export async function setCmoAdBudget(input: {
   userId: string;
+  projectId?: string;
   monthly: number;
   currency: string;
 }): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId: input.userId });
+  const cuso = await requireCuso(input);
   const strategy = parseMarketingPlan(
     (await newestMarketingStrategy(cuso.projectId))?.plan,
   );
@@ -106,6 +108,7 @@ export async function setCmoAdBudget(input: {
   const currency = input.currency.toUpperCase();
   const started = await requestCmoStrategy({
     userId: input.userId,
+    projectId: input.projectId,
     note:
       input.monthly > 0
         ? `My ad budget is ${currency} ${input.monthly} a month. Plan the ads around exactly that amount and say what it should bring.`
@@ -142,9 +145,10 @@ export async function setCmoAdBudget(input: {
  */
 export async function requestCmoStrategy(input: {
   userId: string;
+  projectId?: string;
   note?: string;
 }): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId: input.userId });
+  const cuso = await requireCuso(input);
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
@@ -557,15 +561,15 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
 
 /** Cuso revises the plan to fit the owner's answers. */
 export async function applyCmoPlanAnswers(
-  userId: string,
+  target: CusoTarget,
 ): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId });
+  const cuso = await requireCuso(target);
   const newest = await newestCmoStrategy(cuso);
   const note = cmoPlanAnswerNote(
     parseMarketingPlan(newest.plan)?.questions ?? [],
   );
   if (!note) throw new CmoConflictError("Your answers confirm the plan");
-  return requestCmoStrategy({ userId, note });
+  return requestCmoStrategy({ ...target, note });
 }
 
 /**
@@ -576,9 +580,10 @@ export async function applyCmoPlanAnswers(
  */
 export async function pauseCmoCalendarEntry(input: {
   userId: string;
+  projectId?: string;
   entryId: string;
 }): Promise<void> {
-  const cuso = await requireCuso({ userId: input.userId });
+  const cuso = await requireCuso(input);
   const post = UUID.test(input.entryId)
     ? await prisma.socialPost.findFirst({
         where: { id: input.entryId, projectId: cuso.projectId },
@@ -605,9 +610,10 @@ export async function pauseCmoCalendarEntry(input: {
  */
 export async function readCmoPieceText(input: {
   userId: string;
+  projectId?: string;
   entryId: string;
 }): Promise<string> {
-  const cuso = await requireCuso({ userId: input.userId });
+  const cuso = await requireCuso(input);
   const approved = await approvedMarketingStrategy(cuso.projectId);
   const text = approved
     ? await readMarketingPieceText(approved, input.entryId)

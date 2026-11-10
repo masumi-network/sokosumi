@@ -174,9 +174,10 @@ export async function reportCmoUpdate(
  */
 export async function revertCmoUpdate(input: {
   userId: string;
+  projectId?: string;
   updateId: string;
 }): Promise<void> {
-  const cuso = await requireCuso({ userId: input.userId });
+  const cuso = await requireCuso(input);
   const message = await prisma.chatRoomMessage.findFirst({
     where: { id: input.updateId, ...cmoReportMessageWhere(cuso.sokoBotId) },
     select: { id: true, createdAt: true, metadata: true },

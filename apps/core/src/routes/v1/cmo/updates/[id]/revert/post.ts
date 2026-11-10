@@ -5,16 +5,16 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   cmoOverviewSchema,
+  cmoProjectParamsSchema,
   cmoReportIdParamsSchema,
 } from "@/schemas/cmo.schema";
+import type { CusoTarget } from "@/services/cmo-cuso.service";
 import { revertCmoUpdate } from "@/services/cmo-reports.service";
 
 import { requireOverview, rethrow } from "../../../helpers";
 
-const route = createRoute({
-  method: "post",
-  path: "/updates/{id}/revert",
-  operationId: "revertCmoUpdate",
+const config = {
+  method: "post" as const,
   tags: ["CMO"],
   description:
     "Puts back the strategy a weekly review changed, from its report card: discards the version it wrote while that waits for approval, else approves the version before it again.",
@@ -26,13 +26,40 @@ const route = createRoute({
     404: jsonErrorResponse("Nothing to revert"),
     409: jsonErrorResponse("The version changed meanwhile"),
   },
+};
+
+const route = createRoute({
+  ...config,
+  path: "/updates/{id}/revert",
+  operationId: "revertCmoUpdate",
 });
+
+/** The same, for the Cuso of the Project the path names. */
+const projectRoute = createRoute({
+  ...config,
+  path: "/projects/{projectId}/updates/{id}/revert",
+  operationId: "revertCmoUpdateForProject",
+  request: {
+    ...config.request,
+    params: cmoProjectParamsSchema.extend(cmoReportIdParamsSchema.shape),
+  },
+});
+
+async function revert(target: CusoTarget, updateId: string) {
+  await revertCmoUpdate({ ...target, updateId }).catch(rethrow);
+  return requireOverview(target);
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    await revertCmoUpdate({ userId, updateId: id }).catch(rethrow);
-    return ok(c, await requireOverview(userId));
+    return ok(c, await revert({ userId }, id));
+  });
+
+  app.openapi(projectRoute, async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { projectId, id } = c.req.valid("param");
+    return ok(c, await revert({ userId, projectId }, id));
   });
 }

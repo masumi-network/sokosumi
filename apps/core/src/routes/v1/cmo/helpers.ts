@@ -11,6 +11,7 @@ import {
   CmoConflictError,
   CmoForbiddenError,
   CmoNotFoundError,
+  type CusoTarget,
 } from "@/services/cmo-cuso.service";
 import {
   type CmoOverview,
@@ -82,8 +83,9 @@ function mapOverview(overview: CmoOverview) {
   });
 }
 
-export async function requireOverview(userId: string) {
-  const overview = await getCmoOverview(userId);
+/** The overview of the Cuso a CMO call names. */
+export async function requireOverview(target: CusoTarget) {
+  const overview = await getCmoOverview(target);
   if (!overview) throw notFound("Cuso is not hired yet");
   return mapOverview(overview);
 }

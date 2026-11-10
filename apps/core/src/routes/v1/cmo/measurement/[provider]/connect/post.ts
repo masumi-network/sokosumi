@@ -3,15 +3,17 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { cmoMeasurementSchema } from "@/schemas/cmo.schema";
+import {
+  cmoMeasurementSchema,
+  cmoProjectParamsSchema,
+} from "@/schemas/cmo.schema";
+import type { CusoTarget } from "@/services/cmo-cuso.service";
 import { connectCmoMeasurement } from "@/services/cmo-measurement.service";
 
 import { rethrow } from "../../../helpers";
 
-const route = createRoute({
-  method: "post",
-  path: "/measurement/{provider}/connect",
-  operationId: "connectCmoMeasurement",
+const config = {
+  method: "post" as const,
   tags: ["CMO"],
   description:
     "Starts connecting Google Analytics, Search Console or Shopify to Cuso so he can measure the funnel; the owner comes back to returnUrl on CMO.xyz.",
@@ -36,18 +38,45 @@ const route = createRoute({
     409: jsonErrorResponse("Unknown return address"),
     503: jsonErrorResponse("Connecting this is not set up"),
   },
+};
+
+const route = createRoute({
+  ...config,
+  path: "/measurement/{provider}/connect",
+  operationId: "connectCmoMeasurement",
 });
+
+/** The same, for the Cuso of the Project the path names. */
+const projectRoute = createRoute({
+  ...config,
+  path: "/projects/{projectId}/measurement/{provider}/connect",
+  operationId: "connectCmoMeasurementForProject",
+  request: {
+    ...config.request,
+    params: cmoProjectParamsSchema.extend({
+      provider: cmoMeasurementSchema.shape.provider,
+    }),
+  },
+});
+
+function connect(target: CusoTarget, provider: string, returnUrl: string) {
+  return connectCmoMeasurement({ ...target, provider, returnUrl }).catch(
+    rethrow,
+  );
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { provider } = c.req.valid("param");
     const { returnUrl } = c.req.valid("json");
-    const started = await connectCmoMeasurement({
-      userId,
-      provider,
-      returnUrl,
-    }).catch(rethrow);
-    return ok(c, started);
+    return ok(c, await connect({ userId }, provider, returnUrl));
+  });
+
+  app.openapi(projectRoute, async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { projectId, provider } = c.req.valid("param");
+    const { returnUrl } = c.req.valid("json");
+    return ok(c, await connect({ userId, projectId }, provider, returnUrl));
   });
 }
