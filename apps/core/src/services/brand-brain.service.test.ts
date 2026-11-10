@@ -21,11 +21,74 @@ import {
   requestBrandBrainFix,
   saveBrandBrain,
   saveBrandBrainPreview,
+  saveStudioBrandCopy,
 } from "./brand-brain.service";
 
 const PROJECT_ID = "project-1";
 
 beforeEach(resetCmoServiceMocks);
+
+describe("saveStudioBrandCopy", () => {
+  const copy = {
+    summary: "A ceramics studio",
+    tone: "Warm",
+    audience: ["Home cooks"],
+    approvedLines: ["Made from reclaimed clay."],
+  };
+
+  it("edits the shared essentials while preserving offers and other voice guidance", async () => {
+    const updatedAt = new Date("2026-11-08T12:00:00.000Z");
+    brainFindUnique.mockResolvedValueOnce({
+      updatedAt,
+      body: {
+        summary: "Old description",
+        voice: {
+          tone: "Direct",
+          do: ["Use real materials"],
+          dont: ["Hype"],
+          examples: [],
+        },
+        audience: [],
+        products: ["Mugs"],
+        competitors: [],
+        channels: [],
+        offers: [{ name: "Mug", what: "Clay mug", price: "EUR 15" }],
+      },
+    });
+    const version = await saveStudioBrandCopy(
+      PROJECT_ID,
+      copy,
+      updatedAt.toISOString(),
+    );
+    expect(brainUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          updatedAt: new Date(version),
+          body: expect.objectContaining({
+            summary: copy.summary,
+            audience: copy.audience,
+            voice: {
+              tone: copy.tone,
+              do: ["Use real materials"],
+              dont: ["Hype"],
+              examples: copy.approvedLines,
+            },
+            offers: [{ name: "Mug", what: "Clay mug", price: "EUR 15" }],
+            products: ["Mugs"],
+          }),
+        },
+      }),
+    );
+  });
+
+  it("rejects a stale version before writing", async () => {
+    brainFindUnique.mockResolvedValueOnce({ updatedAt: new Date(), body: {} });
+    await expect(
+      saveStudioBrandCopy(PROJECT_ID, copy, null),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(brainUpsert).not.toHaveBeenCalled();
+  });
+});
 
 describe("saveBrandBrain", () => {
   const essentials = {

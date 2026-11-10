@@ -1,6 +1,7 @@
 "use client";
 
-import { X } from "lucide-react";
+import type { StudioLogoPosition } from "@sokosumi/core-client";
+import { Download, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -17,7 +18,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import { resolveModel, supportsVariation } from "./catalog";
+import { StudioAdPreview } from "./studio-ad-preview";
+import type { StudioBatchDownloadReview } from "./studio-batch";
+import { StudioBatchHeadlines } from "./studio-batch-headlines";
 import { StudioImage } from "./studio-image";
+import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import {
   assetContentUrl,
   assetFileExtension,
@@ -44,8 +49,17 @@ export function StudioLightbox({
   creditsByAssetId,
   elapsedByAssetId,
   labels,
+  projectLogo,
+  defaultLogoPosition,
   onAnimate,
   onClose,
+  onDownloadBatch,
+  downloadingBatch,
+  headlineForAsset,
+  savingHeadline,
+  onHeadlineChange,
+  onEditWithAssistant,
+  editWithAssistantLabel,
   onRegenerate,
   onSchedule,
   onSelect,
@@ -65,9 +79,22 @@ export function StudioLightbox({
   /** How long the provider took per version, in milliseconds. */
   elapsedByAssetId: Record<string, number>;
   labels: StudioLabels;
+  projectLogo?: string | null;
+  defaultLogoPosition?: StudioLogoPosition | null;
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
+  onDownloadBatch?: (
+    asset: StudioAsset,
+    logo?: StudioLogoPosition,
+    review?: StudioBatchDownloadReview,
+  ) => void;
+  downloadingBatch?: boolean;
+  headlineForAsset?: (asset: StudioAsset) => string;
+  savingHeadline?: boolean;
+  onHeadlineChange?: (asset: StudioAsset, headline: string) => void;
+  onEditWithAssistant?: (asset: StudioAsset) => void;
+  editWithAssistantLabel?: string;
   onRegenerate: (asset: StudioAsset) => void;
   /** Opens Social with this image attached. Absent when Social is not available. */
   onSchedule?: (asset: StudioAsset) => Promise<void>;
@@ -90,16 +117,31 @@ export function StudioLightbox({
   // server render to format them in, and a raw ISO string is not a date
   // anybody reads.
   const format = useFormatter();
+  const t = useTranslations("App.Studio");
   const formatDate = (value: string) =>
     format.dateTime(new Date(value), "dateTime");
   const single = assets.length === 1 ? assets[0] : null;
   const [scheduling, setScheduling] = useState(false);
   const [writingCaption, setWritingCaption] = useState(false);
+  const [logoChoice, setLogoChoice] = useState<{
+    scope: string;
+    position: StudioLogoPosition | undefined;
+  }>();
 
   if (assets.length === 0) return null;
 
   if (single) {
     const url = assetContentUrl(single);
+    const logoScope = single.batchId
+      ? `${single.projectId}/batch/${single.batchId}`
+      : `${single.projectId}/asset/${single.id}`;
+    const logoPosition = projectLogo
+      ? logoChoice?.scope === logoScope
+        ? logoChoice.position
+        : (defaultLogoPosition ?? undefined)
+      : undefined;
+    const changeLogoPosition = (position: StudioLogoPosition | undefined) =>
+      setLogoChoice({ scope: logoScope, position });
     return (
       <ImageViewer
         activeSrc={url}
@@ -184,6 +226,34 @@ export function StudioLightbox({
               {writingCaption ? labels.writingCaption : null}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {isVideoAsset(single) ? null : (
+                <StudioAdPreview
+                  asset={single}
+                  caption={caption}
+                  headline={headlineForAsset?.(single)}
+                  savingHeadline={savingHeadline}
+                  onHeadlineChange={
+                    onHeadlineChange
+                      ? (headline) => onHeadlineChange(single, headline)
+                      : undefined
+                  }
+                  key={single.id}
+                  labels={labels}
+                  logoPosition={logoPosition}
+                  onLogoPositionChange={changeLogoPosition}
+                  projectLogo={projectLogo}
+                />
+              )}
+              {onEditWithAssistant && !isVideoAsset(single) ? (
+                <Button
+                  onClick={() => onEditWithAssistant(single)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {editWithAssistantLabel}
+                </Button>
+              ) : null}
               {onSchedule ? (
                 <Button
                   loading={scheduling}
@@ -238,6 +308,52 @@ export function StudioLightbox({
                 </Button>
               ) : null}
             </div>
+            {single.batchId && onDownloadBatch ? (
+              <div className="border-border mt-4 space-y-2 border-t pt-4">
+                {projectLogo ? (
+                  <StudioLogoPositionSelect
+                    label={t("logoOnBatch")}
+                    onChange={changeLogoPosition}
+                    value={logoPosition}
+                  />
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    aria-describedby="studio-batch-download-note"
+                    loading={downloadingBatch}
+                    disabled={savingHeadline}
+                    onClick={() => onDownloadBatch(single, logoPosition)}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    <Download aria-hidden />
+                    {t("downloadBatchZip")}
+                  </Button>
+                  {headlineForAsset && onHeadlineChange ? (
+                    <StudioBatchHeadlines
+                      batchId={single.batchId}
+                      downloading={downloadingBatch}
+                      headlineForAsset={headlineForAsset}
+                      savingHeadline={savingHeadline}
+                      key={logoScope}
+                      labels={labels}
+                      onDownload={(review) =>
+                        onDownloadBatch(single, logoPosition, review)
+                      }
+                      onHeadlineChange={onHeadlineChange}
+                      projectId={single.projectId}
+                    />
+                  ) : null}
+                </div>
+                <p
+                  className="text-muted-foreground text-xs"
+                  id="studio-batch-download-note"
+                >
+                  {t("downloadBatchZipHint")}
+                </p>
+              </div>
+            ) : null}
           </>
         }
         images={siblings.map((asset) => ({

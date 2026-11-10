@@ -81,6 +81,7 @@
     "happy-dom": "21.0.4",
     "humanize-duration": "3.35.1",
     "input-otp": "1.5.0",
+    "jszip": "3.10.2",
     "lucide-react": "1.70.0",
     "marked": "18.2.0",
     "mdast2docx": "1.7.2",
