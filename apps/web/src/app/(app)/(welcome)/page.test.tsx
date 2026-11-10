@@ -11,11 +11,25 @@ const getWorkspaceAccess = vi.fn();
 const listCoworkers = vi.fn(async () => []);
 const getActivitySummary = vi.fn(async () => ({ awaitingInput: 2 }));
 const listNeedsYou = vi.fn(async () => []);
+const loadMyDay = vi.fn(async (_today: string) => null);
+const myDay = vi.fn();
 const redirect = vi.fn((path: string) => {
   throw new Error(`NEXT_REDIRECT ${path}`);
 });
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
+vi.mock("next-intl/server", () => ({
+  // 23:30 UTC is already the next day in Zurich.
+  getNow: async () => new Date("2026-11-09T23:30:00.000Z"),
+  getTimeZone: async () => "Europe/Zurich",
+}));
+vi.mock("./components/my-day", () => ({
+  loadMyDay: (today: string) => loadMyDay(today),
+  MyDay: (props: unknown) => {
+    myDay(props);
+    return <div>my day</div>;
+  },
+}));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => redirect(path),
 }));
@@ -61,11 +75,15 @@ vi.mock("@/app/chat/components/chat-landing-notice", () => ({
   ChatLandingNotice: () => null,
 }));
 vi.mock("@/app/chat/components/landing/chat-landing", () => ({
-  ChatLanding: (props: { needsYou?: React.ReactNode }) => {
+  ChatLanding: (props: {
+    myDay?: React.ReactNode;
+    needsYou?: React.ReactNode;
+  }) => {
     chatLanding(props);
     return (
       <div>
         coworker welcome
+        {props.myDay}
         {props.needsYou}
       </div>
     );
@@ -138,7 +156,16 @@ describe("WelcomePage", () => {
     expect(listCoworkers).not.toHaveBeenCalled();
     expect(getActivitySummary).not.toHaveBeenCalled();
     expect(listNeedsYou).not.toHaveBeenCalled();
+    expect(loadMyDay).not.toHaveBeenCalled();
     expect(chatLanding).not.toHaveBeenCalled();
+  });
+
+  it("puts My day, due by the reader's own day, on the coworker welcome", async () => {
+    getMine.mockResolvedValue(null);
+    await renderPage();
+
+    expect(screen.getByText("my day")).toBeTruthy();
+    expect(loadMyDay).toHaveBeenCalledWith("2026-11-10");
   });
 
   it("keeps the coworker welcome without a Soko Bot", async () => {
@@ -180,6 +207,7 @@ describe("WelcomePage", () => {
         roomId: "room-1",
         summary: { awaitingInput: 2 },
         teamTasks: [expect.objectContaining({ name: "Plan my week" })],
+        myDay: expect.anything(),
         needsYou: expect.anything(),
       }),
     );
