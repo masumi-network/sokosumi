@@ -67,6 +67,7 @@ vi.mock("next/headers", () => ({
     get: (name: string) =>
       cookieJar.has(name) ? { name, value: cookieJar.get(name) } : undefined,
     set: setCookie,
+    delete: (name: string) => cookieJar.delete(name),
   }),
 }));
 
@@ -158,6 +159,25 @@ describe("onboard", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 
+  it("forgets the website kept through sign in once reading starts", async () => {
+    cookieJar.set("cmo-website", "https://acme.io/");
+
+    await onboard(EMPTY, form("acme.io"));
+
+    expect(cookieJar.has("cmo-website")).toBe(false);
+  });
+
+  it("forgets the kept website even when Core refuses, so a reload cannot hire twice", async () => {
+    cookieJar.set("cmo-website", "https://acme.io/");
+    startCmoOnboarding.mockResolvedValue({ error: { message: "nope" } });
+
+    const state = await onboard(EMPTY, form("acme.io"));
+
+    expect(cookieJar.has("cmo-website")).toBe(false);
+    // The form keeps what was typed, so Start again is one press.
+    expect(state.websiteUrl).toBe("acme.io");
+  });
+
   it("keeps what was typed and names the website when it is not one", async () => {
     const state = await onboard(EMPTY, form("not a site"));
 
@@ -236,6 +256,22 @@ describe("social accounts", () => {
         body: expect.objectContaining({
           callbackUrl:
             "https://app.cmo.xyz/connect/callback?from=onboarding&project=project-1",
+        }),
+      }),
+    );
+  });
+
+  it("ends a connect in a popup on the page that tells the opener", async () => {
+    postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+      data: { data: { redirectUrl: "https://connect.example/x" } },
+    });
+
+    await connectSetupChannel("project-1", "x", "popup");
+    expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          callbackUrl:
+            "https://app.cmo.xyz/connect/callback?from=popup&project=project-1",
         }),
       }),
     );
@@ -398,6 +434,17 @@ describe("start over", () => {
     });
     await expect(startOver("project-2")).rejects.toThrow("redirect /");
     expect(redirect).toHaveBeenCalledWith("/");
+  });
+
+  it("forgets a kept website, so the hiring form does not start on its own", async () => {
+    cookieJar.set("cmo-website", "https://acme.io/");
+    startCmoOverForProject.mockResolvedValue({
+      data: { data: { startedOver: true, projectId: null } },
+    });
+
+    await expect(startOver("project-2")).rejects.toThrow("redirect /");
+
+    expect(cookieJar.has("cmo-website")).toBe(false);
   });
 
   it("says why when Core refuses", async () => {
