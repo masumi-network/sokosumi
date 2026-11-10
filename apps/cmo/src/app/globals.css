@@ -270,7 +270,8 @@ button[aria-busy="true"] {
   font-weight: 600;
 }
 
-.field input {
+.field input,
+.field select {
   min-height: 44px;
   padding: 0 16px;
   /* The ink line keeps a control's edge above 3:1 (WCAG 1.4.11). */
@@ -282,7 +283,8 @@ button[aria-busy="true"] {
   font-size: 1rem;
 }
 
-.field input:focus-visible {
+.field input:focus-visible,
+.field select:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
 }
@@ -3188,4 +3190,11 @@ button.cuso-status {
 
 .sheet-steps .note {
   white-space: nowrap;
+}
+
+.newsletter-preview {
+  width: 100%;
+  min-height: 480px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
 }

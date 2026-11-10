@@ -72,6 +72,10 @@ model MarketingStrategyFile {
   adAccountId  String? @db.Uuid
   adCampaignId String?
 
+  /// The newsletter issue prepared from this calendar piece, when one exists.
+  newsletterIssueId String?          @unique @db.Uuid
+  newsletterIssue   NewsletterIssue? @relation(fields: [newsletterIssueId], references: [id], onDelete: SetNull)
+
   @@unique([marketingStrategyId, entryId])
   @@index([fileResourceId])
   @@map("marketing_strategy_file")
