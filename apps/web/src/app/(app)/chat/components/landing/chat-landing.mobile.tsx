@@ -16,6 +16,8 @@ interface ChatLandingMobileProps {
   summary: TaskActivitySummary | null;
   /** Given name already resolved, or null for the nameless greeting. */
   userName: null | string;
+  /** Home's My day list, above Needs you; nothing when no Task is due. */
+  myDay?: ReactNode;
   /** Home's quiet Needs you list, below the coworkers; nothing when empty. */
   needsYou?: ReactNode;
 }
@@ -39,6 +41,7 @@ export async function ChatLandingMobile({
   isOrganizationWorkspace,
   summary,
   userName,
+  myDay,
   needsYou,
 }: ChatLandingMobileProps) {
   const t = await getTranslations("App.Chat.Landing");
@@ -72,7 +75,8 @@ export async function ChatLandingMobile({
           ) : null}
 
           {/* Below the coworkers; the wrapper collapses while the list loads. */}
-          <div className="mt-8 w-full px-1 text-left empty:hidden">
+          <div className="mt-8 flex w-full flex-col gap-8 px-1 text-left empty:hidden">
+            {myDay}
             {needsYou}
           </div>
         </div>

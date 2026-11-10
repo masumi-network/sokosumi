@@ -1619,6 +1619,11 @@
           "label": "Suchen",
           "subtitle": "Spezialisierte Agenten"
         },
+        "MyDay": {
+          "title": "Mein Tag",
+          "more": "{count, plural, one {# weitere anzeigen} other {# weitere anzeigen}}",
+          "error": "Konnte nicht mehr laden. Versuche es erneut."
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "Was steht als Nächstes an?",
