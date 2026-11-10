@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import audits from "@/routes/v1/seo/audits";
 import {
   requestSeoAnalysisSchema,
@@ -49,17 +50,19 @@ function auditActor(id: string): SeoActor {
   return { ...actor, owner: { kind: "audit", id } };
 }
 
-function routeApp() {
+function routeApp(
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId,
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "native-seo-audit-test");
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId,
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     c.set("workspaceContext", { userId, workspaceId, organizationId: null });
     await next();
   });
@@ -133,6 +136,34 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     );
     expect(detail.status).toBe(200);
     expect((await detail.json()).data.auditId).toBe(id);
+  });
+
+  it("maps an Audit to its workspace over HTTP for its owner only, never for a Coworker", async () => {
+    const own = await createSeoAudit(actor, { name: "Mapped", firstPage });
+    const foreign = await createSeoAudit(foreignActor, {
+      name: "Foreign mapped",
+      firstPage,
+    });
+    const url = (id: string | null) =>
+      `http://localhost/seo/audits/${id}/workspace`;
+    const mapped = await routeApp().request(url(own.auditId));
+    expect(mapped.status).toBe(200);
+    expect((await mapped.json()).data).toEqual({
+      name: "Mapped",
+      workspaceId,
+      organizationId: null,
+    });
+    // Another user's personal Audit is the 404 of an unknown id.
+    expect((await routeApp().request(url(foreign.auditId))).status).toBe(404);
+    expect((await routeApp().request(url(randomUUID()))).status).toBe(404);
+    // A Coworker acting for the owner gets no mapping, even for the owner's Audit.
+    const coworker = await routeApp({
+      actor: "coworker",
+      coworkerId: randomUUID(),
+      vendorId: randomUUID(),
+      context: { userId, organizationId: null },
+    }).request(url(own.auditId));
+    expect(coworker.status).toBe(403);
   });
 
   it("isolates the same URL, keyword and competitor across Audits and rejects foreign page membership", async () => {

@@ -10805,6 +10805,15 @@ export type CreateSeoAuditRequest = {
     projectId?: string;
 };
 
+export type SeoAuditWorkspaceMapping = {
+    name: string;
+    workspaceId: string;
+    /**
+     * Organization id for the workspace, or null for a personal workspace
+     */
+    organizationId: string | null;
+};
+
 export type SeoAuditChatHistory = {
     sharing?: 'organization' | 'personal';
     turns: Array<SeoAuditChatTurn>;
@@ -70572,6 +70581,117 @@ export type CreateSeoAuditResponses = {
 };
 
 export type CreateSeoAuditResponse = CreateSeoAuditResponses[keyof CreateSeoAuditResponses];
+
+export type GetSeoAuditWorkspaceMappingData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/workspace';
+};
+
+export type GetSeoAuditWorkspaceMappingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid SEO audit request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSeoAuditWorkspaceMappingError = GetSeoAuditWorkspaceMappingErrors[keyof GetSeoAuditWorkspaceMappingErrors];
+
+export type GetSeoAuditWorkspaceMappingResponses = {
+    /**
+     * SEO audit workspace mapping
+     */
+    200: {
+        data: SeoAuditWorkspaceMapping;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSeoAuditWorkspaceMappingResponse = GetSeoAuditWorkspaceMappingResponses[keyof GetSeoAuditWorkspaceMappingResponses];
 
 export type ListSeoAuditChatData = {
     body?: never;

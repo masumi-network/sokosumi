@@ -1,4 +1,5 @@
 import type { z } from "@hono/zod-openapi";
+import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
 
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { notFound } from "@/helpers/error";
@@ -11,6 +12,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import {
   createSeoAuditSchema,
   seoAuditSummarySchema,
+  seoAuditWorkspaceMappingSchema,
 } from "@/schemas/seo-audit.schema";
 import { getProjectSeoWorkspace } from "./project-seo.service";
 import {
@@ -74,6 +76,47 @@ export async function listSeoAudits(
       cursor,
     ),
   };
+}
+
+/**
+ * Maps an Audit id to its workspace, for a link opened in another workspace.
+ *
+ * Answers only for a reader who can open the Audit after a switch: the owner
+ * of its personal workspace, or a member of its organization with a seat.
+ * Every other case is the 404 of an id that does not exist, so the answer
+ * does not tell a stranger that an Audit is there.
+ */
+export async function getSeoAuditWorkspaceMapping(
+  userId: string,
+  auditId: string,
+) {
+  const audit = await prisma.seoAudit.findFirst({
+    where: {
+      id: auditId,
+      workspace: {
+        OR: [{ userId }, { organization: { members: { some: { userId } } } }],
+      },
+    },
+    select: {
+      name: true,
+      workspaceId: true,
+      workspace: { select: { organizationId: true } },
+    },
+  });
+  if (
+    !audit ||
+    !(await hasAssignedOrganizationSeat(
+      userId,
+      audit.workspace.organizationId,
+      prisma,
+    ))
+  )
+    throw notFound("SEO audit not found");
+  return seoAuditWorkspaceMappingSchema.parse({
+    name: audit.name,
+    workspaceId: audit.workspaceId,
+    organizationId: audit.workspace.organizationId,
+  });
 }
 
 /** An Audit and its first page either both exist, or neither is retained. */

@@ -11,13 +11,22 @@ import {
   OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { projectSeoWorkspaceSchema } from "@/schemas/project-seo.schema";
+import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  projectSeoWorkspaceSchema,
+  seoProjectParamsSchema,
+} from "@/schemas/project-seo.schema";
 import {
   createSeoAuditSchema,
   seoAuditListQuerySchema,
   seoAuditSummarySchema,
+  seoAuditWorkspaceMappingSchema,
 } from "@/schemas/seo-audit.schema";
-import { createSeoAudit, listSeoAudits } from "@/services/seo-audit.service";
+import {
+  createSeoAudit,
+  getSeoAuditWorkspaceMapping,
+  listSeoAudits,
+} from "@/services/seo-audit.service";
 import { createSeoWorkspaceRouter } from "../../projects/[id]/seo";
 import chat from "./chat";
 
@@ -82,6 +91,35 @@ app.openapi(
       await createSeoAudit(
         requireSeoWorkspaceRouteActor(c.var),
         c.req.valid("json"),
+      ),
+    ),
+);
+app.openapi(
+  withOrganizationSlugHeaderParameter(
+    createRoute({
+      method: "get",
+      path: "/{id}/workspace",
+      operationId: "getSeoAuditWorkspaceMapping",
+      description:
+        "Resolve an SEO audit id to its workspace across the workspaces the user can use. For the web switch-workspace prompt. Coworkers and Soko Bots get 403. An audit the user cannot open after a switch is 404.",
+      tags: ["SEO"],
+      request: { params: seoProjectParamsSchema },
+      responses: {
+        200: jsonSuccessResponse(
+          seoAuditWorkspaceMappingSchema,
+          "SEO audit workspace mapping",
+        ),
+        ...errors,
+      },
+    }),
+  ),
+  // Not the active workspace's actor: the Audit is in another workspace of this user.
+  async (c) =>
+    ok(
+      c,
+      await getSeoAuditWorkspaceMapping(
+        requireUserAuthContext(c.var.authContext).userId,
+        c.req.valid("param").id,
       ),
     ),
 );

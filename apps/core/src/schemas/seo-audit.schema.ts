@@ -15,6 +15,18 @@ export const seoAuditSummarySchema = z
   })
   .openapi("SeoAuditSummary");
 
+/** Where an Audit lives, for a link opened in another workspace of the same reader. */
+export const seoAuditWorkspaceMappingSchema = z
+  .object({
+    name: z.string(),
+    workspaceId: seoIdSchema,
+    organizationId: z.string().nullable().openapi({
+      description:
+        "Organization id for the workspace, or null for a personal workspace",
+    }),
+  })
+  .openapi("SeoAuditWorkspaceMapping");
+
 export const createSeoAuditSchema = z
   .object({
     name: z.string().trim().min(1).max(100),

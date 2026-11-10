@@ -41201,6 +41201,31 @@ export const CreateSeoAuditRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SeoAuditWorkspaceMappingSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization id for the workspace, or null for a personal workspace'
+        }
+    },
+    required: [
+        'name',
+        'workspaceId',
+        'organizationId'
+    ]
+} as const;
+
 export const SeoAuditChatHistorySchema = {
     type: 'object',
     properties: {

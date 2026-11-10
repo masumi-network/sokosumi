@@ -19,7 +19,10 @@ import {
 } from "./project-seo.service";
 import { listProjectSeoStatisticsProperties } from "./project-seo-statistics.service";
 import { sha256 } from "./project-seo-store";
-import { createSeoAudit } from "./seo-audit.service";
+import {
+  createSeoAudit,
+  getSeoAuditWorkspaceMapping,
+} from "./seo-audit.service";
 import { listSeoChat, sendSeoChat } from "./seo-chat.service";
 import { disconnectSeoConnection } from "./seo-connection-oauth.service";
 import {
@@ -394,6 +397,76 @@ describe.skipIf(!enabled)(
         ).rejects.toMatchObject({ status: 404 });
         expect(deniedGenerate).not.toHaveBeenCalled();
       } finally {
+        await prisma.member.create({
+          data: {
+            organizationId,
+            userId: secondUserId,
+            role: "member",
+            seatAssignedAt: new Date(),
+          },
+        });
+      }
+    });
+
+    it("maps an Audit to its workspace only for a reader who can open it after a switch", async () => {
+      const { actor } = await audit("Workspace mapping");
+      const id = actor.owner.id;
+      const mapping = { workspaceId, organizationId };
+      await expect(
+        getSeoAuditWorkspaceMapping(firstUserId, id),
+      ).resolves.toMatchObject(mapping);
+      await expect(
+        getSeoAuditWorkspaceMapping(secondUserId, id),
+      ).resolves.toMatchObject(mapping);
+      // A stranger gets the answer of an id that does not exist.
+      const missing = await getSeoAuditWorkspaceMapping(
+        foreignUserId,
+        randomUUID(),
+      ).catch((error: unknown) => error);
+      const foreign = await getSeoAuditWorkspaceMapping(
+        foreignUserId,
+        id,
+      ).catch((error: unknown) => error);
+      expect(missing).toMatchObject({ status: 404 });
+      expect(foreign).toMatchObject({
+        status: 404,
+        message: (missing as Error).message,
+      });
+      // On a plan with seats, a member without one cannot open the Audit
+      // after a switch.
+      const contract = await prisma.enterpriseContract.create({
+        data: {
+          organizationId,
+          status: "active",
+          activatedAt: new Date(),
+          periodCount: 1,
+          seats: 2,
+          centsPerMonth: 0n,
+        },
+      });
+      await prisma.member.updateMany({
+        where: { organizationId, userId: secondUserId },
+        data: { seatAssignedAt: null },
+      });
+      try {
+        // The seated member still gets the mapping on that plan.
+        await expect(
+          getSeoAuditWorkspaceMapping(firstUserId, id),
+        ).resolves.toMatchObject(mapping);
+        await expect(
+          getSeoAuditWorkspaceMapping(secondUserId, id),
+        ).rejects.toMatchObject({ status: 404 });
+        await prisma.member.deleteMany({
+          where: { organizationId, userId: secondUserId },
+        });
+        await expect(
+          getSeoAuditWorkspaceMapping(secondUserId, id),
+        ).rejects.toMatchObject({ status: 404 });
+      } finally {
+        await prisma.enterpriseContract.delete({ where: { id: contract.id } });
+        await prisma.member.deleteMany({
+          where: { organizationId, userId: secondUserId },
+        });
         await prisma.member.create({
           data: {
             organizationId,
