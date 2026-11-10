@@ -75,7 +75,6 @@ const PROPER_WORDS = new Set([
   "LinkedIn",
   "Claude",
   "Eve",
-  "Jev",
   "YouTube",
   "Slack",
   "Notion",

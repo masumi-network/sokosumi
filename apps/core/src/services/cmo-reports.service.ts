@@ -24,6 +24,7 @@ import {
 } from "@/schemas/chat-result-preview.schema";
 import {
   CmoNotFoundError,
+  type CusoTarget,
   requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
@@ -172,11 +173,12 @@ export async function reportCmoUpdate(
  * an approved one gives way to the version that ran before it. The card is
  * marked reverted only when one of the two happened.
  */
-export async function revertCmoUpdate(input: {
-  userId: string;
-  updateId: string;
-}): Promise<void> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function revertCmoUpdate(
+  input: CusoTarget & {
+    updateId: string;
+  },
+): Promise<string> {
+  const cuso = await requireCuso(input);
   const message = await prisma.chatRoomMessage.findFirst({
     where: { id: input.updateId, ...cmoReportMessageWhere(cuso.sokoBotId) },
     select: { id: true, createdAt: true, metadata: true },
@@ -185,7 +187,7 @@ export async function revertCmoUpdate(input: {
   if (!message || !target?.previousVersionId || !target.versionId) {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
-  if (target.revertedAt) return;
+  if (target.revertedAt) return cuso.projectId;
   const written = await prisma.marketingStrategy.findFirst({
     where: { id: target.versionId, projectId: cuso.projectId },
     select: { approvedAt: true },
@@ -219,4 +221,5 @@ export async function revertCmoUpdate(input: {
       }),
     },
   });
+  return cuso.projectId;
 }
