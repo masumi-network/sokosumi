@@ -1,6 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import mountGetCmoOverview from "./get.js";
+import mountListCmoCusos from "./cusos/get.js";
 import mountStartCmoOnboarding from "./onboarding/post.js";
 import mountConnectCmoAdsForProject from "./projects/[projectId]/ads/[provider]/connect/post.js";
 import mountChooseCmoAdAccountForProject from "./projects/[projectId]/ads/accounts/post.js";
@@ -24,12 +24,12 @@ import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/
 /**
  * CMO.xyz's API. The CMO app calls it server side with the person's Sign in
  * with Sokosumi token. Every Cuso action names him by his Project
- * (`/projects/{projectId}/…`); only hiring and the default overview go by
- * the caller alone. No organization header is needed.
+ * (`/projects/{projectId}/…`); only hiring and the list of the caller's
+ * Cusos go by the caller alone. No organization header is needed.
  */
 const app = new OpenAPIHonoWithAuth();
 
-mountGetCmoOverview(app);
+mountListCmoCusos(app);
 mountStartCmoOnboarding(app);
 
 mountConnectCmoAdsForProject(app);

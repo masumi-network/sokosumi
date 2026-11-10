@@ -17,11 +17,32 @@ export const cmoOnboardingRequestSchema = z
       .trim()
       .url()
       .max(500)
+      .describe("The business's website, which names the new Project."),
+    organizationId: z
+      .string()
+      .min(1)
+      .optional()
       .describe(
-        "The business's website. Cuso is hired into a new organization named after it.",
+        "An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.",
       ),
   })
   .openapi("CmoOnboardingRequest");
+
+/** One Cuso of the caller's, as CMO's Cuso picker lists him. */
+export const cmoCusoSchema = z
+  .object({
+    projectId: z.string(),
+    businessName: z.string(),
+    websiteUrl: z.string(),
+    projectLogo: z.union([z.string(), z.null()]),
+    organizationId: z.string(),
+    organizationName: z.string(),
+    hiring: z
+      .boolean()
+      .describe("No plan of his is approved yet: he is still being hired."),
+    createdAt: dateTimeSchema,
+  })
+  .openapi("CmoCuso");
 
 export const cmoMeasurementSchema = z
   .object({

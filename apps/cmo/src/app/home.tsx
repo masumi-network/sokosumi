@@ -1,17 +1,25 @@
-import { getUsersById, getUsersByIdSignUp } from "@sokosumi/core-client";
-import { headers } from "next/headers";
+import {
+  type CmoCuso,
+  type CmoOverview,
+  getUsersById,
+  getUsersByIdOrganizations,
+  getUsersByIdSignUp,
+} from "@sokosumi/core-client";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { CmoApp } from "../components/app/cmo-app";
+import { CusoPicker } from "../components/cuso-picker";
 import { NameSetup } from "../components/name-setup";
 import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
 import { asSignedInPersonInPage } from "../lib/core";
+import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
-import type { View } from "../lib/views";
+import { VIEW_PATHS, type View } from "../lib/views";
 import { signOut } from "./actions";
 import {
   addMailingList,
@@ -27,6 +35,7 @@ import {
   finishAccounts,
   launchAd,
   loadAdCampaigns,
+  loadCusos,
   loadMessages,
   loadOverview,
   loadPieceText,
@@ -83,10 +92,66 @@ async function signUpWebsite(
     : undefined;
 }
 
+/** The organizations the person belongs to, for the hire form's "Where". */
+async function organizationsOf(
+  asPerson: Awaited<ReturnType<typeof asSignedInPersonInPage>>,
+): Promise<{ id: string; name: string }[]> {
+  const { data, response } = await getUsersByIdOrganizations({
+    ...asPerson,
+    path: { id: "me" },
+  });
+  if (!data) {
+    // Without them the form still hires into a new organization.
+    console.error(`Core did not list the organizations (${response?.status})`);
+    return [];
+  }
+  return data.data.map(({ id, name }) => ({ id, name }));
+}
+
+type OpenedScreen =
+  | { kind: "cuso"; overview: CmoOverview }
+  /** The only Cuso, opened by an address naming him, which the proxy remembers. */
+  | { kind: "only"; projectId: string }
+  | { kind: "picker"; cusos: CmoCuso[] }
+  | { kind: "hire" };
+
+/**
+ * Which screen opens (ADR 0065): the hire form or the picker when the
+ * address asks for it; else the Cuso the address names, else the one last
+ * opened on this device, else the only one, else the Cuso picker, else the
+ * hire form. A Project the person can't use falls through.
+ */
+async function openedScreen(input: {
+  hire: boolean;
+  pick: boolean;
+  named: string | undefined;
+  remembered: string | undefined;
+}): Promise<OpenedScreen> {
+  if (input.hire) return { kind: "hire" };
+  if (!input.pick) {
+    const projectId = input.named ?? input.remembered;
+    if (projectId) {
+      const overview = await loadOverview(projectId);
+      if (overview) return { kind: "cuso", overview };
+    }
+  }
+  const cusos = await loadCusos();
+  const [newest] = cusos;
+  if (!newest) return { kind: "hire" };
+  if (input.pick || input.named || cusos.length > 1) {
+    return { kind: "picker", cusos };
+  }
+  return { kind: "only", projectId: newest.projectId };
+}
+
 export interface HomeSearchParams {
   error?: string | string[];
   step?: string | string[];
   project?: string | string[];
+  /** The account menu's "Your Cusos": the Cuso picker. */
+  cusos?: string | string[];
+  /** "Hire a new Cuso" and Start over: the hire form. */
+  hire?: string | string[];
   connect?: string | string[];
   from?: string | string[];
 }
@@ -129,10 +194,16 @@ export async function Home({ searchParams, view }: HomeProps) {
   }
 
   const project = first(params.project) || undefined;
-  const overview = await loadOverview(project).catch(() => undefined);
+  const opened = await openedScreen({
+    hire: first(params.hire) !== undefined,
+    pick: first(params.cusos) !== undefined,
+    named: project,
+    remembered: (await cookies()).get(LAST_CUSO_COOKIE)?.value || undefined,
+  }).catch(() => undefined);
   // Core unreachable: keep the signed-in shell rather than an error page.
-  // An unavailable named Project also stays out of the hiring flow.
-  if (overview === undefined || (project && overview === null)) {
+  // An unavailable named Project falls through to the picker or the hire
+  // form (ADR 0065).
+  if (opened === undefined) {
     return (
       <SignedIn
         name={session.user.name}
@@ -141,19 +212,32 @@ export async function Home({ searchParams, view }: HomeProps) {
       />
     );
   }
-  if (overview === null) {
+  if (opened.kind === "only") {
+    redirect(
+      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}`,
+    );
+  }
+  if (opened.kind === "picker") return <CusoPicker cusos={opened.cusos} />;
+  if (opened.kind === "hire") {
     const { firstName, lastName } = person.data.data;
     if (!isValidPersonName(firstName ?? "", lastName ?? "")) {
       return <NameSetup saveName={saveName} signOut={signOut} />;
     }
-    // Hiring creates Cuso's own organization (ADR 0060).
+    // Cuso goes into a new organization or one the person belongs to (ADR 0065).
+    const [websiteUrl, organizations] = await Promise.all([
+      signUpWebsite(asPerson),
+      organizationsOf(asPerson),
+    ]);
     return (
       <Onboarding
-        websiteUrl={await signUpWebsite(asPerson)}
+        websiteUrl={websiteUrl}
+        organizations={organizations}
+        signOut={signOut}
         onboard={onboard}
       />
     );
   }
+  const { overview } = opened;
   // Core ends hiring on the first connection; back from a connection made
   // during hiring (Accounts, or Results' measurement), the founder stays in
   // it until Continue.
@@ -167,7 +251,7 @@ export async function Home({ searchParams, view }: HomeProps) {
   if (overview.onboardingStep !== "done" || backInHiring) {
     // The app's pages open once onboarding ends; until then it is the first run.
     if (view !== "chat") {
-      redirect(project ? `/?project=${encodeURIComponent(project)}` : "/");
+      redirect(`/?project=${encodeURIComponent(projectId)}`);
     }
     return (
       <OnboardingFlow

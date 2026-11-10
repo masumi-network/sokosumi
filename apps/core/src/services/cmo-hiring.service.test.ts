@@ -10,11 +10,13 @@ import {
   createOrganizationWorkspace,
   creditBucketFindFirst,
   cusoFind,
+  cusoFindMany,
   eventFindFirst,
   expireTurn,
   funding,
   getUserWorkspace,
   grantFreeCredits,
+  memberFindUnique,
   organizationFindFirst,
   organizationUpdate,
   postFindMany,
@@ -363,10 +365,8 @@ describe("startCmoOnboarding", () => {
   };
 
   beforeEach(() => {
-    // The person works with no Cuso yet; read back by his bot, he is there.
-    cusoFind
-      .mockResolvedValueOnce(null)
-      .mockResolvedValue({ sokoBotId: "bot-1", projectId: "project-1" });
+    // Read back by his bot, the new Cuso is there.
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-1", projectId: "project-1" });
     organizationFindFirst.mockResolvedValue(null);
     createOrganizationWorkspace.mockResolvedValue({
       id: "ws-1",
@@ -374,41 +374,46 @@ describe("startCmoOnboarding", () => {
       name: "acme.io",
       organizationId: "org-1",
     });
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-team",
+      kind: "organization",
+      name: "Team",
+      organizationId: "org-team",
+    });
     projectCreate.mockResolvedValue({ id: "project-1" });
     projectDelete.mockResolvedValue({ id: "project-1" });
     createBot.mockResolvedValue({ id: "bot-1" });
     startTurn.mockResolvedValue({ turnId: "turn-1" });
+    creditBucketFindFirst.mockResolvedValue(null);
+    // The hirer is seated and funded unless a test says otherwise.
+    funding.requireMemberFunding.mockReset();
   });
 
-  it("gives a person's first Cuso his starter credits, once", async () => {
-    creditBucketFindFirst.mockResolvedValueOnce(null);
+  it("gives every hire's organization starter credits, once per Project", async () => {
     await startCmoOnboarding(input);
     expect(grantFreeCredits).toHaveBeenCalledWith({
       target: { targetType: "organization", targetId: "org-1" },
       credits: 10_000,
       ttlDays: null,
-      referenceNote: "CMO.xyz starter credits (user-1)",
+      referenceNote: "CMO.xyz starter credits (project project-1)",
     });
 
-    // Start over hires into a new organization; the grant does not repeat.
+    // A second hire by the same person brings its own grant.
     grantFreeCredits.mockClear();
-    cusoFind
-      .mockResolvedValueOnce(null)
-      .mockResolvedValue({ sokoBotId: "bot-1", projectId: "project-1" });
-    creditBucketFindFirst.mockResolvedValueOnce({ id: "bucket-1" });
+    projectCreate.mockResolvedValue({ id: "project-2" });
+    await startCmoOnboarding({ ...input, organizationId: "org-team" });
+    expect(grantFreeCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: { targetType: "organization", targetId: "org-team" },
+        referenceNote: "CMO.xyz starter credits (project project-2)",
+      }),
+    );
+
+    // The same Project's grant does not repeat.
+    grantFreeCredits.mockClear();
+    creditBucketFindFirst.mockResolvedValue({ id: "bucket-1" });
     await startCmoOnboarding(input);
     expect(grantFreeCredits).not.toHaveBeenCalled();
-  });
-
-  it("refuses before hiring when the organization has no credits", async () => {
-    funding.spendable = 0;
-    try {
-      await expect(startCmoOnboarding(input)).rejects.toThrow("out of credits");
-      expect(projectCreate).not.toHaveBeenCalled();
-      expect(startTurn).not.toHaveBeenCalled();
-    } finally {
-      funding.spendable = 100;
-    }
   });
 
   it("hires Cuso into a new organization named after the website", async () => {
@@ -441,6 +446,106 @@ describe("startCmoOnboarding", () => {
     );
     // No goal is asked for, so Cuso's first turn names none.
     expect(startTurn.mock.lastCall?.[0].message).not.toMatch(/goal/i);
+  });
+
+  it("hires Cuso into a new Project of an organization the person belongs to", async () => {
+    memberFindUnique.mockResolvedValue({ role: "member" });
+
+    await expect(
+      startCmoOnboarding({ ...input, organizationId: "org-team" }),
+    ).resolves.toMatchObject({ sokoBotId: "bot-1" });
+
+    expect(getUserWorkspace).toHaveBeenCalledWith("user-1", {
+      organizationId: "org-team",
+    });
+    expect(projectCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ workspaceId: "ws-team" }),
+      }),
+    );
+    expect(createBot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "ws-team",
+        projectId: "project-1",
+      }),
+    );
+    // The organization stays as it is, and so does the preferred one.
+    expect(createOrganizationWorkspace).not.toHaveBeenCalled();
+    expect(organizationUpdate).not.toHaveBeenCalled();
+    expect(organizationFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("refuses an organization the person is not a member of", async () => {
+    memberFindUnique.mockResolvedValue(null);
+
+    await expect(
+      startCmoOnboarding({ ...input, organizationId: "org-other" }),
+    ).rejects.toMatchObject({ kind: "organization_membership_required" });
+    expect(projectCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unseated member of a paid organization before creating anything", async () => {
+    funding.requireMemberFunding.mockRejectedValueOnce(
+      new funding.BillingError("no seat", "seat"),
+    );
+
+    await expect(
+      startCmoOnboarding({ ...input, organizationId: "org-team" }),
+    ).rejects.toMatchObject({ kind: "organization_seat_required" });
+    expect(funding.requireMemberFunding).toHaveBeenCalledWith(
+      "user-1",
+      "org-team",
+      10_000,
+    );
+    expect(projectCreate).not.toHaveBeenCalled();
+    expect(grantFreeCredits).not.toHaveBeenCalled();
+  });
+
+  it("hires into an empty existing organization on its starter credits", async () => {
+    await expect(
+      startCmoOnboarding({ ...input, organizationId: "org-team" }),
+    ).resolves.toMatchObject({ sokoBotId: "bot-1" });
+    expect(funding.requireMemberFunding).toHaveBeenCalledWith(
+      "user-1",
+      "org-team",
+      10_000,
+    );
+    expect(startTurn).toHaveBeenCalled();
+  });
+
+  it("refuses a hire its starter credits still cannot fund before creating a Project", async () => {
+    funding.requireMemberFunding.mockRejectedValue(
+      new funding.BillingError("no credits"),
+    );
+
+    await expect(
+      startCmoOnboarding({ ...input, organizationId: "org-team" }),
+    ).rejects.toMatchObject({ kind: "insufficient_balance" });
+    expect(projectCreate).not.toHaveBeenCalled();
+    expect(grantFreeCredits).not.toHaveBeenCalled();
+    expect(createBot).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("leaves no starter credits when Cuso provisioning fails", async () => {
+    createBot.mockRejectedValueOnce(new Error("Could not create Cuso"));
+
+    await expect(startCmoOnboarding(input)).rejects.toThrow(
+      "Could not create Cuso",
+    );
+    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(grantFreeCredits).not.toHaveBeenCalled();
+  });
+
+  it("hires another Cuso for a person who already works with one", async () => {
+    cusoFindMany.mockResolvedValue([
+      { id: "bot-0", project: { id: "project-0" } },
+    ]);
+
+    await startCmoOnboarding(input);
+
+    expect(createOrganizationWorkspace).toHaveBeenCalled();
+    expect(projectCreate).toHaveBeenCalled();
   });
 
   it("takes the empty organization a failed hire left instead of a second one", async () => {
@@ -555,24 +660,11 @@ describe("startCmoOnboarding", () => {
     createBot.mockResolvedValue({ id: "bot-1", sharedRoomId: "room-1" });
     chatRoomDelete.mockResolvedValue({ id: "room-1" });
     cusoFind.mockReset();
-    cusoFind
-      .mockResolvedValueOnce(null)
-      .mockRejectedValueOnce(new Error("read failed"));
+    cusoFind.mockRejectedValueOnce(new Error("read failed"));
 
     await expect(startCmoOnboarding(input)).rejects.toThrow("read failed");
     expect(chatRoomDelete).toHaveBeenCalledWith({ where: { id: "room-1" } });
     expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
     expect(startTurn).not.toHaveBeenCalled();
-  });
-
-  it("returns the person's existing Cuso without hiring again", async () => {
-    cusoFind.mockReset();
-    cusoFind.mockResolvedValue({ sokoBotId: "bot-0", workspaceId: "ws-0" });
-
-    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
-      sokoBotId: "bot-0",
-    });
-    expect(createOrganizationWorkspace).not.toHaveBeenCalled();
-    expect(projectCreate).not.toHaveBeenCalled();
   });
 });
