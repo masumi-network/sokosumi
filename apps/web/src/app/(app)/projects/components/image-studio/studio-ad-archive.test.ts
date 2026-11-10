@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createStudioAdArchive } from "./studio-ad-download";
 import type { StudioAsset } from "./types";
 
+vi.mock("./studio-ad-headline", () => ({
+  renderStudioHeadline: async (image: Blob, headline: string) =>
+    new Blob([await image.text(), headline], { type: "image/png" }),
+}));
+
 const ASSET: StudioAsset = {
   id: "asset-a",
   projectId: "project-a",
@@ -54,6 +59,41 @@ describe("downloading selected Studio ads", () => {
     ]);
     expect(await zip.file("ad-1-1080x1350.png")?.async("text")).toBe("one");
     expect(await zip.file("ad-2-1080x1350.png")?.async("text")).toBe("two");
+    expect(await zip.file("ad-3-1080x1350.webp")?.async("text")).toBe("three");
+  });
+
+  it("composes reviewed headlines per ad and keeps unreviewed images in their original format", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response("one "))
+        .mockResolvedValueOnce(new Response("two "))
+        .mockResolvedValueOnce(new Response("three")),
+    );
+    const zip = await JSZip.loadAsync(
+      await createStudioAdArchive(
+        [
+          ASSET,
+          { ...ASSET, id: "asset-b" },
+          {
+            ...ASSET,
+            id: "asset-c",
+            contentType: "image/webp",
+            settings: { ...ASSET.settings, outputFormat: undefined },
+          },
+        ],
+        undefined,
+        { "asset-a": "First claim", "asset-b": "Second claim" },
+      ),
+    );
+
+    expect(await zip.file("ad-1-1080x1350-headline.png")?.async("text")).toBe(
+      "one First claim",
+    );
+    expect(await zip.file("ad-2-1080x1350-headline.png")?.async("text")).toBe(
+      "two Second claim",
+    );
     expect(await zip.file("ad-3-1080x1350.webp")?.async("text")).toBe("three");
   });
 

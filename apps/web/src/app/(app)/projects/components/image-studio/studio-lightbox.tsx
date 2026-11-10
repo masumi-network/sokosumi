@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 import { resolveModel, supportsVariation } from "./catalog";
 import { StudioAdPreview } from "./studio-ad-preview";
+import { StudioBatchHeadlines } from "./studio-batch-headlines";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import {
@@ -53,6 +54,8 @@ export function StudioLightbox({
   onClose,
   onDownloadBatch,
   downloadingBatch,
+  headlines,
+  onHeadlineChange,
   onEditWithAssistant,
   editWithAssistantLabel,
   onRegenerate,
@@ -81,6 +84,8 @@ export function StudioLightbox({
   onClose: () => void;
   onDownloadBatch?: (asset: StudioAsset, logo?: StudioLogoPosition) => void;
   downloadingBatch?: boolean;
+  headlines?: Readonly<Record<string, string>>;
+  onHeadlineChange?: (assetId: string, headline: string) => void;
   onEditWithAssistant?: (asset: StudioAsset) => void;
   editWithAssistantLabel?: string;
   onRegenerate: (asset: StudioAsset) => void;
@@ -218,6 +223,12 @@ export function StudioLightbox({
                 <StudioAdPreview
                   asset={single}
                   caption={caption}
+                  headline={headlines?.[single.id]}
+                  onHeadlineChange={
+                    onHeadlineChange
+                      ? (headline) => onHeadlineChange(single.id, headline)
+                      : undefined
+                  }
                   key={single.id}
                   labels={labels}
                   logoPosition={logoPosition}
@@ -298,17 +309,31 @@ export function StudioLightbox({
                     value={logoPosition}
                   />
                 ) : null}
-                <Button
-                  aria-describedby="studio-batch-download-note"
-                  loading={downloadingBatch}
-                  onClick={() => onDownloadBatch(single, logoPosition)}
-                  size="sm"
-                  type="button"
-                  variant="secondary"
-                >
-                  <Download aria-hidden />
-                  {t("downloadBatchZip")}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    aria-describedby="studio-batch-download-note"
+                    loading={downloadingBatch}
+                    onClick={() => onDownloadBatch(single, logoPosition)}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    <Download aria-hidden />
+                    {t("downloadBatchZip")}
+                  </Button>
+                  {headlines && onHeadlineChange ? (
+                    <StudioBatchHeadlines
+                      batchId={single.batchId}
+                      downloading={downloadingBatch}
+                      headlines={headlines}
+                      key={logoScope}
+                      labels={labels}
+                      onDownload={() => onDownloadBatch(single, logoPosition)}
+                      onHeadlineChange={onHeadlineChange}
+                      projectId={single.projectId}
+                    />
+                  ) : null}
+                </div>
                 <p
                   className="text-muted-foreground text-xs"
                   id="studio-batch-download-note"

@@ -61,6 +61,7 @@ import {
   MAX_ARCHIVE_MIB,
   saveStudioDownload,
 } from "./studio-ad-download";
+import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
 import type { StudioBatchProduct } from "./studio-batch";
 import { StudioChat } from "./studio-chat";
 import {
@@ -227,6 +228,9 @@ export function ImageStudio({
   );
   const [pending, startTransition] = useTransition();
   const [downloadingAds, startAdDownload] = useTransition();
+  const [headlineByAssetId, setHeadlineByAssetId] = useState<
+    Record<string, string>
+  >({});
   const [archiveLogoOverride, setArchiveLogoOverride] =
     useState<StudioLogoPosition | null>();
   const [brandKitLogo, setBrandKitLogo] = useState<{
@@ -394,12 +398,46 @@ export function ImageStudio({
     });
   }
 
+  function changeHeadline(assetId: string, headline: string) {
+    setHeadlineByAssetId((current) => {
+      const next = { ...current };
+      if (headline) next[assetId] = headline;
+      else delete next[assetId];
+      return next;
+    });
+  }
+
   async function downloadArchive(
     assets: StudioAsset[],
     filename: string,
     logo?: StudioLogoPosition,
   ) {
-    const archive = await createStudioAdArchive(assets, logo);
+    const reviewedAssets = assets.filter(
+      (asset) => !isVideoAsset(asset) && headlineByAssetId[asset.id],
+    );
+    const reviewedProjects = [
+      ...new Set(reviewedAssets.map(({ projectId }) => projectId)),
+    ];
+    const approvals = new Map(
+      await Promise.all(
+        reviewedProjects.map(
+          async (projectId) =>
+            [projectId, await readApprovedStudioHeadlines(projectId)] as const,
+        ),
+      ),
+    );
+    if (
+      reviewedAssets.some(
+        ({ id, projectId }) =>
+          !approvals.get(projectId)?.includes(headlineByAssetId[id]),
+      )
+    ) {
+      toast.error(t("archiveHeadlineRemoved"));
+      return;
+    }
+    const archive = reviewedAssets.length
+      ? await createStudioAdArchive(assets, logo, headlineByAssetId)
+      : await createStudioAdArchive(assets, logo);
     saveStudioDownload(
       new Blob([archive], { type: "application/zip" }),
       filename,
@@ -1231,6 +1269,8 @@ export function ImageStudio({
           onClose={() => setViewing(null)}
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
+          headlines={headlineByAssetId}
+          onHeadlineChange={changeHeadline}
           onEditWithAssistant={activeProjectId ? openAssistant : undefined}
           editWithAssistantLabel={t("Assistant.edit")}
           onRegenerate={(asset) => repeat(asset, "asset")}

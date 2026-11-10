@@ -376,6 +376,55 @@ describe("a gallery with work in it", () => {
     );
   });
 
+  it("reviews different approved headlines for all ready batch ads, including an unloaded result", async () => {
+    const open = {
+      ...ASSET,
+      projectId: "p",
+      batchId: "batch-a",
+      product: { id: "a", name: "Mug" },
+    };
+    const older = {
+      ...open,
+      id: "older-ad",
+      product: { id: "b", name: "Kettle" },
+    };
+    const first = "A slower morning.";
+    const second = "Pour with precision.";
+    mocks.listBatchAssets.mockResolvedValue([open, older]);
+    mocks.loadBrandKit.mockResolvedValue({ approvedLines: [first, second] });
+    mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+    mount([open]);
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(
+      screen.getByRole("button", { name: "reviewBatchHeadlines" }),
+    );
+    const review = within(
+      screen.getByRole("dialog", { name: "reviewBatchHeadlines" }),
+    );
+    const pickers = await review.findAllByLabelText("approvedHeadline");
+    expect(pickers).toHaveLength(2);
+    expect(review.getByText("Kettle")).toBeVisible();
+    fireEvent.change(pickers[0], { target: { value: first } });
+    fireEvent.change(pickers[1], { target: { value: second } });
+
+    const download = review.getByRole("button", { name: "downloadBatchZip" });
+    mocks.loadBrandKit.mockResolvedValueOnce({ approvedLines: [first] });
+    fireEvent.click(download);
+    await waitFor(() => expect(mocks.loadBrandKit).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(download).toBeEnabled());
+    expect(mocks.createArchive).not.toHaveBeenCalled();
+
+    fireEvent.click(download);
+    await waitFor(() =>
+      expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+        [open, older],
+        undefined,
+        { [open.id]: first, [older.id]: second },
+      ),
+    );
+  });
+
   it("hands the selected ad to the assistant and keeps the generation draft", () => {
     const product = { id: "mug", name: "Stoneware mug" };
     mount([{ ...ASSET, projectId: "p", product }]);
