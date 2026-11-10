@@ -2,7 +2,7 @@
 
 import type { OAuthConsent, Scope } from "@better-auth/oauth-provider";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -41,6 +41,23 @@ export function OAuthAuthorizedClients() {
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] =
     useState<AuthorizedClientWithDetails | null>(null);
+  // The dialog opens from a row's button rather than an AlertDialogTrigger,
+  // so Radix has nothing to hand focus back to. Remember the opener's row.
+  const openerIndex = useRef(0);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  function restoreFocus(event: Event) {
+    event.preventDefault();
+    // Cancel or Escape: the opener is still there. After a revoke its row is
+    // gone, so the row that took its place (or the one above, or the empty
+    // message) gets focus.
+    const buttons =
+      contentRef.current?.querySelectorAll<HTMLElement>("[data-revoke]") ?? [];
+    const target =
+      buttons[Math.min(openerIndex.current, buttons.length - 1)] ??
+      contentRef.current?.querySelector<HTMLElement>("[data-empty]");
+    target?.focus();
+  }
 
   useEffect(() => {
     async function fetchConsents() {
@@ -143,12 +160,14 @@ export function OAuthAuthorizedClients() {
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent ref={contentRef}>
         {consents.length === 0 ? (
-          <p className="text-muted-foreground">{t("noApplications")}</p>
+          <p data-empty tabIndex={-1} className="text-muted-foreground">
+            {t("noApplications")}
+          </p>
         ) : (
           <div className="space-y-4">
-            {consents.map((consent) => (
+            {consents.map((consent, index) => (
               <div
                 key={consent.clientId}
                 className="flex items-center justify-between rounded-lg border p-4"
@@ -168,7 +187,11 @@ export function OAuthAuthorizedClients() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => setRevokeTarget(consent)}
+                  data-revoke
+                  onClick={() => {
+                    openerIndex.current = index;
+                    setRevokeTarget(consent);
+                  }}
                   loading={revoking === consent.clientId}
                 >
                   {t("revokeAccess")}
@@ -185,7 +208,7 @@ export function OAuthAuthorizedClients() {
             }
           }}
         >
-          <AlertDialogContent>
+          <AlertDialogContent onCloseAutoFocus={restoreFocus}>
             <AlertDialogHeader>
               <AlertDialogTitle className="break-words">
                 {t("confirmRevoke", {

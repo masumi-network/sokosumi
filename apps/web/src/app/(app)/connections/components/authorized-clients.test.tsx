@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,17 +44,32 @@ describe("OAuthAuthorizedClients", () => {
           clientId: "client-1",
           createdAt: "2026-02-10T00:00:00.000Z",
         },
+        {
+          id: "consent-2",
+          clientId: "client-2",
+          createdAt: "2026-03-19T00:00:00.000Z",
+        },
       ],
       error: null,
     });
     mockPublicClient.mockReset();
-    mockPublicClient.mockResolvedValue({
-      data: { client_name: "Claude" },
-      error: null,
-    });
+    mockPublicClient.mockImplementation(
+      ({ query }: { query: { client_id: string } }) =>
+        Promise.resolve({
+          data: {
+            client_name: query.client_id === "client-1" ? "Claude" : "Cursor",
+          },
+          error: null,
+        }),
+    );
     mockRevoke.mockReset();
     mockRevoke.mockResolvedValue({ ok: true, value: undefined });
   });
+
+  async function revokeButtons() {
+    await screen.findByText("Cursor");
+    return screen.getAllByRole("button", { name: "revokeAccess" });
+  }
 
   it("names an app the viewer authorized but does not own", async () => {
     render(<OAuthAuthorizedClients />);
@@ -65,36 +80,66 @@ describe("OAuthAuthorizedClients", () => {
     });
   });
 
-  it("asks before revoking, names the app, and revokes on confirm", async () => {
+  it("names the app in the dialog and revokes nothing until confirmed", async () => {
     const user = userEvent.setup();
     render(<OAuthAuthorizedClients />);
 
-    await user.click(
-      await screen.findByRole("button", { name: "revokeAccess" }),
-    );
+    await user.click((await revokeButtons())[0]);
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toHaveTextContent("confirmRevoke:Claude");
-    expect(mockRevoke).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "cancel" }));
+    await user.click(within(dialog).getByRole("button", { name: "cancel" }));
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
     );
     expect(mockRevoke).not.toHaveBeenCalled();
+  });
 
-    await user.click(screen.getByRole("button", { name: "revokeAccess" }));
-    const confirm = await screen.findByRole("alertdialog");
-    await user.click(
-      Array.from(confirm.querySelectorAll("button")).find(
-        (button) => button.textContent === "revokeAccess",
-      ) as HTMLButtonElement,
-    );
+  it("returns focus to the opener after Escape and after Cancel", async () => {
+    const user = userEvent.setup();
+    render(<OAuthAuthorizedClients />);
+    const opener = (await revokeButtons())[1];
+
+    opener.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByRole("alertdialog");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(opener).toHaveFocus());
+
+    await user.keyboard("{Enter}");
+    const dialog = await screen.findByRole("alertdialog");
+    within(dialog).getByRole("button", { name: "cancel" }).focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(opener).toHaveFocus());
+    expect(mockRevoke).not.toHaveBeenCalled();
+  });
+
+  it("moves focus to the next app, then the empty message, as apps are revoked", async () => {
+    const user = userEvent.setup();
+    render(<OAuthAuthorizedClients />);
+
+    (await revokeButtons())[0].focus();
+    await user.keyboard("{Enter}");
+    let dialog = await screen.findByRole("alertdialog");
+    within(dialog).getByRole("button", { name: "revokeAccess" }).focus();
+    await user.keyboard("{Enter}");
 
     await waitFor(() =>
       expect(mockRevoke).toHaveBeenCalledWith("consent-1", "client-1"),
     );
     await waitFor(() =>
       expect(screen.queryByText("Claude")).not.toBeInTheDocument(),
+    );
+    const survivor = screen.getByRole("button", { name: "revokeAccess" });
+    await waitFor(() => expect(survivor).toHaveFocus());
+
+    await user.keyboard("{Enter}");
+    dialog = await screen.findByRole("alertdialog");
+    within(dialog).getByRole("button", { name: "revokeAccess" }).focus();
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(screen.getByText("noApplications")).toHaveFocus(),
     );
   });
 });
