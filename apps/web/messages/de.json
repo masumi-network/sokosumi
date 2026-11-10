@@ -1626,6 +1626,8 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
+          "chatKind": "Chat",
+          "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
             "teamWins": "Was haben wir geschafft?",
@@ -1636,6 +1638,8 @@
       "SokoBot": {
         "connectTitle": "Gib {bot} Zugriff auf Postfach und Kalender",
         "connectBody": "Damit gibt es Meeting-Vorbereitung, Follow-up-Erinnerungen und dein tägliches Briefing.",
+        "connectCompactTitle": "Postfach und Kalender verbinden",
+        "connectButton": "Verbinden",
         "connectConnected": "{name} verbunden",
         "connectProvider": "{name} verbinden",
         "connectDismiss": "Ausblenden",

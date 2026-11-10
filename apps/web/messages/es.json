@@ -1626,6 +1626,8 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
+          "chatKind": "Chat",
+          "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",
@@ -1636,6 +1638,8 @@
       "SokoBot": {
         "connectTitle": "Dale a {bot} tu bandeja de entrada y tu calendario",
         "connectBody": "Así prepara tus reuniones, te recuerda los seguimientos y te envía el resumen diario.",
+        "connectCompactTitle": "Conecta tu correo y calendario",
+        "connectButton": "Conectar",
         "connectConnected": "{name} conectado",
         "connectProvider": "Conectar {name}",
         "connectDismiss": "Descartar",

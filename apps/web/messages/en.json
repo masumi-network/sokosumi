@@ -1626,6 +1626,8 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "chatKind": "Chat",
+          "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
@@ -1636,6 +1638,8 @@
       "SokoBot": {
         "connectTitle": "Give {bot} your inbox and calendar",
         "connectBody": "Unlocks meeting prep, follow-up reminders and your daily brief.",
+        "connectCompactTitle": "Connect inbox and calendar",
+        "connectButton": "Connect",
         "connectConnected": "{name} connected",
         "connectProvider": "Connect {name}",
         "connectDismiss": "Dismiss",

@@ -1,4 +1,11 @@
-import type { ChatRoom, TaskListItem } from "@sokosumi/core-client";
+import type {
+  ChatRoom,
+  ChatRoomMessage,
+  TaskListItem,
+} from "@sokosumi/core-client";
+import { buildChatMessagePreview } from "@sokosumi/utils";
+
+import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 
 type TeamTask = Pick<
   TaskListItem,
@@ -63,4 +70,79 @@ export function toTeamDay(
       updatedAt: task.updatedAt,
       who: taskWho(task),
     }));
+}
+
+/** A chat with a Soko Bot the reader took part in during the last day. */
+export interface SokoBotHomeChat {
+  roomId: string;
+  /** The reader's newest message there, which the row opens at. */
+  messageId: string;
+  /** That message as plain text: what the chat was about, in their words. */
+  title: string;
+  /** Last activity in the room, the bot's answer included. */
+  at: Date;
+}
+
+/** Rooms worth reading messages for: at most this many per Home load. */
+export const SOKO_BOT_HOME_CHAT_LIMIT = 3;
+
+/**
+ * The reader's rooms with a Soko Bot that moved in the 24 hours before
+ * `now`, newest first, in the active workspace only (`organizationId` is
+ * null for a personal one): a guest room or another workspace's bot stays
+ * off this Home. Room `updatedAt` advances on every message.
+ */
+export function recentSokoBotRooms(
+  rooms: readonly ChatRoom[],
+  organizationId: string | null,
+  now: Date,
+  limit = SOKO_BOT_HOME_CHAT_LIMIT,
+): ChatRoom[] {
+  const byId = new Map(rooms.map((room) => [room.id, room]));
+  return [...byId.values()]
+    .filter(
+      (room) =>
+        room.sokoBotMembers.length > 0 &&
+        room.organizationId === organizationId &&
+        now.getTime() - room.updatedAt.getTime() <= DAY_MS,
+    )
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+    .slice(0, limit);
+}
+
+/**
+ * The room as a chat row when the reader wrote in it during the last day;
+ * null when only the bot spoke (its welcome, a schedule) or they wrote
+ * nothing with text. `allLabel` is what the room-wide mention reads as.
+ */
+export function toSokoBotChat(
+  room: ChatRoom,
+  messages: readonly ChatRoomMessage[],
+  userId: string,
+  now: Date,
+  allLabel: string,
+): SokoBotHomeChat | null {
+  const names = roomMentionNames(room, allLabel);
+  const mine = messages
+    .filter(
+      (message) =>
+        message.sender.type === "user" &&
+        message.sender.user.id === userId &&
+        message.deletedAt === null &&
+        now.getTime() - message.createdAt.getTime() <= DAY_MS,
+    )
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map((message) => ({
+      message,
+      title: buildChatMessagePreview(message.content, names),
+    }))
+    .find(({ title }) => title.length > 0);
+  return mine
+    ? {
+        roomId: room.id,
+        messageId: mine.message.id,
+        title: mine.title,
+        at: room.updatedAt,
+      }
+    : null;
 }

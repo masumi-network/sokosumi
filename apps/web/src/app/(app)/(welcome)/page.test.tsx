@@ -109,6 +109,8 @@ describe("WelcomePage", () => {
         {
           id: "room-1",
           kind: "direct",
+          organizationId: null,
+          updatedAt: new Date(),
           userMembers: [{ id: "user-1" }],
           coworkerMembers: [],
           sokoBotMembers: [{ id: "bot-1" }],
@@ -178,10 +180,18 @@ describe("WelcomePage", () => {
     });
     await renderPage();
     expect(screen.getByText("bot home")).toBeTruthy();
-    expect(listRooms).toHaveBeenCalledWith("direct");
+    expect(listRooms).toHaveBeenCalledWith();
+    expect(listMessages).toHaveBeenCalledWith("room-1", { limit: 20 });
     expect(sokoBotHome).toHaveBeenCalledWith(
       expect.objectContaining({
         roomId: "room-1",
+        chats: [
+          expect.objectContaining({
+            roomId: "room-1",
+            messageId: "msg-1",
+            title: "Plan my week",
+          }),
+        ],
         summary: { awaitingInput: 2 },
         teamTasks: [expect.objectContaining({ name: "Plan my week" })],
         needsYou: expect.anything(),
