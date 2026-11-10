@@ -11135,6 +11135,43 @@ export const ChatPersonSchema = {
     ]
 } as const;
 
+export const ChatRecentSokoBotMessageSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The Thread\'s parent when the message is a reply.'
+        },
+        content: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'roomId',
+        'messageId',
+        'parentMessageId',
+        'content',
+        'createdAt'
+    ]
+} as const;
+
 export const ChatRoomSchema = {
     type: 'object',
     properties: {

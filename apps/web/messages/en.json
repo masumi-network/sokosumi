@@ -777,6 +777,7 @@
       }
     },
     "NotificationCenter": {
+      "toastRegion": "Activity",
       "accountNoticeIndicator": "Account notice",
       "notifications": "Notifications",
       "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
@@ -1618,6 +1619,11 @@
           "label": "Search",
           "subtitle": "Specialized agents"
         },
+        "MyDay": {
+          "title": "My day",
+          "more": "{count, plural, one {Show # more} other {Show # more}}",
+          "error": "Couldn't load more. Try again."
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "What's next?",
@@ -1625,6 +1631,8 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "chatKind": "Chat",
+          "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
@@ -1635,6 +1643,8 @@
       "SokoBot": {
         "connectTitle": "Give {bot} your inbox and calendar",
         "connectBody": "Unlocks meeting prep, follow-up reminders and your daily brief.",
+        "connectCompactTitle": "Connect inbox and calendar",
+        "connectButton": "Connect",
         "connectConnected": "{name} connected",
         "connectProvider": "Connect {name}",
         "connectDismiss": "Dismiss",
@@ -3235,7 +3245,10 @@
           "bots": "Bots"
         },
         "design": {
-          "document": "DESIGN.md"
+          "document": "DESIGN.md",
+          "colors": "Colors",
+          "typography": "Typography",
+          "frontMatter": "Front matter"
         },
         "bots": {
           "title": "Bots for this project"
@@ -4142,6 +4155,22 @@
       "copiesFromProducts": "Set copies for each product in Products.",
       "emptyTitle": "Create your first ad",
       "emptyBody": "Pick a template and fill in the details, or write your own ad brief.",
+      "pauseTemplateMotion": "Pause floating previews",
+      "resumeTemplateMotion": "Resume floating previews",
+      "CreativeStart": {
+        "open": "Choose what to make",
+        "title": "What do you want to make first?",
+        "description": "Choose a starting point, then make the brief your own.",
+        "product": "Product imagery / e-commerce",
+        "campaign": "Campaign concepts / key visuals",
+        "architecture": "Architecture / interiors",
+        "portfolio": "Portfolio / personal work",
+        "social": "Social content / thumbnails",
+        "video": "Video concepts / storyboards / motion",
+        "fashion": "Fashion / editorial concepts",
+        "worlds": "Characters, environments, or worlds",
+        "other": "Other"
+      },
       "promptPlaceholder": "Describe the ad you want to create…",
       "generate": "Generate",
       "refine": "Refine",
@@ -5061,6 +5090,7 @@
         "default": "Sokosumi - Marketplace for human-to-agent interactions",
         "template": "Sokosumi - %s"
       },
+      "home": "Home",
       "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "Sidebar": {
@@ -7312,7 +7342,9 @@
           "error": "Failed to disconnect {provider}"
         },
         "connect": "Connect {provider}",
-        "disconnect": "Disconnect {provider}"
+        "disconnect": "Disconnect {provider}",
+        "connectAction": "Connect",
+        "disconnectAction": "Disconnect"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",
@@ -8492,6 +8524,8 @@
       }
     },
     "Connections": {
+      "title": "Connections",
+      "description": "Sign-in accounts, connected apps and MCP.",
       "tabs": {
         "connectedApps": "Connected apps",
         "mcp": "MCP"
@@ -9509,6 +9543,9 @@
         "typeAll": "All",
         "foldersLabel": "Folders",
         "foldersRoot": "All files",
+        "dataRoom": "Data room",
+        "dataRoomAccess": "Only you and the people you let in by email can open its files.",
+        "dataRoomAccessOrg": "Only whoever made it, your organization’s owners and admins, colleagues let in, and people let in by email can open its files.",
         "folderEmptyTitle": "Nothing in this folder yet",
         "detailRejected": "Removed labels",
         "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
@@ -9541,14 +9578,15 @@
         "revoke": "Stop sharing",
         "revoked": "Link turned off",
         "loadFailed": "Could not load the link",
-        "saveFailed": "Could not save the link"
+        "saveFailed": "Could not save the link",
+        "inDataRoom": "This is in a data room. Invite people to the room instead of sharing a link."
       },
       "DataRoom": {
         "makeTitle": "Make “{name}” a data room",
         "makeDescription": "Its files move to private storage, so only people you let in can open them. Links to this folder, or to anything in it, stop working.",
         "makeDescriptionOrg": "Its files move to private storage, so only people you let in can open them. In your organization, only you, the owners and admins, and colleagues you add will see the folder. Links to this folder, or to anything in it, stop working.",
         "make": "Make data room",
-        "made": "Data room on. Its files are moving to private storage.",
+        "made": "Data room on. Invite the first people.",
         "roomTitle": "Data room “{name}”",
         "insideRoom": "This folder is inside the data room “{room}”.",
         "storage": {
