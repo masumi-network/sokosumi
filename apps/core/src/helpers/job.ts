@@ -1061,17 +1061,21 @@ export async function getUserJobs(
   };
 
   const takePlusOne = take + 1;
-  const jobs = await tx.job.findMany({
-    where,
-    take: takePlusOne,
-    skip,
-    cursor: cursor ? { id: cursor } : undefined,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    include: {
-      ...jobListSummaryInclude,
-    },
-  });
-  const count = await tx.job.count({ where });
+  // Both callers read through `prisma`. On an interactive transaction these
+  // would have to run one after the other.
+  const [jobs, count] = await Promise.all([
+    tx.job.findMany({
+      where,
+      take: takePlusOne,
+      skip,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        ...jobListSummaryInclude,
+      },
+    }),
+    tx.job.count({ where }),
+  ]);
   return {
     jobs: jobs.slice(0, take).map(flattenJob),
     count,
