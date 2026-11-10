@@ -301,13 +301,25 @@ describe("research groups", () => {
     );
 
   it("names the six groups, all running before anything is saved", () => {
-    expect(cmoResearch(null).groups).toEqual([
+    expect(
+      cmoResearch(null).groups.map(({ key, label, state }) => ({
+        key,
+        label,
+        state,
+      })),
+    ).toEqual([
       { key: "website", label: "Website", state: "running" },
       { key: "buyers", label: "Buyers' world", state: "running" },
       { key: "competitors", label: "Competitors", state: "running" },
       { key: "social", label: "Social accounts", state: "running" },
       { key: "reviews", label: "Reviews", state: "running" },
       { key: "news", label: "News and people", state: "running" },
+    ]);
+    // Each says which sections it researches, for the screen's slots.
+    expect(cmoResearch(null).groups[0]?.sections).toEqual([
+      "company",
+      "offer",
+      "pricing",
     ]);
   });
 

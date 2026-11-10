@@ -82,7 +82,14 @@ function overview() {
     viewerCanApprove: true,
     brandBrain: null,
     research: {
-      groups: [{ key: "website", label: "Website", state: "done" }],
+      groups: [
+        {
+          key: "website",
+          label: "Website",
+          sections: ["company", "offer", "pricing"],
+          state: "done",
+        },
+      ],
       preview: { line: "You sell rockets to founders.", facts: ["Berlin"] },
     },
     strategy: null,
@@ -190,7 +197,14 @@ describe("CMO routes", () => {
     expect(body.data.updates[0].previousVersionId).toBeUndefined();
     expect(body.data.updates[0].versionId).toBeUndefined();
     expect(body.data.research).toEqual({
-      groups: [{ key: "website", label: "Website", state: "done" }],
+      groups: [
+        {
+          key: "website",
+          label: "Website",
+          sections: ["company", "offer", "pricing"],
+          state: "done",
+        },
+      ],
       preview: { line: "You sell rockets to founders.", facts: ["Berlin"] },
     });
     expect(body.data.posts).toEqual({

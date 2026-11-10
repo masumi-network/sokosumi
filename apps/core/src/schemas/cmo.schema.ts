@@ -186,6 +186,9 @@ export const cmoResearchSchema = z
         z.object({
           key: z.string(),
           label: z.string(),
+          sections: z
+            .array(z.enum(CMO_BRAND_SECTION_KEYS))
+            .describe("The Brand Brain sections this group researches."),
           state: z.enum(["running", "done"]),
         }),
       )

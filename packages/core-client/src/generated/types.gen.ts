@@ -11353,6 +11353,10 @@ export type CmoResearch = {
     groups: Array<{
         key: string;
         label: string;
+        /**
+         * The Brand Brain sections this group researches.
+         */
+        sections: Array<'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities'>;
         state: 'running' | 'done';
     }>;
     /**

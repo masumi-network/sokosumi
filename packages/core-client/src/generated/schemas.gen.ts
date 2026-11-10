@@ -43468,6 +43468,31 @@ export const CmoResearchSchema = {
                     label: {
                         type: 'string'
                     },
+                    sections: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'company',
+                                'offer',
+                                'problems',
+                                'customers',
+                                'buyers',
+                                'value',
+                                'pricing',
+                                'positioning',
+                                'competition',
+                                'sales',
+                                'marketing',
+                                'content',
+                                'proof',
+                                'reputation',
+                                'momentum',
+                                'opportunities'
+                            ]
+                        },
+                        description: 'The Brand Brain sections this group researches.'
+                    },
                     state: {
                         type: 'string',
                         enum: [
@@ -43479,6 +43504,7 @@ export const CmoResearchSchema = {
                 required: [
                     'key',
                     'label',
+                    'sections',
                     'state'
                 ]
             },

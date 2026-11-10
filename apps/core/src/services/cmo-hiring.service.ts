@@ -361,7 +361,12 @@ export const CMO_RESEARCH_GROUPS: readonly {
 ];
 
 export interface CmoResearch {
-  groups: { key: string; label: string; state: "running" | "done" }[];
+  groups: {
+    key: string;
+    label: string;
+    sections: CmoBrandSectionKey[];
+    state: "running" | "done";
+  }[];
   /** The quick look, until the essentials replace it. */
   preview: BrandBrainPreview | null;
 }
@@ -381,6 +386,7 @@ export function cmoResearch(
     groups: CMO_RESEARCH_GROUPS.map(({ key, label, sections }) => ({
       key,
       label,
+      sections: [...sections],
       state:
         finished || sections.every((section) => saved.has(section))
           ? "done"
