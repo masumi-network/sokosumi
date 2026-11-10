@@ -10915,6 +10915,7 @@
       "url": "Page URL",
       "label": "Page name",
       "relatedTo": "Related to",
+      "notRelated": "Not related to another page",
       "optional": "Optional",
       "name": "Selection name",
       "selectPages": "Select pages",

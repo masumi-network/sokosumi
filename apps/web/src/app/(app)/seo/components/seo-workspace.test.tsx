@@ -2136,7 +2136,12 @@ describe("SEO workspace integration", () => {
     // Report import is gone: adding a page is the first step without checks.
     expect(screen.queryByRole("button", { name: /import/i })).toBeNull();
     await user.click(screen.getAllByRole("button", { name: "Add a page" })[0]);
-    expect(screen.getByRole("dialog", { name: "Add a page" })).toBeVisible();
+    const addPage = screen.getByRole("dialog", { name: "Add a page" });
+    expect(addPage).toBeVisible();
+    // A new page relates to the main page unless the user says it stands alone.
+    expect(
+      within(addPage).getByRole("combobox", { name: "Related to" }),
+    ).toHaveTextContent(workspace.pages[0].label || workspace.pages[0].url);
     // With no pages, the copy asks for a page instead of calling checks unavailable.
     cleanup();
     workspace.scope.pageIds = [];

@@ -10915,6 +10915,7 @@
       "url": "Seiten-URL",
       "label": "Seitenname",
       "relatedTo": "Verwandt mit",
+      "notRelated": "Mit keiner anderen Seite verwandt",
       "optional": "Optional",
       "name": "Name der Auswahl",
       "selectPages": "Seiten auswählen",

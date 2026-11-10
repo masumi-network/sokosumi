@@ -44,6 +44,8 @@ export const SEO_MAX_MONITOR_RUNS = 31;
 export const SEO_DEFAULT_MONITOR_RUNS = 4;
 export const SEO_MAX_PAGES = 10;
 export const SEO_NO_TARGET_PAGE = "no-target-page";
+/** The "Related to" choice for a page that stands alone. A select item cannot hold an empty value. */
+export const SEO_NO_RELATED_PAGE = "no-related-page";
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_KEYWORD_LENGTH = 80;
 export const SEO_MAX_PROVIDER_CALLS = 100;
@@ -97,6 +99,14 @@ export function seoMonitorRunCount(form: FormData) {
   return count;
 }
 
+/** The page a new page relates to by default: the first page that stands alone. */
+export function seoMainPageId(workspace: ProjectSeoWorkspace): string {
+  const main =
+    workspace.pages.find((page) => page.relationship === "primary") ??
+    workspace.pages[0];
+  return main?.id ?? SEO_NO_RELATED_PAGE;
+}
+
 export function editSeoCommand(
   kind:
     | "page"
@@ -110,7 +120,8 @@ export function editSeoCommand(
   originalKeyword?: ProjectSeoKeyword | null,
 ): SeoCommand {
   if (kind === "page") {
-    const relatedToPageId = formText(form, "relatedToPageId");
+    const related = formText(form, "relatedToPageId");
+    const relatedToPageId = related === SEO_NO_RELATED_PAGE ? "" : related;
     return {
       kind: "add_page",
       body: {

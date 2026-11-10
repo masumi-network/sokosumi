@@ -3,6 +3,8 @@ import {
   analysisSeoBody,
   defaultFullAuditSeconds,
   editSeoCommand,
+  SEO_NO_RELATED_PAGE,
+  seoMainPageId,
 } from "./seo-form-model";
 import {
   SEO_TEST_PAGE,
@@ -194,6 +196,40 @@ describe("SEO form intent", () => {
     const body = analysisSeoBody(form, seoTestWorkspace());
     expect(body.fullAuditLimits).toBeUndefined();
     expect(body.maxProviderCalls).toBeUndefined();
+  });
+
+  it("relates a new page to the chosen page, and to none when the user says it stands alone", () => {
+    const workspace = seoTestWorkspace();
+    const main = seoMainPageId(workspace);
+    expect(main).toBe(workspace.pages[0].id);
+    const form = new FormData();
+    form.set("url", "https://example.com/pricing");
+    form.set("relatedToPageId", main);
+    expect(editSeoCommand("page", form, workspace).body).toMatchObject({
+      relationship: "related",
+      relatedToPageId: main,
+    });
+    form.set("relatedToPageId", SEO_NO_RELATED_PAGE);
+    const alone = editSeoCommand("page", form, workspace).body;
+    expect(alone).toMatchObject({ relationship: "primary" });
+    expect(alone).not.toHaveProperty("relatedToPageId");
+  });
+
+  it("takes the first page that stands alone as the main page", () => {
+    const workspace = seoTestWorkspace();
+    const [first] = workspace.pages;
+    workspace.pages = [
+      {
+        ...first,
+        id: "related",
+        relationship: "related",
+        relatedToPageId: first.id,
+      },
+      first,
+    ];
+    expect(seoMainPageId(workspace)).toBe(first.id);
+    workspace.pages = [];
+    expect(seoMainPageId(workspace)).toBe(SEO_NO_RELATED_PAGE);
   });
 
   it("edits a group with its known version and selected membership", () => {

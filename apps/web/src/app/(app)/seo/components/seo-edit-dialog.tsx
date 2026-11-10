@@ -14,7 +14,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SeoField, SeoSelect } from "./seo-form-fields";
-import { SEO_NO_TARGET_PAGE } from "./seo-form-model";
+import {
+  SEO_NO_RELATED_PAGE,
+  SEO_NO_TARGET_PAGE,
+  seoMainPageId,
+} from "./seo-form-model";
 import { useSeoEdit } from "./use-seo-edit";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -100,17 +104,19 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
               <SeoField id="seo-edit-label" label={t("label")}>
                 <Input id="seo-edit-label" name="label" maxLength={200} />
               </SeoField>
-              <SeoField
-                id="seo-edit-parent"
-                label={`${t("relatedTo")} (${t("optional")})`}
-              >
+              <SeoField id="seo-edit-parent" label={t("relatedTo")}>
+                {/* A new page belongs to the main page unless the user says it stands alone. */}
                 <SeoSelect
                   id="seo-edit-parent"
                   name="relatedToPageId"
-                  options={form.workspace.pages.map((page) => ({
-                    value: page.id,
-                    label: page.label || page.url,
-                  }))}
+                  defaultValue={seoMainPageId(form.workspace)}
+                  options={[
+                    ...form.workspace.pages.map((page) => ({
+                      value: page.id,
+                      label: page.label || page.url,
+                    })),
+                    { value: SEO_NO_RELATED_PAGE, label: t("notRelated") },
+                  ]}
                 />
               </SeoField>
             </>
