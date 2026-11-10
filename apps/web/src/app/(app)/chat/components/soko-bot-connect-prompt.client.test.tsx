@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { connectSokoBotIntegrationAction } from "@/lib/actions/soko-bot/action";
@@ -89,6 +90,33 @@ describe("SokoBotConnectPrompt", () => {
     expect(connectSokoBotIntegrationAction).toHaveBeenCalledWith(
       expect.objectContaining({ provider: "outlook" }),
     );
+  });
+
+  it("re-enables Connect and says so when the connect never answers", async () => {
+    vi.mocked(connectSokoBotIntegrationAction).mockRejectedValueOnce(
+      new TypeError("Failed to fetch"),
+    );
+    render(
+      <SokoBotConnectCard
+        offers={[{ provider: "gmail", name: "Gmail", connected: false }]}
+        onDismiss={() => {}}
+      />,
+    );
+    screen.getByRole("button", { name: "connectButton" }).focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "connectProvider:Gmail" }),
+    );
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("connectError"),
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "connectButton",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
   });
 
   it("clears a shared bot left by an abandoned connect, so the DM connects the caller's own bot", async () => {
