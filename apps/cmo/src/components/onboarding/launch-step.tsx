@@ -91,6 +91,26 @@ interface LaunchStepProps {
   onGoToday: () => void;
   /** Why a connection came back without an account, from the return address. */
   notice?: string | null;
+  /** Renders the heading itself; the onboarding shell shows it instead. */
+  titled?: boolean;
+  /** Launch was pressed, or taken back with Change settings. */
+  onCelebrate?: (celebrating: boolean) => void;
+}
+
+/** The plan's first piece, as "Tue 6 Oct, 09:00". */
+function firstPost(calendar: { date: string; time?: string | null }[]) {
+  const first = calendar
+    .map((entry) => `${entry.date} ${entry.time ?? ""}`.trim())
+    .sort()[0];
+  if (!first) return "";
+  const [date = "", time] = first.split(" ");
+  const day = new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  return time ? `${day}, ${time}` : day;
 }
 
 /**
@@ -105,6 +125,8 @@ export function LaunchStep({
   onLaunch,
   onGoToday,
   notice = null,
+  titled = true,
+  onCelebrate,
 }: LaunchStepProps) {
   const required = strategySocialChannels(overview);
   const optional = optionalChannels(overview);
@@ -120,7 +142,11 @@ export function LaunchStep({
   // Undefined until the founder acts: then the return notice no longer shows.
   const [error, setError] = useState<string | null | undefined>(undefined);
   const shownError = error === undefined ? notice : error;
-  const [celebrating, setCelebrating] = useState(false);
+  const [celebrating, setCelebratingState] = useState(false);
+  const setCelebrating = (on: boolean) => {
+    setCelebratingState(on);
+    onCelebrate?.(on);
+  };
   const [, startTransition] = useTransition();
   const [launching, startLaunching] = useTransition();
   // One of the plan's networks is enough to start; the rest can follow.
@@ -155,6 +181,11 @@ export function LaunchStep({
   if (celebrating) {
     const pace = PACES.find((option) => option.level === plan?.pace?.level);
     const ads = plan?.ads;
+    const month = (plan?.calendar ?? []).filter(
+      (entry) => entry.status !== "skipped",
+    );
+    const total = overview.production.total || month.length;
+    // What is done, then what still runs.
     const summary = [
       {
         term: "Pace",
@@ -176,6 +207,11 @@ export function LaunchStep({
           required.filter((key) => connected.has(key)).map(channelLabel),
         ),
       },
+      {
+        term: "This month",
+        value: total > 0 ? `${total} ${total === 1 ? "piece" : "pieces"}` : "",
+      },
+      { term: "First post", value: firstPost(month) },
     ].filter((row) => row.value);
     return (
       <section className="ob-launch ob-launch-done">
@@ -190,7 +226,7 @@ export function LaunchStep({
           </div>
         </div>
         <div className="ob-celebration-copy">
-          <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
+          {titled ? <h1 className="ob-h1">{AGENT_NAME} is on it.</h1> : null}
           <p className="muted">
             {AGENT_NAME} makes your month now and posts on your plan's schedule.
             Pause or change any piece from the calendar.
@@ -205,6 +241,10 @@ export function LaunchStep({
               ))}
             </dl>
           ) : null}
+          <p className="ob-small muted">
+            Still running: {AGENT_NAME} is making your month, piece by piece.
+            Watch them land on Today.
+          </p>
           <button type="button" className="button ob-wide" onClick={onGoToday}>
             Go to Today
             <ArrowRight size={16} aria-hidden="true" />
@@ -232,9 +272,11 @@ export function LaunchStep({
   return (
     <section className="ob-launch">
       <CusoAvatar pose="done" size={96} />
-      <h1 className="ob-h1">
-        {accounts ? "One thing, then I start." : "Ready when you are."}
-      </h1>
+      {titled ? (
+        <h1 className="ob-h1">
+          {accounts ? "One thing, then I start." : "Ready when you are."}
+        </h1>
+      ) : null}
       <p className="muted">
         {accounts
           ? "Your plan is approved. Connect where I post."

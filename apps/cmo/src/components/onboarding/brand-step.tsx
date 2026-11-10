@@ -35,6 +35,7 @@ import { BusinessMark } from "../business-mark";
 import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
+import { stepTitle } from "./live";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -200,6 +201,8 @@ interface BrandStepProps {
   ) => Promise<void>;
   /** Set when the founder opened this step again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
+  /** Renders the heading itself; the onboarding shell shows it instead. */
+  titled?: boolean;
 }
 
 /** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
@@ -211,6 +214,7 @@ export function BrandStep({
   onApprove,
   onAnswer,
   ahead,
+  titled = true,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -286,7 +290,9 @@ export function BrandStep({
       <div className="ob-title-row">
         <CusoAvatar pose="thinking" size={48} />
         <div className="ob-title-copy">
-          <h1 className="ob-h1">Here's {site} as I see it.</h1>
+          {titled ? (
+            <h1 className="ob-h1">{stepTitle({ step: "brand", overview })}</h1>
+          ) : null}
           <p className="muted">
             {AGENT_NAME} · tap any tile to see the source or fix it
           </p>
@@ -527,18 +533,27 @@ function TileDetail({ section, body, onSave }: TileDetailProps) {
 interface SiteCardProps {
   overview: CmoOverview;
   host: string;
+  /** Core is still capturing: what has not landed keeps its place. */
+  pending?: boolean;
 }
 
 /** The homepage as visitors see it, with the brand's logo and colours. */
-function SiteCard({ overview, host }: SiteCardProps) {
+export function SiteCard({ overview, host, pending = false }: SiteCardProps) {
   const colors = (overview.brandVisual?.colors ?? []).slice(0, MAX_COLORS);
   return (
     <div className="card ob-sitecard">
       <h2>Your site</h2>
-      <SiteShowcase media={overview.brandMedia} host={host} />
+      <SiteShowcase media={overview.brandMedia} host={host} pending={pending} />
       <div className="ob-brandmark">
         <BusinessMark overview={overview} size={36} wide />
-        {colors.length > 0 ? (
+        {colors.length === 0 && pending ? (
+          <ul className="ob-swatches" aria-hidden="true">
+            {Array.from({ length: MAX_COLORS }, (_, swatch) => (
+              // Placeholders have no identity beyond their place.
+              <li key={swatch} className="ob-swatch-skeleton" />
+            ))}
+          </ul>
+        ) : colors.length > 0 ? (
           <ul className="ob-swatches" aria-label="Brand colours">
             {colors.map((color) => (
               <li key={color} style={{ background: color }}>

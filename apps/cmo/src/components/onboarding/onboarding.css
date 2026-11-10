@@ -1862,3 +1862,81 @@ body:has(.ob) .site-header {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
 }
+
+/* ── The shell: one heading and one live line above every step ── */
+.ob-head {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+/* Holds its height while nothing runs, so the step below never moves. */
+.ob-live-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 32px;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ob-live-what {
+  font-weight: 500;
+}
+
+/* The caret on text that is typing in; typing is off under reduced motion. */
+.type-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.125em;
+  background: var(--foreground);
+  animation: blink 1s steps(1) infinite;
+}
+
+/* A found slot keeps the same height empty or filled. */
+.ob-found-list li.ob-slot {
+  min-height: 76px;
+  align-content: start;
+}
+
+.ob-found-list li.ob-skeleton {
+  align-content: center;
+  border-style: dashed;
+}
+
+.ob-swatches .ob-swatch-skeleton {
+  border: 1px dashed var(--border);
+}
+
+.ob-setup {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ob-setup h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+/* The pending shot's note stays clear of the phone in front of it. */
+.ob-sitecard .bm-pending .bm-shot-empty {
+  padding-right: 25%;
+}
+
+@media (max-width: 768px) {
+  /* Phone buttons are full width, and a full tap target. */
+  .ob-live-line .ob-retry {
+    width: 100%;
+  }
+
+  .ob-live-line .ob-retry .button {
+    min-height: 44px;
+    justify-content: center;
+  }
+}

@@ -16,12 +16,15 @@ import {
 /** The screens the preview route can render, one overview each. */
 export const SCREENS = [
   "hire",
+  "start",
   "reading",
+  "reading-slow",
   "writing",
   "asking",
   "brand",
   "plan",
   "planning",
+  "planning-slow",
   "launch",
   "launch-connected",
 ] as const;
@@ -32,12 +35,46 @@ export function isScreen(value: string): value is Screen {
   return (SCREENS as readonly string[]).includes(value);
 }
 
+/** The brand's look as Core reads it from the site. */
+const visual: CmoOverview["brandVisual"] = {
+  logoUrl: null,
+  colors: ["ff6a00", "1b1b1b", "f4e9d8"].map(hex),
+  fonts: ["Inter"],
+  siteName: "Acme",
+  designMdUrl: null,
+  images: [],
+};
+
+/** Started this long ago: on time, or past twice the usual time. */
+const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+
 /** The overview each screen renders, with enough data to fill it. */
 export function screenOverview(screen: Screen): CmoOverview {
   switch (screen) {
-    case "reading":
+    case "start":
+      // Just hired: nothing is in yet, every slot holds its place.
       return reading({
-        work: work("research", { sectionsSaved: 3 }),
+        work: work("research", {
+          startedAt: ago(0.2),
+          steps: [],
+          sections: [],
+          sectionsSaved: 0,
+        }),
+        billing: {
+          plan: null,
+          subscriptionStatus: null,
+          availableCredits: 10_000,
+        },
+      });
+    case "reading":
+    case "reading-slow":
+      return reading({
+        work: work("research", {
+          sectionsSaved: 3,
+          startedAt: ago(screen === "reading" ? 2 : 15),
+        }),
+        brandMedia: richMedia,
+        brandVisual: visual,
       });
     case "writing": {
       const research = work("research", { sectionsSaved: 16 });
@@ -88,19 +125,14 @@ export function screenOverview(screen: Screen): CmoOverview {
         brandBrainConfirmedAt: null,
         strategy: null,
         brandMedia: richMedia,
-        brandVisual: {
-          logoUrl: null,
-          colors: ["ff6a00", "1b1b1b", "f4e9d8"].map(hex),
-          fonts: ["Inter"],
-          siteName: "Acme",
-          designMdUrl: null,
-          images: [],
-        },
+        brandVisual: visual,
       });
     case "planning":
+    case "planning-slow":
       return draft({
         strategy: null,
         work: work("strategy", {
+          startedAt: ago(screen === "planning" ? 1 : 13),
           steps: [
             {
               id: "p1",

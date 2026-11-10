@@ -6,6 +6,7 @@ import { channelLabel, relativeDay } from "../../lib/calendar";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { ChannelIcon } from "../channel-icon";
+import { useLanding } from "../type-in";
 
 interface UpNextProps {
   overview: CmoOverview;
@@ -28,6 +29,8 @@ function MonthProduction({
 }: {
   production: CmoOverview["production"];
 }) {
+  // A poll can bring several pieces at once; they land one at a time.
+  const ready = useLanding(production.ready);
   if (
     production.state !== "running" &&
     production.state !== "starting" &&
@@ -45,7 +48,7 @@ function MonthProduction({
           ) : null}
           <span className="uchannel">{AGENT_NAME}</span>
           <span className="when num">
-            {production.ready} of {production.total}
+            {ready} of {production.total}
           </span>
         </div>
         <span className="utitle">

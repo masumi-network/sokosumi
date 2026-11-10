@@ -231,17 +231,19 @@ export function QuestionCard({
 interface RetryButtonProps {
   onRetry: () => Promise<string | null>;
   topUpUrl: string;
+  /** A small button, beside a line of copy. */
+  small?: boolean;
 }
 
 /** Starts the work again; a refusal (such as no credits) comes back as text. */
-export function RetryButton({ onRetry, topUpUrl }: RetryButtonProps) {
+export function RetryButton({ onRetry, topUpUrl, small }: RetryButtonProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
     <div className="ob-retry">
       <button
         type="button"
-        className="button button-secondary"
+        className={small ? "button button-small" : "button button-secondary"}
         disabled={pending}
         onClick={() =>
           startTransition(async () => {

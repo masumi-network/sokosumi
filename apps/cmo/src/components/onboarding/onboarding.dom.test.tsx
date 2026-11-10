@@ -841,3 +841,75 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
   await press("Go to Today");
   expect(goToday).toHaveBeenCalledTimes(1);
 });
+
+// One shell: the heading and the markers change in place, the page never remounts.
+
+it("keeps one mounted shell from Site to Launch, changing the heading in place", async () => {
+  vi.stubGlobal("matchMedia", () => ({
+    matches: true,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      draft({ strategy: { ...strategy, changes: [], questions: [] } }),
+    ),
+    approveStrategy: vi.fn(async () => draft(cmoStrategyVersion(new Date()))),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
+    ),
+  );
+  const shell = container.querySelector(".ob-shell");
+  const heading = container.querySelector(".ob-head h1");
+  const main = container.querySelector(".ob-main");
+  const seen = () => {
+    expect(container.querySelector(".ob-shell")).toBe(shell);
+    expect(container.querySelector(".ob-head h1")).toBe(heading);
+    expect(container.querySelector(".ob-main")).toBe(main);
+    expect(container.querySelectorAll("h1")).toHaveLength(1);
+    return [
+      heading?.textContent,
+      container.querySelector(".ob-step.now")?.textContent?.replace(/^\d/, ""),
+    ];
+  };
+  expect(shell).not.toBeNull();
+  expect(seen()).toEqual([
+    "I read acme.io. Answer a few before I show you.",
+    "Site",
+  ]);
+  await press("Yes");
+  await press("Yes");
+  await press("See your brand");
+  expect(seen()).toEqual(["Here's acme.io as I see it.", "Brand"]);
+  await press("Looks like us");
+  expect(seen()).toEqual(["Your first month.", "Plan"]);
+  await press("Approve plan");
+  expect(seen()).toEqual(["One thing, then I start.", "Launch"]);
+  vi.unstubAllGlobals();
+});
+
+it("ends Launch with a recap: what is done and what still runs", async () => {
+  await act(async () =>
+    root.render(
+      <LaunchStep
+        overview={draft({
+          ...cmoStrategyVersion(new Date()),
+          channels: [{ ...active, id: "li", provider: "linkedin" }],
+        })}
+        onConnect={async () => ({ url: null, error: null })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onLaunch={async () => {}}
+        onGoToday={() => {}}
+      />,
+    ),
+  );
+  await press("Launch Cuso");
+  expect(text()).toContain("This month3 pieces");
+  expect(text()).toContain("First postTue 6 Oct, 09:00");
+  expect(text()).toContain("Posting toLinkedIn");
+  expect(text()).toContain(
+    "Still running: Cuso is making your month, piece by piece. Watch them land on Today.",
+  );
+});

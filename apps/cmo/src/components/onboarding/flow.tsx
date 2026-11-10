@@ -13,10 +13,14 @@ import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
 import { ThemeToggle } from "../theme-toggle";
+import { TypeIn } from "../type-in";
 import { type AnswerInput, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
+import { useElapsedSeconds } from "./checklist";
 import { LaunchStep } from "./launch-step";
+import { liveLine, slowCopy, stepTitle, USUAL_SECONDS } from "./live";
 import { PlanStep } from "./plan-step";
+import { RetryButton } from "./questions";
 import { SiteStep } from "./site-step";
 import { type OnboardingStep, onboardingStep, STEPS, stepIndex } from "./step";
 import { StepMarkers } from "./step-markers";
@@ -94,6 +98,45 @@ function AccountMenu({ overview, startOver, signOut }: AccountMenuProps) {
   );
 }
 
+interface LiveLineProps {
+  overview: CmoOverview;
+  /** Asked for the plan, before Core reports the work. */
+  starting: boolean;
+  onRetry: () => Promise<string | null>;
+  topUpUrl: string;
+}
+
+/**
+ * One line under the heading: what Cuso is doing now, from Core's work
+ * labels, and the time so far against the usual. Past twice the usual time
+ * it offers Try again. It keeps its height when nothing runs.
+ */
+function LiveLine({ overview, starting, onRetry, topUpUrl }: LiveLineProps) {
+  const live = liveLine(overview);
+  const elapsed = useElapsedSeconds(live?.work.startedAt, live !== null);
+  const label = live?.label ?? (starting ? "Planning your month" : "");
+  const slow =
+    live && elapsed !== null
+      ? slowCopy(elapsed, USUAL_SECONDS[live.work.kind])
+      : null;
+  return (
+    <div className="ob-live-line">
+      {label ? (
+        <>
+          <span className="dot live" aria-hidden="true" />
+          <span className="ob-live-what">
+            <TypeIn text={label} />
+          </span>
+          {slow ? <span className="muted num">{slow.line}</span> : null}
+          {slow?.retry ? (
+            <RetryButton onRetry={onRetry} topUpUrl={topUpUrl} small />
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 interface OnboardingFlowProps {
   overview: CmoOverview;
   messages: CusoMessage[];
@@ -105,8 +148,10 @@ interface OnboardingFlowProps {
 }
 
 /**
- * CMO's first run: four full-screen steps from Cuso reading the site to
- * launching him. The chat becomes home once the founder starts.
+ * CMO's first run: one screen that changes in place from Cuso reading the
+ * site to launching him. The heading, the live line and the step markers sit
+ * above the step and never remount. The chat becomes home once the founder
+ * starts.
  */
 export function OnboardingFlow({
   overview: initialOverview,
@@ -235,9 +280,34 @@ export function OnboardingFlow({
   const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));
   };
+  const retryLearning = async () => {
+    const result = await actions.retryLearning();
+    setOverview(result.overview);
+    return result.error;
+  };
+  // Launch was pressed: the heading says Cuso is live.
+  const [launched, setLaunched] = useState(false);
+  const sitePhase = position.step === "site" ? position.phase : "asking";
+  const planRunning =
+    starting ||
+    (overview.work?.kind === "strategy" && overview.work.status === "running");
+  const title =
+    step === "site"
+      ? stepTitle({
+          step,
+          overview,
+          messages,
+          phase: sitePhase,
+          finished: derived !== "site",
+        })
+      : step === "plan"
+        ? stepTitle({ step, overview, phase: planPhase, running: planRunning })
+        : step === "launch"
+          ? stepTitle({ step, overview, launched })
+          : stepTitle({ step, overview });
 
   return (
-    <div className="ob">
+    <div className="ob ob-shell">
       <header className="ob-top">
         <Logo />
         <StepMarkers
@@ -264,12 +334,28 @@ export function OnboardingFlow({
         />
       </header>
 
-      <main className="ob-main" key={step}>
+      <main className={`ob-main ob-main-${step}`}>
+        <div className="ob-head">
+          <h1 className="ob-h1">
+            <TypeIn text={title} />
+          </h1>
+          <LiveLine
+            overview={overview}
+            starting={starting}
+            onRetry={
+              overview.work?.kind === "strategy"
+                ? () => request()
+                : retryLearning
+            }
+            topUpUrl={overview.subscribeUrl}
+          />
+        </div>
         {step === "site" ? (
           <SiteStep
+            titled={false}
             overview={overview}
             messages={messages}
-            phase={position.step === "site" ? position.phase : "asking"}
+            phase={sitePhase}
             next={derived === "plan" ? "plan" : "brand"}
             finished={derived !== "site"}
             skipped={skipped.includes("questions")}
@@ -283,11 +369,7 @@ export function OnboardingFlow({
               ]);
             }}
             onContinue={() => setHeldSite(false)}
-            onRetry={async () => {
-              const result = await actions.retryLearning();
-              setOverview(result.overview);
-              return result.error;
-            }}
+            onRetry={retryLearning}
             onReply={async (text) => {
               await actions.sendMessage(text);
               await refresh();
@@ -295,6 +377,7 @@ export function OnboardingFlow({
           />
         ) : step === "brand" ? (
           <BrandStep
+            titled={false}
             overview={overview}
             messages={messages}
             ahead={ahead}
@@ -320,6 +403,7 @@ export function OnboardingFlow({
           />
         ) : step === "plan" ? (
           <PlanStep
+            titled={false}
             overview={overview}
             phase={planPhase}
             starting={starting}
@@ -346,6 +430,8 @@ export function OnboardingFlow({
           />
         ) : (
           <LaunchStep
+            titled={false}
+            onCelebrate={setLaunched}
             overview={overview}
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}

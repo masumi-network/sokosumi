@@ -1,7 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import type { ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { planWeeks } from "../../lib/calendar";
 import { cmoStrategyVersion } from "../../test-fixtures/cmo";
@@ -10,13 +10,16 @@ import {
   brain,
   draft,
   reading,
+  richMedia,
   strategy,
   work,
 } from "../../test-fixtures/onboarding";
 import { Onboarding } from "../onboarding";
 import { feedScreens } from "../phone-feeds";
 import { showcaseEntries } from "../showcases";
+import { inertOnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
+import { OnboardingFlow } from "./flow";
 import {
   LaunchStep,
   optionalChannels,
@@ -141,8 +144,6 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("Reading acme.io.");
     expect(html).toContain("Cuso is reading");
     expect(html).toContain("Reading your site");
-    expect(html).toContain("Cuso is reading · ");
-    expect(html).toContain(" so far");
     expect(html).toContain("/cuso/reading.png");
     expect(html).toContain("What I found so far");
     expect(html).toContain("7 of 16 sections");
@@ -157,7 +158,9 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("What you sell");
     expect(html).toContain("Source: acme.io");
     expect(html).not.toContain("ob-skeleton");
-    expect(site(reading())).toContain("ob-skeleton");
+    expect(
+      site(reading({ work: work("research", { sectionsSaved: 1 }) })),
+    ).toContain("ob-skeleton");
   });
 
   it("shows the latest sections Cuso saved, with skeletons for the rest", () => {
@@ -167,14 +170,16 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("Company basics");
     expect(html).toContain("Rockets for founders, since 2019");
     expect(html).toContain("Launches take months, not days");
-    expect(html).toContain("ob-skeleton");
+    expect(html).not.toContain("ob-skeleton");
+    expect(
+      site(reading({ work: work("research", { sectionsSaved: 2 }) })),
+    ).toContain("ob-skeleton");
   });
 
   it("says what happens once every section is in, before the Brand Brain lands", () => {
     const html = site(
       reading({ work: work("research", { sectionsSaved: 16 }) }),
     );
-    expect(html).toContain("16 of 16 sections");
     expect(html).toContain("All 16 sections are in.");
     expect(html).toContain("Now I&#x27;m putting your 16 sections together");
     expect(html).not.toContain("ob-skeleton");
@@ -226,6 +231,109 @@ describe("Site while Cuso reads", () => {
     );
     expect(html).toContain("out of credits");
     expect(html).toContain("Try again");
+  });
+});
+
+describe("Site slots", () => {
+  const slots = (html: string) => html.match(/class="ob-slot/g)?.length ?? 0;
+  const visual = {
+    logoUrl: null,
+    colors: ["a", "b", "c", "d", "e", "f"].map((d) => `#${d.repeat(6)}`),
+    fonts: [],
+    siteName: "Acme",
+    designMdUrl: null,
+    images: [],
+  };
+
+  it("holds the Your site card with skeletons before Core has the look", () => {
+    const html = site(reading({ brandMedia: null, brandVisual: null }));
+    expect(html).toContain("Your site");
+    expect(html).toContain("Taking screenshots of acme.io");
+    expect(html).toContain("bm-phone-empty");
+    expect(html.match(/ob-swatch-skeleton/g)).toHaveLength(5);
+  });
+
+  it("fills Your site on Site as soon as Core has the look", () => {
+    const html = site(reading({ brandMedia: richMedia, brandVisual: visual }));
+    expect(html).toContain("acme.io homepage");
+    expect(html).toContain("acme.io on a phone");
+    expect(html).not.toContain("bm-phone-empty");
+    expect(html.match(/<li style="background:/g)).toHaveLength(5);
+    expect(html).not.toContain("ob-swatch-skeleton");
+  });
+
+  it("keeps the phone's place while only the desktop shot is in", () => {
+    const html = site(
+      reading({
+        brandMedia: {
+          ...richMedia,
+          pages: richMedia.pages.filter((page) => page.device === "desktop"),
+        },
+      }),
+    );
+    expect(html).toContain("acme.io homepage");
+    expect(html).toContain("bm-phone-empty");
+  });
+
+  it("keeps three found slots whatever has landed", () => {
+    for (const overview of [
+      reading({ work: null }),
+      reading({ work: work("research", { sectionsSaved: 0 }) }),
+      reading({ work: work("research", { sectionsSaved: 1 }) }),
+      reading({ work: work("research", { sectionsSaved: 16 }) }),
+      asking({ work: work("research") }),
+    ]) {
+      expect(slots(site(overview))).toBe(3);
+    }
+  });
+
+  it("lists what the hire set up until the first question arrives", () => {
+    const html = site(
+      reading({ work: work("research", { sectionsSaved: 0 }) }),
+    );
+    expect(html).toContain("Set up for acme.io");
+    expect(html).toContain("Project &quot;CMO.xyz · Acme&quot;");
+    expect(html).toContain("Cuso hired, with his own chat");
+    expect(site(asking({ work: work("research") }))).not.toContain(
+      "Set up for",
+    );
+  });
+});
+
+describe("live line", () => {
+  const flow = (overview: CmoOverview) =>
+    renderToStaticMarkup(
+      <OnboardingFlow
+        overview={overview}
+        messages={[]}
+        actions={inertOnboardingActions(overview)}
+      />,
+    );
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("says under the heading what Cuso does now, against the usual time", () => {
+    vi.useFakeTimers({ now: new Date("2026-10-05T09:02:00Z") });
+    const html = flow(reading());
+    expect(html).toContain("ob-live-line");
+    expect(html).toContain("Reading acme.io/pricing");
+    expect(html).toContain("2 min so far, usually about 7 min");
+    expect(html).not.toContain("Try again");
+  });
+
+  it("offers Try again once the read takes twice the usual time", () => {
+    vi.useFakeTimers({ now: new Date("2026-10-05T09:15:00Z") });
+    const html = flow(reading());
+    expect(html).toContain("Taking much longer than usual: 15 min so far");
+    expect(html).toContain("Try again");
+  });
+
+  it("holds its place, empty, once nothing runs", () => {
+    const html = flow(draft());
+    expect(html).toContain("ob-live-line");
+    expect(html).not.toContain("so far");
   });
 });
 
@@ -353,7 +461,6 @@ describe("Plan", () => {
     );
     expect(html).toContain("Writing your plan");
     expect(html).toContain("This takes a few minutes.");
-    expect(html).toContain(" so far");
     expect(html).toContain("Your channels");
     expect(html).toContain("Choosing your idea, channels and pillars");
     expect(html).not.toContain("Approve plan");

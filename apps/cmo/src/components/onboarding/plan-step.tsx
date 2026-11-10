@@ -14,12 +14,8 @@ import { EntrySheet } from "../entry-sheet";
 import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
-import {
-  Checklist,
-  PLANNING_PHASES,
-  useElapsed,
-  workChecklist,
-} from "./checklist";
+import { Checklist, PLANNING_PHASES, workChecklist } from "./checklist";
+import { stepTitle } from "./live";
 import {
   type ConnectMeasurement,
   MonthPanel,
@@ -149,6 +145,8 @@ interface PlanStepProps {
   starting?: boolean;
   /** Set when the founder opened the plan again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
+  /** Renders the heading itself; the onboarding shell shows it instead. */
+  titled?: boolean;
 }
 
 /**
@@ -157,18 +155,25 @@ interface PlanStepProps {
  * While Cuso writes or changes it, the plan stays on screen and fills in.
  */
 export function PlanStep(props: PlanStepProps) {
-  const { overview, phase, onRequest } = props;
+  const { overview, phase, onRequest, titled = true } = props;
   if (phase === "planning") {
     return (
       <Planning
         overview={overview}
         starting={props.starting ?? false}
+        titled={titled}
         onRetry={() => onRequest()}
       />
     );
   }
   if (phase === "writing-needed" || !overview.strategy) {
-    return <WriteNeeded overview={overview} onWrite={() => onRequest()} />;
+    return (
+      <WriteNeeded
+        overview={overview}
+        titled={titled}
+        onWrite={() => onRequest()}
+      />
+    );
   }
   return <PlanReview {...props} />;
 }
@@ -176,16 +181,16 @@ export function PlanStep(props: PlanStepProps) {
 interface PlanningProps {
   overview: CmoOverview;
   starting: boolean;
+  titled: boolean;
   onRetry: () => Promise<string | null>;
 }
 
 /** The first plan is being written: the checklist, and the way to try again. */
-function Planning({ overview, starting, onRetry }: PlanningProps) {
+function Planning({ overview, starting, titled, onRetry }: PlanningProps) {
   const work = overview.work;
   const running =
     starting || (work?.kind === "strategy" && work.status === "running");
   const noCredits = !running && overview.billing.availableCredits <= 0;
-  const elapsed = useElapsed(work?.startedAt, running);
   const rows = planningRows(
     work?.kind === "strategy" ? work.steps : [],
     overview.strategy ?? null,
@@ -195,9 +200,11 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
     <section className="panel ob-wait">
       <div className={running ? "card ob-says" : "card card-focus ob-says"}>
         <CusoAvatar pose="reporting" size={96} />
-        <h1 className="ob-h1">
-          {running ? "Writing your plan" : "Planning stopped"}
-        </h1>
+        {titled ? (
+          <h1 className="ob-h1">
+            {stepTitle({ step: "plan", overview, phase: "planning", running })}
+          </h1>
+        ) : null}
         {noCredits ? (
           <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
         ) : (
@@ -207,7 +214,6 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
               : `Nothing was lost. Try again and I start over.`}
           </p>
         )}
-        {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
         <Checklist
           items={workChecklist(
             work?.kind === "strategy" ? work.steps : [],
@@ -266,18 +272,19 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
 
 interface WriteNeededProps {
   overview: CmoOverview;
+  titled: boolean;
   onWrite: () => Promise<string | null>;
 }
 
 /** Brand is confirmed and nothing writes the plan: one button does. */
-function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
+function WriteNeeded({ overview, titled, onWrite }: WriteNeededProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
     <section className="panel ob-wait">
       <div className="card card-focus ob-says">
         <CusoAvatar pose="reporting" size={96} />
-        <h1 className="ob-h1">Ready to write your plan</h1>
+        {titled ? <h1 className="ob-h1">Ready to write your plan</h1> : null}
         <p className="muted">
           I build it from your Brand Brain and your answers.
         </p>
@@ -323,6 +330,7 @@ export function PlanReview({
   onApprove,
   onConnectMeasurement,
   ahead,
+  titled = true,
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
   const [tab, setTab] = useState<PlanTab>(initialTab);
@@ -550,7 +558,7 @@ export function PlanReview({
       <div className="ob-plan-body panel" hidden={replanning !== null}>
         <GoalBlock
           label="The goal"
-          headline
+          headline={titled}
           goal={goal}
           statement={sentence !== goal ? sentence : undefined}
           facts={goalFacts(strategy)}

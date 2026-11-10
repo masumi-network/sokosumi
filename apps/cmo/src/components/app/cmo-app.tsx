@@ -22,6 +22,7 @@ import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
 import { StatusText } from "../status";
+import { useLanding } from "../type-in";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
@@ -704,6 +705,8 @@ function ProductionCard({
 }) {
   const ready = production.state === "ready";
   const share = productionShare(production);
+  // A poll can bring several pieces at once; they land one at a time.
+  const landed = useLanding(production.ready);
   // Between two runs the month is partly made: only a month with no words
   // yet is about to start.
   const notStarted =
@@ -724,7 +727,7 @@ function ProductionCard({
                 : `${AGENT_NAME} is making your month`}
         </b>
         <span className="note num">
-          {production.ready} of {production.total} ready
+          {landed} of {production.total} ready
         </span>
       </p>
       <span

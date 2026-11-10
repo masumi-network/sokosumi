@@ -2436,6 +2436,13 @@ button.cuso-status {
   background: var(--background);
 }
 
+/* The phone shot keeps its place until Core captures it. */
+.bm-phone-empty {
+  aspect-ratio: 390 / 844;
+  border-style: dashed;
+  border-color: var(--border);
+}
+
 .bm-phone img {
   display: block;
   width: 100%;
