@@ -259,7 +259,7 @@ export function BrandStep({
   const planSlot =
     researchGroups(overview) !== null &&
     !overview.brandBrainConfirmedAt &&
-    (writing || overview.strategy !== null);
+    (writing || (overview.strategy?.calendar.length ?? 0) > 0);
 
   async function ask(text: string) {
     setSent({ text, after: lastWord?.id ?? null });

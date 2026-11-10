@@ -30,6 +30,7 @@ import {
 } from "./live";
 import { PlanStep } from "./plan-step";
 import { RetryButton } from "./questions";
+import { Refusal } from "./refusal";
 import { SiteStep } from "./site-step";
 import { type OnboardingStep, onboardingStep, STEPS, stepIndex } from "./step";
 import { StepMarkers } from "./step-markers";
@@ -324,6 +325,7 @@ export function OnboardingFlow({
   // gave while it was written is fitted afterwards. Each set of nos is sent
   // once per visit, so a re-plan that leaves one open never loops.
   const fitted = useRef("");
+  const [fitRefusal, setFitRefusal] = useState<string | null>(null);
   const corrections =
     researchGroups(overview) !== null &&
     step !== "brand" &&
@@ -336,7 +338,9 @@ export function OnboardingFlow({
   useEffect(() => {
     if (!corrections || fitted.current === corrections) return;
     fitted.current = corrections;
-    void request(BRAND_CORRECTED).catch(() => {});
+    request(BRAND_CORRECTED)
+      .then(setFitRefusal)
+      .catch(() => setFitRefusal("That didn't go through. Try again."));
   });
   const retryLearning = async () => {
     const result = await actions.retryLearning();
@@ -410,6 +414,9 @@ export function OnboardingFlow({
             topUpUrl={overview.subscribeUrl}
           />
           {step === "site" ? <ResearchChips overview={overview} /> : null}
+          {fitRefusal && step === "plan" ? (
+            <Refusal text={fitRefusal} topUpUrl={overview.subscribeUrl} />
+          ) : null}
         </div>
         {step === "site" ? (
           <SiteStep

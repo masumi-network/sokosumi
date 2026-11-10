@@ -34,13 +34,6 @@ export function researchGroups(overview: CmoOverview): Group[] | null {
   return groups && groups.length > 0 ? groups : null;
 }
 
-/** The chips under the live line: the groups while Cuso researches. */
-export function researchChips(overview: CmoOverview): Group[] | null {
-  const research =
-    overview.work?.kind === "research" && overview.work.status === "running";
-  return research ? researchGroups(overview) : null;
-}
-
 /** Cuso is writing the plan now. */
 export function planWriting(overview: CmoOverview): boolean {
   return (

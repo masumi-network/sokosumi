@@ -358,6 +358,38 @@ it("fits the written plan to a no the founder gave while it was written, once", 
   );
 });
 
+it("says why fitting the plan to a no was refused", async () => {
+  const [first, ...rest] = brain.questions ?? [];
+  const corrected = draft({
+    research: research(6),
+    brandBrain: {
+      ...brain,
+      questions: [
+        { ...first, answer: "no", corrected: false },
+        ...rest,
+      ] as typeof brain.questions,
+    },
+  });
+  const actions = actionsFor({
+    requestStrategy: vi.fn(async () => ({
+      overview: null,
+      error: "Cuso is still writing the plan",
+    })),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={corrected}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await act(async () => {});
+  expect(text()).toContain("Cuso is still writing the plan");
+});
+
 it("restarts a slow plan from Try again", async () => {
   vi.useFakeTimers({
     now: new Date("2026-10-05T09:15:00Z"),
