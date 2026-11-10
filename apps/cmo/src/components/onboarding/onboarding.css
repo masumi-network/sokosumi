@@ -1901,6 +1901,8 @@ body:has(.ob) .site-header {
 
 .ob-where legend {
   margin-bottom: 4px;
+  /* Browsers inset a legend; it lines up with "Your website" instead. */
+  padding: 0;
   font-weight: 600;
 }
 
@@ -1908,4 +1910,15 @@ body:has(.ob) .site-header {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* No default margin, so the radios line up with the website field. */
+.ob-where input {
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.ob-where input:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
