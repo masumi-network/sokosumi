@@ -9,7 +9,10 @@ const { getSessionMock, listUserAccountsMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("next-intl/server", () => ({
-  getTranslations: async () => (key: string) => {
+  getTranslations: async (namespace: string) => (key: string) => {
+    if (namespace === "App.Connections") {
+      return englishMessages.App.Connections[key as "title" | "description"];
+    }
     const messages: Record<string, string> = {
       title: "Sign-in",
       description: "Use these accounts to sign in.",
@@ -68,6 +71,17 @@ describe("ConnectionsPage", () => {
     listUserAccountsMock.mockReset();
     getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
     listUserAccountsMock.mockResolvedValue(ok([]));
+  });
+
+  it("names the page in one top-level heading with a short summary", async () => {
+    render(await ConnectionsPage());
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Connections" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Sign-in accounts, connected apps and MCP."),
+    ).toBeVisible();
   });
 
   it("titles the sign-in providers above the account rows", async () => {

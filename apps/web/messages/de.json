@@ -7099,7 +7099,9 @@
           "error": "{provider} konnte nicht getrennt werden"
         },
         "connect": "{provider} verbinden",
-        "disconnect": "{provider} trennen"
+        "disconnect": "{provider} trennen",
+        "connectAction": "Verbinden",
+        "disconnectAction": "Trennen"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
@@ -8270,6 +8272,8 @@
       }
     },
     "Connections": {
+      "title": "Verbindungen",
+      "description": "Anmeldekonten, verbundene Apps und MCP.",
       "tabs": {
         "connectedApps": "Verbundene Apps",
         "mcp": "MCP"

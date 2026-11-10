@@ -7135,7 +7135,9 @@
           "error": "Failed to disconnect {provider}"
         },
         "connect": "Connect {provider}",
-        "disconnect": "Disconnect {provider}"
+        "disconnect": "Disconnect {provider}",
+        "connectAction": "Connect",
+        "disconnectAction": "Disconnect"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",
@@ -8315,6 +8317,8 @@
       }
     },
     "Connections": {
+      "title": "Connections",
+      "description": "Sign-in accounts, connected apps and MCP.",
       "tabs": {
         "connectedApps": "Connected apps",
         "mcp": "MCP"

@@ -7099,7 +7099,9 @@
           "error": "No se pudo desconectar {provider}"
         },
         "connect": "Conectar {provider}",
-        "disconnect": "Desconectar {provider}"
+        "disconnect": "Desconectar {provider}",
+        "connectAction": "Conectar",
+        "disconnectAction": "Desconectar"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
@@ -8270,6 +8272,8 @@
       }
     },
     "Connections": {
+      "title": "Conexiones",
+      "description": "Cuentas de inicio de sesión, apps conectadas y MCP.",
       "tabs": {
         "connectedApps": "Apps conectadas",
         "mcp": "MCP"
