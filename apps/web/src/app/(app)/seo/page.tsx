@@ -8,7 +8,7 @@ import { seoService } from "@/lib/services/seo.service";
 import { SeoAuditIndex } from "./components/seo-audit-index";
 import { SeoPageError } from "./components/seo-page-error";
 import { SeoWorkspace } from "./components/seo-workspace";
-import { seoAuditHref } from "./seo-href";
+import { seoRescopedHref } from "./seo-href";
 import { seoLoadErrorStatus } from "./seo-load-error-model";
 import { readSeoPageQuery } from "./seo-query";
 
@@ -25,18 +25,22 @@ export default async function SeoPage({
 }) {
   await connection();
   const t = await getTranslations("App.Seo");
-  const parsed = readSeoPageQuery(await searchParams);
+  const raw = await searchParams;
+  const parsed = readSeoPageQuery(raw);
   if (!parsed.success)
     return (
       <WorkspacePageShell title={t("title")}>
         <SeoPageError invalidFilters resetHref="/seo" />
       </WorkspacePageShell>
     );
-  const { auditId, projectId, cursor, tab: _tab, ...query } = parsed.data;
-  // `projectId` is the header's Project scope: it filters the Audit list, it does not name an owner.
+  const { auditId, projectId, cursor, view, tab: _tab, ...query } = parsed.data;
+  // `projectId` is the header's Project scope: it filters the Audit list. With `view=project` it opens the
+  // Project's own SEO workspace, where its Soko Bot keeps pages outside any Audit.
   const owner: SeoOwner | undefined = auditId
     ? { kind: "audit", id: auditId }
-    : undefined;
+    : projectId && view === "project"
+      ? { kind: "project", id: projectId }
+      : undefined;
   try {
     if (!owner) {
       const index = await seoService.listAudits({ cursor, projectId });
@@ -53,7 +57,7 @@ export default async function SeoPage({
     const workspace = await seoService.getWorkspace(owner, query);
     // An Audit opens in its own Project's scope (or the workspace view for none).
     if (auditId && (projectId ?? null) !== (workspace.projectId ?? null))
-      redirect(seoAuditHref(auditId, workspace.projectId ?? null));
+      redirect(seoRescopedHref(raw, workspace.projectId ?? null));
     return (
       <WorkspacePageShell title={t("title")}>
         <SeoWorkspace

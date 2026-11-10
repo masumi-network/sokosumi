@@ -11146,6 +11146,7 @@
         "created": "Created",
         "empty": "No audits yet",
         "emptyProject": "No audits in this project yet",
+        "projectWorkspace": "Project SEO workspace",
         "emptyBody": "Create an audit and add its first page. You can add related pages later.",
         "createHelp": "Name this audit and add a public page URL. This saves the page without running a paid check.",
         "name": "Audit name",

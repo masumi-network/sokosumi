@@ -7731,7 +7731,7 @@ export class SokoBotRuntimeService {
               projectId,
               id: targetId,
               ...(taskId ? { taskId } : {}),
-              link: `/seo?projectId=${encodeURIComponent(projectId)}`,
+              link: `/seo?projectId=${encodeURIComponent(projectId)}&view=project`,
             }),
           });
         },

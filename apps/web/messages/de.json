@@ -11146,6 +11146,7 @@
         "created": "Erstellt",
         "empty": "Noch keine Audits",
         "emptyProject": "Noch keine Audits in diesem Projekt",
+        "projectWorkspace": "SEO-Arbeitsbereich des Projekts",
         "emptyBody": "Erstelle ein Audit und füge die erste Seite hinzu. Weitere Seiten kannst du später hinzufügen.",
         "createHelp": "Benenne das Audit und füge eine öffentliche Seiten-URL hinzu. Die Seite wird ohne kostenpflichtige Prüfung gespeichert.",
         "name": "Audit-Name",

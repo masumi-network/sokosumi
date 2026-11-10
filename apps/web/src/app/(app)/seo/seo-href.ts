@@ -14,3 +14,21 @@ export function seoAuditHref(auditId: string, projectId: string | null) {
   params.set("auditId", auditId);
   return `/seo?${params}`;
 }
+
+/** The Project's own SEO workspace: the pages and reads its Soko Bot keeps outside any Audit. */
+export function seoProjectHref(projectId: string) {
+  return `/seo?${new URLSearchParams({ projectId, view: "project" })}`;
+}
+
+/** The same SEO URL in another Project scope. Tabs, filters and the open Audit stay. */
+export function seoRescopedHref(
+  query: Record<string, string | string[] | undefined>,
+  projectId: string | null,
+) {
+  const params = new URLSearchParams();
+  if (projectId) params.set("projectId", projectId);
+  for (const [key, value] of Object.entries(query))
+    if (key !== "projectId")
+      for (const one of [value ?? []].flat()) params.append(key, one);
+  return `/seo?${params}`;
+}

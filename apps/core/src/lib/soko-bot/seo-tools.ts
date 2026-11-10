@@ -46,7 +46,7 @@ export async function runSeoTool(
   const { projectId, ...fields } = parsed;
   if (actor.owner.kind !== "project" || projectId !== actor.owner.id)
     throw new Error("SEO Project mismatch");
-  const link = `/seo?projectId=${encodeURIComponent(projectId)}`;
+  const link = `/seo?projectId=${encodeURIComponent(projectId)}&view=project`;
   if (capability === "get_seo_workspace") {
     return {
       ...(await getProjectSeoWorkspace(

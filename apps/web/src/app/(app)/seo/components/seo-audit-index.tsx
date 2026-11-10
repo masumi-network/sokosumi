@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { seoAuditHref, seoIndexHref } from "../seo-href";
+import { seoAuditHref, seoIndexHref, seoProjectHref } from "../seo-href";
 import { SeoAuditForm } from "./seo-audit-form";
 import { SeoDate, SeoSection } from "./seo-shared";
 import { useCreateSeoAudit } from "./use-create-seo-audit";
@@ -38,12 +38,21 @@ export function SeoAuditIndex({
           <h2 className="text-xl font-semibold">{t("pickTitle")}</h2>
           <p className="text-muted-foreground text-sm">{t("pickBody")}</p>
         </div>
-        {audits.length ? (
-          <Button onClick={() => form.setOpen(true)}>
-            <Plus className="size-4" />
-            {t("audits.create")}
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {projectId ? (
+            <Button variant="outline" asChild>
+              <Link href={seoProjectHref(projectId)}>
+                {t("audits.projectWorkspace")}
+              </Link>
+            </Button>
+          ) : null}
+          {audits.length ? (
+            <Button onClick={() => form.setOpen(true)}>
+              <Plus className="size-4" />
+              {t("audits.create")}
+            </Button>
+          ) : null}
+        </div>
       </div>
       {audits.length ? (
         <SeoSection title={t("audits.saved")}>

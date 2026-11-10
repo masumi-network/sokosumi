@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -8,6 +8,7 @@ import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../messages/en.json";
 import {
   SEO_TEST_AUDIT,
+  SEO_TEST_PAGE,
   SEO_TEST_PROJECT,
   seoTestWorkspace,
 } from "./components/seo-test-fixture";
@@ -168,6 +169,65 @@ describe("native SEO audit entry", () => {
         `/seo?projectId=${SEO_TEST_PROJECT}&auditId=${SEO_TEST_AUDIT};`,
       ),
     });
+  });
+
+  it("moves an open Audit to its own scope and keeps its tab and page filter", async () => {
+    const other = "01951111-1111-7111-8111-999999999999";
+    m.getWorkspace.mockResolvedValue({
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+    });
+    await expect(
+      SeoPage({
+        searchParams: Promise.resolve({
+          projectId: other,
+          auditId: SEO_TEST_AUDIT,
+          tab: "rankings",
+          pageId: SEO_TEST_PAGE,
+        }),
+      }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `/seo?projectId=${SEO_TEST_PROJECT}&auditId=${SEO_TEST_AUDIT}&tab=rankings&pageId=${SEO_TEST_PAGE};`,
+      ),
+    });
+    m.getWorkspace.mockResolvedValue({
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      projectId: null,
+    });
+    await expect(
+      SeoPage({
+        searchParams: Promise.resolve({
+          projectId: SEO_TEST_PROJECT,
+          auditId: SEO_TEST_AUDIT,
+        }),
+      }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining(`/seo?auditId=${SEO_TEST_AUDIT};`),
+    });
+  });
+
+  it("opens the Project's own SEO workspace, where its Soko Bot keeps pages, and links to it from the Project's Audits", async () => {
+    m.getWorkspace.mockResolvedValue(seoTestWorkspace());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(seoTestWorkspace())),
+    );
+    await show({ projectId: SEO_TEST_PROJECT, view: "project" });
+    expect(m.getWorkspace).toHaveBeenCalledWith(
+      { kind: "project", id: SEO_TEST_PROJECT },
+      expect.anything(),
+    );
+    expect(m.listAudits).not.toHaveBeenCalled();
+    cleanup();
+    await show({ projectId: SEO_TEST_PROJECT });
+    expect(
+      screen.getByRole("link", { name: "Project SEO workspace" }),
+    ).toHaveAttribute(
+      "href",
+      `/seo?projectId=${SEO_TEST_PROJECT}&view=project`,
+    );
   });
 
   it("lists the scoped Project's Audits and links a new Audit to that Project", async () => {

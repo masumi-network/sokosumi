@@ -11146,6 +11146,7 @@
         "created": "Creada",
         "empty": "Todavía no hay auditorías",
         "emptyProject": "Todavía no hay auditorías en este proyecto",
+        "projectWorkspace": "Espacio SEO del proyecto",
         "emptyBody": "Crea una auditoría y añade su primera página. Puedes añadir páginas relacionadas después.",
         "createHelp": "Nombra la auditoría y añade la URL de una página pública. Esto guarda la página sin iniciar una comprobación de pago.",
         "name": "Nombre de la auditoría",
