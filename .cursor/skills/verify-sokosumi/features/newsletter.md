@@ -20,7 +20,7 @@ Preconditions:
 - Signed in (see [Sign in](./sign-in.md)).
 - `verify-sokosumi doctor` ok.
 
-- **Gate.** Run `agent-browser open $WEB_URL/newsletter` then `agent-browser snapshot -i`. On Alice's fixture org, the URL stays `/newsletter`, the page is the app 404 (**Return home**), and the sidebar **Marketing** group has **Content Studio** and **Social posts** only. That is success for a non-beta workspace. Do not call it a missing route.
+- **Gate.** Run `agent-browser open $WEB_URL/newsletter` then `agent-browser snapshot -i`. On Alice's fixture org, the URL stays `/newsletter`, the page is the app 404 (**Return home**), and the sidebar **Marketing** group has **Content Studio**, **Social posts**, and **Ads**, with no **Newsletter** row. That is success for a non-beta workspace. Do not call it a missing route.
 - **Enabled shell (utxo only).** If **Newsletter** is in the sidebar, open it. Expect a project prompt or a redirect to `/newsletter/issues` or `/newsletter/settings` with `?projectId=`. Do not require a sent issue.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/newsletter` then screenshot + snapshot. Record whether the gate or the enabled shell was shown.
 
