@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/database";
 import {
   isDesignMdBlobUrl,
+  isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
   PROJECT_IDENTIFIER_ERROR,
   PROJECT_IDENTIFIER_PATTERN,
@@ -23,6 +24,7 @@ import {
   taskStatusSchema,
 } from "@/schemas/domain-enums.schema";
 import { historyItemSchema } from "@/schemas/history.schema";
+import { studioLogoPositionOrNullSchema } from "./studio-logo-position.schema";
 
 const PROJECT_MEMORY_UPDATING_WINDOW_MS = 5 * 60 * 1000;
 
@@ -203,6 +205,9 @@ export const projectSchema = z
     logo: z.url().nullable().openapi({
       example:
         "https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png",
+    }),
+    studioLogoPosition: studioLogoPositionOrNullSchema.optional().openapi({
+      description: "Default project logo placement for Studio ad exports.",
     }),
     designMd: z.union([projectDesignMdSchema, z.null()]).openapi({
       description: "Project-owned brand DESIGN.md, or null when none exists.",
@@ -445,6 +450,7 @@ export const patchProjectRequestSchema = z
     }),
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
     logo: projectLogoUrlSchema.nullish().optional(),
+    studioLogoPosition: studioLogoPositionOrNullSchema.optional(),
     identifier: projectIdentifierSchema.optional(),
     postingInstructionsMd: projectPostingInstructionsMdSchema
       .nullish()
@@ -462,12 +468,13 @@ export const patchProjectRequestSchema = z
       data.description === undefined &&
       data.websiteUrl === undefined &&
       data.logo === undefined &&
+      data.studioLogoPosition === undefined &&
       data.postingInstructionsMd === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, or postingInstructionsMd",
+          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, studioLogoPosition, or postingInstructionsMd",
         path: [],
       });
     }
@@ -596,6 +603,12 @@ export function mapProjectForApi(
     briefingUrl: project.briefingUrl,
     websiteUrl: project.websiteUrl,
     logo: project.logo,
+    studioLogoPosition:
+      project.studioLogoPosition &&
+      project.logo &&
+      isOwnedProjectLogoUrl(project.logo, project.id)
+        ? project.studioLogoPosition
+        : undefined,
     designMd: project.designMdUrl
       ? {
           url: project.designMdUrl,

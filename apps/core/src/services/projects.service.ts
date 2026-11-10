@@ -1,6 +1,5 @@
 import type { Prisma, Project } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, isOwnedProjectLogoUrl } from "@sokosumi/utils";
-
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { isProjectIdentifierUniqueConstraintError } from "@/helpers/prisma";
@@ -11,6 +10,7 @@ import {
   generateProjectFilesToken,
   uploadProjectBriefingFile,
 } from "@/lib/project-files-blob";
+import type { StudioLogoPosition } from "@/schemas/project-image-studio.schema";
 
 export interface CreateProjectInput {
   name: string;
@@ -24,6 +24,7 @@ export interface UpdateProjectInput {
   briefing?: string | null;
   websiteUrl?: string | null;
   logo?: string | null;
+  studioLogoPosition?: StudioLogoPosition | null;
   identifier?: string;
   postingInstructionsMd?: string | null;
 }
@@ -93,6 +94,9 @@ export async function updateProject(
     }
     data.logo = input.logo ?? null;
   }
+  if (input.logo === null) data.studioLogoPosition = null;
+  else if (input.studioLogoPosition !== undefined)
+    data.studioLogoPosition = input.studioLogoPosition;
   if (input.postingInstructionsMd !== undefined) {
     data.postingInstructionsMd = input.postingInstructionsMd?.trim() || null;
   }

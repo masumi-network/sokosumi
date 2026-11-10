@@ -27,6 +27,8 @@ export interface ProjectScopeRequest {
   reason?: string;
   /** Replaces the default choice, which switches the page's scope. */
   onSelect?: (projectId: string) => void;
+  /** Runs before switching scope when the selector creates a project. */
+  onCreated?: (projectId: string, websiteUrl?: string | null) => void;
   /** Runs when the reader closes the selector without choosing. */
   onDismiss?: () => void;
 }
@@ -135,9 +137,11 @@ export function setScopeCreateOpen(createOpen: boolean) {
 export function selectCreatedProject(
   projectId: string,
   switchScope: (projectId: string) => void,
+  websiteUrl?: string | null,
 ) {
   const request = createRequest;
   createRequest = null;
+  request?.onCreated?.(projectId, websiteUrl);
   (request?.onSelect ?? switchScope)(projectId);
 }
 

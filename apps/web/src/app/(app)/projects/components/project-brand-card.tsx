@@ -56,6 +56,7 @@ import {
 import { removeProjectDesignMd } from "@/lib/actions/project/action";
 
 interface ProjectBrandProviderProps {
+  autoStart?: boolean;
   children: ReactNode;
   initialDesignMd: ProjectDesignMd | null;
   projectId: string;
@@ -85,6 +86,7 @@ function useProjectBrandDashboard(): ProjectBrandDashboardValue {
 }
 
 export function ProjectBrandProvider({
+  autoStart = true,
   children,
   initialDesignMd,
   projectId,
@@ -149,13 +151,13 @@ export function ProjectBrandProvider({
       resume(pending);
       return;
     }
-    if (!websiteUrl) return;
+    if (!autoStart || !websiteUrl) return;
     if (backgroundGenerationAttempted.current) return;
     if (hasProjectBrandAutoStartAttempted(projectId)) return;
     backgroundGenerationAttempted.current = true;
     markProjectBrandAutoStartAttempted(projectId);
     void generate({ url: websiteUrl });
-  }, [designMd, generate, isRunning, projectId, resume, websiteUrl]);
+  }, [autoStart, designMd, generate, isRunning, projectId, resume, websiteUrl]);
 
   const value = useMemo(
     () => ({ designMd, generation, setDesignMd }),

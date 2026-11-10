@@ -22,6 +22,7 @@ const state = vi.hoisted(() => ({
   access: vi.fn(),
   register: vi.fn(),
   recordInitialTurn: vi.fn(),
+  readCatalog: vi.fn(),
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -40,6 +41,9 @@ vi.mock("@/lib/image-studio/access", () => ({
 vi.mock("@/services/image-studio-sessions.service", () => ({
   registerCreatedSession: state.register,
   transitionInitialTurn: state.recordInitialTurn,
+}));
+vi.mock("@/services/studio-product-catalog.service", () => ({
+  readStudioProductCatalog: state.readCatalog,
 }));
 
 import { errorResponseSchema } from "@/helpers/error";
@@ -98,6 +102,35 @@ beforeEach(() => {
     accepted: true,
     mayDeliver: false,
     deliveryToken: null,
+  });
+});
+
+describe("listing saved products", () => {
+  it("looks up products only in the grant's project and omits file details", async () => {
+    const id = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    state.readCatalog.mockResolvedValueOnce({
+      products: [
+        {
+          id,
+          name: "Clay mug",
+          photo: { id: "private-id", name: "mug.png" },
+          imageUrl: "https://store.example.com/mug.png",
+        },
+      ],
+    });
+    const response = await app.request("/v1/image-studio-agent/products", {
+      headers: { authorization: `Bearer ${token("agent")}` },
+    });
+    expect(response.status).toBe(200);
+    expect(state.readCatalog).toHaveBeenCalledExactlyOnceWith("project-a");
+    expect(await response.json()).toMatchObject({
+      data: { products: [{ id, name: "Clay mug", hasPhoto: true }] },
+    });
+    const denied = await app.request("/v1/image-studio-agent/products", {
+      headers: { authorization: `Bearer ${token("browser")}` },
+    });
+    expect(denied.status).toBe(401);
+    expect(state.readCatalog).toHaveBeenCalledTimes(1);
   });
 });
 
