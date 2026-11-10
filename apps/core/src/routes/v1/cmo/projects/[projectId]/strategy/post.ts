@@ -31,7 +31,7 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet"),
     409: jsonErrorResponse(
-      "The Brand Brain is not ready yet, or Cuso is still writing the plan",
+      "The Brand Brain is not ready yet, or Cuso is still writing the plan or finishing a change",
     ),
   },
 });

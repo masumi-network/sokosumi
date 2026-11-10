@@ -206,6 +206,10 @@ async function requestStrategyForCuso(
   now: Date = new Date(),
 ): Promise<{ turnId: string }> {
   const writing = await strategyTurnRunning(cuso.sokoBotId, now);
+  // A fix or patch is a short turn, never the plan: wait for it to land.
+  if (writing && cmoChangeKind(writing.clientTurnId) !== null) {
+    throw new CmoConflictError("Cuso is finishing a change");
+  }
   if (writing) {
     if (input.note) {
       throw new CmoConflictError("Cuso is still writing the plan");
@@ -244,14 +248,16 @@ export async function startCmoPlanAfterResearch(input: {
     newestStrategyTurn(cuso.sokoBotId),
     newestMarketingStrategy(cuso.projectId),
   ]);
-  if (turn || version) return null;
+  // A fix that ran first is no plan; a plan already started is.
+  if (version || (turn && cmoChangeKind(turn.clientTurnId) === null))
+    return null;
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
   return startCmoStrategy(cuso, userId, null, new Date());
 }
 
 /**
- * After a CMO research or plan turn ends: the first plan when the research
+ * After any foreground turn of Cuso ends: the first plan when the research
  * is in, otherwise the next brand fix the owner asked for meanwhile.
  */
 export async function afterCmoTurn(input: {

@@ -342,6 +342,41 @@ describe("the plan starts when the research ends", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
+  it("starts the first plan after a brand fix that ran before it", async () => {
+    turnFindFirst.mockResolvedValue({
+      ...planTurn(3, "COMPLETED"),
+      id: "fix-1",
+      clientTurnId: "cmo:strategy:bot-1:fix:1:1",
+    });
+    startTurn.mockResolvedValue({ turnId: "plan-2" });
+    await expect(
+      startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
+    ).resolves.toEqual({ turnId: "plan-2" });
+  });
+
+  it("never takes a running fix or patch for the plan", async () => {
+    for (const clientTurnId of [
+      "cmo:strategy:bot-1:fix:1:1",
+      "cmo:strategy:bot-1:patch:1",
+    ]) {
+      turnFindFirst.mockResolvedValue({
+        ...planTurn(13),
+        id: "change-1",
+        clientTurnId,
+      });
+      for (const ask of [{}, { restart: true }, { note: "Fewer posts" }]) {
+        await expect(
+          requestCmoStrategy(
+            { projectId: "project-1", userId: "user-1", ...ask },
+            now,
+          ),
+        ).rejects.toThrow("finishing a change");
+      }
+    }
+    expect(expireTurn).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
   it("lets Looks like us confirm without starting a second plan", async () => {
     turnFindFirst.mockResolvedValue(planTurn(2));
 
