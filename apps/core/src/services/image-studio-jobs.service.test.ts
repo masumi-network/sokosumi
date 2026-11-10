@@ -177,6 +177,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     projectId: "project-1",
     workspaceId: "workspace-1",
     requestedByUserId: BASE_INPUT.userId,
+    idempotencyKey: BASE_INPUT.idempotencyKey,
     model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
     kind: "GENERATE",
     prompt: BASE_INPUT.prompt,
@@ -390,45 +391,55 @@ describe("image studio job submission", () => {
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
-  it("blocks a recovered job when its requester can no longer see the private photo", async () => {
-    const now = new Date("2026-11-10T12:00:00Z");
-    const pending = jobRow({
-      createdAt: new Date("2026-11-10T11:58:00Z"),
-      referenceFileIds: ["file-1"],
-    });
-    requireProjectAccessMock.mockResolvedValueOnce({
-      projectId: BASE_INPUT.projectId,
-      workspaceId: BASE_INPUT.workspaceId,
-      userId: BASE_INPUT.userId,
-      organizationId: "organization-1",
-    });
-    jobFindManyMock.mockResolvedValueOnce([pending]);
-    jobFindUniqueOrThrowMock.mockResolvedValueOnce(pending);
-    loadLiveResourcesMock.mockResolvedValueOnce([]);
-
-    await recoverUnclaimedReservations({ now });
-
-    expect(loadLiveResourcesMock).toHaveBeenCalledWith({
-      workspaceId: BASE_INPUT.workspaceId,
-      actor: {
-        kind: "interactive",
+  it.each([
+    { idempotencyKey: "key-abcdefgh", kind: "interactive" },
+    { idempotencyKey: "soko-bot:turn-id:tool-call-id", kind: "soko_bot" },
+    { idempotencyKey: "cmo-media:version-id:piece-id", kind: "soko_bot" },
+  ])(
+    "blocks a recovered job without photo access ($idempotencyKey)",
+    async ({ idempotencyKey, kind }) => {
+      const now = new Date("2026-11-10T12:00:00Z");
+      const pending = jobRow({
+        createdAt: new Date("2026-11-10T11:58:00Z"),
+        idempotencyKey,
+        kind: "EDIT",
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+        referenceFileIds: ["file-1"],
+      });
+      requireProjectAccessMock.mockResolvedValueOnce({
+        projectId: BASE_INPUT.projectId,
+        workspaceId: BASE_INPUT.workspaceId,
         userId: BASE_INPUT.userId,
         organizationId: "organization-1",
-      },
-      resourceIds: ["file-1"],
-    });
-    expect(driveHeadMock).not.toHaveBeenCalled();
-    expect(uploadReferenceMock).not.toHaveBeenCalled();
-    expect(submitToQueueMock).not.toHaveBeenCalled();
-    expect(jobUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: "FAILED",
-          failureReason: "reference_not_sendable",
+      });
+      jobFindManyMock.mockResolvedValueOnce([pending]);
+      jobFindUniqueOrThrowMock.mockResolvedValueOnce(pending);
+      loadLiveResourcesMock.mockResolvedValueOnce([]);
+
+      await recoverUnclaimedReservations({ now });
+
+      expect(loadLiveResourcesMock).toHaveBeenCalledWith({
+        workspaceId: BASE_INPUT.workspaceId,
+        actor: {
+          kind,
+          userId: BASE_INPUT.userId,
+          organizationId: "organization-1",
+        },
+        resourceIds: ["file-1"],
+      });
+      expect(driveHeadMock).not.toHaveBeenCalled();
+      expect(uploadReferenceMock).not.toHaveBeenCalled();
+      expect(submitToQueueMock).not.toHaveBeenCalled();
+      expect(jobUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "FAILED",
+            failureReason: "reference_not_sendable",
+          }),
         }),
-      }),
-    );
-  });
+      );
+    },
+  );
 
   it("returns a photo job on replay after the reference is removed", async () => {
     jobFindUniqueMock.mockResolvedValue(

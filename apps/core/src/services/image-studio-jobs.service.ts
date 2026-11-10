@@ -503,6 +503,7 @@ async function buildReferenceUrls(
     projectId: string;
     workspaceId: string;
     requestedByUserId: string;
+    idempotencyKey: string;
     referenceAssetIds: string[];
     referenceFileIds: string[];
   },
@@ -554,11 +555,18 @@ async function buildReferenceUrls(
     );
   }
   for (const fileId of job.referenceFileIds) {
+    // These durable prefixes identify automated requests even during recovery.
+    // A bot must never inherit the human requester's data-room access.
+    const kind =
+      job.idempotencyKey.startsWith("soko-bot:") ||
+      job.idempotencyKey.startsWith("cmo-media:")
+        ? "soko_bot"
+        : "interactive";
     urls.push(
       await uploadFileReference(job.workspaceId, fileId, {
         userId: job.requestedByUserId,
         organizationId,
-        kind: "interactive",
+        kind,
       }),
     );
   }
