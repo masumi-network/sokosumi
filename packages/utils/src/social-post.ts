@@ -337,7 +337,8 @@ export const SOCIAL_POST_MEDIA_RULES = {
     maxImages: 4,
     maxGifs: 1,
     maxVideos: 1,
-    maxImageBytes: 5 * 1024 * 1024,
+    // X documents 5 MB and Composio requires less than 5 MiB.
+    maxImageBytes: 5_000_000,
     maxGifBytes: 15 * 1024 * 1024,
     maxVideoBytes: 100 * 1024 * 1024,
     imageMimeTypes: ["image/jpeg", "image/png", "image/webp"],
