@@ -3074,7 +3074,7 @@ describe("social posts service", () => {
           organizationId: null,
           userId: USER_ID,
           text: "Hello",
-          media: [{ ...IMAGE_REF, size: 5 * 1024 * 1024 + 1 }],
+          media: [{ ...IMAGE_REF, size: 5_000_001 }],
         }),
       ).rejects.toMatchObject({
         status: 400,
