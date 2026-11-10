@@ -7394,7 +7394,9 @@
         "noApplications": "Keine Anwendungen wurden autorisiert.",
         "authorized": "Autorisiert: {date}",
         "revokeAccess": "Zugriff widerrufen",
-        "confirmRevoke": "Möchtest du den Zugriff für diese Anwendung wirklich widerrufen?",
+        "confirmRevoke": "Zugriff für {name} widerrufen?",
+        "confirmRevokeDescription": "Die Anwendung kann dann nicht mehr auf deinen Account zugreifen. Um sie wieder zu nutzen, verbinde sie erneut und melde dich an.",
+        "cancel": "Abbrechen",
         "revokeSuccess": "Zugriff erfolgreich widerrufen",
         "revokeError": "Zugriff konnte nicht widerrufen werden",
         "fetchError": "Autorisierte Clients konnten nicht geladen werden"

@@ -5,6 +5,16 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,6 +39,8 @@ export function OAuthAuthorizedClients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] =
+    useState<AuthorizedClientWithDetails | null>(null);
 
   useEffect(() => {
     async function fetchConsents() {
@@ -43,7 +55,10 @@ export function OAuthAuthorizedClients() {
           await Promise.all(
             consentsData.map(async (consent: OAuthConsentItem) => {
               try {
-                const clientResult = await authClient.oauth2.getClient({
+                // `getClient` answers only the app's owner, so an app the
+                // viewer authorized but does not own came back 401 and showed
+                // as its raw id. The public fields carry the name for anyone.
+                const clientResult = await authClient.oauth2.publicClient({
                   query: {
                     client_id: consent.clientId,
                   },
@@ -80,10 +95,6 @@ export function OAuthAuthorizedClients() {
   }, [t]);
 
   async function handleRevoke(consentId: string, clientId: string) {
-    if (!confirm(t("confirmRevoke"))) {
-      return;
-    }
-
     setRevoking(clientId);
     try {
       const result = await revokeOAuthClientAccess(consentId, clientId);
@@ -93,6 +104,7 @@ export function OAuthAuthorizedClients() {
       }
 
       setConsents(consents.filter((c) => c.clientId !== clientId));
+      setRevokeTarget(null);
       toast.success(t("revokeSuccess"));
     } catch (err) {
       const errorMessage =
@@ -156,7 +168,7 @@ export function OAuthAuthorizedClients() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleRevoke(consent.id, consent.clientId)}
+                  onClick={() => setRevokeTarget(consent)}
                   loading={revoking === consent.clientId}
                 >
                   {t("revokeAccess")}
@@ -165,6 +177,44 @@ export function OAuthAuthorizedClients() {
             ))}
           </div>
         )}
+        <AlertDialog
+          open={revokeTarget !== null}
+          onOpenChange={(open) => {
+            if (!open && revoking === null) {
+              setRevokeTarget(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="break-words">
+                {t("confirmRevoke", {
+                  name: revokeTarget?.clientName ?? "",
+                })}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("confirmRevokeDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={revoking !== null}>
+                {t("cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                loading={revoking !== null}
+                className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (revokeTarget) {
+                    void handleRevoke(revokeTarget.id, revokeTarget.clientId);
+                  }
+                }}
+              >
+                {t("revokeAccess")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
