@@ -190,6 +190,7 @@ async function uploadXMedia(
     arguments: {
       media: { name, mimetype: media.mimeType, s3key },
       media_category: mediaCategory(media.kind),
+      ...(media.kind === "image" ? { media_type: media.mimeType } : {}),
     },
     context: step.context,
     refused: step.refused,

@@ -475,6 +475,7 @@ describe("publishXPost with media", () => {
               s3key: "staged-media",
             },
             media_category: category,
+            ...(kind === "image" ? { media_type: mimeType } : {}),
           },
         },
         {
