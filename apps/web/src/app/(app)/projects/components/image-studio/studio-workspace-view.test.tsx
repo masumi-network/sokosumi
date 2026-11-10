@@ -160,10 +160,7 @@ beforeEach(() => {
 describe("the workspace view", () => {
   it("opens the same empty studio without requiring a project", () => {
     mount(null, []);
-    expect(screen.getByRole("region", { name: "templates" })).toHaveAttribute(
-      "aria-roledescription",
-      "carousel",
-    );
+    expect(screen.getByRole("button", { name: "templates" })).toBeEnabled();
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toBeInTheDocument();
@@ -175,7 +172,7 @@ describe("the workspace view", () => {
     { hasProjects: true, label: "selectProject" },
     { hasProjects: false, label: "create" },
   ])(
-    "keeps $label in the empty-state header above curated styles",
+    "keeps $label in the empty-state header above the composer",
     ({ hasProjects, label }) => {
       mocks.useHasAnyScopeProject.mockReturnValue({
         isPending: false,
@@ -195,7 +192,7 @@ describe("the workspace view", () => {
       );
 
       expect(
-        screen.getByRole("region", { name: "templates" }),
+        screen.getByRole("button", { name: "templates" }),
       ).toBeInTheDocument();
       expect(
         screen.getByRole("textbox", { name: "promptPlaceholder" }),
@@ -204,7 +201,7 @@ describe("the workspace view", () => {
       const button = screen.getByRole("button", { name: label });
       const heading = screen.getByRole("heading", { name: "emptyTitle" });
       const subtitle = screen.getByText("emptyBody");
-      const templates = screen.getByRole("region", { name: "templates" });
+      const templates = screen.getByRole("button", { name: "templates" });
       expect(heading.parentElement).toContainElement(subtitle);
       expect(heading.parentElement).toContainElement(button);
       expect(
@@ -234,7 +231,7 @@ describe("the workspace view", () => {
     },
   );
 
-  it("moves the styles into the composer's toolbar as images appear, then returns them when empty", () => {
+  it("keeps templates in the toolbar and returns the canvas when empty", () => {
     const props = {
       catalog: TEST_CATALOG,
       initialSelectedAssetId: null,
@@ -248,7 +245,7 @@ describe("the workspace view", () => {
       />,
     );
     expect(
-      screen.getByRole("region", { name: "templates" }),
+      screen.getByRole("button", { name: "templates" }),
     ).toBeInTheDocument();
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(box, { target: { value: "keep my draft" } });
@@ -281,16 +278,17 @@ describe("the workspace view", () => {
       />,
     );
     expect(
-      screen.getByRole("region", { name: "templates" }),
+      screen.getByRole("button", { name: "templates" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "templates" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("heading", { name: "emptyTitle" }),
+    ).toBeInTheDocument();
     expect(box).toHaveValue("keep my draft");
   });
 
   it("preserves the selected style and frame after closing the project selector", () => {
     mount(null, []);
+    fireEvent.click(screen.getByRole("button", { name: "templates" }));
     fireEvent.click(screen.getByRole("button", { name: "social-post" }));
     const template = STUDIO_TEMPLATES.find(
       (candidate) => candidate.id === "social-post",
@@ -322,7 +320,7 @@ describe("the workspace view", () => {
   it("keeps project images out of the curated landing page", () => {
     mount(null);
     expect(
-      screen.getByRole("region", { name: "templates" }),
+      screen.getByRole("button", { name: "templates" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Launch")).not.toBeInTheDocument();
     expect(screen.queryByText("Brand")).not.toBeInTheDocument();
@@ -393,6 +391,7 @@ describe("the workspace view", () => {
     const template = STUDIO_TEMPLATES.find(
       (item) => item.id === "product-announcement",
     )!;
+    fireEvent.click(screen.getByRole("button", { name: "templates" }));
     fireEvent.click(
       screen.getByRole("button", {
         name: TEST_LABELS.templateLabels["product-announcement"],

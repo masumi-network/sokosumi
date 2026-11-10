@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
@@ -69,6 +69,11 @@ function mount() {
   );
 }
 
+function pickTemplate(name: string) {
+  fireEvent.click(screen.getByRole("button", { name: "templates" }));
+  fireEvent.click(screen.getByRole("button", { name }));
+}
+
 const STORY_AD = STUDIO_TEMPLATES.find(
   (template) => template.id === "story-ad",
 ) as (typeof STUDIO_TEMPLATES)[number];
@@ -77,6 +82,7 @@ describe("starting from a template", () => {
   it("offers every template, in the order they are declared", () => {
     mount();
 
+    fireEvent.click(screen.getByRole("button", { name: "templates" }));
     const names = STUDIO_TEMPLATES.map((template) => template.id);
     const rendered = names.map(
       (name) => screen.getByRole("button", { name }).textContent,
@@ -91,7 +97,7 @@ describe("starting from a template", () => {
     // and only one selected model supports the story frame of 9:16.
     expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
+    pickTemplate("story-ad");
 
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue(STORY_AD.prompt);
@@ -101,7 +107,7 @@ describe("starting from a template", () => {
   it("does not submit, and leaves the caret in the prompt", () => {
     mount();
 
-    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
+    pickTemplate("social-post");
 
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     // Editable text in a focused box, not a request: the whole point of a
@@ -132,7 +138,7 @@ describe("starting from a template", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "4:5" }), {
       key: "Escape",
     });
-    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
+    pickTemplate("story-ad");
     expect(prompt).toHaveValue(STORY_AD.prompt);
     fireEvent.click(screen.getByRole("button", { name: "undoTemplate" }));
     expect(prompt).toHaveValue("My original campaign brief");
@@ -147,7 +153,7 @@ describe("starting from a template", () => {
     mount();
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "Original" } });
-    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
+    pickTemplate("story-ad");
     expect(
       screen.getByRole("button", { name: "undoTemplate" }),
     ).toBeInTheDocument();
@@ -155,7 +161,7 @@ describe("starting from a template", () => {
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
+    pickTemplate("social-post");
     fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
@@ -166,8 +172,8 @@ describe("starting from a template", () => {
     mount();
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "Original brief" } });
-    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
-    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
+    pickTemplate("story-ad");
+    pickTemplate("social-post");
     fireEvent.click(screen.getByRole("button", { name: "undoTemplate" }));
     expect(prompt).toHaveValue("Original brief");
     expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
@@ -177,7 +183,7 @@ describe("starting from a template", () => {
     mount();
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "Original brief" } });
-    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
+    pickTemplate("social-post");
     fireEvent.click(screen.getByRole("button", { name: /moreOptions/ }));
     fireEvent.click(screen.getByRole("button", { name: "16:9" }));
     fireEvent.click(screen.getByRole("button", { name: "1:1" }));
@@ -195,12 +201,33 @@ describe("starting from a template", () => {
     mount();
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "Original brief" } });
-    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
+    pickTemplate("story-ad");
     fireEvent.click(screen.getByRole("button", { name: /moreOptions/ }));
     fireEvent.click(screen.getByRole("button", { name: "2" }));
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("creative starting points", () => {
+  it("offers nine options and applies an editable brief through the existing undo flow", () => {
+    mount();
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(prompt, { target: { value: "My own brief" } });
+    fireEvent.click(screen.getByRole("button", { name: "open" }));
+    const dialog = screen.getByRole("dialog", { name: "title" });
+    expect(within(dialog).getAllByRole("button")).toHaveLength(10);
+    fireEvent.click(screen.getByRole("button", { name: "video" }));
+    expect(prompt).toHaveProperty(
+      "value",
+      expect.stringContaining("Create a storyboard"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "undoTemplate" }));
+    expect(prompt).toHaveValue("My own brief");
+    fireEvent.click(screen.getByRole("button", { name: "open" }));
+    fireEvent.click(screen.getByRole("button", { name: "other" }));
+    expect(prompt).toHaveValue("My own brief");
   });
 });
 
