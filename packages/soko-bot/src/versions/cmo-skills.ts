@@ -1,5 +1,5 @@
 import { CMO_CHANNELS } from "@sokosumi/utils";
-import { CMO_BRAND_SECTIONS } from "../cmo.js";
+import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
 import type { SokoBotSkill } from "./skills.js";
 
@@ -32,18 +32,15 @@ const CHANNEL_MENU = Object.entries(CMO_CHANNELS)
   )
   .join("\n");
 
-/** Skills only CMO (Cuso) versions include. */
-export const CMO_SKILLS: readonly SokoBotSkill[] = [
-  {
-    id: "cmo-brand-brain",
-    name: "Brand Brain",
-    description:
-      "Learns the business from its website, products, audience and competitors, and keeps a Brand Brain every piece of content follows.",
-    content: `# Brand Brain
+/** The Brand Brain skill's opening, shared by every version of it. */
+const BRAND_BRAIN_INTRO = `# Brand Brain
 
 The Brand Brain in your packet (\`workspace.marketing.brandBrain\`) is the owner's brand. Everything you write follows it. It has two parts: a company profile in sections (\`profile\`) that explains the business, its customers and how it wins sales, and the essentials every piece of content uses (summary, voice, audience, products, competitors, channels).
 
-## Research
+`;
+
+/** cmo-brand-brain's research: one agent, every step in turn. */
+const BRAND_BRAIN_SERIAL_RESEARCH = `## Research
 Search with search_exa: it finds what keyword search misses. When search_exa is not among your tools, run every search below with web_search instead. Each result says searchesLeft for this turn; at 0, stop searching and work with what you have. Describe the pages you want in a full sentence, not keywords ("Companies that sell team scheduling software to sales teams", not "scheduling competitors").
 1. The website, with web_fetch: home, about, product or features, pricing, customers or case studies, blog, careers.
 2. Competitors: search_exa with category company, a sentence saying what the business sells and to whom, and its own domain in excludeDomains. Run five or six angles: the product, the buyer, the other way to solve the problem, the same offer in the business's own country or city, a newer or smaller rival, and one with no place in it for the well-known names a buyer weighs everywhere (global platforms, large consultancies, popular tools). Keep six to ten direct rivals as competitors and three to five well-known names as alternatives. Give each its homepage link, and use their size, founding year and headquarters in the competition section. Read the three closest properly: web_fetch each homepage and pricing page and give it promise (the headline promise in their words), price (the entry price as published, or "Not public"), and from reviews its strength and weakness, each one short line. A strength or weakness only from what buyers wrote, never your guess; when reviews say nothing, leave it out rather than writing that nothing was found. Shops, restaurants and makers publish prices on product, shop or menu pages: open one before you give up. A price you cannot find there is exactly "Not public". The market map shows you and the five closest, each named exactly as in competitors or alternatives so its dot links to the homepage.
@@ -58,7 +55,9 @@ A passage in a search result is evidence from that page: give its URL as sourceU
 Read a full page with web_fetch only when the passages are not enough, and use web_search only when search_exa finds nothing. You have up to 30 searches (searchesLeft counts down) and about ten page reads. Use most of them: a richer Brand Brain makes every plan and post better. Search each of its story, news, people and social accounts once; spend what is left on competitors, reviews and the buyer's world.
 Core takes screenshots of the business's pages and its competitors' homepages, and keeps the pictures on its site, after you save the essentials. Do not describe how the sites look; give every competitor its homepage link.
 
-## The sections
+`;
+
+const BRAND_BRAIN_SECTIONS = `## The sections
 Each section answers one question a marketer asks and covers what follows its title:
 ${CMO_BRAND_SECTION_KEYS.map(
   (key) =>
@@ -78,10 +77,15 @@ Each section has:
 
 Write only what you found. A section you could not research gets a plain answer saying what is unknown, no findings, and the open question. Never pad, never invent customers, numbers or claims, and never write placeholders or hedges like "[confirmed offer]" or "provisional".
 
-## Saving
+`;
+
+const BRAND_BRAIN_SERIAL_SAVING = `## Saving
 Save as you go with save_brand_brain, so the owner watches the profile fill in. Send each group in \`sections\` as soon as you have researched it, in this order: company, offer, pricing; problems, customers, buyers, value; positioning, competition, sales; marketing, content, proof, reputation; momentum, opportunities. A save replaces only the sections it sends.
 
-Then send the essentials in \`brandBrain\`, drawn from the profile and your step 9: a plain summary (one full sentence saying what the business is, what it sells and to whom, never a page title or a product name alone like "FREITAG lab."), the voice, audience, products, offers, competitors and alternatives with links, and the channels. The owner sees the Brand Brain once the essentials are saved. Send the essentials with \`reveal\` and \`questions\` when you can. Whatever comes later (\`reveal\`, \`questions\`, \`marketingToday\`) goes alone in its own save_brand_brain call, never by re-sending \`brandBrain\`.
+Then send the essentials in \`brandBrain\`, drawn from the profile and your step 9:`;
+
+/** The essentials, reveal, questions and corrections, from "a plain summary" on. */
+const BRAND_BRAIN_ESSENTIALS = ` a plain summary (one full sentence saying what the business is, what it sells and to whom, never a page title or a product name alone like "FREITAG lab."), the voice, audience, products, offers, competitors and alternatives with links, and the channels. The owner sees the Brand Brain once the essentials are saved. Send the essentials with \`reveal\` and \`questions\` when you can. Whatever comes later (\`reveal\`, \`questions\`, \`marketingToday\`) goes alone in its own save_brand_brain call, never by re-sending \`brandBrain\`.
 - offers are everything the business sells, one to ten, the main offer first: its name, what it is in one plain line, the price exactly as the site or a source publishes it, in at most eight words ("€9 a month", "From $49", "Free plan, then €19 a month", "Free; 3% per minted token"), who it is for, and its page. Read the pricing page for this. With no published price write "On request" when the site says to ask, otherwise "Not public". Never guess a price. A shop with many items: give each line its price range from the collection page ("Leggings £30 to £55", "From $98"), never "prices vary", and name its best-known products with their prices in products ("Vital Seamless Leggings, £45"): the posts are made from these facts.
   A business with several product lines or services lists each line as its own offer, from its navigation and product pages, never only the one the homepage features today: Apple is iPhone, Mac, iPad, Watch, AirPods, Vision, TV and Home and services, each "From" its lowest published price. The main offer is the line the business leads with. Then make the first question which line this month's marketing focuses on ("Should this month's marketing focus on iPhone?"), with section offer; a no and its note name the line instead.
 - competitors are the six to ten firms selling the same thing to the same buyer. A brand of the same owner or group (a sister brand), a supplier and a partner are never competitors: name them in company. the three closest carry promise, price, strength and weakness. Never say a competitor is worse at something unless a review or a published fact shows it. alternatives are three to five well-known names the buyer weighs instead, wherever they are: global platforms, large consultancies, popular tools, or hiring someone (Zapier, Accenture or UiPath for an automation studio). Never leave alternatives empty.
@@ -111,7 +115,70 @@ When the owner corrects or answers something ("we never say synergy", "our audie
 Sound like the brand, not like AI: short, specific, concrete. No filler openers, no hype words the brand does not use, no hashtag walls, no emoji unless the brand uses them.
 
 ${OBVIOUS_WRITING}
-`,
+`;
+
+/**
+ * cmo-brand-brain-groups' research, per group of CMO_RESEARCH_GROUPS: the
+ * same steps as the serial research, split so the six parts run side by
+ * side. Each brief ends with what its hand-over carries to the essentials.
+ */
+const GROUP_BRIEFS: Record<string, string> = {
+  website: `Up to 2 searches and 6 page reads. Read the website with web_fetch: home, about, product or features, pricing, customers or case studies, careers. Shops, restaurants and makers publish prices on product, shop or menu pages: open one before you give up. A business with several product lines or services: read its navigation and each line's page, never only the line the homepage features today. Search once for the company's basics a site leaves out (founding year, size, headquarters, owner).
+Hand over: every offer (name, what it is in one line, the price exactly as published, for whom, its page), the best-known products with their prices, the main offer the business leads with, and up to eight real lines from the site that sound like the brand.`,
+  buyers: `Up to 4 searches and 2 page reads. One search for what buyers in this market ask, compare and complain about (forums, reddit, Q&A), one for the market itself (size, trends, what changed this year), and the rest on the job customers hire it for and who signs off.
+Hand over: who buys and who uses it (role, what they want, what worries them), the main promise, and the problems in the buyers' own words, each with its link.`,
+  competitors: `Up to 9 searches and 6 page reads. search_exa with category company, a sentence saying what the business sells and to whom, and its own domain in excludeDomains. Run five or six angles: the product, the buyer, the other way to solve the problem, the same offer in the business's own country or city, a newer or smaller rival, and one with no place in it for the well-known names a buyer weighs everywhere (global platforms, large consultancies, popular tools). Keep six to ten direct rivals as competitors and three to five well-known names as alternatives. A brand of the same owner or group, a supplier and a partner are never competitors. Read the three closest properly: web_fetch each homepage and pricing page. Then search what customers say about the two closest, where their customers write reviews.
+Hand over: the competitors and alternatives, each with its homepage link, size, founding year and headquarters when found; for the three closest their promise (the headline promise in their words), price (the entry price as published, or "Not public"), and a strength and a weakness only from what buyers wrote; and two axes that really separate this market, with the business and the five closest placed on them from 0 to 100.`,
+  social: `Up to 3 searches and 3 page reads. Find the social accounts: the site's header and footer first, then one search_exa for the networks still missing, with includeDomains set to them (linkedin.com, x.com, instagram.com, facebook.com, youtube.com, tiktok.com, github.com) and a query asking for the business's official accounts. Never use category company for this. Call read_social_profile for each account you found on their site (never a lookalike handle a search turned up), and web_fetch the blog or news page. Count what you can see: followers, posts in the last 30 days, the newest post, the formats (short video, carousels, text posts, long videos) and the two to four themes they post about. Note whether the site offers a newsletter signup, how often the blog publishes, and what the site does well or misses for search and for turning visitors into customers. Check the home and pricing pages against seven points: within five seconds a visitor can tell what it is and for whom; the headline promises an outcome; there is one main button and it says what happens; proof sits near that button; the price or the next step is visible; the common objection is answered on the page; it works on a phone. Keep what each page says today. For ads, one search_exa for the business's ads; when nothing shows, say unknown, never "none".
+Hand over: every channel with its exact profile URL; for each account you read its followers, posts a month, last post, formats, themes and whether you counted or estimated; the blog cadence, the newsletter, up to four website notes with what the home and pricing pages say today; and the ads.`,
+  reviews: `Up to 5 searches and 2 page reads. Search where its customers write reviews: software and online services on g2.com, capterra.com, trustpilot.com, reddit.com and producthunt.com; restaurants, hotels, shops and local services on tripadvisor.com, yelp.com, trustpilot.com, thefork.com and reddit.com; consumer products on trustpilot.com, reddit.com and amazon.com. Ask what customers say about the business. Copy customers' exact words as you read: a quote is a customer's only when a customer wrote it (a review, a forum post, a testimonial with a name or a company); the business's own headlines and taglines never are. Look for named customers, case studies, awards and trust signals.
+Hand over: up to 12 customer quotes, copied word for word, each tagged pain, trigger, outcome or objection, with its sourceUrl (a quote you cannot link stays out); the named customers; the recurring praise and complaints; and the awards and trust signals.`,
+  news: `Up to 4 searches and 2 page reads. One search for the business's own story, the things a local or a fan would tell you first: the founding story and founder, records and awards ("oldest", "first", a Guinness record), its signature product or programme, and its locations (how many, which cities). search_exa with category news and startPublishedDate one year back: launches, funding, hires, press. search_exa with category people for the founders and leaders.
+Hand over: the strongest thing the business is famous for, with its source; the year's launches, funding, hires and press, each dated; and the founders and leaders by name and role.`,
+};
+
+/** cmo-brand-brain-groups' research: six parts at once, then the essentials. */
+const BRAND_BRAIN_GROUP_RESEARCH = `## Research
+Your first read runs in parts. Core starts one part for each group below at the same time; each part researches its group, saves its sections and ends with a hand-over. When every part is done, you write the essentials from the hand-overs.
+
+In a part:
+- Research only your group, within its share of searches and page reads. The turn has 30 searches in all, shared by the parts, so stay inside your share.
+- Run independent calls together in one step: three searches, or four page reads, in the same step, never one per step.
+- Save your group's sections with save_brand_brain in \`sections\` as soon as you have researched them. Never send \`brandBrain\`, \`reveal\`, \`questions\` or \`marketingToday\`: they come after every part is done.
+- End with your hand-over: each section you saved as its headline and answer, then what your group's brief says to hand over, as plain notes with links. Write down only what you found. The essentials are written from these notes alone: the packet does not show sections saved this turn.
+- Never post in chat, never call report_update.
+
+Search with search_exa: it finds what keyword search misses. When search_exa is not among your tools, run every search with web_search instead. Each result says searchesLeft for this turn; at 0, stop searching and work with what you have. Describe the pages you want in a full sentence, not keywords ("Companies that sell team scheduling software to sales teams", not "scheduling competitors"). Read a full page with web_fetch only when the passages are not enough, and use web_search only when search_exa finds nothing. Use most of your share: a richer Brand Brain makes every plan and post better.
+A passage in a search result is evidence from that page: give its URL as sourceUrl. Concrete details are facts wherever they appear, the business's own site included: a price, a plan, a trial length, a listed feature, a named customer, a number, a date. What the business says about its own qualities ("the fastest", "privacy-first", "loved by teams") is a claim.
+Core takes screenshots of the business's pages and its competitors' homepages, and keeps the pictures on its site, after you save the essentials. Do not describe how the sites look; give every competitor its homepage link.
+
+${CMO_RESEARCH_GROUPS.map(
+  (group) =>
+    `### ${group.label}\nSections: ${group.sections.join(", ")}. ${GROUP_BRIEFS[group.key]}`,
+).join("\n\n")}
+
+`;
+
+const BRAND_BRAIN_GROUP_SAVING = `## Saving
+Each part saves its group's sections with save_brand_brain in \`sections\`; a save replaces only the sections it sends.
+
+When every part is done, send the essentials in \`brandBrain\`, drawn from the hand-overs (customers' quotes go in voiceOfCustomer, copied as handed over). Research again only what a hand-over left open, or a group whose part failed; then save its sections too. The essentials are`;
+
+/** Skills only CMO (Cuso) versions include. */
+export const CMO_SKILLS: readonly SokoBotSkill[] = [
+  {
+    id: "cmo-brand-brain",
+    name: "Brand Brain",
+    description:
+      "Learns the business from its website, products, audience and competitors, and keeps a Brand Brain every piece of content follows.",
+    content: `${BRAND_BRAIN_INTRO}${BRAND_BRAIN_SERIAL_RESEARCH}${BRAND_BRAIN_SECTIONS}${BRAND_BRAIN_SERIAL_SAVING}${BRAND_BRAIN_ESSENTIALS}`,
+  },
+  {
+    id: "cmo-brand-brain-groups",
+    name: "Brand Brain",
+    description:
+      "Learns the business in six research parts at once (website, buyers, competitors, social accounts, reviews, news), then keeps a Brand Brain every piece of content follows.",
+    content: `${BRAND_BRAIN_INTRO}${BRAND_BRAIN_GROUP_RESEARCH}${BRAND_BRAIN_SECTIONS}${BRAND_BRAIN_GROUP_SAVING}${BRAND_BRAIN_ESSENTIALS}`,
   },
   {
     id: "cmo-strategy",

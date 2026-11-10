@@ -3,6 +3,7 @@ export {
   CMO_MEASUREMENT_SOURCES,
   CMO_PRODUCTION_MEDIA_PER_RUN,
   CMO_PRODUCTION_TURN_PREFIX,
+  CMO_RESEARCH_GROUPS,
   type CmoMeasurementSource,
   type CmoReportUpdateInput,
   type CmoSaveBrandBrainInput,
