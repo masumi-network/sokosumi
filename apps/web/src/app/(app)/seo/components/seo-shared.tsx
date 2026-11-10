@@ -66,10 +66,11 @@ export const SEO_WRAP_CLASS =
   "h-auto min-h-8 max-w-full py-[5px] text-start whitespace-normal";
 /**
  * A small ghost button with an icon, in a column of text and bordered buttons:
- * it moves out by its padding and the icon's own margin, so the icon's drawing
- * sits on the column edge. The width limit grows by the same amount.
+ * its box hangs over the column by its padding and the icon's own margin on
+ * each side, so the icon's drawing sits on the column edge and the label has
+ * the full column width before it wraps.
  */
-export const SEO_GHOST_EDGE_CLASS = "-ms-3 max-w-[calc(100%+0.75rem)]";
+export const SEO_GHOST_EDGE_CLASS = "-mx-3 max-w-[calc(100%+1.5rem)]";
 
 /** One titled holder. Every SEO section uses it, so titles, help text and actions line up across tabs. */
 export function SeoSection({

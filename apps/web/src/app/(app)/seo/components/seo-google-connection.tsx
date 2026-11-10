@@ -12,7 +12,11 @@ type GoogleConnectionProps = {
   variant?: "primary" | "outline";
   /** Runs after an approval, with the source that was approved. */
   onConnected: (provider: SeoConnectionProvider) => void;
-  /** The control sits beside other content in a row, not in a column of its own. */
+  /**
+   * The control is the one action of a row: only the Search Console button,
+   * unless a Google Analytics account waits for a repair. The second account
+   * and the notes are in the views that have a column for them.
+   */
   inRow?: boolean;
 };
 
@@ -50,9 +54,9 @@ export function SeoGoogleConnection({
     <SeoConnectionButton
       provider="ga4"
       onConnected={() => onConnected("ga4")}
-      inRow={inRow}
     />
   );
+  if (inRow && ga4 !== "needs_reconnect") return searchButton;
   // A Google Analytics account that exists has its row before Search Console is done too.
   const analyticsShown = searchDone || analyticsStarted;
   // No status yet, a failed read, or no connections here: the button says all there is to say.

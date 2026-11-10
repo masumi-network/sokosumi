@@ -29,7 +29,10 @@ type Status =
   | "failed"
   | "unavailable";
 
-function show(statuses: { search_console: Status; ga4: Status }) {
+function show(
+  statuses: { search_console: Status; ga4: Status },
+  { inRow = false } = {},
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
@@ -58,7 +61,7 @@ function show(statuses: { search_console: Status; ga4: Status }) {
   render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider locale="en" messages={messages}>
-        <SeoGoogleConnection onConnected={vi.fn()} />
+        <SeoGoogleConnection onConnected={vi.fn()} inRow={inRow} />
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -79,6 +82,33 @@ describe("SEO Google connection", () => {
     expect(screen.getByText(copy.analyticsNext)).toBeVisible();
     // The user leaves Google Analytics out in the approval window, not here.
     expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+
+  it("is one button without a note in a row", async () => {
+    show(
+      { search_console: "not_connected", ga4: "not_connected" },
+      { inRow: true },
+    );
+    await screen.findByRole("button", { name: "Connect Google" });
+    // The note is as wide as the row: beside the row's text it squeezes that text.
+    expect(screen.queryByText(copy.analyticsNext)).toBeNull();
+  });
+
+  it("names the missing source in a row and leaves the connected account out", async () => {
+    show(
+      { search_console: "not_connected", ga4: "connected" },
+      { inRow: true },
+    );
+    await screen.findByRole("button", { name: "Connect Search Console" });
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("keeps the repair of a Google Analytics account in a row", async () => {
+    show(
+      { search_console: "not_connected", ga4: "needs_reconnect" },
+      { inRow: true },
+    );
+    await screen.findByRole("button", { name: "Reconnect Google Analytics" });
   });
 
   it("says Google Analytics is not connected and offers it once Search Console is connected", async () => {

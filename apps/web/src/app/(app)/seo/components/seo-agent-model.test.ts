@@ -128,7 +128,7 @@ describe("SEO agent brief", () => {
         { kind: "competitors", available: false },
       ]),
     );
-    // One Google step: the Search Console step also offers Google Analytics.
+    // One Google step at a time: Search Console comes first.
     expect(brief.steps).not.toContainEqual({
       kind: "connect",
       provider: "ga4",

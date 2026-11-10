@@ -93,7 +93,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
       kind: "refresh",
       reason: staleSearch ? "stale" : "no_queries",
     });
-  // One Google step: until Search Console is connected, its step also offers Google Analytics.
+  // One Google step at a time: Search Console first, Google Analytics after its statistics are saved.
   const needsSearch = canSync && !searchSaved;
   if (needsSearch) steps.push({ kind: "connect", provider: "search_console" });
   const paidSearch = workspace.availableActions.canUsePaidSearchData === true;

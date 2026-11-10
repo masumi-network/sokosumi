@@ -160,7 +160,7 @@ export function SeoWorkspace({
       : undefined;
   return (
     // Phone buttons and fields are at least 40 px tall; the tab row keeps its 36 px bar.
-    <div className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
+    <div className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <Link
@@ -197,12 +197,8 @@ export function SeoWorkspace({
           ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              {/* The trigger replaces the button's data-slot, so the phone height is set here. */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="max-sm:min-h-10 max-sm:min-w-10"
-              >
+              {/* On a phone the trigger shows only its icon, so it is as wide as it is tall. */}
+              <Button variant="outline" size="sm" className="max-sm:min-w-10">
                 <MoreHorizontal className="size-4" />
                 <span className="max-sm:sr-only">{t("manage")}</span>
               </Button>

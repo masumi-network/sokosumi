@@ -275,7 +275,7 @@ function SeoChatSheet({ model }: { model: SeoWorkspaceModel }) {
     <Sheet open={model.chatOpen} onOpenChange={model.setChatOpen}>
       <SheetContent
         // The sheet leaves the workspace, so it repeats its 40px phone buttons.
-        className="w-full gap-0 sm:max-w-xl max-sm:[&_[data-slot=button]]:min-h-10"
+        className="w-full gap-0 sm:max-w-xl max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10"
         // The question field, not the first link of the oldest turn. On a
         // touch screen the field would open a keyboard over the thread.
         onOpenAutoFocus={(event) => {

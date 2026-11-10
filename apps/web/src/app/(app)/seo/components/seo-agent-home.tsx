@@ -253,6 +253,7 @@ function StepRow({
         <Icon className="size-4" />
       </span>
       {/* A control that wraps starts on the text edge, not under the icon. */}
+      {/* A control with a note or an error has its own line: beside the text it would squeeze the text. */}
       <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
         <p
           id={bodyId}
@@ -260,7 +261,9 @@ function StepRow({
         >
           {body}
         </p>
-        {control ? <div className="max-w-full min-w-0">{control}</div> : null}
+        {control ? (
+          <div className="max-w-full min-w-0 has-[p]:basis-full">{control}</div>
+        ) : null}
       </div>
     </li>
   );
