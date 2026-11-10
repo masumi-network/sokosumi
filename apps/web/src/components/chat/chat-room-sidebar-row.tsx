@@ -24,7 +24,10 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
-import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
+import {
+  useRoomIntentPrefetch,
+  useRoomSelection,
+} from "@/app/chat/components/room-cache-provider";
 import { canLeaveChannel } from "@/app/chat/utils/channel-member-permissions";
 import {
   CHAT_CHATS_LIST_PATH,
@@ -261,6 +264,8 @@ export function ChatRoomSidebarRow({
   const isActive = selectedPath
     ? getActiveRoomIdFromSelection(selectedPath) === room.id
     : routeIsActive;
+  // The open room reads for itself. Reorder mode: the link stands down.
+  const intentRef = useRoomIntentPrefetch(href, !isActive && !reorderHandle);
 
   const tActions = useTranslations("App.Channels.Actions");
   const tChannels = useTranslations("App.Channels");
@@ -413,6 +418,7 @@ export function ChatRoomSidebarRow({
         reorderHandle && "pointer-events-none",
       )}
       href={href}
+      ref={intentRef}
       tabIndex={reorderHandle ? -1 : undefined}
       title={workspaceName ?? undefined}
     >
