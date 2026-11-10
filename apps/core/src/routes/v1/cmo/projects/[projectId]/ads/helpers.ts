@@ -1,10 +1,9 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { ok } from "@/helpers/response";
 import { AD_RANGES, type AdRange } from "@/lib/ads/campaigns";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireOverview, rethrow } from "@/routes/v1/cmo/helpers";
+import { mapAdsServiceError } from "@/routes/v1/projects/[id]/ads/route-helpers";
 import { cmoOverviewSchema } from "@/schemas/cmo.schema";
 import {
   adCampaignSchema,
@@ -25,9 +24,6 @@ import {
   CmoNotFoundError,
   type CusoTarget,
 } from "@/services/cmo-cuso.service";
-
-import { mapAdsServiceError } from "../../projects/[id]/ads/route-helpers";
-import { requireOverview, rethrow } from "../helpers";
 
 /** CMO's refusals as CMO's routes answer them; provider failures as Ads does. */
 function rethrowAds(error: unknown): never {
@@ -74,12 +70,6 @@ export const connectConfig = {
   },
 };
 
-const connectRoute = createRoute({
-  ...connectConfig,
-  path: "/ads/{provider}/connect",
-  operationId: "connectCmoAds",
-});
-
 export const finalizeConfig = {
   method: "post" as const,
   tags: ["CMO"],
@@ -112,12 +102,6 @@ export const finalizeConfig = {
   },
 };
 
-const finalizeRoute = createRoute({
-  ...finalizeConfig,
-  path: "/ads/finalize",
-  operationId: "finalizeCmoAds",
-});
-
 export const choicesConfig = {
   method: "get" as const,
   tags: ["CMO"],
@@ -131,12 +115,6 @@ export const choicesConfig = {
     ...errors,
   },
 };
-
-const choicesRoute = createRoute({
-  ...choicesConfig,
-  path: "/ads/connections/{adConnectionId}/choices",
-  operationId: "listCmoAdChoices",
-});
 
 export const chooseConfig = {
   method: "post" as const,
@@ -159,12 +137,6 @@ export const chooseConfig = {
     ...errors,
   },
 };
-
-const chooseRoute = createRoute({
-  ...chooseConfig,
-  path: "/ads/accounts",
-  operationId: "chooseCmoAdAccount",
-});
 
 export const campaignsConfig = {
   method: "get" as const,
@@ -198,12 +170,6 @@ export const campaignsConfig = {
   },
 };
 
-const campaignsRoute = createRoute({
-  ...campaignsConfig,
-  path: "/ads/campaigns",
-  operationId: "listCmoAdCampaigns",
-});
-
 export const launchConfig = {
   method: "post" as const,
   tags: ["CMO"],
@@ -223,12 +189,6 @@ export const launchConfig = {
     ...errors,
   },
 };
-
-const launchRoute = createRoute({
-  ...launchConfig,
-  path: "/ads/launch",
-  operationId: "launchCmoSearchAd",
-});
 
 export const statusConfig = {
   method: "post" as const,
@@ -253,12 +213,6 @@ export const statusConfig = {
     ...errors,
   },
 };
-
-const statusRoute = createRoute({
-  ...statusConfig,
-  path: "/ads/campaigns/status",
-  operationId: "setCmoAdCampaignStatus",
-});
 
 /** Each ad route acts on the Cuso a CMO call names. */
 export const adsActions = {
@@ -302,45 +256,3 @@ export const adsActions = {
     return requireOverview(target);
   },
 };
-
-export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(connectRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { provider } = c.req.valid("param");
-    const { returnUrl } = c.req.valid("json");
-    return ok(c, await adsActions.connect({ userId }, provider, returnUrl));
-  });
-
-  app.openapi(finalizeRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    return ok(c, await adsActions.finalize({ userId }, c.req.valid("json")));
-  });
-
-  app.openapi(choicesRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { adConnectionId } = c.req.valid("param");
-    return ok(c, await adsActions.choices({ userId }, adConnectionId));
-  });
-
-  app.openapi(chooseRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    return ok(c, await adsActions.choose({ userId }, c.req.valid("json")));
-  });
-
-  app.openapi(campaignsRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { range } = c.req.valid("query");
-    return ok(c, await adsActions.campaigns({ userId }, range));
-  });
-
-  app.openapi(launchRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    const { entryId } = c.req.valid("json");
-    return ok(c, await adsActions.launch({ userId }, entryId));
-  });
-
-  app.openapi(statusRoute, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
-    return ok(c, await adsActions.status({ userId }, c.req.valid("json")));
-  });
-}
