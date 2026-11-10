@@ -9,6 +9,7 @@ import {
   parseOrganizationMetadata,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
+import { getEnv } from "@/config/env";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
@@ -541,6 +542,24 @@ async function requireHirerFunding(
 }
 
 /**
+ * Whether this person may hire Cuso while CMO is invite-only: the email Core
+ * holds for them, or its `@domain`, is on `CMO_HIRE_ALLOWLIST`. Everything
+ * else in CMO stays open to whoever already works with a Cuso.
+ */
+export async function mayHireCuso(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const email = user?.email.trim().toLowerCase();
+  if (!email) return false;
+  const domain = email.slice(email.lastIndexOf("@"));
+  return getEnv().CMO_HIRE_ALLOWLIST.some(
+    (entry) => entry === email || entry === domain,
+  );
+}
+
+/**
  * Hires Cuso (ADR 0065): into a new organization named after the business,
  * or into `organizationId`, one the person belongs to. Either way a new
  * marketing Project gets Cuso as its shared bot (ADR 0061), his organization
@@ -557,6 +576,13 @@ export async function startCmoOnboarding(input: {
   // one; the start form submits once. Add a per-person lock if duplicates
   // show up.
 
+  // Before anything exists: each hire grants starter credits (ADR 0065).
+  if (!(await mayHireCuso(input.userId))) {
+    throw new CmoForbiddenError(
+      "CMO is invite-only for now",
+      CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED,
+    );
+  }
   // Organization names take 2 to 50 characters.
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
     .slice(0, 50)

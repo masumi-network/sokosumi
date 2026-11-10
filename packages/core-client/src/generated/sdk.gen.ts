@@ -5488,7 +5488,7 @@ export const getShareByToken = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Every live Cuso the caller can work with, in all their organizations, newest first. CMO picks among them (ADR 0065).
+ * Every live Cuso the caller can work with, in all their organizations, newest first, and whether the caller may hire another. CMO picks among them (ADR 0065).
  */
 export const listCmoCusos = <ThrowOnError extends boolean = false>(options?: Options<ListCmoCusosData, ThrowOnError>): RequestResult<ListCmoCusosResponses, ListCmoCusosErrors, ThrowOnError> => (options?.client ?? client).get<ListCmoCusosResponses, ListCmoCusosErrors, ThrowOnError>({
     responseTransformer: listCmoCusosResponseTransformer,

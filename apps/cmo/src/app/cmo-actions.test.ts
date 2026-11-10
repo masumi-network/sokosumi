@@ -210,6 +210,7 @@ describe("onboard", () => {
   });
 
   it.each([
+    ["cmo_hire_not_allowed", "invite-only"],
     ["organization_seat_required", "Seat"],
     ["organization_limit_reached", "organization limit"],
     ["organization_membership_required", "no longer a member"],
@@ -236,13 +237,18 @@ describe("onboard", () => {
 describe("loadCusos", () => {
   it("lists the person's Cusos as Core orders them", async () => {
     listCmoCusos.mockResolvedValue({
-      data: { data: [{ projectId: "project-2" }, { projectId: "project-1" }] },
+      data: {
+        data: {
+          cusos: [{ projectId: "project-2" }, { projectId: "project-1" }],
+          mayHire: false,
+        },
+      },
       response: { status: 200 },
     });
-    expect(await loadCusos()).toEqual([
-      { projectId: "project-2" },
-      { projectId: "project-1" },
-    ]);
+    expect(await loadCusos()).toEqual({
+      cusos: [{ projectId: "project-2" }, { projectId: "project-1" }],
+      mayHire: false,
+    });
   });
 
   it("fails when Core cannot list them", async () => {
@@ -445,12 +451,27 @@ describe("start over", () => {
     startCmoOverForProject.mockResolvedValue({
       data: { data: { startedOver: true } },
     });
+    listCmoCusos.mockResolvedValue({
+      data: { data: { cusos: [], mayHire: true } },
+    });
     await expect(startOver("project-2")).rejects.toThrow("redirect /");
     expect(redirect).toHaveBeenCalledWith("/?hire=1");
     expect(startCmoOverForProject).toHaveBeenCalledWith(
       expect.objectContaining({ path: { projectId: "project-2" } }),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("opens the Cusos left instead for a person who may not hire", async () => {
+    startCmoOverForProject.mockResolvedValue({
+      data: { data: { startedOver: true } },
+    });
+    listCmoCusos.mockResolvedValue({
+      data: { data: { cusos: [], mayHire: false } },
+    });
+    // The picker shows the invite-only page when none are left.
+    await expect(startOver("project-2")).rejects.toThrow("redirect /");
+    expect(redirect).toHaveBeenCalledWith("/?cusos=1");
   });
 
   it("says why when Core refuses", async () => {

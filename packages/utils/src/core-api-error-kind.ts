@@ -9,6 +9,8 @@
  */
 export const CORE_API_ERROR_KINDS = {
   CALENDAR_CLIENT_UPGRADE_REQUIRED: "calendar_client_upgrade_required",
+  /** CMO is invite-only: the person is not on Core's `CMO_HIRE_ALLOWLIST`. */
+  CMO_HIRE_NOT_ALLOWED: "cmo_hire_not_allowed",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
   /** A channel being added already belongs to another contact; `existingContactId` names it. */
   CONTACT_CHANNEL_TAKEN: "contact_channel_taken",

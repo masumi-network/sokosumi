@@ -28,7 +28,7 @@ const route = createRoute({
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse(
-      "Forbidden - Not a member of the organization (organization_membership_required), no Seat in it (organization_seat_required), or the organization limit is reached (organization_limit_reached)",
+      "Forbidden - Not on the hire allowlist (cmo_hire_not_allowed), not a member of the organization (organization_membership_required), no Seat in it (organization_seat_required), or the organization limit is reached (organization_limit_reached)",
     ),
     409: jsonErrorResponse(
       "Conflict - The organization is out of credits (insufficient_balance)",

@@ -17,16 +17,22 @@ const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
   strategyMock: vi.fn(),
 }));
 
-const { archiveMock, hireMock, listMock } = vi.hoisted(() => ({
+const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
   archiveMock: vi.fn(),
   hireMock: vi.fn(),
   listMock: vi.fn(),
+  mayHireMock: vi.fn(),
 }));
 
 vi.mock("@/services/cmo-hiring.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-hiring.service")>();
-  return { ...actual, startCmoOver: archiveMock, startCmoOnboarding: hireMock };
+  return {
+    ...actual,
+    startCmoOver: archiveMock,
+    startCmoOnboarding: hireMock,
+    mayHireCuso: mayHireMock,
+  };
 });
 
 vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
@@ -197,14 +203,16 @@ describe("CMO routes", () => {
         createdAt: hired,
       },
     ]);
+    mayHireMock.mockResolvedValue(true);
     const response = await createApp().request("/cusos");
     expect(response.status).toBe(200);
     expect(listMock).toHaveBeenCalledWith("user-1");
     const { data } = await response.json();
+    expect(data.mayHire).toBe(true);
     expect(
-      data.map((cuso: { businessName: string }) => cuso.businessName),
+      data.cusos.map((cuso: { businessName: string }) => cuso.businessName),
     ).toEqual(["acme.io", "beta.io"]);
-    expect(data[1]).toEqual({
+    expect(data.cusos[1]).toEqual({
       projectId: "aaaaaaaa-aaaa-4aaa-8aaa-000000000003",
       businessName: "beta.io",
       websiteUrl: "https://beta.io",
@@ -214,6 +222,15 @@ describe("CMO routes", () => {
       hiring: false,
       createdAt: hired.toISOString(),
     });
+  });
+
+  it("says the caller may not hire when they are not on the allowlist", async () => {
+    listMock.mockResolvedValue([]);
+    mayHireMock.mockResolvedValue(false);
+    const response = await createApp().request("/cusos");
+    expect(response.status).toBe(200);
+    expect(mayHireMock).toHaveBeenCalledWith("user-1");
+    expect((await response.json()).data).toEqual({ cusos: [], mayHire: false });
   });
 
   it("no longer opens a default Cuso for the caller", async () => {
@@ -245,6 +262,15 @@ describe("CMO routes", () => {
   });
 
   it.each([
+    [
+      "not being on the allowlist",
+      new CmoForbiddenError(
+        "CMO is invite-only for now",
+        CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED,
+      ),
+      403,
+      CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED,
+    ],
     [
       "no Seat",
       new CmoForbiddenError(
