@@ -162,8 +162,8 @@ describe("managed verifier cross-protocol relay", () => {
     },
   );
 
-  // The rule reads no page path: Composio's fixed return page is a setting of
-  // the Composio project, and the rule must hold whichever page that is.
+  // The rule does not depend on the page the script runs at: Composio's fixed
+  // return page is a setting of the Composio project.
   describe("where a session may go", () => {
     it.each([
       ["a different page of the preview", `${FEATURE_ORIGIN}/seo`],
@@ -320,13 +320,16 @@ describe("managed verifier cross-protocol relay", () => {
     flow.handoff();
     flow.window.location.search = `?${new URLSearchParams({ session_uri: SESSION_URI, connected_account_id: "ca_other_owner" })}`;
     flow.callback();
-    expect(
-      flow.redirected.some(
-        (target) =>
-          target.origin === FEATURE_ORIGIN &&
-          target.searchParams.get("session_uri") === SESSION_URI,
-      ),
-    ).toBe(false);
+    // The page that started the connect learns of the failure, with no session.
+    expect(flow.redirected).toHaveLength(1);
+    const target = flow.redirected[0];
+    expect(target.origin + target.pathname).toBe(
+      FEATURE_ORIGIN + "/seo/connections/callback",
+    );
+    expect(target.searchParams.has("session_uri")).toBe(false);
+    expect(target.searchParams.get("status")).toBe("error");
+    expect(target.searchParams.get("error")).toBe("connection_mismatch");
+    expect(target.searchParams.get("connected_account_id")).toBe(CONNECTION_ID);
     expect(flow.broadcast).toEqual([]);
     expect(flow.openerMessage).not.toHaveBeenCalled();
   });
@@ -389,6 +392,30 @@ describe("managed verifier cross-protocol relay", () => {
         at: NOW,
       },
     },
+    {
+      name: "first-party URL with user info",
+      record: {
+        returnUrl: "https://user@app.cmo.xyz/connect/callback",
+        connectionId: CONNECTION_ID,
+        at: NOW,
+      },
+    },
+    {
+      name: "first-party URL with a fragment",
+      record: {
+        returnUrl: "https://app.cmo.xyz/connect/callback#fragment",
+        connectionId: CONNECTION_ID,
+        at: NOW,
+      },
+    },
+    {
+      name: "empty connection",
+      record: {
+        returnUrl: "https://app.cmo.xyz/connect/callback",
+        connectionId: "",
+        at: NOW,
+      },
+    },
   ])("does not send credentials to a $name handoff", ({ record, raw }) => {
     const flow = browser();
     flow.stored.set(
@@ -396,15 +423,7 @@ describe("managed verifier cross-protocol relay", () => {
       raw ?? JSON.stringify(record),
     );
     flow.callback();
-    expect(
-      flow.redirected.every(
-        (target) =>
-          target.origin === CANONICAL_ORIGIN &&
-          target.pathname === VERIFIER_PATH,
-      ),
-    ).toBe(true);
-    expect(flow.broadcast).toEqual([]);
-    expect(flow.openerMessage).not.toHaveBeenCalled();
+    expectSessionKept(flow);
   });
 
   it("rejects a handoff from another popup attempt while preserving the surviving local popup fallback", () => {
