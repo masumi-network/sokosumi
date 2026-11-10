@@ -295,29 +295,15 @@ export async function cmoRunnerUserId(
   );
 }
 
-/**
- * Who a CMO call names: a member and the Project of the Cuso they act on.
- * Without a Project it is the Cuso they work with by default
- * (`findCusoForUser`), as the person-keyed routes answer until they go.
- */
+/** Who a CMO call names: a member and the Project of the Cuso they act on. */
 export interface CusoTarget {
   userId: string;
-  projectId?: string;
-}
-
-/** The Cuso a CMO call names, or null when that Project has none. */
-export function findCuso(
-  { userId, projectId }: CusoTarget,
-  db: Prisma.TransactionClient = prisma,
-): Promise<Cuso | null> {
-  return projectId
-    ? findCusoForProject({ userId, projectId }, db)
-    : findCusoForUser(userId);
+  projectId: string;
 }
 
 /**
- * A write's target: the Cuso a CMO call names (`findCuso`), or the bot
- * itself.
+ * A write's target: the Cuso a CMO call names (`findCusoForProject`), or the
+ * bot itself.
  */
 export async function requireCuso(
   where: CusoTarget | { sokoBotId: string },
@@ -326,7 +312,7 @@ export async function requireCuso(
   const cuso =
     "sokoBotId" in where
       ? await findCusoForBot(where.sokoBotId, db)
-      : await findCuso(where, db);
+      : await findCusoForProject(where, db);
   if (!cuso) throw new CmoNotFoundError("Cuso is not hired yet");
   return cuso;
 }

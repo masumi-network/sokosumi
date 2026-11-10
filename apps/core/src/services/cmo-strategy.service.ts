@@ -404,7 +404,7 @@ async function keepFileVisuals(
  * writes the other pieces (ads, articles, newsletters) as Project files.
  */
 export async function saveCmoStrategy(
-  where: { userId: string } | { sokoBotId: string },
+  where: CusoTarget | { sokoBotId: string },
   strategy: CmoStrategySave,
   options: {
     turnId?: string;
