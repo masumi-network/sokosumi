@@ -141,7 +141,14 @@ async function run(email: string, brand: Brand) {
   const research = await settle((await startCmoResearch(cuso, user.id)).turnId);
   const plan =
     research === "COMPLETED"
-      ? await settle((await requestCmoStrategy({ userId: user.id })).turnId)
+      ? await settle(
+          (
+            await requestCmoStrategy({
+              userId: user.id,
+              projectId: cuso.projectId,
+            })
+          ).turnId,
+        )
       : "SKIPPED";
   const [brain, strategy] = await Promise.all([
     prisma.brandBrain.findUnique({ where: { projectId: cuso.projectId } }),
