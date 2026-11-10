@@ -1,31 +1,14 @@
 "use client";
 
-import { LayoutTemplate, MousePointer2 } from "lucide-react";
-import { useReducedMotion } from "motion/react";
+import { LayoutTemplate } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  type CarouselApi,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import {
-  collectStudioCarouselSlides,
-  paintStudioCarouselDepth,
-  STUDIO_SELECT_NONE_CLASS,
-  STUDIO_TOUCH_CALLOUT_NONE_CLASS,
-  type StudioCarouselSlide,
-  setStudioCarouselDragging,
-  studioCarouselRoot,
-} from "./studio-carousel-paint";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import type { StudioLabels } from "./types";
 
@@ -34,72 +17,33 @@ type TemplatePickerProps = {
   onApplyTemplate: (template: StudioTemplate) => void;
 };
 
-interface StudioTemplateCarouselProps extends TemplatePickerProps {
-  projectAction?: React.ReactNode;
-}
-
 function TemplateButton({
   template,
   label,
   onApplyTemplate,
-  large = false,
-  dimensional = false,
 }: {
   template: StudioTemplate;
   label: string;
   onApplyTemplate: TemplatePickerProps["onApplyTemplate"];
-  large?: boolean;
-  dimensional?: boolean;
 }) {
   return (
     <button
-      className={cn(
-        "bg-background hover:bg-accent focus-visible:ring-ring flex cursor-pointer gap-2 rounded-xl text-left transition-[background-color] outline-none focus-visible:ring-2",
-        STUDIO_SELECT_NONE_CLASS,
-        STUDIO_TOUCH_CALLOUT_NONE_CLASS,
-        large
-          ? "border-border data-[studio-snap-target]:border-foreground flex-col overflow-hidden border p-2"
-          : "min-h-11 shrink-0 items-center p-1 pr-3",
-        large && (dimensional ? "relative left-1/2 w-48 sm:w-56" : "w-full"),
-      )}
-      data-template-card={large || undefined}
+      className="bg-background hover:bg-accent focus-visible:ring-ring flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl p-1 pr-3 text-left transition-[background-color] outline-none select-none focus-visible:ring-2"
       onClick={() => onApplyTemplate(template)}
       type="button"
     >
-      <span
-        data-template-preview
-        className={cn(
-          "bg-muted relative shrink-0 overflow-hidden rounded-lg",
-          large
-            ? dimensional
-              ? "aspect-3/4 w-full"
-              : "aspect-4/3 w-full"
-            : "size-8",
-        )}
-      >
+      <span className="bg-muted relative size-8 shrink-0 overflow-hidden rounded-lg">
         <Image
           alt=""
           className="object-cover"
           decoding="async"
           fill
           loading="lazy"
-          sizes={
-            large
-              ? dimensional
-                ? "(min-width: 640px) 14rem, 12rem"
-                : "(min-width: 1024px) 18rem, (min-width: 640px) 26rem, 75vw"
-              : "2rem"
-          }
+          sizes="2rem"
           src={`/studio/templates/${template.id}.jpg`}
         />
       </span>
-      <span
-        className={
-          large ? "px-1 py-1 text-sm font-medium" : "text-xs font-medium"
-        }
-      >
-        {label}
-      </span>
+      <span className="text-xs font-medium">{label}</span>
     </button>
   );
 }
@@ -157,217 +101,5 @@ export function StudioTemplateMenu({
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-/** Navigate with drag, arrow keys, or edge hover; choosing a brief stays explicit. */
-export function StudioTemplateCarousel({
-  labels,
-  onApplyTemplate,
-  projectAction,
-}: StudioTemplateCarouselProps) {
-  const [api, setApi] = useState<CarouselApi>();
-  const reduceMotion = useReducedMotion();
-  const apiRef = useRef(api);
-  apiRef.current = api;
-  const reduceMotionRef = useRef(!!reduceMotion);
-  reduceMotionRef.current = !!reduceMotion;
-  const slidesRef = useRef<StudioCarouselSlide[]>([]);
-  const draggingRef = useRef(false);
-  const focusedRef = useRef(false);
-  const hoverDirectionRef = useRef<"previous" | "next" | null>(null);
-  const hoverTimerRef = useRef(0);
-
-  function stopHoverScroll() {
-    if (hoverTimerRef.current) {
-      window.clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = 0;
-    }
-  }
-
-  function syncHoverScroll() {
-    stopHoverScroll();
-    const embla = apiRef.current;
-    const direction = hoverDirectionRef.current;
-    if (
-      !embla ||
-      draggingRef.current ||
-      focusedRef.current ||
-      reduceMotionRef.current ||
-      !direction
-    ) {
-      return;
-    }
-    const tick = () => {
-      if (
-        document.hidden ||
-        draggingRef.current ||
-        focusedRef.current ||
-        !hoverDirectionRef.current
-      ) {
-        return;
-      }
-      if (hoverDirectionRef.current === "previous") embla.scrollPrev();
-      else embla.scrollNext();
-      hoverTimerRef.current = window.setTimeout(tick, 1000);
-    };
-    hoverTimerRef.current = window.setTimeout(tick, 300);
-  }
-
-  function setHoverDirection(direction: "previous" | "next" | null) {
-    if (hoverDirectionRef.current === direction) return;
-    hoverDirectionRef.current = direction;
-    syncHoverScroll();
-  }
-
-  useEffect(() => {
-    if (!api) return;
-    const slides = collectStudioCarouselSlides(api.slideNodes());
-    slidesRef.current = slides;
-    let frame = 0;
-    const paintDepth = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        paintStudioCarouselDepth({
-          viewport: api.rootNode().getBoundingClientRect(),
-          slides,
-          reduceMotion: !!reduceMotion,
-        });
-      });
-    };
-    paintDepth();
-    api.on("scroll", paintDepth);
-    api.on("reInit", paintDepth);
-    return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      api.off("scroll", paintDepth);
-      api.off("reInit", paintDepth);
-    };
-  }, [api, reduceMotion]);
-
-  useEffect(() => {
-    if (!api) return;
-    const root = studioCarouselRoot(api.rootNode());
-    const startDrag = () => {
-      draggingRef.current = true;
-      stopHoverScroll();
-      setStudioCarouselDragging(root, slidesRef.current, true);
-    };
-    const endDrag = () => {
-      draggingRef.current = false;
-      setStudioCarouselDragging(root, slidesRef.current, false);
-      syncHoverScroll();
-    };
-    const suppressNativeSelection = (event: Event) => {
-      event.preventDefault();
-    };
-    api.on("pointerDown", startDrag);
-    api.on("pointerUp", endDrag);
-    root.addEventListener("pointerdown", suppressNativeSelection, {
-      passive: false,
-    });
-    root.addEventListener("mousedown", suppressNativeSelection, {
-      passive: false,
-    });
-    root.addEventListener("pointercancel", endDrag);
-    return () => {
-      api.off("pointerDown", startDrag);
-      api.off("pointerUp", endDrag);
-      root.removeEventListener("pointerdown", suppressNativeSelection);
-      root.removeEventListener("mousedown", suppressNativeSelection);
-      root.removeEventListener("pointercancel", endDrag);
-      setStudioCarouselDragging(root, slidesRef.current, false);
-    };
-  }, [api]);
-
-  useEffect(() => () => stopHoverScroll(), []);
-
-  return (
-    <div className="w-full space-y-5 py-4">
-      <div className="space-y-2 px-4 text-center">
-        <h2 className="text-xl font-medium">{labels.emptyTitle}</h2>
-        <p className="text-muted-foreground flex items-center justify-center gap-2 text-sm text-pretty">
-          <MousePointer2 aria-hidden className="size-4 shrink-0" />
-          <span>{labels.emptyBody}</span>
-        </p>
-        {projectAction ? (
-          <div className="flex justify-center">{projectAction}</div>
-        ) : null}
-      </div>
-      <Carousel
-        aria-label={labels.templates}
-        className={cn(
-          "group relative flex min-w-0 flex-col",
-          STUDIO_SELECT_NONE_CLASS,
-          STUDIO_TOUCH_CALLOUT_NONE_CLASS,
-        )}
-        onFocusCapture={() => {
-          focusedRef.current = true;
-          stopHoverScroll();
-        }}
-        onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) {
-            focusedRef.current = false;
-            syncHoverScroll();
-          }
-        }}
-        onMouseLeave={() => setHoverDirection(null)}
-        opts={{ loop: true, align: "center", duration: reduceMotion ? 0 : 25 }}
-        setApi={setApi}
-      >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-20 hidden border-2 border-dashed border-foreground bg-overlay-primary group-data-[studio-dragging]:block"
-        />
-        <CarouselContent
-          className={reduceMotion ? "py-1" : "items-center py-10"}
-          onMouseLeave={() => setHoverDirection(null)}
-          onMouseMove={(event) => {
-            const item =
-              event.target instanceof Element
-                ? event.target.closest("[data-slot=carousel-item]")
-                : null;
-            const viewport = event.currentTarget.parentElement;
-            if (!item || !viewport) {
-              setHoverDirection(null);
-              return;
-            }
-            const bounds = viewport.getBoundingClientRect();
-            const card = item.getBoundingClientRect();
-            const center = bounds.left + bounds.width / 2;
-            setHoverDirection(
-              card.right <= center
-                ? "previous"
-                : card.left >= center
-                  ? "next"
-                  : null,
-            );
-          }}
-        >
-          {STUDIO_TEMPLATES.map((template) => (
-            <CarouselItem
-              className={cn(
-                "relative",
-                STUDIO_SELECT_NONE_CLASS,
-                STUDIO_TOUCH_CALLOUT_NONE_CLASS,
-                reduceMotion
-                  ? "basis-3/4 sm:basis-1/2 lg:basis-1/3"
-                  : "basis-1/3 pl-0! sm:basis-1/3",
-              )}
-              key={template.id}
-            >
-              <TemplateButton
-                dimensional={!reduceMotion}
-                label={labels.templateLabels[template.id]}
-                large
-                onApplyTemplate={onApplyTemplate}
-                template={template}
-              />
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-      </Carousel>
-    </div>
   );
 }

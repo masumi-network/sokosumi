@@ -114,6 +114,7 @@ export function CreateProjectModal() {
       }}
       creationSource="projects_page"
       onSuccess={handleSuccess}
+      onOpenProject={(projectId) => router.push(`/projects/${projectId}`)}
     />
   );
 }

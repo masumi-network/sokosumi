@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Markdown from "@/components/markdown";
-import { connectLinkTarget } from "@/components/soko-bot/connect-link-button";
+import { connectLinkTarget } from "@/components/soko-bot/connect-link-target";
 
 import messages from "../../../../messages/en.json";
 

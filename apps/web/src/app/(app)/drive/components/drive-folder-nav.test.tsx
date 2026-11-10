@@ -122,4 +122,57 @@ describe("DriveFolderNav virtual folder", () => {
     );
     expect(screen.queryByText("Sokosumi Projects")).toBeNull();
   });
+
+  it("marks a data room's folder and says who can open it", async () => {
+    render(
+      <DriveFolderNav
+        folders={FOLDERS}
+        current=""
+        onSelect={() => {}}
+        roomPaths={["Reports"]}
+        roomHint="Only people you let in"
+      />,
+    );
+    const room = screen.getByRole("button", { name: "Reports dataRoom" });
+    expect(screen.getByRole("button", { name: "Brand" })).toBeInTheDocument();
+    await userEvent.tab();
+    await userEvent.tab();
+    expect(room).toHaveFocus();
+    expect(
+      await screen.findByRole("tooltip", { name: "Only people you let in" }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["the room itself", "Reports"],
+    ["a folder inside it", "Reports/2026"],
+  ])(
+    "explains a room in the trail by keyboard, from %s",
+    async (_, current) => {
+      render(
+        <DriveFolderNav
+          folders={FOLDERS}
+          current={current}
+          onSelect={() => {}}
+          roomPaths={["Reports"]}
+          roomHint="Only people you let in"
+        />,
+      );
+      const trail = screen.getByRole("navigation", { name: "foldersLabel" });
+      await userEvent.tab(); // foldersRoot
+      await userEvent.tab();
+      expect(
+        within(trail).getByRole("button", { name: "dataRoom" }),
+      ).toHaveFocus();
+      expect(
+        await screen.findByRole("tooltip", { name: "Only people you let in" }),
+      ).toBeInTheDocument();
+      // The current folder stays where the reader is, not a place to go.
+      const here = within(trail).getByRole("button", {
+        name: current.split("/").at(-1),
+      });
+      expect(here).toHaveAttribute("aria-current", "location");
+      expect(here).toBeDisabled();
+    },
+  );
 });
