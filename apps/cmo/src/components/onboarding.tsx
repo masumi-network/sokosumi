@@ -3,7 +3,13 @@
 import "./onboarding/onboarding.css";
 
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useActionState, useRef, useState } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
@@ -52,8 +58,12 @@ function aimLabels(stage: HTMLElement) {
 }
 
 interface OnboardingProps {
-  /** The website a CMO sign-up link carried, to start the field with. */
+  /** The website typed before sign in, or a CMO sign-up link carried. */
   websiteUrl?: string | undefined;
+  /** Reading starts on its own: the website was typed before sign in. */
+  autoStart?: boolean;
+  /** Before sign in: Continue goes to Create account, keeping the website. */
+  signedOut?: boolean;
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -61,11 +71,16 @@ interface OnboardingProps {
 }
 
 /**
- * Hiring Cuso, step one: the website. An error sits by it and what was
- * typed stays.
+ * Hiring Cuso, step one: the website, before sign in too. An error sits by
+ * it and what was typed stays.
  */
-export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
-  const [state, formAction] = useActionState(onboard, {
+export function Onboarding({
+  websiteUrl,
+  autoStart = false,
+  signedOut = false,
+  onboard,
+}: OnboardingProps) {
+  const [state, formAction, starting] = useActionState(onboard, {
     attempt: 0,
     websiteUrl: websiteUrl ?? "",
     errors: {},
@@ -78,6 +93,15 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
   const stage = useRef<HTMLDivElement>(null);
   const [announcing, setAnnouncing] = useState(false);
   const [heroPlayed, setHeroPlayed] = useState(false);
+  // Once, even when Strict Mode runs effects twice: each start is a hire.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!autoStart || !websiteUrl || started.current) return;
+    started.current = true;
+    const data = new FormData();
+    data.set("websiteUrl", websiteUrl);
+    startTransition(() => formAction(data));
+  }, [autoStart, websiteUrl, formAction]);
 
   return (
     <div className="ob">
@@ -137,7 +161,10 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
                   aria-invalid={errors.websiteUrl ? true : undefined}
                   aria-describedby={websiteErrorId}
                 />
-                <StartButton />
+                <StartButton
+                  label={signedOut ? "Continue" : "Start reading"}
+                  starting={starting}
+                />
               </div>
               {errors.websiteUrl ? (
                 <p id={websiteErrorId} className="alert" role="alert">
@@ -145,11 +172,21 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
                 </p>
               ) : (
                 <span className="ob-small muted">
-                  A shop, a SaaS, a portfolio. Any public site works.
+                  {signedOut
+                    ? "Next you sign in with Sokosumi, and I start reading."
+                    : "A shop, a SaaS, a portfolio. Any public site works."}
                 </span>
               )}
             </div>
             <StatRow stats={STATS} />
+            {signedOut ? (
+              <p className="ob-small muted">
+                Hired {AGENT_NAME} before?{" "}
+                <a className="ob-link" href="/signin">
+                  Sign in
+                </a>
+              </p>
+            ) : null}
           </form>
           <div className="panel ob-hire-stage">
             <div
@@ -181,14 +218,21 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
   );
 }
 
-function StartButton() {
-  const { pending } = useFormStatus();
+function StartButton({
+  label,
+  starting,
+}: {
+  label: string;
+  /** Reading started on its own, outside a submit. */
+  starting: boolean;
+}) {
+  const pending = useFormStatus().pending || starting;
   return (
     <button type="submit" className="button" disabled={pending}>
       {pending ? (
         <Loader2 size={16} className="spin" aria-hidden="true" />
       ) : null}
-      {pending ? "Starting" : "Start reading"}
+      {pending ? "Starting" : label}
       {pending ? null : <ArrowRight size={16} aria-hidden="true" />}
     </button>
   );

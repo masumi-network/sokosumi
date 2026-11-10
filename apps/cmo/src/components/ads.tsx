@@ -13,7 +13,7 @@ type AdProvider = "google_ads" | "meta_ads";
 export interface AdActions {
   connectAds: (
     provider: AdProvider,
-    from: "onboarding" | "app",
+    from: "onboarding" | "popup" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
   launchAd: (
     entryId: string,
@@ -31,7 +31,13 @@ export interface AdActions {
 /** Why an ad connection came back without an account, from the return address. */
 export function adsReturnError(): string | null {
   if (typeof window === "undefined") return null;
-  const ads = new URLSearchParams(window.location.search).get("ads");
+  return adsResultMessage(
+    new URLSearchParams(window.location.search).get("ads"),
+  );
+}
+
+/** Why an ad connection came back without an account, or null. */
+export function adsResultMessage(ads: string | null): string | null {
   if (ads === "none") {
     return "That login has no ad account. Create one in Google Ads or Meta, then connect again.";
   }

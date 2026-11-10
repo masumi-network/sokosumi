@@ -1,8 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { connectDonePath } from "../../../lib/connect-window";
 import { finalizeChannel } from "../../cmo-actions";
 
-/** Composio sends the founder back here; finish the connection, then resume onboarding. */
+/**
+ * Composio sends the founder back here: finish the connection, then resume
+ * onboarding, or end Launch's popup on the page that tells Launch.
+ */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const connectionId =
@@ -19,9 +23,13 @@ export async function GET(request: NextRequest) {
           () => false,
         )
       : false;
+  const from = params.get("from");
+  if (from === "popup") {
+    const done = connectDonePath(connected ? "connected" : "failed");
+    return NextResponse.redirect(new URL(done, request.nextUrl));
+  }
   const back = new URL("/", request.nextUrl);
   back.searchParams.set("step", "connect");
-  const from = params.get("from");
   if (from) back.searchParams.set("from", from);
   if (!connected) back.searchParams.set("connect", "failed");
   if (project) back.searchParams.set("project", project);

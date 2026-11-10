@@ -2,7 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
@@ -11,8 +11,12 @@ import {
   type SocialProvider,
 } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
+import {
+  listenForConnectDone,
+  openConnectWindow,
+} from "../../lib/connect-window";
 import { joinNames } from "../../lib/names";
-import type { AdActions } from "../ads";
+import { type AdActions, adsResultMessage } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
@@ -80,12 +84,19 @@ export function optionalChannels(
 const isAds = (key: string): key is "google_ads" | "meta_ads" =>
   key === "google_ads" || key === "meta_ads";
 
+/** How often Launch checks whether the founder closed the connect window. */
+const POPUP_CHECK_MS = 500;
+const CONNECT_FAILED = "That connection didn't finish. Try again.";
+
 interface LaunchStepProps {
   overview: CmoOverview;
   onConnect: (
     provider: SocialProvider,
+    from: "onboarding" | "popup",
   ) => Promise<{ url: string | null; error: string | null }>;
   onConnectAds: AdActions["connectAds"];
+  /** Polls the overview at once, when a connect window finishes or closes. */
+  onReturn?: () => Promise<void>;
   /** Runs before the celebration shows. */
   onLaunch: () => Promise<void>;
   /** Records the finish and opens the app. */
@@ -136,6 +147,7 @@ export function LaunchStep({
   overview,
   onConnect,
   onConnectAds,
+  onReturn = async () => {},
   onLaunch,
   onGoToday,
   notice = null,
@@ -168,23 +180,63 @@ export function LaunchStep({
   const pieces = (key: string) =>
     calendar.filter((entry) => channelKey(entry.channel) === key).length;
 
+  // A connect window says how it ended; Launch polls at once, no reload.
+  useEffect(
+    () =>
+      listenForConnectDone((result) => {
+        setPending(null);
+        setError(
+          result === "failed"
+            ? CONNECT_FAILED
+            : result === "none"
+              ? adsResultMessage("none")
+              : null,
+        );
+        void onReturn();
+      }),
+    [onReturn],
+  );
+  // Closed without a word (the founder gave up, or the window lost us): check.
+  const popupCheck = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearInterval(popupCheck.current), []);
+  function watch(popup: Window) {
+    window.clearInterval(popupCheck.current);
+    popupCheck.current = window.setInterval(() => {
+      if (!popup.closed) return;
+      window.clearInterval(popupCheck.current);
+      setPending(null);
+      void onReturn();
+    }, POPUP_CHECK_MS);
+  }
+
   function connect(key: string) {
     setPending(key);
     setError(null);
+    // Opened in the click, before any wait, so a popup blocker lets it
+    // through. Blocked, Connect leaves the page as it always did.
+    const popup = openConnectWindow();
+    const from = popup ? "popup" : "onboarding";
     startTransition(async () => {
       try {
         const result = isAds(key)
-          ? await onConnectAds(key, "onboarding")
+          ? await onConnectAds(key, from)
           : isSocialProvider(key)
-            ? await onConnect(key)
+            ? await onConnect(key, from)
             : { url: null, error: null };
-        if (result.url) {
+        if (!result.url) {
+          popup?.close();
+          setPending(null);
+          setError(result.error);
+          return;
+        }
+        if (!popup) {
           window.location.assign(result.url);
           return;
         }
-        setPending(null);
-        setError(result.error);
+        popup.location.href = result.url;
+        watch(popup);
       } catch {
+        popup?.close();
         setPending(null);
         setError("Could not connect. Try again.");
       }

@@ -1,5 +1,5 @@
 import { getUsersById, getUsersByIdSignUp } from "@sokosumi/core-client";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { CmoApp } from "../components/app/cmo-app";
@@ -9,6 +9,7 @@ import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
 import { asSignedInPersonInPage } from "../lib/core";
+import { KEPT_WEBSITE_COOKIE, keptWebsite } from "../lib/kept-website";
 import { isValidPersonName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import type { View } from "../lib/views";
@@ -142,14 +143,19 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   if (overview === null) {
-    const { firstName, lastName } = person.data.data;
-    if (!isValidPersonName(firstName ?? "", lastName ?? "")) {
+    const { firstName, lastName, name } = person.data.data;
+    // The name comes from the account; only an account without one is asked.
+    if (!isValidPersonName(firstName ?? "", lastName ?? "") && !name.trim()) {
       return <NameSetup saveName={saveName} signOut={signOut} />;
     }
+    // Typed before sign in: reading starts on return. A sign-up record
+    // outlives Start over, so it only fills the field.
+    const kept = keptWebsite((await cookies()).get(KEPT_WEBSITE_COOKIE)?.value);
     // Hiring creates Cuso's own organization (ADR 0060).
     return (
       <Onboarding
-        websiteUrl={await signUpWebsite(asPerson)}
+        websiteUrl={kept ?? (await signUpWebsite(asPerson))}
+        autoStart={kept !== undefined}
         onboard={onboard}
       />
     );

@@ -49,6 +49,7 @@ import { AGENT_NAME } from "../lib/agent";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
+import { KEPT_WEBSITE_COOKIE } from "../lib/kept-website";
 import {
   readSkippedSteps,
   SKIPPED_STEPS_MAX_AGE,
@@ -164,6 +165,9 @@ export async function onboard(
     };
   }
 
+  // A kept website starts one hire only, whatever Core answers: every hire
+  // makes a new Cuso, so a reload after a lost answer must not hire twice.
+  (await cookies()).delete(KEPT_WEBSITE_COOKIE);
   const core = await requireCore();
   const { error } = await startCmoOnboarding({
     ...core,
@@ -491,6 +495,8 @@ export async function startOver(projectId: string): Promise<string | null> {
       ? String((error as { message: unknown }).message)
       : "Could not start over";
   }
+  // The hiring form opens empty, not on a website kept from before.
+  (await cookies()).delete(KEPT_WEBSITE_COOKIE);
   revalidatePath("/");
   const nextProject = data?.data.projectId;
   redirect(nextProject ? `/?project=${encodeURIComponent(nextProject)}` : "/");
@@ -603,18 +609,22 @@ export async function connectChannel(
   return startChannel(projectId, provider, "app");
 }
 
-/** Connects a network on the Accounts step; the founder comes back to it. */
+/**
+ * Connects a network on Launch: in a popup that ends on `/connect/done`, or
+ * by redirect back to Launch when the browser blocked the popup.
+ */
 export async function connectSetupChannel(
   projectId: string,
   provider: SocialProvider,
+  from: "onboarding" | "popup" = "onboarding",
 ): Promise<{ url: string | null; error: string | null }> {
-  return startChannel(projectId, provider, "onboarding");
+  return startChannel(projectId, provider, from);
 }
 
 async function startChannel(
   projectId: string,
   provider: SocialProvider,
-  from: "onboarding" | "app",
+  from: "onboarding" | "popup" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
   const { overview: _overview, ...options } = await cusoProject(projectId);
   const { data, error } = await postProjectsByIdSocialConnectionsInitiate({
@@ -670,7 +680,7 @@ export async function finalizeChannel(
 export async function connectAds(
   projectId: string,
   provider: "google_ads" | "meta_ads",
-  from: "onboarding" | "app",
+  from: "onboarding" | "popup" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoAdsForProject({

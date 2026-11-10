@@ -6,6 +6,8 @@ interface SignInProblemProps {
   /** The `error` query Sokosumi or CMO sent back when sign in did not finish. */
   error: string;
   signIn: () => Promise<void>;
+  /** The website typed before sign in, kept for the retry. */
+  website?: string | undefined;
 }
 
 /**
@@ -36,7 +38,7 @@ function errorMessage(error: string): string {
 }
 
 /** Why sign in stopped, and one way back in. */
-export function SignInProblem({ error, signIn }: SignInProblemProps) {
+export function SignInProblem({ error, signIn, website }: SignInProblemProps) {
   // An ended session is not a failed sign in: it only asks to sign in again.
   const signedOut = error === CMO_SIGN_IN_ERROR.signedOut;
   return (
@@ -46,6 +48,9 @@ export function SignInProblem({ error, signIn }: SignInProblemProps) {
           {signedOut ? "You were signed out." : "Sign in did not finish."}
         </h1>
         <p role="alert">{errorMessage(error)}</p>
+        {website ? (
+          <p className="muted">I kept {website}. You won't type it again.</p>
+        ) : null}
         <form className="actions">
           <SubmitButton className="button" formAction={signIn}>
             {signedOut ? "Sign in" : "Try again"}

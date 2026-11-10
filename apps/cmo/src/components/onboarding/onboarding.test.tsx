@@ -109,6 +109,21 @@ describe("pre-hire Site", () => {
     expect(html).toContain("3 min");
     expect(html).toContain("Drafts your first month");
     expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Site/);
+    expect(html).not.toContain('href="/signin"');
+  });
+
+  it("signed out, asks for the website first and says sign in comes next", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        signedOut
+        onboard={async () => ({ attempt: 0, websiteUrl: "", errors: {} })}
+      />,
+    );
+    expect(html).toContain("Your website");
+    expect(html).toContain("Continue");
+    expect(html).not.toContain("Start reading");
+    expect(html).toContain("Next you sign in with Sokosumi");
+    expect(html).toMatch(/<a[^>]*href="\/signin"[^>]*>Sign in<\/a>/);
   });
 });
 

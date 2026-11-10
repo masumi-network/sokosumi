@@ -10,7 +10,15 @@ const getUsersById = vi.fn();
 const getUsersByIdSignUp = vi.fn();
 const loadOverview = vi.fn();
 
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+const cookieJar = new Map<string, string>();
+
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { name, value: cookieJar.get(name) } : undefined,
+  }),
+}));
 
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
@@ -44,13 +52,17 @@ const { default: HomePage } = await import("./page");
 
 function render(
   error?: string | string[],
-): Promise<ReactElement<{ websiteUrl?: string }>> {
+): Promise<ReactElement<{ websiteUrl?: string; autoStart?: boolean }>> {
   return HomePage({ searchParams: Promise.resolve({ error }) });
 }
 
-function userAnswer(firstName: string | null, lastName: string | null) {
+function userAnswer(
+  firstName: string | null,
+  lastName: string | null,
+  name = "Ada",
+) {
   return {
-    data: { data: { id: "user_1", name: "Ada", firstName, lastName } },
+    data: { data: { id: "user_1", name, firstName, lastName } },
     response: new Response(null, { status: 200 }),
   };
 }
@@ -65,6 +77,7 @@ function signUpAnswer(origin: string, context: Record<string, unknown>) {
 describe("CMO home page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cookieJar.clear();
     getSession.mockResolvedValue({
       user: { name: "Ada Lovelace", email: "ada@example.com" },
     });
@@ -124,6 +137,30 @@ describe("CMO home page", () => {
 
     expect(page.type).toBe(Onboarding);
     expect(page.props.websiteUrl).toBe("nmkr.io");
+    // A sign-up record outlives Start over, so it only fills the field.
+    expect(page.props.autoStart).toBeFalsy();
+  });
+
+  it("starts reading the website typed before sign in", async () => {
+    cookieJar.set("cmo-website", "https://acme.io/");
+    getUsersByIdSignUp.mockResolvedValue(
+      signUpAnswer("cmo", { url: "nmkr.io" }),
+    );
+
+    const page = await render();
+
+    expect(page.type).toBe(Onboarding);
+    expect(page.props.websiteUrl).toBe("acme.io");
+    expect(page.props.autoStart).toBe(true);
+  });
+
+  it("ignores a kept value that is no website", async () => {
+    cookieJar.set("cmo-website", "not a site");
+
+    const page = await render();
+
+    expect(page.props.websiteUrl).toBeUndefined();
+    expect(page.props.autoStart).toBeFalsy();
   });
 
   it.each([
@@ -164,13 +201,27 @@ describe("CMO home page", () => {
     ["no name parts", null, null],
     ["only a first name", "Ada", null],
     ["blank parts", " ", " "],
-    ["a name too long to store", "A".repeat(64), "B".repeat(64)],
   ])(
-    "asks a person with %s for their name before hiring",
+    "asks a person with %s and no display name for their name",
     async (_label, firstName, lastName) => {
-      getUsersById.mockResolvedValue(userAnswer(firstName, lastName));
+      getUsersById.mockResolvedValue(userAnswer(firstName, lastName, " "));
 
       expect((await render()).type).toBe(NameSetup);
+    },
+  );
+
+  it.each([
+    ["no name parts", null, null],
+    ["only a first name", "Ada", null],
+    ["a name too long to split", "A".repeat(64), "B".repeat(64)],
+  ])(
+    "takes the name from the account for a person with %s",
+    async (_label, firstName, lastName) => {
+      getUsersById.mockResolvedValue(
+        userAnswer(firstName, lastName, "Ada Lovelace"),
+      );
+
+      expect((await render()).type).toBe(Onboarding);
     },
   );
 

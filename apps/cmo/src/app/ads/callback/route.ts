@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { connectDonePath } from "../../../lib/connect-window";
 import { finalizeAds } from "../../cmo-actions";
 
 /** Where the founder goes back to: the Accounts step, or Channels in the app. */
@@ -37,6 +38,14 @@ export async function GET(request: NextRequest) {
     choose.searchParams.set("project", project);
     if (from) choose.searchParams.set("from", from);
     return NextResponse.redirect(choose);
+  }
+  if (from === "popup") {
+    const done = connectDonePath(
+      result?.state === "connected" || result?.state === "none"
+        ? result.state
+        : "failed",
+    );
+    return NextResponse.redirect(new URL(done, request.nextUrl));
   }
   const back = adsReturn(request, from);
   if (result?.state !== "connected") {

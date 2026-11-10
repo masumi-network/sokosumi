@@ -435,6 +435,7 @@ export function OnboardingFlow({
             overview={overview}
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}
+            onReturn={refresh}
             notice={returnNotice}
             // Launch needs a connected network, and Core ends hiring on the
             // first connection, so the celebration is client-only. Recording

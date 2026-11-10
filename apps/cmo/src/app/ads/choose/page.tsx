@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { SubmitButton } from "../../../components/submit-button";
 import { AGENT_NAME } from "../../../lib/agent";
+import { connectDonePath } from "../../../lib/connect-window";
 import { chooseAdAccount, loadAdChoices } from "../../cmo-actions";
 
 interface ChoosePageProps {
@@ -18,15 +19,21 @@ export default async function ChooseAdAccountPage({
   searchParams,
 }: ChoosePageProps) {
   const { connection, from, project } = await searchParams;
+  const popup = from === "popup";
   const inApp = from === "app";
   const params = new URLSearchParams(
     inApp ? {} : { step: "connect", from: "onboarding" },
   );
   if (project) params.set("project", project);
   const back = (inApp ? "/channels" : "/") + (params.size ? `?${params}` : "");
-  if (!connection || !project) redirect(back);
+  // Launch's popup ends on the page that tells Launch, which polls.
+  const failed = popup
+    ? connectDonePath("failed")
+    : `${back}${back.includes("?") ? "&" : "?"}ads=failed`;
+  const done = popup ? connectDonePath("connected") : back;
+  if (!connection || !project) redirect(popup ? failed : back);
   const accounts = await loadAdChoices(project, connection).catch(() => []);
-  if (accounts.length === 0) redirect(back);
+  if (accounts.length === 0) redirect(popup ? failed : back);
 
   async function choose(formData: FormData) {
     "use server";
@@ -35,9 +42,7 @@ export default async function ChooseAdAccountPage({
       typeof id === "string" && connection && project
         ? await chooseAdAccount(project, connection, id)
         : false;
-    redirect(
-      chosen ? back : `${back}${back.includes("?") ? "&" : "?"}ads=failed`,
-    );
+    redirect(chosen ? done : failed);
   }
 
   return (

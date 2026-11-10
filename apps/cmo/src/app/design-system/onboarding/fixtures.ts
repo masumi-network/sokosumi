@@ -15,6 +15,8 @@ import {
 
 /** The screens the preview route can render, one overview each. */
 export const SCREENS = [
+  "signed-out",
+  "name",
   "hire",
   "start",
   "reading",

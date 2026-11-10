@@ -444,22 +444,21 @@ describe("CMO auth handler", () => {
   });
 
   it("starts Create account from a link and signs in on the callback", async () => {
-    const response = await followLink(jar, "/signup");
+    const response = await followLink(jar, "/signup", "?url=nmkr.io");
 
     expect(response.status).toBe(302);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    const stateCookies = response.headers.getSetCookie();
-    expect(stateCookies).toHaveLength(1);
-    expect(stateCookies[0]).toMatch(/^__Secure-cmo.oauth_state=/);
+    const [stateCookie, keptCookie, ...rest] = response.headers.getSetCookie();
+    expect(rest).toEqual([]);
+    expect(stateCookie).toMatch(/^__Secure-cmo.oauth_state=/);
     for (const attribute of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) {
-      expect(stateCookies[0]).toContain(attribute);
+      expect(stateCookie).toContain(attribute);
     }
-    expect(stateCookies[0]).not.toMatch(/domain=/i);
+    expect(stateCookie).not.toMatch(/domain=/i);
+    // The website rides through sign in; Home starts reading it on return.
+    expect(keptCookie).toMatch(/^cmo-website=https%3A%2F%2Fnmkr.io%2F;/);
     const authorizeUrl = response.headers.get("location") ?? "";
     expect(new URL(authorizeUrl).searchParams.get("prompt")).toBe("create");
-    expect(new URL(authorizeUrl).searchParams.has("signup_context")).toBe(
-      false,
-    );
     await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
     expect(await sessionUser(auth, jar)).toEqual({
       name: "Ada Lovelace",
@@ -514,9 +513,12 @@ describe("CMO auth handler", () => {
       const approval = core.approve(started.headers.get("location") ?? "");
       const cookies = jar.header();
 
-      for (const path of ["/signup", "/signin"] as const) {
+      for (const [path, query] of [
+        ["/signup", "?url=nmkr.io"],
+        ["/signin", ""],
+      ] as const) {
         const response = await LINK_ROUTES[path](
-          new Request(`${CMO}${path}`, {
+          new Request(`${CMO}${path}${query}`, {
             headers: { [name]: value, cookie: jar.header() },
           }),
         );
@@ -538,15 +540,18 @@ describe("CMO auth handler", () => {
     },
   );
 
-  it.each(["/signup", "/signin"] as const)(
+  it.each([
+    ["/signup", "?url=nmkr.io"],
+    ["/signin", ""],
+  ] as const)(
     "explains on the signed-out page when Core discovery fails on %s",
-    async (path) => {
+    async (path, query) => {
       core.discoveryDown = true;
       vi.mocked(getAuth).mockReturnValue(createCmoAuth(AUTH_CONFIG));
 
       const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      const response = await followLink(jar, path);
+      const response = await followLink(jar, path, query);
 
       expect(response.status).toBe(302);
       expect(logged).toHaveBeenCalledWith(
@@ -556,7 +561,12 @@ describe("CMO auth handler", () => {
       logged.mockRestore();
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.get("location")).toBe("/?error=unavailable");
-      expect(response.headers.getSetCookie()).toEqual([]);
+      // No sign-in state; a link's website is still kept for the retry.
+      expect(
+        response.headers
+          .getSetCookie()
+          .filter((cookie) => !cookie.startsWith("cmo-website=")),
+      ).toEqual([]);
     },
   );
 
@@ -610,11 +620,15 @@ describe("CMO auth handler", () => {
     await signIn(auth, jar, core);
     const cookies = jar.header();
 
-    for (const path of ["/signup", "/signin"] as const) {
+    for (const [path, home] of [
+      // Without a website, /signup asks for one; /start sends them home.
+      ["/signup", `${CMO}/start`],
+      ["/signin", "/"],
+    ] as const) {
       const response = await followLink(jar, path);
 
       expect(response.status).toBe(302);
-      expect(response.headers.get("location")).toBe("/");
+      expect(response.headers.get("location")).toBe(home);
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(jar.header()).toBe(cookies);
     }

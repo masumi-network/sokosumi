@@ -5,7 +5,15 @@ import { CMO_SIGN_IN_ERROR } from "../../lib/sign-in-errors";
 
 const getSession = vi.fn();
 
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+const cookieJar = new Map<string, string>();
+
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { name, value: cookieJar.get(name) } : undefined,
+  }),
+}));
 
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
@@ -26,6 +34,7 @@ function render(error?: string | string[]) {
 }
 
 beforeEach(() => {
+  cookieJar.clear();
   getSession.mockReset();
   getSession.mockResolvedValue(null);
 });
@@ -35,6 +44,17 @@ it("shows the error a sign in sent back", async () => {
 
   expect(page.type).toBe(SignInProblem);
   expect(page.props).toMatchObject({ error: "state_mismatch" });
+});
+
+it("says the website typed before a failed sign in is kept", async () => {
+  cookieJar.set("cmo-website", "https://acme.io/");
+
+  const page = await render("access_denied");
+
+  expect(page.props).toMatchObject({
+    error: "access_denied",
+    website: "acme.io",
+  });
 });
 
 it("goes straight on to Sokosumi's Log in without an error", async () => {

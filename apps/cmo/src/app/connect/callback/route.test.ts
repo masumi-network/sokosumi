@@ -36,4 +36,16 @@ describe("connect callback", () => {
     expect(finalizeChannel).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toContain("connect=failed");
   });
+
+  it("ends a popup's connect on the page that tells the opener", async () => {
+    finalizeChannel.mockResolvedValue(true);
+    const done = await callback("from=popup&connectedAccountId=ca_1");
+    expect(done.headers.get("location")).toBe(
+      "http://localhost:3110/connect/done?result=connected",
+    );
+    const failed = await callback("from=popup&status=cancelled");
+    expect(failed.headers.get("location")).toBe(
+      "http://localhost:3110/connect/done?result=failed",
+    );
+  });
 });

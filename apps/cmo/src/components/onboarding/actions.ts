@@ -59,6 +59,7 @@ export interface OnboardingConnectActions {
   finishAccounts: () => Promise<never>;
   connectChannel: (
     provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
+    from?: "onboarding" | "popup",
   ) => Promise<{ url: string | null; error: string | null }>;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],

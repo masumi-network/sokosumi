@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { SignInProblem } from "../../components/sign-in-problem";
 import { getAuth } from "../../lib/auth";
+import { KEPT_WEBSITE_COOKIE, keptWebsite } from "../../lib/kept-website";
 import { CMO_SIGN_IN_ERROR } from "../../lib/sign-in-errors";
 import { signIn } from "../actions";
 
@@ -30,5 +31,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   // Home sends a session Core refuses here; sending it home again would loop.
   if (session && error !== CMO_SIGN_IN_ERROR.signedOut) redirect("/");
   if (!error) redirect("/signin");
-  return <SignInProblem error={error} signIn={signIn} />;
+  return (
+    <SignInProblem
+      error={error}
+      signIn={signIn}
+      website={keptWebsite((await cookies()).get(KEPT_WEBSITE_COOKIE)?.value)}
+    />
+  );
 }
