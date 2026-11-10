@@ -108,7 +108,7 @@ export function Sidebar({
           <span className="who-name">{name || email}</span>
           {name ? <span className="note">{email}</span> : null}
         </span>
-        <AccountMenu label="Account" signOut={signOut} />
+        <AccountMenu label="Account" signOut={signOut} cusoPicker={false} />
       </div>
     </nav>
   );

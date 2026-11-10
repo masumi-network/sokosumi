@@ -13,13 +13,20 @@ interface AccountMenuProps {
   label: string;
   startOver?: () => Promise<string | null>;
   signOut?: (() => Promise<void>) | undefined;
+  /** False where the Cuso picker has its own link (the app's sidebar). */
+  cusoPicker?: boolean;
 }
 
 /**
  * Who is signed in, the Cuso picker and the way out; closes on a click
  * outside or Escape.
  */
-export function AccountMenu({ label, startOver, signOut }: AccountMenuProps) {
+export function AccountMenu({
+  label,
+  startOver,
+  signOut,
+  cusoPicker = true,
+}: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -61,10 +68,12 @@ export function AccountMenu({ label, startOver, signOut }: AccountMenuProps) {
       {open ? (
         <div className="ob-who-menu">
           <ThemeToggle className="ob-who-item" withLabel />
-          <a className="ob-who-item" href="/?cusos=1">
-            <Users size={14} aria-hidden="true" />
-            Your {AGENT_NAME}s
-          </a>
+          {cusoPicker ? (
+            <a className="ob-who-item" href="/?cusos=1">
+              <Users size={14} aria-hidden="true" />
+              Your {AGENT_NAME}s
+            </a>
+          ) : null}
           {startOver ? (
             <StartOver className="ob-who-item" startOver={startOver} />
           ) : null}
