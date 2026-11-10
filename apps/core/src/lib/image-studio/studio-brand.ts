@@ -7,11 +7,13 @@ import {
 import { DomUtils, parseDocument } from "htmlparser2";
 
 import { badGateway, conflict, unprocessableEntity } from "@/helpers/error";
+import { readBrandVisual } from "@/lib/brand-visual";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
 import { importStudioProducts } from "@/lib/image-studio/product-import";
 import { suggestWebsiteBrandProfile } from "@/lib/image-studio/website-brand-profile";
 import { parseOpenGraphFields } from "@/lib/open-graph-html";
+import { resolveStudioWebsiteLogo } from "@/lib/site-icon";
 import { readHomepage } from "@/lib/site-platform";
 import {
   type SaveStudioBrandLook,
@@ -202,16 +204,41 @@ export async function prepareStudioWebsiteDraft(
   profileWorkspaceId?: string,
 ) {
   const websiteUrl = await studioWebsiteUrl(projectId);
-  const [brandCopy, products] = await Promise.allSettled([
+  const [brandCopy, products, visual] = await Promise.allSettled([
     readWebsiteCopy(websiteUrl, profileWorkspaceId),
     importStudioProducts(websiteUrl).then((found) =>
       studioProductImportSchema.parse({ products: found }),
     ),
+    profileWorkspaceId
+      ? prepareStudioWebsiteVisual(websiteUrl, projectId)
+      : undefined,
   ]);
   return studioWebsiteDraftSchema.parse({
     brandCopy: brandCopy.status === "fulfilled" ? brandCopy.value : null,
     products: products.status === "fulfilled" ? products.value.products : null,
+    ...(profileWorkspaceId
+      ? { visual: visual.status === "fulfilled" ? visual.value : null }
+      : {}),
   });
+}
+
+async function prepareStudioWebsiteVisual(
+  websiteUrl: string,
+  projectId: string,
+) {
+  const [look, logo] = await Promise.allSettled([
+    readBrandVisual(websiteUrl),
+    resolveStudioWebsiteLogo(websiteUrl, projectId),
+  ]);
+  const colors = look.status === "fulfilled" ? look.value.colors : [];
+  const fonts =
+    look.status === "fulfilled"
+      ? look.value.fonts.filter((font) => font.length <= 80)
+      : [];
+  const candidate = logo.status === "fulfilled" ? logo.value : null;
+  return candidate || colors.length || fonts.length
+    ? { colors, fonts, logo: candidate }
+    : null;
 }
 
 async function studioWebsiteUrl(projectId: string) {

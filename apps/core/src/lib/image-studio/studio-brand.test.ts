@@ -5,12 +5,16 @@ const {
   projectFindUniqueOrThrowMock,
   importProductsMock,
   suggestProfileMock,
+  readBrandVisualMock,
+  resolveWebsiteLogoMock,
   ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
   projectFindUniqueMock: vi.fn(),
   projectFindUniqueOrThrowMock: vi.fn(),
   importProductsMock: vi.fn(),
   suggestProfileMock: vi.fn(),
+  readBrandVisualMock: vi.fn(),
+  resolveWebsiteLogoMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
 }));
 
@@ -29,6 +33,14 @@ vi.mock("@/lib/image-studio/product-import", () => ({
 
 vi.mock("@/lib/image-studio/website-brand-profile", () => ({
   suggestWebsiteBrandProfile: suggestProfileMock,
+}));
+
+vi.mock("@/lib/brand-visual", () => ({
+  readBrandVisual: readBrandVisualMock,
+}));
+
+vi.mock("@/lib/site-icon", () => ({
+  resolveStudioWebsiteLogo: resolveWebsiteLogoMock,
 }));
 
 vi.mock("@sokosumi/net", async (importOriginal) => ({
@@ -241,7 +253,7 @@ describe("readStudioWebsiteCopy", () => {
 describe("prepareStudioWebsiteDraft", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("uses the same saved website for both suggestions", async () => {
+  it("prepares brand, products and visual suggestions from the same saved website", async () => {
     const websiteUrl = "https://fieldwork.example/shop";
     const product = {
       id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -265,6 +277,13 @@ describe("prepareStudioWebsiteDraft", () => {
       tone: "Warm and relaxed",
       audience: ["Home coffee enthusiasts"],
     });
+    const logo =
+      "https://abc123.public.blob.vercel-storage.com/projects/project-1/logos/sample.png";
+    readBrandVisualMock.mockResolvedValueOnce({
+      colors: ["#123456"],
+      fonts: ["Inter"],
+    });
+    resolveWebsiteLogoMock.mockResolvedValueOnce(logo);
 
     await expect(
       prepareStudioWebsiteDraft("project-1", "workspace-a"),
@@ -276,6 +295,7 @@ describe("prepareStudioWebsiteDraft", () => {
         audience: ["Home coffee enthusiasts"],
       },
       products: [product],
+      visual: { colors: ["#123456"], fonts: ["Inter"], logo },
     });
     expect(projectFindUniqueOrThrowMock).toHaveBeenCalledTimes(1);
     expect(ssrfSafeFetchMock).toHaveBeenCalledExactlyOnceWith(
@@ -283,6 +303,11 @@ describe("prepareStudioWebsiteDraft", () => {
       expect.any(Object),
     );
     expect(importProductsMock).toHaveBeenCalledExactlyOnceWith(websiteUrl);
+    expect(readBrandVisualMock).toHaveBeenCalledExactlyOnceWith(websiteUrl);
+    expect(resolveWebsiteLogoMock).toHaveBeenCalledExactlyOnceWith(
+      websiteUrl,
+      "project-1",
+    );
     expect(suggestProfileMock).toHaveBeenCalledExactlyOnceWith(
       "workspace-a",
       "Brew at your own pace.\nFor home coffee enthusiasts.",
@@ -307,6 +332,7 @@ describe("prepareStudioWebsiteDraft", () => {
       products: null,
     });
     expect(suggestProfileMock).not.toHaveBeenCalled();
+    expect(resolveWebsiteLogoMock).not.toHaveBeenCalled();
   });
 });
 

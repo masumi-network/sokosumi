@@ -39063,6 +39063,16 @@ export const StudioWebsiteDraftSchema = {
                 $ref: '#/components/schemas/StudioProduct'
             },
             maxItems: 20
+        },
+        visual: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioWebsiteVisual'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -39135,6 +39145,57 @@ export const StudioProductPhotoSchema = {
     required: [
         'id',
         'name'
+    ]
+} as const;
+
+export const StudioWebsiteVisualSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/StudioBrandLook'
+        },
+        {
+            type: 'object',
+            properties: {
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri'
+                }
+            },
+            required: [
+                'logo'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioBrandLookSchema = {
+    type: 'object',
+    properties: {
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i'
+            },
+            maxItems: 8
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 80,
+                pattern: '^[^\\p{Cc}\\p{Cf}]+$/u'
+            },
+            maxItems: 4
+        }
+    },
+    required: [
+        'colors',
+        'fonts'
     ]
 } as const;
 
@@ -39250,34 +39311,6 @@ export const SaveStudioBrandLookSchema = {
     required: [
         'look',
         'lookRevision'
-    ]
-} as const;
-
-export const StudioBrandLookSchema = {
-    type: 'object',
-    properties: {
-        colors: {
-            type: 'array',
-            items: {
-                type: 'string',
-                pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i'
-            },
-            maxItems: 8
-        },
-        fonts: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1,
-                maxLength: 80,
-                pattern: '^[^\\p{Cc}\\p{Cf}]+$/u'
-            },
-            maxItems: 4
-        }
-    },
-    required: [
-        'colors',
-        'fonts'
     ]
 } as const;
 

@@ -4056,6 +4056,7 @@
         "createPaidToken": "Create token with generation"
       },
       "WebsiteDraft": {
+        "reviewBrand": "Review brand kit",
         "preparing": "Preparing brand and product suggestions from the website…",
         "prepare": "Prepare from website",
         "reviewCopy": "Review brand copy",
@@ -4065,6 +4066,8 @@
         "error": "Could not prepare suggestions from the project website. Try again."
       },
       "BrandKit": {
+        "websiteLookDraft": "Colors and fonts suggested from your website. Edit them before saving the look.",
+        "discardWebsiteLook": "Discard suggested look",
         "cancelLook": "Cancel look edits",
         "editLook": "Edit colors and fonts",
         "resetLook": "Use project design",

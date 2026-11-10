@@ -44,7 +44,7 @@ export function StudioWebsiteTools({
     null,
   );
   const [pending, startTransition] = useTransition();
-  const ready = Boolean(draft?.brandCopy || draft?.products);
+  const ready = Boolean(draft?.brandCopy || draft?.products || draft?.visual);
 
   function prepare() {
     if (pending) return;
@@ -60,15 +60,33 @@ export function StudioWebsiteTools({
             ? result.brandCopy
             : null;
         const products = result.products?.length ? result.products : null;
+        const visual = result.visual ?? null;
         const unavailable =
           result.brandCopy === null || result.products === null;
-        setDraft({ brandCopy, products });
-        if (!brandCopy && !products)
+        setDraft({ brandCopy, products, visual });
+        if (!brandCopy && !products && !visual)
           setMessage(unavailable ? "error" : "empty");
         else if (unavailable) setMessage("partial");
       } catch {
         setMessage("error");
       }
+    });
+  }
+
+  function reviewVisual(part: "logo" | "look") {
+    setDraft((current) => {
+      if (!current?.visual) return current;
+      const visual =
+        part === "logo"
+          ? { ...current.visual, logo: null }
+          : { ...current.visual, colors: [], fonts: [] };
+      return {
+        ...current,
+        visual:
+          visual.logo || visual.colors.length || visual.fonts.length
+            ? visual
+            : null,
+      };
     });
   }
 
@@ -98,6 +116,8 @@ export function StudioWebsiteTools({
         }
         projectId={projectId}
         websiteCopy={draft?.brandCopy}
+        websiteVisual={draft?.visual}
+        onWebsiteVisualReviewed={reviewVisual}
         websiteUrl={websiteUrl}
       />
       <StudioProductCatalogDialog

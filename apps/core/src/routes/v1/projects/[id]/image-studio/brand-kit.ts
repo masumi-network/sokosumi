@@ -140,7 +140,7 @@ const websiteResearchRoute = withOrganizationSlugHeaderParameter(
     path: websiteDraftPath,
     operationId: "researchStudioWebsiteDraft",
     description:
-      "Prepare a website draft with optional brand voice and audience suggestions.",
+      "Prepare website copy, products, visual suggestions, and a logo candidate for review.",
     tags,
     request: { params: imageStudioProjectParamsSchema },
     responses: websiteDraftResponses,

@@ -4056,6 +4056,7 @@
         "createPaidToken": "Token mit Anzeigenerstellung erstellen"
       },
       "WebsiteDraft": {
+        "reviewBrand": "Marken-Kit prüfen",
         "preparing": "Vorschläge für Marke und Produkte werden anhand der Website vorbereitet …",
         "prepare": "Entwurf aus Website erstellen",
         "reviewCopy": "Markentexte prüfen",
@@ -4065,6 +4066,8 @@
         "error": "Die Vorschläge von der Projekt-Website konnten nicht erstellt werden. Versuche es erneut."
       },
       "BrandKit": {
+        "websiteLookDraft": "Farben und Schriften von deiner Website. Du kannst sie vor dem Speichern bearbeiten.",
+        "discardWebsiteLook": "Vorgeschlagenes Design verwerfen",
         "cancelLook": "Änderungen am Design verwerfen",
         "editLook": "Farben und Schriften bearbeiten",
         "resetLook": "Projektdesign verwenden",

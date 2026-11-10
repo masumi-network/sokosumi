@@ -65,7 +65,6 @@ import mountAssetContent from "@/routes/v1/projects/[id]/image-studio/asset-cont
 import mountAssetHeadline from "@/routes/v1/projects/[id]/image-studio/asset-headline-put";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
 import mountBrandKit from "@/routes/v1/projects/[id]/image-studio/brand-kit";
-import mountWebsiteLogo from "@/routes/v1/projects/[id]/image-studio/brand-logo-website-post";
 import mountConnection from "@/routes/v1/projects/[id]/image-studio/connection";
 import mountJobs from "@/routes/v1/projects/[id]/image-studio/jobs-post";
 import mountSaveProducts from "@/routes/v1/projects/[id]/image-studio/products/put";
@@ -120,7 +119,6 @@ function app(actorId = userId) {
   server.route(`/v1${STUDIO_MCP_PATH}`, mcpRoutes);
   server.route("/image-studio-agent", legacyAgentRoutes);
   mountBrandKit(server);
-  mountWebsiteLogo(server);
   mountConnection(server);
   mountPatchProject(server);
   mountSaveProducts(server);
@@ -202,6 +200,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       if (url.href === shop) {
         return new Response(
           `<meta name="description" content="Tools for brewing coffee.">
+           <style>:root { --brand-primary: #113344; } main { font-family: "Source Serif 4", serif; }</style>
            <script type="application/ld+json">{"@type":"OnlineStore","logo":"/wordmark.svg"}</script>
            <main><h1>${approvedLine}</h1><h2>${unusedLine}</h2></main>`,
           { headers: { "content-type": "text/html", "x-shopid": "123" } },
@@ -279,6 +278,10 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       summary: "Tools for brewing coffee.",
       lines: [approvedLine, unusedLine],
     });
+    expect(draft.visual).toMatchObject({
+      colors: ["#113344"],
+      fonts: ["Source Serif 4"],
+    });
     const products = draft.products ?? [];
     expect(products.map(({ name }) => name)).toEqual([
       "Pour-over set",
@@ -296,12 +299,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       fonts: ["Inter"],
       approvedLines: [],
     });
-    const logoResponse = await studio.request(
-      `${path}/brand-kit/logo/website`,
-      { method: "POST" },
-    );
-    expect(logoResponse.status).toBe(200);
-    const { logo } = (await logoResponse.json()).data;
+    const logo = draft.visual?.logo;
     expect(logo).toContain(`/projects/${projectId}/logos/`);
     expect(
       await prisma.project.findUniqueOrThrow({
