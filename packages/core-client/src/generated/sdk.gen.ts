@@ -4885,7 +4885,7 @@ export const prepareStudioWebsiteDraft = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Prepare a website draft with optional brand voice and audience suggestions.
+ * Prepare website copy, products, visual suggestions, and a logo candidate for review.
  */
 export const researchStudioWebsiteDraft = <ThrowOnError extends boolean = false>(options: Options<ResearchStudioWebsiteDraftData, ThrowOnError>): RequestResult<ResearchStudioWebsiteDraftResponses, ResearchStudioWebsiteDraftErrors, ThrowOnError> => (options.client ?? client).post<ResearchStudioWebsiteDraftResponses, ResearchStudioWebsiteDraftErrors, ThrowOnError>({
     responseTransformer: researchStudioWebsiteDraftResponseTransformer,

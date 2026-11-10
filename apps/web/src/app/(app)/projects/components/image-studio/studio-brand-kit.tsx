@@ -4,6 +4,7 @@ import type {
   StudioBrandKit,
   StudioLogoPosition,
   StudioWebsiteCopy,
+  StudioWebsiteVisual,
 } from "@sokosumi/core-client";
 import {
   ENTITY_IMAGE_MAX_SIZE_BYTES,
@@ -65,8 +66,10 @@ export function StudioBrandKitDialog({
   disabled,
   onLogoChange,
   onWebsiteCopyReviewed,
+  onWebsiteVisualReviewed,
   projectId,
   websiteCopy,
+  websiteVisual,
   websiteUrl,
 }: {
   disabled?: boolean;
@@ -75,8 +78,10 @@ export function StudioBrandKitDialog({
     position: StudioLogoPosition | null,
   ) => void;
   onWebsiteCopyReviewed?: () => void;
+  onWebsiteVisualReviewed?: (part: "logo" | "look") => void;
   projectId: string;
   websiteCopy?: StudioWebsiteCopy | null;
+  websiteVisual?: StudioWebsiteVisual | null;
   websiteUrl?: string | null;
 }) {
   const t = useTranslations("App.Studio");
@@ -92,6 +97,7 @@ export function StudioBrandKitDialog({
   const [lookDraft, setLookDraft] = useState<{
     colors: string;
     fonts: string;
+    websiteColors?: string[];
   } | null>(null);
   const [lookMessage, setLookMessage] = useState<
     "lookSaved" | "lookReset" | "lookSaveError" | "lookConflict" | null
@@ -114,7 +120,10 @@ export function StudioBrandKitDialog({
     websitePending ||
     lookPending;
   const logoInput = useRef<HTMLInputElement>(null);
-  const [logoCandidate, setLogoCandidate] = useState<string | null>(null);
+  const [foundLogo, setFoundLogo] = useState<string | null>(null);
+  const websiteLogo =
+    websiteVisual?.logo !== kit?.logo ? websiteVisual?.logo : null;
+  const logoCandidate = foundLogo ?? websiteLogo;
   const [logoMessage, setLogoMessage] = useState<
     | "logoSaved"
     | "logoPositionSaved"
@@ -159,12 +168,20 @@ export function StudioBrandKitDialog({
         (font) => font.length > 80 || /[\p{Cc}\p{Cf}]/u.test(font),
       ));
   const invalidLook = !!(invalidColors || invalidFonts);
+  const reviewsCurrentWebsiteLook =
+    !!lookDraft?.websiteColors &&
+    lookDraft.websiteColors === websiteVisual?.colors;
+  const swatches = look
+    ? invalidColors
+      ? []
+      : [...new Set(look.colors)]
+    : (kit?.colors ?? []);
 
   function load() {
     startTransition(async () => {
       setMessage(null);
       setLogoMessage(null);
-      setLogoCandidate(null);
+      setFoundLogo(null);
       setWebsiteMessage(null);
       setWebsiteStyleSaved(false);
       setLookDraft(null);
@@ -183,6 +200,9 @@ export function StudioBrandKitDialog({
         };
         setDraft(savedDraft);
         setDirty(false);
+        if (websiteVisual?.logo && websiteVisual.logo === next.logo)
+          onWebsiteVisualReviewed?.("logo");
+        stageWebsiteLook(next);
         if (websiteCopy) {
           applyWebsiteCopy(websiteCopy, savedDraft);
           onWebsiteCopyReviewed?.();
@@ -190,6 +210,25 @@ export function StudioBrandKitDialog({
       } catch {
         setMessage("loadError");
       }
+    });
+  }
+
+  function stageWebsiteLook(current: Pick<StudioBrandKit, "colors" | "fonts">) {
+    if (
+      !websiteVisual ||
+      (!websiteVisual.colors.length && !websiteVisual.fonts.length)
+    )
+      return;
+    setLookDraft({
+      colors: (websiteVisual.colors.length
+        ? websiteVisual.colors
+        : current.colors
+      ).join("\n"),
+      fonts: (websiteVisual.fonts.length
+        ? websiteVisual.fonts
+        : current.fonts
+      ).join("\n"),
+      websiteColors: websiteVisual.colors,
     });
   }
 
@@ -219,7 +258,8 @@ export function StudioBrandKitDialog({
   function applyLogo(logo: string | null) {
     setKit((current) => (current ? { ...current, logo } : current));
     onLogoChange(logo, kit?.studioLogoPosition ?? null);
-    setLogoCandidate(null);
+    setFoundLogo(null);
+    if (websiteVisual?.logo) onWebsiteVisualReviewed?.("logo");
     setLogoMessage("logoSaved");
   }
 
@@ -248,7 +288,7 @@ export function StudioBrandKitDialog({
       setLogoMessage(null);
       try {
         const { logo } = await findStudioWebsiteLogo({ projectId });
-        setLogoCandidate(logo);
+        setFoundLogo(logo);
         if (!logo) setLogoMessage("websiteLogoMissing");
       } catch {
         setLogoMessage("websiteLogoError");
@@ -372,6 +412,7 @@ export function StudioBrandKitDialog({
           return;
         }
         setKit((current) => current && { ...current, ...result.look });
+        if (reviewsCurrentWebsiteLook) onWebsiteVisualReviewed?.("look");
         setLookDraft(null);
         setLookMessage(next ? "lookSaved" : "lookReset");
       } catch {
@@ -396,6 +437,7 @@ export function StudioBrandKitDialog({
             },
         );
         setLookDraft(null);
+        stageWebsiteLook({ colors, fonts });
         setLookMessage(null);
       } catch {
         setLookMessage("lookConflict");
@@ -410,18 +452,27 @@ export function StudioBrandKitDialog({
         if (pending || disabled) return;
         setOpen(next);
         if (!next) return;
-        if (!dirty) {
+        if (!dirty && !lookDraft) {
           load();
-        } else if (websiteCopy) {
-          applyWebsiteCopy(websiteCopy, draft);
-          onWebsiteCopyReviewed?.();
+        } else {
+          if (kit && !lookDraft) stageWebsiteLook(kit);
+          if (websiteCopy) {
+            applyWebsiteCopy(websiteCopy, draft);
+            onWebsiteCopyReviewed?.();
+          }
         }
       }}
     >
       <DialogTrigger asChild disabled={disabled}>
         <Button disabled={disabled} size="sm" type="button" variant="outline">
           <Palette aria-hidden />
-          {t(websiteCopy ? "WebsiteDraft.reviewCopy" : "brandKit")}
+          {t(
+            websiteVisual
+              ? "WebsiteDraft.reviewBrand"
+              : websiteCopy
+                ? "WebsiteDraft.reviewCopy"
+                : "brandKit",
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -554,7 +605,8 @@ export function StudioBrandKitDialog({
                     </Button>
                     <Button
                       onClick={() => {
-                        setLogoCandidate(null);
+                        setFoundLogo(null);
+                        if (websiteLogo) onWebsiteVisualReviewed?.("logo");
                         setLogoMessage(null);
                       }}
                       size="sm"
@@ -571,12 +623,13 @@ export function StudioBrandKitDialog({
                   {t(`BrandKit.${logoMessage}`)}
                 </p>
               ) : null}
-              {!lookDraft && kit.colors.length ? (
+              {swatches.length ? (
                 <ul
-                  aria-label={t("BrandKit.colors")}
+                  aria-hidden={lookDraft ? true : undefined}
+                  aria-label={lookDraft ? undefined : t("BrandKit.colors")}
                   className="flex flex-wrap gap-2"
                 >
-                  {kit.colors.map((color) => (
+                  {swatches.map((color) => (
                     <li
                       key={color}
                       className="border-border flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-xs"
@@ -600,6 +653,8 @@ export function StudioBrandKitDialog({
                 <Button
                   aria-expanded={lookDraft !== null}
                   onClick={() => {
+                    if (reviewsCurrentWebsiteLook)
+                      onWebsiteVisualReviewed?.("look");
                     setLookDraft(
                       lookDraft
                         ? null
@@ -614,7 +669,13 @@ export function StudioBrandKitDialog({
                   type="button"
                   variant="outline"
                 >
-                  {t(lookDraft ? "BrandKit.cancelLook" : "BrandKit.editLook")}
+                  {t(
+                    lookDraft?.websiteColors
+                      ? "BrandKit.discardWebsiteLook"
+                      : lookDraft
+                        ? "BrandKit.cancelLook"
+                        : "BrandKit.editLook",
+                  )}
                 </Button>
                 {!lookDraft && kit.hasCustomLook ? (
                   <Button
@@ -631,6 +692,11 @@ export function StudioBrandKitDialog({
               </div>
               {lookDraft ? (
                 <div className="space-y-2">
+                  {lookDraft.websiteColors ? (
+                    <p className="text-muted-foreground text-sm">
+                      {t("BrandKit.websiteLookDraft")}
+                    </p>
+                  ) : null}
                   <div className="space-y-1.5">
                     <Label htmlFor="studio-brand-colors">
                       {t("BrandKit.colors")}

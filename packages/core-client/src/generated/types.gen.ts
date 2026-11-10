@@ -10412,6 +10412,7 @@ export type StudioWebsiteCopy = {
 export type StudioWebsiteDraft = {
     brandCopy: StudioWebsiteCopy | null;
     products: Array<StudioProduct> | null;
+    visual?: StudioWebsiteVisual | null;
 };
 
 export type StudioProduct = {
@@ -10427,6 +10428,15 @@ export type StudioProduct = {
 export type StudioProductPhoto = {
     id: string;
     name: string;
+};
+
+export type StudioWebsiteVisual = StudioBrandLook & {
+    logo: string | null;
+};
+
+export type StudioBrandLook = {
+    colors: Array<string>;
+    fonts: Array<string>;
 };
 
 export type SaveStudioBrandCopy = {
@@ -10451,11 +10461,6 @@ export type StudioBrandLookState = {
 export type SaveStudioBrandLook = {
     look: StudioBrandLook | null;
     lookRevision: number;
-};
-
-export type StudioBrandLook = {
-    colors: Array<string>;
-    fonts: Array<string>;
 };
 
 export type CreateProjectImageJobRequest = {
