@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cmoOverview } from "../test-fixtures/cmo";
+
 const startCmoOnboarding = vi.fn();
 const getCmoOverview = vi.fn();
 const getContactLists = vi.fn();
@@ -127,6 +129,9 @@ const {
   skippedSteps,
   startOver,
 } = await import("./cmo-actions");
+
+const cmoBrandBrain = cmoOverview().brandBrain;
+if (!cmoBrandBrain) throw new Error("The fixture has a Brand Brain");
 
 const EMPTY = { attempt: 0, websiteUrl: "", errors: {} };
 
@@ -376,7 +381,7 @@ describe("skipped brand questions", () => {
 });
 
 describe("start over", () => {
-  it("archives the Cuso on screen, then opens home on the Project Core names", async () => {
+  it("archives the Cuso on screen, then opens home, which opens the next default Cuso", async () => {
     startCmoOverForProject.mockResolvedValue({
       data: { data: { startedOver: true, projectId: "project-3" } },
     });
@@ -575,7 +580,7 @@ describe("the Cuso on screen", () => {
     ],
     [
       "saveBrandBrain",
-      () => saveBrandBrain("project-2", {} as never),
+      () => saveBrandBrain("project-2", cmoBrandBrain),
       "updateProjectBrandBrain",
     ],
   ];
@@ -620,6 +625,31 @@ describe("the Cuso on screen", () => {
     await finalizeMeasurement("project-2", "shopify", "s_1");
     expect(standardRoutes.completeSokoBotIntegrationAuth).toHaveBeenCalledWith(
       expect.objectContaining({ ...inBeta, path: { sokoBotId: "bot-2" } }),
+    );
+  });
+
+  it("connects and finishes a network on the Project on screen", async () => {
+    postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+      data: { data: { redirectUrl: "https://connect.example/x" } },
+    });
+    postProjectsByIdSocialConnectionsFinalize.mockResolvedValue({ data: {} });
+    await connectChannel("project-2", "x");
+    expect(await finalizeChannel("project-2", "ca_1", "s_1")).toBe(true);
+    expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...inBeta,
+        path: { id: "project-2" },
+        body: expect.objectContaining({
+          callbackUrl:
+            "https://app.cmo.xyz/connect/callback?from=app&project=project-2",
+        }),
+      }),
+    );
+    expect(standardRoutes.postComposioCallbackComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ ...inBeta }),
+    );
+    expect(postProjectsByIdSocialConnectionsFinalize).toHaveBeenCalledWith(
+      expect.objectContaining({ ...inBeta, path: { id: "project-2" } }),
     );
   });
 

@@ -312,13 +312,9 @@ export async function retryLearning(projectId: string): Promise<{
   });
   const overview = await overviewOf(projectId);
   if (!overview) throw new Error("Could not load CMO");
-  const message =
-    error && typeof error === "object" && "message" in error
-      ? String((error as { message: unknown }).message)
-      : null;
   return {
     overview,
-    error: error ? (message ?? "Could not start") : null,
+    error: error ? errorText(error, "Could not start") : null,
   };
 }
 
@@ -383,18 +379,11 @@ export async function loadState(projectId: string): Promise<{
   messages: CusoMessage[];
 }> {
   const core = await requireCore();
-  const { data, response } = await getCmoOverviewForProject({
-    ...core,
-    path: { projectId },
-  });
-  if (response?.status === 404) return { overview: null, messages: [] };
-  // Any other failure is not "not hired": showing the hire flow would offer
-  // a second business.
-  if (!data) throw new Error(`Could not load ${AGENT_NAME}`);
-  return {
-    overview: await withSkipped(data.data),
-    messages: await messagesFor(core, data.data),
-  };
+  // Any failure but a 404 throws, so it is not "not hired": showing the hire
+  // flow would offer a second business.
+  const overview = await overviewOf(projectId);
+  if (!overview) return { overview: null, messages: [] };
+  return { overview, messages: await messagesFor(core, overview) };
 }
 
 export async function sendMessage(
