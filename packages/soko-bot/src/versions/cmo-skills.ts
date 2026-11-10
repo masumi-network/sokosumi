@@ -162,7 +162,7 @@ ${CMO_RESEARCH_GROUPS.map(
 const BRAND_BRAIN_GROUP_SAVING = `## Saving
 Each part saves its group's sections with save_brand_brain in \`sections\`; a save replaces only the sections it sends.
 
-When every part is done, send the essentials in \`brandBrain\`, drawn from the hand-overs (customers' quotes go in voiceOfCustomer, copied as handed over). Research again only what a hand-over left open, or a group whose part failed; then save its sections too. The essentials are`;
+When every part is done, send the essentials in \`brandBrain\` with \`reveal\`, \`questions\` and \`marketingToday\` in the same save_brand_brain call, drawn from the hand-overs (customers' quotes go in voiceOfCustomer, copied as handed over). Research again only what a hand-over left open, or a group whose part failed; then save its sections too. The essentials are`;
 
 /** Skills only CMO (Cuso) versions include. */
 export const CMO_SKILLS: readonly SokoBotSkill[] = [

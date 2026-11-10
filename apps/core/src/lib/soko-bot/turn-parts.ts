@@ -43,7 +43,11 @@ export async function withPartHandOvers(
   run: (part: TurnPart) => Promise<string>,
 ): Promise<string> {
   if (parts.length === 0) return message;
-  const results = await Promise.allSettled(parts.map((part) => run(part)));
+  // A part that fails (a Gateway hiccup when six start at once) gets one
+  // more try before its group falls back to the turn.
+  const results = await Promise.allSettled(
+    parts.map((part) => run(part).catch(() => run(part))),
+  );
   const handOvers = parts.map((part, index) => {
     const result = results[index];
     const body =

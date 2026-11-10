@@ -44,7 +44,22 @@ describe("withPartHandOvers", () => {
     );
   });
 
-  it("says when a part failed or handed nothing over, and goes on", async () => {
+  it("tries a failed part once more", async () => {
+    let tries = 0;
+    const message = await withPartHandOvers(
+      "Go",
+      [parts[0] as TurnPart],
+      async () => {
+        tries++;
+        if (tries === 1) throw new Error("Gateway request failed");
+        return "Pricing: $9";
+      },
+    );
+    expect(tries).toBe(2);
+    expect(message).toContain("### Website\nPricing: $9");
+  });
+
+  it("says when a part failed twice or handed nothing over, and goes on", async () => {
     const message = await withPartHandOvers("Go", parts, async (part) => {
       if (part.key === "website") throw new Error("Model gateway timed out");
       return "  ";

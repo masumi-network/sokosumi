@@ -131,7 +131,7 @@ function essentialsFromPartsMessage(input: {
     `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
     "",
     "Your research ran in parts, one per group of your Brand Brain skill, side by side; each part saved its sections. Their hand-overs follow this message.",
-    "Now save the essentials with save_brand_brain, with reveal and questions, following your Brand Brain skill. Draw them from the hand-overs; research again only what a hand-over left open, or a group whose part failed. Then send marketingToday on its own.",
+    "Now save the essentials with save_brand_brain, with reveal, questions and marketingToday in the same call, following your Brand Brain skill. Draw them from the hand-overs; research again only what a hand-over left open, or a group whose part failed.",
     "Do not plan yet: the owner reviews the Brand Brain first, then asks you for the strategy.",
     "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
     "The Brand Brain card is your report: do not call report_update, and never mention tools, tool limits or what you may not do this turn.",
