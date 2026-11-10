@@ -1,0 +1,50 @@
+/**
+ * A turn may start with parts: independent briefs the runtime runs side by
+ * side, each as its own model loop with the turn's system prompt and tools,
+ * before the turn's own message. Their answers (hand-overs) are added to that
+ * message, so the turn stays one turn: one foreground run, one settle. Cuso's
+ * first read is the one user (SOKD-167); every other turn has none.
+ */
+export interface TurnPart {
+  key: string;
+  title: string;
+  message: string;
+}
+
+/** A part is a short brief; it hands over well before the turn's cap. */
+export const TURN_PART_MAX_STEPS = 12;
+
+/** A part running longer is stopped; the turn goes on without it. */
+export const TURN_PART_MAX_MS = 5 * 60 * 1_000;
+
+/**
+ * Runs every part at once and returns the turn's message with their
+ * hand-overs, in the parts' order. A failed part is said so, never fatal:
+ * the turn's own message covers what it left open.
+ */
+export async function withPartHandOvers(
+  message: string,
+  parts: readonly TurnPart[],
+  run: (part: TurnPart) => Promise<string>,
+): Promise<string> {
+  if (parts.length === 0) return message;
+  const results = await Promise.allSettled(parts.map((part) => run(part)));
+  const handOvers = parts.map((part, index) => {
+    const result = results[index];
+    const body =
+      result?.status === "fulfilled"
+        ? result.value.trim() || "This part handed nothing over."
+        : `This part failed before its hand-over (${
+            result?.reason instanceof Error ? result.reason.message : "failed"
+          }).`;
+    return `### ${part.title}\n${body}`;
+  });
+  return [
+    message,
+    "",
+    "## Hand-overs",
+    "These parts ran side by side in this turn, before this message. Each saved its own sections; this is what each found.",
+    "",
+    handOvers.join("\n\n"),
+  ].join("\n");
+}

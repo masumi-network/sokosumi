@@ -1,5 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import {
+  CMO_RESEARCH_GROUPS,
+  CMO_SOKO_BOT_VERSION_ID,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   archiveBot,
@@ -96,14 +99,15 @@ vi.mock("@/config/env", async (importOriginal) =>
 );
 
 import {
-  CMO_RESEARCH_GROUPS,
   cmoLearningState,
   cmoResearch,
+  cmoResearchParts,
   cmoWork,
   describeCmoStep,
   retryCmoOnboarding,
   startCmoOnboarding,
   startCmoOver,
+  startCmoResearch,
 } from "./cmo-hiring.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -735,5 +739,90 @@ describe("startCmoOnboarding", () => {
     });
     expect(createOrganizationWorkspace).not.toHaveBeenCalled();
     expect(projectCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("research in parts (SOKD-167)", () => {
+  const cuso = {
+    sokoBotId: "bot-1",
+    projectId: "project-1",
+    createdAt: new Date("2026-11-10T10:00:00Z"),
+    workspaceId: "ws-1",
+    websiteUrl: "https://acme.io",
+    businessName: "acme.io",
+    brandBrain: null,
+    brandBrainUpdatedAt: null,
+    brandBrainConfirmedAt: null,
+  };
+  const section = (answer: string) => ({ answer, findings: [] });
+
+  it("gives a first read on cmo-v2 one part per research group", () => {
+    const parts = cmoResearchParts("cmo-v2", cuso);
+    expect(parts.map((part) => part.key)).toEqual(
+      CMO_RESEARCH_GROUPS.map((group) => group.key),
+    );
+    expect(parts[0]?.title).toBe("Website");
+    expect(parts[0]?.message).toContain("acme.io (https://acme.io)");
+    expect(parts[0]?.message).toContain('"### Website"');
+    expect(parts[0]?.message).toContain("company, offer, pricing");
+  });
+
+  it("gives a retry parts only for the groups still missing", () => {
+    const parts = cmoResearchParts("cmo-v2", {
+      ...cuso,
+      brandBrain: {
+        profile: {
+          company: section("Acme sells rockets."),
+          offer: section("Rockets."),
+          pricing: section("$9."),
+          proof: section("Named customers."),
+        },
+      },
+    });
+    // Reviews has proof but not reputation, so it runs again.
+    expect(parts.map((part) => part.key)).toEqual([
+      "buyers",
+      "competitors",
+      "social",
+      "reviews",
+      "news",
+    ]);
+  });
+
+  it("gives none on cmo-v1, or once the essentials exist", () => {
+    expect(cmoResearchParts("cmo-v1", cuso)).toEqual([]);
+    expect(cmoResearchParts(null, cuso)).toEqual([]);
+    expect(
+      cmoResearchParts("cmo-v2", {
+        ...cuso,
+        brandBrain: {
+          summary: "Acme sells rockets to hobbyists.",
+          voice: { tone: "Clear.", do: [], dont: [], examples: [] },
+          audience: [],
+          products: [],
+          competitors: [],
+          channels: [],
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("asks cmo-v2's first read for the essentials from the hand-overs", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(cuso, "user-1");
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain("hand-overs");
+    expect(message).toContain("save the essentials");
+    expect(message).not.toContain("read the website, search for the company");
+  });
+
+  it("keeps cmo-v1's first read word for word", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v1" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(cuso, "user-1");
+    expect(startTurn.mock.calls[0]?.[0].message).toContain(
+      "read the website, search for the company, its reviews, competitors, news and social profiles",
+    );
   });
 });
