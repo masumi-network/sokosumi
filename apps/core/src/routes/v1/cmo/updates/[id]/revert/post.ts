@@ -7,14 +7,13 @@ import {
   cmoOverviewSchema,
   cmoReportIdParamsSchema,
 } from "@/schemas/cmo.schema";
+import type { CusoTarget } from "@/services/cmo-cuso.service";
 import { revertCmoUpdate } from "@/services/cmo-reports.service";
 
 import { requireOverview, rethrow } from "../../../helpers";
 
-const route = createRoute({
-  method: "post",
-  path: "/updates/{id}/revert",
-  operationId: "revertCmoUpdate",
+export const config = {
+  method: "post" as const,
   tags: ["CMO"],
   description:
     "Puts back the strategy a weekly review changed, from its report card: discards the version it wrote while that waits for approval, else approves the version before it again.",
@@ -26,13 +25,25 @@ const route = createRoute({
     404: jsonErrorResponse("Nothing to revert"),
     409: jsonErrorResponse("The version changed meanwhile"),
   },
+};
+
+const route = createRoute({
+  ...config,
+  path: "/updates/{id}/revert",
+  operationId: "revertCmoUpdate",
 });
+
+export async function revert(target: CusoTarget, updateId: string) {
+  const projectId = await revertCmoUpdate({ ...target, updateId }).catch(
+    rethrow,
+  );
+  return requireOverview({ userId: target.userId, projectId });
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    await revertCmoUpdate({ userId, updateId: id }).catch(rethrow);
-    return ok(c, await requireOverview(userId));
+    return ok(c, await revert({ userId }, id));
   });
 }
