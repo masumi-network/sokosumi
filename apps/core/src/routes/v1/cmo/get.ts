@@ -7,10 +7,8 @@ import { cmoOverviewSchema } from "@/schemas/cmo.schema";
 
 import { requireOverview } from "./helpers";
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  operationId: "getCmoOverview",
+export const config = {
+  method: "get" as const,
   tags: ["CMO"],
   responses: {
     200: jsonSuccessResponse(
@@ -21,11 +19,17 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet"),
   },
+};
+
+const route = createRoute({
+  ...config,
+  path: "/",
+  operationId: "getCmoOverview",
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    return ok(c, await requireOverview(userId));
+    return ok(c, await requireOverview({ userId }));
   });
 }
