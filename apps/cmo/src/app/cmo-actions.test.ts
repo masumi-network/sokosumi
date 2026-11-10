@@ -9,7 +9,6 @@ const postContactLists = vi.fn();
 const postContactListsByIdImport = vi.fn();
 const postProjectsByIdSocialConnectionsInitiate = vi.fn();
 const postProjectsByIdSocialConnectionsFinalize = vi.fn();
-const startCmoOver = vi.fn();
 const getCmoOverviewForProject = vi.fn();
 const startCmoOverForProject = vi.fn();
 const revalidatePath = vi.fn();
@@ -86,7 +85,6 @@ vi.mock("@sokosumi/core-client", () => ({
   postContactListsByIdImport,
   postProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialConnectionsFinalize,
-  startCmoOver,
   getCmoOverviewForProject,
   startCmoOverForProject,
   ...forProject,
@@ -390,7 +388,6 @@ describe("start over", () => {
     expect(startCmoOverForProject).toHaveBeenCalledWith(
       expect.objectContaining({ path: { projectId: "project-2" } }),
     );
-    expect(startCmoOver).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 

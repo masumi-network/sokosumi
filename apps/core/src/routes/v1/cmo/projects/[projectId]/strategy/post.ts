@@ -1,23 +1,49 @@
 import { createRoute } from "@hono/zod-openapi";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { config, request } from "@/routes/v1/cmo/strategy/post";
-import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
+import { rethrow } from "@/routes/v1/cmo/helpers";
+import {
+  cmoProjectParamsSchema,
+  cmoStrategyRequestSchema,
+  cmoTurnStartedSchema,
+} from "@/schemas/cmo.schema";
+import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 
-/** The same, for the Cuso of the Project the path names. */
-const projectRoute = createRoute({
-  ...config,
+const route = createRoute({
+  method: "post",
   path: "/projects/{projectId}/strategy",
   operationId: "requestCmoStrategyForProject",
-  request: { ...config.request, params: cmoProjectParamsSchema },
+  tags: ["CMO"],
+  request: {
+    params: cmoProjectParamsSchema,
+    body: {
+      content: { "application/json": { schema: cmoStrategyRequestSchema } },
+    },
+  },
+  responses: {
+    201: jsonSuccessResponse(
+      cmoTurnStartedSchema,
+      "Cuso started planning the month",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Cuso is not hired yet"),
+    409: jsonErrorResponse("The Brand Brain is not ready yet"),
+  },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(projectRoute, async (c) => {
+  app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
     const { note } = c.req.valid("json");
-    return created(c, await request({ userId, projectId }, note));
+    const started = await requestCmoStrategy({
+      userId,
+      projectId,
+      note,
+    }).catch(rethrow);
+    return created(c, cmoTurnStartedSchema.parse(started));
   });
 }
