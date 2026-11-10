@@ -37,6 +37,7 @@ describe("useIntentPrefetch", () => {
   });
 
   afterEach(() => {
+    document.elementFromPoint = () => null;
     vi.useRealTimers();
   });
 
@@ -60,10 +61,98 @@ describe("useIntentPrefetch", () => {
 
       // Once things settle the element predicts again, well before its repeat time.
       await act(() => vi.advanceTimersByTimeAsync(201));
+      // It is not under the cursor, so settling alone prefetches nothing.
+      expect(prefetch).not.toHaveBeenCalled();
       await act(() => approachElement(link));
       expect(prefetch).toHaveBeenCalledTimes(1);
     },
   );
+
+  it("prefetches the element a scroll leaves under the cursor, once the scroll stops", async () => {
+    const prefetch = vi.fn();
+    render(<Probe prefetch={prefetch} />);
+    const link = screen.getByRole("link");
+    const under = vi.fn((_x: number, _y: number): Element | null => link);
+    document.elementFromPoint = under;
+    document.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 40, clientY: 60 }),
+    );
+
+    document.dispatchEvent(new Event("scroll"));
+    await act(() => approachElement(link));
+    await act(() => vi.advanceTimersByTimeAsync(150));
+    // Still scrolling.
+    document.dispatchEvent(new Event("scroll"));
+    await act(() => vi.advanceTimersByTimeAsync(199));
+    expect(prefetch).not.toHaveBeenCalled();
+
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(prefetch).toHaveBeenCalledTimes(1);
+    expect(under).toHaveBeenLastCalledWith(40, 60);
+  });
+
+  it.each([
+    [
+      "a cursor with a button down",
+      () =>
+        document.dispatchEvent(
+          new PointerEvent("pointermove", {
+            clientX: 40,
+            clientY: 60,
+            buttons: 1,
+          }),
+        ),
+    ],
+    [
+      "a cursor that left the page",
+      () =>
+        document.documentElement.dispatchEvent(
+          new PointerEvent("pointerleave"),
+        ),
+    ],
+  ])(
+    "does not take %s for a reader who stopped on the element",
+    async (_, leave) => {
+      const prefetch = vi.fn();
+      render(<Probe prefetch={prefetch} />);
+      const link = screen.getByRole("link");
+      const under = vi.fn((x: number, _y: number) => (x === 40 ? link : null));
+      document.elementFromPoint = under;
+      document.dispatchEvent(
+        new PointerEvent("pointermove", { clientX: 40, clientY: 60 }),
+      );
+
+      leave();
+      document.dispatchEvent(new Event("scroll"));
+      await act(() => approachElement(link));
+      await act(() => vi.advanceTimersByTimeAsync(201));
+
+      expect(under).toHaveBeenCalled();
+      expect(prefetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it("prefetches once for an element that fired twice during one long scroll", async () => {
+    const prefetch = vi.fn();
+    render(<Probe prefetch={prefetch} />);
+    const link = screen.getByRole("link");
+    document.elementFromPoint = () => link;
+    document.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 40, clientY: 60 }),
+    );
+
+    document.dispatchEvent(new Event("scroll"));
+    await act(() => approachElement(link));
+    // The scroll goes on past the element's repeat time, so it fires again.
+    for (let step = 0; step < 8; step++) {
+      await act(() => vi.advanceTimersByTimeAsync(150));
+      document.dispatchEvent(new Event("scroll"));
+    }
+    await act(() => approachElement(link));
+    await act(() => vi.advanceTimersByTimeAsync(201));
+
+    expect(prefetch).toHaveBeenCalledTimes(1);
+  });
 
   it("prefetches on an approach and leaves the element's own data-active alone", async () => {
     const prefetch = vi.fn();

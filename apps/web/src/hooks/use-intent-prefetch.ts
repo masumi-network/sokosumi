@@ -15,6 +15,17 @@ function unsettle() {
   unsettledAt = Date.now();
 }
 
+// Where the cursor last was. Off the page until it first moves, and again
+// once it leaves the page. A cursor with a button down points at nothing.
+const OFF_PAGE = -1;
+let cursorX = OFF_PAGE;
+let cursorY = OFF_PAGE;
+
+function cursorLeft() {
+  cursorX = OFF_PAGE;
+  cursorY = OFF_PAGE;
+}
+
 function intentManager() {
   if (!ForesightManager.isInitiated) {
     // Two library defaults are off. It would write its own `data-active` onto
@@ -35,10 +46,17 @@ function intentManager() {
     document.addEventListener(
       "pointermove",
       (event) => {
-        if (event.buttons !== 0) unsettle();
+        if (event.buttons !== 0) {
+          cursorLeft();
+          unsettle();
+          return;
+        }
+        cursorX = event.clientX;
+        cursorY = event.clientY;
       },
       { capture: true, passive: true },
     );
+    document.documentElement.addEventListener("pointerleave", cursorLeft);
   }
   return ForesightManager.instance;
 }
@@ -52,7 +70,8 @@ interface IntentPrefetchOptions {
 /**
  * Ref for an element the reader may head for. `prefetch` runs ahead of the
  * click: when the cursor's path points at the element, when a Tab stop is
- * close by, or when a touch starts on it.
+ * close by, or when a touch starts on it. It also runs for the element a
+ * scroll leaves under the cursor: where the reader stops is where they look.
  */
 export function useIntentPrefetch<T extends Element>(
   prefetch: () => void,
@@ -68,6 +87,20 @@ export function useIntentPrefetch<T extends Element>(
       if (!element || !enabled) return;
       const manager = intentManager();
       let retry: ReturnType<typeof setTimeout> | undefined;
+      const whenSettled = () => {
+        const wait = unsettledAt + UNSETTLED_MS - Date.now();
+        if (wait > 0) {
+          retry = setTimeout(whenSettled, wait);
+          return;
+        }
+        if (element.contains(document.elementFromPoint(cursorX, cursorY))) {
+          latest.current();
+          return;
+        }
+        // The library now holds the element back for `reactivateAfter`.
+        // Nothing was prefetched, so let it predict again.
+        manager.reactivate(element);
+      };
       const { unregister } = manager.register({
         element,
         callback: () => {
@@ -75,9 +108,10 @@ export function useIntentPrefetch<T extends Element>(
             latest.current();
             return;
           }
-          // The library now holds the element back for `reactivateAfter`.
-          // Nothing was prefetched, so let it predict again once things settle.
-          retry = setTimeout(() => manager.reactivate(element), UNSETTLED_MS);
+          // A long scroll outlasts `reactivateAfter`, so the element can fire
+          // again while it still waits.
+          clearTimeout(retry);
+          retry = setTimeout(whenSettled, UNSETTLED_MS);
         },
         reactivateAfter,
       });
