@@ -19,6 +19,7 @@ import {
   CmoConflictError,
   CmoNotFoundError,
   type Cuso,
+  type CusoTarget,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
@@ -91,12 +92,13 @@ export function planWindow(now: Date = new Date()): {
  * plans the ads (and what they should bring) around exactly that amount.
  * Zero turns paid ads off.
  */
-export async function setCmoAdBudget(input: {
-  userId: string;
-  monthly: number;
-  currency: string;
-}): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function setCmoAdBudget(
+  input: CusoTarget & {
+    monthly: number;
+    currency: string;
+  },
+): Promise<{ turnId: string }> {
+  const cuso = await requireCuso(input);
   const strategy = parseMarketingPlan(
     (await newestMarketingStrategy(cuso.projectId))?.plan,
   );
@@ -104,7 +106,7 @@ export async function setCmoAdBudget(input: {
     throw new CmoConflictError("Cuso has not written the strategy yet");
   }
   const currency = input.currency.toUpperCase();
-  const started = await requestCmoStrategy({
+  const started = await requestStrategyForCuso(cuso, {
     userId: input.userId,
     note:
       input.monthly > 0
@@ -140,11 +142,18 @@ export async function setCmoAdBudget(input: {
  * Asks Cuso for a new one-month strategy: he writes a new version, which an
  * owner or admin approves; the approved one keeps running until then.
  */
-export async function requestCmoStrategy(input: {
-  userId: string;
-  note?: string;
-}): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function requestCmoStrategy(
+  input: CusoTarget & {
+    note?: string;
+  },
+): Promise<{ turnId: string }> {
+  return requestStrategyForCuso(await requireCuso(input), input);
+}
+
+async function requestStrategyForCuso(
+  cuso: Cuso,
+  input: { userId: string; note?: string },
+): Promise<{ turnId: string }> {
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
@@ -557,15 +566,15 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
 
 /** Cuso revises the plan to fit the owner's answers. */
 export async function applyCmoPlanAnswers(
-  userId: string,
+  target: CusoTarget,
 ): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId });
+  const cuso = await requireCuso(target);
   const newest = await newestCmoStrategy(cuso);
   const note = cmoPlanAnswerNote(
     parseMarketingPlan(newest.plan)?.questions ?? [],
   );
   if (!note) throw new CmoConflictError("Your answers confirm the plan");
-  return requestCmoStrategy({ userId, note });
+  return requestStrategyForCuso(cuso, { userId: target.userId, note });
 }
 
 /**
@@ -574,11 +583,12 @@ export async function applyCmoPlanAnswers(
  * refused (409). Any other piece is a Project file the owner uses
  * themselves, so nothing goes out to pause: it is refused too.
  */
-export async function pauseCmoCalendarEntry(input: {
-  userId: string;
-  entryId: string;
-}): Promise<void> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function pauseCmoCalendarEntry(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<void> {
+  const cuso = await requireCuso(input);
   const post = UUID.test(input.entryId)
     ? await prisma.socialPost.findFirst({
         where: { id: input.entryId, projectId: cuso.projectId },
@@ -603,11 +613,12 @@ export async function pauseCmoCalendarEntry(input: {
  * The words of one approved piece that lives in the Project's Files (an
  * article, a page fix, ad copy, a newsletter issue), for its sheet in CMO.
  */
-export async function readCmoPieceText(input: {
-  userId: string;
-  entryId: string;
-}): Promise<string> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function readCmoPieceText(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<string> {
+  const cuso = await requireCuso(input);
   const approved = await approvedMarketingStrategy(cuso.projectId);
   const text = approved
     ? await readMarketingPieceText(approved, input.entryId)

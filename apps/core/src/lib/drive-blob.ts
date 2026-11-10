@@ -289,16 +289,6 @@ export async function driveRead(
   return null;
 }
 
-/** All the bytes of a Drive object, or null when no store has it. */
-export async function driveReadBytes(
-  pathname: string,
-): Promise<{ bytes: Uint8Array; contentType: string } | null> {
-  const result = await driveRead(pathname);
-  if (!result) return null;
-  const bytes = new Uint8Array(await new Response(result.stream).arrayBuffer());
-  return { bytes, contentType: result.contentType };
-}
-
 export type DrivePutOptions = Omit<PutCommandOptions, "access" | "token">;
 
 /** Writes bytes to the store the pathname belongs in. */
@@ -561,21 +551,4 @@ export async function driveHasAny(prefix: string): Promise<boolean> {
     cursor = page.hasMore ? page.cursor : undefined;
   } while (cursor);
   return false;
-}
-
-/** Every blob under a prefix, across stores. For callers that need them all. */
-export async function driveListAll(
-  prefix: string,
-  options: { mode?: "expanded" | "folded" } = {},
-): Promise<{ blobs: DriveListedBlob[]; folders: string[] }> {
-  const blobs: DriveListedBlob[] = [];
-  const folders: string[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await driveList({ prefix, cursor, limit: 1_000, ...options });
-    blobs.push(...page.blobs);
-    folders.push(...page.folders);
-    cursor = page.hasMore ? page.cursor : undefined;
-  } while (cursor);
-  return { blobs, folders: [...new Set(folders)] };
 }
