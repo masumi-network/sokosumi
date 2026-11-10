@@ -81341,17 +81341,17 @@ export type GetTasksData = {
          */
         status?: Array<TaskStatus>;
         /**
-         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, or 'mine' for tasks the caller owns or is assigned to as a workspace member.
          */
-        scope?: 'workspace' | 'owned';
+        scope?: 'workspace' | 'owned' | 'mine';
         /**
          * Filter tasks by project ID. Use the literal value 'null' to return tasks that are not assigned to a project.
          */
         projectId?: string | 'null';
         /**
-         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.
+         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last.
          */
-        sort?: 'createdAt' | 'updatedAt' | 'priority';
+        sort?: 'createdAt' | 'updatedAt' | 'priority' | 'dueOn';
         /**
          * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
          */
@@ -81360,6 +81360,10 @@ export type GetTasksData = {
          * Only the Tasks this Task Schedule created
          */
         scheduleId?: string;
+        /**
+         * Only Tasks due on or before this day (YYYY-MM-DD). Tasks without a due date are left out.
+         */
+        dueOnTo?: string;
         /**
          * Filter tasks by assignee coworker ID
          */
