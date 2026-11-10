@@ -55,6 +55,10 @@ export const projectUpdateMany = vi.fn();
 export const brainFindUnique = vi.fn();
 export const brainUpsert = vi.fn();
 export const brainUpdate = vi.fn();
+export const userFindUnique = vi.fn();
+
+/** Env values a test sets over the real ones, e.g. the hire allowlist. */
+export const envOverrides: Partial<import("@/config/env").EnvConfig> = {};
 
 type CusoFixture = {
   sokoBotId?: string;
@@ -198,9 +202,7 @@ const client = {
     upsert: brainUpsert,
     update: brainUpdate,
   },
-  user: {
-    findUnique: async () => ({ preferredOrganizationId: "org-1" }),
-  },
+  user: { findUnique: userFindUnique },
   member: {
     findUnique: memberFindUnique,
     // An organization role read by workspace answers like one by organization.
@@ -284,7 +286,10 @@ export const funding = {
 /** The module mocks, keyed by what they stand for. */
 export const cmoServiceMocks = {
   prisma: { default: client },
-  env: (actual: typeof import("@/config/env")) => actual,
+  env: (actual: typeof import("@/config/env")) => ({
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), ...envOverrides }),
+  }),
   socialPosts: { cancelSocialPost },
   sharedCreate: { createSharedSokoBot: createBot },
   controlPlane: {
@@ -351,6 +356,15 @@ export const revised = { ...strategy, summary: "Twice the LinkedIn posts." };
 export function resetCmoServiceMocks(): void {
   vi.clearAllMocks();
   strategyRows.length = 0;
+  // The person asking is on the hire allowlist unless a test says otherwise.
+  userFindUnique.mockResolvedValue({
+    email: "lena@harborbikes.com",
+    preferredOrganizationId: "org-1",
+  });
+  for (const key of Object.keys(envOverrides)) {
+    delete envOverrides[key as keyof typeof envOverrides];
+  }
+  envOverrides.CMO_HIRE_ALLOWLIST = ["lena@harborbikes.com"];
   expireTurn.mockResolvedValue(true);
   toolCallFindMany.mockResolvedValue([]);
   // A report message comes back as it was written.

@@ -11062,6 +11062,14 @@ export type PublicSharedTaskFile = {
     createdAt: Date;
 };
 
+export type CmoCusoList = {
+    cusos: Array<CmoCuso>;
+    /**
+     * The caller is on Core's hire allowlist (CMO_HIRE_ALLOWLIST).
+     */
+    mayHire: boolean;
+};
+
 export type CmoCuso = {
     projectId: string;
     businessName: string;
@@ -74302,10 +74310,10 @@ export type ListCmoCusosError = ListCmoCusosErrors[keyof ListCmoCusosErrors];
 
 export type ListCmoCusosResponses = {
     /**
-     * The caller's Cusos
+     * The caller's Cusos and whether they may hire
      */
     200: {
-        data: Array<CmoCuso>;
+        data: CmoCusoList;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -74340,7 +74348,7 @@ export type StartCmoOnboardingErrors = {
         };
     };
     /**
-     * Forbidden - Not a member of the organization (organization_membership_required), no Seat in it (organization_seat_required), or the organization limit is reached (organization_limit_reached)
+     * Forbidden - Not on the hire allowlist (cmo_hire_not_allowed), not a member of the organization (organization_membership_required), no Seat in it (organization_seat_required), or the organization limit is reached (organization_limit_reached)
      */
     403: {
         error: string;

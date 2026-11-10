@@ -112,14 +112,17 @@ type OpenedScreen =
   | { kind: "cuso"; overview: CmoOverview }
   /** The only Cuso, opened by an address naming him, which the proxy remembers. */
   | { kind: "only"; projectId: string }
-  | { kind: "picker"; cusos: CmoCuso[] }
-  | { kind: "hire" };
+  | { kind: "picker"; cusos: CmoCuso[]; mayHire: boolean }
+  | { kind: "hire" }
+  /** In place of the hire form: Core's hire allowlist leaves the person out. */
+  | { kind: "inviteOnly" };
 
 /**
  * Which screen opens (ADR 0065): the hire form or the picker when the
  * address asks for it; else the Cuso the address names, else the one last
  * opened on this device, else the only one, else the Cuso picker, else the
- * hire form. A Project the person can't use falls through.
+ * hire form. A Project the person can't use falls through. A person Core's
+ * hire allowlist leaves out sees the invite-only page for the hire form.
  */
 async function openedScreen(input: {
   hire: boolean;
@@ -127,19 +130,20 @@ async function openedScreen(input: {
   named: string | undefined;
   remembered: string | undefined;
 }): Promise<OpenedScreen> {
-  if (input.hire) return { kind: "hire" };
-  if (!input.pick) {
+  if (!input.hire && !input.pick) {
     const projectId = input.named ?? input.remembered;
     if (projectId) {
       const overview = await loadOverview(projectId);
       if (overview) return { kind: "cuso", overview };
     }
   }
-  const cusos = await loadCusos();
+  const { cusos, mayHire } = await loadCusos();
+  const hireScreen: OpenedScreen = { kind: mayHire ? "hire" : "inviteOnly" };
+  if (input.hire) return hireScreen;
   const [newest] = cusos;
-  if (!newest) return { kind: "hire" };
+  if (!newest) return hireScreen;
   if (input.pick || input.named || cusos.length > 1) {
-    return { kind: "picker", cusos };
+    return { kind: "picker", cusos, mayHire };
   }
   return { kind: "only", projectId: newest.projectId };
 }
@@ -217,7 +221,19 @@ export async function Home({ searchParams, view }: HomeProps) {
       `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}`,
     );
   }
-  if (opened.kind === "picker") return <CusoPicker cusos={opened.cusos} />;
+  if (opened.kind === "picker") {
+    return <CusoPicker cusos={opened.cusos} mayHire={opened.mayHire} />;
+  }
+  if (opened.kind === "inviteOnly") {
+    return (
+      <SignedIn
+        name={session.user.name}
+        email={session.user.email}
+        signOut={signOut}
+        inviteOnly
+      />
+    );
+  }
   if (opened.kind === "hire") {
     const { firstName, lastName } = person.data.data;
     if (!isValidPersonName(firstName ?? "", lastName ?? "")) {

@@ -30,6 +30,7 @@ it("lists each Cuso by his Business and organization, then Hire a new Cuso", () 
         }),
         cuso({}),
       ]}
+      mayHire
     />,
   );
   const rows = [
@@ -45,4 +46,13 @@ it("lists each Cuso by his Business and organization, then Hire a new Cuso", () 
   // Two Cusos of one organization still read apart.
   expect(html).toContain("Agency · Hiring");
   expect(html).toMatch(/Hire a new Cuso<\/span><\/a><\/li><\/ul>/);
+});
+
+it("leaves out Hire a new Cuso for a person who may not hire", () => {
+  const html = renderToStaticMarkup(
+    <CusoPicker cusos={[cuso({})]} mayHire={false} />,
+  );
+  expect(html).toContain('href="/?project=project-1"');
+  expect(html).not.toContain("/?hire=1");
+  expect(html).not.toContain("Hire a new");
 });
