@@ -1,4 +1,9 @@
-import { AgentJobStatus, AgentStatus, JobType } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  AgentStatus,
+  JobType,
+  jobInclude,
+} from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,7 +20,7 @@ const {
   createNotificationMock,
   createJobPurchaseMock,
   fetchAgentJobStatusMock,
-  getJobByIdMock,
+  jobFindUniqueMock,
   getLatestJobEventByJobIdMock,
   publishJobStatusDataMock,
   prismaJobFindManyMock,
@@ -48,7 +53,7 @@ const {
     createNotificationMock: vi.fn(),
     createJobPurchaseMock: vi.fn(),
     fetchAgentJobStatusMock: vi.fn(),
-    getJobByIdMock: vi.fn(),
+    jobFindUniqueMock: vi.fn(),
     getLatestJobEventByJobIdMock: vi.fn(),
     publishJobStatusDataMock: vi.fn(),
     prismaJobFindManyMock: vi.fn(),
@@ -95,6 +100,12 @@ vi.mock("@/services/job-refund", () => ({
   refundJob: refundJobMock,
 }));
 
+const syncTransactionClient = {
+  job: {
+    findUnique: jobFindUniqueMock,
+  },
+};
+
 vi.mock("@sokosumi/database/repositories", () => ({
   jobEventRepository: {
     createJobEventForJobId: createJobEventForJobIdMock,
@@ -103,9 +114,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   jobPurchaseRepository: {
     createJobPurchase: createJobPurchaseMock,
     updateJobPurchaseByJobId: updateJobPurchaseByJobIdMock,
-  },
-  jobRepository: {
-    getJobById: getJobByIdMock,
   },
 }));
 
@@ -189,6 +197,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     job: {
       findMany: prismaJobFindManyMock,
+      findUnique: jobFindUniqueMock,
     },
     // A settled job marks its own attention rows read, so the notification
     // dispatch writes here as well as through `createNotification` (SOK-916).
@@ -397,7 +406,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       createNotificationMock,
       createJobPurchaseMock,
       fetchAgentJobStatusMock,
-      getJobByIdMock,
+      jobFindUniqueMock,
       getLatestJobEventByJobIdMock,
       publishJobStatusDataMock,
       prismaJobFindManyMock,
@@ -430,14 +439,14 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     jobPurchaseFindManyMock.mockResolvedValue([]);
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({});
+      return await callback(syncTransactionClient);
     });
     mockInitialJobQueries();
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(err("not found"));
     fetchAgentJobStatusMock.mockReturnValue(err("not found"));
     getLatestJobEventByJobIdMock.mockResolvedValue(createJobEvent());
     createJobEventForJobIdMock.mockResolvedValue({ id: "event_2" });
-    getJobByIdMock.mockResolvedValue(createJob());
+    jobFindUniqueMock.mockResolvedValue(createJob());
     renderJobFailureNotificationEmailMock.mockResolvedValue({
       subject: "failure",
       html: "<p>failure</p>",
@@ -510,7 +519,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       ),
     );
-    getJobByIdMock.mockResolvedValueOnce(backfilledJob);
+    jobFindUniqueMock.mockResolvedValueOnce(backfilledJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -537,7 +546,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledTimes(1);
-    expect(getJobByIdMock).toHaveBeenCalledWith("job_1", expect.any(Object));
+    expect(jobFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "job_1" },
+      include: jobInclude,
+    });
     expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "agent_1",
@@ -568,7 +580,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -580,7 +592,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
-    expect(refundJobMock).toHaveBeenCalledWith("job_refund", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_refund",
+      syncTransactionClient,
+    );
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -607,7 +622,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       agent: [createJob()],
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock
+    jobFindUniqueMock
       .mockResolvedValueOnce(createJob())
       .mockResolvedValueOnce(reconciliationJob);
 
@@ -640,7 +655,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -652,7 +667,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
-    expect(refundJobMock).toHaveBeenCalledWith("job_payment_failed", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_payment_failed",
+      syncTransactionClient,
+    );
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -677,7 +695,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -691,7 +709,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     expect(refundJobMock).toHaveBeenCalledWith(
       "job_purchase_action_failed",
-      {},
+      syncTransactionClient,
     );
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
@@ -787,7 +805,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         externalId: "purchase_1",
         onChainStatus: "FUNDS_LOCKED",
       }),
-      {},
+      syncTransactionClient,
     );
     // The run report is what the cron logs, so diff work has to reach it.
     expect(result.processed).toBe(1);
@@ -835,7 +853,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         onChainTransactionHash: "transaction-hash-1",
         onChainTransactionStatus: "COMPLETED",
       }),
-      {},
+      syncTransactionClient,
     );
     expect(result.processed).toBe(1);
   });
@@ -881,7 +899,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         onChainTransactionHash: "transaction-hash-1",
         onChainTransactionStatus: "COMPLETED",
       }),
-      {},
+      syncTransactionClient,
     );
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
@@ -906,7 +924,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
       "job_1",
       expect.objectContaining({ onChainStatus: "FUNDS_LOCKED" }),
-      {},
+      syncTransactionClient,
     );
   });
 
@@ -1212,7 +1230,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -1224,7 +1242,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
-    expect(refundJobMock).toHaveBeenCalledWith("job_missing_purchase", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_missing_purchase",
+      syncTransactionClient,
+    );
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -1244,7 +1265,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -1256,7 +1277,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
-    expect(refundJobMock).toHaveBeenCalledWith("job_null_payby_fallback", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_null_payby_fallback",
+      syncTransactionClient,
+    );
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
   });
@@ -1278,7 +1302,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -1290,7 +1314,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
-    expect(refundJobMock).toHaveBeenCalledWith("job_null_on_chain", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_null_on_chain",
+      syncTransactionClient,
+    );
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -1317,7 +1344,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       ],
     });
-    getJobByIdMock.mockResolvedValueOnce(
+    jobFindUniqueMock.mockResolvedValueOnce(
       createJob({
         id: "job_stale_reconciliation",
         status: SokosumiJobStatus.REFUND_PENDING,
@@ -1343,7 +1370,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
-    expect(refundJobMock).toHaveBeenCalledWith("job_stale_reconciliation", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_stale_reconciliation",
+      syncTransactionClient,
+    );
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -1379,7 +1409,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       ],
     });
-    getJobByIdMock.mockResolvedValueOnce(
+    jobFindUniqueMock.mockResolvedValueOnce(
       createJob({
         id: "job_needs_refund",
         status: SokosumiJobStatus.REFUND_PENDING,
@@ -1399,7 +1429,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       createExecutionOptions({ deadlineMs: Date.now() + 5_000 }),
     );
 
-    expect(refundJobMock).toHaveBeenCalledWith("job_needs_refund", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_needs_refund",
+      syncTransactionClient,
+    );
     // Starved on purpose: the reserve is what buys the refund phase its budget.
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
   });
@@ -1436,7 +1469,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         }),
       ],
     });
-    getJobByIdMock.mockResolvedValueOnce(
+    jobFindUniqueMock.mockResolvedValueOnce(
       createJob({
         id: "job_needs_refund",
         status: SokosumiJobStatus.REFUND_PENDING,
@@ -1456,7 +1489,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       createExecutionOptions({ deadlineMs: Date.now() + 5_000 }),
     );
 
-    expect(refundJobMock).toHaveBeenCalledWith("job_needs_refund", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_needs_refund",
+      syncTransactionClient,
+    );
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
     expect(getPurchasesDiffMock).not.toHaveBeenCalled();
   });
@@ -1527,13 +1563,16 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
     getPurchasesDiffMock.mockRejectedValueOnce(new Error("diff exploded"));
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     // An unexpected throw in the diff must not take the refund phase with it.
-    expect(refundJobMock).toHaveBeenCalledWith("job_missing_purchase", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_missing_purchase",
+      syncTransactionClient,
+    );
     expect(captureExceptionMock).toHaveBeenCalled();
   });
 
@@ -1578,7 +1617,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValue(freeLongRunningJob);
+    jobFindUniqueMock.mockResolvedValue(freeLongRunningJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1679,7 +1718,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(completedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1691,7 +1730,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         result: "[result](https://example.com/report.pdf)",
         statusHash: "new-hash",
       },
-      {},
+      syncTransactionClient,
     );
     expect(sourceImportEnqueueMock).toHaveBeenCalledWith(
       "event_2",
@@ -1737,7 +1776,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
           statusHash: "new-hash",
         }),
       );
-      getJobByIdMock.mockResolvedValueOnce(completedJob);
+      jobFindUniqueMock.mockResolvedValueOnce(completedJob);
 
       await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
     }
@@ -1796,7 +1835,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(updatedFailedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(updatedFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1862,7 +1901,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(updatedFailedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(updatedFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1920,7 +1959,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "old-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValue(paymentFailedJob);
+    jobFindUniqueMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1929,7 +1968,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       expect.objectContaining({
         onChainStatus: "FUNDS_OR_DATUM_INVALID",
       }),
-      {},
+      syncTransactionClient,
     );
     expect(refundJobMock).not.toHaveBeenCalled();
     expect(renderJobFailureNotificationEmailMock).toHaveBeenCalledWith({
@@ -1995,7 +2034,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValue(paymentFailedJob);
+    jobFindUniqueMock.mockResolvedValue(paymentFailedJob);
     createJobEventForJobIdMock.mockResolvedValueOnce({ id: "event_3" });
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
@@ -2033,7 +2072,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValue(paymentFailedJob);
+    jobFindUniqueMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -2042,7 +2081,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       expect.objectContaining({
         onChainStatus: "FUNDS_OR_DATUM_INVALID",
       }),
-      {},
+      syncTransactionClient,
     );
     expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -2088,12 +2127,15 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     expect(createJobPurchaseMock).not.toHaveBeenCalled();
-    expect(getLatestJobEventByJobIdMock).toHaveBeenCalledWith("job_1", {});
+    expect(getLatestJobEventByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      syncTransactionClient,
+    );
     expect(createJobEventForJobIdMock).toHaveBeenCalledWith(
       "job_1",
       {
@@ -2102,7 +2144,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         result: "done",
         statusHash: "new-hash",
       },
-      {},
+      syncTransactionClient,
     );
     expect(sourceImportEnqueueMock).toHaveBeenCalledWith("event_2", "done");
     expect(refundJobMock).not.toHaveBeenCalled();
@@ -2172,7 +2214,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValue(paymentFailedJob);
+    jobFindUniqueMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -2183,7 +2225,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         nextAction: "NONE",
         nextActionErrorType: null,
       }),
-      {},
+      syncTransactionClient,
     );
     expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -2243,7 +2285,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock
+    jobFindUniqueMock
       .mockResolvedValueOnce(pendingWithActiveAction)
       .mockResolvedValueOnce(pendingWithActiveAction)
       .mockResolvedValueOnce(pendingWithActiveAction);
@@ -2297,7 +2339,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentPendingJob);
+    jobFindUniqueMock.mockResolvedValueOnce(paymentPendingJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -2308,7 +2350,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         nextAction: "FUNDS_LOCKING_REQUESTED",
         nextActionErrorType: "NETWORK_ERROR",
       }),
-      {},
+      syncTransactionClient,
     );
     expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -2360,7 +2402,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValue(refundResolvedJob);
+    jobFindUniqueMock.mockResolvedValue(refundResolvedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -2369,7 +2411,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       expect.objectContaining({
         onChainStatus: "REFUND_WITHDRAWN",
       }),
-      {},
+      syncTransactionClient,
     );
     expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -2426,7 +2468,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValue(disputeResolvedJob);
+    jobFindUniqueMock.mockResolvedValue(disputeResolvedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -2435,7 +2477,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       expect.objectContaining({
         onChainStatus: "DISPUTED_WITHDRAWN",
       }),
-      {},
+      syncTransactionClient,
     );
     expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -2482,7 +2524,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(awaitingInputJob);
+    jobFindUniqueMock.mockResolvedValueOnce(awaitingInputJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -2494,7 +2536,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(createJobEventForJobIdMock).toHaveBeenCalledWith(
       "job_1",
       expect.objectContaining({ status: AgentJobStatus.AWAITING_INPUT }),
-      {},
+      syncTransactionClient,
     );
     // A job asking for input asks through the API it was started from, so
     // Sokosumi neither mails the owner nor writes them a row (SOK-930).
@@ -2531,7 +2573,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(failedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(failedJob);
     sendEmailMock.mockRejectedValue(new Error("email down"));
     publishJobStatusDataMock.mockRejectedValue(new Error("ably down"));
     requestFetchMock.mockRejectedValue(new Error("webhook down"));
@@ -2579,7 +2621,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(failedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(failedJob);
     sendEmailsMock.mockImplementation(async (emails: unknown[]) => {
       emailStarted.resolve();
       await emailGate.promise;
@@ -2636,7 +2678,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(completedJob);
     sourceImportEnqueueMock.mockImplementation(async () => {
       enqueueStarted.resolve();
       await enqueueGate.promise;
@@ -2733,9 +2775,12 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockImplementation(async (jobId: string) => {
-      return failedById.get(jobId) ?? createJob({ id: jobId });
-    });
+    jobFindUniqueMock.mockImplementation(
+      async (query: { where: { id: string } }) => {
+        const jobId = query.where.id;
+        return failedById.get(jobId) ?? createJob({ id: jobId });
+      },
+    );
     createJobEventForJobIdMock.mockImplementation(async (jobId: string) => ({
       id: jobId === "job_1" ? "event_2" : "event_3",
     }));
@@ -2782,7 +2827,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(failedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(failedJob);
 
     await expect(
       jobSyncService.syncUnfinishedJobs(createExecutionOptions()),
@@ -2815,9 +2860,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       agent: [createJob()],
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockImplementation(async (jobId: string) => {
-      return jobId === "job_refund" ? reconciliationJob : createJob();
-    });
+    jobFindUniqueMock.mockImplementation(
+      async (query: { where: { id: string } }) => {
+        return query.where.id === "job_refund"
+          ? reconciliationJob
+          : createJob();
+      },
+    );
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
         status: "running",
@@ -2837,7 +2886,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 2,
       }),
     );
-    expect(refundJobMock).toHaveBeenCalledWith("job_refund", {});
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_refund",
+      syncTransactionClient,
+    );
   });
 
   it("does not count thrown job sync failures as processed", async () => {
@@ -3004,7 +3056,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(failedJob);
+    jobFindUniqueMock.mockResolvedValueOnce(failedJob);
     sendEmailMock.mockRejectedValue(
       Object.assign(
         new Error("Unable to fetch data. The request could not be resolved."),
@@ -3042,7 +3094,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       Object.assign(new Error("violates required relation"), { code: "P2014" }),
     );
     // Job was deleted concurrently, so the post-backfill refresh finds nothing.
-    getJobByIdMock.mockResolvedValueOnce(null);
+    jobFindUniqueMock.mockResolvedValueOnce(null);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -3065,7 +3117,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       Object.assign(new Error("record to update not found"), { code: "P2025" }),
     );
     // Job was deleted concurrently, so the post-backfill refresh finds nothing.
-    getJobByIdMock.mockResolvedValueOnce(null);
+    jobFindUniqueMock.mockResolvedValueOnce(null);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
