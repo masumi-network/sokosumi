@@ -41,7 +41,9 @@ export function SeoGettingStarted({ model }: { model: SeoWorkspaceModel }) {
           {t(
             data.availableActions.canRequestAnalysis
               ? "overview.getStartedBody"
-              : "overview.getStartedUnavailable",
+              : data.scope.pageIds.length
+                ? "overview.getStartedUnavailable"
+                : "overview.getStartedNoPages",
           )}
         </p>
       </div>

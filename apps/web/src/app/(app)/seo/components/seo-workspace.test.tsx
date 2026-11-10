@@ -2116,21 +2116,13 @@ describe("SEO workspace integration", () => {
     workspace.availableActions.canRequestAnalysis = false;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) =>
-        Response.json(
-          url.includes("/imports?")
-            ? { tasks: [], nextCursor: null }
-            : workspace,
-        ),
-      ),
+      vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
     expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
     expect(
-      screen.queryByText(
-        "Run a page check to find issues. Add related pages to compare them in one audit.",
-      ),
-    ).toBeNull();
+      screen.getByText(messages.App.Seo.overview.getStartedUnavailable),
+    ).toBeVisible();
     // "All audits" goes back to the Audit's Project scope.
     expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
       "href",
@@ -2143,6 +2135,16 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByRole("button", { name: /import/i })).toBeNull();
     await user.click(screen.getAllByRole("button", { name: "Add a page" })[0]);
     expect(screen.getByRole("dialog")).toBeVisible();
+    // With no pages, the copy asks for a page instead of calling checks unavailable.
+    cleanup();
+    workspace.scope.pageIds = [];
+    renderWorkspace(workspace);
+    expect(
+      screen.getByText(messages.App.Seo.overview.getStartedNoPages),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(messages.App.Seo.overview.getStartedUnavailable),
+    ).toBeNull();
   });
 
   it("schedules finite native monitoring with its market and per-run budget", async () => {

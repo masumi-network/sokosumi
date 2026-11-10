@@ -10954,6 +10954,7 @@
         "getStarted": "Get the first results for these pages",
         "getStartedBody": "Run a page check to find issues. Add related pages to compare them in one audit.",
         "getStartedUnavailable": "Checks are unavailable in this workspace. Connect a statistics source below for traffic measurements.",
+        "getStartedNoPages": "Add a page to start. Then run a page check to find issues.",
         "noMeasuredReports": "No reports measured in these activity dates",
         "noMeasuredReportsBody": "Clear activity dates to see reports from other dates. Statistics keep their own reporting period.",
         "clearActivityDates": "Clear activity dates",
