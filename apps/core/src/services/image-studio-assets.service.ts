@@ -423,6 +423,7 @@ export interface JobView {
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
   referenceFileIds?: string[];
+  useProductCutout?: boolean;
   product?: StudioProductIdentity;
   /** One sentence a person can read. Never the provider's own words. */
   error: string | null;
@@ -475,6 +476,7 @@ export async function getJob(options: {
       settings: true,
       referenceAssetIds: true,
       referenceFileIds: true,
+      useProductCutout: true,
       productId: true,
       productName: true,
       error: true,
@@ -510,6 +512,7 @@ export async function listJobs(
       settings: true,
       referenceAssetIds: true,
       referenceFileIds: true,
+      useProductCutout: true,
       productId: true,
       productName: true,
       error: true,
@@ -537,6 +540,7 @@ export function toJobView(job: {
   settings: unknown;
   referenceAssetIds: string[];
   referenceFileIds?: string[];
+  useProductCutout?: boolean;
   productId?: string | null;
   productName?: string | null;
   error: string | null;
@@ -566,6 +570,7 @@ export function toJobView(job: {
     ...(job.referenceFileIds?.length
       ? { referenceFileIds: job.referenceFileIds }
       : {}),
+    ...(job.useProductCutout ? { useProductCutout: true } : {}),
     error: job.error,
     failureReason: readImageJobFailureReason(job.failureReason),
     parentAssetId: job.parentAssetId,

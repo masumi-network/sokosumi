@@ -59,6 +59,10 @@ import {
   uploadReference,
 } from "@/lib/image-studio/fal-client";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
+import {
+  composeStudioProductCutout,
+  validateStudioProductCutout,
+} from "@/lib/image-studio/product-cutout";
 import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import {
   applyStudioBrandPrompt,
@@ -139,6 +143,7 @@ export interface CreateImageJobInput {
   /** Continue the same campaign ad when the request edits one source image. */
   reuseParentBatchSlot?: boolean;
   exportHeadline?: string;
+  useProductCutout?: boolean;
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
   referenceAssetIds: string[];
@@ -450,6 +455,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         batchId: input.batchId,
         batchSlotId,
         exportHeadline,
+        useProductCutout: input.useProductCutout,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
@@ -656,6 +662,23 @@ async function uploadFileReference(
   fileId: string,
   actor: FileActor,
 ): Promise<string> {
+  const { bytes, mimeType } = await downloadStudioFileReference(
+    workspaceId,
+    fileId,
+    actor,
+  );
+  return await uploadReference({
+    bytes,
+    contentType: mimeType,
+    fileName: `${fileId}.${mimeType.split("/")[1] ?? "png"}`,
+  });
+}
+
+async function downloadStudioFileReference(
+  workspaceId: string,
+  fileId: string,
+  actor: FileActor,
+) {
   // The requester can lose access to a private room while the reservation is
   // pending. Resolve the current, authorized pathname before opening the file.
   const [sourceId] = await requireStudioReferenceFiles({
@@ -687,21 +710,42 @@ async function uploadFileReference(
       .toLowerCase();
     if (!mimeType?.startsWith("image/"))
       throw new DriveFileDownloadError("wrong_type");
-    return { bytes: new Uint8Array(await response.arrayBuffer()), mimeType };
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
+      throw new DriveFileDownloadError("too_large");
+    return { bytes, mimeType };
   };
   // One retry: a live test once got a passing error status for a stored
   // photo, and nothing is charged before the job is sent.
-  const { bytes, mimeType } = await download().catch(async (error) => {
+  return await download().catch(async (error) => {
     if (!(error instanceof DriveFileDownloadError)) throw error;
     if (error.reason !== "unavailable") throw error;
     await new Promise((resolve) => setTimeout(resolve, 1_000));
     return await download();
   });
-  return await uploadReference({
-    bytes,
-    contentType: mimeType,
-    fileName: `${fileId}.${mimeType.split("/")[1] ?? "png"}`,
+}
+
+async function readProductCutout(
+  job: {
+    workspaceId: string;
+    requestedByUserId: string;
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+) {
+  const fileId = job.referenceFileIds[0];
+  if (!fileId)
+    throw unprocessableEntity("Choose a transparent PNG product photo.");
+  const { bytes } = await downloadStudioFileReference(job.workspaceId, fileId, {
+    kind: "interactive",
+    userId: job.requestedByUserId,
+    organizationId,
   });
+  await validateStudioProductCutout(bytes);
+  return {
+    bytes,
+    checksum: crypto.createHash("sha256").update(bytes).digest("hex"),
+  };
 }
 
 function webhookUrl(): string | null {
@@ -737,8 +781,20 @@ export async function createImageJob(input: CreateImageJobInput) {
   // provider and were lost at settlement.
   requireStudioBlobToken();
 
+  if (
+    input.useProductCutout &&
+    (input.referenceFileActor?.kind !== "interactive" ||
+      input.referenceFileIds?.length !== 1 ||
+      input.referenceAssetIds.length !== 0 ||
+      input.parentAssetId !== null)
+  ) {
+    throw unprocessableEntity(
+      "Choose one transparent PNG product photo to create a new ad with the original product.",
+    );
+  }
   const references =
-    input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
+    input.referenceAssetIds.length +
+    (input.useProductCutout ? 0 : (input.referenceFileIds?.length ?? 0));
   let settings: ImageJobSettings;
   try {
     settings = resolveImageSettings(input.modelId, input.settings, references);
@@ -938,18 +994,33 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
   let input: Record<string, unknown>;
   // Which half failed, so the person is told the right thing. Set before each
   // step rather than guessed from the message afterwards.
-  let preflightReason: ImageJobFailureReason = "reference_not_sendable";
+  let preflightReason: ImageJobFailureReason = job.useProductCutout
+    ? "product_cutout_unavailable"
+    : "reference_not_sendable";
   try {
+    if (job.useProductCutout) {
+      const { checksum } = await readProductCutout(job, organizationId);
+      await prisma.projectImageJob.update({
+        where: { id: job.id },
+        data: { productCutoutChecksum: checksum },
+        select: { id: true },
+      });
+    }
     const [imageUrls, brand] = await Promise.all([
-      buildReferenceUrls(job, organizationId),
+      job.useProductCutout ? [] : buildReferenceUrls(job, organizationId),
       loadStudioBrand(job.projectId),
     ]);
     preflightReason = "request_not_supported";
     // Brand is for fal only. The stored prompt stays the brief. A missing
     // Design or Memory is ignored so a brand read never blocks a generation.
     const prompt = applyStudioBrandPrompt(
-      job.prompt,
-      job.exportHeadline ? { ...brand, approvedLines: undefined } : brand,
+      job.useProductCutout
+        ? "Create an empty advertising backdrop with a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
+            job.prompt
+        : job.prompt,
+      job.exportHeadline || job.useProductCutout
+        ? { ...brand, approvedLines: undefined }
+        : brand,
     );
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
@@ -961,7 +1032,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       });
     } else {
       const settings = readSettings(job.settings);
-      const photoCount = job.referenceFileIds.length;
+      const photoCount = job.useProductCutout ? 0 : job.referenceFileIds.length;
       const productPhotoGuidance = photoCount
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";
@@ -1599,6 +1670,38 @@ async function storeMedia(
     return;
   }
 
+  if (job.useProductCutout && !video) {
+    try {
+      const cutout = await readProductCutout(job, project.organizationId);
+      if (cutout.checksum !== job.productCutoutChecksum)
+        throw unprocessableEntity(
+          "The original product photo changed during generation.",
+        );
+      downloaded = await composeStudioProductCutout(
+        downloaded.bytes,
+        cutout.bytes,
+        readSettings(job.settings).outputFormat,
+      );
+    } catch (error) {
+      await releaseSettlementLease(job.id, lease);
+      if (
+        (error instanceof HTTPException &&
+          (error.status === 404 || error.status === 422)) ||
+        (error instanceof DriveFileDownloadError &&
+          error.reason !== "unavailable")
+      ) {
+        await failImageJob(job.id, "product_cutout_unavailable");
+      } else {
+        await noteUnreachable(
+          job.id,
+          "Could not finish the product composition",
+          "storage",
+        );
+      }
+      return;
+    }
+  }
+
   const checksum = crypto
     .createHash("sha256")
     .update(downloaded.bytes)
@@ -1608,7 +1711,7 @@ async function storeMedia(
   // returns WebP with no dimensions and `luma-photon` reports none at all, and both
   // stored 0x0 until this read the bytes.
   const dimensions =
-    readProviderSize(providerSize) ??
+    (!job.useProductCutout ? readProviderSize(providerSize) : null) ??
     (video ? null : readImageDimensionsFromBytes(downloaded.bytes));
   if (!dimensions && !video) {
     // Not a failure: the column holds 0 and the client falls back to the rendered

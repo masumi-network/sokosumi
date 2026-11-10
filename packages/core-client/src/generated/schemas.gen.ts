@@ -21719,6 +21719,9 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        useProductCutout: {
+            type: 'boolean'
+        },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
         },
@@ -21740,6 +21743,7 @@ export const ProjectImageJobSchema = {
                 'provider_unreachable',
                 'submission_uncertain',
                 'reference_not_sendable',
+                'product_cutout_unavailable',
                 'request_not_supported',
                 'cancelled',
                 'abandoned_before_send',
@@ -39212,6 +39216,9 @@ export const CreateProjectImageJobRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 120
+        },
+        useProductCutout: {
+            type: 'boolean'
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'

@@ -4088,6 +4088,10 @@
       "productPhotoFailed": "No se pudo adjuntar la foto. Vuelve a intentarlo con otro archivo.",
       "productPhotoNeedsModel": "Selecciona un modelo de imagen compatible con tu foto y con las demás referencias.",
       "productPhotoGuidance": "Studio usa la foto del producto como referencia para su forma, colores, envase y etiqueta.",
+      "useProductCutout": "Conservar la foto original del producto",
+      "productCutoutSummary": "Foto original",
+      "productCutoutHint": "Usa un PNG transparente. Studio genera el escenario y coloca tu foto original sobre él.",
+      "productCutoutNeedsPhoto": "Adjunta un PNG transparente para cada producto y elimina las demás imágenes de referencia, o desactiva la opción de conservar la foto original.",
       "tooManyReferences": "Usa hasta {count} imágenes de referencia por anuncio.",
       "ProductCatalog": {
         "reviewImportedProducts": "Revisar productos importados",
@@ -4366,6 +4370,7 @@
         "provider_unreachable": "No se pudo contactar con el proveedor de imágenes durante tanto tiempo que el estudio dejó de esperar.",
         "submission_uncertain": "El proveedor de imágenes no confirmó que recibiera esta solicitud, así que puede haberse ejecutado o no.",
         "reference_not_sendable": "No se pudo enviar una imagen de referencia al proveedor de imágenes.",
+        "product_cutout_unavailable": "La foto original debe ser un PNG estático y accesible con fondo transparente.",
         "request_not_supported": "Este modelo, o estos ajustes, ya no están disponibles en el proveedor de imágenes.",
         "cancelled": "Cancelada antes de producir una imagen.",
         "abandoned_before_send": "Esta solicitud se descartó antes de llegar al proveedor de imágenes.",

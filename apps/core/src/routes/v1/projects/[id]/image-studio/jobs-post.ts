@@ -77,6 +77,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         batchId: input.batchId,
         reuseParentBatchSlot: true,
         exportHeadline: input.exportHeadline,
+        useProductCutout: input.useProductCutout,
         reuseParentHeadlineIfAvailable: true,
         modelId: input.modelId,
         settings: { ...DEFAULT_SETTINGS, ...input.settings },

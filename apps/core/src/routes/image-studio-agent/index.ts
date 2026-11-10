@@ -46,7 +46,7 @@ import { authorizeAgentGrant as authorize } from "./authorize";
 
 const app = new Hono();
 const createAgentImageJobSchema = createImageJobRequestSchema
-  .omit({ exportHeadline: true })
+  .omit({ exportHeadline: true, useProductCutout: true })
   .extend({ catalogProductId: z.string().uuid().optional() });
 
 /**

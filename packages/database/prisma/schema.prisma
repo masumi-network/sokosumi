@@ -5300,6 +5300,10 @@ model ProjectImageJob {
   /// Approved copy to attach when the image is delivered.
   exportHeadline String?
 
+  /// Generate a backdrop, then composite the original transparent product photo.
+  useProductCutout      Boolean @default(false)
+  productCutoutChecksum String?
+
   status ProjectImageJobStatus @default(PENDING)
 
   /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),

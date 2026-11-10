@@ -660,6 +660,9 @@ export function ImageStudio({
       (source as StudioJob).referenceFileIds?.length
         ? { referenceFileIds: (source as StudioJob).referenceFileIds }
         : {}),
+      ...(from === "job" && !reroll && (source as StudioJob).useProductCutout
+        ? { useProductCutout: true }
+        : {}),
       idempotencyKey: `ui:${id}`,
     };
     queue.enqueue([request]);
@@ -835,7 +838,8 @@ export function ImageStudio({
     const { referenceAssetIds, referenceFileIds, parentAssetId, settings } =
       request;
     const referenceCount =
-      referenceAssetIds.length + (referenceFileIds?.length ?? 0);
+      referenceAssetIds.length +
+      (request.useProductCutout ? 0 : (referenceFileIds?.length ?? 0));
     if (
       referenceCount > MAX_STUDIO_REFERENCES ||
       (referenceFileIds?.length ?? 0) > 1 ||
@@ -1227,6 +1231,7 @@ export function ImageStudio({
                       setTarget({
                         modelIds: [request.modelId],
                         settings: request.settings,
+                        useProductCutout: request.useProductCutout,
                         ...(request.exportHeadline
                           ? {
                               exportHeadlines: {

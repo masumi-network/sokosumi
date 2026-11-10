@@ -12,6 +12,7 @@ const external = vi.hoisted(() => ({
   submit: vi.fn(),
   download: vi.fn(),
   uploadReference: vi.fn(),
+  driveHead: vi.fn(),
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -36,6 +37,10 @@ vi.mock("@vercel/blob", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/blob")>()),
   get: external.get,
   put: external.put,
+}));
+vi.mock("@/lib/drive-blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/drive-blob")>()),
+  driveHead: external.driveHead,
 }));
 vi.mock("@/lib/image-studio/fal-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/image-studio/fal-client")>()),
@@ -670,5 +675,175 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect(revoke.status).toBe(200);
     const withoutHeadline = await finishRevision(await fromAssistant(), null);
     await expectedBatch(withoutHeadline.id);
+  });
+
+  it("composites a verified product cutout into the delivered artwork and checks the file again", async () => {
+    const path = `/${projectId}/image-studio`;
+    const studio = app();
+    const width = 20;
+    const height = 30;
+    const pixels = Buffer.alloc(width * height * 4);
+    for (let y = 2; y < height - 2; y++) {
+      for (let x = 2; x < width - 2; x++) {
+        const offset = (y * width + x) * 4;
+        const label = y >= 10 && y < 14;
+        pixels.set(label ? [246, 197, 27, 255] : [31, 104, 163, 255], offset);
+      }
+    }
+    const cutout = new Uint8Array(
+      await sharp(pixels, {
+        raw: { width, height, channels: 4 },
+      })
+        .png()
+        .toBuffer(),
+    );
+    const opaque = new Uint8Array(
+      await sharp({
+        create: { width, height, channels: 3, background: "blue" },
+      })
+        .png()
+        .toBuffer(),
+    );
+    const sourceId = "drive/campaign-fixture/product-cutout.png";
+    const fileUrl =
+      "https://campaign.public.blob.vercel-storage.com/drive/campaign-fixture/product-cutout.png";
+    const file = await prisma.fileResource.create({
+      data: {
+        workspaceId,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceScope: "USER",
+        ownerUserId: userId,
+        sourceId,
+        displayName: "product-cutout.png",
+        normalizedName: "product-cutout.png",
+        mimeType: "image/png",
+        sizeBytes: cutout.length,
+        lifecycle: "ACTIVE",
+      },
+    });
+    let served = opaque;
+    external.driveHead.mockImplementation((pathname) =>
+      pathname === sourceId
+        ? { access: "public", url: fileUrl, size: served.length }
+        : null,
+    );
+    const fetchPhoto = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (url) => {
+        expect(String(url)).toBe(fileUrl);
+        return new Response(served, {
+          headers: { "content-type": "image/png" },
+        });
+      });
+    try {
+      const requestCutout = async () => {
+        const response = await studio.request(
+          `${path}/jobs`,
+          json("POST", {
+            prompt: "A clean studio tabletop for a coffee ad.",
+            modelId: "muse-image",
+            useProductCutout: true,
+            referenceFileIds: [file.id],
+            idempotencyKey: randomUUID(),
+          }),
+        );
+        expect(response.status).toBe(201);
+        return imageStudioJobSchema.parse((await response.json()).data);
+      };
+      const previousSubmissions = external.submit.mock.calls.length;
+      const rejected = await requestCutout();
+      expect(rejected).toMatchObject({
+        status: "FAILED",
+        failureReason: "product_cutout_unavailable",
+      });
+      expect(external.submit).toHaveBeenCalledTimes(previousSubmissions);
+
+      served = cutout;
+      const previousUploads = external.uploadReference.mock.calls.length;
+      const accepted = await requestCutout();
+      expect(accepted).toMatchObject({
+        kind: "GENERATE",
+        status: "QUEUED",
+        useProductCutout: true,
+      });
+      expect(external.uploadReference).toHaveBeenCalledTimes(previousUploads);
+      expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
+        "empty advertising backdrop",
+      );
+      await settleWithMedia(accepted.id, "https://fal.example/campaign.png");
+      const asset = await prisma.projectImageAsset.findUniqueOrThrow({
+        where: { jobId: accepted.id },
+      });
+      const response = await studio.request(
+        `${path}/assets/${asset.id}/content`,
+      );
+      expect(response.status).toBe(200);
+      const { data, info } = await sharp(await response.arrayBuffer())
+        .removeAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      expect(info).toMatchObject({ width: 160, height: 120 });
+      const pixel = (x: number, y: number) => [
+        ...data.subarray(
+          (y * info.width + x) * 3,
+          (y * info.width + x) * 3 + 3,
+        ),
+      ];
+      const left = (info.width - width) / 2;
+      const top = Math.floor(info.height * 0.86) - height;
+      expect(pixel(left, top)).toEqual([255, 255, 255]);
+      expect(pixel(left + 6, top + 6)).toEqual([31, 104, 163]);
+      expect(pixel(left + 8, top + 12)).toEqual([246, 197, 27]);
+
+      const changed = await requestCutout();
+      expect(changed.status).toBe("QUEUED");
+      served = new Uint8Array(
+        await sharp(cutout).modulate({ brightness: 0.8 }).png().toBuffer(),
+      );
+      await settleWithMedia(changed.id, "https://fal.example/campaign.png");
+      expect(
+        await prisma.projectImageJob.findUniqueOrThrow({
+          where: { id: changed.id },
+          select: {
+            status: true,
+            asset: true,
+            transactionId: true,
+            failureReason: true,
+          },
+        }),
+      ).toEqual({
+        status: "FAILED",
+        asset: null,
+        transactionId: null,
+        failureReason: "product_cutout_unavailable",
+      });
+
+      served = cutout;
+      const revoked = await requestCutout();
+      expect(revoked.status).toBe("QUEUED");
+      await prisma.fileResource.update({
+        where: { id: file.id },
+        data: { tombstonedAt: new Date() },
+      });
+      await settleWithMedia(revoked.id, "https://fal.example/campaign.png");
+      expect(
+        await prisma.projectImageJob.findUniqueOrThrow({
+          where: { id: revoked.id },
+          select: {
+            status: true,
+            asset: true,
+            transactionId: true,
+            failureReason: true,
+          },
+        }),
+      ).toEqual({
+        status: "FAILED",
+        asset: null,
+        transactionId: null,
+        failureReason: "product_cutout_unavailable",
+      });
+    } finally {
+      fetchPhoto.mockRestore();
+    }
   });
 });
