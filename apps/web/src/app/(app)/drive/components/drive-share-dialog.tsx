@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useClipboard } from "@/hooks/use-clipboard";
+import { dataRoomRefusal } from "@/lib/utils/data-room.client";
 import {
   type DriveShareTarget,
   driveShareUrl,
@@ -78,8 +79,9 @@ export function DriveShareDialog({
       setShare(await action());
       setPassword("");
       toast.success(done);
-    } catch {
-      toast.error(t("saveFailed"));
+    } catch (error) {
+      // Core says why it refused, e.g. a file in a data room can't get a link.
+      toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
     } finally {
       setBusy(false);
     }

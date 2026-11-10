@@ -10,6 +10,8 @@ const api = vi.hoisted(() => ({
   saveDriveShare: vi.fn(),
   revokeDriveShare: vi.fn(),
 }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/utils/file-search.client", () => ({
   ...api,
   driveShareUrl: (token: string) => `https://app.test/share/files/${token}`,
@@ -94,5 +96,24 @@ describe("DriveShareDialog", () => {
     expect(
       await screen.findByRole("button", { name: "create" }),
     ).toBeInTheDocument();
+  });
+
+  it("says why Core refused the link", async () => {
+    api.fetchDriveShare.mockResolvedValue(null);
+    api.saveDriveShare.mockRejectedValue({
+      error: "BadRequest",
+      message: "This is in a data room.",
+    });
+    render(
+      <DriveShareDialog store={store} item={item} onOpenChange={() => {}} />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "create" }),
+    );
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("This is in a data room."),
+    );
   });
 });

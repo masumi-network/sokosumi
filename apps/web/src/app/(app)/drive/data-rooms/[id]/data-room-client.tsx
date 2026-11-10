@@ -102,7 +102,8 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
       </header>
 
       <Tabs defaultValue="people" className="gap-3">
-        <TabsList>
+        {/* Five tabs are wider than a phone: scroll them, or Settings is cut off. */}
+        <TabsList className="app-scrollbar max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="people">
             {t("tabs.people", {
               count: members.filter((m) => !m.revokedAt).length,
