@@ -5495,7 +5495,7 @@ export const retryCmoOnboardingForProject = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Archives the Cuso of the Project the path names and cancels his unsent posts, so the caller can hire Cuso for another website.
+ * Archives the Cuso the caller works with and cancels his unsent posts, so they can hire Cuso for another website.
  */
 export const startCmoOverForProject = <ThrowOnError extends boolean = false>(options: Options<StartCmoOverForProjectData, ThrowOnError>): RequestResult<StartCmoOverForProjectResponses, StartCmoOverForProjectErrors, ThrowOnError> => (options.client ?? client).post<StartCmoOverForProjectResponses, StartCmoOverForProjectErrors, ThrowOnError>({
     responseTransformer: startCmoOverForProjectResponseTransformer,

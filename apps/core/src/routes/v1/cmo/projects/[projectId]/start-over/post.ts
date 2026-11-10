@@ -14,7 +14,7 @@ const route = createRoute({
   operationId: "startCmoOverForProject",
   tags: ["CMO"],
   description:
-    "Archives the Cuso of the Project the path names and cancels his unsent posts, so the caller can hire Cuso for another website.",
+    "Archives the Cuso the caller works with and cancels his unsent posts, so they can hire Cuso for another website.",
   request: { params: cmoProjectParamsSchema },
   responses: {
     200: jsonSuccessResponse(
