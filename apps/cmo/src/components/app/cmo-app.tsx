@@ -21,6 +21,10 @@ import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
+import {
+  type NewsletterCalendarDraft,
+  NewsletterPage,
+} from "../newsletter-page";
 import { StatusText } from "../status";
 import { CalendarPage } from "./calendar-page";
 import {
@@ -69,7 +73,10 @@ export interface CmoAppActions extends AdActions {
   }>;
   sendMessage: (content: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
-  loadPieceText: (entryId: string) => Promise<string | null>;
+  loadPieceText: (
+    entryId: string,
+    strategyId?: string,
+  ) => Promise<string | null>;
   approveStrategy: (versionId?: string) => Promise<CmoOverview>;
   /** The owner's own monthly ad budget; Cuso re-plans around it. */
   setAdBudget: (
@@ -172,16 +179,21 @@ export function CmoApp({
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
   const [view, setView] = useState<View>(initialView);
+  const [calendarDraft, setCalendarDraft] =
+    useState<NewsletterCalendarDraft | null>(null);
   // Each page has its own address, so reload, Back and new tabs land on it.
   const go = useCallback((next: View) => {
     setView(next);
+    if (next !== "newsletter") setCalendarDraft(null);
     if (window.location.pathname !== VIEW_PATHS[next]) {
       window.history.pushState(null, "", VIEW_PATHS[next]);
     }
   }, []);
   useEffect(() => {
-    const onPop = () =>
+    const onPop = () => {
+      setCalendarDraft(null);
       setView(viewFromPath(window.location.pathname) ?? "chat");
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -289,6 +301,14 @@ export function CmoApp({
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
   const upNextCount = overview.upNext.length;
+  const approvedStrategyId = overview.approvedStrategy
+    ? overview.approvedStrategyId
+    : null;
+  const loadCalendarPiece = useCallback(
+    (entryId: string) =>
+      actions.loadPieceText(entryId, approvedStrategyId ?? undefined),
+    [actions.loadPieceText, approvedStrategyId],
+  );
 
   return (
     <div
@@ -462,16 +482,42 @@ export function CmoApp({
             >
               {view === "calendar" ? (
                 <CalendarPage
+                  key={
+                    approvedStrategyId ??
+                    overview.strategyVersion?.id ??
+                    "calendar"
+                  }
                   overview={overview}
-                  loadText={actions.loadPieceText}
-                  pieceExtra={(entry) => (
-                    <SearchAdControl
-                      entry={entry}
-                      overview={overview}
-                      actions={actions}
-                      onChange={setOverview}
-                    />
-                  )}
+                  loadText={loadCalendarPiece}
+                  pieceExtra={(entry) =>
+                    approvedStrategyId &&
+                    entry.fileId &&
+                    (entry.channel === "newsletter" ||
+                      entry.channel === "email") &&
+                    entry.status !== "skipped" ? (
+                      <button
+                        type="button"
+                        className="button button-secondary button-small"
+                        onClick={() => {
+                          setCalendarDraft({
+                            entryId: entry.id,
+                            strategyId: approvedStrategyId,
+                            title: entry.title,
+                          });
+                          go("newsletter");
+                        }}
+                      >
+                        Prepare newsletter issue
+                      </button>
+                    ) : (
+                      <SearchAdControl
+                        entry={entry}
+                        overview={overview}
+                        actions={actions}
+                        onChange={setOverview}
+                      />
+                    )
+                  }
                   onAsk={async (text) => {
                     await actions.sendMessage(text);
                     await refresh();
@@ -486,6 +532,26 @@ export function CmoApp({
                   }
                   onApprove={async (versionId) =>
                     setOverview(await actions.approveStrategy(versionId))
+                  }
+                />
+              ) : view === "newsletter" ? (
+                <NewsletterPage
+                  key={overview.projectId}
+                  overview={overview}
+                  webOrigin={webOriginOf(overview)}
+                  calendarHandoff={
+                    calendarDraft
+                      ? {
+                          piece: calendarDraft,
+                          close: () =>
+                            setCalendarDraft((current) =>
+                              current === calendarDraft ? null : current,
+                            ),
+                        }
+                      : undefined
+                  }
+                  draft={() =>
+                    compose("Draft a newsletter issue for this project.")
                   }
                 />
               ) : view === "results" ? (
@@ -515,6 +581,7 @@ export function CmoApp({
                 <ChannelsPage
                   overview={overview}
                   compose={compose}
+                  openNewsletter={() => go("newsletter")}
                   connect={actions.connectChannel}
                   connectAds={actions.connectAds}
                   addMailingList={actions.addMailingList}

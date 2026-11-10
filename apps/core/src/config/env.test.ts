@@ -125,6 +125,22 @@ describe("Soko Bot deployment environment", () => {
 });
 
 describe("Newsletter environment", () => {
+  it("accepts workspace UUIDs for the pilot", () => {
+    vi.stubEnv(
+      "NEWSLETTER_PILOT_WORKSPACE_IDS",
+      " 019b0a1a-32b6-758f-8904-3d088c8536ea, 019b0a1a-32b6-758f-8904-3d088c8536eb ",
+    );
+    expect(validateEnv().NEWSLETTER_PILOT_WORKSPACE_IDS).toEqual([
+      "019b0a1a-32b6-758f-8904-3d088c8536ea",
+      "019b0a1a-32b6-758f-8904-3d088c8536eb",
+    ]);
+  });
+
+  it("rejects pilot values that are not workspace UUIDs", () => {
+    vi.stubEnv("NEWSLETTER_PILOT_WORKSPACE_IDS", "acme");
+    expectInvalidEnvironment("NEWSLETTER_PILOT_WORKSPACE_IDS");
+  });
+
   it("allows an omitted webhook secret", () => {
     vi.stubEnv("RESEND_NEWSLETTER_WEBHOOK_SECRET", undefined);
     expect(validateEnv().RESEND_NEWSLETTER_WEBHOOK_SECRET).toBeUndefined();

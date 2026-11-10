@@ -268,6 +268,7 @@ export const cmoOverviewSchema = z
       .describe(
         "The approved version as Cuso carries it out, with the pieces he made: the month the Calendar shows. Differs from strategy while a change waits for approval.",
       ),
+    approvedStrategyId: z.uuid().nullable().optional(),
     media: z
       .array(
         z.object({

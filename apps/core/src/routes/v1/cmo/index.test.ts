@@ -65,6 +65,7 @@ function overview() {
     brandBrain: null,
     strategy: null,
     approvedStrategy: null,
+    approvedStrategyId: null,
     strategyVersions: [
       {
         id: "strategy-1",

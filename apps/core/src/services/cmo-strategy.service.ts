@@ -606,9 +606,15 @@ export async function pauseCmoCalendarEntry(input: {
 export async function readCmoPieceText(input: {
   userId: string;
   entryId: string;
+  strategyId?: string;
 }): Promise<string> {
   const cuso = await requireCuso({ userId: input.userId });
   const approved = await approvedMarketingStrategy(cuso.projectId);
+  if (input.strategyId && input.strategyId !== approved?.id) {
+    throw new CmoConflictError(
+      "The approved calendar changed. Reopen the piece.",
+    );
+  }
   const text = approved
     ? await readMarketingPieceText(approved, input.entryId)
     : null;
