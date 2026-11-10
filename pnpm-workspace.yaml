@@ -69,6 +69,14 @@ overrides:
   # still the newest 6.x. pnpm audit still does not index the Nov 5 undici
   # GHSAs. The 8.x pin stays. No 7.x pin.
   "undici@>=8.12.2 <8.12.4": "8.12.4"
+  # zod GHSA-mrhx-c7xc-m3w5 patched in 4.6.6. 2026-11-10: @vercel/oidc 3.8.10
+  # and 4.0.0 (via @vercel/blob 2.9.0 and @vercel/sandbox 3.9.1, both latest)
+  # pin @vercel/cli-config 0.3.1, which pins zod 4.1.11. Workspace pins are
+  # already 4.6.7.
+  "zod@>=4.0.0 <4.6.6": "4.6.7"
+  # postcss-selector-parser GHSA-rj75-hqrm-r3gf patched in 6.1.5.
+  # @tailwindcss/typography 0.5.20 (latest) pins 6.0.10. 6.1.6 is the newest 6.x.
+  "postcss-selector-parser@>=6.0.0 <6.1.5": "6.1.6"
   # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-04 re-resolve without an
   # override still lands only esbuild@0.28.2 (patched; 0.28.2 is still latest).
   # 2026-11-05 re-resolve landed the same esbuild@0.28.2.
