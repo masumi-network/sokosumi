@@ -137,6 +137,7 @@ model Contact {
   newsletterSubscribers NewsletterSubscriber[]
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
+  tasks                 Task[]
 
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])

@@ -51,6 +51,8 @@ interface CreateTaskInput {
   /** Start at this future time: Core creates the Task Queued. */
   runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
+  /** The contact this Task is for. */
+  contactId?: string;
 }
 
 interface PatchTaskInput {

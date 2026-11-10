@@ -57,6 +57,7 @@ const {
   notifyWorkspaceApproversOfPendingGrantMock,
   projectFindFirstMock,
   projectUpdateManyMock,
+  contactFindFirstMock,
   prismaTransactionMock,
   requestWorkspaceGrantMock,
   resolveEffectiveDesignMdMock,
@@ -70,6 +71,7 @@ const {
   uploadProjectBriefingFileMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
+  contactFindFirstMock: vi.fn(),
   ensureProjectFilesTokenMock: vi.fn(),
   generateTaskNameMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -590,6 +592,7 @@ describe("POST /tasks", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
+          contact: { findFirst: contactFindFirstMock },
           project: {
             findFirst: projectFindFirstMock,
           },
@@ -778,6 +781,48 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("links a live contact in the workspace", async () => {
+    const contactId = "01960001-0001-7001-8001-000000000077";
+    contactFindFirstMock.mockResolvedValue({ id: contactId });
+
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Send the proposal", contactId }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(contactFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: contactId,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        archivedAt: null,
+      },
+      select: { id: true },
+    });
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ contactId }),
+      }),
+    );
+  });
+
+  it("rejects a contact outside the workspace or archived", async () => {
+    contactFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Send the proposal",
+        contactId: "01960001-0001-7001-8001-000000000077",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("queues a Task that starts at its Run at", async () => {

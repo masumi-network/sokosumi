@@ -30,6 +30,8 @@ interface NewTaskWizardProps {
   initialPrompt?: string | null;
   initialAssigneeId?: string | null;
   initialCopy?: NewTaskCopyPrefill | null;
+  /** The contact every Task made here is for. */
+  contactId?: string | null;
   onTaskCreated?: (taskId: string) => void;
   /** Runs when the modal closes (dismiss, load error, or success). */
   onClose?: () => void;
@@ -47,6 +49,7 @@ export function NewTaskWizard({
   initialPrompt = null,
   initialAssigneeId = null,
   initialCopy = null,
+  contactId = null,
   onTaskCreated,
   onClose,
 }: NewTaskWizardProps) {
@@ -57,6 +60,7 @@ export function NewTaskWizard({
       initialPrompt={initialPrompt}
       initialAssigneeId={initialAssigneeId}
       initialCopy={initialCopy}
+      contactId={contactId}
       onTaskCreated={onTaskCreated}
       onClose={onClose}
     >

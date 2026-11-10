@@ -10957,7 +10957,15 @@
         "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
         "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
         "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
-        "connectedVia": "Verbunden über"
+        "connectedVia": "Verbunden über",
+        "tasks": {
+          "title": "Tasks",
+          "empty": "Noch keine Tasks für {name}.",
+          "new": "Neuer Task",
+          "prompt": "Für {name}: ",
+          "showMore": "Mehr anzeigen",
+          "error": "Tasks konnten nicht geladen werden. Versuche es später noch einmal."
+        }
       },
       "stageGroups": {
         "general": "Allgemein",

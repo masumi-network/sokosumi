@@ -1039,6 +1039,10 @@ export async function mergeContacts(
     where: { contactId: { in: loserIdList } },
     data: { contactId: winnerId },
   });
+  await tx.task.updateMany({
+    where: { contactId: { in: loserIdList } },
+    data: { contactId: winnerId },
+  });
   await tx.contact.updateMany({
     where: { mergedIntoId: { in: loserIdList } },
     data: { mergedIntoId: winnerId },

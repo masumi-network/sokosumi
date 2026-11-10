@@ -1260,6 +1260,20 @@ describe("draft task tag actions", () => {
       }),
     );
   });
+
+  it("forwards the contact to Core", async () => {
+    taskServiceMock.createTask.mockReset().mockResolvedValue(buildTask());
+    const { createTask } = await import("./action");
+    await createTask({
+      description: "Send the deck",
+      assigneeId: null,
+      status: TaskStatus.DRAFT,
+      contactId: "contact-1",
+    });
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: "contact-1" }),
+    );
+  });
 });
 
 describe("setTaskPriority", () => {

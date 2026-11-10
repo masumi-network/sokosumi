@@ -127,6 +127,15 @@ const scheduleIdQuerySchema = z
     example: "01960001-0001-7001-8001-000000000042",
   });
 
+const contactIdQuerySchema = z
+  .uuid()
+  .optional()
+  .openapi({
+    param: { name: "contactId", in: "query" },
+    description: "Only the Tasks linked to this contact",
+    example: "01960001-0001-7001-8001-000000000077",
+  });
+
 const dueOnToQuerySchema = calendarDateSchema.optional().openapi({
   param: { name: "dueOnTo", in: "query" },
   description:
@@ -143,6 +152,7 @@ const query = z
     sort: taskSortQuerySchema,
     visibility: taskVisibilityQuerySchema,
     scheduleId: scheduleIdQuerySchema,
+    contactId: contactIdQuerySchema,
     dueOnTo: dueOnToQuerySchema,
     assigneeId: z
       .string()
@@ -217,6 +227,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
+      contactId,
       dueOnTo,
       projectId,
       q,
@@ -244,6 +255,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
     const scheduleFilter = scheduleId ? { scheduleId } : {};
+    const contactFilter = contactId ? { contactId } : {};
     const dueFilter = dueOnTo
       ? { dueOn: { lte: new Date(`${dueOnTo}T00:00:00.000Z`) } }
       : {};
@@ -296,6 +308,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
             ...scheduleFilter,
+            ...contactFilter,
             ...dueFilter,
             ...searchFilter,
           },
@@ -309,6 +322,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             AND: [listAccessFilter],
             ...projectFilter,
             ...scheduleFilter,
+            ...contactFilter,
             ...dueFilter,
             ...searchFilter,
           },
@@ -332,6 +346,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
           ...scheduleFilter,
+          ...contactFilter,
           ...dueFilter,
           ...searchFilter,
         },
@@ -352,6 +367,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
           ...scheduleFilter,
+          ...contactFilter,
           ...dueFilter,
           ...searchFilter,
         },

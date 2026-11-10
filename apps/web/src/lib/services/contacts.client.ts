@@ -16,6 +16,7 @@ import {
   getContactsMap,
   getContactsOrganizations,
   getOrganizationsByIdMembers,
+  getTasks,
   type PatchContactListsByIdData,
   type PatchContactsByIdData,
   type PatchContactsCompaniesByCompanyIdData,
@@ -161,6 +162,18 @@ export const contactsService = {
       query: { cursor, limit: 20 },
     });
     return { items: data.data, nextCursor: data.meta.pagination.nextCursor };
+  },
+  /** The Tasks linked to a contact that the reader may see, newest first. */
+  async tasks(id: string, cursor?: string) {
+    const { data } = await getTasks({
+      ...options(),
+      query: { contactId: id, scope: "workspace", cursor, limit: 10 },
+    });
+    return {
+      items: data.data,
+      nextCursor: data.meta.pagination.nextCursor,
+      total: data.meta.pagination.total,
+    };
   },
   async activity(id: string, cursor?: string) {
     const { data } = await getContactsByIdActivity({

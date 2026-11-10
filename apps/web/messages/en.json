@@ -10957,7 +10957,15 @@
         "enriched": "Filled {fields} from the web · 1 credit",
         "enrichedNone": "Nothing new found on the web. No credits used.",
         "enrichFailed": "Could not look them up. Try again.",
-        "connectedVia": "Connected via"
+        "connectedVia": "Connected via",
+        "tasks": {
+          "title": "Tasks",
+          "empty": "No Tasks for {name} yet.",
+          "new": "New task",
+          "prompt": "For {name}: ",
+          "showMore": "Show more",
+          "error": "Tasks could not be loaded. Try again later."
+        }
       },
       "stageGroups": {
         "general": "General",

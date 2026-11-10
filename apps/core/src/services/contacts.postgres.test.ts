@@ -113,6 +113,9 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
   });
 
   afterAll(async () => {
+    await prisma.task.deleteMany({
+      where: { workspaceId: { in: [workspaceId, otherWorkspaceId] } },
+    });
     await prisma.dataTable.deleteMany({
       where: { workspaceId: { in: [workspaceId, otherWorkspaceId] } },
     });
@@ -358,6 +361,15 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     });
     await log(asBob, loser.contact.id, "2025-01-05T09:00:00Z");
     await log(asAlice, winner.contact.id, "2026-02-05T09:00:00Z");
+    const task = await prisma.task.create({
+      data: {
+        name: "Send Maya the deck",
+        ownerId: bob,
+        organizationId,
+        workspaceId,
+        contactId: loser.contact.id,
+      },
+    });
     await inContactTransaction((tx) =>
       updateContactListMembers(tx, asAlice, list.id, {
         add: [winner.contact.id, loser.contact.id, second.contact.id],
@@ -399,6 +411,9 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       interactionCount: 1,
     });
     expect(tombstone.archivedAt).not.toBeNull();
+    await expect(
+      prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
+    ).resolves.toMatchObject({ contactId: winner.contact.id });
     await expect(
       inContactTransaction((tx) =>
         mergeContacts(tx, asAlice, winner.contact.id, [loser.contact.id]),

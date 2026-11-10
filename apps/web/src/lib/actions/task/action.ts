@@ -52,6 +52,8 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   /** ISO time to start the Task at; Core then creates it Queued. */
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
+  /** The contact this Task is for. */
+  contactId?: string;
 }
 
 export interface TaskContextSelectionInput {
@@ -391,6 +393,7 @@ async function createTaskFromDescription(input: {
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
+  contactId?: string;
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
@@ -425,6 +428,7 @@ async function createTaskFromDescription(input: {
       ? { runAt: new Date(input.runAt) }
       : { status: resolveCreateStatus(input.status) }),
     ...(input.visibility ? { visibility: input.visibility } : {}),
+    ...(input.contactId ? { contactId: input.contactId } : {}),
     ...(trimmedName ? { name: trimmedName } : {}),
   });
 }
@@ -559,6 +563,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     status,
     runAt,
     visibility,
+    contactId,
   }) => {
     try {
       const task = await createTaskFromDescription({
@@ -575,6 +580,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         status,
         runAt,
         visibility,
+        contactId,
       });
 
       revalidatePath("/tasks");

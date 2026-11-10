@@ -705,6 +705,30 @@ describe("TaskForm", () => {
     expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("name");
   });
 
+  it("links the Task to the contact it was started from", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "My task"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1", contactId: "contact-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Send the deck");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: "contact-1" }),
+    );
+  });
+
   describe("copy of a Task", () => {
     const bob = mockCoworkerOption({
       id: "user-2",

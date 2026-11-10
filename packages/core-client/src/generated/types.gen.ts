@@ -83450,6 +83450,10 @@ export type GetTasksData = {
          */
         scheduleId?: string;
         /**
+         * Only the Tasks linked to this contact
+         */
+        contactId?: string;
+        /**
          * Only Tasks due on or before this day (YYYY-MM-DD). Tasks without a due date are left out.
          */
         dueOnTo?: string;
@@ -83588,6 +83592,10 @@ export type PostTasksData = {
          * Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.
          */
         runAt?: Date | null;
+        /**
+         * A live contact in the active workspace that this Task is for. List them with `GET /v1/tasks?contactId=`.
+         */
+        contactId?: string | null;
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;

@@ -174,6 +174,8 @@ interface TaskFormInitialValues {
   visibility?: "PUBLIC" | "PRIVATE";
   /** Create only: this form makes a copy of that Task ("Duplicate"). */
   copyOfTaskId?: string;
+  /** Create only: the contact this Task is for. */
+  contactId?: string;
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
@@ -221,6 +223,7 @@ function getTaskFormStatusLabel(
 export interface TaskFormCreateInput {
   tagSuggestionReceipt?: string;
   copyOfTaskId?: string;
+  contactId?: string;
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -298,6 +301,7 @@ export function TaskForm({
   const copyOfTaskId =
     mode === "create" ? initialValues?.copyOfTaskId : undefined;
   const isCopy = copyOfTaskId !== undefined;
+  const contactId = mode === "create" ? initialValues?.contactId : undefined;
   const [name, setName] = useState(initialValues?.name ?? "");
   const [isPrivate, setIsPrivate] = useState(
     initialValues?.visibility === "PRIVATE",
@@ -758,6 +762,7 @@ export function TaskForm({
             ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
             : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
+          ...(contactId ? { contactId } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
           ...assigneeFields,
@@ -839,6 +844,7 @@ export function TaskForm({
   }, [
     draftTags.tagSuggestionReceipt,
     copyOfTaskId,
+    contactId,
     isCopy,
     description,
     isSaveDisabled,

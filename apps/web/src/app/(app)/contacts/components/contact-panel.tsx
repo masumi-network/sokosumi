@@ -74,6 +74,7 @@ import {
 import { contactsService } from "@/lib/services/contacts.client";
 import { cn } from "@/lib/utils";
 import { ChannelTypeSelect } from "./channel-type-select";
+import { ContactTasks } from "./contact-tasks";
 import {
   ChannelIcon,
   ContactAvatar,
@@ -742,6 +743,9 @@ function PanelBody({
         </div>
       </Section>
 
+      <Section title={t("panel.tasks.title")}>
+        <ContactTasks contact={contact} />
+      </Section>
       <TimelineSection contact={contact} />
       <ActivitySection contact={contact} />
     </div>
