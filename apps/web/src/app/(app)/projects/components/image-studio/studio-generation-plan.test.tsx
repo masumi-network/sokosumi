@@ -212,31 +212,24 @@ describe("an honest generation plan", () => {
 
   it("discloses each purchased frame after a template sets an unsupported ratio", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
-    const catalog: StudioCatalog = {
-      ...TEST_CATALOG,
-      models: TEST_CATALOG.models.map((model) =>
-        model.id === "model-a"
-          ? { ...model, aspectRatios: [...model.aspectRatios, "2:3"] }
-          : model,
-      ),
-    };
     render(
       <Harness
-        catalog={catalog}
+        catalog={TEST_CATALOG}
         initial={{ modelIds: ["model-a", "model-b"], settings: SETTINGS }}
         onGenerate={onGenerate}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    fireEvent.click(screen.getByRole("button", { name: "templates" }));
+    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
     expect(screen.getByText("mixedSettings")).toBeInTheDocument();
-    expect(screen.getAllByText("dimensions: 2:3 · 1K · png")).toHaveLength(2);
+    expect(screen.getAllByText("dimensions: 9:16 · 1K · png")).toHaveLength(2);
     expect(screen.getAllByText("dimensions: 1:1 · 1K · png")).toHaveLength(2);
     generate();
     expect(
       onGenerate.mock.calls[0][0].map(
         (request) => request.settings.aspectRatio,
       ),
-    ).toEqual(["2:3", "1:1"]);
+    ).toEqual(["9:16", "1:1"]);
   });
 
   it("shows and prices the same normalized settings it submits for each model", () => {
