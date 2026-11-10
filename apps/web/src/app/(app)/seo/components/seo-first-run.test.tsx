@@ -16,7 +16,11 @@ import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 import { SeoSetupCard } from "./seo-setup";
 import { seoSetup } from "./seo-setup-model";
-import { SEO_TEST_AUDIT, seoTestWorkspace } from "./seo-test-fixture";
+import {
+  SEO_TEST_AUDIT,
+  seoTestMetric,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -484,6 +488,51 @@ describe("SEO audit first run", () => {
     );
   });
 
+  it.each([
+    [true, copy.keywords.emptyBody, copy.competitors.emptyBody],
+    [false, copy.keywords.emptyBodyOff, copy.competitors.emptyBodyOff],
+  ])(
+    "names a check in the empty rankings only where a check can run: %s",
+    (can, keywords, competitors) => {
+      const workspace = seoTestWorkspace();
+      workspace.availableActions.canRequestAnalysis = can;
+      network(workspace);
+      renderWorkspace(workspace, "?tab=rankings");
+      expect(screen.getByText(keywords)).toBeVisible();
+      expect(screen.getByText(competitors)).toBeVisible();
+    },
+  );
+
+  it("leads with the search numbers and says once that checks are off", () => {
+    const workspace = seoTestWorkspace();
+    Object.assign(workspace.availableActions, {
+      canRequestAnalysis: false,
+      canCreateMonitor: false,
+      canUsePaidSearchData: false,
+    });
+    workspace.metrics = [
+      seoTestMetric(),
+      {
+        ...seoTestMetric(),
+        id: "sync:impressions",
+        key: "impressions",
+        value: 35,
+      },
+    ];
+    network(workspace);
+    renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
+    // No check can run: the headline is what is known, and the line under it does not repeat it.
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
+      /^Google search on this page: 2 clicks, 35 impressions$/,
+    );
+    expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
+      /^Jan 1\W+2, 2026\s*Open traffic$/,
+    );
+    // One notice above the tabs; no second line about schedules under the chat.
+    expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
+    expect(screen.queryByTestId("seo-automation")).toBeNull();
+  });
+
   it("offers the first check in a filtered view, which has no setup card", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
@@ -602,6 +651,43 @@ describe("SEO agent chat", () => {
       copy.chat.failed,
     );
     expect(screen.queryByText("Reading audit results")).toBeNull();
+  });
+
+  it("asks about competitors only where the audit has one", async () => {
+    const workspace = chatWorkspace();
+    const rival = {
+      id: "rival",
+      url: "https://rival.example/",
+      role: "competitor" as const,
+      confirmed: true,
+      source: "saved" as const,
+      rank: null,
+      backlinks: null,
+      referringDomains: null,
+      observedAt: null,
+      observationId: null,
+      version: 1,
+      canConfirm: true,
+      exclusionReason: null,
+    };
+    // The audited page's own row is in the same list; it is no competitor.
+    workspace.competitors = [{ ...rival, id: "own", role: "page" }];
+    network(workspace);
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByRole("button", { name: copy.agent.prompts.first }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: copy.agent.prompts.competitors }),
+    ).toBeNull();
+    cleanup();
+    workspace.competitors.push(rival);
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByRole("button", {
+        name: copy.agent.prompts.competitors,
+      }),
+    ).toBeVisible();
   });
 
   it("sends a suggested question from the page in the chat sheet", async () => {

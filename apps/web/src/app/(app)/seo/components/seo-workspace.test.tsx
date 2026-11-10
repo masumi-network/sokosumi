@@ -23,6 +23,7 @@ import {
   openStatisticsSetup,
   SEO_TEST_AUDIT,
   SEO_TEST_PROJECT,
+  seoTestMetric,
   seoTestWorkspace,
 } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
@@ -731,7 +732,26 @@ describe("SEO workspace integration", () => {
     const set = renderWorkspace(workspace, "?from=2026-01-01");
     expect(screen.getByLabelText("Activity from")).toBeVisible();
     set.unmount();
-    // Rankings change over time, so their tab offers the dates.
+    // An empty tab has nothing a date can narrow.
+    const empty = renderWorkspace(workspace, "?tab=rankings");
+    expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
+    empty.unmount();
+    // Rankings change over time, so their tab offers the dates once it has a row.
+    workspace.competitors.push({
+      id: "rival",
+      url: "https://rival.example/",
+      role: "competitor",
+      confirmed: true,
+      source: "saved",
+      rank: null,
+      backlinks: null,
+      referringDomains: null,
+      observedAt: null,
+      observationId: null,
+      version: 1,
+      canConfirm: true,
+      exclusionReason: null,
+    });
     renderWorkspace(workspace, "?tab=rankings");
     expect(
       screen.getByRole("button", { name: "Filter by date" }),
@@ -741,6 +761,7 @@ describe("SEO workspace integration", () => {
   it("folds empty date fields opened on another tab when the Agent tab opens", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
+    workspace.metrics = [seoTestMetric()];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -771,6 +792,7 @@ describe("SEO workspace integration", () => {
 
   it("puts the filters under the tabs so the tab row stays put", () => {
     const workspace = seoTestWorkspace();
+    workspace.metrics = [seoTestMetric()];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -801,6 +823,7 @@ describe("SEO workspace integration", () => {
   it("hides the page picker when the only page is the one selected", () => {
     const workspace = seoTestWorkspace();
     workspace.scopes = [];
+    workspace.metrics = [seoTestMetric()];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -1380,6 +1403,74 @@ describe("SEO workspace integration", () => {
     expect(within(device).getByText("5.3")).toBeVisible();
   });
 
+  it("says once that both splits cover the same impressions", () => {
+    const workspace = seoTestWorkspace();
+    const observedAt = new Date("2026-10-29T00:00:00Z");
+    const row = (key: string, impressions: number) => ({
+      key,
+      clicks: 0,
+      impressions,
+      ctr: 0,
+      averagePosition: 3,
+    });
+    workspace.metrics = [
+      {
+        ...seoTestMetric(),
+        id: "sync:impressions",
+        key: "impressions",
+        from: "2026-10-01",
+        to: "2026-10-28",
+        observedAt,
+        value: 34,
+      },
+    ];
+    const split = (impressions: number, key: string) => ({
+      rowLimit: 250,
+      truncated: false,
+      rows: [row(key, impressions)],
+    });
+    workspace.searchQueries = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      timeZone: "UTC",
+      observedAt,
+      rowLimit: 250,
+      truncated: false,
+      rows: [],
+      countries: split(1, "EG"),
+      devices: split(1, "desktop"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const same = renderWorkspace(workspace, "?tab=traffic");
+    expect(
+      screen.getByText(
+        "Google gives a country and a device for only 1 of your 34 impressions.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(/Google gives a country for only/)).toBeNull();
+    expect(screen.queryByText(/Google gives a device for only/)).toBeNull();
+    same.unmount();
+    // Different counts: each table says its own.
+    workspace.searchQueries.devices = split(5, "desktop");
+    renderWorkspace(workspace, "?tab=traffic");
+    expect(
+      screen.getByText(
+        "Google gives a country for only 1 of your 34 impressions.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Google gives a device for only 5 of your 34 impressions.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(/a country and a device/)).toBeNull();
+  });
+
   it("names each total's change against the equal window before the period", () => {
     const workspace = seoTestWorkspace();
     const base = {
@@ -1507,7 +1598,8 @@ describe("SEO workspace integration", () => {
       "Your page passes the last check, but Google rarely shows it yet",
     );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Google search on this page: 2 clicks, 35 impressions · Jan 1\W+2, 2026 · Open traffic$/,
+      // The link is its own item after the period, with no separator of its own.
+      /^Google search on this page: 2 clicks, 35 impressions · Jan 1\W+2, 2026\s*Open traffic$/,
     );
     unmount();
     // Without clicks the line would read as zero clicks; it stays away.
@@ -1844,9 +1936,6 @@ describe("SEO workspace integration", () => {
       } else {
         // Unset activity dates stay folded and unset.
         expect(screen.queryByLabelText(messages.App.Seo.dateFrom)).toBeNull();
-        expect(
-          screen.getByRole("button", { name: messages.App.Seo.filterDates }),
-        ).toBeInTheDocument();
       }
       expect(mutate).toHaveBeenCalledWith(
         expect.objectContaining({

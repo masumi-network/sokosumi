@@ -395,7 +395,12 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
         ) : (
           <SeoEmpty
             title={t("keywords.empty")}
-            description={t("keywords.emptyBody")}
+            // No call to run a check where no check can run.
+            description={t(
+              model.data.availableActions.canRequestAnalysis
+                ? "keywords.emptyBody"
+                : "keywords.emptyBodyOff",
+            )}
           />
         )}
       </SeoSection>

@@ -37,14 +37,31 @@ export function SeoBreakdown({ model }: { model: SeoWorkspaceModel }) {
         ? (regions.of(key) ?? key)
         : key;
   // Google can leave impressions out of a split; say how many rows cover.
+  const hidden = (dimension: "country" | "device") => {
+    const split = dimension === "country" ? countries : devices;
+    const count = split?.rows.length
+      ? hiddenImpressions(model.data, (queries) =>
+          dimension === "country" ? queries.countries : queries.devices,
+        )
+      : null;
+    return count?.hidden ? count : null;
+  };
+  const byCountry = hidden("country");
+  const byDevice = hidden("device");
+  // Both splits cover the same impressions: one note says so, not one per table.
+  const shared =
+    byCountry &&
+    byDevice &&
+    byCountry.listed === byDevice.listed &&
+    byCountry.total === byDevice.total
+      ? byCountry
+      : null;
   const unlisted = (dimension: "country" | "device") => {
-    const hidden = hiddenImpressions(model.data, (queries) =>
-      dimension === "country" ? queries.countries : queries.devices,
-    );
-    return hidden?.hidden
+    const count = dimension === "country" ? byCountry : byDevice;
+    return count && !shared
       ? t(`breakdown.unlisted.${dimension}`, {
-          listed: hidden.listed,
-          total: hidden.total,
+          listed: count.listed,
+          total: count.total,
         })
       : null;
   };
@@ -85,6 +102,14 @@ export function SeoBreakdown({ model }: { model: SeoWorkspaceModel }) {
           ) : null}
         </div>
       </div>
+      {shared ? (
+        <p className="text-muted-foreground px-3 text-xs">
+          {t("breakdown.unlisted.both", {
+            listed: shared.listed,
+            total: shared.total,
+          })}
+        </p>
+      ) : null}
     </SeoSection>
   );
 }

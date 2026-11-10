@@ -17,7 +17,9 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
   const canCreate = availableActions.canCreateMonitor === true;
   if (!monitors.length && !canCreate && !availableActions.canEdit) return null;
   // Nothing to act on: one quiet line, not a card.
-  if (!monitors.length && !canCreate)
+  if (!monitors.length && !canCreate) {
+    // With all checks off, the notice above the tabs already says so.
+    if (!availableActions.canRequestAnalysis) return null;
     return (
       <p
         className="text-muted-foreground flex items-center gap-2 px-2 text-xs"
@@ -27,6 +29,7 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
         {t("monitor.offUnavailable")}
       </p>
     );
+  }
   return (
     <div
       className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4")}

@@ -153,7 +153,12 @@ function StepRow({
           ]
         : step.kind === "pages"
           ? [
-              t("agent.steps.pages"),
+              // No promise of issues where no check can find them.
+              t(
+                canRequestAnalysis
+                  ? "agent.steps.pages"
+                  : "agent.steps.pagesOff",
+              ),
               <Button
                 key="pages"
                 size="sm"
@@ -216,7 +221,10 @@ function StepRow({
                   t(
                     step.available
                       ? "agent.steps.competitors.available"
-                      : "agent.steps.competitors.unavailable",
+                      : // With all checks off, the notice above the tabs gives the reason.
+                        canRequestAnalysis
+                        ? "agent.steps.competitors.unavailable"
+                        : "agent.steps.competitors.unavailableOff",
                   ),
                   canEdit && (canRequestAnalysis || !step.available) ? (
                     <Button
@@ -337,6 +345,23 @@ function SeoAgentPanel({
             ? canEdit && (canRequestAnalysis || !step.available)
             : step.kind !== "action",
       );
+  const periodId = useId();
+  const trafficLine = traffic
+    ? t("agent.traffic", {
+        impressions: traffic.impressions,
+        clicks: traffic.clicks,
+        // Every Search Console read is filtered to the Audit's pages.
+        pages: model.data.scope.pageIds.length,
+      })
+    : null;
+  // The search numbers are the headline where nothing else can be: no result, and no check to run.
+  const trafficLead =
+    Boolean(trafficLine) &&
+    !canRequestAnalysis &&
+    !brief.lastCheck &&
+    !brief.issues &&
+    !brief.fixes &&
+    !brief.opportunities;
   // No check has saved a result in this view, and the reader can run one.
   const firstCheck =
     !brief.lastCheck &&
@@ -381,6 +406,8 @@ function SeoAgentPanel({
             tabIndex={-1}
             className="focus-visible:outline-ring rounded-sm text-lg font-semibold focus-visible:outline-2"
             data-testid="seo-agent-verdict"
+            // The search numbers alone name no period; the line under them does.
+            aria-describedby={trafficLead ? periodId : undefined}
           >
             {brief.issues
               ? t("agent.verdict.issues", { count: brief.issues })
@@ -396,12 +423,12 @@ function SeoAgentPanel({
                       : t("agent.verdict.clear")
                     : brief.lastCheck
                       ? t("actions.checksIncomplete")
-                      : t(
-                          // No call to run a check where no check can run.
-                          canRequestAnalysis
-                            ? "agent.verdict.noCheck"
-                            : "agent.verdict.noCheckOff",
-                        )}
+                      : // No call to run a check where no check can run: lead with what is known.
+                        canRequestAnalysis
+                        ? t("agent.verdict.noCheck")
+                        : trafficLead
+                          ? trafficLine
+                          : t("agent.verdict.noCheckOff")}
           </p>
           {brief.lastCheck ? (
             <p className="text-muted-foreground text-sm">
@@ -417,15 +444,18 @@ function SeoAgentPanel({
             </p>
           ) : null}
           {traffic ? (
-            <p className="text-sm" data-testid="seo-agent-traffic">
-              {t("agent.traffic", {
-                impressions: traffic.impressions,
-                clicks: traffic.clicks,
-                // Every Search Console read is filtered to the Audit's pages.
-                pages: model.data.scope.pageIds.length,
-              })}{" "}
-              · <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
-              {" · "}
+            // The link is its own item: when it wraps, no separator leads its line.
+            <p
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
+              data-testid="seo-agent-traffic"
+            >
+              <span
+                id={periodId}
+                className={cn(trafficLead && "text-muted-foreground")}
+              >
+                {trafficLead ? null : `${trafficLine} · `}
+                <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
+              </span>
               <button
                 type="button"
                 className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"

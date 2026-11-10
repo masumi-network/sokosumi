@@ -10880,7 +10880,7 @@
       "conflict": "Los datos han cambiado. Actualiza los resultados antes de volver a intentarlo.",
       "saved": "Cambios guardados",
       "readOnly": "Puedes consultar esta auditoría. No tienes permiso para editarla.",
-      "dispatchPaused": "Las nuevas comprobaciones y la supervisión no están disponibles aquí. Puedes seguir usando estadísticas conectadas.",
+      "dispatchPaused": "Las comprobaciones nuevas, los datos de búsqueda de pago y las comprobaciones programadas están desactivados en este espacio de trabajo. Las estadísticas de Google siguen funcionando.",
       "empty": "Todavía no hay comprobaciones",
       "emptyBody": "Ejecuta una comprobación para consultar sus resultados, palabras clave y competidores.",
       "none": "No disponible",
@@ -11010,6 +11010,7 @@
         "edit": "Editar palabra clave",
         "empty": "Todavía no hay palabras clave seguidas",
         "emptyBody": "Sigue una búsqueda en la pestaña Tráfico o ejecuta una comprobación para encontrar palabras clave.",
+        "emptyBodyOff": "Sigue una búsqueda en la pestaña Tráfico para verla aquí.",
         "add": "Seguir una palabra clave",
         "keyword": "Palabra clave",
         "market": "Mercado",
@@ -11045,6 +11046,7 @@
         "title": "Competidores",
         "empty": "Todavía no hay competidores",
         "emptyBody": "Ejecuta una comprobación para ver sugerencias o añade un competidor a tu lista.",
+        "emptyBodyOff": "Añade un competidor a tu lista.",
         "add": "Añadir un competidor",
         "suggested": "Página competidora sugerida",
         "confirm": "Confirmar competidor",
@@ -11063,6 +11065,7 @@
         "title": "Acciones",
         "empty": "No hay acciones recomendadas",
         "emptyBody": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Ejecuta una comprobación o pregunta al agente SEO qué hacer a continuación.",
+        "emptyBodyOff": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Pregunta al agente SEO qué hacer a continuación.",
         "createTask": "Crear borrador de tarea",
         "why": "Por qué es importante",
         "effect": "Efecto esperado",
@@ -11446,10 +11449,12 @@
           },
           "competitors": {
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
-            "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
+            "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas.",
+            "unavailableOff": "Aún no hay competidores. Añade los competidores que conozcas."
           },
           "keyword": "Search Console aún no muestra búsquedas de «{keyword}» para {pages, plural, one {tu página} other {tus páginas}}. El agente puede preparar un plan para que aparezcas en esa búsqueda.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas.",
+          "pagesOff": "Esta auditoría cubre 1 página. Añade tus otras páginas importantes para ver también sus búsquedas.",
           "measure": "Sugerencia: {name} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes.",
           "measureOnPage": "Sugerencia: {name} en {url} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes."
         },
@@ -11498,7 +11503,8 @@
         "truncated": "Solo se leyeron las primeras {count} filas por clics. Puede haber más.",
         "unlisted": {
           "country": "Google indica el país solo para {listed, number} de tus {total, number} impresiones.",
-          "device": "Google indica el dispositivo solo para {listed, number} de tus {total, number} impresiones."
+          "device": "Google indica el dispositivo solo para {listed, number} de tus {total, number} impresiones.",
+          "both": "Google indica el país y el dispositivo solo para {listed, number} de tus {total, number} impresiones."
         }
       },
       "index": {

@@ -161,27 +161,32 @@ export function SeoWorkspace({
   return (
     // Phone buttons and fields are at least 40 px tall; the tab row keeps its 36 px bar.
     <div className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0 space-y-1">
+      {/* On a phone the actions sit on the title row and the URL has its own row, so the header is as tall on every tab. */}
+      <div className="flex flex-wrap items-end justify-between gap-3 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-y-1">
+        <div className="min-w-0 space-y-1 max-sm:contents max-sm:space-y-0">
           <Link
             href={seoIndexHref(model.data.projectId ?? null)}
-            className="text-muted-foreground text-sm underline underline-offset-4"
+            className="text-muted-foreground text-sm underline underline-offset-4 max-sm:col-span-2 max-sm:justify-self-start"
           >
             {t("audits.all")}
           </Link>
           {model.data.auditName ? (
-            <h2 className="text-xl font-semibold">{model.data.auditName}</h2>
+            <h2 className="min-w-0 text-xl font-semibold break-words max-sm:col-start-1">
+              {model.data.auditName}
+            </h2>
           ) : null}
           {/* One page in view: its URL says more than a count. */}
-          {scopePage ? (
-            <SeoPageLink url={scopePage.url} />
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              {t("pages.count", { count: model.data.scope.pageIds.length })}
-            </p>
-          )}
+          <div className="min-w-0 max-sm:col-span-2 max-sm:row-start-3">
+            {scopePage ? (
+              <SeoPageLink url={scopePage.url} />
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {t("pages.count", { count: model.data.scope.pageIds.length })}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 max-sm:col-start-2 max-sm:row-start-2 max-sm:flex-nowrap">
           {model.data.auditId && model.filters.tab !== "agent" ? (
             <Button
               variant="outline"

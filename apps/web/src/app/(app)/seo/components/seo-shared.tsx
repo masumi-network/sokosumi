@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { ArrowUpRight, SearchCheck } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Fragment, type ReactNode } from "react";
@@ -101,6 +101,13 @@ export function SeoSection({
   );
 }
 
+/** The Audit's own page has a row in the same list; only the other rows are competitors. */
+export function seoHasCompetitor(data: {
+  competitors: readonly { role: string }[];
+}) {
+  return data.competitors.some((row) => row.role === "competitor");
+}
+
 export function SeoEmpty({
   title,
   body,
@@ -113,9 +120,10 @@ export function SeoEmpty({
   children?: ReactNode;
 }) {
   return (
-    <div className={cn(HOLDER_ITEM_CLASS, "px-4 py-8")}>
+    // A section in a tab, not a whole page: no icon, and no taller than its two lines need.
+    <div className={cn(HOLDER_ITEM_CLASS, "px-4")}>
       <EmptyState
-        icon={SearchCheck}
+        className="py-6"
         title={title}
         description={body ?? description ?? ""}
         action={children}

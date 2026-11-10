@@ -16,11 +16,17 @@ import {
 import { SeoSelect } from "./seo-form-fields";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-const DATED_TABS = new Set<SeoWorkspaceModel["filters"]["tab"]>([
-  "traffic",
-  "rankings",
-  "health",
-]);
+/** The tabs that dates narrow, and what each one needs before a date has anything to narrow. */
+const DATED_TABS: Partial<
+  Record<
+    SeoWorkspaceModel["filters"]["tab"],
+    (data: SeoWorkspaceModel["data"]) => boolean
+  >
+> = {
+  traffic: (data) => data.metrics.length > 0,
+  rankings: (data) => data.keywords.length > 0 || data.competitors.length > 0,
+  health: (data) => data.timeline.length > 0,
+};
 
 /**
  * Which filters offer a real choice. With one page, that page is the same as all pages,
@@ -44,7 +50,10 @@ export function seoScopeControls({
       Boolean(filters.channel) ||
       data.metrics.some((metric) => metric.source === "ga4"),
     // Dates narrow measured traffic, rankings and checks; the agent's brief and its approvals stay current.
-    dates: DATED_TABS.has(filters.tab) || Boolean(filters.from || filters.to),
+    // A chosen date always shows, so it can be cleared.
+    dates:
+      DATED_TABS[filters.tab]?.(data) === true ||
+      Boolean(filters.from || filters.to),
   };
 }
 

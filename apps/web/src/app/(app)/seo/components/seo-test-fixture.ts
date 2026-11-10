@@ -15,6 +15,27 @@ export const SEO_TEST_PROJECT = "39d1c2a6-aade-4322-aed5-3f139a34b127";
 export const SEO_TEST_AUDIT = "687d2470-7c63-4779-b10c-462d24ac1e1b";
 export const SEO_TEST_PAGE = "2c32dca9-c44f-4372-9114-8c146d5eb30b";
 export const SEO_TEST_SCOPE = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
+/** One synced Search Console total: with it, the Traffic tab has rows a date can narrow. */
+export function seoTestMetric(): ProjectSeoWorkspace["metrics"][number] {
+  return {
+    id: "sync:clicks",
+    key: "clicks",
+    label: "",
+    unit: "count",
+    source: "search_console",
+    propertyId: "sc-domain:example.com",
+    channel: "organic",
+    from: "2026-01-01",
+    to: "2026-01-02",
+    timeZone: "UTC",
+    observedAt: new Date("2026-01-03T00:00:00Z"),
+    coverage: "complete",
+    notes: [],
+    value: 2,
+    points: [{ date: "2026-01-02", value: 2 }],
+  };
+}
+
 export function seoTestWorkspace(): ProjectSeoWorkspace {
   return {
     projectId: SEO_TEST_PROJECT,

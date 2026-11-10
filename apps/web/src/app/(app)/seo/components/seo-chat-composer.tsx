@@ -21,9 +21,12 @@ const IME_KEY_CODE = 229;
 export function SeoPromptChips({
   busy = false,
   compact = false,
+  competitors = true,
   onPick,
 }: {
   busy?: boolean;
+  /** False where the Audit has no competitor: the question about them has no answer. */
+  competitors?: boolean;
   /** Below md, show only the first question, so the page under the chips stays in reach. */
   compact?: boolean;
   onPick: (question: string) => void;
@@ -31,7 +34,9 @@ export function SeoPromptChips({
   const t = useTranslations("App.Seo");
   return (
     <div className="flex flex-wrap gap-2">
-      {SEO_AGENT_PROMPTS.map((prompt, index) => (
+      {SEO_AGENT_PROMPTS.filter(
+        (prompt) => competitors || prompt !== "competitors",
+      ).map((prompt, index) => (
         <button
           key={prompt}
           type="button"

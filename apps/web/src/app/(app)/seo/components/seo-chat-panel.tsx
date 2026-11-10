@@ -26,6 +26,7 @@ import {
   SeoChatTurn,
   SeoChatWorking,
 } from "./seo-chat-turn";
+import { seoHasCompetitor } from "./seo-shared";
 import { useSeoChat } from "./use-seo-chat";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -59,7 +60,15 @@ export function SeoChatHeading({
 }
 
 /** A first visit: a greeting and questions the reader can send with one click. */
-function ChatWelcome({ chat, inputId }: { chat: Chat; inputId: string }) {
+function ChatWelcome({
+  chat,
+  inputId,
+  competitors,
+}: {
+  chat: Chat;
+  inputId: string;
+  competitors: boolean;
+}) {
   const t = useTranslations("App.Seo");
   return (
     <div className="content-rise flex flex-col items-center gap-4 py-4 text-center">
@@ -69,7 +78,9 @@ function ChatWelcome({ chat, inputId }: { chat: Chat; inputId: string }) {
         <p className="text-muted-foreground text-sm">{t("chat.emptyBody")}</p>
       </div>
       <div className="flex w-full flex-col gap-2">
-        {SEO_AGENT_PROMPTS.map((prompt) => (
+        {SEO_AGENT_PROMPTS.filter(
+          (prompt) => competitors || prompt !== "competitors",
+        ).map((prompt) => (
           <Button
             key={prompt}
             type="button"
@@ -177,7 +188,11 @@ function SeoChatThread({
             </Button>
           </div>
         ) : welcome ? (
-          <ChatWelcome chat={chat} inputId={inputId} />
+          <ChatWelcome
+            chat={chat}
+            inputId={inputId}
+            competitors={seoHasCompetitor(model.data)}
+          />
         ) : null}
         {chat.turns.map((turn) => (
           <SeoChatTurn
@@ -204,6 +219,7 @@ function SeoChatThread({
         {welcome ? null : (
           <SeoPromptChips
             busy={chat.busy}
+            competitors={seoHasCompetitor(model.data)}
             onPick={(question) => {
               void chat.send(question);
             }}

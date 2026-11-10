@@ -288,12 +288,12 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   )}
                   onClick={() => setMetric(metric.id)}
                 >
-                  <span className="text-muted-foreground flex items-center gap-2 text-xs font-normal">
+                  <span className="text-muted-foreground flex items-center gap-2 text-xs font-normal max-sm:min-h-[2lh] max-sm:items-start">
                     {/* Every tile carries the line marker, so each one reads as a chart choice. */}
                     <span
                       aria-hidden
                       className={cn(
-                        "h-0.5 w-3 shrink-0 rounded-full",
+                        "h-0.5 w-3 shrink-0 rounded-full max-sm:mt-[7px]",
                         active.id === metric.id
                           ? "bg-foreground"
                           : "bg-chart-5",

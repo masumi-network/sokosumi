@@ -195,7 +195,9 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               : overview.emptyState === "issues"
                 ? "actions.unplannedIssuesBody"
                 : overview.emptyState !== "no_fixes"
-                  ? "actions.emptyBody"
+                  ? model.data.availableActions.canRequestAnalysis
+                    ? "actions.emptyBody"
+                    : "actions.emptyBodyOff"
                   : searchLoaded
                     ? "actions.noOpportunitiesBody"
                     : "actions.noFixesBody",

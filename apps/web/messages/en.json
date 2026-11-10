@@ -10880,7 +10880,7 @@
       "conflict": "The data changed. Refresh results before trying again.",
       "saved": "Changes saved",
       "readOnly": "You can view this audit. You do not have permission to edit it.",
-      "dispatchPaused": "New checks and monitoring are unavailable here. You can still use connected statistics.",
+      "dispatchPaused": "New checks, paid search data and scheduled checks are off in this workspace. Statistics from Google still work.",
       "empty": "No checks yet",
       "emptyBody": "Run a check to see its findings, keywords and competitors.",
       "none": "Not available",
@@ -11010,6 +11010,7 @@
         "edit": "Edit keyword",
         "empty": "No tracked keywords yet",
         "emptyBody": "Track a search in the Traffic tab, or run a check to find keywords.",
+        "emptyBodyOff": "Track a search in the Traffic tab to list it here.",
         "add": "Track a keyword",
         "keyword": "Keyword",
         "market": "Market",
@@ -11045,6 +11046,7 @@
         "title": "Competitors",
         "empty": "No competitors yet",
         "emptyBody": "Run a check for suggested search competitors, or add a competitor to your list.",
+        "emptyBodyOff": "Add a competitor to your list.",
         "add": "Add a competitor",
         "suggested": "Suggested competing page",
         "confirm": "Confirm competitor",
@@ -11063,6 +11065,7 @@
         "title": "Actions",
         "empty": "No recommended actions",
         "emptyBody": "Actions come from issues a check finds and from your Search Console searches. Run a check, or ask the SEO agent what to do next.",
+        "emptyBodyOff": "Actions come from issues a check finds and from your Search Console searches. Ask the SEO agent what to do next.",
         "createTask": "Create draft task",
         "why": "Why this matters",
         "effect": "Expected effect",
@@ -11446,10 +11449,12 @@
           },
           "competitors": {
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
-            "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
+            "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know.",
+            "unavailableOff": "No competitor yet. Add the competitors you know."
           },
           "keyword": "Search Console lists no searches for “{keyword}” on {pages, plural, one {your page} other {your pages}} yet. The agent can draft a plan to rank for it.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches.",
+          "pagesOff": "This audit covers 1 page. Add your other important pages to see their searches too.",
           "measure": "Suggestion: {name} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve.",
           "measureOnPage": "Suggestion: {name} on {url} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve."
         },
@@ -11498,7 +11503,8 @@
         "truncated": "Only the first {count} rows by clicks were read. More can exist.",
         "unlisted": {
           "country": "Google gives a country for only {listed, number} of your {total, number} impressions.",
-          "device": "Google gives a device for only {listed, number} of your {total, number} impressions."
+          "device": "Google gives a device for only {listed, number} of your {total, number} impressions.",
+          "both": "Google gives a country and a device for only {listed, number} of your {total, number} impressions."
         }
       },
       "index": {

@@ -10880,7 +10880,7 @@
       "conflict": "Die Daten wurden geändert. Aktualisiere die Ergebnisse vor einem neuen Versuch.",
       "saved": "Änderungen gespeichert",
       "readOnly": "Du kannst dieses Audit ansehen. Du hast keine Berechtigung, es zu bearbeiten.",
-      "dispatchPaused": "Neue Prüfungen und Monitoring sind hier nicht verfügbar. Du kannst weiterhin verbundene Statistiken nutzen.",
+      "dispatchPaused": "Neue Prüfungen, kostenpflichtige Suchdaten und geplante Prüfungen sind in diesem Workspace aus. Statistiken von Google funktionieren weiter.",
       "empty": "Noch keine Prüfungen",
       "emptyBody": "Starte eine Prüfung, um Ergebnisse, Keywords und Mitbewerber zu sehen.",
       "none": "Nicht verfügbar",
@@ -11010,6 +11010,7 @@
         "edit": "Keyword bearbeiten",
         "empty": "Noch keine verfolgten Keywords",
         "emptyBody": "Verfolge eine Suchanfrage im Tab „Zugriffe“ oder starte eine Prüfung, um Keywords zu finden.",
+        "emptyBodyOff": "Verfolge eine Suchanfrage im Tab „Zugriffe“, dann steht sie hier.",
         "add": "Keyword verfolgen",
         "keyword": "Keyword",
         "market": "Markt",
@@ -11045,6 +11046,7 @@
         "title": "Mitbewerber",
         "empty": "Noch keine Wettbewerber",
         "emptyBody": "Starte eine Prüfung für Vorschläge oder füge einen Mitbewerber hinzu.",
+        "emptyBodyOff": "Füge einen Mitbewerber zu deiner Liste hinzu.",
         "add": "Mitbewerber hinzufügen",
         "suggested": "Vorgeschlagene konkurrierende Seite",
         "confirm": "Mitbewerber bestätigen",
@@ -11063,6 +11065,7 @@
         "title": "Aktionen",
         "empty": "Keine empfohlenen Aktionen",
         "emptyBody": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Starte eine Prüfung oder frag den SEO-Agenten, was als Nächstes zu tun ist.",
+        "emptyBodyOff": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes zu tun ist.",
         "createTask": "Entwurfsaufgabe erstellen",
         "why": "Warum das wichtig ist",
         "effect": "Erwartete Wirkung",
@@ -11446,10 +11449,12 @@
           },
           "competitors": {
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
-            "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
+            "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu.",
+            "unavailableOff": "Noch kein Wettbewerber. Füge die Wettbewerber hinzu, die du kennst."
           },
           "keyword": "Search Console listet noch keine Suchen nach „{keyword}“ für {pages, plural, one {deine Seite} other {deine Seiten}}. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden.",
+          "pagesOff": "Dieses Audit umfasst 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um auch ihre Suchanfragen zu sehen.",
           "measure": "Vorschlag: {name} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst.",
           "measureOnPage": "Vorschlag: {name} auf {url} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst."
         },
@@ -11498,7 +11503,8 @@
         "truncated": "Nur die ersten {count} Zeilen nach Klicks wurden gelesen. Es kann mehr geben.",
         "unlisted": {
           "country": "Google nennt ein Land nur für {listed, number} von {total, number} Impressionen.",
-          "device": "Google nennt ein Gerät nur für {listed, number} von {total, number} Impressionen."
+          "device": "Google nennt ein Gerät nur für {listed, number} von {total, number} Impressionen.",
+          "both": "Google nennt Land und Gerät nur für {listed, number} von {total, number} Impressionen."
         }
       },
       "index": {

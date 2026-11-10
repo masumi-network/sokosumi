@@ -8,6 +8,7 @@ import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoChatComposer, SeoPromptChips } from "./seo-chat-composer";
 import { SeoChatHeading } from "./seo-chat-panel";
+import { seoHasCompetitor } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const SEO_ASK_INPUT_ID = "seo-ask-question";
@@ -47,7 +48,11 @@ export function SeoAskBar({ model }: { model: SeoWorkspaceModel }) {
           model.askAgent(text);
         }}
       />
-      <SeoPromptChips compact onPick={model.askAgent} />
+      <SeoPromptChips
+        compact
+        competitors={seoHasCompetitor(model.data)}
+        onPick={model.askAgent}
+      />
     </div>
   );
 }

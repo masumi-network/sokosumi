@@ -245,7 +245,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       ) : (
         <SeoEmpty
           title={t("competitors.empty")}
-          description={t("competitors.emptyBody")}
+          description={t(
+            model.data.availableActions.canRequestAnalysis
+              ? "competitors.emptyBody"
+              : "competitors.emptyBodyOff",
+          )}
         />
       )}
     </SeoSection>
