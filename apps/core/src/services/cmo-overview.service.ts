@@ -20,7 +20,7 @@ import {
   type Cuso,
   type CusoTarget,
   cmoPayer,
-  findCuso,
+  findCusoForProject,
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
@@ -203,7 +203,7 @@ export async function getCmoOverview(
   now: Date = new Date(),
 ): Promise<CmoOverview | null> {
   const { userId } = target;
-  const cuso = await findCuso(target);
+  const cuso = await findCusoForProject(target);
   if (!cuso) return null;
   const payer = await cmoPayer(cuso);
   const [organization, project, bot, channels] = await Promise.all([

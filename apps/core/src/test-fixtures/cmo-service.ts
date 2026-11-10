@@ -355,8 +355,12 @@ export function resetCmoServiceMocks(): void {
   // member asking owns it unless a test says otherwise.
   workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });
   memberFindUnique.mockResolvedValue({ role: "owner" });
-  // A Project with no logo, DESIGN.md, site platform or Brand research files.
+  // A Project with no logo, DESIGN.md, site platform or Brand research files,
+  // in the business's organization (the access check a named Project passes).
   projectFindUnique.mockResolvedValue({
+    id: "project-1",
+    workspaceId: "ws-1",
+    workspace: { userId: null, organizationId: "org-1" },
     logo: null,
     designMdUrl: null,
     sitePlatform: null,
