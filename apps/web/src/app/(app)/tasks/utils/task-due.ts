@@ -1,7 +1,10 @@
 import type { TaskStatus } from "@/lib/types/core-dto";
 
 /** Work that ended on purpose; a due date no longer presses on it. */
-const FINISHED_STATUSES: readonly TaskStatus[] = ["COMPLETED", "CANCELED"];
+export const FINISHED_STATUSES: readonly TaskStatus[] = [
+  "COMPLETED",
+  "CANCELED",
+];
 
 /** The calendar day `now` falls on in `timeZone`, as `YYYY-MM-DD`. */
 export function dayInTimeZone(now: Date, timeZone?: string): string {

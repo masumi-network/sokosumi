@@ -204,6 +204,8 @@ export interface StudioTarget {
 export interface StudioLabels {
   emptyTitle: string;
   emptyBody: string;
+  pauseTemplateMotion: string;
+  resumeTemplateMotion: string;
   promptPlaceholder: string;
   generate: string;
   refine: string;

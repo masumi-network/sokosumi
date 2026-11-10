@@ -253,6 +253,7 @@ import {
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
   getChatsInvitationsById as coreGetChatsInvitationsById,
+  getChatsRecent as coreGetChatsRecent,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
@@ -1906,6 +1907,14 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch unread thread count",
+    );
+  }
+
+  async function getChatRecentSokoBotMessages() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetChatsRecent({ client, cache: "no-store" }),
+      "Failed to fetch recent Soko Bot chats",
     );
   }
 
@@ -6870,6 +6879,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreadMessages,
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
+    getChatRecentSokoBotMessages,
     getChatUnreadThreads,
     getChatEarlierThreads,
     getChatRooms,

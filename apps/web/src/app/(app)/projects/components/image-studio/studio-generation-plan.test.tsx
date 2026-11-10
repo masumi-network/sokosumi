@@ -526,6 +526,7 @@ describe("an honest generation plan", () => {
         onGenerate={onGenerate}
       />,
     );
+    fireEvent.click(screen.getByRole("button", { name: "templates" }));
     fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
     expect(screen.getByText("mixedSettings")).toBeInTheDocument();
     expect(screen.getAllByText("dimensions: 9:16 · 1K · png")).toHaveLength(2);

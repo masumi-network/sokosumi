@@ -122,7 +122,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -563,6 +562,9 @@ function DrivePageWorkspace({
      * the store and appear nowhere until they searched for something.
      */
     setCatalogReloadToken((token) => token + 1);
+    // Core moves a room's path with a rename or move of it or of a folder
+    // above it; stale paths would mark the wrong folder as a data room.
+    await queryClient.invalidateQueries({ queryKey: ["drive", "data-rooms"] });
   }
 
   const loadTasksItems = useCallback(async () => {
@@ -1480,7 +1482,7 @@ function DrivePageWorkspace({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleFabOpen() {
+  function openFilePicker() {
     fileInputRef.current?.click();
   }
 
@@ -1753,21 +1755,20 @@ function DrivePageWorkspace({
                   <FolderPlus className="size-4" aria-hidden />
                   {t("createFolder")}
                 </Button>
-                <Label htmlFor="file-upload" className="cursor-pointer">
-                  <Button
-                    disabled={uploading}
-                    size="sm"
-                    className="gap-1.5"
-                    asChild
-                  >
-                    <span>
-                      <Upload className="size-4" aria-hidden />
-                      {uploading
-                        ? t("uploadingProgress", { progress: uploadProgress })
-                        : t("uploadButton")}
-                    </span>
-                  </Button>
-                </Label>
+                {/* A real button: a label over a hidden input never gets
+                    keyboard focus, so Tab skipped Upload. */}
+                <Button
+                  type="button"
+                  disabled={uploading}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={openFilePicker}
+                >
+                  <Upload className="size-4" aria-hidden />
+                  {uploading
+                    ? t("uploadingProgress", { progress: uploadProgress })
+                    : t("uploadButton")}
+                </Button>
                 <Input
                   id="file-upload"
                   ref={fileInputRef}
@@ -2287,6 +2288,7 @@ function DrivePageWorkspace({
             label: t("tasksFolder"),
             onOpen: navigateToTasksRoot,
           }}
+          dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
           reloadToken={catalogReloadToken}
           onShareFile={setShareItem}
           onMoveFiles={openMoveFilesDialog}
@@ -2313,7 +2315,7 @@ function DrivePageWorkspace({
       {!isTasksView && isWorkspaceView && (
         <ListMobileCreateFab
           ariaLabel={t("uploadFab")}
-          onOpen={handleFabOpen}
+          onOpen={openFilePicker}
           icon={Upload}
           progress={uploading ? uploadProgress : undefined}
         />
