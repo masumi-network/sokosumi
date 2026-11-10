@@ -11,6 +11,7 @@ const external = vi.hoisted(() => ({
   get: vi.fn(),
   submit: vi.fn(),
   download: vi.fn(),
+  uploadReference: vi.fn(),
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -21,6 +22,7 @@ vi.mock("@/config/env", async (importOriginal) => {
       ...actual.getEnv(),
       BLOB_READ_WRITE_TOKEN: "campaign-public-fixture",
       IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "campaign-private-fixture",
+      IMAGE_STUDIO_AGENT_SECRET: "campaign-fixture-agent-secret".repeat(2),
       AI_GATEWAY_API_KEY: undefined,
     }),
     getBetterAuthPublicBaseUrl: () => null,
@@ -39,15 +41,21 @@ vi.mock("@/lib/image-studio/fal-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/image-studio/fal-client")>()),
   submitToQueue: external.submit,
   downloadMedia: external.download,
+  uploadReference: external.uploadReference,
 }));
 vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
   writeStudioDriveFile: vi.fn(),
 }));
 
+import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
+import { mintAgentGrant } from "@/lib/image-studio/agent-grant";
+import legacyAgentRoutes from "@/routes/image-studio-agent/index";
+import agentRoutes from "@/routes/v1/image-studio-agent/index";
 import mountAssetContent from "@/routes/v1/projects/[id]/image-studio/asset-content-get";
+import mountAssetHeadline from "@/routes/v1/projects/[id]/image-studio/asset-headline-put";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
 import mountBrandKit from "@/routes/v1/projects/[id]/image-studio/brand-kit";
 import mountWebsiteLogo from "@/routes/v1/projects/[id]/image-studio/brand-logo-website-post";
@@ -71,6 +79,7 @@ const shop = "https://fieldwork.example/";
 const blobOrigin = "https://campaign.public.blob.vercel-storage.com";
 const designMd = `${blobOrigin}/design-md/campaign-test.md`;
 const approvedLine = "Brew at your own pace.";
+const secondApprovedLine = "Good coffee for slower mornings.";
 const unusedLine = "An old promotion";
 const userId = randomUUID();
 const batchId = randomUUID();
@@ -96,6 +105,9 @@ function app(actorId = userId) {
     });
     await next();
   });
+  server.onError(errorHandler);
+  server.route("/v1/image-studio-agent", agentRoutes);
+  server.route("/image-studio-agent", legacyAgentRoutes);
   mountBrandKit(server);
   mountWebsiteLogo(server);
   mountPatchProject(server);
@@ -103,6 +115,7 @@ function app(actorId = userId) {
   mountJobs(server);
   mountBatchAssets(server);
   mountAssetContent(server);
+  mountAssetHeadline(server);
   return server;
 }
 
@@ -217,6 +230,9 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       }
       return new Response(null, { status: 404 });
     });
+    external.uploadReference.mockResolvedValue(
+      "https://fal.example/reference.png",
+    );
     external.submit.mockImplementation(() => ({
       kind: "queued",
       requestId: randomUUID(),
@@ -309,7 +325,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
               summary: draft.brandCopy?.summary,
               tone: "Warm and direct",
               audience: ["Home brewers"],
-              approvedLines: [approvedLine],
+              approvedLines: [approvedLine, secondApprovedLine],
             },
           }),
         )
@@ -325,16 +341,23 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     ).toBe(200);
 
     const placementRatios = ["1:1", "9:16"];
-    const submissions = products.flatMap((product) =>
+    const submissions = products.flatMap((product, index) =>
       placementRatios.map((aspectRatio) => ({
         batchId,
         product: { id: product.id, name: product.name },
+        exportHeadline: index === 0 ? approvedLine : secondApprovedLine,
         modelId: "muse-image",
         settings: { aspectRatio },
         prompt: productBrief(product),
         idempotencyKey: randomUUID(),
       })),
     );
+    const unapproved = await studio.request(
+      `${path}/jobs`,
+      json("POST", { ...submissions[0], exportHeadline: unusedLine }),
+    );
+    expect(unapproved.status).toBe(422);
+    expect(external.submit).not.toHaveBeenCalled();
     for (const submission of submissions) {
       const response = await studio.request(
         `${path}/jobs`,
@@ -355,9 +378,11 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect(replay.status).toBe(201);
     expect(external.submit).toHaveBeenCalledTimes(4);
     for (const [index, [payload]] of external.submit.mock.calls.entries()) {
-      expect(payload.input.prompt).toContain(approvedLine);
+      expect(payload.input.prompt).not.toContain(approvedLine);
+      expect(payload.input.prompt).not.toContain(secondApprovedLine);
       expect(payload.input.prompt).toContain("#a33421");
       expect(payload.input.prompt).toContain(submissions[index].product.name);
+      expect(payload.input.prompt).toContain("Keep the upper area clear");
       expect(payload.input.prompt).not.toContain(unusedLine);
     }
     const jobs = await prisma.projectImageJob.findMany({
@@ -381,11 +406,112 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       .array()
       .parse((await batchResponse.json()).data);
     expect(assets).toHaveLength(4);
-    for (const product of products) {
-      expect(
-        assets.filter(({ product: identity }) => identity?.id === product.id),
-      ).toHaveLength(2);
+    for (const [index, product] of products.entries()) {
+      const results = assets.filter(
+        ({ product: identity }) => identity?.id === product.id,
+      );
+      expect(results).toHaveLength(2);
+      expect(results.map(({ headline }) => headline)).toEqual(
+        Array.from({ length: 2 }, () => ({
+          text: index === 0 ? approvedLine : secondApprovedLine,
+          revision: 1,
+        })),
+      );
     }
+    const firstAd = assets.find(
+      ({ headline }) => headline?.text === approvedLine,
+    );
+    if (!firstAd) throw new Error("The first approved headline was not saved");
+    const headlinePath = `${path}/assets/${firstAd.id}/headline`;
+    const saveHeadline = (text: string | null, actor = studio) =>
+      actor.request(headlinePath, json("PUT", { text }));
+    expect((await saveHeadline(unusedLine)).status).toBe(422);
+    expect((await saveHeadline(approvedLine, app(randomUUID()))).status).toBe(
+      404,
+    );
+    const savedHeadline = await saveHeadline(approvedLine);
+    expect(savedHeadline.status).toBe(200);
+    expect((await savedHeadline.json()).data).toEqual({
+      text: approvedLine,
+      revision: 1,
+    });
+    expect((await (await saveHeadline(approvedLine)).json()).data).toEqual({
+      text: approvedLine,
+      revision: 1,
+    });
+    const readBatch = () => app().request(`${path}/batches/${batchId}/assets`);
+    expect((await (await readBatch()).json()).data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: firstAd.id,
+          headline: { text: approvedLine, revision: 1 },
+        }),
+      ]),
+    );
+    expect((await (await saveHeadline(null)).json()).data).toEqual({
+      text: null,
+      revision: 2,
+    });
+    expect((await (await readBatch()).json()).data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: firstAd.id,
+          headline: { text: null, revision: 2 },
+        }),
+      ]),
+    );
+    const agentPath = `/v1/image-studio-agent/assets/${firstAd.id}/headline`;
+    const agentAuth = (
+      audience: "agent" | "browser" = "agent",
+      actorId = userId,
+    ) => ({
+      authorization: `Bearer ${mintAgentGrant(
+        { userId: actorId, projectId, audience, ttlSeconds: 120 },
+        "campaign-fixture-agent-secret".repeat(2),
+      )}`,
+    });
+    const agentRead = await studio.request(agentPath, { headers: agentAuth() });
+    expect(agentRead.status).toBe(200);
+    expect((await agentRead.json()).data).toEqual({
+      headline: { text: null, revision: 2 },
+      approvedLines: [approvedLine, secondApprovedLine],
+    });
+    expect(
+      (await studio.request(agentPath, { headers: agentAuth("browser") }))
+        .status,
+    ).toBe(401);
+    expect(
+      (
+        await studio.request(agentPath, {
+          headers: agentAuth("agent", randomUUID()),
+        })
+      ).status,
+    ).toBe(404);
+    const changeFromChat = (text: string | null, expectedRevision: number) =>
+      studio.request(agentPath, {
+        method: "PUT",
+        headers: { ...agentAuth(), "content-type": "application/json" },
+        body: JSON.stringify({ text, expectedRevision }),
+      });
+    expect((await changeFromChat(unusedLine, 2)).status).toBe(422);
+    const updated = await changeFromChat(secondApprovedLine, 2);
+    expect(updated.status).toBe(200);
+    expect((await updated.json()).data).toEqual({
+      text: secondApprovedLine,
+      revision: 3,
+    });
+    expect((await changeFromChat(approvedLine, 2)).status).toBe(409);
+    expect((await changeFromChat(secondApprovedLine, 2)).status).toBe(200);
+    expect((await (await readBatch()).json()).data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: firstAd.id,
+          headline: { text: secondApprovedLine, revision: 3 },
+        }),
+      ]),
+    );
+    expect(external.submit).toHaveBeenCalledTimes(4);
+
     const output = `${path}/assets/${assets[0].id}/content?placement=9%3A16&logo=top-left`;
     const png = await studio.request(output);
     expect(png.status).toBe(200);
@@ -397,5 +523,152 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     const logoPixel = (4 * info.width + 4) * info.channels;
     expect([...data.subarray(logoPixel, logoPixel + 3)]).toEqual([163, 52, 33]);
     expect((await app(randomUUID()).request(output)).status).toBe(404);
+
+    const refinement = {
+      prompt: "Use a darker background and keep the layout.",
+      parentAssetId: firstAd.id,
+      referenceAssetIds: [firstAd.id],
+      modelId: "muse-image",
+    };
+    const fromAssistant = () =>
+      studio.request("/image-studio-agent/generations", {
+        method: "POST",
+        headers: { ...agentAuth(), "content-type": "application/json" },
+        body: JSON.stringify({
+          ...refinement,
+          aspectRatio: "9:16",
+          idempotencyKey: randomUUID(),
+        }),
+      });
+    const fromBrowser = (
+      product = firstAd.product,
+      parentAssetId = firstAd.id,
+      explicitBatchId?: string,
+    ) =>
+      studio.request(
+        `${path}/jobs`,
+        json("POST", {
+          ...refinement,
+          parentAssetId,
+          referenceAssetIds: [parentAssetId],
+          batchId: explicitBatchId,
+          product,
+          settings: { aspectRatio: "9:16" },
+          idempotencyKey: randomUUID(),
+        }),
+      );
+    const finishRevision = async (
+      response: Response,
+      expectedHeadline: string | null,
+      expectedParentId = firstAd.id,
+    ) => {
+      expect(response.ok).toBe(true);
+      const body = await response.json();
+      const job = body.data ?? body.job;
+      expect(job).toMatchObject({ status: "QUEUED" });
+      await settleWithMedia(job.id, "https://fal.example/campaign.png");
+      const result = await prisma.projectImageAsset.findUniqueOrThrow({
+        where: { jobId: job.id },
+        select: {
+          id: true,
+          parentId: true,
+          rootId: true,
+          headline: true,
+          job: { select: { batchSlotId: true } },
+        },
+      });
+      expect(result.parentId).toBe(expectedParentId);
+      expect(result.rootId).toBe(firstAd.rootId);
+      if (expectedHeadline) {
+        expect(result.headline).toMatchObject({
+          text: expectedHeadline,
+          revision: 1,
+        });
+        expect(external.submit.mock.lastCall?.[0].input.prompt).toContain(
+          "Keep the upper area clear",
+        );
+      } else {
+        expect(result.headline).toBeNull();
+      }
+      return result;
+    };
+    const pendingRevision = await fromAssistant();
+    const expectedBatch = async (replacementId: string) => {
+      const response = await readBatch();
+      expect(response.status).toBe(200);
+      const ready = imageStudioAssetSchema
+        .array()
+        .parse((await response.json()).data);
+      expect(new Set(ready.map(({ id }) => id))).toEqual(
+        new Set(
+          assets.map(({ id }) => (id === firstAd.id ? replacementId : id)),
+        ),
+      );
+      expect(ready).toHaveLength(assets.length);
+      expect(ready.every((asset) => asset.batchId === batchId)).toBe(true);
+    };
+    await expectedBatch(firstAd.id);
+    const firstRevision = await finishRevision(
+      pendingRevision,
+      secondApprovedLine,
+    );
+    expect(firstRevision.job.batchSlotId).toBe(firstAd.jobId);
+    await expectedBatch(firstRevision.id);
+    const laterRevision = await finishRevision(
+      await fromBrowser(firstAd.product, firstRevision.id),
+      secondApprovedLine,
+      firstRevision.id,
+    );
+    expect(laterRevision.job.batchSlotId).toBe(firstAd.jobId);
+    await expectedBatch(laterRevision.id);
+    const replacement = products.find(({ id }) => id !== firstAd.product?.id);
+    if (!replacement)
+      throw new Error("A different product is required for the swap");
+    const swapped = await finishRevision(
+      await fromBrowser({ id: replacement.id, name: replacement.name }),
+      null,
+    );
+    await expectedBatch(swapped.id);
+
+    const anotherBatchId = randomUUID();
+    const independentAds = [];
+    for (let index = 0; index < 2; index++) {
+      const revision = await finishRevision(
+        await fromBrowser(firstAd.product, firstAd.id, anotherBatchId),
+        secondApprovedLine,
+      );
+      expect(revision.job.batchSlotId).toBeNull();
+      independentAds.push(revision.id);
+    }
+    const anotherBatch = await studio.request(
+      `${path}/batches/${anotherBatchId}/assets`,
+    );
+    expect(anotherBatch.status).toBe(200);
+    const independent = imageStudioAssetSchema
+      .array()
+      .parse((await anotherBatch.json()).data);
+    expect(new Set(independent.map(({ id }) => id))).toEqual(
+      new Set(independentAds),
+    );
+    await expectedBatch(swapped.id);
+
+    const currentKit = studioBrandKitSchema.parse(
+      (await (await studio.request(`${path}/brand-kit`)).json()).data,
+    );
+    const revoke = await studio.request(
+      `${path}/brand-kit`,
+      json("PUT", {
+        version: currentKit.version,
+        copy: {
+          summary: currentKit.summary,
+          tone: currentKit.tone,
+          audience: currentKit.audience,
+          approvedLines: [approvedLine],
+        },
+      }),
+    );
+    expect(revoke.status).toBe(200);
+    const withoutHeadline = await finishRevision(await fromAssistant(), null);
+    await expectedBatch(withoutHeadline.id);
   });
 });

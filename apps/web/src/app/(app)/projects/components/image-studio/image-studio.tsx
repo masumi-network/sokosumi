@@ -2,6 +2,7 @@
 
 import type {
   CreateProjectVideoJobRequest,
+  StudioAdHeadline,
   StudioLogoPosition,
   StudioProduct,
   StudioProductIdentity,
@@ -38,6 +39,7 @@ import {
   listStudioBatchAssets,
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
+  saveStudioAdHeadline,
   startVideoGeneration,
   writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
@@ -61,7 +63,11 @@ import {
   MAX_ARCHIVE_MIB,
   saveStudioDownload,
 } from "./studio-ad-download";
-import type { StudioBatchProduct } from "./studio-batch";
+import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
+import type {
+  StudioBatchDownloadReview,
+  StudioBatchProduct,
+} from "./studio-batch";
 import { StudioChat } from "./studio-chat";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
@@ -228,6 +234,11 @@ export function ImageStudio({
   );
   const [pending, startTransition] = useTransition();
   const [downloadingAds, startAdDownload] = useTransition();
+  const [savedHeadlines, setSavedHeadlines] = useState<
+    Record<string, StudioAdHeadline>
+  >({});
+  const [savingHeadline, startHeadlineSave] = useTransition();
+  const headlineSaveInProgress = useRef(false);
   const [archiveLogoOverride, setArchiveLogoOverride] =
     useState<StudioLogoPosition | null>();
   const [brandKitLogo, setBrandKitLogo] = useState<{
@@ -355,6 +366,13 @@ export function ImageStudio({
       }),
     [checkedIds, state.assets],
   );
+  const referenceProjectIds = new Set(
+    checkedAssets.map(({ projectId }) => projectId),
+  );
+  const generationProjectId =
+    referenceProjectIds.size > 1
+      ? null
+      : ([...referenceProjectIds][0] ?? activeProjectId);
 
   function archiveLimitFor(assets: StudioAsset[]) {
     if (assets.length > MAX_ARCHIVE_IMAGES)
@@ -379,7 +397,13 @@ export function ImageStudio({
     : undefined;
 
   function handleDownloadAds() {
-    if (downloadingAds || archiveLimit || checkedAssets.length < 2) return;
+    if (
+      downloadingAds ||
+      headlineSaveInProgress.current ||
+      archiveLimit ||
+      checkedAssets.length < 2
+    )
+      return;
     startAdDownload(async () => {
       try {
         await downloadArchive(
@@ -395,12 +419,84 @@ export function ImageStudio({
     });
   }
 
+  function headlineForAsset(asset: StudioAsset) {
+    const saved = savedHeadlines[asset.id];
+    const latest =
+      saved && saved.revision > (asset.headline?.revision ?? 0)
+        ? saved
+        : asset.headline;
+    return latest?.text ?? "";
+  }
+
+  function rememberHeadlines(
+    updates: { assetId: string; headline: StudioAdHeadline }[],
+  ) {
+    if (!updates.length) return;
+    setSavedHeadlines((current) => {
+      const next = { ...current };
+      for (const { assetId, headline } of updates) {
+        if ((next[assetId]?.revision ?? -1) < headline.revision) {
+          next[assetId] = headline;
+        }
+      }
+      return next;
+    });
+  }
+
+  function changeHeadline(asset: StudioAsset, text: string) {
+    if (headlineSaveInProgress.current || downloadingAds) return;
+    headlineSaveInProgress.current = true;
+    startHeadlineSave(async () => {
+      try {
+        const saved = await saveStudioAdHeadline({
+          projectId: asset.projectId,
+          assetId: asset.id,
+          text: text || null,
+        });
+        rememberHeadlines([{ assetId: asset.id, headline: saved }]);
+      } catch {
+        toast.error(t("headlineSaveFailed"));
+      } finally {
+        headlineSaveInProgress.current = false;
+      }
+    });
+  }
+
   async function downloadArchive(
     assets: StudioAsset[],
     filename: string,
     logo?: StudioLogoPosition,
   ) {
-    const archive = await createStudioAdArchive(assets, logo);
+    const reviewedAssets = assets.flatMap((asset) => {
+      const text = isVideoAsset(asset) ? "" : headlineForAsset(asset);
+      return text ? [{ id: asset.id, projectId: asset.projectId, text }] : [];
+    });
+    const reviewedProjects = [
+      ...new Set(reviewedAssets.map(({ projectId }) => projectId)),
+    ];
+    const approvals = new Map(
+      await Promise.all(
+        reviewedProjects.map(
+          async (projectId) =>
+            [projectId, await readApprovedStudioHeadlines(projectId)] as const,
+        ),
+      ),
+    );
+    if (
+      reviewedAssets.some(
+        ({ text, projectId }) => !approvals.get(projectId)?.includes(text),
+      )
+    ) {
+      toast.error(t("archiveHeadlineRemoved"));
+      return;
+    }
+    const archive = reviewedAssets.length
+      ? await createStudioAdArchive(
+          assets,
+          logo,
+          Object.fromEntries(reviewedAssets.map(({ id, text }) => [id, text])),
+        )
+      : await createStudioAdArchive(assets, logo);
     saveStudioDownload(
       new Blob([archive], { type: "application/zip" }),
       filename,
@@ -410,11 +506,27 @@ export function ImageStudio({
   function handleDownloadBatch(
     { projectId, batchId }: StudioAsset,
     logo?: StudioLogoPosition,
+    review?: StudioBatchDownloadReview,
   ) {
-    if (downloadingAds || !batchId) return;
+    if (downloadingAds || headlineSaveInProgress.current || !batchId) return;
     startAdDownload(async () => {
       try {
         const assets = await listStudioBatchAssets({ projectId, batchId });
+        if (review) {
+          const reviewedHeadlines = new Map(
+            review.assets.map((asset) => [asset.id, headlineForAsset(asset)]),
+          );
+          if (
+            assets.length !== review.assets.length ||
+            assets.some(
+              (asset) =>
+                reviewedHeadlines.get(asset.id) !== headlineForAsset(asset),
+            )
+          ) {
+            review.onChanged();
+            return;
+          }
+        }
         const limit = archiveLimitFor(assets);
         if (limit) {
           toast.error(limit);
@@ -662,16 +774,36 @@ export function ImageStudio({
    */
   function handleGenerate(requests: GenerationRequest[]) {
     setTemplateUndo(null);
-    const referenceProjectIds = new Set(
-      checkedAssets.map((asset) => asset.projectId),
-    );
     if (referenceProjectIds.size > 1) {
       setActionError(t("referencesAcrossProjects"));
       return;
     }
-    const target = [...referenceProjectIds][0] ?? activeProjectId;
-    if (target) {
-      sendTo(target, requests);
+    if (generationProjectId) {
+      const headlines = requests.flatMap(({ exportHeadline }) =>
+        exportHeadline ? [exportHeadline] : [],
+      );
+      if (headlines.length) {
+        setActionError(null);
+        startTransition(async () => {
+          try {
+            const approved =
+              await readApprovedStudioHeadlines(generationProjectId);
+            if (headlines.some((line) => !approved.includes(line))) {
+              setTarget((current) => ({
+                ...current,
+                exportHeadlines: undefined,
+              }));
+              setActionError(t("campaignHeadlineRemoved"));
+              return;
+            }
+            sendTo(generationProjectId, requests);
+          } catch {
+            setActionError(t("headlineLoadFailed"));
+          }
+        });
+      } else {
+        sendTo(generationProjectId, requests);
+      }
       return;
     }
     openProjectScope({
@@ -695,9 +827,11 @@ export function ImageStudio({
         ...(batchId ? { batchId } : {}),
       })),
     );
-    setPrompt("");
-    setBatchProducts([]);
-    setDraftProduct(undefined);
+    setPrompt((current) => (current === prompt ? "" : current));
+    setBatchProducts((current) => (current === batchProducts ? [] : current));
+    setDraftProduct((current) =>
+      current === draftProduct ? undefined : current,
+    );
     setHasNewerSettings(false);
   }
 
@@ -930,6 +1064,7 @@ export function ImageStudio({
         modeSwitch={modeSwitch}
         busy={pending}
         catalog={catalog}
+        generationProjectId={generationProjectId}
         labels={labels}
         onApplyTemplate={applyTemplate}
         onClearReferences={clearReferences}
@@ -1119,6 +1254,14 @@ export function ImageStudio({
                       setTarget({
                         modelIds: [request.modelId],
                         settings: request.settings,
+                        ...(request.exportHeadline
+                          ? {
+                              exportHeadlines: {
+                                projectId: request.projectId,
+                                lines: [request.exportHeadline],
+                              },
+                            }
+                          : {}),
                       });
                       setCheckedIds(request.referenceAssetIds);
                       const photoId = request.referenceFileIds?.[0];
@@ -1199,6 +1342,7 @@ export function ImageStudio({
                 archiveLimit ? "studio-archive-limit" : undefined
               }
               aria-disabled={archiveLimit ? true : undefined}
+              disabled={savingHeadline}
               loading={downloadingAds}
               onClick={handleDownloadAds}
               size="sm"
@@ -1267,6 +1411,9 @@ export function ImageStudio({
           onClose={() => setViewing(null)}
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
+          headlineForAsset={headlineForAsset}
+          savingHeadline={savingHeadline}
+          onHeadlineChange={changeHeadline}
           onEditWithAssistant={activeProjectId ? openAssistant : undefined}
           editWithAssistantLabel={t("Assistant.edit")}
           onRegenerate={(asset) => repeat(asset, "asset")}
@@ -1391,7 +1538,14 @@ export function ImageStudio({
             assets={state.assets}
             key={activeProjectId}
             labels={labels}
-            onActivity={() => void refresh()}
+            onActivity={(updates) => {
+              rememberHeadlines(updates);
+              void refresh();
+            }}
+            onPreviewAd={(asset) => {
+              selectAsset(asset.id);
+              setViewing({ mode: "single" });
+            }}
             onSelectResult={(asset) => setAssistant({ open: true, asset })}
             projectId={activeProjectId}
             selectedAsset={assistant.asset}

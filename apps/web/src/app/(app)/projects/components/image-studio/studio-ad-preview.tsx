@@ -9,7 +9,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -24,14 +24,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { getStudioBrandKit } from "@/lib/actions/image-studio/brand-kit";
 import { cn } from "@/lib/utils";
 import { fetchStudioAd, saveStudioDownload } from "./studio-ad-download";
-import {
-  MAX_STUDIO_HEADLINE_LENGTH,
-  useStudioHeadlineImage,
-} from "./studio-headline-image";
+import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
+import { useStudioHeadlineImage } from "./studio-headline-image";
+import { StudioHeadlineSelect } from "./studio-headline-select";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
@@ -48,6 +45,9 @@ type PreviewPlatform = keyof typeof PLATFORM_RATIOS;
 export function StudioAdPreview({
   asset,
   caption,
+  headline = "",
+  savingHeadline,
+  onHeadlineChange,
   labels,
   projectLogo,
   logoPosition,
@@ -55,6 +55,9 @@ export function StudioAdPreview({
 }: {
   asset: StudioAsset;
   caption?: string;
+  headline?: string;
+  savingHeadline?: boolean;
+  onHeadlineChange?: (headline: string) => void;
   labels: StudioLabels;
   projectLogo?: string | null;
   logoPosition?: StudioLogoPosition;
@@ -71,13 +74,12 @@ export function StudioAdPreview({
   const [downloading, startDownload] = useTransition();
   const [open, setOpen] = useState(false);
   const [headlines, setHeadlines] = useState<string[]>([]);
-  const [headline, setHeadline] = useState("");
   const [headlineLoadFailed, setHeadlineLoadFailed] = useState(false);
   const [loadingHeadlines, startHeadlineLoad] = useTransition();
-  const headlineId = useId();
   const headlineRequest = useRef(0);
   const selectedHeadline =
     open && headlines.includes(headline) ? headline : undefined;
+  const invalidHeadline = Boolean(headline && !selectedHeadline);
   const { result: headlineImage, retry: retryHeadline } =
     useStudioHeadlineImage(asset, ratio, logoPosition, selectedHeadline);
   const isReel = platform === "reels";
@@ -112,13 +114,8 @@ export function StudioAdPreview({
     setHeadlineLoadFailed(false);
     startHeadlineLoad(async () => {
       try {
-        const kit = await getStudioBrandKit({ projectId: asset.projectId });
-        if (request !== headlineRequest.current) return;
-        const options = [...new Set(kit.approvedLines)].filter(
-          (line) => line.trim() && line.length <= MAX_STUDIO_HEADLINE_LENGTH,
-        );
-        setHeadlines(options);
-        setHeadline((current) => (options.includes(current) ? current : ""));
+        const options = await readApprovedStudioHeadlines(asset.projectId);
+        if (request === headlineRequest.current) setHeadlines(options);
       } catch {
         if (request === headlineRequest.current) setHeadlineLoadFailed(true);
       }
@@ -126,19 +123,14 @@ export function StudioAdPreview({
   }
 
   function downloadPlacement() {
-    if (downloading) return;
+    if (downloading || savingHeadline || invalidHeadline) return;
     startDownload(async () => {
       try {
         if (selectedHeadline) {
           if (headlineImage?.status !== "ready") return;
-          const kit = await getStudioBrandKit({ projectId: asset.projectId });
-          if (!kit.approvedLines.includes(selectedHeadline)) {
-            setHeadlines((current) =>
-              current.filter((line) => kit.approvedLines.includes(line)),
-            );
-            setHeadline((current) =>
-              current === selectedHeadline ? "" : current,
-            );
+          const options = await readApprovedStudioHeadlines(asset.projectId);
+          if (!options.includes(selectedHeadline)) {
+            setHeadlines(options);
             toast.error(t("headlineRemoved"));
             return;
           }
@@ -230,23 +222,20 @@ export function StudioAdPreview({
               {labels.imageRetry}
             </Button>
           </div>
-        ) : headlines.length ? (
+        ) : onHeadlineChange && (headlines.length || headline) ? (
           <div className="min-w-0 space-y-1">
-            <Label htmlFor={headlineId}>{t("approvedHeadline")}</Label>
-            <select
-              className="border-input bg-background focus-visible:ring-ring h-8 w-full min-w-0 rounded-md border px-2 text-sm focus-visible:ring-2"
-              id={headlineId}
-              onChange={(event) => setHeadline(event.currentTarget.value)}
-              value={headline}
+            <StudioHeadlineSelect
+              disabled={downloading || savingHeadline}
+              headline={headline}
+              onChange={onHeadlineChange}
+              options={headlines}
+            />
+            <p
+              className="text-muted-foreground text-xs"
+              role={savingHeadline ? "status" : undefined}
             >
-              <option value="">{t("noHeadline")}</option>
-              {headlines.map((line) => (
-                <option key={line} value={line}>
-                  {line}
-                </option>
-              ))}
-            </select>
-            <p className="text-muted-foreground text-xs">{t("headlineHint")}</p>
+              {t(savingHeadline ? "headlineSaving" : "headlineHint")}
+            </p>
           </div>
         ) : null}
         <div
@@ -377,7 +366,9 @@ export function StudioAdPreview({
         <DialogFooter>
           <Button
             disabled={Boolean(
-              selectedHeadline && headlineImage?.status !== "ready",
+              savingHeadline ||
+                invalidHeadline ||
+                (selectedHeadline && headlineImage?.status !== "ready"),
             )}
             loading={downloading}
             onClick={downloadPlacement}

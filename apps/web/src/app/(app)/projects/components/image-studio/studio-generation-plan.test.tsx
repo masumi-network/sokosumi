@@ -10,7 +10,14 @@ import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import type { StudioCatalog, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
 
-const { uploadPhoto } = vi.hoisted(() => ({ uploadPhoto: vi.fn() }));
+const { uploadPhoto, getBrandKit } = vi.hoisted(() => ({
+  uploadPhoto: vi.fn(),
+  getBrandKit: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
+  getStudioBrandKit: getBrandKit,
+}));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
@@ -90,12 +97,14 @@ function Harness({
   onGenerate,
   productPhotos = false,
   batchProducts,
+  generationProjectId,
 }: {
   catalog?: StudioCatalog;
   initial: StudioTarget;
   onGenerate: (requests: GenerationRequest[]) => void;
   productPhotos?: boolean;
   batchProducts?: StudioBatchProduct[];
+  generationProjectId?: string;
 }) {
   const [target, setTarget] = useState(initial);
   const [prompt, setPrompt] = useState("A campaign image");
@@ -106,6 +115,7 @@ function Harness({
       batchProducts={batchProducts}
       busy={false}
       catalog={catalog}
+      generationProjectId={generationProjectId}
       labels={TEST_LABELS}
       onApplyTemplate={(template) => {
         setPrompt(template.prompt);
@@ -148,6 +158,52 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
+  it("cycles approved headlines by variation and keeps the same wording across sizes", async () => {
+    getBrandKit.mockResolvedValueOnce({
+      approvedLines: ["First claim", "Second claim"],
+    });
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    const input = {
+      catalog: TEST_CATALOG,
+      initial: {
+        modelIds: ["model-a"],
+        settings: SETTINGS,
+        placementRatios: ["1:1", "9:16"] as StudioTarget["placementRatios"],
+      },
+      batchProducts: BATCH_PRODUCTS,
+      onGenerate,
+    };
+    const { rerender } = render(
+      <Harness {...input} generationProjectId="first-project" />,
+    );
+    const toggle = screen.getByRole("button", { name: "useApprovedHeadlines" });
+    await act(async () => fireEvent.click(toggle));
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(getBrandKit).toHaveBeenCalledWith({ projectId: "first-project" });
+    generate();
+    expect(
+      onGenerate.mock.calls[0][0].map(({ exportHeadline, settings }) => [
+        exportHeadline,
+        settings.aspectRatio,
+      ]),
+    ).toEqual([
+      ["First claim", "1:1"],
+      ["First claim", "9:16"],
+      ["Second claim", "1:1"],
+      ["Second claim", "9:16"],
+      ["First claim", "1:1"],
+      ["First claim", "9:16"],
+    ]);
+
+    rerender(<Harness {...input} generationProjectId="other-project" />);
+    generate();
+    expect(
+      onGenerate.mock.calls[1][0].every(
+        ({ exportHeadline }) => !exportHeadline,
+      ),
+    ).toBe(true);
+  });
+
   it("uses the selected creative direction without changing the written brief", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(

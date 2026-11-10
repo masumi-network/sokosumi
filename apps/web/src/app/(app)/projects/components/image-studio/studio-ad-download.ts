@@ -1,7 +1,9 @@
 import type { StudioLogoPosition } from "@sokosumi/core-client";
+import { renderStudioHeadline } from "./studio-ad-headline";
 import {
   assetContentUrl,
   assetFileExtension,
+  isVideoAsset,
   type StudioAdRenderOptions,
   type StudioAsset,
 } from "./types";
@@ -42,6 +44,7 @@ export function saveStudioDownload(blob: Blob, filename: string) {
 export async function createStudioAdArchive(
   assets: StudioAsset[],
   logo?: StudioLogoPosition,
+  headlines?: Readonly<Record<string, string>>,
 ): Promise<ArrayBuffer> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
@@ -49,14 +52,23 @@ export async function createStudioAdArchive(
 
   // Fetch one image at a time to limit simultaneous reads of private files.
   for (const [index, asset] of assets.entries()) {
+    const headline = !isVideoAsset(asset) ? headlines?.[asset.id] : undefined;
     const response = await fetchStudioAd(asset, { logo });
-
-    const image = await response.arrayBuffer();
-    bytes += image.byteLength;
+    const source = await response.blob();
+    const image = headline
+      ? await renderStudioHeadline(source, headline, logo)
+      : source;
+    bytes += image.size;
     if (bytes > MAX_ARCHIVE_BYTES) throw new Error("Studio archive too large");
 
-    const suffix = logo ? "-branded.png" : `.${assetFileExtension(asset)}`;
-    zip.file(`ad-${index + 1}-${asset.width}x${asset.height}${suffix}`, image);
+    const suffix =
+      (logo ? "-branded" : "") +
+      (headline ? "-headline" : "") +
+      (logo || headline ? ".png" : `.${assetFileExtension(asset)}`);
+    zip.file(
+      `ad-${index + 1}-${asset.width}x${asset.height}${suffix}`,
+      await image.arrayBuffer(),
+    );
   }
 
   return zip.generateAsync({ type: "arraybuffer", streamFiles: true });

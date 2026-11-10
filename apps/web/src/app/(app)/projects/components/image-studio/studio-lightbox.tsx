@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 
 import { resolveModel, supportsVariation } from "./catalog";
 import { StudioAdPreview } from "./studio-ad-preview";
+import type { StudioBatchDownloadReview } from "./studio-batch";
+import { StudioBatchHeadlines } from "./studio-batch-headlines";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import {
@@ -53,6 +55,9 @@ export function StudioLightbox({
   onClose,
   onDownloadBatch,
   downloadingBatch,
+  headlineForAsset,
+  savingHeadline,
+  onHeadlineChange,
   onEditWithAssistant,
   editWithAssistantLabel,
   onRegenerate,
@@ -79,8 +84,15 @@ export function StudioLightbox({
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
-  onDownloadBatch?: (asset: StudioAsset, logo?: StudioLogoPosition) => void;
+  onDownloadBatch?: (
+    asset: StudioAsset,
+    logo?: StudioLogoPosition,
+    review?: StudioBatchDownloadReview,
+  ) => void;
   downloadingBatch?: boolean;
+  headlineForAsset?: (asset: StudioAsset) => string;
+  savingHeadline?: boolean;
+  onHeadlineChange?: (asset: StudioAsset, headline: string) => void;
   onEditWithAssistant?: (asset: StudioAsset) => void;
   editWithAssistantLabel?: string;
   onRegenerate: (asset: StudioAsset) => void;
@@ -218,6 +230,13 @@ export function StudioLightbox({
                 <StudioAdPreview
                   asset={single}
                   caption={caption}
+                  headline={headlineForAsset?.(single)}
+                  savingHeadline={savingHeadline}
+                  onHeadlineChange={
+                    onHeadlineChange
+                      ? (headline) => onHeadlineChange(single, headline)
+                      : undefined
+                  }
                   key={single.id}
                   labels={labels}
                   logoPosition={logoPosition}
@@ -298,17 +317,35 @@ export function StudioLightbox({
                     value={logoPosition}
                   />
                 ) : null}
-                <Button
-                  aria-describedby="studio-batch-download-note"
-                  loading={downloadingBatch}
-                  onClick={() => onDownloadBatch(single, logoPosition)}
-                  size="sm"
-                  type="button"
-                  variant="secondary"
-                >
-                  <Download aria-hidden />
-                  {t("downloadBatchZip")}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    aria-describedby="studio-batch-download-note"
+                    loading={downloadingBatch}
+                    disabled={savingHeadline}
+                    onClick={() => onDownloadBatch(single, logoPosition)}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    <Download aria-hidden />
+                    {t("downloadBatchZip")}
+                  </Button>
+                  {headlineForAsset && onHeadlineChange ? (
+                    <StudioBatchHeadlines
+                      batchId={single.batchId}
+                      downloading={downloadingBatch}
+                      headlineForAsset={headlineForAsset}
+                      savingHeadline={savingHeadline}
+                      key={logoScope}
+                      labels={labels}
+                      onDownload={(review) =>
+                        onDownloadBatch(single, logoPosition, review)
+                      }
+                      onHeadlineChange={onHeadlineChange}
+                      projectId={single.projectId}
+                    />
+                  ) : null}
+                </div>
                 <p
                   className="text-muted-foreground text-xs"
                   id="studio-batch-download-note"

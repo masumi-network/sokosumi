@@ -10,7 +10,7 @@ import {
 } from "@sokosumi/utils";
 import { Check, ChevronDown, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState, useTransition } from "react";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   RoomMessageComposer,
@@ -31,6 +31,7 @@ import {
   creditsForImage,
   priceUnitLabelKey,
 } from "./catalog";
+import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
 import type { StudioBatchProduct } from "./studio-batch";
 import {
   STUDIO_COMPOSER_GUTTER_CLASS,
@@ -62,6 +63,7 @@ const NO_PLACEMENTS: NonNullable<StudioTarget["placementRatios"]> = [];
 const COPY_CHOICES = [1, 2, 3, 4] as const;
 const MAX_PROMPT_LENGTH = 4_000;
 const NO_PRODUCTS: readonly StudioBatchProduct[] = [];
+const NO_HEADLINES: readonly string[] = [];
 
 function chipClass(active: boolean, disabled = false): string {
   return cn(
@@ -142,6 +144,7 @@ export function StudioComposer({
   referenceAssets,
   product,
   productPhoto,
+  generationProjectId,
   batchProducts = NO_PRODUCTS,
   onClearProductBatch,
   uploadingPhoto = false,
@@ -199,6 +202,7 @@ export function StudioComposer({
   referenceAssets: StudioAsset[];
   product?: StudioProductIdentity;
   productPhoto?: StudioProductPhoto | null;
+  generationProjectId?: string | null;
   batchProducts?: readonly StudioBatchProduct[];
   onClearProductBatch?: () => void;
   onProductPhotoChange?: (photo: StudioProductPhoto | null) => void;
@@ -214,6 +218,16 @@ export function StudioComposer({
   const t = useTranslations("App.Studio");
   const [copies, setCopies] = useState(1);
   const [modelQuery, setModelQuery] = useState("");
+  const [loadingHeadlines, startLoadingHeadlines] = useTransition();
+  const [headlineStatus, setHeadlineStatus] = useState<{
+    projectId: string;
+    message: string;
+  } | null>(null);
+  const headlineOptions =
+    target.exportHeadlines?.projectId === generationProjectId
+      ? (target.exportHeadlines?.lines ?? NO_HEADLINES)
+      : NO_HEADLINES;
+  const usesApprovedHeadlines = headlineOptions.length > 0;
   const searchRef = useRef<HTMLInputElement>(null);
   const promptHelpId = useId();
   const hasProductBatch = batchProducts.length > 0;
@@ -242,6 +256,36 @@ export function StudioComposer({
     ...batchPrompts.map((value) => value.length),
   );
   const promptTooLong = promptLength > MAX_PROMPT_LENGTH;
+
+  function toggleApprovedHeadlines() {
+    if (!generationProjectId || loadingHeadlines) return;
+    setHeadlineStatus(null);
+    if (usesApprovedHeadlines) {
+      onTargetChange((current) => ({ ...current, exportHeadlines: undefined }));
+      return;
+    }
+    startLoadingHeadlines(async () => {
+      try {
+        const lines = await readApprovedStudioHeadlines(generationProjectId);
+        if (!lines.length) {
+          setHeadlineStatus({
+            projectId: generationProjectId,
+            message: t("batchHeadlinesEmpty"),
+          });
+          return;
+        }
+        onTargetChange((current) => ({
+          ...current,
+          exportHeadlines: { projectId: generationProjectId, lines },
+        }));
+      } catch {
+        setHeadlineStatus({
+          projectId: generationProjectId,
+          message: t("headlineLoadFailed"),
+        });
+      }
+    });
+  }
 
   /**
    * fal's pricing unit, singular and translated where we have a word for it.
@@ -414,6 +458,7 @@ export function StudioComposer({
             prompt: directedBrief,
           },
         ];
+    let copyIndex = 0;
     const legs = overSelectionLimit
       ? []
       : entries.flatMap((entry) =>
@@ -421,15 +466,19 @@ export function StudioComposer({
             entry.prompt,
             entry.copies,
             MAX_PROMPT_LENGTH,
-          ).flatMap((copyPrompt) =>
-            configured.map((leg) => ({
+          ).flatMap((copyPrompt) => {
+            const exportHeadline = headlineOptions.length
+              ? headlineOptions[copyIndex++ % headlineOptions.length]
+              : undefined;
+            return configured.map((leg) => ({
               ...leg,
               prompt: copyPrompt,
               photo: entry.photo,
               product: entry.product,
+              exportHeadline,
               varied: copyPrompt !== entry.prompt,
-            })),
-          ),
+            }));
+          }),
         );
     return { copies: hasProductBatch ? productCopies : each, legs, configured };
   }, [
@@ -438,6 +487,7 @@ export function StudioComposer({
     copies,
     directedBrief,
     hasProductBatch,
+    headlineOptions,
     overSelectionLimit,
     placementRatios,
     product,
@@ -460,12 +510,20 @@ export function StudioComposer({
   const batchCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
 
   const totalJobs = plan.legs.length;
+  const plannedHeadlines = [
+    ...new Set(
+      plan.legs.flatMap(({ exportHeadline }) =>
+        exportHeadline ? [exportHeadline] : [],
+      ),
+    ),
+  ];
   const selectionLimitReached = selectedModels.length >= modelLimit;
   const selectionLimitReason = hasProductBatch
     ? t("productBatchLimit", { count: MAX_BATCH })
     : t("modelSelectionLimit", { count: modelLimit });
   const canGenerate =
     !busy &&
+    !loadingHeadlines &&
     !uploadingPhoto &&
     promptLength > 0 &&
     !promptTooLong &&
@@ -526,6 +584,7 @@ export function StudioComposer({
         referenceAssetIds: references.map((asset) => asset.id),
         ...(leg.photo ? { referenceFileIds: [leg.photo.id] } : {}),
         ...(leg.product ? { product: leg.product } : {}),
+        ...(leg.exportHeadline ? { exportHeadline: leg.exportHeadline } : {}),
         // One key per request, never shared across the batch: these are
         // deliberately different images, not retries of one.
         idempotencyKey: `ui:${id}`,
@@ -563,6 +622,7 @@ export function StudioComposer({
     !hasProductBatch && plan.copies > 1
       ? t("copyCount", { count: plan.copies })
       : null,
+    usesApprovedHeadlines ? t("approvedHeadlinesSummary") : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -949,6 +1009,43 @@ export function StudioComposer({
                     </button>
                   ))}
                 </Row>
+                {generationProjectId ? (
+                  <div className="space-y-1.5">
+                    <button
+                      aria-pressed={usesApprovedHeadlines}
+                      className={chipClass(
+                        usesApprovedHeadlines,
+                        loadingHeadlines,
+                      )}
+                      disabled={loadingHeadlines}
+                      onClick={toggleApprovedHeadlines}
+                      type="button"
+                    >
+                      {t("useApprovedHeadlines")}
+                    </button>
+                    <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                      {t("useApprovedHeadlinesHint")}
+                    </p>
+                    {plannedHeadlines.length ? (
+                      <ul className="text-muted-foreground list-disc space-y-0.5 ps-5 text-xs break-words">
+                        {plannedHeadlines.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {loadingHeadlines ||
+                    headlineStatus?.projectId === generationProjectId ? (
+                      <p
+                        className="text-muted-foreground text-xs"
+                        role="status"
+                      >
+                        {loadingHeadlines
+                          ? t("headlineLoading")
+                          : headlineStatus?.message}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {/* Every row below reads its options from the chosen models, so
                 with none chosen they are all empty. Saying so beats three
                 labelled rows with nothing in them. */}
@@ -1214,7 +1311,8 @@ export function StudioComposer({
                     </p>
                   ) : null}
 
-                  {plan.legs.some(({ varied }) => varied) ? (
+                  {!usesApprovedHeadlines &&
+                  plan.legs.some(({ varied }) => varied) ? (
                     <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
                       {t("variedAdCopies")}
                     </p>

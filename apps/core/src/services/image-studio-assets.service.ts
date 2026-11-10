@@ -1,5 +1,12 @@
-import { type Prisma, ProjectImageJobStatus } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import {
+  type Prisma,
+  ProjectImageJobStatus,
+  ProjectImageMediaType,
+} from "@sokosumi/database";
+import {
+  convertCentsToCredits,
+  MAX_STUDIO_BATCH_IMAGES,
+} from "@sokosumi/utils";
 import { get } from "@vercel/blob";
 
 import { internalServerError, notFound } from "@/helpers/error";
@@ -13,6 +20,7 @@ import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
 } from "@/lib/image-studio/failure-reason";
+import type { StudioAdHeadline } from "@/schemas/project-image-studio.schema";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 
 /**
@@ -36,6 +44,7 @@ export interface AssetView {
   projectName: string;
   product?: StudioProductIdentity;
   batchId?: string;
+  headline?: StudioAdHeadline;
   settings: unknown;
   rootId: string;
   parentId: string | null;
@@ -71,7 +80,15 @@ const assetSelect = {
   durationSeconds: true,
   createdAt: true,
   jobId: true,
-  job: { select: { productId: true, productName: true, batchId: true } },
+  headline: { select: { text: true, revision: true } },
+  job: {
+    select: {
+      productId: true,
+      productName: true,
+      batchId: true,
+      batchSlot: { select: { batchId: true } },
+    },
+  },
 } as const;
 
 function productView(job: {
@@ -84,16 +101,19 @@ function productView(job: {
 }
 
 function toAssetView({
+  headline,
   job,
   project,
   ...asset
 }: Prisma.ProjectImageAssetGetPayload<{
   select: typeof assetSelect;
 }>): AssetView {
+  const batchId = job.batchId ?? job.batchSlot?.batchId;
   return {
     ...asset,
     ...productView(job),
-    ...(job.batchId ? { batchId: job.batchId } : {}),
+    ...(batchId ? { batchId } : {}),
+    ...(headline ? { headline } : {}),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
     projectName: project.name,
   };
@@ -172,25 +192,12 @@ export async function listAssets(
     before?: { createdAt: Date; id: string };
     /** Always include this version, whatever its age. */
     pinnedAssetId?: string;
-    batchId?: string;
   },
 ): Promise<{
   assets: AssetView[];
   nextCursor: { createdAt: Date; id: string } | null;
 }> {
-  const scope = await scopeWhere(options);
-  const where: Prisma.ProjectImageAssetWhereInput = {
-    ...scope,
-    ...(options.batchId
-      ? {
-          mediaType: "IMAGE",
-          job: {
-            projectId: options.projectId ?? undefined,
-            batchId: options.batchId,
-          },
-        }
-      : {}),
-  };
+  const where = await scopeWhere(options);
 
   // Ordered by `(createdAt, id)`, not `createdAt` alone. Two versions settled
   // in the same millisecond are not rare — a webhook and a poll finishing
@@ -242,6 +249,57 @@ export async function listAssets(
   }
 
   return { assets, nextCursor };
+}
+
+export async function listStudioBatchAssets(options: {
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  batchId: string;
+}): Promise<AssetView[]> {
+  await requireProjectAccess(options);
+  const { projectId, workspaceId, batchId } = options;
+  const image = {
+    projectId,
+    workspaceId,
+    mediaType: ProjectImageMediaType.IMAGE,
+  };
+  const readyRevision = { projectId, workspaceId, asset: { is: image } };
+  const slots = await prisma.projectImageJob.findMany({
+    where: {
+      projectId,
+      workspaceId,
+      batchId,
+      OR: [
+        { asset: { is: image } },
+        { batchRefinements: { some: readyRevision } },
+      ],
+    },
+    take: MAX_STUDIO_BATCH_IMAGES + 1,
+    select: {
+      asset: { select: assetSelect },
+      batchRefinements: {
+        where: readyRevision,
+        orderBy: { asset: { version: "desc" } },
+        take: 1,
+        select: { asset: { select: assetSelect } },
+      },
+    },
+  });
+  return slots
+    .flatMap(({ asset, batchRefinements }) => {
+      const latest = batchRefinements[0]?.asset ?? asset;
+      return latest &&
+        latest.mediaType === ProjectImageMediaType.IMAGE &&
+        latest.projectId === projectId
+        ? [toAssetView(latest)]
+        : [];
+    })
+    .sort(
+      (left, right) =>
+        right.createdAt.getTime() - left.createdAt.getTime() ||
+        right.id.localeCompare(left.id),
+    );
 }
 
 export async function getAsset(options: {

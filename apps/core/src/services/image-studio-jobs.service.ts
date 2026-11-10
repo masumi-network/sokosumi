@@ -62,7 +62,9 @@ import { creditsPerImage } from "@/lib/image-studio/image-model";
 import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import {
   applyStudioBrandPrompt,
+  isApprovedStudioHeadline,
   loadStudioBrand,
+  requireApprovedStudioHeadline,
 } from "@/lib/image-studio/studio-brand";
 import {
   findVideoModelForEndpoint,
@@ -134,6 +136,9 @@ export interface CreateImageJobInput {
   prompt: string;
   product?: StudioProductIdentity;
   batchId?: string;
+  /** Continue the same campaign ad when the request edits one source image. */
+  reuseParentBatchSlot?: boolean;
+  exportHeadline?: string;
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
   referenceAssetIds: string[];
@@ -146,6 +151,8 @@ export interface CreateImageJobInput {
   referenceFileActor?: FileActor;
   /** Keep the source ad's product photo when an assistant edit can use it. */
   reuseParentPhotoIfAvailable?: boolean;
+  /** Keep a source ad's currently approved headline on a visual refinement. */
+  reuseParentHeadlineIfAvailable?: boolean;
   /** The version being refined, when the user started from a selection. */
   parentAssetId: string | null;
   idempotencyKey: string;
@@ -298,20 +305,52 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     if (existing) return { job: existing, created: false };
 
     const source =
-      !input.product && input.parentAssetId
+      input.parentAssetId &&
+      (!input.product ||
+        input.reuseParentHeadlineIfAvailable ||
+        input.reuseParentBatchSlot)
         ? await tx.projectImageAsset.findFirst({
             where: { id: input.parentAssetId, projectId: input.projectId },
             select: {
+              ...(input.reuseParentHeadlineIfAvailable
+                ? { headline: { select: { text: true } } }
+                : {}),
               job: {
                 select: {
                   productId: true,
                   productName: true,
                   referenceFileIds: true,
+                  ...(input.reuseParentBatchSlot
+                    ? { id: true, batchId: true, batchSlotId: true }
+                    : {}),
                 },
               },
             },
           })
         : null;
+
+    const batchSlotId =
+      source?.job.batchSlotId ??
+      (source?.job.batchId ? source.job.id : undefined);
+    const sameProduct = input.product
+      ? input.product.id === source?.job.productId
+      : !input.referenceFileIds?.length;
+    const inheritedHeadline = sameProduct ? source?.headline?.text : undefined;
+    let exportHeadline = input.exportHeadline;
+    if (exportHeadline || inheritedHeadline) {
+      const brand = await tx.brandBrain.findUnique({
+        where: { projectId: input.projectId },
+        select: { body: true },
+      });
+      if (exportHeadline)
+        requireApprovedStudioHeadline(exportHeadline, brand?.body);
+      else if (
+        inheritedHeadline &&
+        isApprovedStudioHeadline(inheritedHeadline, brand?.body)
+      ) {
+        exportHeadline = inheritedHeadline;
+      }
+    }
 
     const referenceCount =
       input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
@@ -409,6 +448,8 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         productId: input.product?.id ?? source?.job.productId,
         productName: input.product?.name ?? source?.job.productName,
         batchId: input.batchId,
+        batchSlotId,
+        exportHeadline,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
@@ -728,15 +769,23 @@ export async function createImageJob(input: CreateImageJobInput) {
   const kind =
     references > 0 ? ProjectImageJobKind.EDIT : ProjectImageJobKind.GENERATE;
   const { modelId, ...request } = input;
+  const refinesParent =
+    input.parentAssetId !== null &&
+    input.referenceAssetIds.includes(input.parentAssetId);
+  const refinesSingleSource =
+    refinesParent && input.referenceAssetIds.length === 1;
   return await reserveAndSend({
     ...request,
     reuseParentPhotoIfAvailable:
       input.reuseParentPhotoIfAvailable &&
       !input.product &&
       !input.referenceFileIds?.length &&
-      input.parentAssetId !== null &&
-      input.referenceAssetIds.includes(input.parentAssetId) &&
+      refinesParent &&
       references < maxReferences,
+    reuseParentHeadlineIfAvailable:
+      input.reuseParentHeadlineIfAvailable && refinesSingleSource,
+    reuseParentBatchSlot:
+      input.reuseParentBatchSlot && !input.batchId && refinesSingleSource,
     kind,
     model: falModelForKind(kind, modelId),
     settings,
@@ -898,7 +947,10 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     preflightReason = "request_not_supported";
     // Brand is for fal only. The stored prompt stays the brief. A missing
     // Design or Memory is ignored so a brand read never blocks a generation.
-    const prompt = applyStudioBrandPrompt(job.prompt, brand);
+    const prompt = applyStudioBrandPrompt(
+      job.prompt,
+      job.exportHeadline ? { ...brand, approvedLines: undefined } : brand,
+    );
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
       if (!model) throw new Error("Unsupported video model endpoint.");
@@ -913,9 +965,12 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       const productPhotoGuidance = photoCount
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";
+      const headlineGuidance = job.exportHeadline
+        ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
+        : "";
       input = buildFalInput(
         {
-          prompt: prompt + productPhotoGuidance,
+          prompt: prompt + productPhotoGuidance + headlineGuidance,
           aspectRatio: settings.aspectRatio,
           resolution: settings.resolution,
           outputFormat: settings.outputFormat,
@@ -1248,10 +1303,14 @@ async function noteUnreachable(
       lastPollError: message.slice(0, 500),
       unreachableSource: source,
     },
-    select: { [column]: true } as Record<string, true>,
+    select: {
+      statusUnreachableSince: true,
+      resultUnreachableSince: true,
+      authUnreachableSince: true,
+    },
   });
 
-  const startedAt = (updated as Record<string, Date | null>)[column] ?? null;
+  const startedAt = updated[column];
 
   // First failure of this dependency's current run: start its clock and wait.
   if (!startedAt) {
@@ -1618,6 +1677,7 @@ async function storeMedia(
         workspaceId: project.workspaceId,
         model: job.model,
         prompt: job.prompt,
+        exportHeadline: job.exportHeadline,
         settings: job.settings,
         parentAssetId: job.parentAssetId,
         requestedByUserId: job.requestedByUserId,
@@ -1678,6 +1738,7 @@ async function insertAsset(input: {
     workspaceId: string;
     model: string;
     prompt: string;
+    exportHeadline: string | null;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
     /** Who pays, and out of which pot. */
@@ -1785,6 +1846,10 @@ async function insertAsset(input: {
         height: input.height,
         bytes: input.bytes,
         checksum: input.checksum,
+        ...(input.job.exportHeadline &&
+        input.mediaType === ProjectImageMediaType.IMAGE
+          ? { headline: { create: { text: input.job.exportHeadline } } }
+          : {}),
       },
     });
 

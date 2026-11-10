@@ -21090,6 +21090,84 @@ export const StudioProductIdentitySchema = {
     ]
 } as const;
 
+export const StudioAgentAdHeadlineSchema = {
+    type: 'object',
+    properties: {
+        headline: {
+            $ref: '#/components/schemas/StudioAdHeadline'
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 120
+            }
+        }
+    },
+    required: [
+        'headline',
+        'approvedLines'
+    ]
+} as const;
+
+export const StudioAdHeadlineSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioAdHeadline'
+        },
+        {
+            type: 'object',
+            properties: {
+                revision: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'revision'
+            ]
+        }
+    ]
+} as const;
+
+export const SaveStudioAdHeadlineSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 120
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
+export const SaveStudioAgentAdHeadlineSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioAdHeadline'
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'expectedRevision'
+            ]
+        }
+    ]
+} as const;
+
 export const ProjectImageStudioCatalogSchema = {
     type: 'object',
     properties: {
@@ -21447,6 +21525,9 @@ export const ProjectImageAssetSchema = {
         batchId: {
             type: 'string',
             format: 'uuid'
+        },
+        headline: {
+            $ref: '#/components/schemas/StudioAdHeadline'
         },
         rootId: {
             type: 'string',
@@ -39163,6 +39244,11 @@ export const CreateProjectImageJobRequestSchema = {
         batchId: {
             type: 'string',
             format: 'uuid'
+        },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'

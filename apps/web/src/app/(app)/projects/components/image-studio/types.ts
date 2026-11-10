@@ -184,6 +184,7 @@ export function assetContentUrl(
  */
 export interface StudioTarget {
   creativeDirection?: StudioCreativeDirection;
+  exportHeadlines?: { projectId: string; lines: string[] };
   modelIds: string[];
   placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;

@@ -15,7 +15,7 @@ import {
   imageStudioAssetSchema,
   imageStudioProjectParamsSchema,
 } from "@/schemas/project-image-studio.schema";
-import { listAssets } from "@/services/image-studio-assets.service";
+import { listStudioBatchAssets } from "@/services/image-studio-assets.service";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -29,7 +29,7 @@ const route = withOrganizationSlugHeaderParameter(
     responses: {
       200: jsonSuccessResponse(
         z.array(imageStudioAssetSchema).max(MAX_STUDIO_BATCH_IMAGES),
-        "Finished ads in a Studio batch",
+        "Latest finished version of each ad in a Studio batch",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -44,14 +44,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, batchId } = c.req.valid("param");
-    const { assets, nextCursor } = await listAssets({
+    const assets = await listStudioBatchAssets({
       projectId,
       userId,
       workspaceId,
       batchId,
-      limit: MAX_STUDIO_BATCH_IMAGES,
     });
-    if (nextCursor) throw payloadTooLarge("Batch exceeds the image limit");
+    if (assets.length > MAX_STUDIO_BATCH_IMAGES)
+      throw payloadTooLarge("Batch exceeds the image limit");
     if (!assets.length) throw notFound("Batch has no finished ads");
     return ok(
       c,

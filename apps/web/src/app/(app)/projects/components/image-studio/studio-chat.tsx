@@ -1,15 +1,32 @@
 "use client";
 
-import { useEveAgent } from "eve/react";
+import { type EveToolPart, useEveAgent } from "eve/react";
 import { AlertTriangle, Loader2, SendHorizonal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { StudioImage } from "./studio-image";
 import type { StudioAsset, StudioLabels } from "./types";
+
+const headlineUpdateSchema = z.object({
+  assetId: z.uuid(),
+  headline: z.object({
+    text: z.string().nullable(),
+    revision: z.number().int().nonnegative(),
+  }),
+});
+
+type HeadlineUpdate = z.infer<typeof headlineUpdateSchema>;
+
+function headlineUpdate(part: EveToolPart): HeadlineUpdate | undefined {
+  if (part.name !== "ad_headline" || part.state !== "completed") return;
+  return headlineUpdateSchema.safeParse(part.output).data;
+}
 
 /**
  * The conversation, running on the eve agent mounted at
@@ -146,13 +163,15 @@ export function StudioChat({
   assets,
   labels,
   onActivity,
+  onPreviewAd,
   onSelectResult,
   projectId,
   selectedAsset,
 }: {
   assets: readonly StudioAsset[];
   labels: StudioLabels;
-  onActivity: () => void;
+  onActivity: (headlineUpdates: HeadlineUpdate[]) => void;
+  onPreviewAd?: (asset: StudioAsset) => void;
   onSelectResult: (asset: StudioAsset) => void;
   projectId: string;
   selectedAsset: StudioAsset | null;
@@ -182,6 +201,7 @@ export function StudioChat({
       key={`${sessionId ?? "new"}:${conversationNumber}`}
       labels={labels}
       onActivity={onActivity}
+      onPreviewAd={onPreviewAd}
       onNewConversation={() => {
         rememberSession(null);
         setSessionId(null);
@@ -204,6 +224,7 @@ function StudioConversation({
   assets,
   labels,
   onActivity,
+  onPreviewAd,
   onNewConversation,
   onRecoverSession,
   onSessionChange,
@@ -215,7 +236,8 @@ function StudioConversation({
   assets: readonly StudioAsset[];
   labels: StudioLabels;
   /** Fires when the agent settles a turn, so the page can look for results. */
-  onActivity: () => void;
+  onActivity: (headlineUpdates: HeadlineUpdate[]) => void;
+  onPreviewAd?: (asset: StudioAsset) => void;
   onNewConversation: () => void;
   onSessionChange: (sessionId: string) => void;
   onSelectResult: (asset: StudioAsset) => void;
@@ -409,7 +431,18 @@ function StudioConversation({
         onSessionChange(session.sessionId);
       }
     },
-    onFinish: () => onActivity(),
+    onFinish: ({ messages }) => {
+      const lastUser = messages.findLastIndex(({ role }) => role === "user");
+      onActivity(
+        messages.slice(lastUser + 1).flatMap(({ parts }) =>
+          parts.flatMap((part) => {
+            const update =
+              part.type === "tool" ? headlineUpdate(part) : undefined;
+            return update ? [update] : [];
+          }),
+        ),
+      );
+    },
   });
 
   const isBusy = agent.status === "busy";
@@ -566,6 +599,13 @@ function StudioConversation({
               }
               if (part.type !== "tool") return null;
               const output = part.output;
+              const updatedAdId = headlineUpdate(part)?.assetId;
+              const updatedAd =
+                updatedAdId &&
+                assets.find(
+                  (asset) =>
+                    asset.projectId === projectId && asset.id === updatedAdId,
+                );
               const asset =
                 output && typeof output === "object" && "jobId" in output
                   ? assets.find(
@@ -577,6 +617,18 @@ function StudioConversation({
               return (
                 <div key={part.callId}>
                   <p className="text-muted-foreground text-xs">{part.label}</p>
+                  {updatedAd && onPreviewAd ? (
+                    <Button
+                      className="mt-1"
+                      disabled={isBusy || isResuming}
+                      onClick={() => onPreviewAd(updatedAd)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {t("viewUpdatedAd")}
+                    </Button>
+                  ) : null}
                   {asset ? (
                     <Button
                       className="mt-1"

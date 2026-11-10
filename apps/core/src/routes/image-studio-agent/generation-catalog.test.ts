@@ -107,6 +107,7 @@ describe("agent catalog and generation HTTP contract", () => {
         referenceAssetIds: [sourceId],
         referenceFileIds: [fileId],
         reuseParentPhotoIfAvailable: false,
+        reuseParentHeadlineIfAvailable: false,
         referenceFileActor: {
           kind: "interactive",
           userId: "user",
@@ -141,6 +142,7 @@ describe("agent catalog and generation HTTP contract", () => {
         parentAssetId: sourceId,
         referenceAssetIds: [sourceId],
         reuseParentPhotoIfAvailable: true,
+        reuseParentHeadlineIfAvailable: true,
         referenceFileActor: {
           kind: "interactive",
           userId: "user",

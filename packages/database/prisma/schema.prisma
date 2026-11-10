@@ -5292,6 +5292,14 @@ model ProjectImageJob {
   /// All jobs from one Content Studio composer submission.
   batchId String? @db.Uuid
 
+  /// The original batch job this revision replaces in campaign exports.
+  batchSlotId      String?           @db.Uuid
+  batchSlot        ProjectImageJob?  @relation("ProjectImageJobBatchSlot", fields: [batchSlotId], references: [id], onDelete: SetNull)
+  batchRefinements ProjectImageJob[] @relation("ProjectImageJobBatchSlot")
+
+  /// Approved copy to attach when the image is delivered.
+  exportHeadline String?
+
   status ProjectImageJobStatus @default(PENDING)
 
   /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),
@@ -5406,6 +5414,7 @@ model ProjectImageJob {
   @@unique([falRequestId])
   @@index([projectId, createdAt])
   @@index([projectId, batchId])
+  @@index([batchSlotId])
   @@index([status, updatedAt])
   @@index([workspaceId])
   @@index([sessionId])
@@ -5459,13 +5468,24 @@ model ProjectImageAsset {
   /// sha256 of the stored bytes.
   checksum        String
 
-  review ProjectImageReview?
+  review   ProjectImageReview?
+  headline ProjectImageHeadline?
 
   @@unique([rootId, version])
   @@index([projectId, createdAt])
   @@index([workspaceId])
   @@index([parentId])
   @@map("project_image_asset")
+}
+
+/// Approved export copy attached to an immutable image version.
+model ProjectImageHeadline {
+  assetId  String            @id @db.Uuid
+  asset    ProjectImageAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  text     String?
+  revision Int               @default(1)
+
+  @@map("project_image_headline")
 }
 
 /// A human decision about one immutable version.
