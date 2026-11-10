@@ -623,6 +623,9 @@ importers:
       input-otp:
         specifier: 1.5.0
         version: 1.5.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      js.foresight:
+        specifier: 4.2.1
+        version: 4.2.1
       lucide-react:
         specifier: 1.70.0
         version: 1.70.0(@types/react@19.3.0)(react@19.3.1)
@@ -7115,6 +7118,9 @@ packages:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
     hasBin: true
 
+  js.foresight@4.2.1:
+    resolution: {integrity: sha512-0IMLIEhYmUobu3I6YNFeSpuK2OYOep3kRhue0DX7qqbUFzuX+Cb0ujkDK3RE97ahysnza7Q63ROWqP1dxAXVuw==}
+
   jsesc@3.1.0:
     resolution: {integrity: sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA==}
     engines: {node: '>=6'}
@@ -8118,6 +8124,9 @@ packages:
     os: [darwin, linux, win32]
     hasBin: true
 
+  position-observer@1.0.3:
+    resolution: {integrity: sha512-iqzsYcYB7wo9kd3Juw4XaVPhlLCfKhZLv6TrH096reU6tIcXuftPkA41+nqQgnPGzVo5zTC4tJ7GnIRTxrnZbQ==}
+
   postal-mime@2.7.6:
     resolution: {integrity: sha512-UUlyE2KlxmvwMGq060onF/VWU3zD6dVW31FwokQ5v26jWd35fbs2MoTFzh+jXnPwAyV2MULMKXcBInGOl5TO6Q==}
 
@@ -8909,6 +8918,9 @@ packages:
     resolution: {integrity: sha512-BRw55e8r0B7SpDN20CAzoQAHl7y1yP7/Zt7oqUjMv0vSt2u2Xnkm88Ws+VypbV9BXHQVuSuyVq7zMjO16wSExw==}
     peerDependencies:
       react: ^16.11.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  tabbable@6.5.1:
+    resolution: {integrity: sha512-dMCuwDUY6Noz3zVKLefBC4wq+aJV20yc7vWmM7uTNGwtQSFF5kX7OUIUsxuVajz/bdt5Xqdah3/0NLjth+cM5A==}
 
   tagged-tag@1.0.0:
     resolution: {integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==}
@@ -15394,6 +15406,11 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
+  js.foresight@4.2.1:
+    dependencies:
+      position-observer: 1.0.3
+      tabbable: 6.5.1
+
   jsesc@3.1.0: {}
 
   json-buffer@3.0.1: {}
@@ -16682,6 +16699,10 @@ snapshots:
 
   portless@0.17.0: {}
 
+  position-observer@1.0.3:
+    optionalDependencies:
+      '@rollup/rollup-linux-x64-gnu': 4.64.7
+
   postal-mime@2.7.6: {}
 
   postcss-load-config@6.0.1(jiti@2.7.0)(postcss@8.5.32)(tsx@4.23.15)(yaml@2.9.1):
@@ -17703,6 +17724,8 @@ snapshots:
       dequal: 2.0.3
       react: 19.3.1
       use-sync-external-store: 1.7.0(react@19.3.1)
+
+  tabbable@6.5.1: {}
 
   tagged-tag@1.0.0: {}
 
