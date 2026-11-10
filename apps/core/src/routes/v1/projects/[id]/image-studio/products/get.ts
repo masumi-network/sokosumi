@@ -2,7 +2,6 @@ import { createRoute } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -12,6 +11,7 @@ import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.schema";
 import { studioProductCatalogSchema } from "@/schemas/studio-product.schema";
+import { readStudioProductCatalog } from "@/services/studio-product-catalog.service";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -38,15 +38,6 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     await requireProjectAccess({ projectId, workspaceId, userId });
-    const catalog = await prisma.projectStudioProductCatalog.findUnique({
-      where: { projectId },
-      select: { products: true, revision: true },
-    });
-    return ok(
-      c,
-      studioProductCatalogSchema.parse(
-        catalog ?? { products: [], revision: 0 },
-      ),
-    );
+    return ok(c, await readStudioProductCatalog(projectId));
   });
 }

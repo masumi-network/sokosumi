@@ -16,6 +16,20 @@ const { loadCatalog, importProducts, saveCatalog, attachPhoto } = vi.hoisted(
     attachPhoto: vi.fn(),
   }),
 );
+const { uploadPhoto } = vi.hoisted(() => ({ uploadPhoto: vi.fn() }));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {
+    getSession: async () => ({
+      data: { session: { activeOrganizationId: "workspace-org" } },
+    }),
+  },
+}));
+
+vi.mock("@/lib/utils/drive-file-upload.client", () => ({
+  isDriveFileUploadDuplicate: () => false,
+  uploadDriveFile: uploadPhoto,
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -136,7 +150,69 @@ describe("Studio product catalog", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("name")).toHaveValue("Updated vase"),
     );
-    expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "save" })).toBeDisabled(),
+    );
+  });
+
+  it("saves an uploaded product photo and reuses it in a later batch", async () => {
+    const product = {
+      id: "mug",
+      name: "Mug",
+      description: "",
+      price: "",
+      url: null,
+      imageUrl: "https://store.example.com/old-photo.png",
+    };
+    const photo = { id: "file-mug", name: "mug.png" };
+    const saved = { ...product, photo, imageUrl: null };
+    loadCatalog
+      .mockResolvedValueOnce({ revision: 1, products: [product] })
+      .mockResolvedValueOnce({ revision: 2, products: [saved] });
+    uploadPhoto.mockResolvedValueOnce({ resourceId: photo.id });
+    saveCatalog.mockResolvedValueOnce({ revision: 2, products: [saved] });
+    const onUseBatch = vi.fn();
+    render(
+      <StudioProductCatalogDialog
+        projectId="project-a"
+        onUseProduct={vi.fn()}
+        onUseBatch={onUseBatch}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "title" }));
+    const input = await screen.findByLabelText("productPhoto");
+    await waitFor(() => expect(input).toBeEnabled());
+    fireEvent.change(input, {
+      target: {
+        files: [new File(["image"], photo.name, { type: "image/png" })],
+      },
+    });
+    expect(await screen.findByText(photo.name)).toBeInTheDocument();
+
+    const save = screen.getByRole("button", { name: "save" });
+    await waitFor(() => expect(save).toBeEnabled());
+    fireEvent.click(save);
+    await screen.findByText("saved");
+    expect(saveCatalog).toHaveBeenCalledWith({
+      projectId: "project-a",
+      catalog: { revision: 1, products: [saved] },
+    });
+    const close = screen.getByRole("button", { name: "close" });
+    await waitFor(() => expect(close).toBeEnabled());
+    fireEvent.click(close);
+
+    fireEvent.click(screen.getByRole("button", { name: "title" }));
+    const add = await screen.findByRole("button", { name: "addToBatch" });
+    await waitFor(() => expect(add).toBeEnabled());
+    fireEvent.click(add);
+    fireEvent.click(screen.getByRole("button", { name: "useBatch" }));
+
+    expect(onUseBatch).toHaveBeenCalledExactlyOnceWith([
+      { product: saved, photo, copies: 1 },
+    ]);
+    expect(uploadPhoto).toHaveBeenCalledTimes(1);
+    expect(attachPhoto).not.toHaveBeenCalled();
   });
 
   it("chooses products with separate copy counts and prepares only their photos", async () => {

@@ -1,3 +1,12 @@
+import {
+  Bookmark,
+  Ellipsis,
+  Heart,
+  MessageCircle,
+  Send,
+  Share2,
+  ThumbsUp,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -18,6 +27,14 @@ import { StudioImage } from "./studio-image";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import type { StudioAsset, StudioLabels } from "./types";
 
+const PLATFORM_RATIOS = {
+  instagram: ["1:1", "4:5"],
+  facebook: ["1:1", "4:5", "16:9"],
+  reels: ["9:16"],
+} satisfies Record<string, [PlacementRatio, ...PlacementRatio[]]>;
+
+type PreviewPlatform = keyof typeof PLATFORM_RATIOS;
+
 export function StudioAdPreview({
   asset,
   caption,
@@ -32,6 +49,35 @@ export function StudioAdPreview({
     AD_PLACEMENTS.find(({ ratio }) => ratio === asset.settings?.aspectRatio)
       ?.ratio ?? "1:1",
   );
+  const [platform, setPlatform] = useState<PreviewPlatform>(() =>
+    ratio === "9:16" ? "reels" : ratio === "16:9" ? "facebook" : "instagram",
+  );
+  const isReel = platform === "reels";
+  const isFacebook = platform === "facebook";
+  const platformRatios: readonly PlacementRatio[] = PLATFORM_RATIOS[platform];
+  const platforms = Object.keys(PLATFORM_RATIOS) as PreviewPlatform[];
+  const displayCaption = caption?.trim();
+  const attribution = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span
+        aria-hidden
+        className="bg-muted text-muted-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-medium"
+      >
+        {asset.projectName?.trim().at(0)?.toLocaleUpperCase()}
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-medium break-words">{asset.projectName}</p>
+        <p className="text-muted-foreground text-xs">{t("previewSponsored")}</p>
+      </div>
+    </div>
+  );
+
+  function selectPlatform(next: PreviewPlatform) {
+    const allowed: [PlacementRatio, ...PlacementRatio[]] =
+      PLATFORM_RATIOS[next];
+    setPlatform(next);
+    setRatio((current) => (allowed.includes(current) ? current : allowed[0]));
+  }
 
   return (
     <Dialog>
@@ -41,7 +87,7 @@ export function StudioAdPreview({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="app-scrollbar max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        className="app-scrollbar max-h-[calc(100dvh-2rem)] grid-cols-1 overflow-y-auto"
         showCloseButton={false}
       >
         <DialogHeader>
@@ -49,11 +95,31 @@ export function StudioAdPreview({
           <DialogDescription>{t("previewAdDescription")}</DialogDescription>
         </DialogHeader>
         <div
+          aria-label={t("previewPlatform")}
+          className="flex flex-wrap gap-2"
+          role="group"
+        >
+          {platforms.map((option) => (
+            <Button
+              aria-pressed={platform === option}
+              key={option}
+              onClick={() => selectPlatform(option)}
+              size="sm"
+              type="button"
+              variant={platform === option ? "default" : "outline"}
+            >
+              {t(`PreviewPlatforms.${option}`)}
+            </Button>
+          ))}
+        </div>
+        <div
           aria-label={t("adPlacements")}
           className="flex flex-wrap gap-2"
           role="group"
         >
-          {AD_PLACEMENTS.map(({ label, ratio: option }) => (
+          {AD_PLACEMENTS.filter(({ ratio }) =>
+            platformRatios.includes(ratio),
+          ).map(({ label, ratio: option }) => (
             <Button
               aria-pressed={ratio === option}
               key={option}
@@ -66,32 +132,75 @@ export function StudioAdPreview({
             </Button>
           ))}
         </div>
-        <figure
+        <div
+          aria-label={t(`PreviewPlatforms.${platform}`)}
           className={cn(
-            "bg-card-background border-border mx-auto max-w-full min-w-0 overflow-hidden rounded-xl border",
-            ratio === "9:16" ? "w-48" : "w-72",
+            "bg-card-background border-border relative mx-auto max-w-full min-w-0 overflow-hidden rounded-xl border",
+            isReel ? "w-52" : "w-80",
           )}
+          role="group"
         >
-          <div className="px-3 py-2">
-            <p className="text-sm font-medium break-words">
-              {asset.projectName}
+          {!isReel ? (
+            <div className="flex items-center justify-between gap-2 px-3 py-2">
+              {attribution}
+              <Ellipsis
+                aria-hidden
+                className="text-muted-foreground size-4 shrink-0"
+              />
+            </div>
+          ) : null}
+          {isFacebook && displayCaption ? (
+            <p className="px-3 pb-2 text-sm break-words whitespace-pre-wrap">
+              {displayCaption}
             </p>
-            <p className="text-muted-foreground text-xs">
-              {t("previewSponsored")}
-            </p>
-          </div>
+          ) : null}
           <div
             className="bg-muted"
             style={{ aspectRatio: ratio.replace(":", " / ") }}
           >
             <StudioImage asset={asset} labels={labels} />
           </div>
-          {caption?.trim() ? (
-            <figcaption className="px-3 py-2 text-sm break-words whitespace-pre-wrap">
-              {caption}
-            </figcaption>
-          ) : null}
-        </figure>
+          {isReel ? (
+            <>
+              <div
+                aria-hidden
+                className="bg-background absolute right-2 bottom-20 flex flex-col gap-3 rounded-md p-2"
+              >
+                <Heart className="size-4" />
+                <MessageCircle className="size-4" />
+                <Send className="size-4" />
+              </div>
+              <div className="bg-background absolute inset-x-0 bottom-0 space-y-1 px-3 py-2">
+                {attribution}
+                {displayCaption ? (
+                  <p className="line-clamp-2 text-xs break-words">
+                    {displayCaption}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                aria-hidden
+                className={cn(
+                  "text-muted-foreground flex items-center gap-3 px-3 py-2 [&_svg]:size-4",
+                  isFacebook && "border-border justify-around border-t",
+                )}
+              >
+                {isFacebook ? <ThumbsUp /> : <Heart />}
+                <MessageCircle />
+                {isFacebook ? <Share2 /> : <Send />}
+                {!isFacebook ? <Bookmark className="ml-auto" /> : null}
+              </div>
+              {!isFacebook && displayCaption ? (
+                <p className="px-3 pb-2 text-sm break-words whitespace-pre-wrap">
+                  {displayCaption}
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="outline">

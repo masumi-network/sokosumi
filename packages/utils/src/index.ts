@@ -491,6 +491,7 @@ export {
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {

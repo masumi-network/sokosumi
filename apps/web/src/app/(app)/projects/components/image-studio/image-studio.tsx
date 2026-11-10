@@ -3,14 +3,16 @@
 import type {
   CreateProjectVideoJobRequest,
   StudioProduct,
+  StudioProductIdentity,
   StudioProductPhoto,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, productBrief } from "@sokosumi/utils";
 import {
   AlertTriangle,
   Columns2,
   Download,
   ExternalLink,
+  MessageSquare,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -58,7 +60,8 @@ import {
   MAX_ARCHIVE_IMAGES,
   MAX_ARCHIVE_MIB,
 } from "./studio-ad-archive";
-import { productBrief, type StudioBatchProduct } from "./studio-batch";
+import type { StudioBatchProduct } from "./studio-batch";
+import { StudioChat } from "./studio-chat";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
@@ -129,6 +132,7 @@ interface StudioCaptionDraft {
  * many models one brief can reach and how quickly their results can be read
  * side by side. A chat column bought none of that and spent a quarter of the
  * width on it.
+ * The ad editor is now opened on demand, beside the gallery on wide screens.
  *
  * What the person is aiming at — models and frame — is still held here rather
  * than inside the composer, because the lightbox's "new variation" and the
@@ -187,7 +191,14 @@ export function ImageStudio({
   const [viewing, setViewing] = useState<Viewing>(
     initialSelectedAssetId ? { mode: "single" } : null,
   );
+  const [assistant, setAssistant] = useState<{
+    open: boolean;
+    asset: StudioAsset | null;
+  } | null>(null);
+  const assistantTriggerRef = useRef<HTMLButtonElement>(null);
+  const assistantCloseRef = useRef<HTMLButtonElement>(null);
   const [prompt, setPrompt] = useState("");
+  const [draftProduct, setDraftProduct] = useState<StudioProductIdentity>();
   const productDetailsRef = useRef<string | null>(null);
   const [batchProducts, setBatchProducts] = useState<StudioBatchProduct[]>([]);
   const catalogPhotoRef = useRef<string | null>(null);
@@ -463,6 +474,7 @@ export function ImageStudio({
         : from === "asset"
           ? [(source as StudioAsset).id]
           : (source as StudioJob).referenceAssetIds,
+      ...(source.product ? { product: source.product } : {}),
       ...(from === "job" &&
       !reroll &&
       (source as StudioJob).referenceFileIds?.length
@@ -515,6 +527,7 @@ export function ImageStudio({
     photo: StudioProductPhoto | null,
   ) {
     setBatchProducts([]);
+    setDraftProduct({ id: product.id, name: product.name });
     const previousPhotoId = catalogPhotoRef.current;
     catalogPhotoRef.current = photo?.id ?? null;
     setProductPhoto(
@@ -541,6 +554,7 @@ export function ImageStudio({
     productDetailsRef.current = null;
     catalogPhotoRef.current = null;
     setProductPhoto(null);
+    setDraftProduct(undefined);
     setBatchProducts(products);
     setMode("image");
     setHasNewerSettings(true);
@@ -556,6 +570,7 @@ export function ImageStudio({
   /** Put an image's brief and frame back in the composer, ready to edit. */
   function reusePrompt(asset: StudioAsset) {
     setBatchProducts([]);
+    setDraftProduct(asset.product);
     setHasNewerSettings(true);
     setTemplateUndo(null);
     setPrompt(asset.prompt);
@@ -608,6 +623,7 @@ export function ImageStudio({
     );
     setPrompt("");
     setBatchProducts([]);
+    setDraftProduct(undefined);
     setHasNewerSettings(false);
   }
 
@@ -786,6 +802,18 @@ export function ImageStudio({
   }, [hasOlder, state.assets.length]);
 
   const dock = useSteadyDock(promptRef, showsNothing);
+  const assistantOpen = assistant?.open === true;
+
+  function openAssistant(asset: StudioAsset | null) {
+    setAssistant({ open: true, asset });
+    setViewing(null);
+    requestAnimationFrame(() => assistantCloseRef.current?.focus());
+  }
+
+  function closeAssistant() {
+    setAssistant((current) => (current ? { ...current, open: false } : null));
+    requestAnimationFrame(() => assistantTriggerRef.current?.focus());
+  }
 
   const modeSwitch = hasVideo ? (
     <StudioModeSwitch
@@ -841,6 +869,7 @@ export function ImageStudio({
           setHasNewerSettings(true);
         }}
         productPhoto={productPhoto}
+        product={draftProduct}
         batchProducts={batchProducts}
         onClearProductBatch={() => {
           setBatchProducts([]);
@@ -889,13 +918,11 @@ export function ImageStudio({
     </Button>
   ) : null;
 
-  return (
+  const studioColumn = (
     <div
       className={cn(
-        "flex min-h-0 min-w-0 flex-col",
-        STUDIO_COLUMN_MOBILE_SHELL_CLASS,
-        isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
-        STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+        "min-h-0 min-w-0 flex-1 flex-col",
+        assistantOpen ? "hidden lg:flex" : "flex",
         showsNothing &&
           "relative isolate overflow-y-auto max-md:overflow-y-auto",
       )}
@@ -920,6 +947,21 @@ export function ImageStudio({
             projectId={activeProjectId}
             websiteUrl={websiteUrl}
           />
+          <Button
+            aria-controls={assistant ? "studio-assistant-panel" : undefined}
+            aria-expanded={assistantOpen}
+            onClick={() => {
+              if (assistantOpen) closeAssistant();
+              else openAssistant(assistant?.asset ?? null);
+            }}
+            ref={assistantTriggerRef}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <MessageSquare aria-hidden />
+            {t("Assistant.title")}
+          </Button>
         </div>
       ) : null}
 
@@ -1008,6 +1050,7 @@ export function ImageStudio({
                       if (prompt.trim().length > 0 || hasNewerSettings) return;
                       const { request } = failure;
                       setBatchProducts([]);
+                      setDraftProduct(request.product);
                       setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
@@ -1145,11 +1188,14 @@ export function ImageStudio({
             videoModelsFor(catalog, "image").length > 0 ? animate : undefined
           }
           onClose={() => setViewing(null)}
+          onEditWithAssistant={activeProjectId ? openAssistant : undefined}
+          editWithAssistantLabel={t("Assistant.edit")}
           onRegenerate={(asset) => repeat(asset, "asset")}
           onSchedule={scheduleAsset}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
             setBatchProducts([]);
+            setDraftProduct(asset.product);
             setParentAssetId(undefined);
             setHasNewerSettings(true);
             setTemplateUndo(null);
@@ -1223,6 +1269,55 @@ export function ImageStudio({
           }}
           siblings={state.assets}
         />
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div
+      className={cn(
+        "flex min-w-0",
+        STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+        isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
+        STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+      )}
+    >
+      {studioColumn}
+      {assistant && activeProjectId ? (
+        <aside
+          aria-labelledby="studio-assistant-heading"
+          className={cn(
+            "border-border bg-card-background min-h-0 min-w-0 w-full flex-col lg:w-96 lg:shrink-0 lg:border-l",
+            assistantOpen ? "flex" : "hidden",
+          )}
+          id="studio-assistant-panel"
+          hidden={!assistantOpen}
+        >
+          <div className="border-border flex items-center justify-between gap-2 border-b px-4 py-2">
+            <h2 className="text-sm font-medium" id="studio-assistant-heading">
+              {t("Assistant.title")}
+            </h2>
+            <Button
+              aria-label={labels.close}
+              onClick={closeAssistant}
+              ref={assistantCloseRef}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <X aria-hidden />
+            </Button>
+          </div>
+          <StudioChat
+            assets={state.assets}
+            key={activeProjectId}
+            labels={labels}
+            onActivity={() => void refresh()}
+            onSelectResult={(asset) => setAssistant({ open: true, asset })}
+            projectId={activeProjectId}
+            selectedAsset={assistant.asset}
+          />
+        </aside>
       ) : null}
     </div>
   );

@@ -21052,6 +21052,44 @@ export const HistoryImageItemSchema = {
     ]
 } as const;
 
+export const StudioAgentProductSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        {
+            type: 'object',
+            properties: {
+                hasPhoto: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'hasPhoto'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioProductIdentitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
 export const ProjectImageStudioCatalogSchema = {
     type: 'object',
     properties: {
@@ -21403,6 +21441,9 @@ export const ProjectImageAssetSchema = {
         projectName: {
             type: 'string'
         },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -21629,6 +21670,9 @@ export const ProjectImageJobSchema = {
                 type: 'string',
                 format: 'uuid'
             }
+        },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
         },
         error: {
             type: [
@@ -38814,6 +38858,9 @@ export const CreateProjectImageJobRequestSchema = {
             minLength: 1,
             maxLength: 4000
         },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },
@@ -38916,6 +38963,9 @@ export const StudioProductSchema = {
                 'null'
             ],
             maxLength: 2048
+        },
+        photo: {
+            $ref: '#/components/schemas/StudioProductPhoto'
         }
     },
     required: [
@@ -38925,6 +38975,25 @@ export const StudioProductSchema = {
         'price',
         'url',
         'imageUrl'
+    ]
+} as const;
+
+export const StudioProductPhotoSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255
+        }
+    },
+    required: [
+        'id',
+        'name'
     ]
 } as const;
 
@@ -38941,25 +39010,6 @@ export const StudioProductImportSchema = {
     },
     required: [
         'products'
-    ]
-} as const;
-
-export const StudioProductPhotoSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 160
-        }
-    },
-    required: [
-        'id',
-        'name'
     ]
 } as const;
 

@@ -1,6 +1,10 @@
 "use client";
 
-import type { StudioProductPhoto } from "@sokosumi/core-client";
+import type {
+  StudioProductIdentity,
+  StudioProductPhoto,
+} from "@sokosumi/core-client";
+import { productBrief } from "@sokosumi/utils";
 import { Check, ChevronDown, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
@@ -24,11 +28,7 @@ import {
   creditsForImage,
   priceUnitLabelKey,
 } from "./catalog";
-import {
-  MAX_BATCH,
-  productBrief,
-  type StudioBatchProduct,
-} from "./studio-batch";
+import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
 import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,
@@ -136,6 +136,7 @@ export function StudioComposer({
   prompt,
   promptRef,
   referenceAssets,
+  product,
   productPhoto,
   batchProducts = NO_PRODUCTS,
   onClearProductBatch,
@@ -192,6 +193,7 @@ export function StudioComposer({
   promptRef?: React.Ref<HTMLTextAreaElement>;
   /** Images the person picked in the gallery to generate *from*. */
   referenceAssets: StudioAsset[];
+  product?: StudioProductIdentity;
   productPhoto?: StudioProductPhoto | null;
   batchProducts?: readonly StudioBatchProduct[];
   onClearProductBatch?: () => void;
@@ -382,12 +384,22 @@ export function StudioComposer({
       ? Math.min(copies, Math.floor(MAX_BATCH / configured.length))
       : 0;
     const entries = hasProductBatch
-      ? batchProducts.map(({ copies, photo }, index) => ({
-          copies,
-          photo,
-          prompt: batchPrompts[index],
-        }))
-      : [{ copies: each, photo: productPhoto ?? null, prompt: directedBrief }];
+      ? batchProducts.map(
+          ({ copies, photo, product: { id, name } }, index) => ({
+            copies,
+            photo,
+            product: { id, name },
+            prompt: batchPrompts[index],
+          }),
+        )
+      : [
+          {
+            copies: each,
+            photo: productPhoto ?? null,
+            product,
+            prompt: directedBrief,
+          },
+        ];
     const legs = overSelectionLimit
       ? []
       : entries.flatMap((entry) =>
@@ -396,6 +408,7 @@ export function StudioComposer({
               ...leg,
               prompt: entry.prompt,
               photo: entry.photo,
+              product: entry.product,
             })),
           ).flat(),
         );
@@ -408,6 +421,7 @@ export function StudioComposer({
     hasProductBatch,
     overSelectionLimit,
     placementRatios,
+    product,
     productCopies,
     productPhoto,
     selectedModels,
@@ -492,6 +506,7 @@ export function StudioComposer({
             : parentAssetId,
         referenceAssetIds: references.map((asset) => asset.id),
         ...(leg.photo ? { referenceFileIds: [leg.photo.id] } : {}),
+        ...(leg.product ? { product: leg.product } : {}),
         // One key per request, never shared across the batch: these are
         // deliberately different images, not retries of one.
         idempotencyKey: `ui:${id}`,

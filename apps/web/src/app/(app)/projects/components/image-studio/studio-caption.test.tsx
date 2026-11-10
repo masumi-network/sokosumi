@@ -150,13 +150,45 @@ describe("preview an ad", () => {
     ).toHaveAttribute("aria-pressed", "true");
     const image = within(preview).getByRole("img", { name: ASSET.prompt });
     const src = image.getAttribute("src");
+    expect(
+      within(preview).getByRole("button", {
+        name: "PreviewPlatforms.instagram",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(preview).queryByRole("button", {
+        name: /Placements.landscapeFeed/,
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(preview).getByRole("button", {
+        name: "PreviewPlatforms.facebook",
+      }),
+    );
+    fireEvent.click(
+      within(preview).getByRole("button", { name: /Placements.landscapeFeed/ }),
+    );
+    const facebook = within(preview).getByRole("group", {
+      name: "PreviewPlatforms.facebook",
+    });
+    expect(within(facebook).getByRole("img").parentElement).toHaveStyle({
+      aspectRatio: "16 / 9",
+    });
+
+    fireEvent.click(
+      within(preview).getByRole("button", { name: "PreviewPlatforms.reels" }),
+    );
     const stories = within(preview).getByRole("button", {
       name: /Placements.stories/,
     });
-    fireEvent.click(stories);
     expect(stories).toHaveAttribute("aria-pressed", "true");
-    expect(image.parentElement).toHaveStyle({ aspectRatio: "9 / 16" });
-    expect(image).toHaveAttribute("src", src);
+    const reel = within(preview).getByRole("group", {
+      name: "PreviewPlatforms.reels",
+    });
+    const reelImage = within(reel).getByRole("img");
+    expect(reelImage.parentElement).toHaveStyle({ aspectRatio: "9 / 16" });
+    expect(reelImage).toHaveAttribute("src", src);
 
     fireEvent.click(within(preview).getByRole("button", { name: "close" }));
     await waitFor(() => expect(preview).not.toBeInTheDocument());

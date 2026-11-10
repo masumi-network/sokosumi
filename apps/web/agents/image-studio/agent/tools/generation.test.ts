@@ -2,22 +2,28 @@ import { readFileSync } from "node:fs";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { startGeneration, listImageOptions, readGeneration } = vi.hoisted(
-  () => ({
-    startGeneration: vi.fn(),
-    listImageOptions: vi.fn(),
-    readGeneration: vi.fn(),
-  }),
-);
+const {
+  startGeneration,
+  listImageOptions,
+  readGeneration,
+  listStudioProducts,
+} = vi.hoisted(() => ({
+  startGeneration: vi.fn(),
+  listImageOptions: vi.fn(),
+  readGeneration: vi.fn(),
+  listStudioProducts: vi.fn(),
+}));
 vi.mock("../lib/core", () => ({
   startGeneration,
   listImageOptions,
   readGeneration,
+  listStudioProducts,
 }));
 
 import check from "./check_generation";
 import generate from "./generate_image";
 import options from "./list_image_options";
+import products from "./list_products";
 import refine from "./refine_image";
 
 // These tools use only session identity and turn ID from the runtime context.
@@ -148,6 +154,32 @@ describe("image generation tools", () => {
     listImageOptions.mockResolvedValue({ catalog });
     expect(await options.execute({}, ctx)).toEqual({ catalog });
     expect(startGeneration).not.toHaveBeenCalled();
+  });
+
+  it("looks up the project's products and passes the chosen replacement on an edit", async () => {
+    const productId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const sourceVersionId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const catalog = {
+      products: [{ id: productId, name: "Clay mug", hasPhoto: true }],
+    };
+    const identity = { userId: "user-1", projectId: "project-1" };
+    listStudioProducts.mockResolvedValueOnce(catalog);
+    expect(await products.execute({}, ctx)).toEqual(catalog);
+    expect(listStudioProducts).toHaveBeenCalledExactlyOnceWith(identity);
+    expect(startGeneration).not.toHaveBeenCalled();
+
+    await refine.execute(
+      { ...base, sourceVersionId, catalogProductId: productId },
+      ctx,
+    );
+    expect(startGeneration).toHaveBeenCalledWith(
+      identity,
+      expect.objectContaining({
+        catalogProductId: productId,
+        parentAssetId: sourceVersionId,
+        referenceAssetIds: [sourceVersionId],
+      }),
+    );
   });
 
   it("returns generation provenance and stops on an uncertain provider submission", async () => {

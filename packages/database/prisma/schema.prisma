@@ -5284,6 +5284,10 @@ model ProjectImageJob {
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 
+  /// Catalog identity at generation time, retained after a rename or removal.
+  productId   String? @db.Uuid
+  productName String?
+
   status ProjectImageJobStatus @default(PENDING)
 
   /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),

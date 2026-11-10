@@ -63,6 +63,7 @@ function asset(index: number, createdAt: Date) {
     bytes: 1,
     contentType: "image/png",
     jobId: `job-${index}`,
+    job: { productId: null, productName: null },
   };
 }
 
@@ -121,6 +122,23 @@ describe("listAssets", () => {
     assetFindManyMock.mockResolvedValue([asset(2, new Date())]);
     const result = await listAssets({ ...SCOPE, limit: 10 });
     expect(result.nextCursor).toBeNull();
+    expect(result.assets[0]).not.toHaveProperty("product");
+  });
+
+  it("returns the job's saved product with the asset", async () => {
+    assetFindManyMock.mockResolvedValue([
+      {
+        ...asset(2, new Date()),
+        job: { productId: "product-a", productName: "Clay mug" },
+      },
+    ]);
+
+    const result = await listAssets({ ...SCOPE, limit: 10 });
+
+    expect(result.assets[0]).toMatchObject({
+      product: { id: "product-a", name: "Clay mug" },
+    });
+    expect(result.assets[0]).not.toHaveProperty("job");
   });
 
   it("reads every project in the workspace when no project is named", async () => {

@@ -47,6 +47,8 @@ export function StudioLightbox({
   labels,
   onAnimate,
   onClose,
+  onEditWithAssistant,
+  editWithAssistantLabel,
   onRegenerate,
   onSchedule,
   onSelect,
@@ -69,6 +71,8 @@ export function StudioLightbox({
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
+  onEditWithAssistant?: (asset: StudioAsset) => void;
+  editWithAssistantLabel?: string;
   onRegenerate: (asset: StudioAsset) => void;
   /** Opens Social with this image attached. Absent when Social is not available. */
   onSchedule?: (asset: StudioAsset) => Promise<void>;
@@ -189,9 +193,20 @@ export function StudioLightbox({
                 <StudioAdPreview
                   asset={single}
                   caption={caption}
+                  key={single.id}
                   labels={labels}
                 />
               )}
+              {onEditWithAssistant && !isVideoAsset(single) ? (
+                <Button
+                  onClick={() => onEditWithAssistant(single)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {editWithAssistantLabel}
+                </Button>
+              ) : null}
               {onSchedule ? (
                 <Button
                   loading={scheduling}

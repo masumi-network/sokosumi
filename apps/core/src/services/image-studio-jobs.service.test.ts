@@ -10,6 +10,7 @@ const {
   jobFindManyMock,
   assetFindUniqueMock,
   assetFindManyMock,
+  assetFindFirstMock,
   getEnvMock,
   submitToQueueMock,
   uploadReferenceMock,
@@ -33,6 +34,7 @@ const {
   jobFindManyMock: vi.fn(),
   assetFindUniqueMock: vi.fn(),
   assetFindManyMock: vi.fn(),
+  assetFindFirstMock: vi.fn(),
   getEnvMock: vi.fn(),
   submitToQueueMock: vi.fn(),
   uploadReferenceMock: vi.fn(),
@@ -86,7 +88,7 @@ vi.mock("@/lib/db/prisma", () => {
     projectImageAsset: {
       findUnique: assetFindUniqueMock,
       findMany: assetFindManyMock,
-      findFirst: vi.fn(),
+      findFirst: assetFindFirstMock,
       create: vi.fn(),
     },
     project: { findUnique: projectFindUniqueMock },
@@ -347,6 +349,44 @@ describe("image studio job submission", () => {
     expect(job.status).toBe("QUEUED");
     expect(jobCreateMock).not.toHaveBeenCalled();
     expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
+  it("persists the selected product independently of provider settings", async () => {
+    jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+
+    await createImageJob({
+      ...BASE_INPUT,
+      product: { id: "product-a", name: "Clay mug" },
+    });
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        productId: "product-a",
+        productName: "Clay mug",
+        settings: BASE_INPUT.settings,
+      }),
+    });
+    expect(assetFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("inherits the product from a parent image in the same project", async () => {
+    assetFindFirstMock.mockResolvedValueOnce({
+      job: { productId: "product-a", productName: "Clay mug" },
+    });
+    jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+
+    await createImageJob({ ...BASE_INPUT, parentAssetId: "parent-a" });
+
+    expect(assetFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "parent-a", projectId: BASE_INPUT.projectId },
+      select: { job: { select: { productId: true, productName: true } } },
+    });
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        productId: "product-a",
+        productName: "Clay mug",
+      }),
+    });
   });
 
   const photoInput = {

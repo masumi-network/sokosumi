@@ -14,14 +14,23 @@ const publicWebsite = z
     return url && !url.username && !url.password && isValidHttpUrl(value);
   }, "Enter a public website URL.");
 
+const productIdentityFields = {
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(STUDIO_PRODUCT_NAME_LIMIT),
+};
+
+export const studioProductPhotoSchema = z
+  .object({ id: productIdentityFields.id, name: z.string().min(1).max(255) })
+  .openapi("StudioProductPhoto");
+
 export const studioProductSchema = z
   .object({
-    id: z.string().uuid(),
-    name: z.string().trim().min(1).max(STUDIO_PRODUCT_NAME_LIMIT),
+    ...productIdentityFields,
     description: z.string().trim().max(STUDIO_PRODUCT_DESCRIPTION_LIMIT),
     price: z.string().trim().max(STUDIO_PRODUCT_PRICE_LIMIT),
     url: publicWebsite.nullable(),
     imageUrl: publicWebsite.nullable(),
+    photo: studioProductPhotoSchema.optional(),
   })
   .openapi("StudioProduct");
 
@@ -47,10 +56,12 @@ export const studioProductImportSchema = z
 
 export type StudioProduct = z.infer<typeof studioProductSchema>;
 
+export const studioProductIdentitySchema = studioProductSchema
+  .pick({ id: true, name: true })
+  .openapi("StudioProductIdentity");
+
+export type StudioProductIdentity = z.infer<typeof studioProductIdentitySchema>;
+
 export const studioProductPhotoRequestSchema = studioProductSchema
   .pick({ name: true })
   .extend({ imageUrl: publicWebsite });
-
-export const studioProductPhotoSchema = studioProductSchema
-  .pick({ id: true, name: true })
-  .openapi("StudioProductPhoto");
