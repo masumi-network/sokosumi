@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { brandBrainSchema } from "@sokosumi/soko-bot";
 
+import { studioLogoPositionOrNullSchema } from "./project-image-studio.schema";
 import { studioProductImportSchema } from "./studio-product.schema";
 
 export const studioBrandCopySchema = z
@@ -33,6 +34,7 @@ export const studioWebsiteDraftSchema = z
 export const studioBrandKitSchema = z
   .object({
     logo: z.string().url().nullable(),
+    studioLogoPosition: studioLogoPositionOrNullSchema.optional(),
     colors: z.array(z.string()),
     fonts: z.array(z.string()),
     summary: z.string(),

@@ -24342,6 +24342,16 @@ export const ProjectLatestUpdateSchema = {
     ]
 } as const;
 
+export const StudioLogoPositionSchema = {
+    type: 'string',
+    enum: [
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right'
+    ]
+} as const;
+
 export const ProjectDesignMdSchema = {
     type: 'object',
     properties: {
@@ -24491,6 +24501,17 @@ export const ProjectSchema = {
             ],
             format: 'uri',
             example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png'
+        },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Default project logo placement for Studio ad exports.'
         },
         designMd: {
             anyOf: [
@@ -38821,6 +38842,16 @@ export const StudioBrandKitSchema = {
             ],
             format: 'uri'
         },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         colors: {
             type: 'array',
             items: {
@@ -39258,16 +39289,6 @@ export const CancelProjectImageJobResponseSchema = {
     ]
 } as const;
 
-export const StudioLogoPositionSchema = {
-    type: 'string',
-    enum: [
-        'top-left',
-        'top-right',
-        'bottom-left',
-        'bottom-right'
-    ]
-} as const;
-
 export const StudioAdPlacementRatioSchema = {
     type: 'string',
     enum: [
@@ -39330,6 +39351,16 @@ export const PatchProjectRequestSchema = {
                 'null'
             ],
             format: 'uri'
+        },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         identifier: {
             type: 'string',

@@ -148,6 +148,7 @@ describe("readStudioBrandKit", () => {
       "https://abc123.public.blob.vercel-storage.com/projects/project-1/logos/hash";
     projectFindUniqueOrThrowMock.mockResolvedValueOnce({
       logo,
+      studioLogoPosition: "top-left",
       designMdUrl:
         "https://abc123.public.blob.vercel-storage.com/design-md/brand-kit-hash.md",
       brandBrain: {
@@ -174,6 +175,7 @@ describe("readStudioBrandKit", () => {
     );
     await expect(readStudioBrandKit("project-1")).resolves.toEqual({
       logo,
+      studioLogoPosition: "top-left",
       colors: ["#a33421"],
       fonts: ["Inter"],
       summary: "A ceramics studio",

@@ -284,6 +284,21 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     expect(
       (await studio.request(`/${projectId}`, json("PATCH", { logo }))).status,
     ).toBe(200);
+    const logoPositionResponse = await studio.request(
+      `/${projectId}`,
+      json("PATCH", { studioLogoPosition: "bottom-left" }),
+    );
+    expect(logoPositionResponse.status).toBe(200);
+    expect((await logoPositionResponse.json()).data).toMatchObject({
+      logo,
+      studioLogoPosition: "bottom-left",
+    });
+    const savedKit = await app().request(`${path}/brand-kit`);
+    expect(savedKit.status).toBe(200);
+    expect((await savedKit.json()).data).toMatchObject({
+      logo,
+      studioLogoPosition: "bottom-left",
+    });
     expect(
       (
         await studio.request(

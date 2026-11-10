@@ -1,4 +1,5 @@
 import type {
+  StudioLogoPosition,
   StudioProduct,
   StudioProductPhoto,
   StudioWebsiteDraft,
@@ -25,7 +26,10 @@ export function StudioWebsiteTools({
   websiteUrl,
 }: {
   canUseProduct: boolean;
-  onLogoChange: (logo: string | null) => void;
+  onLogoChange: (
+    logo: string | null,
+    position: StudioLogoPosition | null,
+  ) => void;
   onUseBatch: (products: StudioBatchProduct[]) => void;
   onUseProduct: (
     product: StudioProduct,

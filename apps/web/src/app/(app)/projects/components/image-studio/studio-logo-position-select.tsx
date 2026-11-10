@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 const LOGO_POSITIONS = Object.values(StudioLogoPosition);
 
 export function StudioLogoPositionSelect({
+  disabled,
   label,
   onChange,
   value,
 }: {
+  disabled?: boolean;
   label: string;
   onChange: (position: StudioLogoPosition | undefined) => void;
   value?: StudioLogoPosition;
@@ -23,6 +25,7 @@ export function StudioLogoPositionSelect({
       <Label htmlFor={id}>{label}</Label>
       <select
         className="border-input bg-background focus-visible:ring-ring h-8 rounded-md border px-2 text-sm focus-visible:ring-2"
+        disabled={disabled}
         id={id}
         onChange={(event) =>
           onChange(

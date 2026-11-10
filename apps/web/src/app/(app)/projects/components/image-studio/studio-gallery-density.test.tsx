@@ -113,6 +113,7 @@ function mount(
   assets: StudioAsset[] = [],
   jobs: StudioJob[] = [],
   projectLogo?: string,
+  studioLogoPosition?: StudioLogoPosition,
 ) {
   return render(
     <ImageStudio
@@ -122,6 +123,7 @@ function mount(
       labels={TEST_LABELS}
       projectId="p"
       projectLogo={projectLogo}
+      studioLogoPosition={studioLogoPosition}
     />,
   );
 }
@@ -276,6 +278,43 @@ describe("a gallery with work in it", () => {
       "studio-branded-ad-batch.zip",
     );
   });
+
+  it.each([
+    { override: false, expected: StudioLogoPosition.BOTTOM_LEFT },
+    { override: true, expected: undefined },
+  ])(
+    "uses the project default unless this batch overrides it ($override)",
+    async ({ override, expected }) => {
+      const open = { ...ASSET, projectId: "p", batchId: "batch-a" };
+      mocks.listBatchAssets.mockResolvedValueOnce([open]);
+      mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+      mount(
+        [open],
+        [],
+        "https://example.com/logo.png",
+        StudioLogoPosition.BOTTOM_LEFT,
+      );
+      fireEvent.click(screen.getByRole("img").closest("button")!);
+      const batchLogo = screen.getByLabelText("logoOnBatch");
+      expect(batchLogo).toHaveValue(StudioLogoPosition.BOTTOM_LEFT);
+      if (override) fireEvent.change(batchLogo, { target: { value: "" } });
+
+      fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+      const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
+      expect(preview.getByLabelText("logoOnCreative")).toHaveValue(
+        expected ?? "",
+      );
+      fireEvent.click(preview.getByRole("button", { name: "close" }));
+      fireEvent.click(screen.getByRole("button", { name: "downloadBatchZip" }));
+      await waitFor(() =>
+        expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+          [open],
+          expected,
+        ),
+      );
+    },
+  );
 
   it("hands the selected ad to the assistant and keeps the generation draft", () => {
     const product = { id: "mug", name: "Stoneware mug" };

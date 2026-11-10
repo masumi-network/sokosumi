@@ -7062,6 +7062,15 @@ export type ProjectLatestUpdate = {
     updatedAt: Date;
 };
 
+export const StudioLogoPosition = {
+    TOP_LEFT: 'top-left',
+    TOP_RIGHT: 'top-right',
+    BOTTOM_LEFT: 'bottom-left',
+    BOTTOM_RIGHT: 'bottom-right'
+} as const;
+
+export type StudioLogoPosition = typeof StudioLogoPosition[keyof typeof StudioLogoPosition];
+
 export type ProjectDesignMd = {
     url: string;
     extractionId: string | null;
@@ -7100,6 +7109,10 @@ export type Project = {
     latestUpdate: ProjectLatestUpdate | null;
     websiteUrl: string | null;
     logo: string | null;
+    /**
+     * Default project logo placement for Studio ad exports.
+     */
+    studioLogoPosition?: StudioLogoPosition | null;
     /**
      * Project-owned brand DESIGN.md, or null when none exists.
      */
@@ -10347,6 +10360,7 @@ export type ProjectImageSession = {
 
 export type StudioBrandKit = {
     logo: string | null;
+    studioLogoPosition?: StudioLogoPosition | null;
     colors: Array<string>;
     fonts: Array<string>;
     summary: string;
@@ -10434,15 +10448,6 @@ export type CancelProjectImageJobResponse = {
     accepted: boolean;
 };
 
-export const StudioLogoPosition = {
-    TOP_LEFT: 'top-left',
-    TOP_RIGHT: 'top-right',
-    BOTTOM_LEFT: 'bottom-left',
-    BOTTOM_RIGHT: 'bottom-right'
-} as const;
-
-export type StudioLogoPosition = typeof StudioLogoPosition[keyof typeof StudioLogoPosition];
-
 export const StudioAdPlacementRatio = {
     '1_1': '1:1',
     '4_5': '4:5',
@@ -10467,6 +10472,7 @@ export type PatchProjectRequest = {
     description?: string | null;
     websiteUrl?: string | null;
     logo?: string | null;
+    studioLogoPosition?: StudioLogoPosition | null;
     /**
      * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
      */

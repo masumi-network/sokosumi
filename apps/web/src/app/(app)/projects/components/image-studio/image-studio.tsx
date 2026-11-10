@@ -2,11 +2,11 @@
 
 import type {
   CreateProjectVideoJobRequest,
+  StudioLogoPosition,
   StudioProduct,
   StudioProductIdentity,
   StudioProductPhoto,
 } from "@sokosumi/core-client";
-import { StudioLogoPosition } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, productBrief } from "@sokosumi/utils";
 import {
   AlertTriangle,
@@ -73,6 +73,7 @@ import { StudioComposer } from "./studio-composer";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
+import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { StudioTemplateCarousel } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
@@ -146,6 +147,7 @@ export function ImageStudio({
   labels,
   projectId,
   projectLogo: initialProjectLogo,
+  studioLogoPosition: initialLogoPosition,
   projectScopePrompt,
   websiteUrl,
 }: {
@@ -167,6 +169,7 @@ export function ImageStudio({
    */
   projectId: string | null;
   projectLogo?: string | null;
+  studioLogoPosition?: StudioLogoPosition | null;
   projectScopePrompt?: React.ReactNode;
   websiteUrl?: string | null;
 }) {
@@ -224,10 +227,12 @@ export function ImageStudio({
   );
   const [pending, startTransition] = useTransition();
   const [downloadingAds, startAdDownload] = useTransition();
-  const [includeLogoInArchive, setIncludeLogoInArchive] = useState(false);
+  const [archiveLogoOverride, setArchiveLogoOverride] =
+    useState<StudioLogoPosition | null>();
   const [brandKitLogo, setBrandKitLogo] = useState<{
     projectId: string;
     logo: string | null;
+    position: StudioLogoPosition | null;
   }>();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
@@ -283,10 +288,14 @@ export function ImageStudio({
   // Keep the queue mounted while the landing page starts work in a project.
   const [pickedProjectId, setPickedProjectId] = useState<string | null>(null);
   const activeProjectId = projectId ?? pickedProjectId;
-  const projectLogo =
-    brandKitLogo?.projectId === activeProjectId
-      ? brandKitLogo.logo
-      : initialProjectLogo;
+  const currentBrandLogo =
+    brandKitLogo?.projectId === activeProjectId ? brandKitLogo : undefined;
+  const projectLogo = currentBrandLogo
+    ? currentBrandLogo.logo
+    : initialProjectLogo;
+  const defaultLogoPosition = currentBrandLogo
+    ? currentBrandLogo.position
+    : initialLogoPosition;
 
   const studio = useStudioState({
     projectId: activeProjectId,
@@ -362,26 +371,24 @@ export function ImageStudio({
       (asset) => asset.projectId === activeProjectId && !isVideoAsset(asset),
     );
 
+  const archiveLogo = canBrandArchive
+    ? archiveLogoOverride === undefined
+      ? (defaultLogoPosition ?? undefined)
+      : (archiveLogoOverride ?? undefined)
+    : undefined;
+
   function handleDownloadAds() {
     if (downloadingAds || archiveLimit || checkedAssets.length < 2) return;
     startAdDownload(async () => {
       try {
-        const logo =
-          canBrandArchive && includeLogoInArchive
-            ? StudioLogoPosition.BOTTOM_RIGHT
-            : undefined;
         await downloadArchive(
           checkedAssets,
-          logo ? "studio-branded-ads.zip" : "studio-ads.zip",
-          logo,
+          archiveLogo ? "studio-branded-ads.zip" : "studio-ads.zip",
+          archiveLogo,
         );
       } catch {
         toast.error(
-          t(
-            canBrandArchive && includeLogoInArchive
-              ? "brandExportFailed"
-              : "archiveDownloadFailed",
-          ),
+          t(archiveLogo ? "brandExportFailed" : "archiveDownloadFailed"),
         );
       }
     });
@@ -724,6 +731,7 @@ export function ImageStudio({
   }
 
   function clearReferences() {
+    setArchiveLogoOverride(undefined);
     setTemplateUndo(null);
     setCheckedIds([]);
     setParentAssetId(undefined);
@@ -983,8 +991,8 @@ export function ImageStudio({
           <StudioWebsiteTools
             key={activeProjectId}
             canUseProduct={!uploadingPhoto}
-            onLogoChange={(logo) =>
-              setBrandKitLogo({ projectId: activeProjectId, logo })
+            onLogoChange={(logo, position) =>
+              setBrandKitLogo({ projectId: activeProjectId, logo, position })
             }
             onUseProduct={useProduct}
             onUseBatch={useProductBatch}
@@ -1174,17 +1182,12 @@ export function ImageStudio({
             </Button>
           ) : null}
           {canBrandArchive ? (
-            <label className="flex items-center gap-2 text-xs">
-              <input
-                checked={includeLogoInArchive}
-                disabled={downloadingAds}
-                onChange={(event) =>
-                  setIncludeLogoInArchive(event.currentTarget.checked)
-                }
-                type="checkbox"
-              />
-              {t("archiveIncludeLogo")}
-            </label>
+            <StudioLogoPositionSelect
+              disabled={downloadingAds}
+              label={t("archiveLogoPosition")}
+              onChange={(position) => setArchiveLogoOverride(position ?? null)}
+              value={archiveLogo}
+            />
           ) : null}
           {archiveLimit ? (
             <p
@@ -1215,6 +1218,7 @@ export function ImageStudio({
           catalog={catalog}
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}
+          defaultLogoPosition={defaultLogoPosition}
           labels={labels}
           projectLogo={
             lightboxAssets[0]?.projectId === activeProjectId

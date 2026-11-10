@@ -470,6 +470,7 @@ model Project {
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
   logo                    String?
+  studioLogoPosition      String?
   designMdUrl             String?
   designMdExtractionId    String?
   /// Markdown guidance for drafting this Project's social posts (tone,

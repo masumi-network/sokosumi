@@ -55,6 +55,11 @@ export const studioLogoPositionSchema = z
   .enum(["top-left", "top-right", "bottom-left", "bottom-right"])
   .openapi("StudioLogoPosition");
 
+export const studioLogoPositionOrNullSchema = z.union([
+  studioLogoPositionSchema,
+  z.null(),
+]);
+
 export const studioAdPlacementRatioSchema = z
   .enum(["1:1", "4:5", "9:16", "16:9"])
   .openapi("StudioAdPlacementRatio");

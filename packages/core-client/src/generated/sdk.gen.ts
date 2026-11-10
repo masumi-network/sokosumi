@@ -5003,7 +5003,7 @@ export const getProjectsById = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Update a project's name, identifier, briefing, website, logo, or social posting instructions. Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.
+ * Update a project's name, identifier, briefing, website, logo, default Studio logo placement, or social posting instructions. Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.
  */
 export const patchProjectsById = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdData, ThrowOnError>): RequestResult<PatchProjectsByIdResponses, PatchProjectsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdResponses, PatchProjectsByIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdResponseTransformer,

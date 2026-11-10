@@ -89,6 +89,7 @@ export async function readStudioBrandKit(projectId: string) {
     where: { id: projectId },
     select: {
       logo: true,
+      studioLogoPosition: true,
       briefing: true,
       designMdUrl: true,
       brandBrain: { select: { body: true, updatedAt: true } },
@@ -97,11 +98,13 @@ export async function readStudioBrandKit(projectId: string) {
   const design = await readDesignMdContent(project.designMdUrl);
   const look = designMdBrandLook(design ?? "");
   const brain = parseBrandBrain(project.brandBrain?.body);
+  const logo =
+    project.logo && isOwnedProjectLogoUrl(project.logo, projectId)
+      ? project.logo
+      : null;
   return studioBrandKitSchema.parse({
-    logo:
-      project.logo && isOwnedProjectLogoUrl(project.logo, projectId)
-        ? project.logo
-        : null,
+    logo,
+    studioLogoPosition: logo ? (project.studioLogoPosition ?? null) : null,
     colors: look.colors,
     fonts: look.fonts,
     summary: brain?.summary ?? project.briefing?.slice(0, 2000) ?? "",

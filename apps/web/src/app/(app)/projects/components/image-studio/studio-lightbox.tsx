@@ -48,6 +48,7 @@ export function StudioLightbox({
   elapsedByAssetId,
   labels,
   projectLogo,
+  defaultLogoPosition,
   onAnimate,
   onClose,
   onDownloadBatch,
@@ -74,6 +75,7 @@ export function StudioLightbox({
   elapsedByAssetId: Record<string, number>;
   labels: StudioLabels;
   projectLogo?: string | null;
+  defaultLogoPosition?: StudioLogoPosition | null;
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
@@ -111,7 +113,7 @@ export function StudioLightbox({
   const [writingCaption, setWritingCaption] = useState(false);
   const [logoChoice, setLogoChoice] = useState<{
     scope: string;
-    position: StudioLogoPosition;
+    position: StudioLogoPosition | undefined;
   }>();
 
   if (assets.length === 0) return null;
@@ -121,12 +123,13 @@ export function StudioLightbox({
     const logoScope = single.batchId
       ? `${single.projectId}/batch/${single.batchId}`
       : `${single.projectId}/asset/${single.id}`;
-    const logoPosition =
-      projectLogo && logoChoice?.scope === logoScope
+    const logoPosition = projectLogo
+      ? logoChoice?.scope === logoScope
         ? logoChoice.position
-        : undefined;
+        : (defaultLogoPosition ?? undefined)
+      : undefined;
     const changeLogoPosition = (position: StudioLogoPosition | undefined) =>
-      setLogoChoice(position ? { scope: logoScope, position } : undefined);
+      setLogoChoice({ scope: logoScope, position });
     return (
       <ImageViewer
         activeSrc={url}
