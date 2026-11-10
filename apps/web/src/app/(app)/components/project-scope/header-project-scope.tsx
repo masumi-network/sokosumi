@@ -1,6 +1,8 @@
 "use client";
 
-import { ChevronsUpDown, X } from "lucide-react";
+import { ChevronRight, ChevronsUpDown, X } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
@@ -12,6 +14,7 @@ import {
 } from "@/components/ui/popover";
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
+import { projectPageSection } from "./project-scope-href";
 import {
   ProjectScopeBackdrop,
   ProjectScopeReason,
@@ -36,7 +39,9 @@ import { usePrefetchScopeProjects } from "./use-scope-projects";
  * long name is shortened with "…"; the accessible name keeps it whole, as
  * "Project: …". A Closed project, which the menu never lists, gets a small
  * Closed badge. While a project is picked, an × beside it returns to All
- * projects. Below md the header's chip and bottom sheet take over.
+ * projects. On a project's own pages the scope reads as a trail,
+ * "Projects › Acme", whose first step opens the Projects list. Below md the
+ * header's chip and bottom sheet take over.
  *
  * Its menu is the one every page opens when it needs a project
  * (`openProjectScope`). A required ask makes it modal over a dimmed page.
@@ -51,9 +56,30 @@ export function HeaderProjectScope() {
   const prefetch = usePrefetchScopeProjects();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const clearScope = useClearScope(triggerRef);
+  const pathname = usePathname();
+  const onProjectPage =
+    projectId !== null && projectPageSection(pathname) !== null;
 
   return (
     <>
+      {onProjectPage ? (
+        <>
+          <Link
+            href="/projects"
+            data-testid="project-scope-header-projects"
+            className={cn(
+              SIDEBAR_CONTROL_INTERACTION_CLASS,
+              "text-muted-foreground hover:text-foreground press flex h-8 shrink-0 items-center rounded-full px-2 text-sm font-medium transition-[opacity,background-color,color]",
+            )}
+          >
+            {t("all")}
+          </Link>
+          <ChevronRight
+            className="text-muted-foreground -mx-1 size-3.5 shrink-0"
+            aria-hidden
+          />
+        </>
+      ) : null}
       {required ? <ProjectScopeBackdrop /> : null}
       <Popover open={open} onOpenChange={setScopeMenuOpen} modal={required}>
         <PopoverTrigger asChild>
@@ -104,6 +130,7 @@ export function HeaderProjectScope() {
           <ProjectScopeMenu
             selectedProjectId={projectId}
             onSelect={(id) => selectProjectScope(id, select)}
+            onSelectAll={request ? undefined : () => select(null)}
             onCreate={openScopeCreate}
             onDone={() => setScopeMenuOpen(false)}
           />
