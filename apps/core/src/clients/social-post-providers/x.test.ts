@@ -1,5 +1,8 @@
 import { randomBytes } from "node:crypto";
-import type { SocialPostMediaKind } from "@sokosumi/utils";
+import {
+  type SocialPostMediaKind,
+  socialPostMaxBytesForKind,
+} from "@sokosumi/utils";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
@@ -8,6 +11,8 @@ import {
   ComposioToolError,
 } from "@/clients/social-post-providers/tools";
 import { publishXPost } from "@/clients/social-post-providers/x";
+
+const X_IMAGE_MAX_BYTES = socialPostMaxBytesForKind("x", "image");
 
 const {
   getEnvMock,
@@ -587,7 +592,7 @@ describe("publishXPost with media", () => {
         "The image could not be read. Attach a JPEG, PNG or WebP image and try again.",
     },
     {
-      bytes: new Uint8Array(5_000_001),
+      bytes: new Uint8Array(X_IMAGE_MAX_BYTES + 1),
       message:
         "The image is larger than X's 5 MB limit. Choose a smaller image and try again.",
     },
@@ -613,9 +618,9 @@ describe("publishXPost with media", () => {
     })
       .webp({ quality: 90 })
       .toBuffer();
-    expect(webp.byteLength).toBeLessThan(5_000_000);
+    expect(webp.byteLength).toBeLessThan(X_IMAGE_MAX_BYTES);
     expect((await sharp(webp).png().toBuffer()).byteLength).toBeGreaterThan(
-      5_000_000,
+      X_IMAGE_MAX_BYTES,
     );
     const fetchMock = stubMediaSession();
 
@@ -633,7 +638,7 @@ describe("publishXPost with media", () => {
 
   it("accepts exactly 5 MB without changing valid PNG bytes", async () => {
     stubMediaSession();
-    const bytes = new Uint8Array(5_000_000);
+    const bytes = new Uint8Array(X_IMAGE_MAX_BYTES);
     bytes.set(PNG_BYTES);
     await expect(
       publishXPost({

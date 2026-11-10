@@ -1,6 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import {
   type SocialPostMediaKind,
+  socialPostMaxBytesForKind,
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 import sharp from "sharp";
@@ -62,8 +63,8 @@ const X_PUBLISH_TOOL_SLUGS = Object.keys(
 const MEDIA_PROCESSING_DEFAULT_WAIT_MS = 2_000;
 /** X can take up to two minutes to process a video or GIF. */
 const MEDIA_PROCESSING_TIMEOUT_MS = 120_000;
-// X documents 5 MB; stay within that and Composio's 5 MiB simple-upload limit.
-const X_IMAGE_MAX_BYTES = 5_000_000;
+// Shared X image cap: 5 MB, under Composio's 5 MiB simple-upload limit.
+const X_IMAGE_MAX_BYTES = socialPostMaxBytesForKind("x", "image");
 
 async function prepareXImage(
   media: SocialPostMediaBytes,
