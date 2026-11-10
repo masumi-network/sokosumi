@@ -372,6 +372,7 @@ export async function launchCmoSearchAd(
   if (piece.adCampaign) {
     await setCmoAdCampaignStatus({
       userId: input.userId,
+      projectId: input.projectId,
       ...piece.adCampaign,
       status: "ACTIVE",
     });
