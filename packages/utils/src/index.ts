@@ -492,7 +492,10 @@ export {
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
-export { MAX_STUDIO_BATCH_IMAGES } from "./studio-limits.js";
+export {
+  MAX_STUDIO_BATCH_IMAGES,
+  MAX_STUDIO_HEADLINE_LENGTH,
+} from "./studio-limits.js";
 export {
   isStudioLogoMime,
   STUDIO_LOGO_MIME_TYPES,

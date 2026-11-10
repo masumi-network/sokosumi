@@ -7,6 +7,7 @@ import type {
   ProjectImageJob,
   ProjectImageSettings,
   SocialPostMediaRef,
+  StudioAdHeadline,
   StudioProductIdentity,
 } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
@@ -128,6 +129,17 @@ export const startImageGeneration = withSession<
     throw error;
   }
 });
+
+export const saveStudioAdHeadline = withSession<
+  AuthenticatedRequest & {
+    projectId: string;
+    assetId: string;
+    text: string | null;
+  },
+  StudioAdHeadline
+>(({ projectId, assetId, text }) =>
+  imageStudioService.saveAdHeadline(projectId, assetId, text),
+);
 
 export const listStudioBatchAssets = withSession<
   AuthenticatedRequest & { projectId: string; batchId: string },

@@ -5459,13 +5459,24 @@ model ProjectImageAsset {
   /// sha256 of the stored bytes.
   checksum        String
 
-  review ProjectImageReview?
+  review   ProjectImageReview?
+  headline ProjectImageHeadline?
 
   @@unique([rootId, version])
   @@index([projectId, createdAt])
   @@index([workspaceId])
   @@index([parentId])
   @@map("project_image_asset")
+}
+
+/// Approved export copy attached to an immutable image version.
+model ProjectImageHeadline {
+  assetId  String            @id @db.Uuid
+  asset    ProjectImageAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  text     String?
+  revision Int               @default(1)
+
+  @@map("project_image_headline")
 }
 
 /// A human decision about one immutable version.

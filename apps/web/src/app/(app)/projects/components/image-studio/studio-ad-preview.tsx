@@ -46,6 +46,7 @@ export function StudioAdPreview({
   asset,
   caption,
   headline = "",
+  savingHeadline,
   onHeadlineChange,
   labels,
   projectLogo,
@@ -55,6 +56,7 @@ export function StudioAdPreview({
   asset: StudioAsset;
   caption?: string;
   headline?: string;
+  savingHeadline?: boolean;
   onHeadlineChange?: (headline: string) => void;
   labels: StudioLabels;
   projectLogo?: string | null;
@@ -121,7 +123,7 @@ export function StudioAdPreview({
   }
 
   function downloadPlacement() {
-    if (downloading || invalidHeadline) return;
+    if (downloading || savingHeadline || invalidHeadline) return;
     startDownload(async () => {
       try {
         if (selectedHeadline) {
@@ -223,12 +225,17 @@ export function StudioAdPreview({
         ) : onHeadlineChange && (headlines.length || headline) ? (
           <div className="min-w-0 space-y-1">
             <StudioHeadlineSelect
-              disabled={downloading}
+              disabled={downloading || savingHeadline}
               headline={headline}
               onChange={onHeadlineChange}
               options={headlines}
             />
-            <p className="text-muted-foreground text-xs">{t("headlineHint")}</p>
+            <p
+              className="text-muted-foreground text-xs"
+              role={savingHeadline ? "status" : undefined}
+            >
+              {t(savingHeadline ? "headlineSaving" : "headlineHint")}
+            </p>
           </div>
         ) : null}
         <div
@@ -359,7 +366,8 @@ export function StudioAdPreview({
         <DialogFooter>
           <Button
             disabled={Boolean(
-              invalidHeadline ||
+              savingHeadline ||
+                invalidHeadline ||
                 (selectedHeadline && headlineImage?.status !== "ready"),
             )}
             loading={downloading}

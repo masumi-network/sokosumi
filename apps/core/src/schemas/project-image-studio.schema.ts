@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { MAX_STUDIO_HEADLINE_LENGTH } from "@sokosumi/utils";
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
@@ -105,6 +106,23 @@ export const imageStudioVideoSettingsSchema = z
 
 export const IMAGE_STUDIO_MEDIA_TYPES = ["IMAGE", "VIDEO"] as const;
 
+export const saveStudioAdHeadlineSchema = z
+  .object({
+    text: z
+      .string()
+      .min(1)
+      .max(MAX_STUDIO_HEADLINE_LENGTH)
+      .refine((value) => value.trim().length > 0)
+      .nullable(),
+  })
+  .openapi("SaveStudioAdHeadline");
+
+export const studioAdHeadlineSchema = saveStudioAdHeadlineSchema
+  .extend({ revision: z.number().int().nonnegative() })
+  .openapi("StudioAdHeadline");
+
+export type StudioAdHeadline = z.infer<typeof studioAdHeadlineSchema>;
+
 export const imageStudioAssetSchema = z
   .object({
     id: z.string().uuid(),
@@ -113,6 +131,7 @@ export const imageStudioAssetSchema = z
     projectName: z.string(),
     product: studioProductIdentitySchema.optional(),
     batchId: z.uuid().optional(),
+    headline: studioAdHeadlineSchema.optional(),
     rootId: z.string().uuid(),
     parentId: z.string().uuid().nullable(),
     version: z.number().int().min(1),

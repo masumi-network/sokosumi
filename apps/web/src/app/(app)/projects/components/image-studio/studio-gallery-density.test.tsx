@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
   listBatchAssets: vi.fn(),
+  saveHeadline: vi.fn(),
   loadBrandKit: vi.fn().mockResolvedValue({ approvedLines: [] }),
   createArchive: vi.fn(),
   saveDownload: vi.fn(),
@@ -49,6 +50,7 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
   listStudioBatchAssets: mocks.listBatchAssets,
+  saveStudioAdHeadline: mocks.saveHeadline,
   requestImageJobCancel: mocks.cancel,
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
@@ -155,6 +157,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   mocks.loadBrandKit.mockResolvedValue({ approvedLines: [] });
+  let revision = 0;
+  mocks.saveHeadline.mockImplementation(async ({ text }) => ({
+    text,
+    revision: ++revision,
+  }));
   mocks.cancel.mockResolvedValue({ accepted: true });
 });
 
@@ -358,6 +365,7 @@ describe("a gallery with work in it", () => {
     });
 
     fireEvent.change(select, { target: { value: removed } });
+    await waitFor(() => expect(select).toHaveValue(removed));
     fireEvent.click(download);
     await waitFor(() =>
       expect(
@@ -367,6 +375,7 @@ describe("a gallery with work in it", () => {
     expect(mocks.saveDownload).not.toHaveBeenCalled();
 
     fireEvent.change(select, { target: { value: active } });
+    await waitFor(() => expect(select).toHaveValue(active));
     fireEvent.click(download);
     await waitFor(() =>
       expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
@@ -406,7 +415,9 @@ describe("a gallery with work in it", () => {
     expect(pickers).toHaveLength(2);
     expect(review.getByText("Kettle")).toBeVisible();
     fireEvent.change(pickers[0], { target: { value: first } });
+    await waitFor(() => expect(pickers[0]).toHaveValue(first));
     fireEvent.change(pickers[1], { target: { value: second } });
+    await waitFor(() => expect(pickers[1]).toHaveValue(second));
 
     const download = review.getByRole("button", { name: "downloadBatchZip" });
     mocks.loadBrandKit.mockResolvedValueOnce({ approvedLines: [first] });

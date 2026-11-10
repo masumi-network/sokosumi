@@ -22,7 +22,8 @@ import { isVideoAsset, type StudioAsset, type StudioLabels } from "./types";
 export function StudioBatchHeadlines({
   projectId,
   batchId,
-  headlines,
+  headlineForAsset,
+  savingHeadline,
   labels,
   downloading,
   onHeadlineChange,
@@ -30,10 +31,11 @@ export function StudioBatchHeadlines({
 }: {
   projectId: string;
   batchId: string;
-  headlines: Readonly<Record<string, string>>;
+  headlineForAsset: (asset: StudioAsset) => string;
+  savingHeadline?: boolean;
   labels: StudioLabels;
   downloading?: boolean;
-  onHeadlineChange: (assetId: string, headline: string) => void;
+  onHeadlineChange: (asset: StudioAsset, headline: string) => void;
   onDownload: () => void;
 }) {
   const t = useTranslations("App.Studio");
@@ -66,9 +68,10 @@ export function StudioBatchHeadlines({
     });
   }
 
-  const unavailableHeadline = review?.assets.some(
-    ({ id }) => headlines[id] && !review.options.includes(headlines[id]),
-  );
+  const unavailableHeadline = review?.assets.some((asset) => {
+    const headline = headlineForAsset(asset);
+    return headline && !review.options.includes(headline);
+  });
 
   return (
     <Dialog
@@ -124,11 +127,9 @@ export function StudioBatchHeadlines({
                       {asset.width} × {asset.height}
                     </p>
                     <StudioHeadlineSelect
-                      disabled={downloading}
-                      headline={headlines[asset.id] ?? ""}
-                      onChange={(headline) =>
-                        onHeadlineChange(asset.id, headline)
-                      }
+                      disabled={downloading || savingHeadline}
+                      headline={headlineForAsset(asset)}
+                      onChange={(headline) => onHeadlineChange(asset, headline)}
                       options={review.options}
                     />
                   </div>
@@ -141,9 +142,19 @@ export function StudioBatchHeadlines({
             {t("batchHasNoReadyAds")}
           </p>
         )}
+        {savingHeadline ? (
+          <p className="text-muted-foreground text-xs" role="status">
+            {t("headlineSaving")}
+          </p>
+        ) : null}
         <DialogFooter>
           <Button
-            disabled={!review?.assets.length || loading || unavailableHeadline}
+            disabled={
+              !review?.assets.length ||
+              loading ||
+              savingHeadline ||
+              unavailableHeadline
+            }
             loading={downloading}
             onClick={onDownload}
             type="button"

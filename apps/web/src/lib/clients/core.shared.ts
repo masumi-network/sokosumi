@@ -10,6 +10,7 @@ import {
   listStudioBatchAssets as coreListStudioBatchAssets,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
+  saveStudioAdHeadline as coreSaveStudioAdHeadline,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   suggestTaskTags as coreSuggestTaskTags,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
@@ -4199,6 +4200,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function saveStudioAdHeadline(
+    id: string,
+    assetId: string,
+    text: string | null,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSaveStudioAdHeadline({
+          client,
+          path: { id, assetId },
+          body: { text },
+        }),
+      "Failed to save the Studio ad headline",
+    );
+  }
+
   async function listStudioBatchAssets(id: string, batchId: string) {
     return executeCoreOperation(
       getClient,
@@ -7100,6 +7118,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getStudioWebsiteCopy,
     prepareStudioWebsiteDraft,
     listStudioBatchAssets,
+    saveStudioAdHeadline,
     saveStudioBrandCopy,
     uploadStudioProjectLogo,
     findStudioWebsiteLogo,

@@ -48,6 +48,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import mountAssetContent from "@/routes/v1/projects/[id]/image-studio/asset-content-get";
+import mountAssetHeadline from "@/routes/v1/projects/[id]/image-studio/asset-headline-put";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
 import mountBrandKit from "@/routes/v1/projects/[id]/image-studio/brand-kit";
 import mountWebsiteLogo from "@/routes/v1/projects/[id]/image-studio/brand-logo-website-post";
@@ -103,6 +104,7 @@ function app(actorId = userId) {
   mountJobs(server);
   mountBatchAssets(server);
   mountAssetContent(server);
+  mountAssetHeadline(server);
   return server;
 }
 
@@ -386,6 +388,44 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         assets.filter(({ product: identity }) => identity?.id === product.id),
       ).toHaveLength(2);
     }
+    const headlinePath = `${path}/assets/${assets[0].id}/headline`;
+    const saveHeadline = (text: string | null, actor = studio) =>
+      actor.request(headlinePath, json("PUT", { text }));
+    expect((await saveHeadline(unusedLine)).status).toBe(422);
+    expect((await saveHeadline(approvedLine, app(randomUUID()))).status).toBe(
+      404,
+    );
+    const savedHeadline = await saveHeadline(approvedLine);
+    expect(savedHeadline.status).toBe(200);
+    expect((await savedHeadline.json()).data).toEqual({
+      text: approvedLine,
+      revision: 1,
+    });
+    expect((await (await saveHeadline(approvedLine)).json()).data).toEqual({
+      text: approvedLine,
+      revision: 1,
+    });
+    const readBatch = () => app().request(`${path}/batches/${batchId}/assets`);
+    expect((await (await readBatch()).json()).data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: assets[0].id,
+          headline: { text: approvedLine, revision: 1 },
+        }),
+      ]),
+    );
+    expect((await (await saveHeadline(null)).json()).data).toEqual({
+      text: null,
+      revision: 2,
+    });
+    expect((await (await readBatch()).json()).data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: assets[0].id,
+          headline: { text: null, revision: 2 },
+        }),
+      ]),
+    );
     const output = `${path}/assets/${assets[0].id}/content?placement=9%3A16&logo=top-left`;
     const png = await studio.request(output);
     expect(png.status).toBe(200);

@@ -2,6 +2,7 @@
 
 import type {
   CreateProjectVideoJobRequest,
+  StudioAdHeadline,
   StudioLogoPosition,
   StudioProduct,
   StudioProductIdentity,
@@ -38,6 +39,7 @@ import {
   listStudioBatchAssets,
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
+  saveStudioAdHeadline,
   startVideoGeneration,
   writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
@@ -228,9 +230,11 @@ export function ImageStudio({
   );
   const [pending, startTransition] = useTransition();
   const [downloadingAds, startAdDownload] = useTransition();
-  const [headlineByAssetId, setHeadlineByAssetId] = useState<
-    Record<string, string>
+  const [savedHeadlines, setSavedHeadlines] = useState<
+    Record<string, StudioAdHeadline>
   >({});
+  const [savingHeadline, startHeadlineSave] = useTransition();
+  const headlineSaveInProgress = useRef(false);
   const [archiveLogoOverride, setArchiveLogoOverride] =
     useState<StudioLogoPosition | null>();
   const [brandKitLogo, setBrandKitLogo] = useState<{
@@ -382,7 +386,13 @@ export function ImageStudio({
     : undefined;
 
   function handleDownloadAds() {
-    if (downloadingAds || archiveLimit || checkedAssets.length < 2) return;
+    if (
+      downloadingAds ||
+      headlineSaveInProgress.current ||
+      archiveLimit ||
+      checkedAssets.length < 2
+    )
+      return;
     startAdDownload(async () => {
       try {
         await downloadArchive(
@@ -398,12 +408,31 @@ export function ImageStudio({
     });
   }
 
-  function changeHeadline(assetId: string, headline: string) {
-    setHeadlineByAssetId((current) => {
-      const next = { ...current };
-      if (headline) next[assetId] = headline;
-      else delete next[assetId];
-      return next;
+  function headlineForAsset(asset: StudioAsset) {
+    const saved = savedHeadlines[asset.id];
+    const latest =
+      saved && saved.revision > (asset.headline?.revision ?? 0)
+        ? saved
+        : asset.headline;
+    return latest?.text ?? "";
+  }
+
+  function changeHeadline(asset: StudioAsset, text: string) {
+    if (headlineSaveInProgress.current || downloadingAds) return;
+    headlineSaveInProgress.current = true;
+    startHeadlineSave(async () => {
+      try {
+        const saved = await saveStudioAdHeadline({
+          projectId: asset.projectId,
+          assetId: asset.id,
+          text: text || null,
+        });
+        setSavedHeadlines((current) => ({ ...current, [asset.id]: saved }));
+      } catch {
+        toast.error(t("headlineSaveFailed"));
+      } finally {
+        headlineSaveInProgress.current = false;
+      }
     });
   }
 
@@ -412,9 +441,10 @@ export function ImageStudio({
     filename: string,
     logo?: StudioLogoPosition,
   ) {
-    const reviewedAssets = assets.filter(
-      (asset) => !isVideoAsset(asset) && headlineByAssetId[asset.id],
-    );
+    const reviewedAssets = assets.flatMap((asset) => {
+      const text = isVideoAsset(asset) ? "" : headlineForAsset(asset);
+      return text ? [{ id: asset.id, projectId: asset.projectId, text }] : [];
+    });
     const reviewedProjects = [
       ...new Set(reviewedAssets.map(({ projectId }) => projectId)),
     ];
@@ -428,15 +458,18 @@ export function ImageStudio({
     );
     if (
       reviewedAssets.some(
-        ({ id, projectId }) =>
-          !approvals.get(projectId)?.includes(headlineByAssetId[id]),
+        ({ text, projectId }) => !approvals.get(projectId)?.includes(text),
       )
     ) {
       toast.error(t("archiveHeadlineRemoved"));
       return;
     }
     const archive = reviewedAssets.length
-      ? await createStudioAdArchive(assets, logo, headlineByAssetId)
+      ? await createStudioAdArchive(
+          assets,
+          logo,
+          Object.fromEntries(reviewedAssets.map(({ id, text }) => [id, text])),
+        )
       : await createStudioAdArchive(assets, logo);
     saveStudioDownload(
       new Blob([archive], { type: "application/zip" }),
@@ -448,7 +481,7 @@ export function ImageStudio({
     { projectId, batchId }: StudioAsset,
     logo?: StudioLogoPosition,
   ) {
-    if (downloadingAds || !batchId) return;
+    if (downloadingAds || headlineSaveInProgress.current || !batchId) return;
     startAdDownload(async () => {
       try {
         const assets = await listStudioBatchAssets({ projectId, batchId });
@@ -1210,6 +1243,7 @@ export function ImageStudio({
                 archiveLimit ? "studio-archive-limit" : undefined
               }
               aria-disabled={archiveLimit ? true : undefined}
+              disabled={savingHeadline}
               loading={downloadingAds}
               onClick={handleDownloadAds}
               size="sm"
@@ -1269,7 +1303,8 @@ export function ImageStudio({
           onClose={() => setViewing(null)}
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
-          headlines={headlineByAssetId}
+          headlineForAsset={headlineForAsset}
+          savingHeadline={savingHeadline}
           onHeadlineChange={changeHeadline}
           onEditWithAssistant={activeProjectId ? openAssistant : undefined}
           editWithAssistantLabel={t("Assistant.edit")}

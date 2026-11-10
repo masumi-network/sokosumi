@@ -21411,6 +21411,9 @@ export const ProjectImageAssetSchema = {
             type: 'string',
             format: 'uuid'
         },
+        headline: {
+            $ref: '#/components/schemas/StudioAdHeadline'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -21499,6 +21502,43 @@ export const ProjectImageAssetSchema = {
         'jobId',
         'settings',
         'contentPath'
+    ]
+} as const;
+
+export const StudioAdHeadlineSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioAdHeadline'
+        },
+        {
+            type: 'object',
+            properties: {
+                revision: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'revision'
+            ]
+        }
+    ]
+} as const;
+
+export const SaveStudioAdHeadlineSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 120
+        }
+    },
+    required: [
+        'text'
     ]
 } as const;
 

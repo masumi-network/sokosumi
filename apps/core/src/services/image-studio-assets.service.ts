@@ -13,6 +13,7 @@ import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
 } from "@/lib/image-studio/failure-reason";
+import type { StudioAdHeadline } from "@/schemas/project-image-studio.schema";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 
 /**
@@ -36,6 +37,7 @@ export interface AssetView {
   projectName: string;
   product?: StudioProductIdentity;
   batchId?: string;
+  headline?: StudioAdHeadline;
   settings: unknown;
   rootId: string;
   parentId: string | null;
@@ -71,6 +73,7 @@ const assetSelect = {
   durationSeconds: true,
   createdAt: true,
   jobId: true,
+  headline: { select: { text: true, revision: true } },
   job: { select: { productId: true, productName: true, batchId: true } },
 } as const;
 
@@ -84,6 +87,7 @@ function productView(job: {
 }
 
 function toAssetView({
+  headline,
   job,
   project,
   ...asset
@@ -94,6 +98,7 @@ function toAssetView({
     ...asset,
     ...productView(job),
     ...(job.batchId ? { batchId: job.batchId } : {}),
+    ...(headline ? { headline } : {}),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
     projectName: project.name,
   };

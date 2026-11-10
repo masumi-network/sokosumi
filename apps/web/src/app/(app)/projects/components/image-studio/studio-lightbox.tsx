@@ -54,7 +54,8 @@ export function StudioLightbox({
   onClose,
   onDownloadBatch,
   downloadingBatch,
-  headlines,
+  headlineForAsset,
+  savingHeadline,
   onHeadlineChange,
   onEditWithAssistant,
   editWithAssistantLabel,
@@ -84,8 +85,9 @@ export function StudioLightbox({
   onClose: () => void;
   onDownloadBatch?: (asset: StudioAsset, logo?: StudioLogoPosition) => void;
   downloadingBatch?: boolean;
-  headlines?: Readonly<Record<string, string>>;
-  onHeadlineChange?: (assetId: string, headline: string) => void;
+  headlineForAsset?: (asset: StudioAsset) => string;
+  savingHeadline?: boolean;
+  onHeadlineChange?: (asset: StudioAsset, headline: string) => void;
   onEditWithAssistant?: (asset: StudioAsset) => void;
   editWithAssistantLabel?: string;
   onRegenerate: (asset: StudioAsset) => void;
@@ -223,10 +225,11 @@ export function StudioLightbox({
                 <StudioAdPreview
                   asset={single}
                   caption={caption}
-                  headline={headlines?.[single.id]}
+                  headline={headlineForAsset?.(single)}
+                  savingHeadline={savingHeadline}
                   onHeadlineChange={
                     onHeadlineChange
-                      ? (headline) => onHeadlineChange(single.id, headline)
+                      ? (headline) => onHeadlineChange(single, headline)
                       : undefined
                   }
                   key={single.id}
@@ -313,6 +316,7 @@ export function StudioLightbox({
                   <Button
                     aria-describedby="studio-batch-download-note"
                     loading={downloadingBatch}
+                    disabled={savingHeadline}
                     onClick={() => onDownloadBatch(single, logoPosition)}
                     size="sm"
                     type="button"
@@ -321,11 +325,12 @@ export function StudioLightbox({
                     <Download aria-hidden />
                     {t("downloadBatchZip")}
                   </Button>
-                  {headlines && onHeadlineChange ? (
+                  {headlineForAsset && onHeadlineChange ? (
                     <StudioBatchHeadlines
                       batchId={single.batchId}
                       downloading={downloadingBatch}
-                      headlines={headlines}
+                      headlineForAsset={headlineForAsset}
+                      savingHeadline={savingHeadline}
                       key={logoScope}
                       labels={labels}
                       onDownload={() => onDownloadBatch(single, logoPosition)}
