@@ -39,9 +39,13 @@ export function seoConnectionCallbackUrl(input: {
   url.searchParams.set("viewer", input.viewerId);
   url.searchParams.set("organization", input.organizationId ?? "");
   url.searchParams.set("seo_state", input.nonce);
-  const auditId = new URLSearchParams(input.search).get("auditId");
-  if (auditId && z.uuid().safeParse(auditId).success)
-    url.searchParams.set("auditId", auditId);
+  // Carry only the checked return page (an Audit or a Project's own SEO workspace) through the provider.
+  const back = new URL(
+    seoConnectionReturnPath(new URLSearchParams(input.search)),
+    url.origin,
+  );
+  for (const [key, value] of back.searchParams)
+    url.searchParams.set(key, value);
   return url.toString();
 }
 
