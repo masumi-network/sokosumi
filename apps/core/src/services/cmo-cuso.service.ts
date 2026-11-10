@@ -1,6 +1,7 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { requireProjectAccessForUser } from "@/lib/image-studio/access";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.service";
 
@@ -147,6 +148,25 @@ export async function findCusoForUser(userId: string): Promise<Cuso | null> {
   return found ? cusoView(found) : null;
 }
 
+/**
+ * The Cuso of the Project a member named, as CMO's Project-scoped routes
+ * act on him: 404 (as the Project routes answer) unless the Project exists
+ * and the caller is still a member of its organization; null when the
+ * Project has no live Cuso.
+ */
+export async function findCusoForProject(
+  where: { userId: string; projectId: string },
+  db: Prisma.TransactionClient = prisma,
+): Promise<Cuso | null> {
+  const { organizationId } = await requireProjectAccessForUser(where, db);
+  if (!organizationId) return null;
+  const bot = await db.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId: where.projectId },
+    select: CUSO_SELECT,
+  });
+  return bot ? cusoView(bot) : null;
+}
+
 /** This bot as Cuso, or null for any bot that is not one. */
 export async function findCusoForBot(
   sokoBotId: string,
@@ -275,15 +295,38 @@ export async function cmoRunnerUserId(
   );
 }
 
-/** A write's target: the Cuso a member works with, or the bot itself. */
+/**
+ * Who a CMO call names: a member and the Project of the Cuso they act on.
+ * Without a Project it is the Cuso they work with by default
+ * (`findCusoForUser`), as the person-keyed routes answer until they go.
+ */
+export interface CusoTarget {
+  userId: string;
+  projectId?: string;
+}
+
+/** The Cuso a CMO call names, or null when that Project has none. */
+export function findCuso(
+  { userId, projectId }: CusoTarget,
+  db: Prisma.TransactionClient = prisma,
+): Promise<Cuso | null> {
+  return projectId
+    ? findCusoForProject({ userId, projectId }, db)
+    : findCusoForUser(userId);
+}
+
+/**
+ * A write's target: the Cuso a CMO call names (`findCuso`), or the bot
+ * itself.
+ */
 export async function requireCuso(
-  where: { userId: string } | { sokoBotId: string },
+  where: CusoTarget | { sokoBotId: string },
   db: Prisma.TransactionClient = prisma,
 ): Promise<Cuso> {
   const cuso =
     "sokoBotId" in where
       ? await findCusoForBot(where.sokoBotId, db)
-      : await findCusoForUser(where.userId);
+      : await findCuso(where, db);
   if (!cuso) throw new CmoNotFoundError("Cuso is not hired yet");
   return cuso;
 }
