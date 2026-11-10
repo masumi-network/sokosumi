@@ -8,7 +8,7 @@ import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { Button } from "@/components/ui/button";
 
 import { loadMoreMyDay } from "../actions";
-import type { MyDayPage } from "./my-day";
+import type { MyDayPage, MyDayRow } from "./my-day";
 
 interface MyDayListProps {
   /** The day the first page was read for, so later pages ask the same. */
@@ -16,30 +16,69 @@ interface MyDayListProps {
   initial: MyDayPage;
 }
 
+interface MyDayView {
+  /** The server snapshot these rows grew from; a new one starts over. */
+  snapshot: MyDayPage;
+  today: string;
+  rows: MyDayRow[];
+  cursor: string | null;
+  failed: boolean;
+}
+
+function viewOf(snapshot: MyDayPage, today: string): MyDayView {
+  return {
+    snapshot,
+    today,
+    rows: snapshot.rows,
+    cursor: snapshot.nextCursor,
+    failed: false,
+  };
+}
+
 /** My day's rows, and the next page of the same query in place. */
 export function MyDayList({ today, initial }: MyDayListProps) {
   const t = useTranslations("App.Chat.Landing.MyDay");
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
-  const [rows, setRows] = useState(initial.rows);
-  const [cursor, setCursor] = useState(initial.nextCursor);
-  const [failed, setFailed] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [stored, setView] = useState(() => viewOf(initial, today));
+  let view = stored;
+  // A refresh (workspace switch, new day, changed Tasks) brings a new
+  // snapshot: drop the pages read for the old one, cursor included.
+  if (view.snapshot !== initial || view.today !== today) {
+    view = viewOf(initial, today);
+    setView(view);
+  }
+  const { rows, cursor, failed } = view;
   const left = Math.max(initial.total - rows.length, 0);
 
   function handleShowMore() {
     if (!cursor || isPending) return;
+    const snapshot = view.snapshot;
+    // A page for a snapshot that has since been replaced is dropped.
+    const update = (next: (current: MyDayView) => MyDayView) =>
+      setView((current) =>
+        current.snapshot === snapshot ? next(current) : current,
+      );
     startTransition(async () => {
-      const page = await loadMoreMyDay({ today, cursor });
+      // The action itself can reject (offline, failed POST, new deploy):
+      // treat that like Core failing, keeping rows and cursor for a retry.
+      const page = await loadMoreMyDay({ today, cursor }).catch(() => null);
       if (!page) {
-        setFailed(true);
+        update((current) => ({ ...current, failed: true }));
         return;
       }
-      setFailed(false);
-      setRows((previous) => {
-        const seen = new Set(previous.map((row) => row.id));
-        return [...previous, ...page.rows.filter((row) => !seen.has(row.id))];
+      update((current) => {
+        const seen = new Set(current.rows.map((row) => row.id));
+        return {
+          ...current,
+          rows: [
+            ...current.rows,
+            ...page.rows.filter((row) => !seen.has(row.id)),
+          ],
+          cursor: page.nextCursor,
+          failed: false,
+        };
       });
-      setCursor(page.nextCursor);
     });
   }
 
