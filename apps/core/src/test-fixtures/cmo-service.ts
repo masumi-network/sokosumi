@@ -269,7 +269,8 @@ const client = {
 export const funding = {
   spendable: 100,
   requireFunding: vi.fn(),
-  /** A member's first turn on a Cuso being hired: allowed unless a test refuses it. */
+  /** A hirer's Seat and first turn on a Cuso being hired: allowed unless a test refuses them. */
+  requireMemberSeat: vi.fn(),
   requireMemberFunding: vi.fn(),
   BillingError: class extends Error {
     constructor(
@@ -300,6 +301,7 @@ export const cmoServiceMocks = {
   },
   billing: {
     requireSokoBotTurnFunding: funding.requireFunding,
+    requireMemberSeat: funding.requireMemberSeat,
     requireMemberTurnFunding: funding.requireMemberFunding,
     SokoBotBillingAccessError: funding.BillingError,
   },

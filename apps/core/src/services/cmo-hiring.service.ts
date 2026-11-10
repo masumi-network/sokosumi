@@ -492,8 +492,7 @@ async function newOrganizationWorkspace(input: {
 /**
  * The workspace of an organization the person chose to hire into (ADR
  * 0065): any member may. It stays as it is (name, plan, settings, the
- * person's preferred organization), and the hirer's first research turn must
- * be fundable, Seat included, before anything is created.
+ * person's preferred organization).
  */
 async function existingOrganizationWorkspace(input: {
   userId: string;
@@ -510,11 +509,29 @@ async function existingOrganizationWorkspace(input: {
       CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED,
     );
   }
-  const { requireMemberTurnFunding, SokoBotBillingAccessError } = await import(
-    "@/services/soko-bot-billing.service"
-  );
+  return getUserWorkspace(userId, { organizationId });
+}
+
+/**
+ * The hirer's funding, as their first research turn will read it: the Seat
+ * (`credits: false`, checked before anything is created) or the credits too,
+ * once the hire's starter credits landed.
+ */
+async function requireHirerFunding(
+  userId: string,
+  organizationId: string,
+  { credits }: { credits: boolean },
+): Promise<void> {
+  const {
+    requireMemberSeat,
+    requireMemberTurnFunding,
+    SokoBotBillingAccessError,
+  } = await import("@/services/soko-bot-billing.service");
   try {
-    await requireMemberTurnFunding(userId, organizationId);
+    await (credits ? requireMemberTurnFunding : requireMemberSeat)(
+      userId,
+      organizationId,
+    );
   } catch (error) {
     if (!(error instanceof SokoBotBillingAccessError)) throw error;
     if (error.reason === "seat") {
@@ -528,7 +545,6 @@ async function existingOrganizationWorkspace(input: {
       CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
     );
   }
-  return getUserWorkspace(userId, { organizationId });
 }
 
 /**
@@ -552,9 +568,6 @@ export async function startCmoOnboarding(input: {
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
     .slice(0, 50)
     .padEnd(2, ".");
-  // A new organization starts on the free plan with the hirer as its owner,
-  // and the starter credits below fund the first turn, so only a hire into an
-  // existing organization checks funding first.
   const workspace = input.organizationId
     ? await existingOrganizationWorkspace({
         userId: input.userId,
@@ -563,6 +576,10 @@ export async function startCmoOnboarding(input: {
     : await newOrganizationWorkspace({ ...input, businessName });
   const organizationId = workspace.organizationId;
   if (!organizationId) throw new Error("Cuso's workspace has no organization");
+  // An unseated member of a paid organization is refused before a Project
+  // exists; the credits are checked once the starter credits landed, so an
+  // empty organization hires on them.
+  await requireHirerFunding(input.userId, organizationId, { credits: false });
 
   const project = await prisma.project.create({
     data: {
@@ -576,6 +593,8 @@ export async function startCmoOnboarding(input: {
   let created: Cuso;
   let sharedRoomId: string | null = null;
   try {
+    await grantCmoStarterCredits({ projectId: project.id, organizationId });
+    await requireHirerFunding(input.userId, organizationId, { credits: true });
     const { createSharedSokoBot } = await import(
       "@/services/soko-bot-shared-create.service"
     );
@@ -609,8 +628,6 @@ export async function startCmoOnboarding(input: {
       });
     throw error;
   }
-
-  await grantCmoStarterCredits({ projectId: project.id, organizationId });
 
   // The brand's look (logo, colours, fonts, DESIGN.md) is read alongside
   // Cuso's research; it never holds up onboarding.

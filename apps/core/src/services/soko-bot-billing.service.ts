@@ -278,6 +278,19 @@ export async function requireSokoBotTurnFunding(
   }
 }
 
+/** A member's turn in a paid organization needs their Seat (ADR 0057). */
+export async function requireMemberSeat(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  if (!(await hasAssignedOrganizationSeat(userId, organizationId, prisma))) {
+    throw new SokoBotBillingAccessError(
+      "An assigned seat is required to use this organization",
+      "seat",
+    );
+  }
+}
+
 /**
  * What a member's first turn on a bot that does not exist yet must pass (a
  * Cuso being hired): with no cost history, the turn minimum against what the
@@ -288,12 +301,7 @@ export async function requireMemberTurnFunding(
   userId: string,
   organizationId: string,
 ): Promise<void> {
-  if (!(await hasAssignedOrganizationSeat(userId, organizationId, prisma))) {
-    throw new SokoBotBillingAccessError(
-      "An assigned seat is required to use this organization",
-      "seat",
-    );
-  }
+  await requireMemberSeat(userId, organizationId);
   const balance = await creditBucketRepository.getBalance(
     userId,
     organizationId,
