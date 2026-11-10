@@ -11366,7 +11366,6 @@
         "returnToAudit": "Return to audit",
         "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit.",
         "connectGoogle": "Connect Google",
-        "includeAnalytics": "Also connect Google Analytics (optional)",
         "analyticsNext": "Google asks for approval two times: first for Search Console, then for Google Analytics.",
         "analyticsOff": "Google Analytics is not connected. Visits and page views stay empty."
       },

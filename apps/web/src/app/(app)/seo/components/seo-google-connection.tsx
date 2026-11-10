@@ -1,9 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { SeoConnectionButton } from "./seo-connection-button";
 import {
   type SeoConnectionProvider,
@@ -21,8 +18,8 @@ type GoogleConnectionProps = {
 
 /**
  * One Google step for the two statistics sources. Each source has its own
- * Google approval, so Search Console comes first and Google Analytics follows
- * as a second approval that the user can leave out.
+ * Google approval, so Search Console comes first and Google Analytics follows.
+ * The user leaves Google Analytics out in the approval window, not here.
  */
 export function SeoGoogleConnection({
   variant = "outline",
@@ -30,12 +27,9 @@ export function SeoGoogleConnection({
   onSync,
 }: GoogleConnectionProps) {
   const t = useTranslations("App.Seo.connections");
-  const [analytics, setAnalytics] = useState(true);
-  const analyticsId = useId();
-  const hintId = useId();
   const search = useSeoConnectionStatus("search_console").status.data?.status;
   const ga4 = useSeoConnectionStatus("ga4").status.data?.status;
-  // A Google Analytics account that is connected, or waits for a repair, is no longer a choice.
+  // A Google Analytics account that is connected, or waits for a repair, has its own row.
   const analyticsStarted =
     ga4 !== undefined && ga4 !== "not_connected" && ga4 !== "unavailable";
   const searchButton = (
@@ -64,24 +58,16 @@ export function SeoGoogleConnection({
     );
   // No status yet, a failed read, or no connections here: that button says all there is to say.
   if (!search || search === "unavailable") return searchButton;
+  const searchDone = search === "connected";
   return (
     <div className="max-w-full min-w-0 space-y-3">
       {searchButton}
-      {analytics && search === "connected" ? analyticsButton : null}
-      <div className="flex items-start gap-2">
-        <Checkbox
-          id={analyticsId}
-          checked={analytics}
-          aria-describedby={
-            analytics && search === "connected" ? undefined : hintId
-          }
-          onCheckedChange={(checked) => setAnalytics(checked === true)}
-        />
-        <Label htmlFor={analyticsId}>{t("includeAnalytics")}</Label>
-      </div>
-      {analytics && search === "connected" ? null : (
-        <p id={hintId} role="status" className="text-muted-foreground text-sm">
-          {t(analytics ? "analyticsNext" : "analyticsOff")}
+      {/* The second approval is on offer once the first one is done. */}
+      {searchDone ? analyticsButton : null}
+      {/* An unread Google Analytics status is not "not connected": its button says what it is. */}
+      {searchDone && ga4 !== "not_connected" ? null : (
+        <p role="status" className="text-muted-foreground text-sm">
+          {t(searchDone ? "analyticsOff" : "analyticsNext")}
         </p>
       )}
     </div>
