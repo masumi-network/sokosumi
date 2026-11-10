@@ -81,6 +81,17 @@ function overview() {
     subscriptionActive: false,
     viewerCanApprove: true,
     brandBrain: null,
+    research: {
+      groups: [
+        {
+          key: "website",
+          label: "Website",
+          sections: ["company", "offer", "pricing"],
+          state: "done",
+        },
+      ],
+      preview: { line: "You sell rockets to founders.", facts: ["Berlin"] },
+    },
     strategy: null,
     approvedStrategy: null,
     strategyVersions: [
@@ -185,6 +196,17 @@ describe("CMO routes", () => {
     expect(body.data.updates[0]).toMatchObject({ revertible: true });
     expect(body.data.updates[0].previousVersionId).toBeUndefined();
     expect(body.data.updates[0].versionId).toBeUndefined();
+    expect(body.data.research).toEqual({
+      groups: [
+        {
+          key: "website",
+          label: "Website",
+          sections: ["company", "offer", "pricing"],
+          state: "done",
+        },
+      ],
+      preview: { line: "You sell rockets to founders.", facts: ["Berlin"] },
+    });
     expect(body.data.posts).toEqual({
       draft: 3,
       scheduled: 2,
@@ -213,6 +235,25 @@ describe("CMO routes", () => {
       },
     );
     expect(response.status).toBe(409);
+  });
+
+  it("passes Try again's restart to the plan request", async () => {
+    strategyMock.mockResolvedValue({ turnId: "turn-2" });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/strategy`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ restart: true }),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(strategyMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      note: undefined,
+      restart: true,
+    });
   });
 
   it.each(["aaaaaaaa-aaaa-4aaa-8aaa-000000000001", null])(

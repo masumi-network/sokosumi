@@ -33,6 +33,7 @@ function mapOverview(overview: CmoOverview) {
     botStatus: overview.botStatus,
     learning: overview.learning,
     work: overview.work,
+    research: overview.research,
     brandVisual: overview.brandVisual,
     projectLogo: overview.projectLogo,
     onboardingStep: overview.onboardingStep,

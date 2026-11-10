@@ -41125,6 +41125,9 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        research: {
+            $ref: '#/components/schemas/CmoResearch'
+        },
         brandVisual: {
             anyOf: [
                 {
@@ -43279,6 +43282,7 @@ export const CmoOverviewSchema = {
         'subscriptionActive',
         'viewerCanApprove',
         'work',
+        'research',
         'brandVisual',
         'projectLogo',
         'onboardingStep',
@@ -43447,6 +43451,95 @@ export const CmoWorkStepSchema = {
         'url',
         'status',
         'at'
+    ]
+} as const;
+
+export const CmoResearchSchema = {
+    type: 'object',
+    properties: {
+        groups: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    sections: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'company',
+                                'offer',
+                                'problems',
+                                'customers',
+                                'buyers',
+                                'value',
+                                'pricing',
+                                'positioning',
+                                'competition',
+                                'sales',
+                                'marketing',
+                                'content',
+                                'proof',
+                                'reputation',
+                                'momentum',
+                                'opportunities'
+                            ]
+                        },
+                        description: 'The Brand Brain sections this group researches.'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'running',
+                            'done'
+                        ]
+                    }
+                },
+                required: [
+                    'key',
+                    'label',
+                    'sections',
+                    'state'
+                ]
+            },
+            description: 'The research in six groups of Brand Brain sections, in the order Cuso saves them; done once every section in a group is saved, or the essentials are.'
+        },
+        preview: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        line: {
+                            type: 'string'
+                        },
+                        facts: {
+                            type: 'array',
+                            items: {
+                                type: 'string'
+                            }
+                        }
+                    },
+                    required: [
+                        'line',
+                        'facts'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The quick look from the homepage alone, until the essentials replace it. The plan never reads it.'
+        }
+    },
+    required: [
+        'groups',
+        'preview'
     ]
 } as const;
 
@@ -45597,6 +45690,10 @@ export const CmoStrategyRequestSchema = {
         note: {
             type: 'string',
             maxLength: 1000
+        },
+        restart: {
+            type: 'boolean',
+            description: 'Try again: replaces a plan running past twice the usual time. Otherwise a plan being written is returned as it is.'
         }
     }
 } as const;

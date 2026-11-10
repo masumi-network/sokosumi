@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { keepAnswers } from "@/helpers/question-answers";
 import {
   cancelSocialPost,
   connectionFindMany,
   cusoFind,
+  eventFindFirst,
+  expireTurn,
   postCreateMany,
   postFindFirst,
   postFindMany,
@@ -14,6 +16,7 @@ import {
   startTurn,
   strategy,
   strategyRows,
+  turnFindFirst,
 } from "@/test-fixtures/cmo-service";
 
 vi.mock(
@@ -83,6 +86,7 @@ import {
   requestCmoStrategy,
   saveCmoStrategy,
   setCmoAdBudget,
+  startCmoPlanAfterResearch,
   withoutDashes,
 } from "./cmo-strategy.service";
 
@@ -251,6 +255,191 @@ describe("requestCmoStrategy", () => {
     expect(added.plan).toMatchObject({
       ads: { monthly: 500, currency: "EUR", setByOwner: true },
     });
+  });
+});
+
+describe("the plan starts when the research ends", () => {
+  const essentials = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+    profile: {},
+  };
+  const cuso = {
+    ...HIRE,
+    userId: "user-1",
+    businessName: "Acme",
+    goals: "More sales",
+    brandBrain: essentials,
+  };
+  const now = new Date("2026-11-10T10:00:00Z");
+  const planTurn = (minutesAgo: number, status = "RUNNING") => ({
+    id: "plan-1",
+    status,
+    eveSessionId: "sess-1",
+    clientTurnId: "cmo:strategy:bot-1:1",
+    createdAt: new Date(now.getTime() - minutesAgo * 60_000),
+  });
+
+  // clearAllMocks keeps implementations; the race test sets its own.
+  const resetTurns = () => {
+    turnFindFirst.mockReset();
+    startTurn.mockReset();
+  };
+  afterEach(() => {
+    resetTurns();
+    vi.useRealTimers();
+  });
+
+  beforeEach(() => {
+    resetTurns();
+    cusoFind.mockResolvedValue(cuso);
+    // The plan turn keeps making progress.
+    eventFindFirst.mockResolvedValue({ occurredAt: now });
+  });
+
+  it("starts the plan once the research saved the essentials", async () => {
+    startTurn.mockResolvedValue({ turnId: "plan-1" });
+
+    await expect(
+      startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
+    ).resolves.toEqual({ turnId: "plan-1" });
+
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(startTurn.mock.calls[0]?.[0]).toMatchObject({
+      sokoBotId: "bot-1",
+      userId: "user-1",
+      clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:/),
+    });
+  });
+
+  it("starts nothing when the research ended without the essentials", async () => {
+    cusoFind.mockResolvedValue({ ...cuso, brandBrain: { profile: {} } });
+    await expect(
+      startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("starts nothing once a plan was started or written", async () => {
+    turnFindFirst.mockResolvedValueOnce(planTurn(30, "COMPLETED"));
+    await expect(
+      startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
+    ).resolves.toBeNull();
+
+    seedStrategy(strategy);
+    await expect(
+      startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("lets Looks like us confirm without starting a second plan", async () => {
+    turnFindFirst.mockResolvedValue(planTurn(2));
+
+    await expect(
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
+    ).resolves.toEqual({ turnId: "plan-1" });
+
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("starts one plan when Looks like us races the research's end", async () => {
+    // Core runs one turn at a time per bot: the second start is refused,
+    // and by then the first one's turn is there to read.
+    let started = false;
+    turnFindFirst.mockImplementation(async () =>
+      started ? planTurn(0) : null,
+    );
+    startTurn.mockImplementation(async () => {
+      if (started) throw new Error("Soko Bot is already working");
+      started = true;
+      return { turnId: "plan-1" };
+    });
+
+    const [fromResearch, fromApprove] = await Promise.all([
+      startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
+    ]);
+
+    expect(fromResearch).toEqual({ turnId: "plan-1" });
+    expect(fromApprove).toEqual({ turnId: "plan-1" });
+    expect(started).toBe(true);
+  });
+
+  it("refuses a change while the plan is still being written", async () => {
+    turnFindFirst.mockResolvedValue(planTurn(2));
+    await expect(
+      requestCmoStrategy(
+        { projectId: "project-1", userId: "user-1", note: "Fewer posts" },
+        now,
+      ),
+    ).rejects.toThrow("still writing the plan");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("refuses an ad budget while the plan is still being written", async () => {
+    // The budget reads the clock itself.
+    vi.useFakeTimers({ now, toFake: ["Date"] });
+    turnFindFirst.mockResolvedValue(planTurn(2));
+    seedStrategy(strategy);
+    await expect(
+      setCmoAdBudget({
+        projectId: "project-1",
+        userId: "user-1",
+        monthly: 500,
+        currency: "eur",
+      }),
+    ).rejects.toThrow("still writing the plan");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("restarts a plan running past twice the usual time", async () => {
+    turnFindFirst.mockResolvedValue(planTurn(13));
+    startTurn.mockResolvedValue({ turnId: "plan-2" });
+
+    await expect(
+      requestCmoStrategy(
+        { projectId: "project-1", userId: "user-1", restart: true },
+        now,
+      ),
+    ).resolves.toEqual({ turnId: "plan-2" });
+
+    expect(expireTurn).toHaveBeenCalledWith("plan-1");
+  });
+
+  it("keeps a plan running under twice the usual time", async () => {
+    turnFindFirst.mockResolvedValue(planTurn(10));
+
+    await expect(
+      requestCmoStrategy(
+        { projectId: "project-1", userId: "user-1", restart: true },
+        now,
+      ),
+    ).resolves.toEqual({ turnId: "plan-1" });
+
+    expect(expireTurn).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("never gives the plan the quick look", async () => {
+    cusoFind.mockResolvedValue({
+      ...cuso,
+      brandBrain: {
+        ...essentials,
+        preview: { line: "QUICK LOOK LINE", facts: ["QUICK FACT"] },
+      },
+    });
+    startTurn.mockResolvedValue({ turnId: "plan-1" });
+
+    await startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" });
+
+    const message = JSON.stringify(startTurn.mock.lastCall);
+    expect(message).not.toContain("QUICK LOOK LINE");
+    expect(message).not.toContain("QUICK FACT");
   });
 });
 
