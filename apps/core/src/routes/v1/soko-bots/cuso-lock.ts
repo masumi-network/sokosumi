@@ -9,7 +9,7 @@ const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * The Soko Bot writes that change Cuso himself, after `/soko-bots/{id}`:
  * archive and reactivate (the bare path), rename, version, memory, delete,
  * proactivity, board following and schedules. Turns, decisions and
- * integrations stay open: members chat with him (ADR 0061) and CMO connects
+ * integration completion stay open: members chat with him (ADR 0061) and CMO connects
  * his measurement through `/integrations/complete-auth`.
  */
 const CUSO_WRITE_PATTERNS = [
@@ -21,6 +21,7 @@ const CUSO_WRITE_PATTERNS = [
   /^\/proactive$/,
   /^\/board-following$/,
   /^\/schedules(\/[^/]+)?$/,
+  /^\/integrations\/(?!complete-auth$)[^/]+(\/connect)?$/,
 ];
 
 const SOKO_BOT_PATH = /\/soko-bots\/([0-9a-f-]{36})(\/.*)?$/i;

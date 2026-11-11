@@ -260,6 +260,29 @@ describe("closing out the first delivery", () => {
   });
 });
 
+describe("writing Studio sessions in a CMO Project", () => {
+  it.each([
+    { path: "/sessions", body: { eveSessionId: "wrun_A" } },
+    {
+      path: "/sessions/wrun_A/initial-turn",
+      body: { transition: "undelivered", deliveryToken: "lease-1" },
+    },
+  ])("refuses $path", async ({ path, body }) => {
+    state.access.mockResolvedValue({
+      userId: "user-a",
+      projectId: state.cmoProjectId,
+      workspaceId: "workspace-a",
+    });
+
+    const { status, json } = await post(path, token("agent"), body);
+
+    expect(status).toBe(409);
+    expect(json).toMatchObject({ kind: "cmo_project_read_only" });
+    expect(state.register).not.toHaveBeenCalled();
+    expect(state.recordInitialTurn).not.toHaveBeenCalled();
+  });
+});
+
 describe("saving an export headline", () => {
   const ORDINARY_PROJECT = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000a0";
 

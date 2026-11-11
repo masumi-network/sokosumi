@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
@@ -12,7 +12,7 @@ import {
   newsletterWorkspacePage,
 } from "../newsletter-project";
 import { NewsletterSettingsForm } from "../newsletter-settings-form";
-import { getNewsletterTabs, newsletterHref } from "../newsletter-tabs";
+import { getNewsletterTabs } from "../newsletter-tabs";
 import { SendingDomainCard } from "../sending-domain-card";
 
 export const instant = false;
@@ -50,10 +50,7 @@ export default async function NewsletterSettingsPage({
     getTranslations("App.Newsletter"),
     getTranslations("App.Projects.Newsletter"),
   ]);
-  // CMO sets up a CMO Project's newsletter; its issues stay readable.
-  if (project.cmo && newsletter) {
-    redirect(newsletterHref("/newsletter/issues", project.id));
-  }
+  // CMO sets up a CMO Project's newsletter; existing settings stay readable.
 
   return (
     <NewsletterPageShell
@@ -62,18 +59,26 @@ export default async function NewsletterSettingsPage({
       tabs={getNewsletterTabs(project.id, !!newsletter, t, project.cmo)}
       title={page("title")}
     >
-      {project.cmo ? null : (
+      {!project.cmo || newsletter ? (
         <NewsletterSettingsForm
           key={newsletter?.id ?? project.id}
           newsletter={newsletter}
           projectId={project.id}
           projectName={project.name}
           projectLogo={project.logo}
+          readOnly={project.cmo}
           sendingDomain={
-            <SendingDomainCard state={sendingDomain} projectId={project.id} />
+            <SendingDomainCard
+              state={
+                project.cmo
+                  ? { ...sendingDomain, canManage: false }
+                  : sendingDomain
+              }
+              projectId={project.id}
+            />
           }
         />
-      )}
+      ) : null}
     </NewsletterPageShell>
   );
 }

@@ -36,8 +36,7 @@ export default async function NewsletterSignupFormPage({
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);
   if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
-  // CMO designs a CMO Project's signup form.
-  if (project.cmo) redirect(newsletterHref("/newsletter/issues", project.id));
+  // CMO designs a CMO Project's signup form; its saved preview stays readable.
 
   const [page, t] = await Promise.all([
     getTranslations("App.Newsletter"),
@@ -57,6 +56,7 @@ export default async function NewsletterSignupFormPage({
         <NewsletterSignupDesigner
           newsletter={newsletter}
           projectId={project.id}
+          readOnly={project.cmo}
         />
       </ClientMessageBoundary>
     </NewsletterPageShell>

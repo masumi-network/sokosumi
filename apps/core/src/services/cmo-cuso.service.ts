@@ -1,5 +1,12 @@
 import { z } from "@hono/zod-openapi";
-import { MemberRole, type Prisma } from "@sokosumi/database";
+import {
+  FileMetadataState,
+  FileResourceLifecycle,
+  FileSourceKind,
+  FileSourceScope,
+  MemberRole,
+  type Prisma,
+} from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS, type CoreApiErrorKind } from "@sokosumi/utils";
 import { conflict } from "@/helpers/error";
@@ -97,6 +104,12 @@ export async function cmoProjectIds(
   return new Set(bots.flatMap(({ projectId }) => projectId ?? []));
 }
 
+function cmoProjectReadOnly() {
+  return conflict("This Project is managed by CMO. Change it in CMO.", {
+    kind: CORE_API_ERROR_KINDS.CMO_PROJECT_READ_ONLY,
+  });
+}
+
 /**
  * Refuses a write to a CMO Project from anywhere but `/v1/cmo/**` (ADR
  * 0066). Core's own CMO services write through Prisma and never call it.
@@ -106,17 +119,45 @@ export async function cmoProjectIds(
 export async function requireNotCmoProject(
   projectId: string,
   workspaceId: string,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<void> {
   // Not a uuid, so no Project: the route itself answers 404 or 422.
   if (!z.uuid().safeParse(projectId).success) return;
-  const cuso = await prisma.sokoBot.findFirst({
+  const cuso = await client.sokoBot.findFirst({
     where: { ...LIVE_CUSO_WHERE, projectId, project: { workspaceId } },
     select: { id: true },
   });
   if (cuso) {
-    throw conflict("This Project is managed by CMO. Change it in CMO.", {
-      kind: CORE_API_ERROR_KINDS.CMO_PROJECT_READ_ONLY,
-    });
+    throw cmoProjectReadOnly();
+  }
+}
+
+/** Refuses changes to organization Drive files confirmed on a CMO Project. */
+export async function requireNotCmoDriveFile(
+  workspaceId: string,
+  sourceId: string | { startsWith: string },
+): Promise<void> {
+  const file = await prisma.fileResource.findFirst({
+    where: {
+      workspaceId,
+      sourceId:
+        typeof sourceId === "string"
+          ? sourceId
+          : { startsWith: sourceId.startsWith.replace(/[\\%_]/g, "\\$&") },
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.ORGANIZATION,
+      lifecycle: { not: FileResourceLifecycle.TOMBSTONED },
+      links: {
+        some: {
+          state: FileMetadataState.CONFIRMED,
+          project: { workspaceId, sokoBots: { some: LIVE_CUSO_WHERE } },
+        },
+      },
+    },
+    select: { id: true },
+  });
+  if (file) {
+    throw cmoProjectReadOnly();
   }
 }
 
@@ -129,8 +170,9 @@ export async function requireNotCmoProject(
 export async function requireNotCuso(
   sokoBotId: string,
   workspaceId: string,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<void> {
-  const bot = await prisma.sokoBot.findFirst({
+  const bot = await client.sokoBot.findFirst({
     where: { id: sokoBotId, workspaceId, ...CUSO_BOT_WHERE },
     select: { id: true },
   });

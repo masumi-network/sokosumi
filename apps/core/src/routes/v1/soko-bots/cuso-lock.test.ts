@@ -53,6 +53,8 @@ describe("cusoLockedBotId on the Soko Bots router", () => {
         "POST /:sokoBotId",
         "PUT /:sokoBotId/name",
         "PUT /:sokoBotId/version",
+        "POST /:sokoBotId/integrations/:provider/connect",
+        "DELETE /:sokoBotId/integrations/:provider",
         "POST /:sokoBotId/memory/reset",
         "DELETE /:sokoBotId/permanent",
         "PUT /:sokoBotId/proactive",
@@ -64,7 +66,7 @@ describe("cusoLockedBotId on the Soko Bots router", () => {
     );
   });
 
-  it("leaves chat, decisions and integrations open, complete-auth among them", () => {
+  it("leaves chat, decisions and integration completion open", () => {
     const open = byIdWrites.filter((route) => !lockedRoute(route));
     expect(open).toContain("POST /:sokoBotId/integrations/complete-auth");
     expect(open).toContain("POST /:sokoBotId/turns");
