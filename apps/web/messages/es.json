@@ -1647,7 +1647,6 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
-          "chatKind": "Chat",
           "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",
