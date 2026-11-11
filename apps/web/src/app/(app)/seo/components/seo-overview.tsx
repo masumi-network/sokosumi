@@ -249,6 +249,7 @@ function PageDetail({
 /** Site health: run a check, then what the checks found, page by page and over time. */
 export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
+  const format = useFormatter();
   const { data } = model;
   const overview = seoOverviewModel(data);
   // Timeline rows carry their own check's coverage; only checks without a row are listed here.
@@ -322,6 +323,13 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
               <div className="flex flex-wrap items-start gap-2">
                 <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
                 <h3 className="text-sm font-medium">{finding.title}</h3>
+                {finding.devices.length ? (
+                  <span className="text-muted-foreground text-sm">
+                    {format.list(
+                      finding.devices.map((device) => t(`analysis.${device}`)),
+                    )}
+                  </span>
+                ) : null}
               </div>
               <SeoPageLink url={finding.pageUrl} />
               <details className="text-muted-foreground text-sm">

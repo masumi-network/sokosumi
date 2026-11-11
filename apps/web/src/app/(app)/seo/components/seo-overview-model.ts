@@ -24,9 +24,21 @@ function issueRank(finding: Finding): number {
 
 /** Severity describes an issue. Measurements and notes do not imply a fix. */
 export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
-  const issues = workspace.findings
+  const failed = workspace.findings
     .filter((finding) => issueRank(finding) < NON_ISSUE_RANK)
     .toSorted((left, right) => issueRank(left) - issueRank(right));
+  // One rule that fails on mobile and on desktop is one issue on that page; the row names its devices.
+  const issues = [
+    ...Map.groupBy(failed, (finding) =>
+      JSON.stringify([finding.observationId, finding.rowId, finding.pageUrl]),
+    ).values(),
+  ].map((group) => ({
+    ...group[0],
+    devices: [
+      ...new Set(group.flatMap(({ device }) => (device ? [device] : []))),
+    ],
+    evidence: [...new Set(group.flatMap(({ evidence }) => evidence))],
+  }));
   // Each device of one check can report the same measurement; one check shows it once.
   const diagnostics = [
     ...new Map(
@@ -45,7 +57,7 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     ).values(),
   ];
   const findingRanks = new Map(
-    issues.map((finding) => [finding.id, issueRank(finding)]),
+    failed.map((finding) => [finding.id, issueRank(finding)]),
   );
   const actionRank = (action: Action) =>
     Math.min(

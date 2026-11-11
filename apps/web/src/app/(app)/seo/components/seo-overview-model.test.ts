@@ -126,6 +126,53 @@ describe("SEO overview relevance", () => {
     expect(seoOverviewModel(workspace).diagnostics).toHaveLength(2);
   });
 
+  it("lists a rule that fails on both devices once per page, with its devices and all evidence", () => {
+    const workspace = seoTestWorkspace();
+    const failed = (
+      id: string,
+      device: "mobile" | "desktop",
+      patch: Partial<ProjectSeoWorkspace["findings"][number]> = {},
+    ) => ({
+      ...finding(id, "major"),
+      rowId: "SD-06",
+      device,
+      evidence: [`${device} evidence`, "shared evidence"],
+      ...patch,
+    });
+    workspace.findings = [
+      // The devices can rate one rule differently: still one issue, with the higher rating.
+      failed("a-desktop", "desktop", { severity: "minor" }),
+      failed("a-mobile", "mobile"),
+      // The same rule on another page is another issue.
+      failed("b-mobile", "mobile", { pageUrl: "https://example.com/guide" }),
+      // Another rule on the first page too.
+      failed("c-desktop", "desktop", { rowId: "P-06" }),
+    ];
+    workspace.actions = [action("fix", ["a-desktop"])];
+    const result = seoOverviewModel(workspace);
+    expect(
+      result.issues.map((item) => [item.id, item.devices, item.evidence]),
+    ).toEqual([
+      [
+        "a-mobile",
+        ["mobile", "desktop"],
+        ["mobile evidence", "shared evidence", "desktop evidence"],
+      ],
+      ["b-mobile", ["mobile"], ["mobile evidence", "shared evidence"]],
+      ["c-desktop", ["desktop"], ["desktop evidence", "shared evidence"]],
+    ]);
+    // An action that cites the merged device row still ranks as a fix for an issue.
+    expect(result.recommendedActions.map((item) => item.id)).toEqual(["fix"]);
+    workspace.pages[0].url = "https://example.com/";
+    workspace.scope.pageIds = [workspace.pages[0].id];
+    workspace.observations = [
+      { ...observation(3), pageIds: [workspace.pages[0].id] },
+    ];
+    expect(seoPageSummaries(workspace).get(workspace.pages[0].id)?.issues).toBe(
+      2,
+    );
+  });
+
   it("ranks cited issues while preserving strategic proposals, unknown references and linked work", () => {
     const workspace = seoTestWorkspace();
     workspace.findings = [
