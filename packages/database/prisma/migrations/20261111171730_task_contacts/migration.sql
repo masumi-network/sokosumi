@@ -1,5 +1,5 @@
 -- Tasks can tag many contacts. Replaces the single "task"."contactId" link
--- from 20261110120000_task_contact and keeps the links it already holds.
+-- from 20261111171729_task_contact and keeps the links it already holds.
 --
 -- Additive on purpose: the release before this one still reads and writes
 -- "task"."contactId" until the new deployment activates (or after a
