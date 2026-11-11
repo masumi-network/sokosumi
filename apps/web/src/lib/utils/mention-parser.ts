@@ -1,4 +1,6 @@
-const MENTION_MATCH_REGEX = /@([^\s:,.!?;()[\]{}]+)(?::([^\s]+))?/g;
+// An @ right after a letter, digit or one of `.+-` is part of an email
+// address (`maya@stone-ventures.example`), not a mention.
+const MENTION_MATCH_REGEX = /(?<![\w.+-])@([^\s:,.!?;()[\]{}]+)(?::([^\s]+))?/g;
 
 export interface MentionMatch {
   id: string;

@@ -44,7 +44,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const tags = await prisma.taskContact.findMany({
       where: { taskId: task.id, contact: { workspaceId, archivedAt: null } },
-      orderBy: { createdAt: "asc" },
+      // Tags made together share a time; name keeps their order stable.
+      orderBy: [{ createdAt: "asc" }, { contact: { name: "asc" } }],
       select: { contact: { select: { id: true, name: true } } },
     });
     return ok(
