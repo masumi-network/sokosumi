@@ -172,6 +172,26 @@ export function BuzzAppLink({ app }: { app: BuzzConnection["app"] }) {
     return (
       <div className="space-y-3">
         <BuzzCopyField label={t("appLinked")} value={app.npub} />
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-xs font-medium">
+            {t("agentsTitle")}
+          </p>
+          {app.agents.length > 0 ? (
+            <ul className="space-y-1 text-sm">
+              {app.agents.map((agent) => (
+                <li key={agent.npub} className="flex items-center gap-2">
+                  <span>{agent.name}</span>
+                  <span className="text-muted-foreground truncate font-mono text-xs">
+                    {agent.npub.slice(0, 16)}…
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="text-muted-foreground text-xs">
+            {app.agents.length > 0 ? t("agentsHint") : t("agentsEmpty")}
+          </p>
+        </div>
         <Button
           type="button"
           variant="ghost"

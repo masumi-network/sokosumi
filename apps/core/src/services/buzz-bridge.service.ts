@@ -8,6 +8,7 @@ import { getEnv } from "@/config/env";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
+  BUZZ_AGENT_URL_PREFIX,
   BUZZ_KIND,
   channelIdOf,
   channelMembersDraft,
@@ -26,6 +27,7 @@ import {
   readableContent,
   readInbound,
 } from "@/lib/buzz/events";
+import { attestedOwner } from "@/lib/buzz/owner-attestation";
 import {
   BuzzRelayRejectedError,
   nip98Header,
@@ -35,6 +37,11 @@ import {
   signEvent,
 } from "@/lib/buzz/relay-client";
 import { openSecret, sealSecret } from "@/lib/buzz/secret-box";
+import {
+  COWORKER_API_KEY_START_LENGTH,
+  generateCoworkerApiKeyToken,
+  hashApiKey,
+} from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -145,12 +152,20 @@ export function keysOf(identity: {
 }
 
 export function identitySecretKey(identity: BuzzIdentity): Uint8Array {
+  if (!identity.encryptedSecretKey) {
+    throw new Error(`No secret key for ${identity.pubkey.slice(0, 8)}`);
+  }
   return Uint8Array.from(
     Buffer.from(
       openSecret(identity.encryptedSecretKey, requireConfig().encryptionSecret),
       "hex",
     ),
   );
+}
+
+/** A key Sokosumi cannot sign with: a person's own Buzz agent. */
+function isExternal(identity: BuzzIdentity): boolean {
+  return !identity.encryptedSecretKey;
 }
 
 /**
@@ -237,6 +252,7 @@ export async function buzzConnectionFor(userId: string) {
     });
   }
   const appKey = identity.appPubkey ?? identity.pendingAppPubkey;
+  const agents = identity.appPubkey ? await agentsOf(identity.id) : [];
   return {
     identity: { pubkey: identity.pubkey, npub: npubEncode(identity.pubkey) },
     app: appKey
@@ -245,6 +261,7 @@ export async function buzzConnectionFor(userId: string) {
           status: identity.appPubkey
             ? ("linked" as const)
             : ("pending" as const),
+          agents,
         }
       : null,
     communities,
@@ -418,9 +435,207 @@ export async function verifyBuzzAppLinks(scope: { identityId?: string } = {}) {
       }),
     ]);
     await resyncRoomsOf(identity.userId as string);
+    await syncBuzzAgents({ identityId: identity.id }).catch((error) =>
+      console.error("Buzz agent sync failed", error),
+    );
     linked.push(identity.id);
   }
   return linked;
+}
+
+// ---------------------------------------------------------------- agents
+
+const AGENT_VENDOR_SLUG = "buzz-agents";
+const HEX_64 = /^[0-9a-f]{64}$/;
+
+type FoundAgent = { name: string; picture: string | null; relayUrl: string };
+
+/**
+ * The agents a person's linked Buzz key owns, per its kind 30177 records,
+ * kept only when the agent's newest profile carries that key's owner
+ * attestation: a record alone proves nothing.
+ */
+async function ownedAgents(appPubkey: string, relayUrls: string[]) {
+  const secretKey = requireConfig().operatorSecretKey;
+  const found = new Map<string, FoundAgent>();
+  for (const relayUrl of relayUrls) {
+    const records = await queryEvents({
+      relayUrl,
+      secretKey,
+      filters: [{ kinds: [BUZZ_KIND.agentRecord], authors: [appPubkey] }],
+    });
+    const recordNames = new Map<string, string>();
+    for (const record of records) {
+      const pubkey = record.tags.find((tag) => tag[0] === "d")?.[1];
+      if (!pubkey || !HEX_64.test(pubkey)) continue;
+      recordNames.set(pubkey, readJson(record.content).name ?? "Buzz agent");
+    }
+    if (recordNames.size === 0) continue;
+    const profiles = await queryEvents({
+      relayUrl,
+      secretKey,
+      filters: [
+        { kinds: [BUZZ_KIND.profile], authors: [...recordNames.keys()] },
+      ],
+    });
+    const newest = new Map<string, Event>();
+    for (const profile of profiles) {
+      const seen = newest.get(profile.pubkey);
+      if (!seen || profile.created_at > seen.created_at) {
+        newest.set(profile.pubkey, profile);
+      }
+    }
+    for (const [pubkey, profile] of newest) {
+      if (!verifyEvent(profile) || attestedOwner(profile) !== appPubkey) {
+        continue;
+      }
+      const content = readJson(profile.content);
+      found.set(pubkey, {
+        name: content.name ?? recordNames.get(pubkey) ?? "Buzz agent",
+        picture: content.picture ?? null,
+        relayUrl,
+      });
+    }
+  }
+  return found;
+}
+
+function readJson(content: string): { name?: string; picture?: string } {
+  try {
+    const value: unknown = JSON.parse(content);
+    if (!value || typeof value !== "object") return {};
+    const { name, picture } = value as Record<string, unknown>;
+    return {
+      name: typeof name === "string" && name.trim() ? name.trim() : undefined,
+      picture:
+        typeof picture === "string" && picture.startsWith("https://")
+          ? picture
+          : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+/** The person's own workspace and those of their organizations on Buzz. */
+async function workspaceIdsOf(userId: string, organizationIds: string[]) {
+  const workspaces = await prisma.workspace.findMany({
+    where: { OR: [{ userId }, { organizationId: { in: organizationIds } }] },
+    select: { id: true },
+  });
+  return workspaces.map((workspace) => workspace.id);
+}
+
+/**
+ * Makes each Buzz agent a person owns a private Coworker: usable in their
+ * workspaces, managed by them, posting through Core with its own key. An
+ * agent that is gone is archived, and one that is back is restored.
+ */
+export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
+  const owners = await prisma.buzzIdentity.findMany({
+    where: {
+      appPubkey: { not: null },
+      userId: { not: null },
+      ...(scope.identityId ? { id: scope.identityId } : {}),
+    },
+    include: { user: { select: { name: true } } },
+  });
+  const changed: string[] = [];
+  for (const owner of owners) {
+    const userId = owner.userId as string;
+    const { communities } = await communitiesOf(userId);
+    const relayUrls = [...new Set(communities.map((c) => c.relayUrl))];
+    const found = await ownedAgents(owner.appPubkey as string, relayUrls);
+    const workspaceIds = await workspaceIdsOf(
+      userId,
+      communities.map((c) => c.organizationId),
+    );
+    const vendor = await prisma.vendor.upsert({
+      where: { slug: AGENT_VENDOR_SLUG },
+      create: { slug: AGENT_VENDOR_SLUG, name: "Buzz agents", listed: false },
+      update: {},
+    });
+    for (const [pubkey, agent] of found) {
+      const existing = await prisma.buzzIdentity.findUnique({
+        where: { pubkey },
+        include: { coworker: true },
+      });
+      // A key Sokosumi already knows as someone else stays theirs.
+      if (existing && existing.ownerIdentityId !== owner.id) continue;
+      const details = {
+        name: agent.name,
+        image: agent.picture,
+        caption: `${owner.user?.name ?? "Someone"}'s Buzz agent`,
+        baseURL: `${BUZZ_AGENT_URL_PREFIX}${new URL(agent.relayUrl).host}`,
+      };
+      let coworkerId = existing?.coworkerId ?? null;
+      if (!coworkerId) {
+        const coworker = await prisma.coworker.create({
+          data: {
+            ...details,
+            slug: `buzz-${pubkey.slice(0, 16)}`,
+            description: "Runs in its owner's Buzz app; answers in Buzz.",
+            capabilities: ["chat"],
+            isWhitelisted: false,
+            vendorId: vendor.id,
+            assignments: { create: { userId } },
+          },
+        });
+        coworkerId = coworker.id;
+        await prisma.buzzIdentity.create({
+          data: { pubkey, coworkerId, ownerIdentityId: owner.id },
+        });
+        changed.push(coworkerId);
+      } else if (
+        existing?.coworker &&
+        (existing.coworker.archivedAt ||
+          existing.coworker.name !== details.name ||
+          existing.coworker.image !== details.image)
+      ) {
+        await prisma.coworker.update({
+          where: { id: coworkerId },
+          data: { ...details, archivedAt: null },
+        });
+        changed.push(coworkerId);
+      }
+      await prisma.coworkerWorkspaceAccess.createMany({
+        data: workspaceIds.map((workspaceId) => ({
+          coworkerId: coworkerId as string,
+          workspaceId,
+          status: "GRANTED" as const,
+          requestedByUserId: userId,
+          resolvedById: userId,
+          resolvedAt: new Date(),
+        })),
+        skipDuplicates: true,
+      });
+    }
+    const gone = await prisma.coworker.updateMany({
+      where: {
+        archivedAt: null,
+        buzzIdentity: {
+          ownerIdentityId: owner.id,
+          pubkey: { notIn: [...found.keys()] },
+        },
+      },
+      data: { archivedAt: new Date() },
+    });
+    if (gone.count > 0) changed.push(`archived:${gone.count}`);
+  }
+  return changed;
+}
+
+/** The person's Buzz agents Sokosumi knows, for Connections. */
+async function agentsOf(identityId: string) {
+  const agents = await prisma.buzzIdentity.findMany({
+    where: { ownerIdentityId: identityId, coworker: { archivedAt: null } },
+    select: { pubkey: true, coworker: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return agents.map((agent) => ({
+    name: agent.coworker?.name ?? "Buzz agent",
+    npub: npubEncode(agent.pubkey),
+  }));
 }
 
 /** Forgets the person's own app key; their channels drop it within a minute. */
@@ -436,7 +651,38 @@ export async function unlinkBuzzApp(userId: string) {
       profileHash: null,
     },
   });
+  // Its agents were theirs through that key.
+  const agents = await prisma.coworker.findMany({
+    where: { archivedAt: null, buzzIdentity: { ownerIdentityId: identity.id } },
+    select: { id: true },
+  });
+  await prisma.coworker.updateMany({
+    where: { id: { in: agents.map((agent) => agent.id) } },
+    data: { archivedAt: new Date() },
+  });
   await resyncRoomsOf(userId);
+  await resyncRoomsWithCoworkers(agents.map((agent) => agent.id));
+}
+
+/** Rooms an agent is in get their members pushed again. */
+async function resyncRoomsWithCoworkers(coworkerIds: string[]) {
+  if (coworkerIds.length === 0) return;
+  const channels = await prisma.buzzChannel.findMany({
+    where: {
+      room: { coworkerMembers: { some: { coworkerId: { in: coworkerIds } } } },
+      NOT: { membersHash: "direct" },
+    },
+    select: { id: true, roomId: true },
+  });
+  await prisma.buzzChannel.updateMany({
+    where: { id: { in: channels.map((c) => c.id) } },
+    data: { membersHash: null },
+  });
+  if (channels.length > 0) {
+    await prisma.buzzOutbox.createMany({
+      data: channels.map((c) => ({ roomId: c.roomId, messageId: null })),
+    });
+  }
 }
 
 /** The secret key, for importing into a Buzz client. */
@@ -532,6 +778,8 @@ const roomForSync = {
     },
   },
   coworkerMembers: {
+    // An archived coworker (a person's Buzz agent they removed) leaves Buzz.
+    where: { coworker: { archivedAt: null } },
     select: {
       coworkerId: true,
       coworker: { select: { name: true, image: true } },
@@ -575,6 +823,8 @@ async function ensureProfile(
   identity: BuzzIdentity,
   profile: { name: string; picture?: string | null; bot?: boolean },
 ) {
+  // A Buzz agent's profile is its owner's app's to publish.
+  if (isExternal(identity)) return;
   const draft = profileDraft(profile);
   const hash = contentHash(`${relayUrl}\n${draft.content}`);
   if (identity.profileHash === hash) return;
@@ -869,10 +1119,13 @@ export async function reconcileMessage(
   if (!author) return "skipped";
   const { channel, relayUrl } = synced;
   const authorIdentity = await ensureIdentity(author);
+  let link = message.buzzLink;
+  // A Buzz agent's messages start on Buzz and are linked as they come in;
+  // Sokosumi cannot sign for it.
+  if (isExternal(authorIdentity)) return "skipped";
   const authorKey = identitySecretKey(authorIdentity);
   const hash = contentHash(message.content);
   let result: ReconcileResult = "unchanged";
-  let link = message.buzzLink;
 
   // Finish what an earlier attempt decided but could not deliver.
   const unfinished = asPending(link?.pendingEvent);
@@ -1271,10 +1524,29 @@ export type CoreRequest = (input: {
 
 export async function bridgeApiKeyFor(identity: BuzzIdentity) {
   const config = requireConfig();
-  if (!identity.userId) throw new Error("Only people post through Core");
   if (identity.encryptedApiKey) {
     return openSecret(identity.encryptedApiKey, config.encryptionSecret);
   }
+  if (identity.coworkerId && isExternal(identity)) {
+    // A Buzz agent posts through Core as its Coworker.
+    const token = generateCoworkerApiKeyToken();
+    await prisma.$transaction([
+      prisma.coworkerApiKey.create({
+        data: {
+          coworkerId: identity.coworkerId,
+          name: "Buzz bridge",
+          keyHash: await hashApiKey(token),
+          keyStart: token.slice(0, COWORKER_API_KEY_START_LENGTH),
+        },
+      }),
+      prisma.buzzIdentity.update({
+        where: { id: identity.id },
+        data: { encryptedApiKey: sealSecret(token, config.encryptionSecret) },
+      }),
+    ]);
+    return token;
+  }
+  if (!identity.userId) throw new Error("Only people post through Core");
   const { auth } = await import("@/lib/auth");
   const created = await auth.api.createApiKey({
     body: {
@@ -1375,9 +1647,16 @@ export async function applyInboundEvent(
   const author = await prisma.buzzIdentity.findFirst({
     where: { OR: [{ pubkey: event.pubkey }, { appPubkey: event.pubkey }] },
   });
-  const signerPubkey = event.pubkey === author?.pubkey ? null : event.pubkey;
-  // Bots and coworkers speak only through Sokosumi; strangers are not members.
-  if (!author?.userId) return "ignored";
+  // Bots and coworkers speak only through Sokosumi, except a person's own
+  // Buzz agent; strangers are not members.
+  if (!author) return "ignored";
+  const agent = Boolean(author.coworkerId) && isExternal(author);
+  if (!author.userId && !agent) return "ignored";
+  // An agent only posts: Core lets Coworkers write messages, not edit,
+  // delete or react.
+  if (agent && change.type !== "message") return "ignored";
+  const signerPubkey =
+    event.pubkey === author.pubkey && !agent ? null : event.pubkey;
 
   switch (change.type) {
     case "message": {
@@ -1458,11 +1737,18 @@ export async function applyInboundEvent(
           ? created
           : (
               await prisma.chatRoomMessage.findFirst({
-                where: {
-                  roomId: channel.roomId,
-                  clientMessageId,
-                  senderUserId: author.userId,
-                },
+                where: agent
+                  ? {
+                      roomId: channel.roomId,
+                      senderCoworkerId: author.coworkerId,
+                      content,
+                      createdAt: { gte: new Date(Date.now() - 60_000) },
+                    }
+                  : {
+                      roomId: channel.roomId,
+                      clientMessageId,
+                      senderUserId: author.userId,
+                    },
                 select: { id: true },
               })
             )?.id;

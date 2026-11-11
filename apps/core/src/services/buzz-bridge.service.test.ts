@@ -36,6 +36,11 @@ const db = vi.hoisted(() => {
     buzzChannel: model(),
     chatRoomMessage: model(),
     buzzCommunityMember: model(),
+    coworker: model(),
+    vendor: model(),
+    workspace: model(),
+    coworkerWorkspaceAccess: model(),
+    coworkerApiKey: model(),
     member: model(),
     $transaction: vi.fn(async (operations: unknown[]) => operations),
   };
@@ -48,6 +53,7 @@ vi.mock("@/lib/buzz/relay-client", async (importActual) => ({
 }));
 
 import { contentHash } from "@/lib/buzz/events";
+import { ownerAuthTag } from "@/lib/buzz/owner-attestation";
 import { sealSecret } from "@/lib/buzz/secret-box";
 import {
   applyInboundEvent,
@@ -58,6 +64,7 @@ import {
   enqueueBuzzSync,
   OUTBOX_SETTLE_MS,
   startBuzzAppLink,
+  syncBuzzAgents,
   verifyBuzzAppLinks,
 } from "./buzz-bridge.service";
 
@@ -626,5 +633,148 @@ describe("own Buzz app key", () => {
     await expect(verifyBuzzAppLinks()).resolves.toEqual([]);
     expect(relay.queryEvents).not.toHaveBeenCalled();
     expect(db.buzzIdentity.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("a person's own Buzz agents", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 201, body: {} }));
+  const OWNER_KEY = generateSecretKey();
+  const OWNER_PUBKEY = getPublicKey(OWNER_KEY);
+  const AGENT_KEY = generateSecretKey();
+  const AGENT_PUBKEY = getPublicKey(AGENT_KEY);
+  const agentIdentity = {
+    id: "identity-agent",
+    pubkey: AGENT_PUBKEY,
+    appPubkey: null,
+    userId: null,
+    sokoBotId: null,
+    coworkerId: "coworker-agent",
+    encryptedSecretKey: null,
+    encryptedApiKey: sealSecret("coworker_agent-key", SECRET),
+    ownerIdentityId: "identity-bob",
+  };
+
+  beforeEach(() => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+  });
+
+  it("posts what an agent writes as its Coworker, and never edits it from Sokosumi", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    core.mockResolvedValueOnce({
+      status: 201,
+      body: { data: { id: "agent-message" } },
+    });
+    const event = nostrEvent({ content: "done: tests pass" }, AGENT_KEY);
+    await expect(applyInboundEvent(event, core)).resolves.toBe("posted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "coworker_agent-key" }),
+    );
+    expect(db.buzzMessageLink.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ signerPubkey: AGENT_PUBKEY }),
+      }),
+    );
+  });
+
+  it("ignores an agent's reactions, which Core does not take from a Coworker", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    const reaction = nostrEvent(
+      {
+        kind: 7,
+        tags: [
+          ["h", CHANNEL],
+          ["e", "f".repeat(64)],
+        ],
+        content: "👍",
+      },
+      AGENT_KEY,
+    );
+    await expect(applyInboundEvent(reaction, core)).resolves.toBe("ignored");
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("makes a Coworker only of an agent whose profile its owner signed", async () => {
+    const STRANGER_KEY = generateSecretKey();
+    const STRANGER = getPublicKey(STRANGER_KEY);
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      {
+        id: "identity-bob",
+        userId: "user-bob",
+        appPubkey: OWNER_PUBKEY,
+        user: { name: "Bob" },
+      },
+    ]);
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "member",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: { relayUrl: "wss://acme.example" },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([{ id: "workspace" }]);
+    db.vendor.upsert.mockResolvedValue({ id: "vendor" });
+    db.buzzIdentity.findUnique.mockResolvedValue(null);
+    db.coworker.create.mockResolvedValue({ id: "coworker-new" });
+    db.coworker.updateMany.mockResolvedValue({ count: 0 });
+    const record = (pubkey: string) =>
+      finalizeEvent(
+        {
+          kind: 30177,
+          created_at: 1,
+          tags: [["d", pubkey]],
+          content: JSON.stringify({ name: "Claude Code" }),
+        },
+        OWNER_KEY,
+      );
+    const profile = (key: Uint8Array, tags: string[][]) =>
+      finalizeEvent(
+        { kind: 0, created_at: 2, tags, content: '{"name":"Claude Code"}' },
+        key,
+      );
+    relay.queryEvents
+      .mockResolvedValueOnce([record(AGENT_PUBKEY), record(STRANGER)])
+      .mockResolvedValueOnce([
+        profile(AGENT_KEY, [ownerAuthTag(OWNER_KEY, AGENT_PUBKEY)]),
+        // Claims Bob as owner with a signature for another key.
+        profile(STRANGER_KEY, [ownerAuthTag(OWNER_KEY, AGENT_PUBKEY)]),
+      ]);
+    await expect(syncBuzzAgents()).resolves.toEqual(["coworker-new"]);
+    expect(db.coworker.create).toHaveBeenCalledTimes(1);
+    expect(db.coworker.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: "Claude Code",
+        baseURL: "buzz://acme.example",
+        capabilities: ["chat"],
+        assignments: { create: { userId: "user-bob" } },
+      }),
+    });
+    expect(db.buzzIdentity.create).toHaveBeenCalledWith({
+      data: {
+        pubkey: AGENT_PUBKEY,
+        coworkerId: "coworker-new",
+        ownerIdentityId: "identity-bob",
+      },
+    });
+    expect(db.coworkerWorkspaceAccess.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            coworkerId: "coworker-new",
+            workspaceId: "workspace",
+            status: "GRANTED",
+          }),
+        ],
+      }),
+    );
   });
 });

@@ -14,6 +14,7 @@ import {
 } from "@/helpers/persist-assistant-to-chat-room";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
+import { isBuzzAgentBaseUrl } from "@/lib/buzz/events";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
@@ -138,6 +139,16 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   });
 
   if (!mention || mention.status === "responded") {
+    return;
+  }
+
+  // A person's own Buzz agent hears the mention on Buzz (the bridge sends it
+  // with its key tagged) and answers there; its reply comes back as a message.
+  if (isBuzzAgentBaseUrl(mention.coworker?.baseURL)) {
+    await prisma.chatRoomMention.update({
+      where: { id: mention.id },
+      data: { status: "responded" },
+    });
     return;
   }
 

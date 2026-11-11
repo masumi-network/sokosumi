@@ -28,6 +28,7 @@ import {
   linkedBuzzRooms,
   readerSecretKey,
   saveInboundCursor,
+  syncBuzzAgents,
   syncRoomChannel,
   unlinkedBuzzRooms,
   verifyBuzzAppLinks,
@@ -387,6 +388,9 @@ async function run() {
         lastRoomSweep = Date.now();
         for (const identityId of await verifyBuzzAppLinks()) {
           log(`app key linked for ${identityId.slice(0, 8)}`);
+        }
+        for (const change of await syncBuzzAgents()) {
+          log(`agent ${change.slice(0, 13)} synced`);
         }
         for (const room of await unlinkedBuzzRooms()) {
           await syncRoomChannel(room.id);

@@ -8568,7 +8568,10 @@
         "unlink": "Trennen",
         "linkInvalid": "Gib einen öffentlichen Buzz-Schlüssel ein (npub1…).",
         "linkError": "Buzz-App konnte nicht verknüpft werden",
-        "unlinkError": "Buzz-App konnte nicht getrennt werden"
+        "unlinkError": "Buzz-App konnte nicht getrennt werden",
+        "agentsTitle": "Deine Buzz-Agenten",
+        "agentsEmpty": "Agenten, die du in der Buzz-App erstellst, erscheinen hier innerhalb einer Minute und lassen sich wie jeder Coworker zu Räumen hinzufügen.",
+        "agentsHint": "Füge sie wie jeden Coworker zu einem Raum hinzu. Lass sie in Buzz allen antworten (nicht nur dir), damit Erwähnungen aus Sokosumi ankommen."
       }
     },
     "Coworkers": {

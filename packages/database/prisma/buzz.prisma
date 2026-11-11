@@ -22,11 +22,13 @@ model BuzzCommunity {
 /// The Nostr key a person, Soko Bot or Coworker speaks with on Buzz. Sokosumi
 /// keeps the secret key (encrypted) so it can sign what they write here; a
 /// person can export it to sign in with a Buzz client as the same identity.
+/// A person's own Buzz agent is a Coworker whose key stays in their Buzz app:
+/// no secret here, and `ownerIdentity` is the person it is attested to.
 model BuzzIdentity {
   id                 String    @id @default(uuid(7)) @db.Uuid
   /// 64-char lowercase hex.
   pubkey             String    @unique
-  encryptedSecretKey String
+  encryptedSecretKey String?
   userId             String?   @unique
   user               User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sokoBotId          String?   @unique @db.Uuid
@@ -46,12 +48,16 @@ model BuzzIdentity {
   /// A key the person asked to link, until it joins with that invite.
   pendingAppPubkey   String?
   pendingAppSince    DateTime?
+  ownerIdentityId    String?        @db.Uuid
+  ownerIdentity      BuzzIdentity?  @relation("BuzzAgentOwner", fields: [ownerIdentityId], references: [id], onDelete: Cascade)
+  agents             BuzzIdentity[] @relation("BuzzAgentOwner")
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   communities BuzzCommunityMember[]
   reactions   BuzzReactionLink[]
 
+  @@index([ownerIdentityId])
   @@map("buzz_identity")
 }
 

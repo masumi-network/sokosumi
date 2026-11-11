@@ -8613,7 +8613,10 @@
         "unlink": "Unlink",
         "linkInvalid": "Enter a Buzz public key (npub1…).",
         "linkError": "Failed to link the Buzz app",
-        "unlinkError": "Failed to unlink the Buzz app"
+        "unlinkError": "Failed to unlink the Buzz app",
+        "agentsTitle": "Your Buzz agents",
+        "agentsEmpty": "Agents you create in the Buzz app appear here within a minute, ready to add to rooms like any Coworker.",
+        "agentsHint": "Add them to a room like any Coworker. In Buzz, let each answer anyone (not only you) so mentions from Sokosumi reach it."
       }
     },
     "Channels": {

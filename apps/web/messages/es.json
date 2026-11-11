@@ -8568,7 +8568,10 @@
         "unlink": "Desvincular",
         "linkInvalid": "Introduce una clave pública de Buzz (npub1…).",
         "linkError": "No se pudo vincular la app de Buzz",
-        "unlinkError": "No se pudo desvincular la app de Buzz"
+        "unlinkError": "No se pudo desvincular la app de Buzz",
+        "agentsTitle": "Tus agentes de Buzz",
+        "agentsEmpty": "Los agentes que crees en la app de Buzz aparecen aquí en un minuto, listos para añadir a salas como cualquier Coworker.",
+        "agentsHint": "Añádelos a una sala como cualquier Coworker. En Buzz, deja que respondan a cualquiera (no solo a ti) para que les lleguen las menciones desde Sokosumi."
       }
     },
     "Coworkers": {

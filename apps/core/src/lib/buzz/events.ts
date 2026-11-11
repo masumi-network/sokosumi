@@ -28,6 +28,8 @@ export const BUZZ_KIND = {
   addCommunityMember: 9030,
   /** Relay-signed (NIP-43): a key was admitted to the community. */
   memberAdded: 8000,
+  /** An owner's record of one of their Buzz agents; `d` is the agent's key. */
+  agentRecord: 30177,
   openDirectMessage: 41010,
   richMessage: 40002,
   edit: 40003,
@@ -321,4 +323,15 @@ export function readableContent(
       return whole;
     }
   });
+}
+
+/**
+ * A person's own Buzz agent, as a Coworker: its base URL names the relay it
+ * lives on, and a mention of it is delivered by Buzz, not dispatched by
+ * Sokosumi.
+ */
+export const BUZZ_AGENT_URL_PREFIX = "buzz://";
+
+export function isBuzzAgentBaseUrl(baseURL: string | null | undefined) {
+  return Boolean(baseURL?.startsWith(BUZZ_AGENT_URL_PREFIX));
 }
