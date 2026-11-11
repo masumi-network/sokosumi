@@ -40,6 +40,38 @@ describe("findRepeats", () => {
     expect(costUsd).toBeCloseTo(0.000_03);
   });
 
+  it("calls a post a repeat at 0.88 and a title at 0.86", async () => {
+    // Each text sits at its cosine from the first, the two on either side of it.
+    const at =
+      (scores: Record<string, number>): EmbedTexts =>
+      async (values) => ({
+        costUsd: 0,
+        embeddings: values.map((value) => {
+          const score = scores[value] ?? 1;
+          const side = value.startsWith("Close ") ? -1 : 1;
+          return [score, side * Math.sqrt(1 - score * score)];
+        }),
+      });
+    const texts = ["Base (g1)", "Close (g1)", "Closer (g1)"];
+    const embed = at({ "Close (g1)": 0.87, "Closer (g1)": 0.89 });
+
+    expect((await findRepeats(texts, "post", embed)).repeats).toEqual([
+      null,
+      null,
+      0,
+    ]);
+    const titles = ["Base (g2)", "Close (g2)", "Closer (g2)"];
+    expect(
+      (
+        await findRepeats(
+          titles,
+          "title",
+          at({ "Close (g2)": 0.85, "Closer (g2)": 0.865 }),
+        )
+      ).repeats,
+    ).toEqual([null, null, 0]);
+  });
+
   it("keeps texts on different topics apart", async () => {
     const embed = fakeEmbed([/staking/i, /esim/i, /governance/i]);
     const { repeats } = await findRepeats(

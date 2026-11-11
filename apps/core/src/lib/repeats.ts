@@ -9,14 +9,19 @@ import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
 
 /**
  * Cosine similarity at which two texts say one thing, measured on real
- * months (`scripts/calibrate-repeats.mts`). Titles: in 11 brands' months
- * same-brand pairs sit at a median of 0.47 to 0.55, and pairs at 0.86 or
- * above are rewordings ("Make the first email relevant" / "How to write a
- * relevant first email", 0.935); below it distinct pieces start ("See what
- * the Email plan includes" / "Start an Email plan trial", 0.851). Posts:
- * provisional until measured on a real written month.
+ * months (`scripts/calibrate-repeats.mts`); an absolute cutoff, since a
+ * brand short on facts has a high median and repeats the most.
+ * Titles: in 11 brands' months same-brand pairs sit at a median of 0.47 to
+ * 0.55; at 0.86 or above they are rewordings ("Make the first email
+ * relevant" / "How to write a relevant first email", 0.935), below it
+ * distinct pieces start ("See what the Email plan includes" / "Start an
+ * Email plan trial", 0.851).
+ * Posts: begin.is's 39-post month (median 0.69) recycled about ten claims;
+ * at 0.88, 12 of its 15 refused saves still repeat a post (0.90 to 0.97)
+ * and the two that shared only words pass (0.66, 0.70); below it the
+ * same-topic posts with their own point start.
  */
-export const REPEAT_CUTOFF = { title: 0.86, post: 0.9 } as const;
+export const REPEAT_CUTOFF = { title: 0.86, post: 0.88 } as const;
 
 /** Embeddings by text hash, so a month's siblings are embedded once per process. */
 const cache = new Map<string, number[]>();
