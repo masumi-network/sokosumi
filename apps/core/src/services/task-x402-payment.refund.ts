@@ -4,7 +4,10 @@ import {
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
 
-import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
+import {
+  buildCompensatingRefundTransactionCreate,
+  COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
+} from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
 import type {
   RefundAdminTaskX402PaymentBody,
@@ -77,6 +80,7 @@ interface RefundablePayment {
     amount: bigint;
     userId: string | null;
     organizationId: string | null;
+    creditConsumptions: { bucket: { projectId: string | null } }[];
   };
 }
 
@@ -111,6 +115,7 @@ const OPERATOR_ACTION_SELECT = {
       amount: true,
       userId: true,
       organizationId: true,
+      ...COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
     },
   },
 } satisfies Prisma.TaskX402PaymentSelect;
@@ -232,6 +237,7 @@ async function attachCompensatingRefund(
           ),
           organizationId: payment.transaction.organizationId,
           referenceId: `task-x402-payment:${payment.id}`,
+          consumptions: payment.transaction.creditConsumptions,
         }),
       },
     },

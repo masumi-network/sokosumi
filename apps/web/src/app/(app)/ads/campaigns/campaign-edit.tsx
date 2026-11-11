@@ -1,7 +1,7 @@
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
-
-import { CORE_RANGE_BY_PARAM } from "@/app/ads/ads-query";
+import { CORE_RANGE_BY_PARAM, campaignDetailsHref } from "@/app/ads/ads-query";
 import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
 import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
 import { AdsEditCampaignModal } from "@/app/ads/components/ads-edit-campaign-modal";
@@ -23,6 +23,12 @@ export async function AdsCampaignEdit({
     params,
     searchParams,
   );
+  // A CMO Project's campaign changes in CMO; its details page says so.
+  if (project.cmo) {
+    redirect(
+      campaignDetailsHref(project.id, account.id, campaignId, query.range),
+    );
+  }
   const t = await getTranslations("App.Ads");
 
   let modal: React.ReactNode;

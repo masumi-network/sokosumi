@@ -816,7 +816,33 @@
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
       "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor",
       "coworkerAccessAcceptSuccess": "Acceso anticipado de coworker aprobado",
-      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker"
+      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker",
+      "reply": "Responder",
+      "replyTo": "Responder: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# tarea te está esperando} other {# tareas te están esperando}}",
+        "showAll": "Ver todas en Tareas",
+        "loadError": "No se pudieron cargar las tareas que te esperan",
+        "ask": {
+          "INPUT_REQUIRED": "{name} necesita tu respuesta",
+          "APPROVAL_REQUIRED": "{name} necesita tu aprobación",
+          "AUTHENTICATION_REQUIRED": "{name} necesita que inicies sesión"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Necesita tu respuesta",
+          "APPROVAL_REQUIRED": "Necesita tu aprobación",
+          "AUTHENTICATION_REQUIRED": "Necesita que inicies sesión",
+          "OUT_OF_CREDITS": "En pausa hasta que se añadan créditos",
+          "GRANT_PENDING": "Esperando acceso al espacio de trabajo"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Responder",
+          "APPROVAL_REQUIRED": "Revisar",
+          "AUTHENTICATION_REQUIRED": "Iniciar sesión",
+          "OUT_OF_CREDITS": "Abrir",
+          "GRANT_PENDING": "Abrir"
+        }
+      }
     },
     "HashValue": {
       "copy": "Copiar",
@@ -1072,6 +1098,22 @@
     },
     "ConnectLink": {
       "error": "No se pudo iniciar la conexión."
+    },
+    "TeamView": {
+      "loading": "Cargando equipo",
+      "failed": "No se puede mostrar este archivo de equipo. Comprueba que sea un archivo de equipo válido.",
+      "advisors": "Asesores",
+      "linkedin": "Perfil de LinkedIn",
+      "highlights": "Logros",
+      "experience": "Experiencia",
+      "education": "Formación"
+    },
+    "CmoProject": {
+      "badge": "CMO",
+      "title": "Gestionado por CMO",
+      "description": "CMO gestiona este proyecto, así que los cambios se hacen en CMO. Aquí puedes consultarlo.",
+      "open": "Abrir en CMO",
+      "newTab": "(se abre en una pestaña nueva)"
     }
   },
   "Join": {
@@ -1631,7 +1673,6 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
-          "chatKind": "Chat",
           "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",
@@ -1673,6 +1714,19 @@
       "Page": {
         "title": "Task Manager",
         "description": "Crea Tasks para Agents y gestiona tu trabajo de forma eficiente en una vista colaborativa."
+      },
+      "Archived": {
+        "title": "Tareas archivadas",
+        "link": "Archivadas",
+        "description": "Tareas archivadas en este espacio de trabajo, las más recientes primero. Restaura una para devolverla al tablero.",
+        "back": "Volver a las tareas",
+        "empty": "No hay tareas archivadas. Las tareas que archives aparecerán aquí para que puedas recuperarlas.",
+        "draftNote": "Las tareas que esperaban para ejecutarse vuelven como borradores, así que nada empieza hasta que lo inicies de nuevo.",
+        "restore": "Restaurar",
+        "restoreNamed": "Restaurar {name}",
+        "restored": "{name} ha vuelto al tablero",
+        "open": "Abrir",
+        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo."
       },
       "Columns": {
         "backlog": "Pendiente",
@@ -1895,7 +1949,26 @@
           "markComplete": "Marcar como completada",
           "repeat": "Repetir",
           "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo.",
-          "duplicate": "Duplicar como borrador"
+          "duplicate": "Duplicar como borrador",
+          "sendToChat": {
+            "menuItem": "Enviar al chat",
+            "title": "Enviar tarea al chat",
+            "description": "Publica un enlace a esta tarea en un canal o mensaje directo. Todos allí ven su título; solo quienes pueden abrir la tarea ven más. No se ofrecen salas con coworkers de IA o invitados.",
+            "roomLabel": "Enviar a",
+            "roomPlaceholder": "Elige un canal o mensaje directo",
+            "noteLabel": "Mensaje (opcional)",
+            "notePlaceholder": "Añade una nota, como lo que necesitas",
+            "noRooms": "Aún no tienes chats en este espacio de trabajo a los que enviar.",
+            "send": "Enviar",
+            "cancel": "Cancelar",
+            "success": "Tarea enviada al chat",
+            "openChat": "Abrir chat",
+            "error": "No se pudo enviar la tarea. Inténtalo de nuevo.",
+            "loadError": "No se pudieron cargar tus chats. Inténtalo de nuevo.",
+            "refused": "Este chat ya no puede recibir esta tarea. Elige otro.",
+            "retry": "Enviar de nuevo",
+            "retryHint": "Puede que el último envío no haya llegado. Enviar de nuevo no la publicará dos veces; si cambias el chat o el mensaje, se envía uno nuevo."
+          }
         },
         "ShareModal": {
           "title": "Share task",
@@ -2126,6 +2199,21 @@
         },
         "newSchedule": "Nueva programación",
         "empty": "Todavía no hay programaciones. Una programación crea una tarea nueva en cada ejecución.",
+        "zoneTime": "Hora de {zone}",
+        "localTime": "{datetime} en tu hora",
+        "nextRunWithLocal": "Próxima ejecución {datetime} ({local} en tu hora)",
+        "emptyFiltered": {
+          "ACTIVE": "No hay programaciones activas",
+          "PAUSED": "No hay programaciones en pausa",
+          "ENDED": "No hay programaciones finalizadas"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# está activa} other {# están activas}}",
+          "PAUSED": "{count, plural, one {# está en pausa} other {# están en pausa}}",
+          "ENDED": "{count, plural, one {# ha finalizado} other {# han finalizado}}"
+        },
+        "showAll": "Mostrar todas las programaciones",
         "loadMore": "Cargar más",
         "loadMoreError": "No se pudieron cargar más programaciones.",
         "nextRun": "Próxima ejecución {datetime}",
@@ -2237,7 +2325,6 @@
           "properties": "Propiedades",
           "state": "Estado",
           "rule": "Se repite",
-          "timezone": "Zona horaria",
           "nextRun": "Próxima ejecución",
           "ends": "Termina",
           "assignee": "Responsable",
@@ -5238,6 +5325,8 @@
       "statusCancel": "El checkout de suscripción fue cancelado.",
       "currentPlanBadge": "Actual",
       "pricePerMonth": "por mes",
+      "pricePerSeatPerMonth": "por Seat / mes",
+      "seatTotal": "{total} al mes por {seats, plural, =1 {# Seat} other {# Seats}}",
       "includedCredits": "{credits, plural, =0 {Sin Credits} =1 {# Credit incluido} other {# Credits incluidos}}",
       "mostPopularBadge": "Más popular",
       "canceling": "Programando la cancelación...",
@@ -7183,6 +7272,7 @@
       "topUpDescription": "Elige un importe o introduce uno personalizado",
       "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
       "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
+      "seePlans": "Ver planes",
       "couponExpiryPolicyNotice": "Los créditos promocionales pueden caducar; las condiciones dependen del cupón o de la oferta.",
       "costPerCredit": "{cost} por Credit",
       "youSaveLabel": "Ahorra {amount}",
@@ -8037,6 +8127,7 @@
             "removeCta": "{count, plural, =1 {Quitar # Seat} other {Quitar # Seats}}",
             "decrease": "Quitar un Seat",
             "increase": "Añadir un Seat",
+            "minimum": "{count, plural, =1 {Introduce al menos # Seat.} other {Introduce al menos # Seats.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {¿Añadir # Seat?} other {¿Añadir # Seats?}}",
               "removeTitle": "{count, plural, =1 {¿Quitar # Seat?} other {¿Quitar # Seats?}}",
@@ -8059,6 +8150,18 @@
             }
           },
           "seatsCheckoutLabel": "Seats a comprar"
+        },
+        "CreditSpend": {
+          "title": "Créditos gastados por persona",
+          "description": "Créditos cobrados a cada persona este mes y el mes pasado, antes de reembolsos. Los meses siguen UTC. Las recargas no cuentan.",
+          "person": "Persona",
+          "noPerson": "Cargos de la organización (sin persona)",
+          "unknownPerson": "Persona desconocida",
+          "otherSpend": "Resto del gasto",
+          "formerMember": "Exmiembro",
+          "empty": "No se gastaron créditos este mes ni el mes pasado.",
+          "loadError": "No se pudo cargar el gasto de créditos. Inténtalo de nuevo.",
+          "retry": "Reintentar"
         },
         "Seats": {
           "title": "Resumen de Seats",
@@ -9282,12 +9385,17 @@
           "title": "Decisiones",
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
-          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta."
+          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta.",
+          "description": "Decisiones encontradas en tus chats, las más recientes primero, también las que ya leíste.",
+          "error": "No se pudieron cargar las decisiones.",
+          "untitled": "Mensaje sin texto",
+          "inThread": "En un hilo"
         },
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",
           "overview": "Resumen",
           "threads": "Hilos",
+          "decisions": "Decisiones",
           "saved": "Guardados"
         },
         "Briefing": {
@@ -9778,7 +9886,8 @@
         "continue": "Continuar",
         "back": "Atrás",
         "pictureTitle": "Elige una imagen para {name}",
-        "skip": "Omitir"
+        "createWithoutPicture": "Crear sin imagen",
+        "createWithoutPictureHint": "{name} empieza con su orbe de color. Añade una imagen cuando quieras en sus ajustes."
       },
       "Memory": {
         "title": "Memoria",

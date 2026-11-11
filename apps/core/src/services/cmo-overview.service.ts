@@ -287,6 +287,7 @@ export async function getCmoOverview(
       userId,
       organizationId: payer.organizationId,
       referenceId: payer.referenceId,
+      projectId: cuso.projectId,
       tx: prisma,
     }),
     mayApproveMarketingStrategy(userId, {

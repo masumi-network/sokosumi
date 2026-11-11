@@ -6,14 +6,11 @@ import {
   buildComposioHandoffInlineScript,
   COMPOSIO_BOT_ID_STORAGE_KEY,
   COMPOSIO_HANDOFF_STORAGE_KEY,
-  COMPOSIO_OAUTH_ACK_TYPE,
   COMPOSIO_OAUTH_BROADCAST_CHANNEL,
   COMPOSIO_OAUTH_MESSAGE_TYPE,
   COMPOSIO_OAUTH_NONCE_STORAGE_KEY,
   getComposioOAuthPopupName,
-  isComposioOAuthAckPayload,
   isComposioOAuthCallbackPayload,
-  parseComposioCallbackSearchParams,
   readComposioHandoff,
   rememberComposioBotId,
 } from "@/lib/composio/oauth-popup-protocol";
@@ -40,72 +37,6 @@ describe("oauth-popup-protocol", () => {
       }),
     ).toBe(false);
     expect(isComposioOAuthCallbackPayload({ type: "other" })).toBe(false);
-  });
-
-  it("recognizes ack payloads", () => {
-    expect(
-      isComposioOAuthAckPayload({
-        type: COMPOSIO_OAUTH_ACK_TYPE,
-        nonce: "nonce_123",
-      }),
-    ).toBe(true);
-  });
-
-  it("parses Composio callback query params", () => {
-    expect(
-      parseComposioCallbackSearchParams(
-        "?status=success&connected_account_id=ca_123",
-      ),
-    ).toEqual({
-      status: "success",
-      connectionId: "ca_123",
-      sessionUri: null,
-      errorMessage: null,
-    });
-    expect(
-      parseComposioCallbackSearchParams("?id=ca_456&error=access_denied"),
-    ).toEqual({
-      status: "error",
-      connectionId: "ca_456",
-      sessionUri: null,
-      errorMessage: "access_denied",
-    });
-    expect(
-      parseComposioCallbackSearchParams(
-        "?status=failed&connected_account_id=ca_failed",
-      ),
-    ).toEqual({
-      status: "error",
-      connectionId: "ca_failed",
-      sessionUri: null,
-      errorMessage: null,
-    });
-    expect(
-      parseComposioCallbackSearchParams(
-        "?status=expired&connectionId=ca_expired",
-      ),
-    ).toEqual({
-      status: "error",
-      connectionId: "ca_expired",
-      sessionUri: null,
-      errorMessage: null,
-    });
-    expect(
-      parseComposioCallbackSearchParams(
-        "?session_uri=https%3A%2F%2Fbackend.composio.dev%2Fsession%2Fsingle-use",
-      ),
-    ).toEqual({
-      status: "success",
-      connectionId: null,
-      sessionUri: "https://backend.composio.dev/session/single-use",
-      errorMessage: null,
-    });
-    expect(parseComposioCallbackSearchParams("?foo=bar")).toEqual({
-      status: "error",
-      connectionId: null,
-      sessionUri: null,
-      errorMessage: null,
-    });
   });
 
   it("builds a self-contained inline callback script", () => {

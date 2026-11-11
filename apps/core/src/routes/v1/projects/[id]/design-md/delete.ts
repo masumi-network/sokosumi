@@ -34,6 +34,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("CMO project is read-only"),
     },
   }),
 );
@@ -59,6 +60,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project not found");
     }
 
-    return ok(c, mapProjectForApi(project));
+    return ok(
+      c,
+      mapProjectForApi(project, {
+        // cmoProjectLock refused this write on a CMO Project.
+        cmo: false,
+      }),
+    );
   });
 }

@@ -121,6 +121,28 @@ describe("CreateState", () => {
     expect(screen.getByLabelText("Name")).toHaveFocus();
   });
 
+  it.each([
+    ["spaced", "Pebble the Very Helpful Office Companion"],
+    // The field allows 80 characters; one unbroken word must wrap too.
+    ["unbroken", "W".repeat(80)],
+  ])(
+    "keeps a long %s name inside the phone width on the picture step",
+    async (_, name) => {
+      const user = userEvent.setup();
+      renderCreate();
+
+      await user.type(screen.getByLabelText("Name"), `${name}{Enter}`);
+
+      // Buttons never wrap, so the label truncates; the full name stays its name.
+      const label = screen.getByText(`Create ${name}`);
+      expect(label).toHaveClass("truncate");
+      expect(label.closest("button")).toHaveAccessibleName(`Create ${name}`);
+      expect(
+        screen.getByRole("heading", { name: `Pick a picture for ${name}` }),
+      ).toHaveClass("wrap-anywhere");
+    },
+  );
+
   it("locks the pictures while the bot is being created", async () => {
     const user = userEvent.setup();
     createMock.mockReturnValue(new Promise(() => {}));
@@ -132,6 +154,51 @@ describe("CreateState", () => {
 
     await user.click(screen.getByRole("button", { name: "Create Atlas" }));
     expect(pictures).toBeDisabled();
+  });
+
+  it("locks both create buttons while creating without a picture", async () => {
+    const user = userEvent.setup();
+    createMock.mockClear();
+    createMock.mockReturnValue(new Promise(() => {}));
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    await user.click(screen.getByRole("button", { name: "owl" }));
+    const noPicture = screen.getByRole("button", {
+      name: "Create without a picture",
+    });
+    const createButton = screen.getByRole("button", { name: "Create Atlas" });
+    await user.click(noPicture);
+    await user.click(createButton);
+
+    // Only the no-picture request runs, and it shows the progress.
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0][0].input.avatarId).toBeNull();
+    expect(createButton).toBeDisabled();
+    expect(createButton).not.toHaveAttribute("aria-busy", "true");
+    expect(noPicture).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("locks both create buttons while Create runs without a picked picture", async () => {
+    const user = userEvent.setup();
+    createMock.mockClear();
+    createMock.mockReturnValue(new Promise(() => {}));
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    const createButton = screen.getByRole("button", { name: "Create Atlas" });
+    const noPicture = screen.getByRole("button", {
+      name: "Create without a picture",
+    });
+    await user.click(createButton);
+    await user.click(noPicture);
+    await user.click(createButton);
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0][0].input.avatarId).toBeNull();
+    expect(createButton).toHaveAttribute("aria-busy", "true");
+    expect(noPicture).toBeDisabled();
+    expect(noPicture).not.toHaveAttribute("aria-busy", "true");
   });
 
   it("holds Create while the pictures load", async () => {
@@ -195,7 +262,7 @@ describe("CreateState", () => {
     });
   });
 
-  it("lets the person skip the picture, and the bot gets its orb", async () => {
+  it("creates the bot without a picture, and it gets its orb", async () => {
     const user = userEvent.setup();
     createMock.mockResolvedValue({
       ok: true,
@@ -205,7 +272,14 @@ describe("CreateState", () => {
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
     await user.click(screen.getByRole("button", { name: "owl" }));
-    await user.click(screen.getByRole("button", { name: "Skip" }));
+    const noPicture = screen.getByRole("button", {
+      name: "Create without a picture",
+    });
+    // Says what the button leads to: the orb now, a picture later.
+    expect(noPicture).toHaveAccessibleDescription(
+      "Atlas starts with its color orb. Add a picture any time in its settings.",
+    );
+    await user.click(noPicture);
 
     expect(createMock).toHaveBeenCalledWith({
       input: {

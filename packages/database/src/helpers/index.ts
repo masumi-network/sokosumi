@@ -4,7 +4,10 @@ export {
   creditBucketActivatesAtOrBefore,
   getCreditExpiryDate,
 } from "./credit.js";
-export { hasAssignedOrganizationSeat } from "./credit-bucket-scope.js";
+export {
+  type CreditBucketProjectOption,
+  hasAssignedOrganizationSeat,
+} from "./credit-bucket-scope.js";
 export {
   deriveEnterpriseContractEndDate,
   MIN_ENTERPRISE_CREDITS_PER_MONTH,

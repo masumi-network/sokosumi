@@ -96,6 +96,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    return ok(c, mapProjectForApi(project));
+    return ok(
+      c,
+      mapProjectForApi(project, {
+        // cmoProjectLock refused this write on a CMO Project.
+        cmo: false,
+      }),
+    );
   });
 }

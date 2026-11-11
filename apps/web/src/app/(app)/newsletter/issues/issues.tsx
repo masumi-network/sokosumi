@@ -32,11 +32,14 @@ export function Issues({
   issues,
   pagination,
   activeSubscribers,
+  readOnly = false,
 }: {
   projectId: string;
   issues: NewsletterIssue[];
   pagination: PaginationMetadata;
   activeSubscribers: number;
+  /** A CMO Project: CMO writes and sends its issues, so they are only read. */
+  readOnly?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const format = useFormatter();
@@ -48,7 +51,7 @@ export function Issues({
     shallow: false,
     startTransition,
   });
-  const newIssue = (
+  const newIssue = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
       <DraftIssueButton projectId={projectId} />
       <Button
@@ -141,18 +144,25 @@ export function Issues({
                             })}
                     </p>
                   </div>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="h-auto min-h-10 max-w-full py-2 whitespace-normal"
-                    >
-                      <Link href={href}>{t(`nextActions.${nextAction}`)}</Link>
-                    </Button>
-                    {issue.status === NewsletterIssueStatus.DRAFT ? (
-                      <IssueDeleteButton projectId={projectId} issue={issue} />
-                    ) : null}
-                  </div>
+                  {readOnly ? null : (
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="h-auto min-h-10 max-w-full py-2 whitespace-normal"
+                      >
+                        <Link href={href}>
+                          {t(`nextActions.${nextAction}`)}
+                        </Link>
+                      </Button>
+                      {issue.status === NewsletterIssueStatus.DRAFT ? (
+                        <IssueDeleteButton
+                          projectId={projectId}
+                          issue={issue}
+                        />
+                      ) : null}
+                    </div>
+                  )}
                 </div>
                 <IssueDeliveryOutcome issue={issue} projectId={projectId} />
               </li>

@@ -37,6 +37,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -3670,6 +3671,7 @@ export class SokoBotControlPlane {
         id: bot.id,
         userId: bot.userId,
         organizationId: bot.workspace.organizationId,
+        projectId: bot.projectId,
       })),
     );
     return {
@@ -4625,6 +4627,8 @@ export class SokoBotControlPlane {
           },
         });
       }
+      // Start over archives through here, so it forfeits too (ADR 0067).
+      await forfeitCusoProjectCredits(bot.id, tx);
       await tx.sokoBot.update({
         where: { id: bot.id },
         data: {

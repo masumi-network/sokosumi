@@ -690,6 +690,14 @@ async function TaskDetailActionsSlot({
             }
           : undefined
       }
+      sendToChat={
+        !forceReadOnly &&
+        hasAssignedSeat &&
+        task.visibility !== "PRIVATE" &&
+        session?.user.id
+          ? { currentUserId: session.user.id }
+          : undefined
+      }
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),

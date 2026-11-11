@@ -4,6 +4,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
 import { notFound } from "@/helpers/error";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import {
@@ -108,6 +109,10 @@ export async function deleteSokoBot(
         pendingComposioAccountId: true,
       },
     });
+
+    // Both outcomes end a live Cuso; a hard delete keeps his Project, and so
+    // its credits, so they are written off here (ADR 0067).
+    await forfeitCusoProjectCredits(bot.id, tx);
 
     // Stop live work before erasing what it would write back into.
     await tx.sokoBotTurn.updateMany({

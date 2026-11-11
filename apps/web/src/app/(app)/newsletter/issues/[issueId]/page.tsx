@@ -13,7 +13,9 @@ import {
   newsletterWorkspacePage,
 } from "../../newsletter-project";
 import { getNewsletterTabs, newsletterHref } from "../../newsletter-tabs";
+import { IssueDeliveryOutcome } from "../issue-delivery-status";
 import { NewsletterIssueEditor } from "../issue-editor";
+import { NewsletterIssuePreview } from "../issue-preview";
 import { loadIssueEditorSearchParams } from "../search-params";
 
 export const instant = false;
@@ -67,23 +69,40 @@ export default async function NewsletterIssuePage({
 
   return (
     <NewsletterPageShell
+      cmoProjectId={project.cmo ? project.id : undefined}
       navigationLabel={t("navigation")}
-      tabs={getNewsletterTabs(project.id, true, t)}
+      tabs={getNewsletterTabs(project.id, true, t, project.cmo)}
       title={page("title")}
     >
       {/* Not a scoped path, so the sidebar learns the project from here and
           a switch goes back to the issues list. */}
       <ProjectScopeMarker projectId={project.id} />
-      <NewsletterIssueEditor
-        key={issue.id}
-        issue={issue}
-        projectId={project.id}
-        activeSubscribers={subscribers.data.counts.ACTIVE}
-        newsletter={newsletter}
-        sendingDomain={sendingDomain}
-        analytics={analytics}
-        draftedBySokoBot={draftedBySokoBot}
-      />
+      {project.cmo ? (
+        // CMO writes and sends a CMO Project's issues; here they are read.
+        <div className="min-w-0 space-y-4">
+          <IssueDeliveryOutcome issue={issue} projectId={project.id} />
+          <NewsletterIssuePreview
+            projectId={project.id}
+            values={{
+              subject: issue.subject,
+              previewText: issue.previewText ?? "",
+              template: issue.template,
+              content: issue.content,
+            }}
+          />
+        </div>
+      ) : (
+        <NewsletterIssueEditor
+          key={issue.id}
+          issue={issue}
+          projectId={project.id}
+          activeSubscribers={subscribers.data.counts.ACTIVE}
+          newsletter={newsletter}
+          sendingDomain={sendingDomain}
+          analytics={analytics}
+          draftedBySokoBot={draftedBySokoBot}
+        />
+      )}
     </NewsletterPageShell>
   );
 }
