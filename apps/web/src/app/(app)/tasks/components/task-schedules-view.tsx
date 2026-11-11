@@ -24,6 +24,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
@@ -35,6 +36,13 @@ import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskScheduleRow } from "./task-schedule-row";
 
 const ALL_STATES = "all";
+
+/**
+ * "Show all schedules" unmounts with the empty state, and the new filter
+ * remounts this view (the page keys it by filter), so the request to land on
+ * the All tab has to outlive the instance that made it.
+ */
+let focusAllTabOnMount = false;
 
 interface TaskSchedulesViewProps {
   defaultViewMode?: SchedulesViewMode;
@@ -85,6 +93,7 @@ export function TaskSchedulesView({
   const [isLoadingMore, startLoadingMore] = useTransition();
   const [hasFailed, setHasFailed] = useState(false);
   const boundaryRef = useRef<HTMLDivElement | null>(null);
+  const allTabRef = useRef<HTMLButtonElement | null>(null);
   // The filter is server state; show the pick until the navigation lands.
   const [shownState, setShownState] = useOptimistic(selectedState);
   const [, startFiltering] = useTransition();
@@ -102,6 +111,17 @@ export function TaskSchedulesView({
       setShownState(nextState);
       router.replace(query ? `${pathname}?${query}` : pathname);
     });
+  }
+
+  useMountEffect(() => {
+    if (!focusAllTabOnMount) return;
+    focusAllTabOnMount = false;
+    allTabRef.current?.focus();
+  });
+
+  function handleShowAll() {
+    focusAllTabOnMount = true;
+    handleStateChange(ALL_STATES);
   }
 
   function handleScheduleChanged() {
@@ -179,6 +199,7 @@ export function TaskSchedulesView({
         >
           <TabsTrigger
             className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+            ref={allTabRef}
             value={ALL_STATES}
           >
             {t("filterAll")}
@@ -238,7 +259,7 @@ export function TaskSchedulesView({
             </p>
             <Button
               className="mt-2"
-              onClick={() => handleStateChange(ALL_STATES)}
+              onClick={handleShowAll}
               size="sm"
               variant="outline"
             >

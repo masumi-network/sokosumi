@@ -281,6 +281,25 @@ describe("TaskSchedulesView", () => {
     expect(replaceMock).toHaveBeenCalledWith("/schedules");
   });
 
+  it("lands focus on the All tab after Show all remounts the view", async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderView([], {
+      state: "ENDED",
+      otherStateCounts: [{ state: "ACTIVE", count: 1 }],
+    });
+    await user.click(screen.getByRole("button", { name: "showAll" }));
+    // The new filter is a new key on the page, so the view mounts afresh.
+    unmount();
+    const remounted = renderView([schedule({})]);
+
+    expect(screen.getByRole("tab", { name: "filterAll" })).toHaveFocus();
+
+    // A later, ordinary mount leaves focus alone.
+    remounted.unmount();
+    renderView([schedule({})]);
+    expect(screen.getByRole("tab", { name: "filterAll" })).not.toHaveFocus();
+  });
+
   it("keeps the first-use text when no state holds a schedule", () => {
     renderView([], {
       state: "PAUSED",
