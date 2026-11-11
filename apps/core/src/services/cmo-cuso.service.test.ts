@@ -73,8 +73,8 @@ import {
   cmoBusinessNameFromUrl,
   cmoRunnerUserId,
   findCusoForBot,
-  findCusoForUser,
   listCmoChannels,
+  listCusosForUser,
 } from "./cmo-cuso.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -119,22 +119,22 @@ describe("cmoRunnerUserId", () => {
   });
 });
 
-describe("findCusoForUser", () => {
-  const hiredAt = new Date("2026-10-01T09:00:00Z");
-  const inOrg = (id: string, organizationId: string) => ({
+describe("listCusosForUser", () => {
+  const row = (id: string, fields: { approved?: boolean; logo?: string }) => ({
     id,
-    createdAt: hiredAt,
+    createdAt: new Date("2026-10-01T09:00:00Z"),
     project: {
-      id: `project-${organizationId}`,
-      workspaceId: `ws-${organizationId}`,
-      websiteUrl: "https://acme.io",
-      workspace: { organizationId },
-      brandBrain: null,
+      id: `project-${id}`,
+      websiteUrl: "https://www.acme.io/about",
+      logo: fields.logo ?? null,
+      workspace: { organization: { id: "org-1", name: "Agency" } },
+      marketingStrategies: fields.approved ? [{ id: "strategy-1" }] : [],
     },
   });
 
-  it("finds a live shared bot on CMO's version in any of the person's organizations", async () => {
-    await findCusoForUser("user-1");
+  it("lists every live Cuso in the person's organizations, newest first", async () => {
+    cusoFindMany.mockResolvedValueOnce([]);
+    await listCusosForUser("user-1");
     expect(cusoFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -154,37 +154,24 @@ describe("findCusoForUser", () => {
     );
   });
 
-  it("prefers the preferred organization's Cuso over a newer one", async () => {
+  it("tells two Cusos of one organization apart by their Business", async () => {
     cusoFindMany.mockResolvedValueOnce([
-      inOrg("bot-new", "org-2"),
-      inOrg("bot-1", "org-1"),
+      row("bot-2", { logo: "https://acme.io/icon.png" }),
+      row("bot-1", { approved: true }),
     ]);
-    await expect(findCusoForUser("user-1")).resolves.toEqual({
-      sokoBotId: "bot-1",
-      projectId: "project-org-1",
-      createdAt: hiredAt,
-      workspaceId: "ws-org-1",
-      websiteUrl: "https://acme.io",
-      businessName: "acme.io",
-      brandBrain: null,
-      brandBrainUpdatedAt: null,
-      brandBrainConfirmedAt: null,
-    });
-  });
-
-  it("falls back to the newest when the preferred one has none", async () => {
-    cusoFindMany.mockResolvedValueOnce([
-      inOrg("bot-new", "org-2"),
-      inOrg("bot-old", "org-3"),
+    await expect(listCusosForUser("user-1")).resolves.toEqual([
+      {
+        projectId: "project-bot-2",
+        businessName: "acme.io",
+        websiteUrl: "https://www.acme.io/about",
+        projectLogo: "https://acme.io/icon.png",
+        organizationId: "org-1",
+        organizationName: "Agency",
+        hiring: true,
+        createdAt: new Date("2026-10-01T09:00:00Z"),
+      },
+      expect.objectContaining({ projectId: "project-bot-1", hiring: false }),
     ]);
-    await expect(findCusoForUser("user-1")).resolves.toMatchObject({
-      sokoBotId: "bot-new",
-    });
-  });
-
-  it("finds no Cuso for a person without one", async () => {
-    cusoFindMany.mockResolvedValueOnce([]);
-    await expect(findCusoForUser("user-1")).resolves.toBeNull();
   });
 });
 

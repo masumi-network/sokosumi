@@ -273,7 +273,10 @@ export async function startCmoCase(
     return { kind: "started", turnId, state: {} };
   }
   await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
-  const { turnId } = await requestCmoStrategy({ userId: lane.userId });
+  const { turnId } = await requestCmoStrategy({
+    userId: lane.userId,
+    projectId: lane.cusoProjectId,
+  });
   return { kind: "started", turnId, state: {} };
 }
 

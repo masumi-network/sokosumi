@@ -6037,6 +6037,32 @@ export type HistoryImageItem = {
     modelLabel: string;
 };
 
+export type StudioAgentProduct = StudioProductIdentity & {
+    hasPhoto: boolean;
+};
+
+export type StudioProductIdentity = {
+    id: string;
+    name: string;
+};
+
+export type StudioAgentAdHeadline = {
+    headline: StudioAdHeadline;
+    approvedLines: Array<string>;
+};
+
+export type StudioAdHeadline = SaveStudioAdHeadline & {
+    revision: number;
+};
+
+export type SaveStudioAdHeadline = {
+    text: string | null;
+};
+
+export type SaveStudioAgentAdHeadline = SaveStudioAdHeadline & {
+    expectedRevision: number;
+};
+
 export type ProjectImageStudioCatalog = {
     defaultModelId: string;
     models: Array<ProjectImageStudioCatalogModel>;
@@ -6114,6 +6140,9 @@ export type ProjectImageAsset = {
     id: string;
     projectId: string;
     projectName: string;
+    product?: StudioProductIdentity;
+    batchId?: string;
+    headline?: StudioAdHeadline;
     rootId: string;
     parentId: string | null;
     version: number;
@@ -6154,8 +6183,11 @@ export type ProjectImageJob = {
     settings: ProjectImageSettings;
     video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
+    referenceFileIds?: Array<string>;
+    useProductCutout?: boolean;
+    product?: StudioProductIdentity;
     error: string | null;
-    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
     parentAssetId: string | null;
     assetId: string | null;
     createdAt: Date;
@@ -7060,6 +7092,15 @@ export type ProjectLatestUpdate = {
     updatedAt: Date;
 };
 
+export const StudioLogoPosition = {
+    TOP_LEFT: 'top-left',
+    TOP_RIGHT: 'top-right',
+    BOTTOM_LEFT: 'bottom-left',
+    BOTTOM_RIGHT: 'bottom-right'
+} as const;
+
+export type StudioLogoPosition = typeof StudioLogoPosition[keyof typeof StudioLogoPosition];
+
 export type ProjectDesignMd = {
     url: string;
     extractionId: string | null;
@@ -7098,6 +7139,10 @@ export type Project = {
     latestUpdate: ProjectLatestUpdate | null;
     websiteUrl: string | null;
     logo: string | null;
+    /**
+     * Default project logo placement for Studio ad exports.
+     */
+    studioLogoPosition?: StudioLogoPosition | null;
     /**
      * Project-owned brand DESIGN.md, or null when none exists.
      */
@@ -10343,14 +10388,103 @@ export type ProjectImageSession = {
     createdAt: Date;
 };
 
+export type StudioBrandKit = {
+    logo: string | null;
+    studioLogoPosition?: StudioLogoPosition | null;
+    colors: Array<string>;
+    fonts: Array<string>;
+    lookRevision?: number;
+    hasCustomLook?: boolean;
+    summary: string;
+    tone: string;
+    audience: Array<string>;
+    approvedLines: Array<string>;
+    version: Date | null;
+};
+
+export type StudioWebsiteCopy = {
+    summary: string | null;
+    lines: Array<string>;
+    tone?: string;
+    audience?: Array<string>;
+};
+
+export type StudioWebsiteDraft = {
+    brandCopy: StudioWebsiteCopy | null;
+    products: Array<StudioProduct> | null;
+    visual?: StudioWebsiteVisual | null;
+};
+
+export type StudioProduct = {
+    id: string;
+    name: string;
+    description: string;
+    price: string;
+    url: string | null;
+    imageUrl: string | null;
+    photo?: StudioProductPhoto;
+};
+
+export type StudioProductPhoto = {
+    id: string;
+    name: string;
+};
+
+export type StudioWebsiteVisual = StudioBrandLook & {
+    logo: string | null;
+};
+
+export type StudioBrandLook = {
+    colors: Array<string>;
+    fonts: Array<string>;
+};
+
+export type SaveStudioBrandCopy = {
+    copy: StudioBrandCopy;
+    version: Date | null;
+};
+
+export type StudioBrandCopy = {
+    summary: string;
+    tone: string;
+    audience: Array<string>;
+    approvedLines: Array<string>;
+};
+
+export type StudioBrandLookState = {
+    colors: Array<string>;
+    fonts: Array<string>;
+    lookRevision: number;
+    hasCustomLook: boolean;
+};
+
+export type SaveStudioBrandLook = {
+    look: StudioBrandLook | null;
+    lookRevision: number;
+};
+
 export type CreateProjectImageJobRequest = {
     modelId?: string;
     prompt: string;
+    product?: StudioProductIdentity;
+    batchId?: string;
+    exportHeadline?: string;
+    useProductCutout?: boolean;
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
+    referenceFileIds?: Array<string>;
     parentAssetId?: string | null;
     sessionId?: string | null;
     idempotencyKey: string;
+};
+
+export type StudioProductCatalog = {
+    products: Array<StudioProduct>;
+    revision: number;
+};
+
+export type StudioProductImport = {
+    products: Array<StudioProduct>;
 };
 
 export type CreateProjectVideoJobRequest = {
@@ -10370,6 +10504,15 @@ export type CancelProjectImageJobResponse = {
     accepted: boolean;
 };
 
+export const StudioAdPlacementRatio = {
+    '1_1': '1:1',
+    '4_5': '4:5',
+    '9_16': '9:16',
+    '16_9': '16:9'
+} as const;
+
+export type StudioAdPlacementRatio = typeof StudioAdPlacementRatio[keyof typeof StudioAdPlacementRatio];
+
 export type ProjectImageStudioCaption = {
     text: string;
 };
@@ -10385,6 +10528,7 @@ export type PatchProjectRequest = {
     description?: string | null;
     websiteUrl?: string | null;
     logo?: string | null;
+    studioLogoPosition?: StudioLogoPosition | null;
     /**
      * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
      */
@@ -10915,6 +11059,28 @@ export type PublicSharedTaskFile = {
     fileUrl: string;
     mimeType: string | null;
     size: number | null;
+    createdAt: Date;
+};
+
+export type CmoCusoList = {
+    cusos: Array<CmoCuso>;
+    /**
+     * The caller is on Core's hire allowlist (CMO_HIRE_ALLOWLIST).
+     */
+    mayHire: boolean;
+};
+
+export type CmoCuso = {
+    projectId: string;
+    businessName: string;
+    websiteUrl: string;
+    projectLogo: string | null;
+    organizationId: string;
+    organizationName: string;
+    /**
+     * No plan of his is approved yet: he is still being hired.
+     */
+    hiring: boolean;
     createdAt: Date;
 };
 
@@ -11718,43 +11884,17 @@ export type CmoProduction = {
 
 export type CmoOnboardingRequest = {
     /**
-     * The business's website. Cuso is hired into a new organization named after it.
+     * The business's website, which names the new Project.
      */
     websiteUrl: string;
-};
-
-export type CmoTurnStarted = {
-    turnId: string;
-};
-
-export type CmoStrategyRequest = {
-    note?: string;
-};
-
-export type CmoAdBudgetRequest = {
-    monthly: number;
     /**
-     * ISO 4217, such as EUR.
+     * An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.
      */
-    currency: string;
-};
-
-export type CmoPieceText = {
-    text: string;
-};
-
-export type CmoMeasurementConnect = {
-    redirectUrl: string;
+    organizationId?: string;
 };
 
 export type CmoAdsConnect = {
     redirectUrl: string;
-};
-
-export type CmoAdsFinalized = {
-    state: 'connected' | 'none' | 'choose';
-    adConnectionId?: string;
-    accounts?: Array<AvailableAdAccount>;
 };
 
 export type CmoAdCampaigns = {
@@ -11768,6 +11908,36 @@ export type CmoAdCampaigns = {
         campaigns: Array<AdCampaign>;
         failed: boolean;
     }>;
+};
+
+export type CmoAdsFinalized = {
+    state: 'connected' | 'none' | 'choose';
+    adConnectionId?: string;
+    accounts?: Array<AvailableAdAccount>;
+};
+
+export type CmoPieceText = {
+    text: string;
+};
+
+export type CmoMeasurementConnect = {
+    redirectUrl: string;
+};
+
+export type CmoTurnStarted = {
+    turnId: string;
+};
+
+export type CmoAdBudgetRequest = {
+    monthly: number;
+    /**
+     * ISO 4217, such as EUR.
+     */
+    currency: string;
+};
+
+export type CmoStrategyRequest = {
+    note?: string;
 };
 
 export type SokoBotApiKey = {
@@ -45287,6 +45457,291 @@ export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses = {
 
 export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponse = PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses[keyof PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses];
 
+export type ListStudioAgentProductsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/image-studio-agent/products';
+};
+
+export type ListStudioAgentProductsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListStudioAgentProductsError = ListStudioAgentProductsErrors[keyof ListStudioAgentProductsErrors];
+
+export type ListStudioAgentProductsResponses = {
+    /**
+     * Saved products in the authorized project
+     */
+    200: {
+        data: {
+            products: Array<StudioAgentProduct>;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListStudioAgentProductsResponse = ListStudioAgentProductsResponses[keyof ListStudioAgentProductsResponses];
+
+export type ReadStudioAgentAdHeadlineData = {
+    body?: never;
+    path: {
+        assetId: string;
+    };
+    query?: never;
+    url: '/image-studio-agent/assets/{assetId}/headline';
+};
+
+export type ReadStudioAgentAdHeadlineErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReadStudioAgentAdHeadlineError = ReadStudioAgentAdHeadlineErrors[keyof ReadStudioAgentAdHeadlineErrors];
+
+export type ReadStudioAgentAdHeadlineResponses = {
+    /**
+     * Current export headline and approved lines in the authorized project
+     */
+    200: {
+        data: StudioAgentAdHeadline;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReadStudioAgentAdHeadlineResponse = ReadStudioAgentAdHeadlineResponses[keyof ReadStudioAgentAdHeadlineResponses];
+
+export type SaveStudioAgentAdHeadlineData = {
+    body: SaveStudioAgentAdHeadline;
+    path: {
+        assetId: string;
+    };
+    query?: never;
+    url: '/image-studio-agent/assets/{assetId}/headline';
+};
+
+export type SaveStudioAgentAdHeadlineErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Headline save conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Headline is unavailable in Brand Kit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveStudioAgentAdHeadlineError = SaveStudioAgentAdHeadlineErrors[keyof SaveStudioAgentAdHeadlineErrors];
+
+export type SaveStudioAgentAdHeadlineResponses = {
+    /**
+     * Saved export headline
+     */
+    200: {
+        data: StudioAdHeadline;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveStudioAgentAdHeadlineResponse = SaveStudioAgentAdHeadlineResponses[keyof SaveStudioAgentAdHeadlineResponses];
+
 export type GetImageStudioCatalogData = {
     body?: never;
     path?: never;
@@ -67294,6 +67749,939 @@ export type GetProjectsByIdImageStudioResponses = {
 
 export type GetProjectsByIdImageStudioResponse = GetProjectsByIdImageStudioResponses[keyof GetProjectsByIdImageStudioResponses];
 
+export type ListStudioBatchAssetsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        batchId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/batches/{batchId}/assets';
+};
+
+export type ListStudioBatchAssetsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Batch has no finished ads
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Batch exceeds the image limit
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListStudioBatchAssetsError = ListStudioBatchAssetsErrors[keyof ListStudioBatchAssetsErrors];
+
+export type ListStudioBatchAssetsResponses = {
+    /**
+     * Latest finished version of each ad in a Studio batch
+     */
+    200: {
+        data: Array<ProjectImageAsset>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListStudioBatchAssetsResponse = ListStudioBatchAssetsResponses[keyof ListStudioBatchAssetsResponses];
+
+export type GetStudioBrandKitData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit';
+};
+
+export type GetStudioBrandKitErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetStudioBrandKitError = GetStudioBrandKitErrors[keyof GetStudioBrandKitErrors];
+
+export type GetStudioBrandKitResponses = {
+    /**
+     * Studio brand kit
+     */
+    200: {
+        data: StudioBrandKit;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetStudioBrandKitResponse = GetStudioBrandKitResponses[keyof GetStudioBrandKitResponses];
+
+export type SaveStudioBrandCopyData = {
+    body: SaveStudioBrandCopy;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit';
+};
+
+export type SaveStudioBrandCopyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Brand kit changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveStudioBrandCopyError = SaveStudioBrandCopyErrors[keyof SaveStudioBrandCopyErrors];
+
+export type SaveStudioBrandCopyResponses = {
+    /**
+     * Studio brand copy saved
+     */
+    200: {
+        data: {
+            version: Date;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveStudioBrandCopyResponse = SaveStudioBrandCopyResponses[keyof SaveStudioBrandCopyResponses];
+
+export type GetStudioWebsiteCopyData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/website-copy';
+};
+
+export type GetStudioWebsiteCopyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project website missing
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Website could not be read
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetStudioWebsiteCopyError = GetStudioWebsiteCopyErrors[keyof GetStudioWebsiteCopyErrors];
+
+export type GetStudioWebsiteCopyResponses = {
+    /**
+     * Website copy draft
+     */
+    200: {
+        data: StudioWebsiteCopy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetStudioWebsiteCopyResponse = GetStudioWebsiteCopyResponses[keyof GetStudioWebsiteCopyResponses];
+
+export type PrepareStudioWebsiteDraftData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/website-draft';
+};
+
+export type PrepareStudioWebsiteDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project website missing
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PrepareStudioWebsiteDraftError = PrepareStudioWebsiteDraftErrors[keyof PrepareStudioWebsiteDraftErrors];
+
+export type PrepareStudioWebsiteDraftResponses = {
+    /**
+     * Website suggestions for review
+     */
+    200: {
+        data: StudioWebsiteDraft;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PrepareStudioWebsiteDraftResponse = PrepareStudioWebsiteDraftResponses[keyof PrepareStudioWebsiteDraftResponses];
+
+export type ResearchStudioWebsiteDraftData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/website-draft';
+};
+
+export type ResearchStudioWebsiteDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project website missing
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ResearchStudioWebsiteDraftError = ResearchStudioWebsiteDraftErrors[keyof ResearchStudioWebsiteDraftErrors];
+
+export type ResearchStudioWebsiteDraftResponses = {
+    /**
+     * Website suggestions for review
+     */
+    200: {
+        data: StudioWebsiteDraft;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ResearchStudioWebsiteDraftResponse = ResearchStudioWebsiteDraftResponses[keyof ResearchStudioWebsiteDraftResponses];
+
+export type SaveStudioBrandLookData = {
+    body: SaveStudioBrandLook;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/look';
+};
+
+export type SaveStudioBrandLookErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Brand look changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveStudioBrandLookError = SaveStudioBrandLookErrors[keyof SaveStudioBrandLookErrors];
+
+export type SaveStudioBrandLookResponses = {
+    /**
+     * Studio brand look saved
+     */
+    200: {
+        data: StudioBrandLookState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveStudioBrandLookResponse = SaveStudioBrandLookResponses[keyof SaveStudioBrandLookResponses];
+
+export type UploadStudioProjectLogoData = {
+    body: {
+        file?: Blob | File;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/logo';
+};
+
+export type UploadStudioProjectLogoErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Logo is too large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Logo is not a supported image
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Logo storage is unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UploadStudioProjectLogoError = UploadStudioProjectLogoErrors[keyof UploadStudioProjectLogoErrors];
+
+export type UploadStudioProjectLogoResponses = {
+    /**
+     * Project logo updated
+     */
+    200: {
+        data: {
+            logo: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UploadStudioProjectLogoResponse = UploadStudioProjectLogoResponses[keyof UploadStudioProjectLogoResponses];
+
+export type FindStudioWebsiteLogoData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/logo/website';
+};
+
+export type FindStudioWebsiteLogoErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project website is required
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FindStudioWebsiteLogoError = FindStudioWebsiteLogoErrors[keyof FindStudioWebsiteLogoErrors];
+
+export type FindStudioWebsiteLogoResponses = {
+    /**
+     * Website logo candidate, when found
+     */
+    200: {
+        data: {
+            logo: string | null;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FindStudioWebsiteLogoResponse = FindStudioWebsiteLogoResponses[keyof FindStudioWebsiteLogoResponses];
+
 export type PostProjectsByIdImageStudioJobsData = {
     body: CreateProjectImageJobRequest;
     headers?: {
@@ -67434,6 +68822,410 @@ export type PostProjectsByIdImageStudioJobsResponses = {
 };
 
 export type PostProjectsByIdImageStudioJobsResponse = PostProjectsByIdImageStudioJobsResponses[keyof PostProjectsByIdImageStudioJobsResponses];
+
+export type GetStudioProductCatalogData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/products';
+};
+
+export type GetStudioProductCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetStudioProductCatalogError = GetStudioProductCatalogErrors[keyof GetStudioProductCatalogErrors];
+
+export type GetStudioProductCatalogResponses = {
+    /**
+     * Studio product catalog
+     */
+    200: {
+        data: StudioProductCatalog;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetStudioProductCatalogResponse = GetStudioProductCatalogResponses[keyof GetStudioProductCatalogResponses];
+
+export type ReplaceStudioProductCatalogData = {
+    body: StudioProductCatalog;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/products';
+};
+
+export type ReplaceStudioProductCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Catalog revision conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReplaceStudioProductCatalogError = ReplaceStudioProductCatalogErrors[keyof ReplaceStudioProductCatalogErrors];
+
+export type ReplaceStudioProductCatalogResponses = {
+    /**
+     * Studio product catalog saved
+     */
+    200: {
+        data: StudioProductCatalog;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReplaceStudioProductCatalogResponse = ReplaceStudioProductCatalogResponses[keyof ReplaceStudioProductCatalogResponses];
+
+export type ImportStudioProductCatalogData = {
+    body: {
+        url: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/products/import';
+};
+
+export type ImportStudioProductCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ImportStudioProductCatalogError = ImportStudioProductCatalogErrors[keyof ImportStudioProductCatalogErrors];
+
+export type ImportStudioProductCatalogResponses = {
+    /**
+     * Products found
+     */
+    200: {
+        data: StudioProductImport;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ImportStudioProductCatalogResponse = ImportStudioProductCatalogResponses[keyof ImportStudioProductCatalogResponses];
+
+export type AttachStudioProductPhotoData = {
+    body: {
+        name: string;
+        imageUrl: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/products/photo';
+};
+
+export type AttachStudioProductPhotoErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AttachStudioProductPhotoError = AttachStudioProductPhotoErrors[keyof AttachStudioProductPhotoErrors];
+
+export type AttachStudioProductPhotoResponses = {
+    /**
+     * Product photo attached
+     */
+    200: {
+        data: StudioProductPhoto;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AttachStudioProductPhotoResponse = AttachStudioProductPhotoResponses[keyof AttachStudioProductPhotoResponses];
 
 export type PostProjectsByIdImageStudioVideoJobsData = {
     body: CreateProjectVideoJobRequest;
@@ -67700,7 +69492,10 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentData = {
         id: string;
         assetId: string;
     };
-    query?: never;
+    query?: {
+        logo?: StudioLogoPosition;
+        placement?: StudioAdPlacementRatio;
+    };
     url: '/projects/{id}/image-studio/assets/{assetId}/content';
 };
 
@@ -67751,6 +69546,21 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentErrors = {
         };
     };
     /**
+     * The selected image or brand logo cannot be rendered
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Service Unavailable - image storage unavailable
      */
     503: {
@@ -67781,6 +69591,118 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
+
+export type SaveStudioAdHeadlineData = {
+    body: SaveStudioAdHeadline;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/headline';
+};
+
+export type SaveStudioAdHeadlineErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Headline save conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Headline is unavailable in Brand Kit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveStudioAdHeadlineError = SaveStudioAdHeadlineErrors[keyof SaveStudioAdHeadlineErrors];
+
+export type SaveStudioAdHeadlineResponses = {
+    /**
+     * Saved export headline
+     */
+    200: {
+        data: StudioAdHeadline;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveStudioAdHeadlineResponse = SaveStudioAdHeadlineResponses[keyof SaveStudioAdHeadlineResponses];
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaData = {
     body?: never;
@@ -72344,14 +74266,14 @@ export type GetShareByTokenResponses = {
 
 export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
 
-export type GetCmoOverviewData = {
+export type ListCmoCusosData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/cmo';
+    url: '/cmo/cusos';
 };
 
-export type GetCmoOverviewErrors = {
+export type ListCmoCusosErrors = {
     /**
      * Unauthorized
      */
@@ -72382,31 +74304,16 @@ export type GetCmoOverviewErrors = {
             method: string;
         };
     };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
 };
 
-export type GetCmoOverviewError = GetCmoOverviewErrors[keyof GetCmoOverviewErrors];
+export type ListCmoCusosError = ListCmoCusosErrors[keyof ListCmoCusosErrors];
 
-export type GetCmoOverviewResponses = {
+export type ListCmoCusosResponses = {
     /**
-     * The Cuso the caller works with
+     * The caller's Cusos and whether they may hire
      */
     200: {
-        data: CmoOverview;
+        data: CmoCusoList;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -72415,7 +74322,7 @@ export type GetCmoOverviewResponses = {
     };
 };
 
-export type GetCmoOverviewResponse = GetCmoOverviewResponses[keyof GetCmoOverviewResponses];
+export type ListCmoCusosResponse = ListCmoCusosResponses[keyof ListCmoCusosResponses];
 
 export type StartCmoOnboardingData = {
     body?: CmoOnboardingRequest;
@@ -72441,7 +74348,7 @@ export type StartCmoOnboardingErrors = {
         };
     };
     /**
-     * Forbidden - The organization limit is reached
+     * Forbidden - Not on the hire allowlist (cmo_hire_not_allowed), not a member of the organization (organization_membership_required), no Seat in it (organization_seat_required), or the organization limit is reached (organization_limit_reached)
      */
     403: {
         error: string;
@@ -72456,7 +74363,7 @@ export type StartCmoOnboardingErrors = {
         };
     };
     /**
-     * Conflict
+     * Conflict - The organization is out of credits (insufficient_balance)
      */
     409: {
         error: string;
@@ -72490,14 +74397,19 @@ export type StartCmoOnboardingResponses = {
 
 export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
 
-export type RetryCmoOnboardingData = {
-    body?: never;
-    path?: never;
+export type ConnectCmoAdsForProjectData = {
+    body?: {
+        returnUrl: string;
+    };
+    path: {
+        projectId: string;
+        provider: 'google_ads' | 'meta_ads';
+    };
     query?: never;
-    url: '/cmo/onboarding/retry';
+    url: '/cmo/projects/{projectId}/ads/{provider}/connect';
 };
 
-export type RetryCmoOnboardingErrors = {
+export type ConnectCmoAdsForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -72514,7 +74426,7 @@ export type RetryCmoOnboardingErrors = {
         };
     };
     /**
-     * Forbidden
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -72529,7 +74441,7 @@ export type RetryCmoOnboardingErrors = {
         };
     };
     /**
-     * Cuso is not hired yet
+     * Cuso is not hired, or the ad is unknown
      */
     404: {
         error: string;
@@ -72544,7 +74456,7 @@ export type RetryCmoOnboardingErrors = {
         };
     };
     /**
-     * Cuso is still learning or already done
+     * Refused: over the plan's ad budget, or not ready
      */
     409: {
         error: string;
@@ -72558,38 +74470,10 @@ export type RetryCmoOnboardingErrors = {
             method: string;
         };
     };
-};
-
-export type RetryCmoOnboardingError = RetryCmoOnboardingErrors[keyof RetryCmoOnboardingErrors];
-
-export type RetryCmoOnboardingResponses = {
     /**
-     * Cuso is learning again
+     * The ads provider failed
      */
-    201: {
-        data: CmoTurnStarted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type RetryCmoOnboardingResponse = RetryCmoOnboardingResponses[keyof RetryCmoOnboardingResponses];
-
-export type StartCmoOverData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/cmo/start-over';
-};
-
-export type StartCmoOverErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
+    502: {
         error: string;
         message: string;
         kind?: string;
@@ -72602,24 +74486,9 @@ export type StartCmoOverErrors = {
         };
     };
     /**
-     * Only an organization owner or admin can
+     * Ads are not set up here
      */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
+    503: {
         error: string;
         message: string;
         kind?: string;
@@ -72633,16 +74502,14 @@ export type StartCmoOverErrors = {
     };
 };
 
-export type StartCmoOverError = StartCmoOverErrors[keyof StartCmoOverErrors];
+export type ConnectCmoAdsForProjectError = ConnectCmoAdsForProjectErrors[keyof ConnectCmoAdsForProjectErrors];
 
-export type StartCmoOverResponses = {
+export type ConnectCmoAdsForProjectResponses = {
     /**
-     * Cuso is archived
+     * Sign-in started
      */
     200: {
-        data: {
-            startedOver: true;
-        };
+        data: CmoAdsConnect;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -72651,282 +74518,21 @@ export type StartCmoOverResponses = {
     };
 };
 
-export type StartCmoOverResponse = StartCmoOverResponses[keyof StartCmoOverResponses];
+export type ConnectCmoAdsForProjectResponse = ConnectCmoAdsForProjectResponses[keyof ConnectCmoAdsForProjectResponses];
 
-export type RequestCmoStrategyData = {
-    body?: CmoStrategyRequest;
-    path?: never;
-    query?: never;
-    url: '/cmo/strategy';
-};
-
-export type RequestCmoStrategyErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
+export type ChooseCmoAdAccountForProjectData = {
+    body?: {
+        adConnectionId: string;
+        externalAccountId: string;
     };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * The Brand Brain is not ready yet
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type RequestCmoStrategyError = RequestCmoStrategyErrors[keyof RequestCmoStrategyErrors];
-
-export type RequestCmoStrategyResponses = {
-    /**
-     * Cuso started planning the month
-     */
-    201: {
-        data: CmoTurnStarted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type RequestCmoStrategyResponse = RequestCmoStrategyResponses[keyof RequestCmoStrategyResponses];
-
-export type SetCmoAdBudgetData = {
-    body?: CmoAdBudgetRequest;
-    path?: never;
-    query?: never;
-    url: '/cmo/strategy/ads';
-};
-
-export type SetCmoAdBudgetErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * There is no strategy yet
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type SetCmoAdBudgetError = SetCmoAdBudgetErrors[keyof SetCmoAdBudgetErrors];
-
-export type SetCmoAdBudgetResponses = {
-    /**
-     * Cuso is re-planning
-     */
-    201: {
-        data: CmoTurnStarted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type SetCmoAdBudgetResponse = SetCmoAdBudgetResponses[keyof SetCmoAdBudgetResponses];
-
-export type ApplyCmoPlanAnswersData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/cmo/strategy/answers/apply';
-};
-
-export type ApplyCmoPlanAnswersErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * The answers confirm the plan
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ApplyCmoPlanAnswersError = ApplyCmoPlanAnswersErrors[keyof ApplyCmoPlanAnswersErrors];
-
-export type ApplyCmoPlanAnswersResponses = {
-    /**
-     * Cuso is changing the plan
-     */
-    201: {
-        data: CmoTurnStarted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ApplyCmoPlanAnswersResponse = ApplyCmoPlanAnswersResponses[keyof ApplyCmoPlanAnswersResponses];
-
-export type RevertCmoUpdateData = {
-    body?: never;
     path: {
-        id: string;
+        projectId: string;
     };
     query?: never;
-    url: '/cmo/updates/{id}/revert';
+    url: '/cmo/projects/{projectId}/ads/accounts';
 };
 
-export type RevertCmoUpdateErrors = {
+export type ChooseCmoAdAccountForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -72943,7 +74549,7 @@ export type RevertCmoUpdateErrors = {
         };
     };
     /**
-     * Forbidden
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -72958,7 +74564,7 @@ export type RevertCmoUpdateErrors = {
         };
     };
     /**
-     * Nothing to revert
+     * Cuso is not hired, or the ad is unknown
      */
     404: {
         error: string;
@@ -72973,7 +74579,7 @@ export type RevertCmoUpdateErrors = {
         };
     };
     /**
-     * The version changed meanwhile
+     * Refused: over the plan's ad budget, or not ready
      */
     409: {
         error: string;
@@ -72987,13 +74593,43 @@ export type RevertCmoUpdateErrors = {
             method: string;
         };
     };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
-export type RevertCmoUpdateError = RevertCmoUpdateErrors[keyof RevertCmoUpdateErrors];
+export type ChooseCmoAdAccountForProjectError = ChooseCmoAdAccountForProjectErrors[keyof ChooseCmoAdAccountForProjectErrors];
 
-export type RevertCmoUpdateResponses = {
+export type ChooseCmoAdAccountForProjectResponses = {
     /**
-     * Strategy reverted
+     * Attached
      */
     200: {
         data: CmoOverview;
@@ -73005,18 +74641,633 @@ export type RevertCmoUpdateResponses = {
     };
 };
 
-export type RevertCmoUpdateResponse = RevertCmoUpdateResponses[keyof RevertCmoUpdateResponses];
+export type ChooseCmoAdAccountForProjectResponse = ChooseCmoAdAccountForProjectResponses[keyof ChooseCmoAdAccountForProjectResponses];
 
-export type PauseCmoCalendarEntryData = {
+export type ListCmoAdCampaignsForProjectData = {
     body?: never;
     path: {
+        projectId: string;
+    };
+    query?: {
+        range?: 'LAST_7_DAYS' | 'LAST_30_DAYS';
+    };
+    url: '/cmo/projects/{projectId}/ads/campaigns';
+};
+
+export type ListCmoAdCampaignsForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListCmoAdCampaignsForProjectError = ListCmoAdCampaignsForProjectErrors[keyof ListCmoAdCampaignsForProjectErrors];
+
+export type ListCmoAdCampaignsForProjectResponses = {
+    /**
+     * Campaigns
+     */
+    200: {
+        data: CmoAdCampaigns;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListCmoAdCampaignsForProjectResponse = ListCmoAdCampaignsForProjectResponses[keyof ListCmoAdCampaignsForProjectResponses];
+
+export type SetCmoAdCampaignStatusForProjectData = {
+    body?: {
+        accountId: string;
+        campaignId: string;
+        status: 'ACTIVE' | 'PAUSED';
+    };
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/ads/campaigns/status';
+};
+
+export type SetCmoAdCampaignStatusForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoAdCampaignStatusForProjectError = SetCmoAdCampaignStatusForProjectErrors[keyof SetCmoAdCampaignStatusForProjectErrors];
+
+export type SetCmoAdCampaignStatusForProjectResponses = {
+    /**
+     * Changed
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoAdCampaignStatusForProjectResponse = SetCmoAdCampaignStatusForProjectResponses[keyof SetCmoAdCampaignStatusForProjectResponses];
+
+export type ListCmoAdChoicesForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        adConnectionId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/ads/connections/{adConnectionId}/choices';
+};
+
+export type ListCmoAdChoicesForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListCmoAdChoicesForProjectError = ListCmoAdChoicesForProjectErrors[keyof ListCmoAdChoicesForProjectErrors];
+
+export type ListCmoAdChoicesForProjectResponses = {
+    /**
+     * Ad accounts
+     */
+    200: {
+        data: {
+            accounts: Array<AvailableAdAccount>;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListCmoAdChoicesForProjectResponse = ListCmoAdChoicesForProjectResponses[keyof ListCmoAdChoicesForProjectResponses];
+
+export type FinalizeCmoAdsForProjectData = {
+    body?: {
+        connectionId: string;
+        sessionUri: string | null;
+    };
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/ads/finalize';
+};
+
+export type FinalizeCmoAdsForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FinalizeCmoAdsForProjectError = FinalizeCmoAdsForProjectErrors[keyof FinalizeCmoAdsForProjectErrors];
+
+export type FinalizeCmoAdsForProjectResponses = {
+    /**
+     * Connection finished
+     */
+    200: {
+        data: CmoAdsFinalized;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FinalizeCmoAdsForProjectResponse = FinalizeCmoAdsForProjectResponses[keyof FinalizeCmoAdsForProjectResponses];
+
+export type LaunchCmoSearchAdForProjectData = {
+    body?: {
+        entryId: string;
+    };
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/ads/launch';
+};
+
+export type LaunchCmoSearchAdForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type LaunchCmoSearchAdForProjectError = LaunchCmoSearchAdForProjectErrors[keyof LaunchCmoSearchAdForProjectErrors];
+
+export type LaunchCmoSearchAdForProjectResponses = {
+    /**
+     * Launched
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type LaunchCmoSearchAdForProjectResponse = LaunchCmoSearchAdForProjectResponses[keyof LaunchCmoSearchAdForProjectResponses];
+
+export type PauseCmoCalendarEntryForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
         id: string;
     };
     query?: never;
-    url: '/cmo/calendar/{id}/pause';
+    url: '/cmo/projects/{projectId}/calendar/{id}/pause';
 };
 
-export type PauseCmoCalendarEntryErrors = {
+export type PauseCmoCalendarEntryForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -73079,9 +75330,9 @@ export type PauseCmoCalendarEntryErrors = {
     };
 };
 
-export type PauseCmoCalendarEntryError = PauseCmoCalendarEntryErrors[keyof PauseCmoCalendarEntryErrors];
+export type PauseCmoCalendarEntryForProjectError = PauseCmoCalendarEntryForProjectErrors[keyof PauseCmoCalendarEntryForProjectErrors];
 
-export type PauseCmoCalendarEntryResponses = {
+export type PauseCmoCalendarEntryForProjectResponses = {
     /**
      * Entry paused
      */
@@ -73095,18 +75346,19 @@ export type PauseCmoCalendarEntryResponses = {
     };
 };
 
-export type PauseCmoCalendarEntryResponse = PauseCmoCalendarEntryResponses[keyof PauseCmoCalendarEntryResponses];
+export type PauseCmoCalendarEntryForProjectResponse = PauseCmoCalendarEntryForProjectResponses[keyof PauseCmoCalendarEntryForProjectResponses];
 
-export type GetCmoCalendarEntryTextData = {
+export type GetCmoCalendarEntryTextForProjectData = {
     body?: never;
     path: {
+        projectId: string;
         id: string;
     };
     query?: never;
-    url: '/cmo/calendar/{id}/text';
+    url: '/cmo/projects/{projectId}/calendar/{id}/text';
 };
 
-export type GetCmoCalendarEntryTextErrors = {
+export type GetCmoCalendarEntryTextForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -73154,9 +75406,9 @@ export type GetCmoCalendarEntryTextErrors = {
     };
 };
 
-export type GetCmoCalendarEntryTextError = GetCmoCalendarEntryTextErrors[keyof GetCmoCalendarEntryTextErrors];
+export type GetCmoCalendarEntryTextForProjectError = GetCmoCalendarEntryTextForProjectErrors[keyof GetCmoCalendarEntryTextForProjectErrors];
 
-export type GetCmoCalendarEntryTextResponses = {
+export type GetCmoCalendarEntryTextForProjectResponses = {
     /**
      * The piece's words
      */
@@ -73170,20 +75422,96 @@ export type GetCmoCalendarEntryTextResponses = {
     };
 };
 
-export type GetCmoCalendarEntryTextResponse = GetCmoCalendarEntryTextResponses[keyof GetCmoCalendarEntryTextResponses];
+export type GetCmoCalendarEntryTextForProjectResponse = GetCmoCalendarEntryTextForProjectResponses[keyof GetCmoCalendarEntryTextForProjectResponses];
 
-export type ConnectCmoMeasurementData = {
+export type GetCmoOverviewForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}';
+};
+
+export type GetCmoOverviewForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoOverviewForProjectError = GetCmoOverviewForProjectErrors[keyof GetCmoOverviewForProjectErrors];
+
+export type GetCmoOverviewForProjectResponses = {
+    /**
+     * The Cuso of the Project the path names
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoOverviewForProjectResponse = GetCmoOverviewForProjectResponses[keyof GetCmoOverviewForProjectResponses];
+
+export type ConnectCmoMeasurementForProjectData = {
     body?: {
         returnUrl: string;
     };
     path: {
+        projectId: string;
         provider: 'google_analytics' | 'google_search_console' | 'shopify';
     };
     query?: never;
-    url: '/cmo/measurement/{provider}/connect';
+    url: '/cmo/projects/{projectId}/measurement/{provider}/connect';
 };
 
-export type ConnectCmoMeasurementErrors = {
+export type ConnectCmoMeasurementForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -73261,9 +75589,9 @@ export type ConnectCmoMeasurementErrors = {
     };
 };
 
-export type ConnectCmoMeasurementError = ConnectCmoMeasurementErrors[keyof ConnectCmoMeasurementErrors];
+export type ConnectCmoMeasurementForProjectError = ConnectCmoMeasurementForProjectErrors[keyof ConnectCmoMeasurementForProjectErrors];
 
-export type ConnectCmoMeasurementResponses = {
+export type ConnectCmoMeasurementForProjectResponses = {
     /**
      * Sign-in started
      */
@@ -73277,18 +75605,19 @@ export type ConnectCmoMeasurementResponses = {
     };
 };
 
-export type ConnectCmoMeasurementResponse = ConnectCmoMeasurementResponses[keyof ConnectCmoMeasurementResponses];
+export type ConnectCmoMeasurementForProjectResponse = ConnectCmoMeasurementForProjectResponses[keyof ConnectCmoMeasurementForProjectResponses];
 
-export type FinalizeCmoMeasurementData = {
+export type FinalizeCmoMeasurementForProjectData = {
     body?: never;
     path: {
+        projectId: string;
         provider: 'google_analytics' | 'google_search_console' | 'shopify';
     };
     query?: never;
-    url: '/cmo/measurement/{provider}/finalize';
+    url: '/cmo/projects/{projectId}/measurement/{provider}/finalize';
 };
 
-export type FinalizeCmoMeasurementErrors = {
+export type FinalizeCmoMeasurementForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -73351,9 +75680,9 @@ export type FinalizeCmoMeasurementErrors = {
     };
 };
 
-export type FinalizeCmoMeasurementError = FinalizeCmoMeasurementErrors[keyof FinalizeCmoMeasurementErrors];
+export type FinalizeCmoMeasurementForProjectError = FinalizeCmoMeasurementForProjectErrors[keyof FinalizeCmoMeasurementForProjectErrors];
 
-export type FinalizeCmoMeasurementResponses = {
+export type FinalizeCmoMeasurementForProjectResponses = {
     /**
      * Connected
      */
@@ -73367,261 +75696,18 @@ export type FinalizeCmoMeasurementResponses = {
     };
 };
 
-export type FinalizeCmoMeasurementResponse = FinalizeCmoMeasurementResponses[keyof FinalizeCmoMeasurementResponses];
+export type FinalizeCmoMeasurementForProjectResponse = FinalizeCmoMeasurementForProjectResponses[keyof FinalizeCmoMeasurementForProjectResponses];
 
-export type ConnectCmoAdsData = {
-    body?: {
-        returnUrl: string;
-    };
-    path: {
-        provider: 'google_ads' | 'meta_ads';
-    };
-    query?: never;
-    url: '/cmo/ads/{provider}/connect';
-};
-
-export type ConnectCmoAdsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not an owner or admin
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired, or the ad is unknown
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Refused: over the plan's ad budget, or not ready
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * The ads provider failed
-     */
-    502: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Ads are not set up here
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ConnectCmoAdsError = ConnectCmoAdsErrors[keyof ConnectCmoAdsErrors];
-
-export type ConnectCmoAdsResponses = {
-    /**
-     * Sign-in started
-     */
-    200: {
-        data: CmoAdsConnect;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ConnectCmoAdsResponse = ConnectCmoAdsResponses[keyof ConnectCmoAdsResponses];
-
-export type FinalizeCmoAdsData = {
-    body?: {
-        connectionId: string;
-        sessionUri: string | null;
-    };
-    path?: never;
-    query?: never;
-    url: '/cmo/ads/finalize';
-};
-
-export type FinalizeCmoAdsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not an owner or admin
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired, or the ad is unknown
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Refused: over the plan's ad budget, or not ready
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * The ads provider failed
-     */
-    502: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Ads are not set up here
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type FinalizeCmoAdsError = FinalizeCmoAdsErrors[keyof FinalizeCmoAdsErrors];
-
-export type FinalizeCmoAdsResponses = {
-    /**
-     * Connection finished
-     */
-    200: {
-        data: CmoAdsFinalized;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type FinalizeCmoAdsResponse = FinalizeCmoAdsResponses[keyof FinalizeCmoAdsResponses];
-
-export type ListCmoAdChoicesData = {
+export type RetryCmoOnboardingForProjectData = {
     body?: never;
     path: {
-        adConnectionId: string;
+        projectId: string;
     };
     query?: never;
-    url: '/cmo/ads/connections/{adConnectionId}/choices';
+    url: '/cmo/projects/{projectId}/onboarding/retry';
 };
 
-export type ListCmoAdChoicesErrors = {
+export type RetryCmoOnboardingForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -73638,7 +75724,7 @@ export type ListCmoAdChoicesErrors = {
         };
     };
     /**
-     * Not an owner or admin
+     * Forbidden
      */
     403: {
         error: string;
@@ -73653,7 +75739,7 @@ export type ListCmoAdChoicesErrors = {
         };
     };
     /**
-     * Cuso is not hired, or the ad is unknown
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -73668,7 +75754,7 @@ export type ListCmoAdChoicesErrors = {
         };
     };
     /**
-     * Refused: over the plan's ad budget, or not ready
+     * Cuso is still learning or already done
      */
     409: {
         error: string;
@@ -73682,10 +75768,40 @@ export type ListCmoAdChoicesErrors = {
             method: string;
         };
     };
+};
+
+export type RetryCmoOnboardingForProjectError = RetryCmoOnboardingForProjectErrors[keyof RetryCmoOnboardingForProjectErrors];
+
+export type RetryCmoOnboardingForProjectResponses = {
     /**
-     * The ads provider failed
+     * Cuso is learning again
      */
-    502: {
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RetryCmoOnboardingForProjectResponse = RetryCmoOnboardingForProjectResponses[keyof RetryCmoOnboardingForProjectResponses];
+
+export type StartCmoOverForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/start-over';
+};
+
+export type StartCmoOverForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
         error: string;
         message: string;
         kind?: string;
@@ -73698,9 +75814,24 @@ export type ListCmoAdChoicesErrors = {
         };
     };
     /**
-     * Ads are not set up here
+     * Only an organization owner or admin can
      */
-    503: {
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;
@@ -73714,15 +75845,15 @@ export type ListCmoAdChoicesErrors = {
     };
 };
 
-export type ListCmoAdChoicesError = ListCmoAdChoicesErrors[keyof ListCmoAdChoicesErrors];
+export type StartCmoOverForProjectError = StartCmoOverForProjectErrors[keyof StartCmoOverForProjectErrors];
 
-export type ListCmoAdChoicesResponses = {
+export type StartCmoOverForProjectResponses = {
     /**
-     * Ad accounts
+     * Cuso is archived; CMO decides where to go next
      */
     200: {
         data: {
-            accounts: Array<AvailableAdAccount>;
+            startedOver: true;
         };
         meta: {
             timestamp: Date;
@@ -73732,19 +75863,18 @@ export type ListCmoAdChoicesResponses = {
     };
 };
 
-export type ListCmoAdChoicesResponse = ListCmoAdChoicesResponses[keyof ListCmoAdChoicesResponses];
+export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
 
-export type ChooseCmoAdAccountData = {
-    body?: {
-        adConnectionId: string;
-        externalAccountId: string;
+export type SetCmoAdBudgetForProjectData = {
+    body?: CmoAdBudgetRequest;
+    path: {
+        projectId: string;
     };
-    path?: never;
     query?: never;
-    url: '/cmo/ads/accounts';
+    url: '/cmo/projects/{projectId}/strategy/ads';
 };
 
-export type ChooseCmoAdAccountErrors = {
+export type SetCmoAdBudgetForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -73761,7 +75891,7 @@ export type ChooseCmoAdAccountErrors = {
         };
     };
     /**
-     * Not an owner or admin
+     * Forbidden
      */
     403: {
         error: string;
@@ -73776,7 +75906,7 @@ export type ChooseCmoAdAccountErrors = {
         };
     };
     /**
-     * Cuso is not hired, or the ad is unknown
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -73791,7 +75921,7 @@ export type ChooseCmoAdAccountErrors = {
         };
     };
     /**
-     * Refused: over the plan's ad budget, or not ready
+     * There is no strategy yet
      */
     409: {
         error: string;
@@ -73805,46 +75935,16 @@ export type ChooseCmoAdAccountErrors = {
             method: string;
         };
     };
-    /**
-     * The ads provider failed
-     */
-    502: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Ads are not set up here
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
 };
 
-export type ChooseCmoAdAccountError = ChooseCmoAdAccountErrors[keyof ChooseCmoAdAccountErrors];
+export type SetCmoAdBudgetForProjectError = SetCmoAdBudgetForProjectErrors[keyof SetCmoAdBudgetForProjectErrors];
 
-export type ChooseCmoAdAccountResponses = {
+export type SetCmoAdBudgetForProjectResponses = {
     /**
-     * Attached
+     * Cuso is re-planning
      */
-    200: {
-        data: CmoOverview;
+    201: {
+        data: CmoTurnStarted;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -73853,18 +75953,18 @@ export type ChooseCmoAdAccountResponses = {
     };
 };
 
-export type ChooseCmoAdAccountResponse = ChooseCmoAdAccountResponses[keyof ChooseCmoAdAccountResponses];
+export type SetCmoAdBudgetForProjectResponse = SetCmoAdBudgetForProjectResponses[keyof SetCmoAdBudgetForProjectResponses];
 
-export type ListCmoAdCampaignsData = {
+export type ApplyCmoPlanAnswersForProjectData = {
     body?: never;
-    path?: never;
-    query?: {
-        range?: 'LAST_7_DAYS' | 'LAST_30_DAYS';
+    path: {
+        projectId: string;
     };
-    url: '/cmo/ads/campaigns';
+    query?: never;
+    url: '/cmo/projects/{projectId}/strategy/answers/apply';
 };
 
-export type ListCmoAdCampaignsErrors = {
+export type ApplyCmoPlanAnswersForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -73881,7 +75981,7 @@ export type ListCmoAdCampaignsErrors = {
         };
     };
     /**
-     * Not an owner or admin
+     * Forbidden
      */
     403: {
         error: string;
@@ -73896,7 +75996,7 @@ export type ListCmoAdCampaignsErrors = {
         };
     };
     /**
-     * Cuso is not hired, or the ad is unknown
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -73911,7 +76011,7 @@ export type ListCmoAdCampaignsErrors = {
         };
     };
     /**
-     * Refused: over the plan's ad budget, or not ready
+     * The answers confirm the plan
      */
     409: {
         error: string;
@@ -73925,46 +76025,16 @@ export type ListCmoAdCampaignsErrors = {
             method: string;
         };
     };
-    /**
-     * The ads provider failed
-     */
-    502: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Ads are not set up here
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
 };
 
-export type ListCmoAdCampaignsError = ListCmoAdCampaignsErrors[keyof ListCmoAdCampaignsErrors];
+export type ApplyCmoPlanAnswersForProjectError = ApplyCmoPlanAnswersForProjectErrors[keyof ApplyCmoPlanAnswersForProjectErrors];
 
-export type ListCmoAdCampaignsResponses = {
+export type ApplyCmoPlanAnswersForProjectResponses = {
     /**
-     * Campaigns
+     * Cuso is changing the plan
      */
-    200: {
-        data: CmoAdCampaigns;
+    201: {
+        data: CmoTurnStarted;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -73973,18 +76043,18 @@ export type ListCmoAdCampaignsResponses = {
     };
 };
 
-export type ListCmoAdCampaignsResponse = ListCmoAdCampaignsResponses[keyof ListCmoAdCampaignsResponses];
+export type ApplyCmoPlanAnswersForProjectResponse = ApplyCmoPlanAnswersForProjectResponses[keyof ApplyCmoPlanAnswersForProjectResponses];
 
-export type LaunchCmoSearchAdData = {
-    body?: {
-        entryId: string;
+export type RequestCmoStrategyForProjectData = {
+    body?: CmoStrategyRequest;
+    path: {
+        projectId: string;
     };
-    path?: never;
     query?: never;
-    url: '/cmo/ads/launch';
+    url: '/cmo/projects/{projectId}/strategy';
 };
 
-export type LaunchCmoSearchAdErrors = {
+export type RequestCmoStrategyForProjectErrors = {
     /**
      * Unauthorized
      */
@@ -74001,7 +76071,7 @@ export type LaunchCmoSearchAdErrors = {
         };
     };
     /**
-     * Not an owner or admin
+     * Forbidden
      */
     403: {
         error: string;
@@ -74016,7 +76086,7 @@ export type LaunchCmoSearchAdErrors = {
         };
     };
     /**
-     * Cuso is not hired, or the ad is unknown
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -74031,7 +76101,7 @@ export type LaunchCmoSearchAdErrors = {
         };
     };
     /**
-     * Refused: over the plan's ad budget, or not ready
+     * The Brand Brain is not ready yet
      */
     409: {
         error: string;
@@ -74045,10 +76115,41 @@ export type LaunchCmoSearchAdErrors = {
             method: string;
         };
     };
+};
+
+export type RequestCmoStrategyForProjectError = RequestCmoStrategyForProjectErrors[keyof RequestCmoStrategyForProjectErrors];
+
+export type RequestCmoStrategyForProjectResponses = {
     /**
-     * The ads provider failed
+     * Cuso started planning the month
      */
-    502: {
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoStrategyForProjectResponse = RequestCmoStrategyForProjectResponses[keyof RequestCmoStrategyForProjectResponses];
+
+export type RevertCmoUpdateForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/updates/{id}/revert';
+};
+
+export type RevertCmoUpdateForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
         error: string;
         message: string;
         kind?: string;
@@ -74061,9 +76162,39 @@ export type LaunchCmoSearchAdErrors = {
         };
     };
     /**
-     * Ads are not set up here
+     * Forbidden
      */
-    503: {
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Nothing to revert
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The version changed meanwhile
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -74077,11 +76208,11 @@ export type LaunchCmoSearchAdErrors = {
     };
 };
 
-export type LaunchCmoSearchAdError = LaunchCmoSearchAdErrors[keyof LaunchCmoSearchAdErrors];
+export type RevertCmoUpdateForProjectError = RevertCmoUpdateForProjectErrors[keyof RevertCmoUpdateForProjectErrors];
 
-export type LaunchCmoSearchAdResponses = {
+export type RevertCmoUpdateForProjectResponses = {
     /**
-     * Launched
+     * Strategy reverted
      */
     200: {
         data: CmoOverview;
@@ -74093,129 +76224,7 @@ export type LaunchCmoSearchAdResponses = {
     };
 };
 
-export type LaunchCmoSearchAdResponse = LaunchCmoSearchAdResponses[keyof LaunchCmoSearchAdResponses];
-
-export type SetCmoAdCampaignStatusData = {
-    body?: {
-        accountId: string;
-        campaignId: string;
-        status: 'ACTIVE' | 'PAUSED';
-    };
-    path?: never;
-    query?: never;
-    url: '/cmo/ads/campaigns/status';
-};
-
-export type SetCmoAdCampaignStatusErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not an owner or admin
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired, or the ad is unknown
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Refused: over the plan's ad budget, or not ready
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * The ads provider failed
-     */
-    502: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Ads are not set up here
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type SetCmoAdCampaignStatusError = SetCmoAdCampaignStatusErrors[keyof SetCmoAdCampaignStatusErrors];
-
-export type SetCmoAdCampaignStatusResponses = {
-    /**
-     * Changed
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type SetCmoAdCampaignStatusResponse = SetCmoAdCampaignStatusResponses[keyof SetCmoAdCampaignStatusResponses];
+export type RevertCmoUpdateForProjectResponse = RevertCmoUpdateForProjectResponses[keyof RevertCmoUpdateForProjectResponses];
 
 export type GetSokoBotsByIdApiKeysData = {
     body?: never;

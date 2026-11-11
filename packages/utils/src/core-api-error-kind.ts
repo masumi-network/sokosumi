@@ -9,6 +9,8 @@
  */
 export const CORE_API_ERROR_KINDS = {
   CALENDAR_CLIENT_UPGRADE_REQUIRED: "calendar_client_upgrade_required",
+  /** CMO is invite-only: the person is not on Core's `CMO_HIRE_ALLOWLIST`. */
+  CMO_HIRE_NOT_ALLOWED: "cmo_hire_not_allowed",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
   /** A channel being added already belongs to another contact; `existingContactId` names it. */
   CONTACT_CHANNEL_TAKEN: "contact_channel_taken",
@@ -31,6 +33,8 @@ export const CORE_API_ERROR_KINDS = {
   /** The user has no workspace, or a coworker may not act in the preferred one. */
   NO_PREFERRED_WORKSPACE: "no_preferred_workspace",
   ORGANIZATION_MEMBERSHIP_REQUIRED: "organization_membership_required",
+  /** The person may own or join no more organizations. */
+  ORGANIZATION_LIMIT_REACHED: "organization_limit_reached",
   ORGANIZATION_NOT_FOUND: "organization_not_found",
   ORGANIZATION_ROLE_FORBIDDEN: "organization_role_forbidden",
   ORGANIZATION_SEAT_REQUIRED: "organization_seat_required",
@@ -61,3 +65,6 @@ export const CORE_API_ERROR_KINDS = {
   CHANNEL_SLUG_TAKEN: "channel_slug_taken",
   PROJECT_IDENTIFIER_TAKEN: "project_identifier_taken",
 } as const;
+
+export type CoreApiErrorKind =
+  (typeof CORE_API_ERROR_KINDS)[keyof typeof CORE_API_ERROR_KINDS];

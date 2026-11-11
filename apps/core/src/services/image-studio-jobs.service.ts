@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 
 import {
-  FileSourceKind,
   type Prisma,
   ProjectImageJobKind,
   ProjectImageJobStatus,
@@ -34,7 +33,9 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
+import type { FileActor } from "@/lib/files/actor";
 import {
+  type ProjectAccess,
   requireProjectAccess,
   requireProjectAccessForUser,
 } from "@/lib/image-studio/access";
@@ -59,8 +60,15 @@ import {
 } from "@/lib/image-studio/fal-client";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
+  composeStudioProductCutout,
+  validateStudioProductCutout,
+} from "@/lib/image-studio/product-cutout";
+import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
+import {
   applyStudioBrandPrompt,
+  isApprovedStudioHeadline,
   loadStudioBrand,
+  requireApprovedStudioHeadline,
 } from "@/lib/image-studio/studio-brand";
 import {
   findVideoModelForEndpoint,
@@ -74,6 +82,7 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
@@ -129,6 +138,14 @@ export interface CreateImageJobInput {
   userId: string;
   sessionId: string | null;
   prompt: string;
+  product?: StudioProductIdentity;
+  batchId?: string;
+  /** Continue the same campaign ad when the request edits one source image. */
+  reuseParentBatchSlot?: boolean;
+  exportHeadline?: string;
+  useProductCutout?: boolean;
+  /** Refine a source backdrop and reapply its original product photo. */
+  reuseParentCutout?: boolean;
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
   referenceAssetIds: string[];
@@ -137,6 +154,12 @@ export interface CreateImageJobInput {
    * product photos. The caller checks the person may open them.
    */
   referenceFileIds?: string[];
+  /** The REST caller, whose file access must be checked for new requests. */
+  referenceFileActor?: FileActor;
+  /** Keep the source ad's product photo when an assistant edit can use it. */
+  reuseParentPhotoIfAvailable?: boolean;
+  /** Keep a source ad's currently approved headline on a visual refinement. */
+  reuseParentHeadlineIfAvailable?: boolean;
   /** The version being refined, when the user started from a selection. */
   parentAssetId: string | null;
   idempotencyKey: string;
@@ -288,6 +311,131 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // second one — is what makes the HTTP endpoint safe to retry.
     if (existing) return { job: existing, created: false };
 
+    const source =
+      input.parentAssetId &&
+      (!input.product ||
+        input.reuseParentHeadlineIfAvailable ||
+        input.reuseParentBatchSlot ||
+        input.reuseParentCutout)
+        ? await tx.projectImageAsset.findFirst({
+            where: { id: input.parentAssetId, projectId: input.projectId },
+            select: {
+              ...(input.reuseParentHeadlineIfAvailable
+                ? { headline: { select: { text: true } } }
+                : {}),
+              ...(input.reuseParentCutout
+                ? { backdropBlobPathname: true, backdropContentType: true }
+                : {}),
+              job: {
+                select: {
+                  productId: true,
+                  productName: true,
+                  referenceFileIds: true,
+                  ...(input.reuseParentCutout
+                    ? { useProductCutout: true, productCutoutChecksum: true }
+                    : {}),
+                  ...(input.reuseParentBatchSlot
+                    ? { id: true, batchId: true, batchSlotId: true }
+                    : {}),
+                },
+              },
+            },
+          })
+        : null;
+
+    const batchSlotId =
+      source?.job.batchSlotId ??
+      (source?.job.batchId ? source.job.id : undefined);
+    const sameProduct = input.product
+      ? input.product.id === source?.job.productId
+      : !input.referenceFileIds?.length;
+    const inheritedHeadline = sameProduct ? source?.headline?.text : undefined;
+    let exportHeadline = input.exportHeadline;
+    if (exportHeadline || inheritedHeadline) {
+      const brand = await tx.brandBrain.findUnique({
+        where: { projectId: input.projectId },
+        select: { body: true },
+      });
+      if (exportHeadline)
+        requireApprovedStudioHeadline(exportHeadline, brand?.body);
+      else if (
+        inheritedHeadline &&
+        isApprovedStudioHeadline(inheritedHeadline, brand?.body)
+      ) {
+        exportHeadline = inheritedHeadline;
+      }
+    }
+
+    const referenceCount =
+      input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
+    if (
+      input.referenceFileActor &&
+      referenceCount > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB
+    ) {
+      throw unprocessableEntity(
+        `Choose up to ${LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB} reference images.`,
+      );
+    }
+
+    if (input.referenceFileActor && input.referenceFileIds?.length) {
+      await requireStudioReferenceFiles(
+        {
+          workspaceId: input.workspaceId,
+          actor: input.referenceFileActor,
+          resourceIds: input.referenceFileIds,
+        },
+        tx,
+      );
+    }
+
+    let referenceFileIds = input.referenceFileIds ?? [];
+    const inheritsCutout = sameProduct && source?.job.useProductCutout;
+    if (inheritsCutout) {
+      if (
+        !source?.backdropBlobPathname ||
+        !source.backdropContentType ||
+        !source.job.productCutoutChecksum ||
+        source.job.referenceFileIds.length !== 1 ||
+        !input.referenceFileActor
+      ) {
+        throw unprocessableEntity(
+          "This ad has no saved backdrop to refine. Create a new ad with the original product photo first.",
+        );
+      }
+      referenceFileIds = source.job.referenceFileIds;
+      await requireStudioReferenceFiles(
+        {
+          workspaceId: input.workspaceId,
+          actor: input.referenceFileActor,
+          resourceIds: referenceFileIds,
+        },
+        tx,
+      );
+    }
+    const inheritedPhotoId = input.reuseParentPhotoIfAvailable
+      ? source?.job.referenceFileIds.at(-1)
+      : undefined;
+    if (!inheritsCutout && inheritedPhotoId && input.referenceFileActor) {
+      try {
+        await requireStudioReferenceFiles(
+          {
+            workspaceId: input.workspaceId,
+            actor: input.referenceFileActor,
+            resourceIds: [inheritedPhotoId],
+          },
+          tx,
+        );
+        referenceFileIds = [inheritedPhotoId];
+      } catch (error) {
+        if (
+          !(error instanceof HTTPException) ||
+          (error.status !== 404 && error.status !== 422)
+        ) {
+          throw error;
+        }
+      }
+    }
+
     const inFlight = await tx.projectImageJob.count({
       where: { projectId: input.projectId, status: { in: ACTIVE_STATUSES } },
     });
@@ -334,9 +482,18 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         kind: input.kind,
         model: input.model,
         prompt: input.prompt,
+        productId: input.product?.id ?? source?.job.productId,
+        productName: input.product?.name ?? source?.job.productName,
+        batchId: input.batchId,
+        batchSlotId,
+        exportHeadline,
+        useProductCutout: inheritsCutout || input.useProductCutout,
+        productCutoutChecksum: inheritsCutout
+          ? source?.job.productCutoutChecksum
+          : undefined,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
-        referenceFileIds: input.referenceFileIds ?? [],
+        referenceFileIds,
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
@@ -459,13 +616,20 @@ const SETTLE_LEASE_MS = 180_000;
  * storage and never acquire a durable public URL, so nothing in a job record,
  * an API response, or a tool result hands out a readable handle on them.
  */
-async function buildReferenceUrls(job: {
-  projectId: string;
-  workspaceId: string;
-  referenceAssetIds: string[];
-  referenceFileIds: string[];
-}): Promise<string[]> {
-  const count = job.referenceAssetIds.length + job.referenceFileIds.length;
+async function buildReferenceUrls(
+  job: {
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    idempotencyKey: string;
+    referenceAssetIds: string[];
+    referenceFileIds: string[];
+    useProductCutout?: boolean;
+  },
+  organizationId: string | null,
+): Promise<string[]> {
+  const providerFileIds = job.useProductCutout ? [] : job.referenceFileIds;
+  const count = job.referenceAssetIds.length + providerFileIds.length;
   if (count === 0) return [];
   if (count > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB) {
     throw unprocessableEntity(
@@ -485,6 +649,9 @@ async function buildReferenceUrls(job: {
             blobPathname: true,
             contentType: true,
             bytes: true,
+            ...(job.useProductCutout
+              ? { backdropBlobPathname: true, backdropContentType: true }
+              : {}),
           },
         });
   if (assets.length !== job.referenceAssetIds.length) {
@@ -498,20 +665,45 @@ async function buildReferenceUrls(job: {
     const asset = assets.find((candidate) => candidate.id === assetId);
     if (!asset)
       throw notFound("A reference image was not found in this project");
-    if (asset.bytes > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES) {
+    const pathname = job.useProductCutout
+      ? asset.backdropBlobPathname
+      : asset.blobPathname;
+    const contentType = job.useProductCutout
+      ? asset.backdropContentType
+      : asset.contentType;
+    if (!pathname || !contentType)
+      throw notFound("This ad's original backdrop is unavailable.");
+    if (
+      !job.useProductCutout &&
+      asset.bytes > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES
+    )
       throw unprocessableEntity("A reference image is too large to send.");
-    }
-    const bytes = await readAssetBytes(asset.blobPathname);
+    const bytes = await readAssetBytes(pathname);
+    if (bytes.byteLength > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
+      throw unprocessableEntity("A reference image is too large to send.");
     urls.push(
       await uploadReference({
         bytes,
-        contentType: asset.contentType,
-        fileName: `${asset.id}.${asset.contentType.split("/")[1] ?? "png"}`,
+        contentType,
+        fileName: `${asset.id}.${contentType.split("/")[1] ?? "png"}`,
       }),
     );
   }
-  for (const fileId of job.referenceFileIds) {
-    urls.push(await uploadFileReference(job.workspaceId, fileId));
+  for (const fileId of providerFileIds) {
+    // These durable prefixes identify automated requests even during recovery.
+    // A bot must never inherit the human requester's data-room access.
+    const kind =
+      job.idempotencyKey.startsWith("soko-bot:") ||
+      job.idempotencyKey.startsWith("cmo-media:")
+        ? "soko_bot"
+        : "interactive";
+    urls.push(
+      await uploadFileReference(job.workspaceId, fileId, {
+        userId: job.requestedByUserId,
+        organizationId,
+        kind,
+      }),
+    );
   }
   return urls;
 }
@@ -520,24 +712,41 @@ async function buildReferenceUrls(job: {
 async function uploadFileReference(
   workspaceId: string,
   fileId: string,
+  actor: FileActor,
 ): Promise<string> {
-  const file = await prisma.fileResource.findFirst({
-    where: {
-      id: fileId,
-      workspaceId,
-      sourceKind: FileSourceKind.DRIVE_UPLOAD,
-    },
-    select: { sourceId: true, mimeType: true },
+  const { bytes, mimeType } = await downloadStudioFileReference(
+    workspaceId,
+    fileId,
+    actor,
+  );
+  return await uploadReference({
+    bytes,
+    contentType: mimeType,
+    fileName: `${fileId}.${mimeType.split("/")[1] ?? "png"}`,
   });
-  if (!file?.mimeType?.startsWith("image/"))
-    throw notFound("A reference image was not found in this workspace");
-  const blob = await driveHead(file.sourceId);
+}
+
+async function downloadStudioFileReference(
+  workspaceId: string,
+  fileId: string,
+  actor: FileActor,
+) {
+  // The requester can lose access to a private room while the reservation is
+  // pending. Resolve the current, authorized pathname before opening the file.
+  const [sourceId] = await requireStudioReferenceFiles({
+    workspaceId,
+    actor,
+    resourceIds: [fileId],
+  });
+  if (!sourceId)
+    throw notFound("A reference image was not found in your Files.");
+  const blob = await driveHead(sourceId);
   if (!blob) throw new DriveFileDownloadError("unavailable");
   if (blob.size > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
     throw new DriveFileDownloadError("too_large");
   // A data room's picture is private: a short-lived signed address instead.
   const url =
-    blob.access === "public" ? blob.url : await driveReadUrl(file.sourceId);
+    blob.access === "public" ? blob.url : await driveReadUrl(sourceId);
   // The address comes from our own blob store, never from a person, so it
   // needs no SSRF guard; and the store's bot check answered the guarded
   // client 403 after its first request, failing every brand picture after
@@ -553,21 +762,42 @@ async function uploadFileReference(
       .toLowerCase();
     if (!mimeType?.startsWith("image/"))
       throw new DriveFileDownloadError("wrong_type");
-    return { bytes: new Uint8Array(await response.arrayBuffer()), mimeType };
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
+      throw new DriveFileDownloadError("too_large");
+    return { bytes, mimeType };
   };
   // One retry: a live test once got a passing error status for a stored
   // photo, and nothing is charged before the job is sent.
-  const { bytes, mimeType } = await download().catch(async (error) => {
+  return await download().catch(async (error) => {
     if (!(error instanceof DriveFileDownloadError)) throw error;
     if (error.reason !== "unavailable") throw error;
     await new Promise((resolve) => setTimeout(resolve, 1_000));
     return await download();
   });
-  return await uploadReference({
-    bytes,
-    contentType: mimeType,
-    fileName: `${fileId}.${mimeType.split("/")[1] ?? "png"}`,
+}
+
+async function readProductCutout(
+  job: {
+    workspaceId: string;
+    requestedByUserId: string;
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+) {
+  const fileId = job.referenceFileIds[0];
+  if (!fileId)
+    throw unprocessableEntity("Choose a transparent PNG product photo.");
+  const { bytes } = await downloadStudioFileReference(job.workspaceId, fileId, {
+    kind: "interactive",
+    userId: job.requestedByUserId,
+    organizationId,
   });
+  await validateStudioProductCutout(bytes);
+  return {
+    bytes,
+    checksum: crypto.createHash("sha256").update(bytes).digest("hex"),
+  };
 }
 
 function webhookUrl(): string | null {
@@ -603,8 +833,20 @@ export async function createImageJob(input: CreateImageJobInput) {
   // provider and were lost at settlement.
   requireStudioBlobToken();
 
+  if (
+    input.useProductCutout &&
+    (input.referenceFileActor?.kind !== "interactive" ||
+      input.referenceFileIds?.length !== 1 ||
+      input.referenceAssetIds.length !== 0 ||
+      input.parentAssetId !== null)
+  ) {
+    throw unprocessableEntity(
+      "Choose one transparent PNG product photo to create a new ad with the original product.",
+    );
+  }
   const references =
-    input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
+    input.referenceAssetIds.length +
+    (input.useProductCutout ? 0 : (input.referenceFileIds?.length ?? 0));
   let settings: ImageJobSettings;
   try {
     settings = resolveImageSettings(input.modelId, input.settings, references);
@@ -617,8 +859,14 @@ export async function createImageJob(input: CreateImageJobInput) {
   // The charge, decided here and nowhere else. Same catalog row, same function
   // and therefore the same number the composer's pre-flight estimate showed.
   let chargedCredits: number;
+  let maxReferences: number;
   try {
-    chargedCredits = creditsPerImage(imageModel(input.modelId), settings);
+    const model = imageModel(input.modelId);
+    chargedCredits = creditsPerImage(model, settings);
+    maxReferences = Math.min(
+      model.maxReferences,
+      LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB,
+    );
   } catch (error) {
     throw unprocessableEntity(
       error instanceof Error ? error.message : "Invalid image settings",
@@ -629,8 +877,28 @@ export async function createImageJob(input: CreateImageJobInput) {
   const kind =
     references > 0 ? ProjectImageJobKind.EDIT : ProjectImageJobKind.GENERATE;
   const { modelId, ...request } = input;
+  const refinesParent =
+    input.parentAssetId !== null &&
+    input.referenceAssetIds.includes(input.parentAssetId);
+  const refinesSingleSource =
+    refinesParent && input.referenceAssetIds.length === 1;
   return await reserveAndSend({
     ...request,
+    reuseParentPhotoIfAvailable:
+      input.reuseParentPhotoIfAvailable &&
+      !input.product &&
+      !input.referenceFileIds?.length &&
+      refinesParent &&
+      references < maxReferences,
+    reuseParentHeadlineIfAvailable:
+      input.reuseParentHeadlineIfAvailable && refinesSingleSource,
+    reuseParentBatchSlot:
+      input.reuseParentBatchSlot && !input.batchId && refinesSingleSource,
+    reuseParentCutout:
+      input.reuseParentCutout &&
+      input.referenceFileActor?.kind === "interactive" &&
+      !input.referenceFileIds?.length &&
+      refinesSingleSource,
     kind,
     model: falModelForKind(kind, modelId),
     settings,
@@ -687,16 +955,24 @@ export async function createVideoJob(input: CreateVideoJobInput) {
     );
   }
 
+  let product: StudioProductIdentity | undefined;
   if (input.sourceAssetId) {
     const source = await prisma.projectImageAsset.findFirst({
       where: { id: input.sourceAssetId, projectId: input.projectId },
-      select: { mediaType: true },
+      select: {
+        mediaType: true,
+        job: { select: { productId: true, productName: true } },
+      },
     });
     if (!source) throw notFound("The image to animate was not found");
     if (source.mediaType !== ProjectImageMediaType.IMAGE)
       throw unprocessableEntity("Only an image can be animated.", {
         kind: "invalid_video_settings",
       });
+    const { productId, productName } = source.job;
+    if (productId && productName) {
+      product = { id: productId, name: productName };
+    }
   }
 
   return await reserveAndSend({
@@ -705,6 +981,7 @@ export async function createVideoJob(input: CreateVideoJobInput) {
     userId: input.userId,
     sessionId: input.sessionId,
     prompt: input.prompt,
+    product,
     idempotencyKey: input.idempotencyKey,
     kind: hasSource
       ? ProjectImageJobKind.IMAGE_TO_VIDEO
@@ -750,11 +1027,11 @@ async function reserveAndSend(input: ReserveImageJobInput) {
     }))!;
   }
 
-  return await sendClaimedJob(job.id);
+  return await sendClaimedJob(job.id, input.organizationId);
 }
 
 /** Sends a job whose lease this caller already holds. */
-async function sendClaimedJob(jobId: string) {
+async function sendClaimedJob(jobId: string, organizationId: string | null) {
   const job = await prisma.projectImageJob.findUniqueOrThrow({
     where: { id: jobId },
   });
@@ -774,16 +1051,43 @@ async function sendClaimedJob(jobId: string) {
   let input: Record<string, unknown>;
   // Which half failed, so the person is told the right thing. Set before each
   // step rather than guessed from the message afterwards.
-  let preflightReason: ImageJobFailureReason = "reference_not_sendable";
+  let preflightReason: ImageJobFailureReason = job.useProductCutout
+    ? "product_cutout_unavailable"
+    : "reference_not_sendable";
   try {
+    if (job.useProductCutout) {
+      const { checksum } = await readProductCutout(job, organizationId);
+      if (job.productCutoutChecksum && job.productCutoutChecksum !== checksum)
+        throw unprocessableEntity("The original product photo has changed.");
+      if (!job.productCutoutChecksum) {
+        await prisma.projectImageJob.update({
+          where: { id: job.id },
+          data: { productCutoutChecksum: checksum },
+          select: { id: true },
+        });
+      }
+      preflightReason = "reference_not_sendable";
+    }
     const [imageUrls, brand] = await Promise.all([
-      buildReferenceUrls(job),
+      buildReferenceUrls(job, organizationId),
       loadStudioBrand(job.projectId),
     ]);
     preflightReason = "request_not_supported";
     // Brand is for fal only. The stored prompt stays the brief. A missing
     // Design or Memory is ignored so a brand read never blocks a generation.
-    const prompt = applyStudioBrandPrompt(job.prompt, brand);
+    const backdropInstruction = imageUrls.length
+      ? "Edit the supplied advertising backdrop according to the brief."
+      : "Create an empty advertising backdrop according to the brief.";
+    const prompt = applyStudioBrandPrompt(
+      job.useProductCutout
+        ? backdropInstruction +
+            " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
+            job.prompt
+        : job.prompt,
+      job.exportHeadline || job.useProductCutout
+        ? { ...brand, approvedLines: undefined }
+        : brand,
+    );
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
       if (!model) throw new Error("Unsupported video model endpoint.");
@@ -794,9 +1098,16 @@ async function sendClaimedJob(jobId: string) {
       });
     } else {
       const settings = readSettings(job.settings);
+      const photoCount = job.useProductCutout ? 0 : job.referenceFileIds.length;
+      const productPhotoGuidance = photoCount
+        ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
+        : "";
+      const headlineGuidance = job.exportHeadline
+        ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
+        : "";
       input = buildFalInput(
         {
-          prompt,
+          prompt: prompt + productPhotoGuidance + headlineGuidance,
           aspectRatio: settings.aspectRatio,
           resolution: settings.resolution,
           outputFormat: settings.outputFormat,
@@ -1129,10 +1440,14 @@ async function noteUnreachable(
       lastPollError: message.slice(0, 500),
       unreachableSource: source,
     },
-    select: { [column]: true } as Record<string, true>,
+    select: {
+      statusUnreachableSince: true,
+      resultUnreachableSince: true,
+      authUnreachableSince: true,
+    },
   });
 
-  const startedAt = (updated as Record<string, Date | null>)[column] ?? null;
+  const startedAt = updated[column];
 
   // First failure of this dependency's current run: start its clock and wait.
   if (!startedAt) {
@@ -1421,6 +1736,39 @@ async function storeMedia(
     return;
   }
 
+  const backdrop = job.useProductCutout && !video ? downloaded : null;
+  if (backdrop) {
+    try {
+      const cutout = await readProductCutout(job, project.organizationId);
+      if (cutout.checksum !== job.productCutoutChecksum)
+        throw unprocessableEntity(
+          "The original product photo changed during generation.",
+        );
+      downloaded = await composeStudioProductCutout(
+        downloaded.bytes,
+        cutout.bytes,
+        readSettings(job.settings).outputFormat,
+      );
+    } catch (error) {
+      await releaseSettlementLease(job.id, lease);
+      if (
+        (error instanceof HTTPException &&
+          (error.status === 404 || error.status === 422)) ||
+        (error instanceof DriveFileDownloadError &&
+          error.reason !== "unavailable")
+      ) {
+        await failImageJob(job.id, "product_cutout_unavailable");
+      } else {
+        await noteUnreachable(
+          job.id,
+          "Could not finish the product composition",
+          "storage",
+        );
+      }
+      return;
+    }
+  }
+
   const checksum = crypto
     .createHash("sha256")
     .update(downloaded.bytes)
@@ -1430,7 +1778,7 @@ async function storeMedia(
   // returns WebP with no dimensions and `luma-photon` reports none at all, and both
   // stored 0x0 until this read the bytes.
   const dimensions =
-    readProviderSize(providerSize) ??
+    (!job.useProductCutout ? readProviderSize(providerSize) : null) ??
     (video ? null : readImageDimensionsFromBytes(downloaded.bytes));
   if (!dimensions && !video) {
     // Not a failure: the column holds 0 and the client falls back to the rendered
@@ -1453,20 +1801,41 @@ async function storeMedia(
   //
   // The pathname is deliberately deterministic: a random suffix meant that
   // settlers racing the same job each wrote their own object, and the losers'
-  // objects were left behind with nothing referencing them. One job, one
-  // object, overwritten idempotently. That is an idempotency device, not a
-  // secret, and nothing about access control rests on it.
+  // objects were left behind with nothing referencing them. The finished image
+  // and any separate backdrop use stable keys, overwritten idempotently. The
+  // keys are not secrets, and nothing about access control rests on them.
   let blob: Awaited<ReturnType<typeof put>>;
+  let backdropBlobPathname: string | undefined;
   try {
+    const storageOptions = {
+      access: "private" as const,
+      token: studioBlobToken,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    };
+    const objectPath = `projects/${job.projectId}/image-studio/${job.id}`;
+    if (backdrop) {
+      const backdropHash = crypto
+        .createHash("sha256")
+        .update(backdrop.bytes)
+        .digest("hex");
+      const backdropBlob = await put(
+        `${objectPath}-backdrop-${backdropHash.slice(0, 16)}`,
+        backdrop.bytes as unknown as Buffer,
+        {
+          ...storageOptions,
+          contentType: backdrop.contentType,
+          abortSignal: AbortSignal.timeout(60_000),
+        },
+      );
+      backdropBlobPathname = backdropBlob.pathname;
+    }
     blob = await put(
-      `projects/${job.projectId}/image-studio/${job.id}-${checksum.slice(0, 16)}`,
+      `${objectPath}-${checksum.slice(0, 16)}`,
       downloaded.bytes as unknown as Buffer,
       {
-        access: "private",
+        ...storageOptions,
         contentType: downloaded.contentType,
-        token: studioBlobToken,
-        addRandomSuffix: false,
-        allowOverwrite: true,
         abortSignal: AbortSignal.timeout(60_000),
       },
     );
@@ -1499,6 +1868,7 @@ async function storeMedia(
         workspaceId: project.workspaceId,
         model: job.model,
         prompt: job.prompt,
+        exportHeadline: job.exportHeadline,
         settings: job.settings,
         parentAssetId: job.parentAssetId,
         requestedByUserId: job.requestedByUserId,
@@ -1506,6 +1876,8 @@ async function storeMedia(
         chargedCents: job.chargedCents,
       },
       blobPathname: blob.pathname,
+      backdropBlobPathname,
+      backdropContentType: backdrop?.contentType,
       contentType: downloaded.contentType,
       mediaType: video
         ? ProjectImageMediaType.VIDEO
@@ -1559,6 +1931,7 @@ async function insertAsset(input: {
     workspaceId: string;
     model: string;
     prompt: string;
+    exportHeadline: string | null;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
     /** Who pays, and out of which pot. */
@@ -1568,6 +1941,8 @@ async function insertAsset(input: {
     chargedCents: bigint | null;
   };
   blobPathname: string;
+  backdropBlobPathname?: string;
+  backdropContentType?: string;
   contentType: string;
   mediaType: ProjectImageMediaType;
   durationSeconds: number | null;
@@ -1659,6 +2034,8 @@ async function insertAsset(input: {
         prompt: input.job.prompt,
         settings: input.job.settings ?? {},
         blobPathname: input.blobPathname,
+        backdropBlobPathname: input.backdropBlobPathname,
+        backdropContentType: input.backdropContentType,
         contentType: input.contentType,
         mediaType: input.mediaType,
         durationSeconds: input.durationSeconds,
@@ -1666,6 +2043,10 @@ async function insertAsset(input: {
         height: input.height,
         bytes: input.bytes,
         checksum: input.checksum,
+        ...(input.job.exportHeadline &&
+        input.mediaType === ProjectImageMediaType.IMAGE
+          ? { headline: { create: { text: input.job.exportHeadline } } }
+          : {}),
       },
     });
 
@@ -1979,13 +2360,12 @@ export async function recoverUnclaimedReservations(
     // it has to ask again. Without this, a reservation left behind by someone
     // since removed from the organization was still sent to the provider and
     // charged.
-    let permitted: boolean;
+    let access: ProjectAccess | null = null;
     try {
-      await requireProjectAccessForUser({
+      access = await requireProjectAccessForUser({
         projectId: job.projectId,
         userId: job.requestedByUserId,
       });
-      permitted = true;
     } catch (error) {
       if (!isAccessDenied(error)) {
         // Could not ask. Leave the row alone and try on the next sweep;
@@ -1996,10 +2376,9 @@ export async function recoverUnclaimedReservations(
         });
         continue;
       }
-      permitted = false;
     }
 
-    if (!permitted) {
+    if (!access) {
       const released = await prisma.projectImageJob.updateMany({
         where: {
           id: job.id,
@@ -2019,7 +2398,7 @@ export async function recoverUnclaimedReservations(
 
     if (!(await claimForSubmission(job.id))) continue;
     try {
-      await sendClaimedJob(job.id);
+      await sendClaimedJob(job.id, access.organizationId);
       submitted += 1;
     } catch (error) {
       console.warn("[image-studio] recovery submit failed", {

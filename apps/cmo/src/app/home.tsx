@@ -1,17 +1,25 @@
-import { getUsersById, getUsersByIdSignUp } from "@sokosumi/core-client";
-import { headers } from "next/headers";
+import {
+  type CmoCuso,
+  type CmoOverview,
+  getUsersById,
+  getUsersByIdOrganizations,
+  getUsersByIdSignUp,
+} from "@sokosumi/core-client";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { CmoApp } from "../components/app/cmo-app";
+import { CusoPicker } from "../components/cuso-picker";
 import { NameSetup } from "../components/name-setup";
 import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
 import { asSignedInPersonInPage } from "../lib/core";
+import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
-import type { View } from "../lib/views";
+import { VIEW_PATHS, type View } from "../lib/views";
 import { signOut } from "./actions";
 import {
   addMailingList,
@@ -27,6 +35,7 @@ import {
   finishAccounts,
   launchAd,
   loadAdCampaigns,
+  loadCusos,
   loadMessages,
   loadOverview,
   loadPieceText,
@@ -83,9 +92,70 @@ async function signUpWebsite(
     : undefined;
 }
 
+/** The organizations the person belongs to, for the hire form's "Where". */
+async function organizationsOf(
+  asPerson: Awaited<ReturnType<typeof asSignedInPersonInPage>>,
+): Promise<{ id: string; name: string }[]> {
+  const { data, response } = await getUsersByIdOrganizations({
+    ...asPerson,
+    path: { id: "me" },
+  });
+  if (!data) {
+    // Without them the form still hires into a new organization.
+    console.error(`Core did not list the organizations (${response?.status})`);
+    return [];
+  }
+  return data.data.map(({ id, name }) => ({ id, name }));
+}
+
+type OpenedScreen =
+  | { kind: "cuso"; overview: CmoOverview }
+  /** The only Cuso, opened by an address naming him, which the proxy remembers. */
+  | { kind: "only"; projectId: string }
+  | { kind: "picker"; cusos: CmoCuso[]; mayHire: boolean }
+  | { kind: "hire" }
+  /** In place of the hire form: Core's hire allowlist leaves the person out. */
+  | { kind: "inviteOnly" };
+
+/**
+ * Which screen opens (ADR 0065): the hire form or the picker when the
+ * address asks for it; else the Cuso the address names, else the one last
+ * opened on this device, else the only one, else the Cuso picker, else the
+ * hire form. A Project the person can't use falls through. A person Core's
+ * hire allowlist leaves out sees the invite-only page for the hire form.
+ */
+async function openedScreen(input: {
+  hire: boolean;
+  pick: boolean;
+  named: string | undefined;
+  remembered: string | undefined;
+}): Promise<OpenedScreen> {
+  if (!input.hire && !input.pick) {
+    const projectId = input.named ?? input.remembered;
+    if (projectId) {
+      const overview = await loadOverview(projectId);
+      if (overview) return { kind: "cuso", overview };
+    }
+  }
+  const { cusos, mayHire } = await loadCusos();
+  const hireScreen: OpenedScreen = { kind: mayHire ? "hire" : "inviteOnly" };
+  if (input.hire) return hireScreen;
+  const [newest] = cusos;
+  if (!newest) return hireScreen;
+  if (input.pick || input.named || cusos.length > 1) {
+    return { kind: "picker", cusos, mayHire };
+  }
+  return { kind: "only", projectId: newest.projectId };
+}
+
 export interface HomeSearchParams {
   error?: string | string[];
   step?: string | string[];
+  project?: string | string[];
+  /** The account menu's "Your Cusos": the Cuso picker. */
+  cusos?: string | string[];
+  /** "Hire a new Cuso" and Start over: the hire form. */
+  hire?: string | string[];
   connect?: string | string[];
   from?: string | string[];
 }
@@ -127,9 +197,17 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
 
-  const overview = await loadOverview().catch(() => undefined);
+  const project = first(params.project) || undefined;
+  const opened = await openedScreen({
+    hire: first(params.hire) !== undefined,
+    pick: first(params.cusos) !== undefined,
+    named: project,
+    remembered: (await cookies()).get(LAST_CUSO_COOKIE)?.value || undefined,
+  }).catch(() => undefined);
   // Core unreachable: keep the signed-in shell rather than an error page.
-  if (overview === undefined) {
+  // An unavailable named Project falls through to the picker or the hire
+  // form (ADR 0065).
+  if (opened === undefined) {
     return (
       <SignedIn
         name={session.user.name}
@@ -138,19 +216,44 @@ export async function Home({ searchParams, view }: HomeProps) {
       />
     );
   }
-  if (overview === null) {
+  if (opened.kind === "only") {
+    redirect(
+      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}`,
+    );
+  }
+  if (opened.kind === "picker") {
+    return <CusoPicker cusos={opened.cusos} mayHire={opened.mayHire} />;
+  }
+  if (opened.kind === "inviteOnly") {
+    return (
+      <SignedIn
+        name={session.user.name}
+        email={session.user.email}
+        signOut={signOut}
+        inviteOnly
+      />
+    );
+  }
+  if (opened.kind === "hire") {
     const { firstName, lastName } = person.data.data;
     if (!isValidPersonName(firstName ?? "", lastName ?? "")) {
       return <NameSetup saveName={saveName} signOut={signOut} />;
     }
-    // Hiring creates Cuso's own organization (ADR 0060).
+    // Cuso goes into a new organization or one the person belongs to (ADR 0065).
+    const [websiteUrl, organizations] = await Promise.all([
+      signUpWebsite(asPerson),
+      organizationsOf(asPerson),
+    ]);
     return (
       <Onboarding
-        websiteUrl={await signUpWebsite(asPerson)}
+        websiteUrl={websiteUrl}
+        organizations={organizations}
+        signOut={signOut}
         onboard={onboard}
       />
     );
   }
+  const { overview } = opened;
   // Core ends hiring on the first connection; back from a connection made
   // during hiring (Accounts, or Results' measurement), the founder stays in
   // it until Continue.
@@ -158,33 +261,38 @@ export async function Home({ searchParams, view }: HomeProps) {
     (step === "connect" || step === "results") &&
     first(params.from) === "onboarding" &&
     overview.strategyVersion?.approvedAt != null;
+  // Every Cuso action names the Project of the overview this page rendered,
+  // so a workspace switch elsewhere cannot move them to another Cuso.
+  const { projectId } = overview;
   if (overview.onboardingStep !== "done" || backInHiring) {
     // The app's pages open once onboarding ends; until then it is the first run.
-    if (view !== "chat") redirect("/");
+    if (view !== "chat") {
+      redirect(`/?project=${encodeURIComponent(projectId)}`);
+    }
     return (
       <OnboardingFlow
         overview={overview}
-        messages={await loadMessages().catch(() => [])}
+        messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
         skipped={await skippedSteps(overview.projectId)}
         actions={{
-          loadState,
-          sendMessage,
-          retryLearning,
-          requestStrategy,
-          saveBrandBrain,
-          approveStrategy,
-          setAdBudget,
-          approveBrandBrain,
-          answerBrandQuestion,
-          answerPlanQuestion,
-          applyPlanAnswers,
-          skipBrandQuestions,
-          finishAccounts,
-          connectChannel: connectSetupChannel,
-          connectMeasurement,
-          connectAds,
-          startOver,
+          loadState: loadState.bind(null, projectId),
+          sendMessage: sendMessage.bind(null, projectId),
+          retryLearning: retryLearning.bind(null, projectId),
+          requestStrategy: requestStrategy.bind(null, projectId),
+          saveBrandBrain: saveBrandBrain.bind(null, projectId),
+          approveStrategy: approveStrategy.bind(null, projectId),
+          setAdBudget: setAdBudget.bind(null, projectId),
+          approveBrandBrain: approveBrandBrain.bind(null, projectId),
+          answerBrandQuestion: answerBrandQuestion.bind(null, projectId),
+          answerPlanQuestion: answerPlanQuestion.bind(null, projectId),
+          applyPlanAnswers: applyPlanAnswers.bind(null, projectId),
+          skipBrandQuestions: skipBrandQuestions.bind(null, projectId),
+          finishAccounts: finishAccounts.bind(null, projectId),
+          connectChannel: connectSetupChannel.bind(null, projectId),
+          connectMeasurement: connectMeasurement.bind(null, projectId),
+          connectAds: connectAds.bind(null, projectId),
+          startOver: startOver.bind(null, projectId),
           signOut,
         }}
       />
@@ -193,29 +301,29 @@ export async function Home({ searchParams, view }: HomeProps) {
   return (
     <CmoApp
       overview={overview}
-      messages={await loadMessages().catch(() => [])}
+      messages={await loadMessages(projectId).catch(() => [])}
       name={session.user.name}
       email={session.user.email}
       initialView={step === "connect" ? "channels" : view}
       connectFailed={step === "connect" && first(params.connect) === "failed"}
       actions={{
-        loadState,
-        sendMessage,
-        loadPieceText,
-        approveStrategy,
-        setAdBudget,
-        revertUpdate,
-        retryLearning,
-        saveBrandBrain,
-        pauseEntry,
-        connectChannel,
-        addMailingList,
-        connectMeasurement,
-        connectAds,
-        launchAd,
-        setAdCampaignStatus,
-        loadAdCampaigns,
-        startOver,
+        loadState: loadState.bind(null, projectId),
+        sendMessage: sendMessage.bind(null, projectId),
+        loadPieceText: loadPieceText.bind(null, projectId),
+        approveStrategy: approveStrategy.bind(null, projectId),
+        setAdBudget: setAdBudget.bind(null, projectId),
+        revertUpdate: revertUpdate.bind(null, projectId),
+        retryLearning: retryLearning.bind(null, projectId),
+        saveBrandBrain: saveBrandBrain.bind(null, projectId),
+        pauseEntry: pauseEntry.bind(null, projectId),
+        connectChannel: connectChannel.bind(null, projectId),
+        addMailingList: addMailingList.bind(null, projectId),
+        connectMeasurement: connectMeasurement.bind(null, projectId),
+        connectAds: connectAds.bind(null, projectId),
+        launchAd: launchAd.bind(null, projectId),
+        setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
+        loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
+        startOver: startOver.bind(null, projectId),
         signOut,
       }}
     />

@@ -11,9 +11,15 @@ import {
 } from "@/config/push-worker-assets";
 import { SENTRY_TUNNEL_PATH } from "@/config/sentry-tunnel";
 import {
+  COMPOSIO_BOT_VERIFIER_PATH,
+  COMPOSIO_CALLBACK_PATH,
+  COMPOSIO_OWNER_VERIFICATION_PARAM,
+} from "@/lib/composio/oauth-popup-protocol";
+import {
   applyPendingOrganizationJoinCookie,
   joinTokenFromJoinPath,
 } from "@/lib/pending-organization-join-cookie";
+import { SOKO_BOT_ID_PARAM } from "@/lib/soko-bot/bot-id-param";
 
 const EXCLUDED_PATHS = [
   // Documents other systems fetch with no cookie: Apple's CDN reads the app
@@ -57,6 +63,13 @@ const EXCLUDED_PATHS = [
   SENTRY_TUNNEL_PATH,
   "/maintenance",
 ];
+
+// These documents relay OAuth results only. Core still authenticates and
+// authorizes the initiating owner before it redeems or finalizes consent.
+const COMPOSIO_CONNECTION_DOCUMENT_PATHS = new Set([
+  "/composio/callback",
+  "/composio/handoff",
+]);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -118,7 +131,30 @@ export async function proxy(request: NextRequest) {
   }
 
   // Skip session check for excluded paths (but still set headers above)
-  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
+  const sessionUris = request.nextUrl.searchParams.getAll("session_uri");
+  if (
+    request.method === "GET" &&
+    pathname === COMPOSIO_BOT_VERIFIER_PATH &&
+    sessionUris.length === 1 &&
+    sessionUris[0]?.trim() &&
+    !request.nextUrl.searchParams.has(SOKO_BOT_ID_PARAM) &&
+    !request.nextUrl.searchParams.has(COMPOSIO_OWNER_VERIFICATION_PARAM)
+  ) {
+    const callback = request.nextUrl.clone();
+    callback.pathname = COMPOSIO_CALLBACK_PATH;
+    const relay = NextResponse.rewrite(callback);
+    applyDocumentSecurityHeaders(relay, {
+      ...securityHeaderOptions,
+      pathname: COMPOSIO_CALLBACK_PATH,
+    });
+    relay.headers.set("Cache-Control", "no-store");
+    relay.headers.set("Referrer-Policy", "no-referrer");
+    return relay;
+  }
+  if (
+    COMPOSIO_CONNECTION_DOCUMENT_PATHS.has(pathname) ||
+    EXCLUDED_PATHS.some((path) => pathname.startsWith(path))
+  ) {
     return response;
   }
 

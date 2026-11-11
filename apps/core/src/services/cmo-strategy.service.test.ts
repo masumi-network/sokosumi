@@ -123,7 +123,9 @@ describe("requestCmoStrategy", () => {
     seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
-    await expect(requestCmoStrategy({ userId: "user-1" })).resolves.toEqual({
+    await expect(
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
+    ).resolves.toEqual({
       turnId: "turn-9",
     });
 
@@ -157,8 +159,12 @@ describe("requestCmoStrategy", () => {
     });
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
-    await requestCmoStrategy({ userId: "user-1" });
-    await requestCmoStrategy({ userId: "user-1", note: "Fewer posts" });
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "Fewer posts",
+    });
 
     for (const [call] of startTurn.mock.calls) {
       const message: string = JSON.stringify(call);
@@ -176,7 +182,7 @@ describe("requestCmoStrategy", () => {
     cusoFind.mockResolvedValue(cuso);
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
-    await requestCmoStrategy({ userId: "user-1" });
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
 
     expect(JSON.stringify(startTurn.mock.lastCall)).toContain(
       "The website is written in German: set contentLanguage to German",
@@ -191,7 +197,7 @@ describe("requestCmoStrategy", () => {
     cusoFind.mockResolvedValue(cuso);
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
-    await requestCmoStrategy({ userId: "user-1" });
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
     vi.useRealTimers();
 
     const message = JSON.stringify(startTurn.mock.lastCall);
@@ -208,7 +214,7 @@ describe("requestCmoStrategy", () => {
     cusoFind.mockResolvedValue(cuso);
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
-    await requestCmoStrategy({ userId: "user-1" });
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
 
     expect(JSON.stringify(startTurn.mock.lastCall)).not.toContain(
       "First correct the Brand Brain",
@@ -222,7 +228,13 @@ describe("requestCmoStrategy", () => {
     });
     startTurn.mockResolvedValue({ turnId: "turn-9" });
 
-    await setCmoAdBudget({ userId: "user-1", monthly: 500, currency: "eur" });
+    await setCmoAdBudget({
+      projectId: "project-1",
+      userId: "user-1",
+      monthly: 500,
+      currency: "eur",
+    });
+    expect(cusoFind).toHaveBeenCalledTimes(1);
     await saveCmoStrategy(
       { sokoBotId: "bot-1" },
       { summary: "Ads around the owner's budget." },
@@ -465,7 +477,7 @@ describe("saving versions", () => {
     cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
     const saved = await saveCmoStrategy(
-      { userId: "user-1" },
+      { projectId: "project-1", userId: "user-1" },
       { ...strategy, calendar: [strategy.calendar[0]!] },
     );
     expect(saved).toMatchObject({ authorUserId: "user-1", authorTurnId: null });
@@ -484,7 +496,11 @@ describe("pauseCmoCalendarEntry", () => {
     postFindFirst.mockResolvedValue({ status: "SCHEDULED", revision: 2 });
     cancelSocialPost.mockResolvedValue({});
 
-    await pauseCmoCalendarEntry({ userId: "user-1", entryId: postId });
+    await pauseCmoCalendarEntry({
+      projectId: "project-1",
+      userId: "user-1",
+      entryId: postId,
+    });
 
     expect(postFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -506,7 +522,11 @@ describe("pauseCmoCalendarEntry", () => {
     );
 
     await expect(
-      pauseCmoCalendarEntry({ userId: "user-1", entryId: postId }),
+      pauseCmoCalendarEntry({
+        projectId: "project-1",
+        userId: "user-1",
+        entryId: postId,
+      }),
     ).rejects.toThrow("no longer be canceled");
     expect(cancelSocialPost).toHaveBeenCalledWith(
       expect.objectContaining({ postId, revision: 3 }),
@@ -529,7 +549,11 @@ describe("pauseCmoCalendarEntry", () => {
     );
 
     await expect(
-      pauseCmoCalendarEntry({ userId: "user-1", entryId: "nl" }),
+      pauseCmoCalendarEntry({
+        projectId: "project-1",
+        userId: "user-1",
+        entryId: "nl",
+      }),
     ).rejects.toThrow(/Social post/);
 
     expect(plan(running).calendar.at(-1)?.status).toBe("idea");

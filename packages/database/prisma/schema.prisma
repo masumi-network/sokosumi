@@ -470,6 +470,9 @@ model Project {
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
   logo                    String?
+  studioLogoPosition      String?
+  studioBrandLook         Json?
+  studioBrandLookRevision Int       @default(0)
   designMdUrl             String?
   designMdExtractionId    String?
   /// Markdown guidance for drafting this Project's social posts (tone,
@@ -510,6 +513,8 @@ model Project {
   adMarketProfile   ProjectAdMarketProfile?
   adMarketSnapshots ProjectAdMarketSnapshot[]
   adMarketAdsJob    ProjectAdMarketAdsJob?
+
+  studioProductCatalog ProjectStudioProductCatalog?
 
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
@@ -5184,6 +5189,15 @@ enum ProjectImageInitialTurn {
   UNCERTAIN
 }
 
+model ProjectStudioProductCatalog {
+  projectId String  @id @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  products  Json
+  revision  Int
+
+  @@map("project_studio_product_catalog")
+}
+
 /// One eve conversation, permanently bound to one project.
 ///
 /// eve owns the transcript; this row is what makes the transcript
@@ -5272,6 +5286,25 @@ model ProjectImageJob {
   referenceFileIds  String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
+
+  /// Catalog identity at generation time, retained after a rename or removal.
+  productId   String? @db.Uuid
+  productName String?
+
+  /// All jobs from one Content Studio composer submission.
+  batchId String? @db.Uuid
+
+  /// The original batch job this revision replaces in campaign exports.
+  batchSlotId      String?           @db.Uuid
+  batchSlot        ProjectImageJob?  @relation("ProjectImageJobBatchSlot", fields: [batchSlotId], references: [id], onDelete: SetNull)
+  batchRefinements ProjectImageJob[] @relation("ProjectImageJobBatchSlot")
+
+  /// Approved copy to attach when the image is delivered.
+  exportHeadline String?
+
+  /// Generate a backdrop, then composite the original transparent product photo.
+  useProductCutout      Boolean @default(false)
+  productCutoutChecksum String?
 
   status ProjectImageJobStatus @default(PENDING)
 
@@ -5386,6 +5419,8 @@ model ProjectImageJob {
   @@unique([projectId, idempotencyKey])
   @@unique([falRequestId])
   @@index([projectId, createdAt])
+  @@index([projectId, batchId])
+  @@index([batchSlotId])
   @@index([status, updatedAt])
   @@index([workspaceId])
   @@index([sessionId])
@@ -5429,6 +5464,9 @@ model ProjectImageAsset {
   /// the authorized streaming route, which re-checks access per request.
   blobPathname    String
   contentType     String
+  /// Private background layer for refining a composited product ad.
+  backdropBlobPathname String?
+  backdropContentType String?
   /// What the bytes are. A video plays in the gallery and attaches to Social as one.
   mediaType       ProjectImageMediaType @default(IMAGE)
   /// Requested length of a video. Null for images.
@@ -5439,13 +5477,24 @@ model ProjectImageAsset {
   /// sha256 of the stored bytes.
   checksum        String
 
-  review ProjectImageReview?
+  review   ProjectImageReview?
+  headline ProjectImageHeadline?
 
   @@unique([rootId, version])
   @@index([projectId, createdAt])
   @@index([workspaceId])
   @@index([parentId])
   @@map("project_image_asset")
+}
+
+/// Approved export copy attached to an immutable image version.
+model ProjectImageHeadline {
+  assetId  String            @id @db.Uuid
+  asset    ProjectImageAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  text     String?
+  revision Int               @default(1)
+
+  @@map("project_image_headline")
 }
 
 /// A human decision about one immutable version.

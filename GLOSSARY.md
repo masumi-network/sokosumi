@@ -99,11 +99,19 @@ The product at cmo.xyz: an AI agent that runs a business's marketing end to end 
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
 **Cuso**:
-CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that works in one Project of the business's organization, for every member of it. A Project has at most one, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
+CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that markets one Business from one Project of an organization, for every member of it. A Project has at most one, an organization may hold several, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
 _Avoid_: CMO bot, marketing assistant, the CMO (that is the product), CMO hire (what he knows and plans belongs to the Project)
 
+**Business**:
+The company one Cuso markets, known by his website and named after its host. It belongs to his Project, not to the organization; one organization may market several.
+_Avoid_: Organization (when meaning this), brand, client
+
+**Cuso picker**:
+CMO's list of every Cuso a person can work with, across their organizations, with the way to hire another. CMO opens on it only when a person has several Cusos and none was opened last on that device.
+_Avoid_: Workspace switcher (that is Sokosumi's), Cuso switcher, Business picker
+
 **Hiring Cuso**:
-CMO's flow after identity onboarding, from the start form (website and main goal) until the person finishes it and CMO opens on the chat. It reuses what identity onboarding already learned instead of asking again.
+CMO's flow after identity onboarding, from the start form (website, main goal, and a new or an existing organization) until the person finishes it and CMO opens on the chat. Every hire creates a new Project. It reuses what identity onboarding already learned instead of asking again.
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
 **Marketing strategy**:
