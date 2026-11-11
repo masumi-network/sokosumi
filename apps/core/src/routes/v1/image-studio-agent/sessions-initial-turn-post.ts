@@ -7,6 +7,7 @@ import {
   recordImageStudioInitialTurnRequestSchema,
   recordImageStudioInitialTurnSchema,
 } from "@/schemas/project-image-studio.schema";
+import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 import { transitionInitialTurn } from "@/services/image-studio-sessions.service";
 
 /**
@@ -53,6 +54,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
   },
@@ -65,6 +67,8 @@ export default function mount(
     const context = c.var.agentGrant;
     const { eveSessionId } = c.req.valid("param");
     const { transition, deliveryToken } = c.req.valid("json");
+
+    await requireNotCmoProject(context.projectId, context.workspaceId);
 
     const session = await transitionInitialTurn({
       projectId: context.projectId,

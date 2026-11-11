@@ -1081,6 +1081,13 @@
       "highlights": "Highlights",
       "experience": "Experience",
       "education": "Education"
+    },
+    "CmoProject": {
+      "badge": "CMO",
+      "title": "Managed by CMO",
+      "description": "CMO runs this Project, so changes happen in CMO. Here you can read it.",
+      "open": "Open in CMO",
+      "newTab": "(opens in a new tab)"
     }
   },
   "Join": {

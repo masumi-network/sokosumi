@@ -1,5 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
+import { cmoClientCheck } from "./cmo-client-check.js";
+
 import mountListCmoCusos from "./cusos/get.js";
 import mountStartCmoOnboarding from "./onboarding/post.js";
 import mountConnectCmoAdsForProject from "./projects/[projectId]/ads/[provider]/connect/post.js";
@@ -35,6 +37,8 @@ import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/
  * Cusos go by the caller alone. No organization header is needed.
  */
 const app = new OpenAPIHonoWithAuth();
+
+app.use("*", cmoClientCheck);
 
 mountListCmoCusos(app);
 mountStartCmoOnboarding(app);

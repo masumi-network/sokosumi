@@ -21,6 +21,8 @@ export interface ScopeProject {
   id: string;
   name: string;
   logo: string | null;
+  /** A CMO Project; a pick that creates inside a Project leaves it out. */
+  cmo?: boolean;
 }
 
 interface MaybeClosed extends ScopeProject {
@@ -36,8 +38,8 @@ function isOpen(project: MaybeClosed): boolean {
   return project.closedAt == null;
 }
 
-function toRow({ id, name, logo }: ScopeProject): ScopeProject {
-  return { id, name, logo };
+function toRow({ id, name, logo, cmo }: ScopeProject): ScopeProject {
+  return { id, name, logo, cmo };
 }
 
 function toSelected(project: MaybeClosed): SelectedScopeProject {

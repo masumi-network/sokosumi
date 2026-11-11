@@ -105,6 +105,10 @@ const baseEnvSchema = z.object({
         .filter(Boolean),
     ),
 
+  // CMO's OAuth client id: only its tokens may write through `/v1/cmo/**`
+  // (ADR 0066). Unset refuses every such write.
+  CMO_OAUTH_CLIENT_ID: z.string().trim().min(1).optional(),
+
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),
