@@ -7,6 +7,9 @@ model BuzzCommunity {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   /// `ws(s)://<community host>`; the host selects the community on the relay.
   relayUrl       String
+  /// `created_at` (unix seconds) up to which every inbound event has been
+  /// applied; the worker resumes reading from here, with overlap.
+  inboundCursor  Int          @default(0)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -86,6 +89,9 @@ model BuzzMessageLink {
   /// `created_at` (unix seconds) of the newest edit applied, either way; an
   /// older edit replayed later is ignored.
   lastEditAt  Int             @default(0)
+  /// A signed event decided but not yet accepted by the relay (the message,
+  /// an edit or a deletion). Resent until it is, then cleared.
+  pendingEvent Json?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -101,6 +107,9 @@ model BuzzReactionLink {
   identity   BuzzIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
   emoji      String
   eventId    String       @unique
+  /// The kind:7 being added or the kind:5 taking it back, until the relay
+  /// has it; the row goes once a kind:5 is delivered.
+  pendingEvent Json?
   createdAt  DateTime     @default(now())
 
   @@unique([messageId, identityId, emoji])
@@ -115,8 +124,11 @@ model BuzzOutbox {
   messageId String?  @db.Uuid
   attempts  Int      @default(0)
   lastError String?
+  /// When to try again after a failure; rows are never dropped unfinished.
+  nextAttemptAt DateTime @default(now())
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+  @@index([nextAttemptAt])
   @@map("buzz_outbox")
 }

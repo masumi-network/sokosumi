@@ -14,12 +14,14 @@ import { type RelaySubscription, subscribe } from "@/lib/buzz/relay-client";
 import prisma from "@/lib/db/prisma";
 import {
   applyInboundEvent,
+  BuzzTargetPendingError,
   buzzConfig,
   buzzSubscriptions,
   type CoreRequest,
   drainBuzzOutbox,
   enableBuzzForOrganization,
   linkedBuzzRooms,
+  saveInboundCursor,
   syncRoomChannel,
   unlinkedBuzzRooms,
 } from "@/services/buzz-bridge.service";
@@ -113,47 +115,80 @@ async function run() {
     { key: string; subscription: RelaySubscription }
   >();
   // Inbound events are applied one at a time, in arrival order. One that
-  // fails (Core down, rate limited) is retried with backoff; `seen` holds only
-  // events that are done or queued.
+  // fails (Core down, rate limited, or it answers a message not linked yet) is
+  // retried with backoff; on the last try it is applied as well as it can be.
   let inbound = Promise.resolve();
   const seen = new Set<string>();
   const MAX_ATTEMPTS = 6;
+  // Per community: events not finished yet, and the newest one finished. The
+  // saved cursor never passes an unfinished event.
+  const unfinished = new Map<string, Map<string, number>>();
+  const newestDone = new Map<string, number>();
 
-  const apply = (event: Event, attempt: number) => {
+  const finish = (communityId: string, event: Event) => {
+    unfinished.get(communityId)?.delete(event.id);
+    newestDone.set(
+      communityId,
+      Math.max(newestDone.get(communityId) ?? 0, event.created_at),
+    );
+  };
+
+  const apply = (communityId: string, event: Event, attempt: number) => {
     inbound = inbound.then(async () => {
+      const finalAttempt = attempt + 1 >= MAX_ATTEMPTS;
       try {
-        const result = await applyInboundEvent(event, core);
+        const result = await applyInboundEvent(event, core, { finalAttempt });
         if (result !== "echo" && result !== "ignored") {
           log(`in  kind ${event.kind} ${event.id.slice(0, 8)} → ${result}`);
         }
+        finish(communityId, event);
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        if (attempt + 1 >= MAX_ATTEMPTS) {
+        if (finalAttempt) {
           log(`in  kind ${event.kind} ${event.id.slice(0, 8)} gave up`, reason);
+          finish(communityId, event);
           return;
         }
         const delay = 2_000 * 2 ** attempt;
-        log(
-          `in  kind ${event.kind} ${event.id.slice(0, 8)} failed, retry in ${delay / 1000}s`,
-          reason,
-        );
-        setTimeout(() => apply(event, attempt + 1), delay);
+        if (!(error instanceof BuzzTargetPendingError)) {
+          log(
+            `in  kind ${event.kind} ${event.id.slice(0, 8)} failed, retry in ${delay / 1000}s`,
+            reason,
+          );
+        }
+        setTimeout(() => apply(communityId, event, attempt + 1), delay);
       }
     });
   };
 
-  const onEvent = (event: Event) => {
+  const onEventFor = (communityId: string) => (event: Event) => {
     if (seen.has(event.id)) return;
     seen.add(event.id);
     if (seen.size > 50_000) seen.clear();
-    apply(event, 0);
+    const open = unfinished.get(communityId) ?? new Map<string, number>();
+    open.set(event.id, event.created_at);
+    unfinished.set(communityId, open);
+    apply(communityId, event, 0);
   };
+
+  async function saveCursors() {
+    for (const [communityId, done] of newestDone) {
+      const open = [...(unfinished.get(communityId)?.values() ?? [])];
+      const cursor = open.length > 0 ? Math.min(...open) - 1 : done;
+      if (cursor > 0) await saveInboundCursor(communityId, cursor);
+    }
+  }
+
+  const reconnect = new Map<string, { failures: number; at: number }>();
 
   async function refreshSubscriptions() {
     for (const community of await buzzSubscriptions()) {
       const key = community.channelIds.toSorted().join(",");
       const current = live.get(community.communityId);
       if (current?.key === key) continue;
+      // After a drop, wait before reconnecting: 1 s doubling, at most 30 s.
+      const retry = reconnect.get(community.communityId);
+      if (!current && retry && Date.now() < retry.at) continue;
       current?.subscription.close();
       live.delete(community.communityId);
       if (community.channelIds.length === 0) continue;
@@ -164,24 +199,39 @@ async function run() {
           {
             kinds: INBOUND_KINDS,
             "#h": community.channelIds,
-            // Catch up on what happened while the bridge was away.
-            since: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
+            // Catch up from where the last run finished (overlap: echoes and
+            // repeats are recognised), or a day back the first time.
+            since:
+              community.inboundCursor > 0
+                ? community.inboundCursor - 10 * 60
+                : Math.floor(Date.now() / 1000) - 24 * 60 * 60,
           },
         ],
-        onEvent,
+        onEvent: onEventFor(community.communityId),
         onClose: (reason) => {
           if (live.get(community.communityId)?.subscription === subscription) {
             live.delete(community.communityId);
-            log(`subscription to ${community.relayUrl} closed: ${reason}`);
+            const failures =
+              (reconnect.get(community.communityId)?.failures ?? 0) + 1;
+            const wait = Math.min(1_000 * 2 ** (failures - 1), 30_000);
+            reconnect.set(community.communityId, {
+              failures,
+              at: Date.now() + wait,
+            });
+            log(
+              `subscription to ${community.relayUrl} closed: ${reason}; retry in ${wait / 1000}s`,
+            );
           }
         },
       });
       live.set(community.communityId, { key, subscription });
       subscription.ready.then(
-        () =>
+        () => {
+          reconnect.delete(community.communityId);
           log(
             `listening on ${community.relayUrl} (${community.channelIds.length} channels)`,
-          ),
+          );
+        },
         () => {},
       );
     }
@@ -227,6 +277,7 @@ async function run() {
         }
       }
       await refreshSubscriptions();
+      await saveCursors();
     } catch (error) {
       log("loop error", error instanceof Error ? error.message : error);
     }

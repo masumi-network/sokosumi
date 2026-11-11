@@ -36,9 +36,11 @@ const db = vi.hoisted(() => {
 });
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 
+import { contentHash } from "@/lib/buzz/events";
 import { sealSecret } from "@/lib/buzz/secret-box";
 import {
   applyInboundEvent,
+  BuzzTargetPendingError,
   type CoreRequest,
   drainBuzzOutbox,
   enqueueBuzzSync,
@@ -312,6 +314,72 @@ describe("applyInboundEvent edits", () => {
   });
 });
 
+describe("applyInboundEvent ordering", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 201, body: {} }));
+
+  beforeEach(() => {
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    db.buzzIdentity.findUnique.mockResolvedValue({
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      userId: "user-bob",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+  });
+
+  it("waits for a reply's parent instead of starting a new thread", async () => {
+    const reply = nostrEvent({
+      tags: [
+        ["h", CHANNEL],
+        ["e", "f".repeat(64), "", "reply"],
+      ],
+      content: "too early",
+    });
+    await expect(applyInboundEvent(reply, core)).rejects.toBeInstanceOf(
+      BuzzTargetPendingError,
+    );
+    expect(core).not.toHaveBeenCalled();
+    // The last try posts it anyway, so nothing is lost.
+    await expect(
+      applyInboundEvent(reply, core, { finalAttempt: true }),
+    ).resolves.toBe("posted");
+  });
+
+  it("remembers a newer edit that matches the text, so an older one cannot win later", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: contentHash("same"),
+        lastEditAt: 100,
+        message: { roomId: "room" },
+      });
+    const edit = finalizeEvent(
+      {
+        created_at: 200,
+        kind: 40003,
+        tags: [
+          ["h", CHANNEL],
+          ["e", "f".repeat(64)],
+        ],
+        content: "same",
+      },
+      BOB_KEY,
+    );
+    await expect(applyInboundEvent(edit, core)).resolves.toBe("echo");
+    expect(db.buzzMessageLink.update).toHaveBeenCalledWith({
+      where: { messageId: "m1" },
+      data: { lastEditAt: 200 },
+    });
+  });
+});
+
 describe("drainBuzzOutbox", () => {
   it("waits until a message has been quiet, so a streaming reply goes out once", async () => {
     const now = new Date("2026-11-11T00:00:10Z");
@@ -334,5 +402,29 @@ describe("drainBuzzOutbox", () => {
     await expect(drainBuzzOutbox({ now })).resolves.toEqual([]);
     expect(db.chatRoomMessage.findUnique).not.toHaveBeenCalled();
     expect(db.buzzOutbox.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps a failed message for later instead of dropping it", async () => {
+    const now = new Date("2026-11-11T00:00:10Z");
+    db.buzzOutbox.findMany.mockResolvedValue([
+      {
+        id: "1",
+        roomId: "room",
+        messageId: "m1",
+        attempts: 9,
+        createdAt: new Date(now.getTime() - 60_000),
+      },
+    ]);
+    db.chatRoomMessage.findUnique.mockRejectedValue(new Error("relay down"));
+    const outcomes = await drainBuzzOutbox({ now });
+    expect(outcomes).toEqual([{ key: "m1", result: "error: relay down" }]);
+    expect(db.buzzOutbox.deleteMany).not.toHaveBeenCalled();
+    expect(db.buzzOutbox.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["1"] } },
+      data: expect.objectContaining({
+        attempts: 10,
+        nextAttemptAt: new Date(now.getTime() + 10 * 60_000),
+      }),
+    });
   });
 });

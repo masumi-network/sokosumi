@@ -3,6 +3,7 @@ CREATE TABLE "buzz_community" (
     "id" UUID NOT NULL,
     "organizationId" TEXT NOT NULL,
     "relayUrl" TEXT NOT NULL,
+    "inboundCursor" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -54,6 +55,7 @@ CREATE TABLE "buzz_message_link" (
     "contentHash" TEXT NOT NULL,
     "deleted" BOOLEAN NOT NULL DEFAULT false,
     "lastEditAt" INTEGER NOT NULL DEFAULT 0,
+    "pendingEvent" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -67,6 +69,7 @@ CREATE TABLE "buzz_reaction_link" (
     "identityId" UUID NOT NULL,
     "emoji" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
+    "pendingEvent" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "buzz_reaction_link_pkey" PRIMARY KEY ("id")
@@ -79,6 +82,7 @@ CREATE TABLE "buzz_outbox" (
     "messageId" UUID,
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "lastError" TEXT,
+    "nextAttemptAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "buzz_outbox_pkey" PRIMARY KEY ("id")
@@ -119,6 +123,9 @@ CREATE UNIQUE INDEX "buzz_reaction_link_messageId_identityId_emoji_key" ON "buzz
 
 -- CreateIndex
 CREATE INDEX "buzz_outbox_createdAt_idx" ON "buzz_outbox"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "buzz_outbox_nextAttemptAt_idx" ON "buzz_outbox"("nextAttemptAt");
 
 -- AddForeignKey
 ALTER TABLE "buzz_community" ADD CONSTRAINT "buzz_community_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
