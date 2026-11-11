@@ -1,9 +1,7 @@
-import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { connection } from "next/server";
 import { useTranslations } from "next-intl";
-import { getTranslations } from "next-intl/server";
 
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
@@ -11,18 +9,6 @@ import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
-
-// Same "Sokosumi - …" tab titles as the app, so setup tabs carry the brand.
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Metadata");
-
-  return {
-    title: {
-      default: t("Title.default"),
-      template: t("Title.template"),
-    },
-  };
-}
 
 export default async function FlowsLayout({
   children,
