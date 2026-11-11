@@ -24687,6 +24687,11 @@ export const ProjectSchema = {
             description: 'Revision used for optimistic Project mutations',
             example: 0
         },
+        cmo: {
+            type: 'boolean',
+            description: 'A CMO Project: it has a live Cuso, so it is read-only outside CMO (ADR 0066).',
+            example: false
+        },
         scheduledSocialPostCount: {
             type: 'integer',
             minimum: 0,
@@ -24741,6 +24746,7 @@ export const ProjectSchema = {
         'memoryModel',
         'contextMd',
         'contextMdUpdating',
+        'cmo',
         'createdAt',
         'updatedAt'
     ]
@@ -46720,6 +46726,9 @@ export const SharedSokoBotSummarySchema = {
         },
         viewerCanManage: {
             type: 'boolean'
+        },
+        cuso: {
+            type: 'boolean'
         }
     },
     required: [
@@ -46732,7 +46741,8 @@ export const SharedSokoBotSummarySchema = {
         'status',
         'archivedAt',
         'sharedRoomId',
-        'viewerCanManage'
+        'viewerCanManage',
+        'cuso'
     ]
 } as const;
 

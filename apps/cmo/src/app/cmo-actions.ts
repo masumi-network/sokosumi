@@ -2,10 +2,10 @@
 
 import {
   type AvailableAdAccount,
-  answerProjectBrandBrainQuestion,
-  answerProjectMarketingStrategyQuestion,
+  answerCmoBrandBrainQuestionForProject,
+  answerCmoMarketingStrategyQuestionForProject,
   applyCmoPlanAnswersForProject,
-  approveProjectMarketingStrategy,
+  approveCmoMarketingStrategyForProject,
   type CmoAdCampaigns,
   type CmoAdsFinalized,
   type CmoCusoList,
@@ -13,15 +13,17 @@ import {
   type CmoOverview,
   chooseCmoAdAccountForProject,
   completeSokoBotIntegrationAuth,
-  confirmProjectBrandBrain,
+  confirmCmoBrandBrainForProject,
   connectCmoAdsForProject,
   connectCmoMeasurementForProject,
   finalizeCmoAdsForProject,
   finalizeCmoMeasurementForProject,
+  finalizeCmoSocialConnectionForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
   getCmoOverviewForProject,
   getContactLists,
+  initiateCmoSocialConnectionForProject,
   launchCmoSearchAdForProject,
   listCmoAdCampaignsForProject,
   listCmoAdChoicesForProject,
@@ -31,8 +33,6 @@ import {
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
-  postProjectsByIdSocialConnectionsFinalize,
-  postProjectsByIdSocialConnectionsInitiate,
   requestCmoStrategyForProject,
   retryCmoOnboardingForProject,
   revertCmoUpdateForProject,
@@ -40,7 +40,7 @@ import {
   setCmoAdCampaignStatusForProject,
   startCmoOnboarding,
   startCmoOverForProject,
-  updateProjectBrandBrain,
+  updateCmoBrandBrainForProject,
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
@@ -237,12 +237,12 @@ export async function approveStrategy(
   projectId: string,
   versionId?: string,
 ): Promise<CmoOverview> {
-  const { overview, ...options } = await cusoProject(projectId);
-  const strategyId = versionId ?? overview.strategyVersion?.id;
+  const strategyId =
+    versionId ?? (await requireOverview(projectId)).strategyVersion?.id;
   if (!strategyId) throw new Error("There is no strategy to approve yet");
-  const { error } = await approveProjectMarketingStrategy({
-    ...options,
-    path: { ...options.path, strategyId },
+  const { error } = await approveCmoMarketingStrategyForProject({
+    ...(await requireCore()),
+    path: { projectId, strategyId },
   });
   if (error)
     throw new Error(errorText(error, "Could not approve the strategy"));
@@ -253,8 +253,10 @@ export async function approveStrategy(
 export async function approveBrandBrain(
   projectId: string,
 ): Promise<CmoOverview> {
-  const { overview: _overview, ...options } = await cusoProject(projectId);
-  const { error } = await confirmProjectBrandBrain(options);
+  const { error } = await confirmCmoBrandBrainForProject({
+    ...(await requireCore()),
+    path: { projectId },
+  });
   if (error) {
     throw new Error(errorText(error, "Could not approve the Brand Brain"));
   }
@@ -270,9 +272,9 @@ export async function answerBrandQuestion(
     note?: string;
   },
 ): Promise<CmoOverview> {
-  const { overview: _overview, ...options } = await cusoProject(projectId);
-  const { error } = await answerProjectBrandBrainQuestion({
-    ...options,
+  const { error } = await answerCmoBrandBrainQuestionForProject({
+    ...(await requireCore()),
+    path: { projectId },
     body: answer,
   });
   if (error) throw new Error(errorText(error, "Could not save the answer"));
@@ -288,12 +290,11 @@ export async function answerPlanQuestion(
     note?: string;
   },
 ): Promise<CmoOverview> {
-  const { overview, ...options } = await cusoProject(projectId);
-  const strategyId = overview.strategyVersion?.id;
+  const strategyId = (await requireOverview(projectId)).strategyVersion?.id;
   if (!strategyId) throw new Error("There is no strategy yet");
-  const { error } = await answerProjectMarketingStrategyQuestion({
-    ...options,
-    path: { ...options.path, strategyId },
+  const { error } = await answerCmoMarketingStrategyQuestionForProject({
+    ...(await requireCore()),
+    path: { projectId, strategyId },
     body: answer,
   });
   if (error) throw new Error(errorText(error, "Could not save the answer"));
@@ -321,9 +322,9 @@ export async function saveBrandBrain(
   projectId: string,
   brandBrain: NonNullable<CmoOverview["brandBrain"]>,
 ): Promise<CmoOverview> {
-  const { overview: _overview, ...options } = await cusoProject(projectId);
-  const { error } = await updateProjectBrandBrain({
-    ...options,
+  const { error } = await updateCmoBrandBrainForProject({
+    ...(await requireCore()),
+    path: { projectId },
     body: { brandBrain },
   });
   if (error)
@@ -622,19 +623,6 @@ async function inCusoWorkspace(
   };
 }
 
-/**
- * Request options for Cuso's Project on the standard Project routes, with
- * the overview they were read from.
- */
-async function cusoProject(projectId: string) {
-  const overview = await requireOverview(projectId);
-  return {
-    overview,
-    ...(await inCusoWorkspace(overview)),
-    path: { id: overview.projectId },
-  };
-}
-
 /** Starts connecting a network; the browser goes to the returned URL. */
 type SocialProvider = "x" | "linkedin" | "instagram" | "facebook" | "youtube";
 
@@ -659,9 +647,9 @@ async function startChannel(
   provider: SocialProvider,
   from: "onboarding" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
-  const { overview: _overview, ...options } = await cusoProject(projectId);
-  const { data, error } = await postProjectsByIdSocialConnectionsInitiate({
-    ...options,
+  const { data, error } = await initiateCmoSocialConnectionForProject({
+    ...(await requireCore()),
+    path: { projectId },
     body: {
       action: "connect",
       provider,
@@ -701,9 +689,9 @@ export async function finalizeChannel(
   sessionUri: string | null = null,
 ): Promise<boolean> {
   await redeemCallback(projectId, connectionId, sessionUri);
-  const { overview: _overview, ...options } = await cusoProject(projectId);
-  const { error } = await postProjectsByIdSocialConnectionsFinalize({
-    ...options,
+  const { error } = await finalizeCmoSocialConnectionForProject({
+    ...(await requireCore()),
+    path: { projectId },
     body: { connectionId },
   });
   return !error;

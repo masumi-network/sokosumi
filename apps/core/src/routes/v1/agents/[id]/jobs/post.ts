@@ -10,6 +10,7 @@ import {
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { createJobRequestSchema, jobSummarySchema } from "@/schemas/job.schema";
+import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 import { flattenJob } from "@/types/job";
 
 const params = z.object({
@@ -58,6 +59,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: agentId } = c.req.valid("param");
     const { maxCredits, inputData, inputSchema, name, projectId } =
       c.req.valid("json");
+
+    if (projectId) {
+      await requireNotCmoProject(projectId, workspaceContext.workspaceId);
+    }
 
     const job = await createAgentJobForUser({
       owner: {

@@ -11,6 +11,10 @@ export const CORE_API_ERROR_KINDS = {
   CALENDAR_CLIENT_UPGRADE_REQUIRED: "calendar_client_upgrade_required",
   /** CMO is invite-only: the person is not on Core's `CMO_HIRE_ALLOWLIST`. */
   CMO_HIRE_NOT_ALLOWED: "cmo_hire_not_allowed",
+  /** A `/v1/cmo` write came from another app than CMO's (`CMO_OAUTH_CLIENT_ID`). */
+  CMO_CLIENT_REQUIRED: "cmo_client_required",
+  /** The Project has a live Cuso, so only CMO changes it (ADR 0066). */
+  CMO_PROJECT_READ_ONLY: "cmo_project_read_only",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
   /** A channel being added already belongs to another contact; `existingContactId` names it. */
   CONTACT_CHANNEL_TAKEN: "contact_channel_taken",

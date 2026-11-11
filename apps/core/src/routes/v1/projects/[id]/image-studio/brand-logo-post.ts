@@ -56,6 +56,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("CMO project is read-only"),
       413: jsonErrorResponse("Logo is too large"),
       422: jsonErrorResponse("Logo is not a supported image"),
       503: jsonErrorResponse("Logo storage is unavailable"),

@@ -42,6 +42,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { moveDriveItemRequestSchema } from "@/schemas/drive-file.schema";
+import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
 import {
   assertDataRoomMoveAllowed,
   rebaseDataRooms,
@@ -121,7 +122,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         scope: scope === "user" ? "me" : "org",
         organizationId:
           scope === "organization"
-            ? (body.organizationId ?? ownerId)
+            ? (ownerId ?? body.organizationId)
             : undefined,
       });
       resolvedWorkspaceId = workspace.workspaceId;
@@ -153,6 +154,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         into: [targetFolderPath],
       });
 
+      const workspaceId = await workspaceIdFor(scope, ownerId);
+      if (scope === "organization") {
+        await requireNotCmoDriveFile(workspaceId, body.sourcePathname);
+      }
+
       await moveDriveFile({
         sourcePathname: body.sourcePathname,
         targetFolderPath,
@@ -160,7 +166,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ownerId,
         // Before the mutation, so a workspace-resolution failure cannot
         // leave a moved object with a stale catalog entry.
-        workspaceId: await workspaceIdFor(scope, ownerId),
+        workspaceId,
       });
 
       return ok(c, body);
@@ -281,7 +287,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      await workspaceIdFor(scope);
+      const workspaceId = await workspaceIdFor(scope, ownerId);
+      if (scope === "organization") {
+        await requireNotCmoDriveFile(workspaceId, { startsWith: oldPrefix });
+      }
 
       // Before the objects: a room on this folder must already name the new
       // path, so what moves into it is written to the private store.
