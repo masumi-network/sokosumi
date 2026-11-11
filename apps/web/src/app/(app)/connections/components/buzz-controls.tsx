@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  authorizeBuzzApp,
   enableBuzzForOrganization,
   linkBuzzApp,
   revealBuzzSecretKey,
@@ -154,13 +153,7 @@ export function EnableBuzzButton({
  * Links the person's own Buzz app: they paste its public key, open the invite
  * in Buzz, and the key is linked once Buzz has joined with it.
  */
-export function BuzzAppLink({
-  app,
-  sokosumiPubkey,
-}: {
-  app: BuzzConnection["app"];
-  sokosumiPubkey: string;
-}) {
+export function BuzzAppLink({ app }: { app: BuzzConnection["app"] }) {
   const t = useTranslations("App.Connections.Buzz");
   const router = useRouter();
   const [publicKey, setPublicKey] = useState(app?.npub ?? "");
@@ -179,10 +172,6 @@ export function BuzzAppLink({
     return (
       <div className="space-y-3">
         <BuzzCopyField label={t("appLinked")} value={app.npub} />
-        <BuzzAgentAuthorization
-          authorized={app.authorized}
-          sokosumiPubkey={sokosumiPubkey}
-        />
         <div className="space-y-1">
           <p className="text-muted-foreground text-xs font-medium">
             {t("agentsTitle")}
@@ -286,71 +275,6 @@ export function BuzzAppLink({
           {invites.length > 0 ? t("waiting") : t("waitingNoInvite")}
         </p>
       )}
-    </div>
-  );
-}
-
-/**
- * Lets the person's Buzz agents answer what they write in Sokosumi: their
- * Buzz app vouches for Sokosumi's key, and that proof rides on what Sokosumi
- * signs for them.
- */
-function BuzzAgentAuthorization({
-  authorized,
-  sokosumiPubkey,
-}: {
-  authorized: boolean;
-  sokosumiPubkey: string;
-}) {
-  const t = useTranslations("App.Connections.Buzz");
-  const router = useRouter();
-  const [proof, setProof] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  if (authorized) {
-    return <p className="text-muted-foreground text-xs">{t("authorized")}</p>;
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-muted-foreground text-xs">{t("authorizeHint")}</p>
-      <BuzzCopyField label={t("sokosumiKeyHex")} value={sokosumiPubkey} />
-      <form
-        className="space-y-1"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setLoading(true);
-          const result = await authorizeBuzzApp({ proof });
-          setLoading(false);
-          if (result.ok) {
-            toast.success(t("authorizedToast"));
-            router.refresh();
-          } else {
-            toast.error(result.error.message);
-          }
-        }}
-      >
-        <label
-          htmlFor="buzz-app-proof"
-          className="text-muted-foreground text-xs font-medium"
-        >
-          {t("proof")}
-        </label>
-        <div className="flex items-center gap-2">
-          <Input
-            id="buzz-app-proof"
-            value={proof}
-            onChange={(event) => setProof(event.target.value)}
-            placeholder='["auth", …]'
-            autoComplete="off"
-            spellCheck={false}
-            className="min-w-0 flex-1 font-mono text-sm"
-          />
-          <Button type="submit" size="sm" loading={loading}>
-            {t("saveProof")}
-          </Button>
-        </div>
-      </form>
     </div>
   );
 }

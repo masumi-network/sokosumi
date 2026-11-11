@@ -3005,10 +3005,6 @@ export type BuzzConnection = {
          */
         status: 'pending' | 'linked';
         /**
-         * Whether the caller's Buzz app vouched for their Sokosumi key, so their Buzz agents answer what they write in Sokosumi.
-         */
-        authorized: boolean;
-        /**
          * Agents this key owns in Buzz, usable as Coworkers in the caller's rooms.
          */
         agents: Array<{
@@ -23534,101 +23530,6 @@ export type PostBuzzAppKeyResponses = {
 };
 
 export type PostBuzzAppKeyResponse = PostBuzzAppKeyResponses[keyof PostBuzzAppKeyResponses];
-
-export type PostBuzzAppKeyAuthorizationData = {
-    body?: {
-        /**
-         * The NIP-OA auth tag Buzz shows, ["auth", owner, "", signature].
-         */
-        proof: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/buzz/app-key/authorization';
-};
-
-export type PostBuzzAppKeyAuthorizationErrors = {
-    /**
-     * Not a proof for this key
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Buzz is not configured
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostBuzzAppKeyAuthorizationError = PostBuzzAppKeyAuthorizationErrors[keyof PostBuzzAppKeyAuthorizationErrors];
-
-export type PostBuzzAppKeyAuthorizationResponses = {
-    /**
-     * Saved
-     */
-    200: {
-        data: {
-            authorized: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostBuzzAppKeyAuthorizationResponse = PostBuzzAppKeyAuthorizationResponses[keyof PostBuzzAppKeyAuthorizationResponses];
 
 export type PostBuzzOrganizationsByOrganizationIdData = {
     body?: never;

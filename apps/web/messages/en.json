@@ -8616,15 +8616,7 @@
         "unlinkError": "Failed to unlink the Buzz app",
         "agentsTitle": "Your Buzz agents",
         "agentsEmpty": "Agents you create in the Buzz app appear here within a minute, ready to add to rooms like any Coworker.",
-        "agentsHint": "Add them to a room like any Coworker. In Buzz, let each answer anyone (not only you) so mentions from Sokosumi reach it.",
-        "authorizeHint": "Your Buzz agents answer only you. To let them answer what you write here too: in Buzz, open Settings → Security → Authorize external identity, paste this key, click Authorize this key, and paste the proof below.",
-        "sokosumiKeyHex": "Your Sokosumi key (hex)",
-        "proof": "Proof from Buzz",
-        "saveProof": "Save",
-        "authorized": "Your Buzz agents answer what you write here as well as in Buzz.",
-        "authorizedToast": "Your agents will answer you from Sokosumi",
-        "proofInvalid": "Paste the proof Buzz shows.",
-        "proofError": "Failed to save the proof"
+        "agentsHint": "Add them to a room like any Coworker. In Buzz, let each answer anyone (not only you) so mentions from Sokosumi reach it."
       }
     },
     "Channels": {

@@ -433,7 +433,6 @@ import {
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postBuzzAppKey as corePostBuzzAppKey,
-  postBuzzAppKeyAuthorization as corePostBuzzAppKeyAuthorization,
   postBuzzConnectionSecretKey as corePostBuzzConnectionSecretKey,
   postBuzzOrganizationsByOrganizationId as corePostBuzzOrganizationsByOrganizationId,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
@@ -1020,19 +1019,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to link the Buzz app",
-    );
-  }
-
-  async function postBuzzAppKeyAuthorization(proof: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostBuzzAppKeyAuthorization({
-          client,
-          body: { proof },
-          cache: "no-store",
-        }),
-      "Failed to save the Buzz proof",
     );
   }
 
@@ -7301,7 +7287,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     getBuzzConnection,
     postBuzzConnectionSecretKey,
     postBuzzAppKey,
-    postBuzzAppKeyAuthorization,
     deleteBuzzAppKey,
     postBuzzOrganization,
     getProjectsByIdNewsletterSendingDomain,

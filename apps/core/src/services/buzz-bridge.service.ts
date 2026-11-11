@@ -29,7 +29,7 @@ import {
   readableContent,
   readInbound,
 } from "@/lib/buzz/events";
-import { attestedOwner, authTagOwner } from "@/lib/buzz/owner-attestation";
+import { attestedOwner } from "@/lib/buzz/owner-attestation";
 import {
   BuzzRelayRejectedError,
   nip98Header,
@@ -165,17 +165,6 @@ export function identitySecretKey(identity: BuzzIdentity): Uint8Array {
   );
 }
 
-/**
- * A draft carrying the person's own app key's vouch for this key, when they
- * gave one: their Buzz agents answer only their owner, and take an event so
- * vouched for as the owner's.
- */
-function vouched(identity: BuzzIdentity, draft: EventDraft): EventDraft {
-  const tag = identity.appAuthTag;
-  if (!Array.isArray(tag) || !identity.appPubkey) return draft;
-  return { ...draft, tags: [...draft.tags, tag as string[]] };
-}
-
 /** A key Sokosumi cannot sign with: a person's own Buzz agent. */
 function isExternal(identity: BuzzIdentity): boolean {
   return !identity.encryptedSecretKey;
@@ -275,7 +264,6 @@ export async function buzzConnectionFor(userId: string) {
             ? ("linked" as const)
             : ("pending" as const),
           agents,
-          authorized: Boolean(identity.appPubkey && identity.appAuthTag),
         }
       : null,
     communities,
@@ -438,7 +426,6 @@ export async function verifyBuzzAppLinks(scope: { identityId?: string } = {}) {
         where: { id: identity.id },
         data: {
           appPubkey: pubkey,
-          appAuthTag: PrismaNull.DbNull,
           pendingAppPubkey: null,
           pendingAppSince: null,
           profileHash: null,
@@ -697,41 +684,6 @@ async function agentsOf(identityId: string) {
   }));
 }
 
-/**
- * Saves the vouch the person's Buzz app signed for Sokosumi's key (Settings →
- * Security → Authorize external identity), after checking it is exactly that:
- * their linked app key, Sokosumi's key, no conditions.
- */
-export async function saveBuzzAppAuthorization(userId: string, input: string) {
-  const identity = await prisma.buzzIdentity.findUnique({ where: { userId } });
-  if (!identity?.appPubkey) {
-    throw new BuzzAppLinkError("Link your Buzz app first.");
-  }
-  let tag: unknown;
-  try {
-    tag = JSON.parse(input.trim());
-  } catch {
-    throw new BuzzAppLinkError(
-      'Paste the whole proof Buzz shows, ["auth", …].',
-    );
-  }
-  if (
-    !Array.isArray(tag) ||
-    tag.length !== 4 ||
-    !tag.every((part) => typeof part === "string") ||
-    tag[2] !== "" ||
-    authTagOwner(identity.pubkey, tag as string[]) !== identity.appPubkey
-  ) {
-    throw new BuzzAppLinkError(
-      "This proof is not your linked Buzz app vouching for your Sokosumi key.",
-    );
-  }
-  await prisma.buzzIdentity.update({
-    where: { id: identity.id },
-    data: { appAuthTag: tag },
-  });
-}
-
 /** Forgets the person's own app key; their channels drop it within a minute. */
 export async function unlinkBuzzApp(userId: string) {
   const identity = await prisma.buzzIdentity.findUnique({ where: { userId } });
@@ -740,7 +692,6 @@ export async function unlinkBuzzApp(userId: string) {
     where: { id: identity.id },
     data: {
       appPubkey: null,
-      appAuthTag: PrismaNull.DbNull,
       pendingAppPubkey: null,
       pendingAppSince: null,
       profileHash: null,
@@ -1008,11 +959,8 @@ export async function syncRoomChannel(roomId: string) {
   if (!channel && asDirectMessage) {
     const [opener] = members;
     const event = signEvent(
-      vouched(
-        opener.identity,
-        openDirectMessageDraft(
-          directKeys.filter((pubkey) => pubkey !== opener.identity.pubkey),
-        ),
+      openDirectMessageDraft(
+        directKeys.filter((pubkey) => pubkey !== opener.identity.pubkey),
       ),
       identitySecretKey(opener.identity),
     );
@@ -1316,15 +1264,12 @@ export async function reconcileMessage(
         threadRootEventId = parentLink.eventId;
       }
       const event = signEvent(
-        vouched(
-          authorIdentity,
-          messageDraft({
-            channelId: channel.channelId,
-            content: await buzzContentOf(message.content),
-            threadRootEventId,
-            mentionPubkeys: await mentionPubkeysOf(message),
-          }),
-        ),
+        messageDraft({
+          channelId: channel.channelId,
+          content: await buzzContentOf(message.content),
+          threadRootEventId,
+          mentionPubkeys: await mentionPubkeysOf(message),
+        }),
         authorKey,
       );
       link = await prisma.buzzMessageLink.create({
@@ -1361,13 +1306,7 @@ export async function reconcileMessage(
   } else if (message.deletedAt && !link.deleted) {
     await decideAndDeliver(
       signEvent(
-        vouched(
-          authorIdentity,
-          deletionDraft({
-            channelId: channel.channelId,
-            eventId: link.eventId,
-          }),
-        ),
+        deletionDraft({ channelId: channel.channelId, eventId: link.eventId }),
         authorKey,
       ),
       { deleted: true },
@@ -1375,14 +1314,11 @@ export async function reconcileMessage(
     return "deleted";
   } else if (!message.deletedAt && link.contentHash !== hash) {
     const event = signEvent(
-      vouched(
-        authorIdentity,
-        editDraft({
-          channelId: channel.channelId,
-          eventId: link.eventId,
-          content: await buzzContentOf(message.content),
-        }),
-      ),
+      editDraft({
+        channelId: channel.channelId,
+        eventId: link.eventId,
+        content: await buzzContentOf(message.content),
+      }),
       authorKey,
     );
     await decideAndDeliver(event, {
@@ -1544,15 +1480,12 @@ async function reconcileReactions(input: {
     if (linked.has(key(reaction.userId, reaction.emoji))) continue;
     const identity = await ensureIdentity({ userId: reaction.userId });
     const event = signEvent(
-      vouched(
-        identity,
-        reactionDraft({
-          channelId: input.channelId,
-          eventId: input.eventId,
-          authorPubkey: input.authorPubkey,
-          emoji: reaction.emoji,
-        }),
-      ),
+      reactionDraft({
+        channelId: input.channelId,
+        eventId: input.eventId,
+        authorPubkey: input.authorPubkey,
+        emoji: reaction.emoji,
+      }),
       identitySecretKey(identity),
     );
     let linkId: string;
@@ -1592,10 +1525,7 @@ async function reconcileReactions(input: {
       continue;
     }
     const event = signEvent(
-      vouched(
-        link.identity,
-        deletionDraft({ channelId: input.channelId, eventId: link.eventId }),
-      ),
+      deletionDraft({ channelId: input.channelId, eventId: link.eventId }),
       identitySecretKey(link.identity),
     );
     await prisma.buzzReactionLink.update({
