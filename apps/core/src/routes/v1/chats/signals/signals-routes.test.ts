@@ -13,6 +13,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const views = vi.hoisted(() => ({
   getChatRoomCatchUp: vi.fn(),
   listChatRoomMessagesWithTag: vi.fn(),
+  listChatDecisions: vi.fn(),
   listChatNeedsYou: vi.fn(),
   listChatOpenLoops: vi.fn(),
   correctChatMessageSignal: vi.fn(),
@@ -37,6 +38,9 @@ vi.mock("./messages/updated-message", () => ({
   answerWithUpdatedMessage: answerMock,
 }));
 
+import mountGetAllDecisions, {
+  encodeChatDecisionCursor,
+} from "./decisions/get";
 import mountPutCorrection from "./messages/[messageId]/corrections/put";
 import mountPutLoop from "./messages/[messageId]/loop/put";
 import mountGetRouting from "./messages/[messageId]/routing/get";
@@ -93,6 +97,7 @@ function createApp(actor: "user" | "coworker" = "user") {
     return await next();
   });
   for (const mount of [
+    mountGetAllDecisions,
     mountGetNeedsYou,
     mountGetOpenLoops,
     mountGetSummary,
@@ -157,6 +162,45 @@ describe("chat signal routes", () => {
       "decisionMade",
       { cursor: undefined, take: 5 },
     );
+  });
+
+  it("lists decisions across rooms in the active organization, paged by position", async () => {
+    views.listChatDecisions.mockResolvedValue({
+      messages: [],
+      total: 7,
+      hasMore: false,
+    });
+    const cursor = encodeChatDecisionCursor({
+      createdAt: new Date("2026-10-24T09:00:00.000Z"),
+      id: MESSAGE_ID,
+    });
+    const response = await createApp().request(
+      `/decisions?limit=1&cursor=${encodeURIComponent(cursor)}`,
+    );
+    expect(response.status).toBe(200);
+    expect(views.listChatDecisions).toHaveBeenCalledWith(USER_ID, ORG_ID, {
+      after: {
+        createdAt: new Date("2026-10-24T09:00:00.000Z"),
+        id: MESSAGE_ID,
+      },
+      take: 1,
+    });
+    expect((await response.json()).meta.pagination).toMatchObject({
+      total: 7,
+      nextCursor: null,
+    });
+  });
+
+  it("refuses a malformed decisions cursor", async () => {
+    const response = await createApp().request("/decisions?cursor=nope");
+    expect(response.status).toBe(400);
+    expect(views.listChatDecisions).not.toHaveBeenCalled();
+  });
+
+  it("refuses coworker credentials for the decisions list", async () => {
+    const response = await createApp("coworker").request("/decisions");
+    expect(response.status).toBe(403);
+    expect(views.listChatDecisions).not.toHaveBeenCalled();
   });
 
   it("lists needs-you and open loops in the active organization", async () => {
