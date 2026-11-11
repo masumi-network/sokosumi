@@ -47,7 +47,7 @@ const begin = {
   url: "https://begin.is/",
   goal: "More users",
   main: "wallet",
-  price: "free",
+  price: "^free(?!.*(ios|android|chrome|may apply))",
   profile: "x\\.com/beginwallet",
 };
 
@@ -67,6 +67,18 @@ describe("Brand Brain checks for a brand's price and profile", () => {
         channels: [{ name: "X", url: "https://x.com/BeginWallet" }],
       }),
     ).toEqual([]);
+  });
+
+  it("fails a price narrowed to one store or hedged", () => {
+    for (const price of ["Free iOS download", "Free; fees may apply"])
+      expect(
+        failed({
+          ...brain,
+          summary: "Begin is a free Cardano wallet.",
+          offers: [{ name: "Begin Wallet", what: "A wallet", price }],
+          channels: [{ name: "X", url: "https://x.com/BeginWallet" }],
+        }),
+      ).toEqual(["Prices the main offer as published"]);
   });
 
   it('fails a "Not public" price and a missing profile', () => {
