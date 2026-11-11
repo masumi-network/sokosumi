@@ -57,7 +57,10 @@ describe("Cuso's research in groups (SOKD-167)", () => {
     );
     expect(brief("Website")).toContain("Start with web_fetch on the homepage");
     expect(brief("Website")).toContain('"Not public" only after');
-    expect(brief("Website")).toContain("app store listing the site links to");
+    expect(brief("Website")).toContain(
+      "takes only its price from the app store listings",
+    );
+    expect(brief("Website")).toContain("never one store's listing");
     expect(brief("Social accounts")).toContain("its profiles field");
   });
 });
