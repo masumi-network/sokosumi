@@ -7,7 +7,6 @@ import {
 } from "@sokosumi/database";
 import {
   applyVersionCapabilities,
-  CMO_SOKO_BOT_VERSION_IDS,
   capabilitiesForClassification,
   composeSokoBotVersionNotice,
   createEmptySokoBotMemory,
@@ -38,7 +37,10 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
-import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
+import {
+  forfeitCusoProjectCredits,
+  forfeitCusoProjectCreditsIfLeavingCmo,
+} from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -3411,9 +3413,7 @@ export class SokoBotControlPlane {
       );
     }
     await serializableTransaction(async (tx) => {
-      if (!CMO_SOKO_BOT_VERSION_IDS.includes(versionId)) {
-        await forfeitCusoProjectCredits(bot.id, tx);
-      }
+      await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
       const updated = await tx.sokoBot.updateMany({
         where: { id: bot.id, archivedAt: null },
         data: { versionId },
@@ -4151,9 +4151,7 @@ export class SokoBotControlPlane {
             throw new SokoBotNotFoundError("Soko Bot not found");
           }
           // Leaving CMO ends Cuso, so his Project credits end too (ADR 0067).
-          if (!CMO_SOKO_BOT_VERSION_IDS.includes(versionId)) {
-            await forfeitCusoProjectCredits(bot.id, tx);
-          }
+          await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
           const updated = await tx.sokoBot.update({
             where: { id: bot.id },
             data: { versionId },

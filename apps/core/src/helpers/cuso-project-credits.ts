@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 
 /**
@@ -21,6 +22,20 @@ export async function forfeitCusoProjectCredits(
   });
   if (!cuso?.projectId) return;
   await writeOffProjectCredits(cuso.projectId, tx);
+}
+
+/**
+ * A version change that takes Cuso off CMO ends him, so it forfeits his
+ * Project credits; a move between CMO versions keeps them. Call it before
+ * the version write, like `forfeitCusoProjectCredits`.
+ */
+export async function forfeitCusoProjectCreditsIfLeavingCmo(
+  sokoBotId: string,
+  versionId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  if (CMO_SOKO_BOT_VERSION_IDS.includes(versionId)) return;
+  await forfeitCusoProjectCredits(sokoBotId, tx);
 }
 
 /**

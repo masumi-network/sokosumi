@@ -146,9 +146,13 @@ vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: jevEvaluate,
 }));
-const forfeitMock = vi.hoisted(() => vi.fn());
+const { forfeitMock, forfeitIfLeavingCmoMock } = vi.hoisted(() => ({
+  forfeitMock: vi.fn(),
+  forfeitIfLeavingCmoMock: vi.fn(),
+}));
 vi.mock("@/helpers/cuso-project-credits", () => ({
   forfeitCusoProjectCredits: forfeitMock,
+  forfeitCusoProjectCreditsIfLeavingCmo: forfeitIfLeavingCmoMock,
 }));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
@@ -4795,11 +4799,12 @@ describe("updateVersion", () => {
       { kind: "id", sokoBotId: BOT_ID },
     );
 
-    expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
       BOT_ID,
+      "v19",
       expect.objectContaining({ sokoBot: expect.any(Object) }),
     );
-    expect(forfeitMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
       botUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
     );
   });
@@ -4874,16 +4879,17 @@ describe("SET_VERSION and fleet migration", () => {
 
     // In the version change's transaction, before the write: the helper
     // still reads him as a live Cuso.
-    expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
       BOT_ID,
+      "v16",
       expect.objectContaining({ sokoBot: expect.any(Object) }),
     );
-    expect(forfeitMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
       botUpdateMock.mock.invocationCallOrder[0] ?? 0,
     );
   });
 
-  it("keeps the Project credits when the move stays on a CMO version", async () => {
+  it("asks the write-off about a move between CMO versions too", async () => {
     botFindUniqueMock.mockResolvedValue(
       adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
     );
@@ -4902,7 +4908,12 @@ describe("SET_VERSION and fleet migration", () => {
     });
 
     expect(botUpdateMock).toHaveBeenCalled();
-    expect(forfeitMock).not.toHaveBeenCalled();
+    // The helper keeps the credits for a CMO version (its own test).
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledWith(
+      BOT_ID,
+      CMO_SOKO_BOT_VERSION_IDS.at(-1),
+      expect.any(Object),
+    );
   });
 
   it("refuses an unknown version before it writes an intent", async () => {
