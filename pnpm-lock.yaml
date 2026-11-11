@@ -503,7 +503,7 @@ importers:
         version: 1.3.1(docx@9.15.3)
       '@m2d/image':
         specifier: 1.6.2
-        version: 1.6.2(@xmldom/xmldom@0.8.13)(docx@9.15.3)
+        version: 1.6.2(docx@9.15.3)
       '@m2d/list':
         specifier: 0.0.13
         version: 0.0.13(docx@9.15.3)
@@ -641,7 +641,7 @@ importers:
         version: 18.2.0
       mdast2docx:
         specifier: 1.8.0
-        version: 1.8.0(@xmldom/xmldom@0.8.13)(remark-math@6.0.0(supports-color@8.1.1))
+        version: 1.8.0(remark-math@6.0.0(supports-color@8.1.1))
       mermaid:
         specifier: 12.3.0
         version: 12.3.0
@@ -5538,11 +5538,6 @@ packages:
 
   '@workflow/serde@4.1.0-beta.2':
     resolution: {integrity: sha512-8kkeoQKLDaKXefjV5dbhBj2aErfKp1Mc4pb6tj8144cF+Em5SPbyMbyLCHp+BVrFfFVCBluCtMx+jjvaFVZGww==}
-
-  '@xmldom/xmldom@0.8.13':
-    resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
-    engines: {node: '>=10.0.0'}
-    deprecated: this version has critical issues, please update to the latest version
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -11021,11 +11016,11 @@ snapshots:
       '@m2d/core': 1.10.0(docx@9.15.3)
       docx: 9.15.3
 
-  '@m2d/image@1.6.2(@xmldom/xmldom@0.8.13)(docx@9.15.3)':
+  '@m2d/image@1.6.2(docx@9.15.3)':
     dependencies:
       '@m2d/cache': 0.1.0
       '@m2d/core': 1.10.0(docx@9.15.3)
-      '@svg-fns/io': 1.0.1(@xmldom/xmldom@0.8.13)
+      '@svg-fns/io': 1.0.1
       '@svg-fns/svg2img': 0.2.0
       docx: 9.15.3
     transitivePeerDependencies:
@@ -13168,9 +13163,7 @@ snapshots:
       invariant: 2.2.4
       styleq: 0.2.1
 
-  '@svg-fns/io@1.0.1(@xmldom/xmldom@0.8.13)':
-    optionalDependencies:
-      '@xmldom/xmldom': 0.8.13
+  '@svg-fns/io@1.0.1': {}
 
   '@svg-fns/svg2img@0.2.0': {}
 
@@ -14113,9 +14106,6 @@ snapshots:
   '@workflow/serde@4.1.0': {}
 
   '@workflow/serde@4.1.0-beta.2': {}
-
-  '@xmldom/xmldom@0.8.13':
-    optional: true
 
   '@xtuc/ieee754@1.2.0':
     optional: true
@@ -16403,7 +16393,7 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.4
 
-  mdast2docx@1.8.0(@xmldom/xmldom@0.8.13)(remark-math@6.0.0(supports-color@8.1.1)):
+  mdast2docx@1.8.0(remark-math@6.0.0(supports-color@8.1.1)):
     dependencies:
       '@m2d/cache': 0.1.0
       '@m2d/code': 0.1.0(docx@9.15.3)
@@ -16411,7 +16401,7 @@ snapshots:
       '@m2d/emoji': 0.1.3(docx@9.15.3)
       '@m2d/frontmatter': 1.0.0(docx@9.15.3)
       '@m2d/html': 1.3.1(docx@9.15.3)
-      '@m2d/image': 1.6.2(@xmldom/xmldom@0.8.13)(docx@9.15.3)
+      '@m2d/image': 1.6.2(docx@9.15.3)
       '@m2d/list': 0.0.13(docx@9.15.3)
       '@m2d/math': 0.1.3(docx@9.15.3)(remark-math@6.0.0(supports-color@8.1.1))
       '@m2d/mermaid': 1.3.3(docx@9.15.3)
