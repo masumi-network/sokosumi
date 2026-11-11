@@ -516,6 +516,7 @@ describe("notifyTaskStatusEvent", () => {
       project: null,
       projectId: null,
       workspaceId: null,
+      events: [],
     });
   });
 
@@ -543,6 +544,34 @@ describe("notifyTaskStatusEvent", () => {
         throwOnError: true,
       }),
     ).rejects.toBe(failure);
+  });
+
+  /**
+   * A Soko Bot that finished a Task assigned to its own person did the work.
+   * The row named nobody ("Assistant") because the Task's assignee is the
+   * person, who has no coworker or Soko Bot name.
+   */
+  it("names the Soko Bot that wrote the event", async () => {
+    prismaTaskFindUniqueMock.mockResolvedValueOnce({
+      id: "task_1",
+      ownerId: "user_1",
+      assigneeUserId: "user_1",
+      name: "Launch",
+      assignee: null,
+      assigneeSokoBot: null,
+      project: null,
+      projectId: null,
+      workspaceId: null,
+      events: [{ sokoBot: { name: "Pip" }, coworker: null, user: null }],
+    });
+
+    await notifyTaskStatusEvent("task_1", "event_1", "COMPLETED", null);
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: { coworkerName: "Pip", taskName: "Launch" },
+      }),
+    );
   });
 
   /** Agents write events with no `userId`, so the owner still hears. */

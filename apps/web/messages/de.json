@@ -816,7 +816,33 @@
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
-      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden"
+      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden",
+      "reply": "Antworten",
+      "replyTo": "Antworten: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# Aufgabe wartet auf dich} other {# Aufgaben warten auf dich}}",
+        "showAll": "Alle in Aufgaben anzeigen",
+        "loadError": "Die Aufgaben, die auf dich warten, konnten nicht geladen werden",
+        "ask": {
+          "INPUT_REQUIRED": "{name} braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "{name} braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "{name} braucht deine Anmeldung"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "Braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "Braucht deine Anmeldung",
+          "OUT_OF_CREDITS": "Pausiert, bis Credits aufgeladen sind",
+          "GRANT_PENDING": "Wartet auf Workspace-Zugriff"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Antworten",
+          "APPROVAL_REQUIRED": "Prüfen",
+          "AUTHENTICATION_REQUIRED": "Anmelden",
+          "OUT_OF_CREDITS": "Öffnen",
+          "GRANT_PENDING": "Öffnen"
+        }
+      }
     },
     "HashValue": {
       "copy": "Kopieren",

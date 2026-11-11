@@ -832,7 +832,33 @@
       "vendorGrantAcceptSuccess": "Vendor access approved",
       "vendorGrantAcceptError": "Failed to approve vendor access",
       "coworkerAccessAcceptSuccess": "Coworker early access approved",
-      "coworkerAccessAcceptError": "Failed to approve coworker early access"
+      "coworkerAccessAcceptError": "Failed to approve coworker early access",
+      "reply": "Reply",
+      "replyTo": "Reply: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# Task is waiting on you} other {# Tasks are waiting on you}}",
+        "showAll": "Show all in Tasks",
+        "loadError": "Could not load the Tasks waiting on you",
+        "ask": {
+          "INPUT_REQUIRED": "{name} needs your input",
+          "APPROVAL_REQUIRED": "{name} needs your approval",
+          "AUTHENTICATION_REQUIRED": "{name} needs you to sign in"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Needs your input",
+          "APPROVAL_REQUIRED": "Needs your approval",
+          "AUTHENTICATION_REQUIRED": "Needs you to sign in",
+          "OUT_OF_CREDITS": "Paused until credits are added",
+          "GRANT_PENDING": "Waiting for workspace access"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Answer",
+          "APPROVAL_REQUIRED": "Review",
+          "AUTHENTICATION_REQUIRED": "Sign in",
+          "OUT_OF_CREDITS": "Open",
+          "GRANT_PENDING": "Open"
+        }
+      }
     },
     "HashValue": {
       "copy": "Copy",
