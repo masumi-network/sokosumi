@@ -9812,7 +9812,8 @@
         "continue": "Continue",
         "back": "Back",
         "pictureTitle": "Pick a picture for {name}",
-        "skip": "Skip"
+        "createWithoutPicture": "Create without a picture",
+        "createWithoutPictureHint": "{name} starts with its color orb. Add a picture any time in its settings."
       },
       "Memory": {
         "title": "Memory",

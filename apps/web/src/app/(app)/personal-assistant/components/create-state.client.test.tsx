@@ -217,7 +217,7 @@ describe("CreateState", () => {
     });
   });
 
-  it("lets the person skip the picture, and the bot gets its orb", async () => {
+  it("creates the bot without a picture, and it gets its orb", async () => {
     const user = userEvent.setup();
     createMock.mockResolvedValue({
       ok: true,
@@ -227,7 +227,14 @@ describe("CreateState", () => {
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
     await user.click(screen.getByRole("button", { name: "owl" }));
-    await user.click(screen.getByRole("button", { name: "Skip" }));
+    const noPicture = screen.getByRole("button", {
+      name: "Create without a picture",
+    });
+    // Says what the button leads to: the orb now, a picture later.
+    expect(noPicture).toHaveAccessibleDescription(
+      "Atlas starts with its color orb. Add a picture any time in its settings.",
+    );
+    await user.click(noPicture);
 
     expect(createMock).toHaveBeenCalledWith({
       input: {

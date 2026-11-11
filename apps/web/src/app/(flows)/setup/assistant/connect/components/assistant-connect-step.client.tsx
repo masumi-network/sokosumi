@@ -8,16 +8,19 @@ import { toast } from "sonner";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import {
   SOKO_BOT_SETUP_FRAME_CLASS,
+  SokoBotSetupHeader,
   SokoBotSetupSteps,
 } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
-import { cn } from "@/lib/utils";
 
 interface AssistantConnectStepProps {
   botName: string;
+  /** The picture picked on the step before; null shows the bot's orb. */
+  botImageUrl: string | null;
+  botOrbSeed: string;
   offers: SokoBotConnectOffer[];
   /** The bot's chat, where this step ends. */
   chatUrl: string;
@@ -28,6 +31,8 @@ interface AssistantConnectStepProps {
 /** Optional: give the new bot mail and calendar, then open its chat. */
 export function AssistantConnectStep({
   botName,
+  botImageUrl,
+  botOrbSeed,
   offers,
   chatUrl,
   returnTo,
@@ -54,21 +59,16 @@ export function AssistantConnectStep({
   }
 
   return (
-    <div className={cn(SOKO_BOT_SETUP_FRAME_CLASS, "items-center")}>
-      <div className="mb-8 w-full">
-        <SokoBotSetupSteps current={3} />
-      </div>
-      <h1
-        ref={headingRef}
-        tabIndex={-1}
-        className="text-foreground text-center text-2xl font-light tracking-tight text-balance wrap-anywhere outline-none md:text-3xl"
-      >
-        {tConnect("connectTitle", { bot: botName })}
-      </h1>
-      <p className="text-muted-foreground mt-3 text-center text-sm text-pretty md:text-base">
-        {tConnect("connectBody")}
-      </p>
-      <div className="mt-10 w-full space-y-3">
+    <div className={SOKO_BOT_SETUP_FRAME_CLASS}>
+      <SokoBotSetupSteps current={3} />
+      <SokoBotSetupHeader
+        imageUrl={botImageUrl}
+        seed={botOrbSeed}
+        title={tConnect("connectTitle", { bot: botName })}
+        hint={tConnect("connectBody")}
+        headingRef={headingRef}
+      />
+      <div className="flex flex-col gap-3">
         {offers.map(({ provider, name, connected }) => {
           const Logo = SOKO_BOT_PROVIDER_LOGOS[provider];
           return (
@@ -95,7 +95,7 @@ export function AssistantConnectStep({
       <Button
         asChild
         variant={anyConnected ? "default" : "ghost"}
-        className="mt-6 w-full"
+        className="w-full"
       >
         <Link href={chatUrl} replace>
           {t(anyConnected ? "continue" : "skip")}
