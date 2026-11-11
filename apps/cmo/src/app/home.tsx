@@ -113,7 +113,8 @@ type OpenedScreen =
   /** The only Cuso, opened by an address naming him, which the proxy remembers. */
   | { kind: "only"; projectId: string }
   | { kind: "picker"; cusos: CmoCuso[]; mayHire: boolean }
-  | { kind: "hire" }
+  /** `cusoPicker`: the person has a Cuso for "Your Cusos" to lead back to. */
+  | { kind: "hire"; cusoPicker: boolean }
   /** In place of the hire form: Core's hire allowlist leaves the person out. */
   | { kind: "inviteOnly" };
 
@@ -138,7 +139,9 @@ async function openedScreen(input: {
     }
   }
   const { cusos, mayHire } = await loadCusos();
-  const hireScreen: OpenedScreen = { kind: mayHire ? "hire" : "inviteOnly" };
+  const hireScreen: OpenedScreen = mayHire
+    ? { kind: "hire", cusoPicker: cusos.length > 0 }
+    : { kind: "inviteOnly" };
   if (input.hire) return hireScreen;
   const [newest] = cusos;
   if (!newest) return hireScreen;
@@ -249,6 +252,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         websiteUrl={websiteUrl}
         organizations={organizations}
         signOut={signOut}
+        cusoPicker={opened.cusoPicker}
         onboard={onboard}
       />
     );
