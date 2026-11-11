@@ -46726,6 +46726,9 @@ export const SharedSokoBotSummarySchema = {
         },
         viewerCanManage: {
             type: 'boolean'
+        },
+        cuso: {
+            type: 'boolean'
         }
     },
     required: [
@@ -46738,7 +46741,8 @@ export const SharedSokoBotSummarySchema = {
         'status',
         'archivedAt',
         'sharedRoomId',
-        'viewerCanManage'
+        'viewerCanManage',
+        'cuso'
     ]
 } as const;
 

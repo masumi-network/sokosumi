@@ -12023,6 +12023,7 @@ export type SharedSokoBotSummary = {
     archivedAt: Date | null;
     sharedRoomId: string | null;
     viewerCanManage: boolean;
+    cuso: boolean;
 };
 
 export type SokoBotActivity = {

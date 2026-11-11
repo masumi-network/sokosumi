@@ -7,7 +7,6 @@ import { SokoBotConsole } from "@/app/personal-assistant/components/console/cons
 import { ReactivateSharedBotButton } from "@/app/soko-bots/components/reactivate-shared-bot-button.client";
 import { Button } from "@/components/ui/button";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
-import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { loadBotAdAccounts } from "@/lib/soko-bot/load-bot-ad-accounts";
@@ -62,7 +61,8 @@ export default async function SharedSokoBotPage({
         </h1>
         <p className="text-muted-foreground text-sm">{t("description")}</p>
         <div className="flex justify-center gap-2">
-          {summary.viewerCanManage ? (
+          {/* Reactivating Cuso is CMO's call (ADR 0066). */}
+          {summary.viewerCanManage && !summary.cuso ? (
             <ReactivateSharedBotButton botId={id} />
           ) : null}
           <Button asChild variant="outline">
@@ -78,7 +78,7 @@ export default async function SharedSokoBotPage({
   const wantsAdvanced = query.view === "advanced" || focusTurnId !== null;
   const integrationOutcome =
     typeof query.integration === "string" ? query.integration : null;
-  const [stats, usage, integrations, adAccounts, project] = await Promise.all([
+  const [stats, usage, integrations, adAccounts] = await Promise.all([
     sokoBotService.getStats(id).catch(() => null),
     sokoBotService.getMyUsage(id).catch(() => null),
     sokoBotService.listIntegrations(id).catch(() => null),
@@ -87,10 +87,6 @@ export default async function SharedSokoBotPage({
       ? loadBotAdAccounts({ projectId: summary.projectId ?? null }).catch(
           () => null,
         )
-      : null,
-    // Cuso is the bot of a CMO Project; a failed read shows the plain console.
-    summary.projectId
-      ? projectService.getProjectById(summary.projectId).catch(() => null)
       : null,
   ]);
 
@@ -111,7 +107,8 @@ export default async function SharedSokoBotPage({
       paidByOrganization
       botId={id}
       canManage={state.bot.viewerCanManage}
-      cmoProjectId={project?.cmo ? project.id : null}
+      // A live Cuso is what makes his Project a CMO Project.
+      cmoProjectId={summary.cuso ? summary.projectId : null}
       sharedRoomId={summary.sharedRoomId}
       ads={
         adAccounts && {

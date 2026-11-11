@@ -298,6 +298,7 @@ describe("shared Soko Bot routes", () => {
           archivedAt: null,
           sharedRoomId: null,
           viewerCanManage: true,
+          cuso: false,
         },
       ]);
 

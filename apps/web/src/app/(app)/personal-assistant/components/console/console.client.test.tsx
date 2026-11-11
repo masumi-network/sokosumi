@@ -100,6 +100,9 @@ vi.mock("../proactive-settings.client", () => ({
 vi.mock("../follow-board-toggle.client", () => ({
   FollowBoardToggle: () => <span data-testid="follow-board" />,
 }));
+vi.mock("../mail-auto-read-toggle.client", () => ({
+  MailAutoReadToggle: () => <span data-testid="mail-auto-read" />,
+}));
 vi.mock("../integrations-section.client", () => ({
   IntegrationsSection: () => <span data-testid="integrations" />,
 }));
@@ -203,6 +206,7 @@ describe("SokoBotConsole", () => {
       expect(screen.queryByTestId(id)).not.toBeInTheDocument();
     }
     expect(screen.queryByTestId("follow-board")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mail-auto-read")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Rename/i }),
     ).not.toBeInTheDocument();

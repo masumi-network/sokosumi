@@ -99,7 +99,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
   const market =
     query.tab === "market" ? (
       <Suspense fallback={<AdsRowsSkeleton />}>
-        <AdsMarketSection projectId={project.id} />
+        <AdsMarketSection projectId={project.id} readOnly={project.cmo} />
       </Suspense>
     ) : null;
 

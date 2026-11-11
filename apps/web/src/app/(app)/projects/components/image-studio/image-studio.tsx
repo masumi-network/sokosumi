@@ -1438,27 +1438,33 @@ export function ImageStudio({
             activeProjectId && !readOnly ? openAssistant : undefined
           }
           editWithAssistantLabel={t("Assistant.edit")}
-          onRegenerate={(asset) => repeat(asset, "asset")}
+          onRegenerate={
+            readOnly ? undefined : (asset) => repeat(asset, "asset")
+          }
           onSchedule={readOnly ? undefined : scheduleAsset}
           onSelect={selectAsset}
-          onUseAsReference={(asset) => {
-            setBatchProducts([]);
-            setDraftProduct(asset.product);
-            setParentAssetId(undefined);
-            setHasNewerSettings(true);
-            setTemplateUndo(null);
-            setCheckedIds([asset.id]);
-            setPrompt("");
-            setTarget((current) => ({
-              ...current,
-              creativeDirection: undefined,
-              placementRatios: undefined,
-              settings: { ...settingsOf(asset), seed: null },
-            }));
-            setViewing(null);
-            requestAnimationFrame(() => promptRef.current?.focus());
-          }}
-          onWriteCaption={writeCaption}
+          onUseAsReference={
+            readOnly
+              ? undefined
+              : (asset) => {
+                  setBatchProducts([]);
+                  setDraftProduct(asset.product);
+                  setParentAssetId(undefined);
+                  setHasNewerSettings(true);
+                  setTemplateUndo(null);
+                  setCheckedIds([asset.id]);
+                  setPrompt("");
+                  setTarget((current) => ({
+                    ...current,
+                    creativeDirection: undefined,
+                    placementRatios: undefined,
+                    settings: { ...settingsOf(asset), seed: null },
+                  }));
+                  setViewing(null);
+                  requestAnimationFrame(() => promptRef.current?.focus());
+                }
+          }
+          onWriteCaption={readOnly ? undefined : writeCaption}
           caption={
             lightboxAssets.length === 1
               ? captionByAssetId[lightboxAssets[0].id]?.text

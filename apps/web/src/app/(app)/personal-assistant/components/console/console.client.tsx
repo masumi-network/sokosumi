@@ -549,9 +549,11 @@ export function SokoBotConsole({
                           <FollowBoardToggle
                             initial={bot.followWholeBoard ?? false}
                           />
+                          <MailAutoReadToggle
+                            initial={bot.mailAutoRead ?? false}
+                          />
                         </>
                       )}
-                      <MailAutoReadToggle initial={bot.mailAutoRead ?? false} />
                       {canManage ? (
                         <div className="space-y-2">
                           <p className="text-sm font-medium">
