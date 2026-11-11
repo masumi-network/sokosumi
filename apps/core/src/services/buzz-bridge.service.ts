@@ -5,6 +5,7 @@ import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
 
 import { getEnv } from "@/config/env";
+import { notifyWorkspaceApproversOfPendingCoworkerAccess } from "@/helpers/coworker-workspace-access";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
@@ -619,22 +620,40 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
         changed.push(coworkerId);
       }
       // Granted where the owner may grant (their own workspace, organizations
-      // they own or administer); elsewhere asked for, for an admin to decide.
-      await prisma.coworkerWorkspaceAccess.createMany({
-        data: access.map(({ workspaceId, granted }) => ({
-          coworkerId: coworkerId as string,
-          workspaceId,
-          requestedByUserId: userId,
-          ...(granted
-            ? {
-                status: "GRANTED" as const,
-                resolvedById: userId,
-                resolvedAt: new Date(),
-              }
-            : { status: "PENDING" as const }),
-        })),
-        skipDuplicates: true,
-      });
+      // they own or administer); elsewhere requested, and that workspace's
+      // owners and admins are notified to approve it.
+      for (const { workspaceId, granted } of access) {
+        const where = {
+          coworkerId_workspaceId: {
+            coworkerId: coworkerId as string,
+            workspaceId,
+          },
+        };
+        if (await prisma.coworkerWorkspaceAccess.findUnique({ where })) {
+          continue;
+        }
+        const created = await prisma.coworkerWorkspaceAccess.create({
+          data: {
+            coworkerId: coworkerId as string,
+            workspaceId,
+            requestedByUserId: userId,
+            ...(granted
+              ? {
+                  status: "GRANTED" as const,
+                  resolvedById: userId,
+                  resolvedAt: new Date(),
+                }
+              : { status: "PENDING" as const }),
+          },
+        });
+        if (!granted) {
+          await notifyWorkspaceApproversOfPendingCoworkerAccess({
+            coworkerId: created.coworkerId,
+            workspaceId,
+            accessId: created.id,
+          });
+        }
+      }
     }
     const gone = await prisma.coworker.updateMany({
       where: {

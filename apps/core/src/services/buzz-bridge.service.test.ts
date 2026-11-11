@@ -46,6 +46,10 @@ const db = vi.hoisted(() => {
   };
 });
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
+const approvers = vi.hoisted(() => ({ notify: vi.fn() }));
+vi.mock("@/helpers/coworker-workspace-access", () => ({
+  notifyWorkspaceApproversOfPendingCoworkerAccess: approvers.notify,
+}));
 const relay = vi.hoisted(() => ({ queryEvents: vi.fn() }));
 vi.mock("@/lib/buzz/relay-client", async (importActual) => ({
   ...(await importActual<typeof import("@/lib/buzz/relay-client")>()),
@@ -728,6 +732,17 @@ describe("a person's own Buzz agents", () => {
     db.vendor.upsert.mockResolvedValue({ id: "vendor" });
     db.buzzIdentity.findUnique.mockResolvedValue(null);
     db.coworker.create.mockResolvedValue({ id: "coworker-new" });
+    db.coworkerWorkspaceAccess.findUnique.mockResolvedValue(null);
+    db.coworkerWorkspaceAccess.create.mockImplementation(
+      async ({
+        data,
+      }: {
+        data: { coworkerId: string; workspaceId: string };
+      }) => ({
+        id: `access-${data.workspaceId}`,
+        coworkerId: data.coworkerId,
+      }),
+    );
     db.coworker.updateMany.mockResolvedValue({ count: 0 });
     const record = (pubkey: string) =>
       finalizeEvent(
@@ -768,23 +783,25 @@ describe("a person's own Buzz agents", () => {
         },
       }),
     });
-    expect(db.coworkerWorkspaceAccess.createMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: [
-          // Bob's own workspace: his to grant.
-          expect.objectContaining({
-            coworkerId: "coworker-new",
-            workspaceId: "workspace",
-            status: "GRANTED",
-          }),
-          // An organization he is only a member of: asked for.
-          expect.objectContaining({
-            coworkerId: "coworker-new",
-            workspaceId: "org-workspace",
-            status: "PENDING",
-          }),
-        ],
+    // Bob's own workspace: his to grant.
+    expect(db.coworkerWorkspaceAccess.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "workspace",
+        status: "GRANTED",
       }),
-    );
+    });
+    // An organization he is only a member of: requested, and its admins told.
+    expect(db.coworkerWorkspaceAccess.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "org-workspace",
+        status: "PENDING",
+      }),
+    });
+    expect(approvers.notify).toHaveBeenCalledTimes(1);
+    expect(approvers.notify).toHaveBeenCalledWith({
+      coworkerId: "coworker-new",
+      workspaceId: "org-workspace",
+      accessId: "access-org-workspace",
+    });
   });
 });
