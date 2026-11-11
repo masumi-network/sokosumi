@@ -84,7 +84,7 @@ async function status() {
 }
 
 function coreRequester(baseUrl: string): CoreRequest {
-  return async ({ method, path, apiKey, body, timeoutMs }) => {
+  return async ({ method, path, apiKey, body, timeoutMs, streamed }) => {
     const response = await fetch(new URL(path, baseUrl), {
       method,
       headers: {
@@ -94,6 +94,12 @@ function coreRequester(baseUrl: string): CoreRequest {
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs ?? 30_000),
     });
+    // A stream has started once its headers are in: answer then, and keep
+    // reading it so the answer is not cut off.
+    if (streamed && response.ok) {
+      void response.arrayBuffer().catch(() => undefined);
+      return { status: response.status, body: null };
+    }
     const text = await response.text();
     let parsed: unknown = text;
     try {

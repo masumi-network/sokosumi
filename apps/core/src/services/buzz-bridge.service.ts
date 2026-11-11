@@ -1986,7 +1986,16 @@ export async function drainBuzzOutbox(
 
   const outcomes: { key: string; result: string }[] = [];
   for (const [key, entry] of latest) {
-    if (now.getTime() - entry.createdAt.getTime() < OUTBOX_SETTLE_MS) continue;
+    if (now.getTime() - entry.createdAt.getTime() < OUTBOX_SETTLE_MS) {
+      // Not quiet yet: wait out the rest, so the page reaches other work.
+      await prisma.buzzOutbox.updateMany({
+        where: { id: { in: entry.ids } },
+        data: {
+          nextAttemptAt: new Date(entry.createdAt.getTime() + OUTBOX_SETTLE_MS),
+        },
+      });
+      continue;
+    }
     try {
       const result = key.startsWith("room:")
         ? (await syncRoomChannel(entry.roomId))
@@ -2138,44 +2147,52 @@ async function postToCoworkerDirect(input: {
         clientMessageId: input.clientMessageId,
         senderUserId: input.author.userId,
       },
-      select: { id: true },
+      select: { id: true, createdAt: true },
     });
   let message = await stored();
-  if (!message) {
-    // The answer streams for as long as the Coworker takes; inbound events
-    // must not wait behind it. Wait only until Core has stored the message.
-    let failed: unknown = null;
-    void sendAs(input.core, input.author, {
-      method: "POST",
-      path: `/v1/chats/rooms/${input.roomId}/stream`,
-      timeoutMs: 15 * 60_000,
-      body: {
-        messages: [
-          {
-            id: input.clientMessageId,
-            role: "user",
-            parts: [{ type: "text", text: input.content }],
-          },
-        ],
-        ...(input.parentMessageId
-          ? { parentMessageId: input.parentMessageId }
-          : {}),
+  // Answered already (a worker that stopped before linking): only link.
+  const answered =
+    message &&
+    (await prisma.chatRoomMessage.findFirst({
+      where: {
+        roomId: input.roomId,
+        senderCoworkerId: { not: null },
+        createdAt: { gt: message.createdAt },
       },
-    }).catch((error: unknown) => {
-      failed = error;
-    });
-    for (let waited = 0; !message && !failed && waited < 60_000; ) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      waited += 500;
-      message = await stored();
-    }
-    if (!message) {
+      select: { id: true },
+    }));
+  if (!answered) {
+    // Core stores the message (once: same client id) and starts the turn;
+    // the call returns when the answer has begun streaming. A turn that
+    // does not start throws, so the event is retried, not lost.
+    try {
+      await sendAs(input.core, input.author, {
+        method: "POST",
+        path: `/v1/chats/rooms/${input.roomId}/stream`,
+        timeoutMs: 15 * 60_000,
+        streamed: true,
+        body: {
+          messages: [
+            {
+              id: input.clientMessageId,
+              role: "user",
+              parts: [{ type: "text", text: input.content }],
+            },
+          ],
+          ...(input.parentMessageId
+            ? { parentMessageId: input.parentMessageId }
+            : {}),
+        },
+      });
+    } catch (error) {
       // Another answer is still streaming in this room: ask again later.
-      if (failed instanceof CoreRejectedError && failed.status === 409) {
-        throw new CoreRejectedError(503, failed.message, failed.kind);
+      if (error instanceof CoreRejectedError && error.status === 409) {
+        throw new CoreRejectedError(503, error.message, error.kind);
       }
-      throw failed ?? new Error("Core did not store the Direct message");
+      throw error;
     }
+    message = await stored();
+    if (!message) throw new Error("Core did not store the Direct message");
   }
   if (message) {
     await prisma.buzzMessageLink.upsert({
@@ -2234,6 +2251,8 @@ export type CoreRequest = (input: {
   body?: unknown;
   /** How long to wait; a Coworker's streamed answer can take minutes. */
   timeoutMs?: number;
+  /** Answer as soon as a streamed response has started. */
+  streamed?: boolean;
 }) => Promise<{ status: number; body: unknown }>;
 
 export async function bridgeApiKeyFor(identity: BuzzIdentity) {

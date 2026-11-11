@@ -71,6 +71,7 @@ import {
   AI_SDK_CHAT_MESSAGES_REQUIREMENT,
   roomStreamRequestSchema,
 } from "@/schemas/chat-request.schema.js";
+import { buzzCommunityForRoom } from "@/services/buzz-bridge.service";
 
 import {
   mergeChatRoomMessageMetadata,
@@ -281,6 +282,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // A person's own Buzz agent has no Responses API: the message goes to it
     // through the Buzz bridge, and its answer comes back as a room message.
     if (isBuzzAgentBaseUrl(coworker.baseURL)) {
+      // It answers only on Buzz: a Direct that cannot reach Buzz would wait
+      // for ever.
+      if (!(await buzzCommunityForRoom(room.id))) {
+        throw unprocessableEntity(
+          "This personal agent answers on Buzz, and this Direct is not on Buzz. Talk to it in a room of an organization on Buzz.",
+        );
+      }
       if (lastMessage.role === "user" || lastMessage.role === "system") {
         await persistUserMessageToChatRoom({
           roomId: room.id,
