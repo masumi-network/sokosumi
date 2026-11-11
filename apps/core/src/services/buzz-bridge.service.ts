@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { type BuzzIdentity, Prisma as PrismaNull } from "@sokosumi/database";
+import { chatMessageTextWithNames, readChatMentionKeys } from "@sokosumi/utils";
 import { decode, npubEncode, nsecEncode } from "nostr-tools/nip19";
 import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
@@ -1265,7 +1266,7 @@ export async function reconcileMessage(
       const event = signEvent(
         messageDraft({
           channelId: channel.channelId,
-          content: message.content,
+          content: await buzzContentOf(message.content),
           threadRootEventId,
           mentionPubkeys: await mentionPubkeysOf(message),
         }),
@@ -1316,7 +1317,7 @@ export async function reconcileMessage(
       editDraft({
         channelId: channel.channelId,
         eventId: link.eventId,
-        content: message.content,
+        content: await buzzContentOf(message.content),
       }),
       authorKey,
     );
@@ -1339,6 +1340,67 @@ export async function reconcileMessage(
     });
   }
   return result;
+}
+
+/**
+ * A message as Buzz shows it: Sokosumi's mention tokens (`@<id>:<slug>`)
+ * become Buzz mentions (`nostr:npub…`, the person's own app key when linked),
+ * or the name for someone with no Buzz key.
+ */
+export async function buzzContentOf(content: string): Promise<string> {
+  const keys = readChatMentionKeys(content).filter((key) => key !== "all");
+  if (keys.length === 0) return content;
+  const identities = await prisma.buzzIdentity.findMany({
+    where: {
+      OR: [
+        { userId: { in: keys } },
+        { coworkerId: { in: keys } },
+        { sokoBotId: { in: keys } },
+      ],
+    },
+    select: {
+      pubkey: true,
+      appPubkey: true,
+      userId: true,
+      coworkerId: true,
+      sokoBotId: true,
+    },
+  });
+  let text = content;
+  for (const identity of identities) {
+    const key = identity.userId ?? identity.coworkerId ?? identity.sokoBotId;
+    if (!key) continue;
+    const token = new RegExp(
+      `@${key.replace(/[^A-Za-z0-9-]/g, "")}(?::[\\p{L}\\p{N}_-]*)?(?![\\p{L}\\p{N}_-])`,
+      "giu",
+    );
+    text = text.replace(
+      token,
+      `nostr:${npubEncode(identity.appPubkey ?? identity.pubkey)}`,
+    );
+  }
+  // Whoever is left has no Buzz key: their name, which Buzz shows as text.
+  const [users, coworkers, sokoBots] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: keys } },
+      select: { id: true, name: true },
+    }),
+    prisma.coworker.findMany({
+      where: { id: { in: keys } },
+      select: { id: true, name: true },
+    }),
+    prisma.sokoBot.findMany({
+      where: { id: { in: keys } },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const names = new Map<string, string>(
+    [...users, ...coworkers, ...sokoBots].map((owner) => [
+      owner.id.includes("-") ? owner.id.toLowerCase() : owner.id,
+      owner.name ?? "",
+    ]),
+  );
+  return chatMessageTextWithNames(text, names);
 }
 
 async function mentionPubkeysOf(message: {

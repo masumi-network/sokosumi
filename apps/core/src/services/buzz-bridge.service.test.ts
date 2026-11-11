@@ -1,3 +1,4 @@
+import { npubEncode } from "nostr-tools/nip19";
 import {
   finalizeEvent,
   generateSecretKey,
@@ -42,6 +43,8 @@ const db = vi.hoisted(() => {
     coworkerWorkspaceAccess: model(),
     coworkerApiKey: model(),
     member: model(),
+    user: model(),
+    sokoBot: model(),
     $transaction: vi.fn(async (operations: unknown[]) => operations),
   };
 });
@@ -62,6 +65,7 @@ import { sealSecret } from "@/lib/buzz/secret-box";
 import {
   applyInboundEvent,
   BuzzTargetPendingError,
+  buzzContentOf,
   CoreRejectedError,
   type CoreRequest,
   drainBuzzOutbox,
@@ -803,5 +807,33 @@ describe("a person's own Buzz agents", () => {
       workspaceId: "org-workspace",
       accessId: "access-org-workspace",
     });
+  });
+});
+
+describe("buzzContentOf", () => {
+  it("turns Sokosumi mention tokens into Buzz mentions, and names whoever has no key", async () => {
+    const agent = "01a1cbc4-a52c-70e5-a792-d2b71db65927";
+    const alice = "01a1cbc4-0000-70e5-a792-d2b71db65927";
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOT_PUBKEY,
+        appPubkey: null,
+        userId: null,
+        coworkerId: agent,
+        sokoBotId: null,
+      },
+    ]);
+    db.user.findMany.mockResolvedValue([{ id: alice, name: "Alice" }]);
+    db.coworker.findMany.mockResolvedValue([]);
+    db.sokoBot.findMany.mockResolvedValue([]);
+    const text = await buzzContentOf(
+      `@${agent}:buzz-d64f20d52d985e4c hi, ask @${alice} too`,
+    );
+    expect(text).toBe(`nostr:${npubEncode(BOT_PUBKEY)} hi, ask @Alice too`);
+  });
+
+  it("leaves a message without mentions alone", async () => {
+    await expect(buzzContentOf("plain")).resolves.toBe("plain");
+    expect(db.buzzIdentity.findMany).not.toHaveBeenCalled();
   });
 });
