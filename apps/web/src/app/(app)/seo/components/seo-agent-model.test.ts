@@ -288,14 +288,11 @@ describe("SEO agent brief", () => {
     ] as ProjectSeoWorkspace["observations"];
     const brief = seoAgentBrief(workspace, synced);
     const steps = brief.steps;
-    // Only the value outside a range becomes a step; the last check counts it once.
-    expect(brief.suggestions).toBe(1);
-    // A newer check that did not measure it: the step stays, the last-check line does not count it.
+    // A newer check that did not measure it: the step stays.
     workspace.observations = [
       { ...workspace.observations[0], id: "newer-check" },
       ...workspace.observations,
     ];
-    expect(seoAgentBrief(workspace, synced).suggestions).toBe(0);
     expect(
       seoAgentBrief(workspace, synced).steps.filter(
         (step) => step.kind === "measure",
@@ -327,6 +324,5 @@ describe("SEO agent brief", () => {
     ] as ProjectSeoWorkspace["findings"];
     const fixed = seoAgentBrief(workspace, synced);
     expect(fixed.steps.map((step) => step.kind)).not.toContain("measure");
-    expect(fixed.suggestions).toBe(0);
   });
 });

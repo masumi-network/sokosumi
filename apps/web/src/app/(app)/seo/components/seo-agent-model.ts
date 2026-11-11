@@ -1,11 +1,11 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { keywordGroups, keywordSummary } from "./seo-keyword-rows-model";
 import {
   measuresOutsideToolRanges,
   seoOverviewModel,
 } from "./seo-overview-model";
 import { normalizeQuery, searchConsoleIndex } from "./seo-search-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
+import { lastRuleCheck } from "./seo-summary-model";
 
 /** Saved Search Console data older than this is refreshed once when the Audit opens. */
 export const SEO_SEARCH_STALE_MS = 24 * 60 * 60 * 1000;
@@ -40,14 +40,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   const search = latest.filter((metric) => metric.source === "search_console");
   const analytics = latest.filter((metric) => metric.source === "ga4");
   const searchSaved = search[0] ?? null;
-  // Observations come newest first. Rankings and links reads carry no rule rows,
-  // so the last check is the newest observation that asked for rule checks.
-  const lastCheck =
-    workspace.observations.find(
-      ({ coverage }) =>
-        coverage.checked + coverage.skipped + coverage.failed > 0 ||
-        (coverage.modules?.failed ?? 0) > 0,
-    ) ?? null;
+  const lastCheck = lastRuleCheck(workspace);
   const fixes = overview.recommendedActions.filter(
     (action) => action.kind === "fix",
   );
@@ -130,14 +123,6 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
         }
       : null,
     issues: overview.issues.length,
-    // What the newest position reads say, next to the health result.
-    rankings: keywordSummary(keywordGroups(workspace.keywords).checked),
-    // The last-check line counts only what that check found.
-    suggestions: lastCheck
-      ? suggestions.filter(
-          (suggestion) => suggestion.observationId === lastCheck.id,
-        ).length
-      : 0,
     emptyState: overview.emptyState,
     fixes: fixes.length,
     opportunities: opportunities.length,

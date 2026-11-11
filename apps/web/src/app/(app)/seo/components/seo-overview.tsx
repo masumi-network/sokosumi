@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useLayoutEffect, useRef, useState } from "react";
@@ -29,9 +30,11 @@ import {
   SeoDate,
   SeoPageLink,
   SeoSection,
+  SeoSeverity,
   SeoSource,
   SeoState,
 } from "./seo-shared";
+import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { SeoTimeline } from "./seo-timeline";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -314,72 +317,88 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
     : undefined;
   return (
     <div className="space-y-5">
+      <SeoSummaryTiles
+        dated
+        workspace={data}
+        onOpenRankings={() => {
+          void model.setFilters({ tab: "rankings" });
+        }}
+      />
       {overview.issues.length ? (
         <SeoSection title={t("overview.findings")}>
-          {overview.issues.map((finding) => {
-            // A test name reads like a pass; the fix names what is wrong.
-            const fix = overview.issueFix(finding);
-            return (
-              <article
-                key={finding.id}
-                className={cn(HOLDER_ITEM_CLASS, "space-y-1 px-4 py-3")}
-              >
-                <div className="flex flex-wrap items-start gap-2">
-                  <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
-                  <h3 className="text-sm font-medium break-words">
-                    {fix?.named ? fix.action.title : finding.title}
-                  </h3>
-                  {finding.devices.length ? (
-                    <span className="text-muted-foreground text-sm">
-                      {format.list(
-                        finding.devices.map((device) =>
-                          t(`analysis.${device}`),
-                        ),
-                      )}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <SeoPageLink url={finding.pageUrl} />
-                  {fix ? (
-                    <button
-                      type="button"
-                      className="focus-visible:ring-ring rounded-sm py-2.5 text-sm underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-                      onClick={() => {
-                        void model.setFilters({ tab: "actions" });
-                      }}
-                    >
-                      {t("overview.seeFix")}
-                    </button>
-                  ) : null}
-                </div>
-                <details className="text-muted-foreground text-sm">
-                  <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
-                    {t("overview.checkDetails")}
-                  </summary>
-                  {fix?.named ? (
-                    <p className="pt-3">
-                      {t("overview.failedCheck", { name: finding.title })}
-                    </p>
-                  ) : null}
-                  <ul className="list-inside list-disc space-y-1 pt-3">
-                    {finding.evidence.map((evidence, index) => (
-                      <li key={`${index}:${evidence}`} className="break-words">
-                        {evidence}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex flex-wrap gap-3 pt-3 text-xs">
-                    <SeoDate value={finding.observedAt} />
-                    <SeoSource
-                      observationId={finding.observationId}
-                      workspace={data}
-                    />
-                  </div>
-                </details>
-              </article>
-            );
-          })}
+          {/* One list, one row per issue: the row opens its evidence and the way to its fix. */}
+          <ul className={cn(HOLDER_ITEM_CLASS, "divide-y")}>
+            {overview.issues.map((finding) => {
+              // A test name reads like a pass; the fix names what is wrong.
+              const fix = overview.issueFix(finding);
+              return (
+                <li key={finding.id}>
+                  <details className="group text-sm">
+                    <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                      <h3 className="font-medium break-words">
+                        {fix?.named ? fix.action.title : finding.title}
+                      </h3>
+                      <SeoSeverity severity={finding.severity}>
+                        {t(`severity.${finding.severity}`)}
+                      </SeoSeverity>
+                      <ChevronDown
+                        aria-hidden
+                        className="text-muted-foreground mt-0.5 size-4 shrink-0 group-open:rotate-180"
+                      />
+                      <span className="text-muted-foreground col-span-3 text-xs break-all">
+                        {[
+                          finding.devices.length
+                            ? format.list(
+                                finding.devices.map((device) =>
+                                  t(`analysis.${device}`),
+                                ),
+                              )
+                            : null,
+                          finding.pageUrl,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </summary>
+                    <div className="text-muted-foreground space-y-3 px-4 pb-3">
+                      {fix?.named ? (
+                        <p>
+                          {t("overview.failedCheck", { name: finding.title })}
+                        </p>
+                      ) : null}
+                      <ul className="list-inside list-disc space-y-1">
+                        {finding.evidence.map((evidence, index) => (
+                          <li
+                            key={`${index}:${evidence}`}
+                            className="break-words"
+                          >
+                            {evidence}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="flex flex-wrap items-center gap-x-3 text-xs">
+                        <SeoPageLink url={finding.pageUrl} />
+                        <SeoDate value={finding.observedAt} />
+                        <SeoSource
+                          observationId={finding.observationId}
+                          workspace={data}
+                        />
+                      </div>
+                      {fix ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => model.showAction(fix.action)}
+                        >
+                          {t("overview.seeFix")}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </details>
+                </li>
+              );
+            })}
+          </ul>
         </SeoSection>
       ) : null}
       {overview.hasFailedChecks && overview.emptyState !== "incomplete" ? (

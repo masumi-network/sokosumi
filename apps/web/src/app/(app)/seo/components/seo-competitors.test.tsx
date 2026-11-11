@@ -83,12 +83,12 @@ describe("SEO competitor baselines", () => {
       .getAllByRole("columnheader")
       .map((header) => header.textContent);
     expect(headers).toContain("Backlinks");
-    expect(headers).not.toContain("Rank");
+    expect(headers).not.toContain("Best position");
     expect(headers).not.toContain("Referring domains");
     expect(screen.getByRole("cell", { name: "12" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Not measured for these rows yet: Rank, Referring domains, and Last checked.",
+        "Not measured for these rows yet: Best position and Referring domains.",
       ),
     ).toBeInTheDocument();
   });
@@ -198,7 +198,7 @@ describe("SEO competitor baselines", () => {
     expect(
       screen.getByRole("columnheader", { name: "Backlinks" }),
     ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Show 2 more pages" }));
+    await user.click(screen.getByRole("button", { name: "Show 2 more sites" }));
     expect(screen.getByText("https://rival-10.example/")).toBeVisible();
     expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
     // A search with no match does not say that there are no competitors.
@@ -275,5 +275,219 @@ describe("SEO competitor baselines", () => {
     expect(link.querySelectorAll("wbr")).toHaveLength(2);
     expect(link.innerHTML).not.toContain("/<wbr>/");
     expect(link.innerHTML).toContain("competitor.<wbr>example/");
+  });
+
+  it("shows one row per site, and video sites and forums apart", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const found = (url: string, rank: number, referringDomains: number) => ({
+      id: url,
+      url,
+      role: "competitor" as const,
+      confirmed: false,
+      source: "search",
+      rank,
+      backlinks: null,
+      referringDomains,
+      observedAt: new Date("2026-11-11T01:26:00Z"),
+      observationId: "check",
+      version: 0,
+      canConfirm: true,
+      exclusionReason: null,
+    });
+    workspace.competitors = [
+      found("https://rival.example/a", 2, 48),
+      found("https://www.youtube.com/watch?v=1", 1, 900),
+      found("https://rival.example/b", 5, 37),
+      found("https://other.example/", 3, 12),
+    ];
+    renderWorkspace(workspace);
+    // Two sites, not four pages; the best place of the site, and the page that holds it.
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText("rival.example")).toBeVisible();
+    expect(within(rows[0]).getByRole("cell", { name: "2" })).toBeVisible();
+    expect(
+      within(rows[0]).getByRole("link", { name: "https://rival.example/a" }),
+    ).toBeVisible();
+    // The other page of the site is one click away, with its own numbers.
+    const more = within(rows[0]).getByText("1 more page of this site");
+    const second = within(rows[0]).getByText(
+      "Position 5 · 37 referring domains",
+    );
+    expect(second).not.toBeVisible();
+    await user.click(more);
+    expect(second).toBeVisible();
+    // One check found every row: the line above says so once, and no row repeats it.
+    expect(
+      screen.getByText(/^From the search results of the check on/),
+    ).toBeVisible();
+    expect(screen.queryByRole("columnheader", { name: "Source" })).toBeNull();
+    expect(
+      screen.queryByRole("columnheader", { name: "Last checked" }),
+    ).toBeNull();
+    expect(screen.queryByText("From the search results")).toBeNull();
+    // A video site holds a place in the results, but it is no rival: closed, under the list.
+    const platform = screen.getByRole("link", {
+      name: "https://www.youtube.com/watch?v=1",
+    });
+    expect(platform).not.toBeVisible();
+    await user.click(screen.getByText("Other sites in the results (1)"));
+    expect(platform).toBeVisible();
+    expect(
+      screen.getByText("Position 1 · 900 referring domains"),
+    ).toBeVisible();
+  });
+
+  it("marks a found site only in a list that also holds a chosen one", () => {
+    const workspace = seoTestWorkspace();
+    const row = {
+      id: "found",
+      url: "https://found.example/",
+      role: "competitor" as const,
+      confirmed: false,
+      source: "search",
+      rank: 3,
+      backlinks: null,
+      referringDomains: null,
+      observedAt: null,
+      observationId: "check",
+      version: 0,
+      canConfirm: true,
+      exclusionReason: null,
+    };
+    workspace.competitors = [
+      row,
+      { ...row, id: "chosen", url: "https://chosen.example/", confirmed: true },
+    ];
+    renderWorkspace(workspace);
+    const rows = screen.getAllByRole("row").slice(1);
+    // The chosen site leads and has no badge.
+    expect(within(rows[0]).getByText("chosen.example")).toBeVisible();
+    expect(within(rows[0]).queryByText("From the search results")).toBeNull();
+    expect(within(rows[1]).getByText("From the search results")).toBeVisible();
+    // The rows carry no date, so no line dates the check.
+    expect(
+      screen.queryByText(/From the search results of the check on/),
+    ).toBeNull();
+  });
+
+  it("dates each row when the rows come from several checks", () => {
+    const workspace = seoTestWorkspace();
+    const row = {
+      id: "older",
+      url: "https://older.example/",
+      role: "competitor" as const,
+      confirmed: false,
+      source: "search",
+      rank: 3,
+      backlinks: null,
+      referringDomains: null,
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      observationId: "first-check",
+      version: 0,
+      canConfirm: true,
+      exclusionReason: null,
+    };
+    workspace.competitors = [
+      row,
+      {
+        ...row,
+        id: "newer",
+        url: "https://newer.example/",
+        observedAt: new Date("2026-02-03T12:00:00Z"),
+        observationId: "second-check",
+      },
+    ];
+    renderWorkspace(workspace);
+    // One line with one date would give the older check's rows the newer date.
+    expect(
+      screen.queryByText(/From the search results of the check on/),
+    ).toBeNull();
+    expect(
+      screen.getByRole("columnheader", { name: "Last checked" }),
+    ).toBeVisible();
+  });
+
+  it("keeps the results link of your page when another check found the competitors", () => {
+    const workspace = seoTestWorkspace();
+    const observedAt = new Date("2026-01-03T12:00:00Z");
+    const observation = (
+      id: string,
+      sourceTaskId: string,
+    ): ProjectSeoWorkspace["observations"][number] => ({
+      id,
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt,
+      pageIds: [],
+      scopeVersion: 2,
+      sourceTaskId,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "v1",
+      artifactHash: "hash",
+      issues: 0,
+      coverage: { checked: 0, skipped: 0, failed: 0 },
+    });
+    workspace.observations = [
+      observation("check", "check-task"),
+      observation("links-read", "links-task"),
+    ];
+    const row = {
+      id: "found",
+      url: "https://found.example/",
+      role: "competitor" as const,
+      confirmed: false,
+      source: "search",
+      rank: 3,
+      backlinks: null,
+      referringDomains: null,
+      observedAt,
+      observationId: "check",
+      version: 0,
+      canConfirm: true,
+      exclusionReason: null,
+    };
+    workspace.competitors = [
+      row,
+      {
+        ...row,
+        id: "own",
+        url: workspace.pages[0].url,
+        role: "page",
+        source: "backlinks",
+        rank: null,
+        backlinks: 10,
+        referringDomains: 4,
+        observationId: "links-read",
+        canConfirm: false,
+      },
+      // A competitor the reader added comes from no check: the found rows still have one check.
+      {
+        ...row,
+        id: "added",
+        url: "https://added.example/",
+        source: "saved",
+        rank: null,
+        observedAt: null,
+        observationId: null,
+      },
+    ];
+    renderWorkspace(workspace);
+    // The line under the table names the competitors' check; the page's numbers come from another read.
+    const own = screen
+      .getByRole("link", { name: workspace.pages[0].url })
+      .closest("dl");
+    if (!own) throw new Error("Own page list missing");
+    expect(
+      within(own).getByRole("link", { name: "View results" }),
+    ).toHaveAttribute("href", "/tasks/links-task");
+    expect(
+      screen
+        .getAllByRole("link", { name: "View results" })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual(["/tasks/links-task", "/tasks/check-task"]);
   });
 });

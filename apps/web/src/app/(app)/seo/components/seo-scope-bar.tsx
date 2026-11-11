@@ -24,9 +24,13 @@ const DATED_TABS: Partial<
   >
 > = {
   traffic: (data) => data.metrics.length > 0,
-  rankings: (data) => data.keywords.length > 0 || data.competitors.length > 0,
+  // One check has one date: a date filter can only show it or hide it. Search statistics span many days.
+  rankings: (data) =>
+    (data.keywords.length > 0 || data.competitors.length > 0) &&
+    (data.observations.length > 1 || data.metrics.length > 0),
   // Statistics syncs alone give the filter nothing worth a control: a routine one is no timeline row, and failures fold into one.
-  health: (data) => data.timeline.some((event) => event.kind !== "metrics"),
+  health: (data) =>
+    data.timeline.filter((event) => event.kind !== "metrics").length > 1,
 };
 
 /**
@@ -98,7 +102,7 @@ export function SeoScopeBar({
   return (
     <div className="flex flex-wrap items-end gap-3">
       {controls.pages ? (
-        <div className="min-w-48 flex-1 space-y-2">
+        <div className="w-full space-y-2 sm:w-72">
           <Label htmlFor="seo-scope">{t("scope")}</Label>
           <Select
             value={selected}

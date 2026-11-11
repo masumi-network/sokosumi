@@ -10963,7 +10963,6 @@
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
         "failedCheck": "Prüfung nicht bestanden: {name}",
         "seeFix": "Zur Korrektur",
-        "checkDetails": "Prüfdetails",
         "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
@@ -11036,7 +11035,7 @@
         "ranked": "Position {position}",
         "noMatch": "Kein verfolgtes oder geprüftes Keyword passt zur Suche",
         "readFailed": "Keine Position gelesen",
-        "depth": "{same, select, yes {„Nicht gefunden“ heißt: Die Seite ist nicht unter den ersten {max} Ergebnissen.} other {„Nicht gefunden“ heißt: Die Seite ist nicht unter den ersten {min} bis {max} Ergebnissen, je nach Prüfung.}}",
+        "depth": "{same, select, yes {Wo ein Keyword nicht gefunden wurde, hat die Prüfung die ersten {max} Ergebnisse gelesen.} other {Wo ein Keyword nicht gefunden wurde, hat die Prüfung die ersten {min} bis {max} Ergebnisse gelesen.}}",
         "notFound": "Nicht gefunden",
         "unavailable": "Noch nicht geprüft",
         "country": "Ländercode",
@@ -11064,8 +11063,11 @@
           "source": {
             "gap": "Wettbewerber ranken dafür",
             "opportunity": "Verwandte Suche"
-          }
-        }
+          },
+          "short": "Ideen"
+        },
+        "noneFound": "Kein Keyword zeigt deine Seiten.",
+        "intentMissing": "{count, plural, one {Die Keyword-Daten nennen für # Keyword keine Suchabsicht.} other {Die Keyword-Daten nennen für # Keywords keine Suchabsicht.}}"
       },
       "competitors": {
         "title": "Mitbewerber",
@@ -11076,18 +11078,25 @@
         "suggested": "Aus den Suchergebnissen",
         "confirm": "Mitbewerber bestätigen",
         "unconfirm": "Nicht mehr verfolgen",
-        "rank": "Rang",
+        "rank": "Beste Position",
         "backlinks": "Backlinks",
         "domains": "Verweisende Domains",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
         "noMatch": "Kein Mitbewerber passt zu dieser Suche",
-        "help": "Seiten in den Ergebnissen für deine Keywords. Eine bestätigte Seite zählt als dein Mitbewerber.",
+        "help": "Websites in den Google-Ergebnissen für deine Fokus-Keywords. Die Position ist der beste Platz, den eine Seite der Website in diesen Ergebnissen hat. Eine bestätigte Website zählt als dein Mitbewerber.",
         "rowActions": "Aktionen für {url}",
         "yourPages": "{count, plural, one {Deine Seite} other {Deine Seiten}}",
         "compare": "Mit meiner Seite vergleichen",
         "compareDraft": "Vergleiche meine Seite mit {url}. Was macht sie bei denselben Suchanfragen besser, und was sollte ich zuerst ändern?",
         "paidOff": "Rang- und Backlink-Zahlen brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind.",
-        "more": "{count, plural, one {# weitere Seite anzeigen} other {# weitere Seiten anzeigen}}"
+        "more": "{count, plural, one {# weitere Website anzeigen} other {# weitere Websites anzeigen}}",
+        "site": "Website",
+        "morePages": "{count, plural, one {# weitere Seite dieser Website} other {# weitere Seiten dieser Website}}",
+        "positionOf": "Position {rank}",
+        "domainsOf": "{count, plural, one {# verweisende Domain} other {# verweisende Domains}}",
+        "platforms": "Andere Websites in den Ergebnissen ({count})",
+        "platformsHelp": "Videoseiten, Foren, Shops und Hilfeseiten. Sie haben einen Platz in den Ergebnissen, sind aber keine Rivalen deiner Website.",
+        "fromCheck": "Aus den Suchergebnissen der Prüfung vom"
       },
       "actions": {
         "title": "Aktionen",
@@ -11458,7 +11467,6 @@
       "agent": {
         "ask": "SEO-Agent fragen",
         "title": "SEO-Agent",
-        "lastCheck": "{checked, plural, one {# Test} other {# Tests}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
         "refreshing": "Der Agent aktualisiert die Search Console.",
         "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es mit „Jetzt synchronisieren“ erneut.",
         "nextTitle": "Nächste Schritte",
@@ -11511,8 +11519,8 @@
         "openTraffic": "Zugriffe öffnen",
         "openRankings": "Rankings öffnen",
         "draftFix": "Korrektur entwerfen",
-        "suggestions": "{count, plural, one {# Vorschlag, kein Fehler.} other {# Vorschläge, keine Fehler.}}",
-        "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}"
+        "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
+        "lastCheckPages": "{pages, plural, one {# Seite} other {# Seiten}}"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
@@ -11631,6 +11639,18 @@
           "newPage": "Neue Seite",
           "retargetPage": "Seitenänderung"
         }
+      },
+      "summary": {
+        "issues": "Probleme",
+        "issuesNone": "Keine gefunden",
+        "severityCount": "{count} {severity, select, critical {kritisch} major {schwerwiegend} other {gering}}",
+        "keywords": "Keywords bei Google gefunden",
+        "of": "von {total}",
+        "searches": "Suchen pro Monat",
+        "searchesFor": "{same, select, yes {Für {of, plural, one {das geprüfte Keyword} other {die # geprüften Keywords}}} other {Für {keywords} von {of} geprüften Keywords}}",
+        "tests": "Tests mit Ergebnis",
+        "testsNoResult": "{count, plural, one {# Test ohne Ergebnis} other {# Tests ohne Ergebnis}}",
+        "testsAll": "Jeder Test hat ein Ergebnis"
       }
     }
   },

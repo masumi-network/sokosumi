@@ -492,11 +492,13 @@ describe("Keywords after a check", () => {
       screen.getByText("Found in Google's results for 0 of 1 checked keyword"),
     ).toBeVisible();
     expect(screen.getAllByText("battery app")).toHaveLength(1);
-    // One line for both devices; the result line says once how deep the check read.
-    expect(screen.getByText("Not found")).toBeVisible();
+    // No keyword shows a page: the result line says so once, with how deep the check read.
+    // A Position column of "Not found" in every row would add nothing.
+    expect(screen.queryByText("Not found")).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
     expect(
       screen.getByText(
-        "“Not found” means the page is not in the first 16 to 17 results, by check.",
+        "No keyword shows your pages. Where a keyword is not found, the check read the first 16 to 17 results.",
       ),
     ).toBeVisible();
     // The market shows once, in the result line, not once per row.
@@ -793,5 +795,48 @@ describe("Search Console queries", () => {
     expect(
       within(row!).queryByText("Not among Google's listed searches"),
     ).toBeNull();
+  });
+
+  it("keeps the Position column while the reads come from two checks, and says so when no keyword is found", () => {
+    const { workspace } = savedKeywordWorkspace();
+    const missed = (
+      patch: Partial<ProjectSeoWorkspace["keywords"][number]>,
+    ): ProjectSeoWorkspace["keywords"][number] => ({
+      ...workspace.keywords[0],
+      saved: false,
+      version: 0,
+      source: "focus",
+      countryCode: "US",
+      languageCode: "en",
+      device: "desktop",
+      position: null,
+      positionStatus: "not_in_range",
+      checkedResults: 17,
+      observedAt: new Date("2026-11-11T00:26:00Z"),
+      ...patch,
+    });
+    workspace.keywords = [
+      missed({ id: "new", keyword: "battery app" }),
+      missed({
+        id: "old",
+        keyword: "charge timer",
+        observedAt: new Date("2026-10-11T00:26:00Z"),
+        observationId: "6d0c7a1e-7f0d-4a53-9f58-7d1f4f0f6a11",
+      }),
+    ];
+    const { unmount } = renderWorkspace(workspace);
+    // The result line dates the newest check only: each row needs its own date.
+    expect(
+      screen.getByRole("columnheader", { name: "Position" }),
+    ).toBeVisible();
+    expect(screen.getAllByText("Not found")).toHaveLength(2);
+    unmount();
+    // A read without a depth gives no depth sentence, but the hidden column is still explained.
+    workspace.keywords = [
+      missed({ id: "new", keyword: "battery app", checkedResults: null }),
+    ];
+    renderWorkspace(workspace);
+    expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
+    expect(screen.getByText("No keyword shows your pages.")).toBeVisible();
   });
 });

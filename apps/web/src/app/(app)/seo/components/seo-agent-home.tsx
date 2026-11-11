@@ -42,6 +42,7 @@ import { seoCheckRunning, seoRunLeads } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
+import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import { useSeoSetup } from "./use-seo-setup";
@@ -455,41 +456,17 @@ function SeoAgentPanel({
             <p className="text-muted-foreground text-sm">
               {t("agent.lastCheckOn")} <SeoDate value={brief.lastCheck.at} />
               {" · "}
-              {t("agent.lastCheck", {
-                checked: brief.lastCheck.checked,
-                pages: brief.lastCheck.pages,
-              })}
-              {brief.suggestions
-                ? ` ${t("agent.suggestions", { count: brief.suggestions })}`
-                : null}
+              {t("agent.lastCheckPages", { pages: brief.lastCheck.pages })}
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
-          {brief.rankings.read ? (
-            <p
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
-              data-testid="seo-agent-rankings"
-            >
-              <span>
-                {t("keywords.summary", {
-                  found: brief.rankings.found,
-                  read: brief.rankings.read,
-                })}
-                {brief.rankings.found
-                  ? ` · ${t("keywords.firstPage", { count: brief.rankings.firstPage })}`
-                  : null}
-              </span>
-              <button
-                type="button"
-                className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-                onClick={() => {
-                  void model.setFilters({ tab: "rankings" });
-                }}
-              >
-                {t("agent.openRankings")}
-              </button>
-            </p>
-          ) : null}
+          {/* The results as numbers: issues by severity, keywords found, tests with a result. */}
+          <SeoSummaryTiles
+            workspace={model.data}
+            onOpenRankings={() => {
+              void model.setFilters({ tab: "rankings" });
+            }}
+          />
           {traffic ? (
             // The link is its own item: when it wraps, no separator leads its line.
             <p

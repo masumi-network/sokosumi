@@ -270,17 +270,18 @@ describe("SEO audit first run", () => {
       }),
     });
     renderWorkspace(workspace, "?tab=traffic");
-    expect(await screen.findByText(copy.queries.notSynced)).toBeVisible();
-    expect(screen.getByText(copy.queries.notSyncedBody)).toBeVisible();
-    expect(screen.getByText(copy.overview.trafficSyncBody)).toBeVisible();
+    expect(
+      await screen.findByText(copy.overview.trafficSyncBody),
+    ).toBeVisible();
     expect(screen.queryByText(copy.queries.notConnected)).toBeNull();
     expect(
       screen.queryByRole("button", { name: copy.queries.connect }),
     ).toBeNull();
-    // Performance and the queries card each lead to the same sync.
+    // Nothing is measured yet: one card asks for the sync, and no second empty card asks again.
+    expect(screen.queryByText(copy.queries.notSynced)).toBeNull();
     expect(
       screen.getAllByRole("button", { name: "Sync statistics" }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   it("asks for the sync in the agent's next step once the account is connected", async () => {
@@ -338,7 +339,9 @@ describe("SEO audit first run", () => {
     const workspace = seoTestWorkspace();
     network(workspace);
     renderWorkspace(workspace, "?tab=traffic");
-    expect(await screen.findByText(copy.queries.notConnected)).toBeVisible();
+    expect(
+      await screen.findByText(copy.overview.trafficSetupBody),
+    ).toBeVisible();
     // The answer "not connected" is in, so the text below is not the text of a pending read.
     await waitFor(() =>
       expect(
@@ -349,10 +352,12 @@ describe("SEO audit first run", () => {
           .some((query) => query.state.data !== undefined),
       ).toBe(true),
     );
-    expect(screen.queryByText(copy.queries.notSynced)).toBeNull();
+    expect(screen.queryByText(copy.overview.trafficSyncBody)).toBeNull();
+    // One card and one button ask for the account: no second empty card for Search Console.
+    expect(screen.queryByText(copy.queries.notConnected)).toBeNull();
     expect(
-      screen.getByRole("button", { name: copy.queries.connect }),
-    ).toBeVisible();
+      screen.getAllByRole("button", { name: copy.overview.manageConnections }),
+    ).toHaveLength(1);
   });
 
   it("puts a failed check on its own step, with the button that runs it again", async () => {

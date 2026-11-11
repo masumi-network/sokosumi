@@ -23,9 +23,14 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import {
+  competitorSites,
+  type SeoCompetitorSite,
+} from "./seo-competitors-model";
+import {
   SEO_LIST_PAGE_SIZE,
   SEO_SEARCH_MIN_ROWS,
   SEO_STACKED_TABLE_CLASS,
+  SeoBarNumber,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -41,38 +46,61 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
   const format = useFormatter();
   // The reader's own pages are not competitors: they sit above the table.
   const own = model.filteredCompetitors.filter((row) => row.role === "page");
-  // The competitors the reader chose lead, so a row they just added never hides
-  // behind "Show more". The sort keeps Core's order within each part.
-  const all = model.filteredCompetitors
-    .filter((row) => row.role !== "page")
-    .toSorted(
-      (left, right) => Number(right.confirmed) - Number(left.confirmed),
-    );
+  const all = model.filteredCompetitors.filter((row) => row.role !== "page");
+  // One row per site, the sites the reader chose first; video sites, forums and help pages are apart.
+  const { sites, platforms } = competitorSites(all);
   const [expanded, setExpanded] = useState(false);
   // A search already narrows the list; it shows every match.
   const rows =
-    expanded || model.competitorSearch ? all : all.slice(0, SEO_LIST_PAGE_SIZE);
+    expanded || model.competitorSearch
+      ? sites
+      : sites.slice(0, SEO_LIST_PAGE_SIZE);
   const number = (value: number | null) =>
     value === null ? t("none") : format.number(value);
+  // One check for every row is said once above the table, not in two columns of every row.
+  // A competitor the reader added comes from no check.
+  const checks = new Set(
+    all.flatMap((row) => (row.observationId ? [row.observationId] : [])),
+  );
+  // A row without a date cannot date the line.
+  const oneCheck =
+    checks.size === 1
+      ? all.find((row) => row.observationId && row.observedAt)
+      : undefined;
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     rank: all.some((row) => row.rank !== null),
     backlinks: all.some((row) => row.backlinks !== null),
     domains: all.some((row) => row.referringDomains !== null),
-    observed: all.some((row) => row.observedAt !== null),
-    source: all.some((row) => row.observationId || row.source !== "saved"),
+    observed: !oneCheck && all.some((row) => row.observedAt !== null),
   };
   const hidden = [
     shown.rank ? null : t("competitors.rank"),
     shown.backlinks ? null : t("competitors.backlinks"),
     shown.domains ? null : t("competitors.domains"),
-    shown.observed ? null : t("observed"),
   ].filter((label): label is string => label !== null);
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
-  // A confirmed competitor is the default row; a page a check found says where it comes from.
   // A page the reader added and then stopped tracking came from no check.
-  const state = (row: (typeof rows)[number]) =>
-    row.confirmed || row.source === "saved" ? null : "competitors.suggested";
+  const chosen = (row: SeoCompetitorSite["lead"]) =>
+    row.confirmed || row.source === "saved";
+  // The badge tells a found page from a chosen one; in a list of found pages only, the line above says it once.
+  const mixed = all.some(chosen) && !all.every(chosen);
+  const mostDomains = Math.max(
+    0,
+    ...sites.map((site) => site.lead.referringDomains ?? 0),
+  );
+  // The numbers of one page, for the lines under a site and in the platform list.
+  const facts = (row: SeoCompetitorSite["lead"]) =>
+    [
+      row.rank === null
+        ? null
+        : t("competitors.positionOf", { rank: row.rank }),
+      row.referringDomains === null
+        ? null
+        : t("competitors.domainsOf", { count: row.referringDomains }),
+    ]
+      .filter(Boolean)
+      .join(" · ");
   return (
     <SeoSection
       title={t("competitors.title")}
@@ -118,7 +146,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                   {t("competitors.domains")}: {number(row.referringDomains)}
                 </span>
               ) : null}
-              {row.observationId ? (
+              {row.observationId &&
+              row.observationId !== oneCheck?.observationId ? (
                 <SeoSource
                   workspace={model.data}
                   observationId={row.observationId}
@@ -128,23 +157,35 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           ))}
         </dl>
       ) : null}
+      {oneCheck ? (
+        <p className="text-muted-foreground flex flex-wrap gap-x-3 px-2 pb-2 text-xs">
+          <span>
+            {t("competitors.fromCheck")} <SeoDate value={oneCheck.observedAt} />
+          </span>
+          {oneCheck.observationId ? (
+            <SeoSource
+              workspace={model.data}
+              observationId={oneCheck.observationId}
+            />
+          ) : null}
+        </p>
+      ) : null}
       {rows.length ? (
         <div className={HOLDER_ITEM_CLASS}>
           <Table className={SEO_STACKED_TABLE_CLASS}>
-            {/* A lone "Page URL" header names what every row already shows. */}
+            {/* A lone "Site" header names what every row already shows. */}
             <TableHeader
               className={cn(
                 !(
                   shown.rank ||
                   shown.backlinks ||
                   shown.domains ||
-                  shown.observed ||
-                  shown.source
+                  shown.observed
                 ) && "sr-only",
               )}
             >
               <TableRow>
-                <TableHead>{t("url")}</TableHead>
+                <TableHead>{t("competitors.site")}</TableHead>
                 {shown.rank ? (
                   <TableHead className="text-right">
                     {t("competitors.rank")}
@@ -161,28 +202,27 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                   </TableHead>
                 ) : null}
                 {shown.observed ? <TableHead>{t("observed")}</TableHead> : null}
-                {shown.source ? <TableHead>{t("source")}</TableHead> : null}
                 <TableHead>
                   <span className="sr-only">{t("manage")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => {
+              {rows.map(({ host, lead: row, pages, best }) => {
                 const compare =
                   row.role === "competitor" && Boolean(model.data.auditId);
                 const toggle =
                   model.data.availableActions.canEdit &&
                   row.role === "competitor" &&
                   (row.canConfirm || row.confirmed);
-                const badge = state(row);
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="min-w-56 whitespace-normal">
+                      <p className="font-medium break-all">{host}</p>
                       <SeoPageLink url={row.url} />
-                      {badge ? (
+                      {mixed && !chosen(row) ? (
                         <div className="mt-1">
-                          <SeoState>{t(badge)}</SeoState>
+                          <SeoState>{t("competitors.suggested")}</SeoState>
                         </div>
                       ) : null}
                       {row.exclusionReason ? (
@@ -190,13 +230,34 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                           {row.exclusionReason}
                         </p>
                       ) : null}
+                      {pages.length > 1 ? (
+                        <details className="text-muted-foreground text-sm">
+                          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1.5 focus-visible:ring-2 focus-visible:outline-none">
+                            {t("competitors.morePages", {
+                              count: pages.length - 1,
+                            })}
+                          </summary>
+                          <ul className="space-y-1 pb-1">
+                            {pages.slice(1).map((page) => (
+                              <li key={page.id}>
+                                <SeoPageLink url={page.url} />
+                                {facts(page) ? (
+                                  <p className="text-xs tabular-nums">
+                                    {facts(page)}
+                                  </p>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      ) : null}
                     </TableCell>
                     {shown.rank ? (
                       <TableCell
                         className="text-right tabular-nums"
                         data-label={t("competitors.rank")}
                       >
-                        {number(row.rank)}
+                        {number(best)}
                       </TableCell>
                     ) : null}
                     {shown.backlinks ? (
@@ -212,27 +273,19 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                         className="text-right tabular-nums"
                         data-label={t("competitors.domains")}
                       >
-                        {number(row.referringDomains)}
+                        {row.referringDomains === null ? (
+                          t("none")
+                        ) : (
+                          <SeoBarNumber
+                            value={row.referringDomains}
+                            max={mostDomains}
+                          />
+                        )}
                       </TableCell>
                     ) : null}
                     {shown.observed ? (
                       <TableCell data-label={t("observed")}>
                         <SeoDate value={row.observedAt} />
-                      </TableCell>
-                    ) : null}
-                    {shown.source ? (
-                      <TableCell data-label={t("source")}>
-                        <span className="text-muted-foreground text-sm">
-                          {row.source}
-                        </span>
-                        {row.observationId ? (
-                          <div>
-                            <SeoSource
-                              workspace={model.data}
-                              observationId={row.observationId}
-                            />
-                          </div>
-                        ) : null}
                       </TableCell>
                     ) : null}
                     <TableCell className="text-right">
@@ -297,7 +350,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             </p>
           ) : null}
         </div>
-      ) : (
+      ) : platforms.length ? null : (
         <SeoEmpty
           // A search with no match does not mean there are no competitors.
           title={t(
@@ -316,14 +369,39 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           }
         />
       )}
-      {all.length > SEO_LIST_PAGE_SIZE && !model.competitorSearch ? (
+      {sites.length > SEO_LIST_PAGE_SIZE && !model.competitorSearch ? (
         <SeoShowMore
           more={t("competitors.more", {
-            count: all.length - SEO_LIST_PAGE_SIZE,
+            count: sites.length - SEO_LIST_PAGE_SIZE,
           })}
           expanded={expanded}
           onToggle={() => setExpanded((open) => !open)}
         />
+      ) : null}
+      {platforms.length ? (
+        // In the results, but no rival: closed, so the list above stays the list of competitors.
+        <details className="px-2 text-sm">
+          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
+            {t("competitors.platforms", { count: platforms.length })}
+          </summary>
+          <p className="text-muted-foreground pb-2">
+            {t("competitors.platformsHelp")}
+          </p>
+          <ul className="space-y-2 pb-2">
+            {platforms.flatMap((site) =>
+              site.pages.map((page) => (
+                <li key={page.id}>
+                  <SeoPageLink url={page.url} />
+                  {facts(page) ? (
+                    <p className="text-muted-foreground text-xs tabular-nums">
+                      {facts(page)}
+                    </p>
+                  ) : null}
+                </li>
+              )),
+            )}
+          </ul>
+        </details>
       ) : null}
     </SeoSection>
   );

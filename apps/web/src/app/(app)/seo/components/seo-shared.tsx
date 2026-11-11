@@ -55,6 +55,14 @@ export function seoMarketName(
     .join(" · ");
 }
 
+/** The lists of the Rankings tab; a phone shows one at a time. */
+export type SeoRankingsSection = "keywords" | "ideas" | "competitors";
+
+/** Hides a section on a phone while another one is chosen; a wide screen shows every section. */
+export function seoPhoneSectionClass(shown: boolean) {
+  return shown ? undefined : "max-sm:hidden";
+}
+
 /** A search box helps only in a list longer than about one screen. */
 export const SEO_SEARCH_MIN_ROWS = 10;
 /** Rows a long list shows before its "Show more" button. */
@@ -278,6 +286,47 @@ export function SeoSource({
       {t("timeline.viewResults")}
     </Link>
   ) : null;
+}
+
+/** The least width of a bar's fill, so a small count still shows a mark. */
+const SEO_BAR_MIN_PERCENT = 4;
+
+/** A count with a thin bar that sets it against the largest count of its list. */
+export function SeoBarNumber({ value, max }: { value: number; max: number }) {
+  const format = useFormatter();
+  return (
+    <span className="inline-flex flex-col items-end gap-1 max-sm:items-start">
+      {format.number(value)}
+      {max > 0 ? (
+        <span
+          aria-hidden
+          className="bg-muted-foreground/25 block h-1 w-16 rounded-full"
+        >
+          <span
+            className="bg-chart-5 block h-1 rounded-full"
+            style={{
+              width: `${value > 0 ? Math.max(SEO_BAR_MIN_PERCENT, Math.round((value / max) * 100)) : 0}%`,
+            }}
+          />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** How bad an issue is. Critical and major are solid and minor is quiet, so the worst issue reads first. */
+export function SeoSeverity({
+  severity,
+  children,
+}: {
+  severity: "critical" | "major" | "minor";
+  children: ReactNode;
+}) {
+  return severity === "minor" ? (
+    <SeoState>{children}</SeoState>
+  ) : (
+    <Badge variant="destructive">{children}</Badge>
+  );
 }
 
 /** A quiet state label; the numbers and the next action stay the loudest marks. */

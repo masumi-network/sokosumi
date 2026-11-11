@@ -51,13 +51,12 @@ import { SeoActions } from "./seo-actions";
 import { SeoAgentHome } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { SeoChatPanel } from "./seo-chat-panel";
-import { SeoCompetitors } from "./seo-competitors";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoIndexStatus } from "./seo-index-status";
-import { SeoKeywords } from "./seo-keywords";
 import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
+import { SeoRankings } from "./seo-rankings";
 import {
   SeoScopeBar,
   seoScopeControls,
@@ -483,8 +482,7 @@ export function SeoWorkspace({
               <SeoTraffic model={model} />
             </TabsContent>
             <TabsContent value="rankings" className="space-y-6">
-              <SeoKeywords model={model} />
-              <SeoCompetitors model={model} />
+              <SeoRankings model={model} />
             </TabsContent>
             <TabsContent value="health" className="space-y-6">
               <SeoIndexStatus model={model} />

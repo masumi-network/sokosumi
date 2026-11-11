@@ -19,6 +19,7 @@ import {
 import {
   SEO_LIST_PAGE_SIZE,
   SEO_STACKED_TABLE_CLASS,
+  SeoBarNumber,
   SeoPageLink,
   SeoSection,
   SeoShowMore,
@@ -49,6 +50,9 @@ export function SeoKeywordIdeas({
     intent: ideas.some((group) => group.intent !== null),
   };
   const manyPages = model.data.scope.pageIds.length > 1;
+  // The bars set each idea against the most searched one of the list.
+  const mostSearched = Math.max(0, ...ideas.map((group) => group.volume ?? 0));
+  const noIntent = rows.filter((group) => group.intent === null).length;
   // "Track" saves the row's market: with several, each row names its own.
   const manyMarkets =
     new Set(ideas.map(({ lead }) => `${lead.countryCode}:${lead.languageCode}`))
@@ -102,12 +106,17 @@ export function SeoKeywordIdeas({
                     className="text-right tabular-nums"
                     data-label={t("keywords.volume")}
                   >
-                    {volume === null ? t("none") : format.number(volume)}
+                    {volume === null ? (
+                      t("none")
+                    ) : (
+                      <SeoBarNumber value={volume} max={mostSearched} />
+                    )}
                   </TableCell>
                 ) : null}
                 {shown.intent ? (
+                  // No intent in the keyword data: the cell stays empty and the line under the table counts them.
                   <TableCell data-label={t("keywords.intent")}>
-                    {intent ?? t("none")}
+                    {intent}
                   </TableCell>
                 ) : null}
                 <TableCell
@@ -140,6 +149,11 @@ export function SeoKeywordIdeas({
             ))}
           </TableBody>
         </Table>
+        {shown.intent && noIntent ? (
+          <p className="text-muted-foreground border-t px-4 py-2 text-xs">
+            {t("keywords.intentMissing", { count: noIntent })}
+          </p>
+        ) : null}
       </div>
       {ideas.length > SEO_LIST_PAGE_SIZE && !model.keywordSearch ? (
         <SeoShowMore

@@ -27,6 +27,9 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** What Google measured for the selected pages: totals and trend, the searches behind them, and each page's share. */
 export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
+  // Nothing measured yet: one card says what to connect. A second empty card would ask for the same account.
+  if (!model.data.metrics.length && !model.data.searchQueries)
+    return <SeoMeasurements model={model} />;
   return (
     <div className="space-y-6">
       <SeoMeasurements model={model} />

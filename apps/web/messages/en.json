@@ -10963,7 +10963,6 @@
         "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
         "failedCheck": "Check not passed: {name}",
         "seeFix": "See the fix",
-        "checkDetails": "Check details",
         "diagnostics": "Title, description and other page details",
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
@@ -11036,7 +11035,7 @@
         "ranked": "Position {position}",
         "noMatch": "No tracked or checked keyword matches this search",
         "readFailed": "No position read",
-        "depth": "{same, select, yes {“Not found” means the page is not in the first {max} results.} other {“Not found” means the page is not in the first {min} to {max} results, by check.}}",
+        "depth": "{same, select, yes {Where a keyword is not found, the check read the first {max} results.} other {Where a keyword is not found, the check read the first {min} to {max} results.}}",
         "notFound": "Not found",
         "unavailable": "Not checked yet",
         "country": "Country code",
@@ -11064,8 +11063,11 @@
           "source": {
             "gap": "Competitors rank for it",
             "opportunity": "Related search"
-          }
-        }
+          },
+          "short": "Ideas"
+        },
+        "noneFound": "No keyword shows your pages.",
+        "intentMissing": "{count, plural, one {The keyword data gives no intent for # keyword.} other {The keyword data gives no intent for # keywords.}}"
       },
       "competitors": {
         "title": "Competitors",
@@ -11076,18 +11078,25 @@
         "suggested": "From the search results",
         "confirm": "Confirm competitor",
         "unconfirm": "Stop tracking",
-        "rank": "Rank",
+        "rank": "Best position",
         "backlinks": "Backlinks",
         "domains": "Referring domains",
         "excluded": "This candidate cannot be confirmed.",
         "noMatch": "No competitor matches this search",
-        "help": "Pages in the results for your keywords. A confirmed page counts as your competitor.",
+        "help": "Sites in Google's results for your focus keywords. The position is the best place a page of the site holds in those results. A confirmed site counts as your competitor.",
         "rowActions": "Actions for {url}",
         "yourPages": "{count, plural, one {Your page} other {Your pages}}",
         "compare": "Compare with my page",
         "compareDraft": "Compare my page with {url}. What does it do better for the same searches, and what should I change first?",
         "paidOff": "Rank and backlink numbers need paid search data, which is off in this workspace.",
-        "more": "{count, plural, one {Show # more page} other {Show # more pages}}"
+        "more": "{count, plural, one {Show # more site} other {Show # more sites}}",
+        "site": "Site",
+        "morePages": "{count, plural, one {# more page of this site} other {# more pages of this site}}",
+        "positionOf": "Position {rank}",
+        "domainsOf": "{count, plural, one {# referring domain} other {# referring domains}}",
+        "platforms": "Other sites in the results ({count})",
+        "platformsHelp": "Video sites, forums, stores and help pages. They hold a place in the results, but they are not rivals of your site.",
+        "fromCheck": "From the search results of the check on"
       },
       "actions": {
         "title": "Actions",
@@ -11458,7 +11467,6 @@
       "agent": {
         "ask": "Ask the SEO agent",
         "title": "SEO agent",
-        "lastCheck": "{checked, plural, one {# test} other {# tests}} on {pages, plural, one {# page} other {# pages}}.",
         "refreshing": "The agent is refreshing Search Console.",
         "refreshFailed": "Search Console could not be refreshed. Use “Sync now” to try again.",
         "nextTitle": "Next steps",
@@ -11511,8 +11519,8 @@
         "openTraffic": "Open traffic",
         "openRankings": "Open rankings",
         "draftFix": "Draft a fix",
-        "suggestions": "{count, plural, one {# suggestion, not an error.} other {# suggestions, not errors.}}",
-        "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}"
+        "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
+        "lastCheckPages": "{pages, plural, one {# page} other {# pages}}"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
@@ -11631,6 +11639,18 @@
           "newPage": "New page",
           "retargetPage": "Page change"
         }
+      },
+      "summary": {
+        "issues": "Issues",
+        "issuesNone": "None found",
+        "severityCount": "{count} {severity, select, critical {critical} major {major} other {minor}}",
+        "keywords": "Keywords found in Google",
+        "of": "of {total}",
+        "searches": "Searches a month",
+        "searchesFor": "{same, select, yes {For the {of, plural, one {checked keyword} other {# checked keywords}}} other {For {keywords} of {of} checked keywords}}",
+        "tests": "Tests with a result",
+        "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
+        "testsAll": "Every test gave a result"
       }
     }
   },

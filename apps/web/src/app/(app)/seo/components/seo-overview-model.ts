@@ -1,10 +1,11 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 
 const ISSUE_SEVERITIES = { critical: 0, major: 1, minor: 2 } as const;
-const ISSUE_SEVERITY_NAMES = Object.keys(
+/** Issue severities, worst first. */
+export const SEO_ISSUE_SEVERITY_NAMES = Object.keys(
   ISSUE_SEVERITIES,
 ) as SeoIssueSeverity[];
-const NON_ISSUE_RANK = ISSUE_SEVERITY_NAMES.length;
+const NON_ISSUE_RANK = SEO_ISSUE_SEVERITY_NAMES.length;
 
 export type SeoIssueSeverity = keyof typeof ISSUE_SEVERITIES;
 type Finding = ProjectSeoWorkspace["findings"][number];
@@ -38,6 +39,8 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     ).values(),
   ].map((group) => ({
     ...group[0],
+    // Only rows with an issue severity reach this list.
+    severity: group[0].severity as SeoIssueSeverity,
     findingIds: group.map(({ id }) => id),
     devices: [
       ...new Set(group.flatMap(({ device }) => (device ? [device] : []))),
@@ -78,7 +81,7 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   );
   // The worst issue an action fixes; an action from search data alone has none.
   const actionSeverity = (action: Action) =>
-    ISSUE_SEVERITY_NAMES[actionRank(action)] ?? null;
+    SEO_ISSUE_SEVERITY_NAMES[actionRank(action)] ?? null;
   const fixOf = (issue: { findingIds: string[] }) =>
     actions.find((action) =>
       action.findingIds.some((id) => issue.findingIds.includes(id)),

@@ -23,6 +23,8 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Saved selections and page rankings only help when there are pages to compare. */
 export const MIN_PAGES_FOR_SELECTIONS = 2;
+/** With two pages a selection is one page or both, and the page picker offers each. */
+const MIN_PAGES_TO_OFFER_SELECTION = 3;
 
 /** Search totals that belong to one page: only when the saved statistics cover that page alone. */
 // The same order as the Performance tiles.
@@ -67,7 +69,8 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
           model.data.availableActions.canEdit ? (
             <div className="flex flex-wrap gap-2">
               {/* Without a saved selection there is no card for it; the button to save the first one sits here. */}
-              {choosable && !selections ? (
+              {model.data.pages.length >= MIN_PAGES_TO_OFFER_SELECTION &&
+              !selections ? (
                 <Button
                   size="sm"
                   variant="outline"

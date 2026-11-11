@@ -265,7 +265,7 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       "No issues found in the last check",
     );
-    expect(screen.getByText(/tests? on 1 page\./)).toBeVisible();
+    expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Traffic" }));
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
@@ -302,7 +302,8 @@ describe("SEO workspace integration", () => {
       "Raw HTML evidence: no meta description element.",
     );
     expect(evidence).not.toBeVisible();
-    await user.click(screen.getByText("Check details"));
+    // The row is the switch: it opens the evidence of its issue.
+    await user.click(screen.getByText("The page has no description"));
     expect(evidence).toBeVisible();
   });
 
@@ -353,16 +354,26 @@ describe("SEO workspace integration", () => {
       "Check not passed: Markup matches the visible page",
     );
     expect(check).not.toBeVisible();
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Make the markup price match the page",
+      }),
+    );
+    expect(check).toBeVisible();
     await user.click(screen.getByRole("button", { name: "See the fix" }));
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    // The same title on the same kind of card, with the severity of its issue.
+    // The same title on the card of the fix, with the severity of its issue. The card takes the focus,
+    // so the reader does not look for the fix again in the list.
     const card = screen
       .getByRole("heading", { name: "Make the markup price match the page" })
       .closest("article");
+    await waitFor(() => expect(card).toHaveFocus());
     expect(within(card!).getByText("Major")).toBeVisible();
+    // What the fix brings is in view; the reasons stay closed.
+    expect(within(card!).getByText("One price.")).toBeVisible();
     expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
   });
 
@@ -816,12 +827,21 @@ describe("SEO workspace integration", () => {
     const health = renderWorkspace(workspace, "?tab=health");
     expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
     health.unmount();
-    // Any other event is history a date can narrow.
+    // One other event has one date: a filter could only show it or hide it.
     workspace.timeline.push({
       ...workspace.timeline[0],
       id: "pages",
       kind: "scope",
       title: "Page selection changed",
+    });
+    const one = renderWorkspace(workspace, "?tab=health");
+    expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
+    one.unmount();
+    // Two events are history a date can narrow.
+    workspace.timeline.push({
+      ...workspace.timeline[1],
+      id: "pages-again",
+      at: new Date("2026-01-05T00:00:00Z"),
     });
     const history = renderWorkspace(workspace, "?tab=health");
     expect(
@@ -829,7 +849,24 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     history.unmount();
     workspace.timeline = [];
-    // Rankings change over time, so their tab offers the dates once it has a row.
+    // Rankings change over time, so their tab offers the dates once two checks have rows.
+    const check = {
+      id: "first-check",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 2, skipped: 0, failed: 0 },
+    };
+    workspace.observations = [check];
     workspace.competitors.push({
       id: "rival",
       url: "https://rival.example/",
@@ -845,6 +882,11 @@ describe("SEO workspace integration", () => {
       canConfirm: true,
       exclusionReason: null,
     });
+    // One check has one date.
+    const single = renderWorkspace(workspace, "?tab=rankings");
+    expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
+    single.unmount();
+    workspace.observations = [{ ...check, id: "second-check" }, check];
     renderWorkspace(workspace, "?tab=rankings");
     expect(
       screen.getByRole("button", { name: "Filter by date" }),
@@ -915,11 +957,19 @@ describe("SEO workspace integration", () => {
 
   it("shows the saved selections card only once a selection exists", () => {
     const workspace = seoTestWorkspace();
-    workspace.pages.push({
-      ...workspace.pages[0],
-      id: "a658c5bb-3084-4b26-81ee-b3208ee5ab61",
-      url: "https://example.com/pricing",
-    });
+    workspace.pages.push(
+      {
+        ...workspace.pages[0],
+        id: "a658c5bb-3084-4b26-81ee-b3208ee5ab61",
+        url: "https://example.com/pricing",
+      },
+      // With two pages a selection is one page or both; the offer starts at three.
+      {
+        ...workspace.pages[0],
+        id: "b758c5bb-3084-4b26-81ee-b3208ee5ab62",
+        url: "https://example.com/about",
+      },
+    );
     const saved = workspace.scopes;
     workspace.scopes = [];
     vi.stubGlobal(
@@ -3025,9 +3075,7 @@ describe("SEO workspace integration", () => {
       screen.getByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Last check .+ · 12 tests on 1 page\. 1 suggestion, not an error\.$/.test(
-            element.textContent ?? "",
-          ),
+          /^Last check .+ · 1 page$/.test(element.textContent ?? ""),
       ),
     ).toBeVisible();
     // Where a check can run, the header's run button is the one filled button.
@@ -3946,8 +3994,8 @@ describe("SEO workspace integration", () => {
     expect(run).not.toHaveClass("bg-primary");
     expect(run).not.toHaveAttribute("aria-disabled");
     // The position result sits next to the health result.
-    expect(screen.getByTestId("seo-agent-rankings")).toHaveTextContent(
-      "Found in Google's results for 1 of 2 checked keywords · 1 on the first page",
+    expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
+      "1 of 21 on the first pageOpen rankings",
     );
     expect(screen.getByText("The title is missing")).not.toBeVisible();
     await user.click(screen.getByText("Why, and the evidence"));
@@ -4008,5 +4056,235 @@ describe("SEO workspace integration", () => {
     await act(async () => {
       resolve({ ok: true, value: null });
     });
+  });
+
+  it("shows the last check as numbers on the Agent and Health tabs, and one Rankings list at a time on a phone", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const observedAt = new Date("2026-01-03T12:00:00Z");
+    const observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
+    workspace.observations.push({
+      id: observationId,
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt,
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile", "desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 2,
+      coverage: { checked: 201, skipped: 30, failed: 0 },
+    });
+    const failed = {
+      observationId,
+      pageUrl: workspace.pages[0].url,
+      evidence: [],
+      sourceRef: "html:head",
+      observedAt,
+    };
+    workspace.findings.push(
+      // One rule on both devices is one major issue.
+      {
+        ...failed,
+        id: "markup-mobile",
+        device: "mobile",
+        rowId: "SD-06",
+        title: "Markup matches the visible page",
+        severity: "major",
+      },
+      {
+        ...failed,
+        id: "markup-desktop",
+        device: "desktop",
+        rowId: "SD-06",
+        title: "Markup matches the visible page",
+        severity: "major",
+      },
+      {
+        ...failed,
+        id: "alt",
+        device: "desktop",
+        rowId: "P-06",
+        title: "Images have alt text",
+        severity: "minor",
+      },
+    );
+    const read = {
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      device: "mobile",
+      checkedResults: 20,
+      observedAt,
+      observationId,
+    } as const;
+    workspace.keywords.push(
+      {
+        ...read,
+        id: "found",
+        keyword: "battery app",
+        position: 4,
+        positionStatus: "ranked",
+        volume: 720,
+        intent: "commercial",
+      },
+      {
+        ...read,
+        id: "missing",
+        keyword: "charge timer",
+        position: null,
+        positionStatus: "not_in_range",
+        volume: 90,
+        intent: null,
+      },
+      {
+        ...read,
+        id: "idea",
+        keyword: "battery widget",
+        source: "gap",
+        position: null,
+        positionStatus: "unavailable",
+        checkedResults: null,
+        volume: 50,
+        intent: null,
+      },
+    );
+    workspace.competitors.push({
+      id: "rival",
+      url: "https://rival.example/",
+      role: "competitor",
+      confirmed: false,
+      source: "search",
+      rank: 1,
+      backlinks: null,
+      referringDomains: 10,
+      observedAt,
+      observationId,
+      version: 0,
+      canConfirm: true,
+      exclusionReason: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    const issues = await screen.findByTestId("seo-summary-issues");
+    expect(issues).toHaveTextContent(/^2/);
+    expect(within(issues).getByText("1 major")).toBeVisible();
+    expect(within(issues).getByText("1 minor")).toBeVisible();
+    // Tests without a result are part of the total, not hidden.
+    const tests = screen.getByTestId("seo-summary-tests");
+    expect(tests).toHaveTextContent("201 of 231");
+    expect(within(tests).getByText("30 tests gave no result")).toBeVisible();
+    expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
+      "1 of 2",
+    );
+    const searches = screen.getByTestId("seo-summary-searches");
+    expect(searches).toHaveTextContent("810");
+    expect(
+      within(searches).getByText("For the 2 checked keywords"),
+    ).toBeVisible();
+    // The line above the tiles dates the check here.
+    expect(tests).not.toHaveTextContent("Last check");
+    // The same numbers lead the Health tab.
+    await user.click(screen.getByRole("tab", { name: "Health" }));
+    expect(screen.getByTestId("seo-summary-tests")).toHaveTextContent(
+      "201 of 231",
+    );
+    // Health has no such line, and its issues can come from older checks: the tile dates its check.
+    expect(screen.getByTestId("seo-summary-tests")).toHaveTextContent(
+      "Last check Jan 3, 2026",
+    );
+    await user.click(
+      within(screen.getByTestId("seo-summary-keywords")).getByRole("button", {
+        name: "Open rankings",
+      }),
+    );
+    expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // One keyword is found, so the Position column shows.
+    expect(screen.getByText("Not found")).toBeVisible();
+    // A keyword without an intent has an empty cell, counted once under the table.
+    // The one idea has no intent either, so its table has no Intent column and no such line.
+    expect(screen.queryByText("Not available")).toBeNull();
+    expect(
+      screen.getByText("The keyword data gives no intent for 1 keyword."),
+    ).toBeVisible();
+    // On a phone one list shows at a time; a wide screen shows all three.
+    const part = (name: string | RegExp) =>
+      screen.getByRole("heading", { name }).closest("section")?.parentElement;
+    expect(part("Keywords")).not.toHaveClass("max-sm:hidden");
+    expect(part(/^Keyword ideas/)).toHaveClass("max-sm:hidden");
+    expect(part("Competitors")).toHaveClass("max-sm:hidden");
+    const competitors = screen.getByRole("button", { name: "Competitors" });
+    expect(competitors).toHaveAttribute("aria-pressed", "false");
+    await user.click(competitors);
+    expect(competitors).toHaveAttribute("aria-pressed", "true");
+    expect(part("Competitors")).not.toHaveClass("max-sm:hidden");
+    expect(part("Keywords")).toHaveClass("max-sm:hidden");
+    await user.click(screen.getByRole("button", { name: "Ideas" }));
+    expect(part(/^Keyword ideas/)).not.toHaveClass("max-sm:hidden");
+    expect(part("Competitors")).toHaveClass("max-sm:hidden");
+    // The last idea leaves the list (the reader tracked it): the keywords show, not an empty tab.
+    const client = clients.at(-1);
+    const queries =
+      client
+        ?.getQueryCache()
+        .getAll()
+        .filter(({ queryKey }) => queryKey[0] === "seo-workspace") ?? [];
+    if (!client || !queries.length) throw new Error("Workspace query missing");
+    await act(async () => {
+      for (const { queryKey } of queries)
+        client.setQueryData(queryKey, {
+          ...workspace,
+          keywords: workspace.keywords.filter((row) => row.id !== "idea"),
+        });
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Ideas" })).toBeNull(),
+    );
+    expect(part("Keywords")).not.toHaveClass("max-sm:hidden");
+    expect(screen.getByRole("button", { name: "Keywords" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("offers a saved page selection from three pages on", () => {
+    const workspace = seoTestWorkspace();
+    workspace.scopes = [];
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: "a658c5bb-3084-4b26-81ee-b3208ee5ab61",
+      url: "https://example.com/pricing",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    // With two pages a selection is one page or both, and the page picker offers each.
+    const pages = screen
+      .getByRole("heading", { name: "Pages" })
+      .closest("section");
+    if (!pages) throw new Error("Pages card missing");
+    expect(
+      within(pages).queryByRole("button", { name: "Save page selection" }),
+    ).toBeNull();
+    expect(
+      within(pages).getByRole("button", { name: "Add a page" }),
+    ).toBeVisible();
   });
 });

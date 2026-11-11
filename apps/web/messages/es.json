@@ -10963,7 +10963,6 @@
         "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
         "failedCheck": "Comprobación no superada: {name}",
         "seeFix": "Ver la corrección",
-        "checkDetails": "Detalles de las comprobaciones",
         "diagnostics": "Título, descripción y otros detalles de la página",
         "perDay": "{metric} por día",
         "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
@@ -11036,7 +11035,7 @@
         "ranked": "Posición {position}",
         "noMatch": "Ninguna palabra clave seguida o comprobada coincide con la búsqueda",
         "readFailed": "No se leyó ninguna posición",
-        "depth": "{same, select, yes {«No encontrada» significa que la página no está entre los primeros {max} resultados.} other {«No encontrada» significa que la página no está entre los primeros {min} y {max} resultados, según la comprobación.}}",
+        "depth": "{same, select, yes {Donde no se encontró una palabra clave, la comprobación leyó los primeros {max} resultados.} other {Donde no se encontró una palabra clave, la comprobación leyó los primeros {min} a {max} resultados.}}",
         "notFound": "No encontrada",
         "unavailable": "Aún sin comprobar",
         "country": "Código de país",
@@ -11064,8 +11063,11 @@
           "source": {
             "gap": "La competencia posiciona para ella",
             "opportunity": "Búsqueda relacionada"
-          }
-        }
+          },
+          "short": "Ideas"
+        },
+        "noneFound": "Ninguna palabra clave muestra tus páginas.",
+        "intentMissing": "{count, plural, one {Los datos no indican la intención de # palabra clave.} other {Los datos no indican la intención de # palabras clave.}}"
       },
       "competitors": {
         "title": "Competidores",
@@ -11076,18 +11078,25 @@
         "suggested": "De los resultados de búsqueda",
         "confirm": "Confirmar competidor",
         "unconfirm": "Dejar de seguir",
-        "rank": "Posición",
+        "rank": "Mejor posición",
         "backlinks": "Enlaces entrantes",
         "domains": "Dominios de referencia",
         "excluded": "No se puede confirmar este candidato.",
         "noMatch": "Ningún competidor coincide con esta búsqueda",
-        "help": "Páginas en los resultados de tus palabras clave. Una página confirmada cuenta como tu competidor.",
+        "help": "Sitios en los resultados de Google para tus palabras clave principales. La posición es el mejor lugar que ocupa una página del sitio en esos resultados. Un sitio confirmado cuenta como tu competidor.",
         "rowActions": "Acciones para {url}",
         "yourPages": "{count, plural, one {Tu página} other {Tus páginas}}",
         "compare": "Comparar con mi página",
         "compareDraft": "Compara mi página con {url}. ¿Qué hace mejor para las mismas búsquedas y qué debería cambiar primero?",
         "paidOff": "Las cifras de posición y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",
-        "more": "{count, plural, one {Mostrar # página más} other {Mostrar # páginas más}}"
+        "more": "{count, plural, one {Mostrar # sitio más} other {Mostrar # sitios más}}",
+        "site": "Sitio",
+        "morePages": "{count, plural, one {# página más de este sitio} other {# páginas más de este sitio}}",
+        "positionOf": "Posición {rank}",
+        "domainsOf": "{count, plural, one {# dominio de referencia} other {# dominios de referencia}}",
+        "platforms": "Otros sitios en los resultados ({count})",
+        "platformsHelp": "Sitios de vídeo, foros, tiendas y páginas de ayuda. Ocupan un lugar en los resultados, pero no son rivales de tu sitio.",
+        "fromCheck": "De los resultados de búsqueda de la comprobación del"
       },
       "actions": {
         "title": "Acciones",
@@ -11458,7 +11467,6 @@
       "agent": {
         "ask": "Preguntar al agente SEO",
         "title": "Agente SEO",
-        "lastCheck": "{checked, plural, one {# prueba} other {# pruebas}} en {pages, plural, one {# página} other {# páginas}}.",
         "refreshing": "El agente está actualizando Search Console.",
         "refreshFailed": "No se pudo actualizar Search Console. Usa «Sincronizar ahora» para intentarlo de nuevo.",
         "nextTitle": "Siguientes pasos",
@@ -11511,8 +11519,8 @@
         "openTraffic": "Abrir tráfico",
         "openRankings": "Abrir posiciones",
         "draftFix": "Preparar una corrección",
-        "suggestions": "{count, plural, one {# sugerencia, no es un error.} other {# sugerencias, no son errores.}}",
-        "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}"
+        "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
+        "lastCheckPages": "{pages, plural, one {# página} other {# páginas}}"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
@@ -11631,6 +11639,18 @@
           "newPage": "Página nueva",
           "retargetPage": "Cambio de página"
         }
+      },
+      "summary": {
+        "issues": "Problemas",
+        "issuesNone": "Ninguno encontrado",
+        "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {{count, plural, one {importante} other {importantes}}} other {{count, plural, one {menor} other {menores}}}}",
+        "keywords": "Palabras clave encontradas en Google",
+        "of": "de {total}",
+        "searches": "Búsquedas al mes",
+        "searchesFor": "{same, select, yes {Para {of, plural, one {la palabra clave comprobada} other {las # palabras clave comprobadas}}} other {Para {keywords} de {of} palabras clave comprobadas}}",
+        "tests": "Pruebas con resultado",
+        "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
+        "testsAll": "Todas las pruebas tienen resultado"
       }
     }
   },

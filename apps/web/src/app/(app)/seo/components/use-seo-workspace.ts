@@ -261,6 +261,12 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       setPending(false);
     }
   }
+  // The action a "See the fix" link leads to. Its card takes the focus once.
+  const [shownAction, setShownAction] = useState<string | null>(null);
+  function showAction(action: { observationId: string; id: string }) {
+    setShownAction(seoActionKey(action));
+    void setFilters({ tab: "actions" });
+  }
   function openChat(draft?: string) {
     if (draft) setChatDraft(draft);
     setChatOpen(true);
@@ -362,6 +368,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     data,
     viewerKey: identity,
     openChat,
+    shownAction,
+    setShownAction,
+    showAction,
     askAgent,
     chatAsk,
     setChatAsk,
@@ -406,3 +415,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
 }
 
 export type SeoWorkspaceModel = ReturnType<typeof useSeoWorkspace>;
+
+/** One action of one check; action ids repeat across checks. */
+export function seoActionKey(action: { observationId: string; id: string }) {
+  return `${action.observationId}:${action.id}`;
+}
