@@ -68,7 +68,11 @@ const noop = async () => {};
 it("opens the Cuso picker from the hire form account menu", async () => {
   await act(async () =>
     root.render(
-      <Onboarding signOut={noop} onboard={async (previous) => previous} />,
+      <Onboarding
+        signOut={noop}
+        cusoPicker
+        onboard={async (previous) => previous}
+      />,
     ),
   );
 
@@ -77,6 +81,22 @@ it("opens the Cuso picker from the hire form account menu", async () => {
   expect(container.querySelector('a[href="/?cusos=1"]')?.textContent).toBe(
     "Your Cusos",
   );
+});
+
+it("leaves the Cuso picker out of the hire form account menu without a Cuso", async () => {
+  await act(async () =>
+    root.render(
+      <Onboarding
+        signOut={noop}
+        onboard={async (previous) => previous}
+        cusoPicker={false}
+      />,
+    ),
+  );
+
+  await press("Account");
+
+  expect(container.querySelector('a[href="/?cusos=1"]')).toBeNull();
 });
 
 // The questions: a tap shows at once, a failed save takes it back.

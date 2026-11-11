@@ -58,6 +58,8 @@ interface OnboardingProps {
   /** The person's organizations, which Cuso may go into instead of a new one. */
   organizations?: { id: string; name: string }[];
   signOut?: () => Promise<void>;
+  /** False without a Cuso: the picker would only reload this form. */
+  cusoPicker?: boolean;
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -73,6 +75,7 @@ export function Onboarding({
   websiteUrl,
   organizations = [],
   signOut,
+  cusoPicker,
   onboard,
 }: OnboardingProps) {
   const [state, formAction] = useActionState(onboard, {
@@ -94,7 +97,15 @@ export function Onboarding({
       <header className="ob-top">
         <Logo />
         <StepMarkers current={0} reached={0} />
-        {signOut ? <AccountMenu label="Account" signOut={signOut} /> : <span />}
+        {signOut ? (
+          <AccountMenu
+            label="Account"
+            signOut={signOut}
+            cusoPicker={cusoPicker}
+          />
+        ) : (
+          <span />
+        )}
       </header>
       <main className="ob-main">
         <div className="ob-hire">
