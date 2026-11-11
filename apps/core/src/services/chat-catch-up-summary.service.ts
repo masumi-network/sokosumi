@@ -261,9 +261,11 @@ type SummaryMessage = Prisma.ChatRoomMessageGetPayload<{
 async function unreadTaggedMessages(
   roomIds: readonly string[],
   userId: string,
+  since: Date = new Date(0),
 ): Promise<SummaryMessage[]> {
   if (roomIds.length === 0) return [];
   const user = `$${roomIds.length + 1}`;
+  const after = `$${roomIds.length + 2}`;
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT m.id
     FROM "chat_message_signal" s
@@ -276,6 +278,7 @@ async function unreadTaggedMessages(
       AND s.state = 'tagged'
       AND s."loopClosedAt" IS NULL
       AND m."deletedAt" IS NULL
+      AND m."createdAt" >= ${after}
       AND (m."senderUserId" IS NULL OR m."senderUserId" <> ${user})
       AND NOT ${sqlChatSignalHasTag("s", "chitChat")}
       AND (
@@ -288,6 +291,7 @@ async function unreadTaggedMessages(
     LIMIT ${MAX_MESSAGES}`,
     ...roomIds,
     userId,
+    since,
   );
   const messages = await prisma.chatRoomMessage.findMany({
     where: { id: { in: rows.map((row) => row.id) } },
@@ -1042,6 +1046,7 @@ export async function listImportantChatItems(input: {
     await unreadTaggedMessages(
       rooms.map((room) => room.id),
       input.userId,
+      input.since,
     ),
     input.userId,
     input.since,
