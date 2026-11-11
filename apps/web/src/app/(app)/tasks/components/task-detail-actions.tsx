@@ -80,8 +80,10 @@ import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
+import type { TaskPickerTask } from "./task-detail-api-types";
 import { buildNewTaskFormLabels } from "./task-detail-new-task-labels";
 import { useOptimisticTaskStatus } from "./task-detail-optimistic";
+import { useOptimisticTaskLinks } from "./task-detail-optimistic-links";
 import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 import {
@@ -206,6 +208,7 @@ export function TaskDetailActions({
   const isMobile = useIsMobile();
   const [status, showStatus, isStatusChanging] =
     useOptimisticTaskStatus(savedStatus);
+  const [, showLinkChange] = useOptimisticTaskLinks();
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
   const [isParentRemovalPending, startParentRemovalTransition] =
@@ -232,9 +235,6 @@ export function TaskDetailActions({
     useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
-  const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(
-    null,
-  );
   const [pendingRemoveLinkId, setPendingRemoveLinkId] = useState<string | null>(
     null,
   );
@@ -492,25 +492,40 @@ export function TaskDetailActions({
 
   const handleSelectLinkableTask = (
     option: TaskLinkActionOption,
-    relatedTaskId: string,
+    relatedTask: TaskPickerTask,
   ) => {
-    setPendingLinkTaskId(relatedTaskId);
+    // Closed outside the transition: a state change inside it would wait for
+    // the answer.
+    setIsTaskPickerOpen(false);
+    setSelectedTaskPickerOption(null);
+
+    // Core refuses a second link to the same task, so that pick shows nothing.
+    const isNewPeer = taskLinks.every(
+      (link) => link.peerTask.id !== relatedTask.id,
+    );
 
     startLinkTransition(async () => {
+      // A new parent takes the place of the one the task has.
+      if (isNewPeer && option.relation === TaskLinkRelation.CHILD) {
+        for (const link of parentLinks) {
+          showLinkChange({ hidePeerTaskId: link.peerTask.id });
+        }
+      }
+      if (isNewPeer) {
+        showLinkChange({
+          add: { ...relatedTask, identifier: null, relation: option.relation },
+        });
+      }
       try {
         await createTaskLink({
           taskId,
-          relatedTaskId,
+          relatedTaskId: relatedTask.id,
           relation: option.relation,
         });
-        setIsTaskPickerOpen(false);
-        setSelectedTaskPickerOption(null);
         toast.success(tDetailActions("linkTaskSuccess"));
       } catch (error) {
         console.error("Failed to create task link", error);
         toast.error(tDetailActions("linkTaskError"));
-      } finally {
-        setPendingLinkTaskId(null);
       }
     });
   };
@@ -519,6 +534,9 @@ export function TaskDetailActions({
     if (parentLinks.length === 0) return;
 
     startParentRemovalTransition(async () => {
+      for (const link of parentLinks) {
+        showLinkChange({ hidePeerTaskId: link.peerTask.id });
+      }
       try {
         for (const link of parentLinks) {
           await deleteTaskLink({
@@ -538,6 +556,7 @@ export function TaskDetailActions({
     setPendingRemoveLinkId(link.id);
 
     startRemoveRelatedTransition(async () => {
+      showLinkChange({ hidePeerTaskId: link.peerTask.id });
       try {
         await deleteTaskLink({
           taskId,
@@ -1059,13 +1078,11 @@ export function TaskDetailActions({
         onOpenChange={(open) => {
           setIsTaskPickerOpen(open);
           if (!open) {
-            setPendingLinkTaskId(null);
             setSelectedTaskPickerOption(null);
           }
         }}
         selectedOption={selectedTaskPickerOption}
         isLinkPending={isLinkPending}
-        pendingLinkTaskId={pendingLinkTaskId}
         onSelectTask={handleSelectLinkableTask}
       />
 

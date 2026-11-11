@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
 import { TaskCanonicalUrl } from "@/app/tasks/components/task-canonical-url";
 import { TaskDetailStatusProvider } from "@/app/tasks/components/task-detail-optimistic";
+import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
 import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
 import { taskHref } from "@/app/tasks/utils/task-href";
@@ -41,7 +42,9 @@ export default async function TaskDetailPage({
     return (
       <>
         <TaskDetailStatusProvider status={task.status}>
-          <TaskDetailView task={task} />
+          <TaskDetailLinksProvider>
+            <TaskDetailView task={task} />
+          </TaskDetailLinksProvider>
         </TaskDetailStatusProvider>
         <TaskCanonicalUrl href={taskHref(task)} />
         {/* Opening the task is reading what its notifications were about.
