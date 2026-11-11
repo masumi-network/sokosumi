@@ -800,7 +800,13 @@ export async function enableBuzzForOrganization(organizationId: string) {
   });
   return prisma.buzzCommunity.upsert({
     where: { organizationId },
-    create: { organizationId, relayUrl: communityUrlFor(organization.slug) },
+    create: {
+      organizationId,
+      relayUrl: communityUrlFor(organization.slug),
+      // Nothing before this is read; everything after it is, even after an
+      // outage that starts right away.
+      inboundCursor: Math.floor(Date.now() / 1000),
+    },
     update: {},
   });
 }
@@ -932,6 +938,7 @@ async function ensureProfile(
 }
 
 const DIRECT = "direct";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isDirect(channel: { membersHash: string | null }): boolean {
   return Boolean(channel.membersHash?.startsWith(DIRECT));
@@ -1346,14 +1353,25 @@ export async function reconcileMessage(
     if (message.deletedAt) return "skipped";
     if (message.clientMessageId?.startsWith("buzz:")) {
       // Posted from Buzz: the event already exists. Inbound usually linked
-      // it already; this covers a worker that stopped in between.
+      // it already; this covers a worker that stopped in between. Who
+      // signed it decides whether Sokosumi may change it there.
+      const eventId = message.clientMessageId.slice("buzz:".length);
+      const [original] = await queryEvents({
+        relayUrl,
+        secretKey: authorKey,
+        filters: [{ ids: [eventId] }],
+      });
+      if (!original)
+        throw new Error(`Buzz event ${eventId.slice(0, 8)} not found`);
       link = await prisma.buzzMessageLink.upsert({
         where: { messageId: message.id },
         create: {
           messageId: message.id,
-          eventId: message.clientMessageId.slice("buzz:".length),
+          eventId,
           contentHash: hash,
           channelId: channel.channelId,
+          signerPubkey:
+            original.pubkey === authorIdentity.pubkey ? null : original.pubkey,
         },
         update: {},
       });
@@ -1461,12 +1479,14 @@ export async function reconcileMessage(
 export async function buzzContentOf(content: string): Promise<string> {
   const keys = readChatMentionKeys(content).filter((key) => key !== "all");
   if (keys.length === 0) return content;
+  // People may have 32-character auth ids; Soko Bot ids are uuids.
+  const uuidKeys = keys.filter((key) => UUID.test(key));
   const identities = await prisma.buzzIdentity.findMany({
     where: {
       OR: [
         { userId: { in: keys } },
         { coworkerId: { in: keys } },
-        { sokoBotId: { in: keys } },
+        { sokoBotId: { in: uuidKeys } },
       ],
     },
     select: {
@@ -1501,7 +1521,7 @@ export async function buzzContentOf(content: string): Promise<string> {
       select: { id: true, name: true },
     }),
     prisma.sokoBot.findMany({
-      where: { id: { in: keys } },
+      where: { id: { in: uuidKeys } },
       select: { id: true, name: true },
     }),
   ]);
@@ -1742,6 +1762,39 @@ export async function drainBuzzOutbox(
 }
 
 // ---------------------------------------------------------------- inbound
+
+/** Buzz text with each `nostr:npub…` turned into the name Sokosumi knows. */
+async function namedContent(content: string): Promise<string> {
+  const pubkeys: string[] = [];
+  readableContent(content, (pubkey) => {
+    pubkeys.push(pubkey);
+    return undefined;
+  });
+  if (pubkeys.length === 0) return content;
+  const identities = await prisma.buzzIdentity.findMany({
+    where: {
+      OR: [{ pubkey: { in: pubkeys } }, { appPubkey: { in: pubkeys } }],
+    },
+    select: {
+      pubkey: true,
+      appPubkey: true,
+      user: { select: { name: true } },
+      sokoBot: { select: { name: true } },
+      coworker: { select: { name: true } },
+    },
+  });
+  const names = new Map<string, string | undefined>(
+    identities.flatMap((identity) => {
+      const name =
+        identity.user?.name ??
+        (identity.sokoBot ? sokoBotDisplayName(identity.sokoBot) : null) ??
+        identity.coworker?.name ??
+        undefined;
+      return keysOf(identity).map((pubkey) => [pubkey, name] as const);
+    }),
+  );
+  return readableContent(content, (pubkey) => names.get(pubkey));
+}
 
 /** Calls a Core route as a person, with their bridge API key. */
 export type CoreRequest = (input: {
@@ -2020,12 +2073,13 @@ export async function applyInboundEvent(
         (event.created_at === link.lastEditAt &&
           (link.lastEditEventId === null || event.id < link.lastEditEventId));
       if (!newer) return "echo";
-      const hash = contentHash(change.content);
+      const content = await namedContent(change.content);
+      const hash = contentHash(content);
       if (link.contentHash !== hash) {
         await sendAs(core, author, {
           method: "PATCH",
           path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}`,
-          body: { content: change.content },
+          body: { content },
         });
       }
       await prisma.buzzMessageLink.update({

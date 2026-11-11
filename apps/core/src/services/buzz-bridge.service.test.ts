@@ -326,6 +326,39 @@ describe("applyInboundEvent edits", () => {
     expect(core).not.toHaveBeenCalled();
   });
 
+  it("names the people an edit mentions, as a new message does", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: "before",
+        lastEditAt: 0,
+        lastEditEventId: null,
+        message: { roomId: "room" },
+      });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOT_PUBKEY,
+        appPubkey: null,
+        user: { name: "Alice" },
+        sokoBot: null,
+        coworker: null,
+      },
+    ]);
+    await expect(
+      applyInboundEvent(
+        editOf(100, `ask nostr:${npubEncode(BOT_PUBKEY)} please`),
+        core,
+      ),
+    ).resolves.toBe("edited");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PATCH",
+        body: { content: "ask @Alice please" },
+      }),
+    );
+  });
+
   it("records nothing when Core refuses the edit, so a retry applies it", async () => {
     db.buzzMessageLink.findUnique
       .mockResolvedValueOnce(null)
