@@ -1936,7 +1936,7 @@ export const getContactsByIdInteractions = <ThrowOnError extends boolean = false
 });
 
 /**
- * Record an interaction the caller had with this contact. With a `sourceRef` (provider message or event id) the same one twice is recorded once. First contact, last contact and the count follow.
+ * Record an interaction the caller had with this contact. With a `sourceRef` (provider message or event id) the same one twice is recorded once. First contact, last contact and the count follow. `contact` sets the next step and follow-up in the same write; its `version` must be the one last read, otherwise 409 and nothing is saved.
  */
 export const postContactsByIdInteractions = <ThrowOnError extends boolean = false>(options: Options<PostContactsByIdInteractionsData, ThrowOnError>): RequestResult<PostContactsByIdInteractionsResponses, PostContactsByIdInteractionsErrors, ThrowOnError> => (options.client ?? client).post<PostContactsByIdInteractionsResponses, PostContactsByIdInteractionsErrors, ThrowOnError>({
     url: '/contacts/{id}/interactions',

@@ -35897,6 +35897,11 @@ export type PostContactsByIdInteractionsData = {
         summary: string;
         sourceRef?: string | null;
         sourceUrl?: string | null;
+        contact?: {
+            version: number;
+            nextStep?: string | null;
+            followUpAt?: string | null;
+        };
     };
     headers?: {
         /**

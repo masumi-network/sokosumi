@@ -10979,7 +10979,8 @@
         "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
         "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
         "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
-        "connectedVia": "Verbunden über"
+        "connectedVia": "Verbunden über",
+        "logTouch": "Kontakt festhalten"
       },
       "stageGroups": {
         "general": "Allgemein",
@@ -11127,6 +11128,20 @@
         "none": "Nicht gesetzt",
         "nobody": "Noch niemand",
         "more": "und {count} weitere"
+      },
+      "logTouch": {
+        "title": "Kontakt mit {name} festhalten",
+        "description": "Notiere, was passiert ist, und lege fest, wie es weitergeht. Der Eintrag erscheint im Verlauf.",
+        "kind": "Art",
+        "summary": "Was ist passiert",
+        "summaryPlaceholder": "Pilot im Januar vereinbart",
+        "summaryRequired": "Schreib auf, was passiert ist.",
+        "inAWeek": "In einer Woche",
+        "inAMonth": "In einem Monat",
+        "cancel": "Abbrechen",
+        "submit": "Festhalten",
+        "logged": "Kontakt festgehalten",
+        "failed": "Konnte nicht gespeichert werden. Versuch es noch einmal."
       }
     }
   },

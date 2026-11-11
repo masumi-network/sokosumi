@@ -10979,7 +10979,8 @@
         "enriched": "{fields} completado desde la web · 1 crédito",
         "enrichedNone": "No se encontró nada nuevo en la web. No se usaron créditos.",
         "enrichFailed": "No se pudo buscar. Inténtalo de nuevo.",
-        "connectedVia": "Conectado por"
+        "connectedVia": "Conectado por",
+        "logTouch": "Registrar contacto"
       },
       "stageGroups": {
         "general": "General",
@@ -11127,6 +11128,20 @@
         "none": "Sin indicar",
         "nobody": "Nadie todavía",
         "more": "y {count} más"
+      },
+      "logTouch": {
+        "title": "Registrar un contacto con {name}",
+        "description": "Anota qué pasó y define el siguiente paso. Aparece en el historial.",
+        "kind": "Tipo",
+        "summary": "Qué pasó",
+        "summaryPlaceholder": "Acordamos un piloto en enero",
+        "summaryRequired": "Escribe qué pasó.",
+        "inAWeek": "En una semana",
+        "inAMonth": "En un mes",
+        "cancel": "Cancelar",
+        "submit": "Registrar",
+        "logged": "Contacto registrado",
+        "failed": "No se pudo registrar. Inténtalo de nuevo."
       }
     }
   },

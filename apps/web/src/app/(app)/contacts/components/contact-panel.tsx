@@ -86,6 +86,7 @@ import {
 } from "./contact-visuals";
 import { GroupedRadioItems, useStageOptions } from "./contacts-toolbar";
 import { InlineField } from "./inline-field";
+import { LogTouchDialog } from "./log-touch-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
@@ -1029,17 +1030,27 @@ function TimelineSection({ contact }: { contact: ContactDetail }) {
     getNextPageParam: (page) => page.nextCursor,
   });
   const items = timeline.data?.pages.flatMap((page) => page.items) ?? [];
+  const [logging, setLogging] = useState(false);
   return (
     <Section
       title={t("timeline")}
       action={
-        contact.interactionCount ? (
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {t("interactionCount", { count: contact.interactionCount })}
-          </span>
-        ) : null
+        <div className="flex items-center gap-2">
+          {contact.interactionCount ? (
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {t("interactionCount", { count: contact.interactionCount })}
+            </span>
+          ) : null}
+          <Button size="sm" variant="outline" onClick={() => setLogging(true)}>
+            <PenLine aria-hidden />
+            {t("logTouch")}
+          </Button>
+        </div>
       }
     >
+      {logging ? (
+        <LogTouchDialog contact={contact} onClose={() => setLogging(false)} />
+      ) : null}
       {timeline.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : items.length === 0 ? (

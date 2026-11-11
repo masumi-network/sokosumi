@@ -10979,7 +10979,8 @@
         "enriched": "Filled {fields} from the web · 1 credit",
         "enrichedNone": "Nothing new found on the web. No credits used.",
         "enrichFailed": "Could not look them up. Try again.",
-        "connectedVia": "Connected via"
+        "connectedVia": "Connected via",
+        "logTouch": "Log touch"
       },
       "stageGroups": {
         "general": "General",
@@ -11127,6 +11128,20 @@
         "none": "Not set",
         "nobody": "Nobody yet",
         "more": "and {count} more"
+      },
+      "logTouch": {
+        "title": "Log a touch with {name}",
+        "description": "Note what happened and set what comes next. It goes on the Timeline.",
+        "kind": "Kind",
+        "summary": "What happened",
+        "summaryPlaceholder": "Agreed to try a pilot in January",
+        "summaryRequired": "Write what happened.",
+        "inAWeek": "In a week",
+        "inAMonth": "In a month",
+        "cancel": "Cancel",
+        "submit": "Log touch",
+        "logged": "Touch logged",
+        "failed": "Could not log the touch. Try again."
       }
     }
   },

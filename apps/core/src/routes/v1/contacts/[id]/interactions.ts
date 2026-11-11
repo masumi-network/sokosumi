@@ -1,5 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { contactInteractionInputSchema } from "@sokosumi/utils";
+import {
+  contactInteractionInputSchema,
+  updateContactSchema,
+} from "@sokosumi/utils";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -21,6 +24,7 @@ import {
   listContactInteractions,
   logContactInteraction,
   removeContactInteraction,
+  updateContact,
 } from "@/services/contacts.service";
 import { contactActor } from "../context";
 
@@ -30,6 +34,13 @@ const errors = {
   404: jsonErrorResponse("Not found"),
   422: jsonErrorResponse("Invalid input"),
 };
+
+const logInteractionBodySchema = contactInteractionInputSchema.extend({
+  /** What happens next, saved with the interaction or not at all. */
+  contact: updateContactSchema
+    .pick({ version: true, nextStep: true, followUpAt: true })
+    .optional(),
+});
 
 const listRoute = withCoworkerContextHeaderParameters(
   createRoute({
@@ -59,12 +70,12 @@ const logRoute = withCoworkerContextHeaderParameters(
     path: "/{id}/interactions",
     tags: ["Contacts"],
     description:
-      "Record an interaction the caller had with this contact. With a `sourceRef` (provider message or event id) the same one twice is recorded once. First contact, last contact and the count follow.",
+      "Record an interaction the caller had with this contact. With a `sourceRef` (provider message or event id) the same one twice is recorded once. First contact, last contact and the count follow. `contact` sets the next step and follow-up in the same write; its `version` must be the one last read, otherwise 409 and nothing is saved.",
     request: {
       params: z.object({ id: z.uuid() }),
       body: {
         content: {
-          "application/json": { schema: contactInteractionInputSchema },
+          "application/json": { schema: logInteractionBodySchema },
         },
       },
     },
@@ -112,11 +123,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(logRoute, async (c) => {
     const actor = await contactActor(c);
     const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+    const { contact, ...interaction } = c.req.valid("json");
     const result = contactInteractionResultSchema.parse(
-      await inContactTransaction((tx) =>
-        logContactInteraction(tx, actor, id, body),
-      ),
+      await inContactTransaction(async (tx) => {
+        if (contact) await updateContact(tx, actor, id, contact);
+        return logContactInteraction(tx, actor, id, interaction);
+      }),
     );
     return result.created ? created(c, result) : ok(c, result);
   });

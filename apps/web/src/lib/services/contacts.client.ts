@@ -21,6 +21,7 @@ import {
   type PatchContactsCompaniesByCompanyIdData,
   type PostContactListsData,
   type PostContactsByIdChannelsData,
+  type PostContactsByIdInteractionsData,
   type PostContactsData,
   type PostContactsImportData,
   patchContactListsById,
@@ -35,6 +36,7 @@ import {
   postContactsByIdArchive,
   postContactsByIdChannels,
   postContactsByIdEnrich,
+  postContactsByIdInteractions,
   postContactsImport,
   postContactsMerge,
   putContactsByIdImportance,
@@ -161,6 +163,15 @@ export const contactsService = {
       query: { cursor, limit: 20 },
     });
     return { items: data.data, nextCursor: data.meta.pagination.nextCursor };
+  },
+  /** Records a touch; `contact` saves the next step and follow-up with it. */
+  async logInteraction(
+    id: string,
+    body: NonNullable<PostContactsByIdInteractionsData["body"]>,
+  ) {
+    return (
+      await postContactsByIdInteractions({ ...options(), path: { id }, body })
+    ).data.data;
   },
   async activity(id: string, cursor?: string) {
     const { data } = await getContactsByIdActivity({

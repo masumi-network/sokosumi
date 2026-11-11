@@ -371,6 +371,74 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
     ).toBeUndefined();
   });
 
+  it("logs a touch and its next step in one write, or neither", async () => {
+    const created = await call("POST", "/contacts", { name: "Ada Touch" });
+    const { contact } = (await created.json()).data;
+
+    const touch = await call("POST", `/contacts/${contact.id}/interactions`, {
+      occurredAt: "2026-11-10T15:00:00Z",
+      channel: "CALL",
+      direction: "BOTH",
+      summary: "Wants a pilot in January",
+      contact: {
+        version: contact.version,
+        nextStep: "Send pilot terms",
+        followUpAt: "2026-11-17",
+      },
+    });
+    expect(touch.status).toBe(201);
+    const detail = (await (await call("GET", `/contacts/${contact.id}`)).json())
+      .data;
+    expect(detail).toMatchObject({
+      nextStep: "Send pilot terms",
+      followUpAt: "2026-11-17",
+      interactionCount: 1,
+      version: contact.version + 1,
+    });
+
+    // A teammate saved in between: nothing of this touch is kept.
+    const stale = await call("POST", `/contacts/${contact.id}/interactions`, {
+      occurredAt: "2026-11-11T09:00:00Z",
+      channel: "MANUAL",
+      summary: "Lost note",
+      contact: { version: contact.version, followUpAt: null },
+    });
+    expect(stale.status).toBe(409);
+    expect((await stale.json()).kind).toBe("contact_version_conflict");
+    const after = (await (await call("GET", `/contacts/${contact.id}`)).json())
+      .data;
+    expect(after).toMatchObject({
+      followUpAt: "2026-11-17",
+      interactionCount: 1,
+    });
+
+    // Without `contact` the next step and follow-up stay as they are.
+    const note = await call("POST", `/contacts/${contact.id}/interactions`, {
+      occurredAt: "2026-11-11T10:00:00Z",
+      channel: "MANUAL",
+      summary: "Sent the terms",
+    });
+    expect(note.status).toBe(201);
+    expect(
+      (await (await call("GET", `/contacts/${contact.id}`)).json()).data,
+    ).toMatchObject({ nextStep: "Send pilot terms", interactionCount: 2 });
+
+    const stranger = await strangerCall(
+      "POST",
+      `/contacts/${contact.id}/interactions`,
+      {
+        occurredAt: "2026-11-11T11:00:00Z",
+        channel: "MANUAL",
+        summary: "Not mine",
+        contact: { version: contact.version + 1, nextStep: "Stolen" },
+      },
+    );
+    expect(stranger.status).toBe(404);
+    expect(
+      (await (await call("GET", `/contacts/${contact.id}`)).json()).data,
+    ).toMatchObject({ nextStep: "Send pilot terms", interactionCount: 2 });
+  });
+
   it("hides one workspace's contacts and lists from another", async () => {
     const created = await call("POST", "/contacts", {
       name: "Private To Member",
