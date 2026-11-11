@@ -24,16 +24,24 @@ describe("markdownToHtml", () => {
     expect(htmlToMarkdown(root).trim()).toBe(source);
   });
 
-  it("keeps links that would leave the app as text", () => {
-    for (const href of ["//evil.test/x", "/\\evil.test/x"]) {
+  it("keeps app-relative destinations it cannot trust as the original text", () => {
+    for (const href of [
+      "//evil.test/x",
+      "/\\evil.test/x",
+      // Control characters: the sanitizer would strip such an href, and the
+      // next save would lose the destination.
+      "/\u0001/evil.test/x",
+      "/contacts\u0000x",
+      "/a\u001fb",
+      "/contacts?contact=c-1\u007f",
+    ]) {
+      const source = `[go](${href})`;
       const root = document.createElement("div");
       root.innerHTML = sanitizeComposerHtml(
-        markdownToHtml(`[go](${href})`, () => ({
-          displayName: "x",
-          isKnown: false,
-        })),
+        markdownToHtml(source, () => ({ displayName: "x", isKnown: false })),
       );
-      expect(root.querySelector("a")).toBeNull();
+      expect(root.querySelector("a"), JSON.stringify(href)).toBeNull();
+      expect(htmlToMarkdown(root).trim(), JSON.stringify(href)).toBe(source);
     }
   });
 
