@@ -8151,6 +8151,18 @@
           },
           "seatsCheckoutLabel": "Seats a comprar"
         },
+        "CreditSpend": {
+          "title": "Créditos gastados por persona",
+          "description": "Créditos cobrados a cada persona este mes y el mes pasado, antes de reembolsos. Los meses siguen UTC. Las recargas no cuentan.",
+          "person": "Persona",
+          "noPerson": "Cargos de la organización (sin persona)",
+          "unknownPerson": "Persona desconocida",
+          "otherSpend": "Resto del gasto",
+          "formerMember": "Exmiembro",
+          "empty": "No se gastaron créditos este mes ni el mes pasado.",
+          "loadError": "No se pudo cargar el gasto de créditos. Inténtalo de nuevo.",
+          "retry": "Reintentar"
+        },
         "Seats": {
           "title": "Resumen de Seats",
           "description": "Los Seats comprados son la capacidad de tu plan de pago. Los miembros con un Seat de pago reciben créditos de suscripción. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",

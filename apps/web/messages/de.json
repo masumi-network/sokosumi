@@ -8151,6 +8151,18 @@
           },
           "seatsCheckoutLabel": "Zu kaufende Seats"
         },
+        "CreditSpend": {
+          "title": "Verbrauchte Credits pro Person",
+          "description": "Credits, die jeder Person in diesem und im letzten Monat berechnet wurden, vor Rückerstattungen. Monate nach UTC. Aufladungen zählen nicht.",
+          "person": "Person",
+          "noPerson": "Organisationskosten (keine Person)",
+          "unknownPerson": "Unbekannte Person",
+          "otherSpend": "Alle übrigen Ausgaben",
+          "formerMember": "Ehemaliges Mitglied",
+          "empty": "In diesem und im letzten Monat wurden keine Credits verbraucht.",
+          "loadError": "Der Credit-Verbrauch konnte nicht geladen werden. Versuche es erneut.",
+          "retry": "Erneut versuchen"
+        },
         "Seats": {
           "title": "Seat Übersicht",
           "description": "Gekaufte Seats sind die Kapazität deines bezahlten Plans. Mitglieder mit einem bezahlten Seat erhalten Subscription-Credits. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
