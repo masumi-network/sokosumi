@@ -84,11 +84,11 @@ describe("SEO competitor baselines", () => {
       .map((header) => header.textContent);
     expect(headers).toContain("Backlinks");
     expect(headers).not.toContain("Best position");
-    expect(headers).not.toContain("Linking sites");
+    expect(headers).not.toContain("Sites linking to this page");
     expect(screen.getByRole("cell", { name: "12" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Not measured for these rows yet: Best position and Linking sites.",
+        "Not measured for these rows yet: Best position and Sites linking to this page.",
       ),
     ).toBeInTheDocument();
   });
@@ -154,7 +154,7 @@ describe("SEO competitor baselines", () => {
       expect(own).not.toBeNull();
       expect(within(own!).getByText("Your page")).toBeVisible();
       expect(
-        within(own!).getByText("Backlinks: 10 · Linking sites: 4"),
+        within(own!).getByText("Backlinks: 10 · Sites linking to this page: 4"),
       ).toBeVisible();
       expect(within(own!).queryByRole("button")).toBeNull();
       expect(screen.getAllByText("From the search results")).toHaveLength(1);
@@ -204,7 +204,9 @@ describe("SEO competitor baselines", () => {
     const own = screen
       .getByRole("link", { name: page.url })
       .closest("dd") as HTMLElement;
-    expect(within(own).getByText("Linking sites: 4")).toBeVisible();
+    expect(
+      within(own).getByText("Sites linking to this page: 4"),
+    ).toBeVisible();
     expect(own).not.toHaveTextContent("Backlinks");
     // Position and linking sites are measured; a competitor row never has a backlink count.
     expect(screen.queryByText(/^Not measured for these rows yet/)).toBeNull();

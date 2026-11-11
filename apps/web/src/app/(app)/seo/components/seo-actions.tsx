@@ -20,8 +20,8 @@ import { SeoStrategyActions } from "./seo-strategy";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /**
- * One card for an action on every tab: how bad the issue is, the title, the page
- * and the button. The reasons and the evidence are in its details.
+ * One card for an action (the Actions tab, and the top proposal on the Agent tab): how bad the issue is,
+ * the title, the page and the button. The reasons and the evidence are in its details.
  */
 export function SeoActionCard({
   action,
@@ -38,7 +38,7 @@ export function SeoActionCard({
 }) {
   const t = useTranslations("App.Seo");
   const card = useRef<HTMLElement>(null);
-  // "See the fix" on the Health tab leads here: the card scrolls into view and takes the focus once.
+  // "See the fix" on the Health tab and "Open" on an Agent row lead here: the card scrolls into view and takes the focus once.
   const shown = model.shownAction === seoActionKey(action);
   const { setShownAction } = model;
   // The card stays marked until the focus leaves the card, so the reader sees which of the cards the row meant.

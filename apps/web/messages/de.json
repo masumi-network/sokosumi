@@ -11043,7 +11043,8 @@
         "language": "Sprachcode",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
-        "help": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Rangprüfungen.",
+        "help": "Verfolge ein Keyword, damit es in dieser Liste bleibt und die nächste Rangprüfung damit beginnt. Mit verbundener Search Console speichert jede Synchronisierung seine Position. Das Verfolgen ist kostenlos.",
+        "dialogHelp": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Rangprüfungen.",
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
         "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder",
@@ -11067,7 +11068,6 @@
           },
           "short": "Ideen"
         },
-        "noneFound": "Kein Keyword zeigt deine Seiten.",
         "intentMissing": "{count, plural, one {Die Keyword-Daten nennen für # Keyword keine Suchabsicht.} other {Die Keyword-Daten nennen für # Keywords keine Suchabsicht.}}",
         "readOn": "Positionen gelesen am"
       },
@@ -11082,7 +11082,7 @@
         "unconfirm": "Nicht mehr verfolgen",
         "rank": "Beste Position",
         "backlinks": "Backlinks",
-        "domains": "Verlinkende Websites",
+        "domains": "Websites, die auf diese Seite verlinken",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
         "noMatch": "Kein Mitbewerber passt zu dieser Suche",
         "help": "Websites in den Google-Ergebnissen für deine Fokus-Keywords. Die Position ist der beste Platz, den eine Seite der Website in diesen Ergebnissen hat. Eine bestätigte Website zählt als dein Mitbewerber.",
@@ -11524,7 +11524,8 @@
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
         "lastCheckPages": "{pages, plural, one {# Seite} other {# Seiten}}",
         "noneFound": "{count, plural, one {Keine deiner Seiten ist in den Google-Ergebnissen für das # geprüfte Keyword.} other {Keine deiner Seiten ist in den Google-Ergebnissen für die # geprüften Keywords.}}",
-        "noneFoundDepth": "{count, plural, one {Keine deiner Seiten ist in den ersten {depth} Google-Ergebnissen für das # geprüfte Keyword.} other {Keine deiner Seiten ist in den ersten {depth} Google-Ergebnissen für die # geprüften Keywords.}}"
+        "noneFoundDepth": "{count, plural, one {Keine deiner Seiten ist in den ersten {depth} Google-Ergebnissen für das # geprüfte Keyword.} other {Keine deiner Seiten ist in den ersten {depth} Google-Ergebnissen für die # geprüften Keywords.}}",
+        "openStep": "Öffnen"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",

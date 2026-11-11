@@ -1,6 +1,13 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -498,9 +505,11 @@ describe("Keywords after a check", () => {
     expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
     expect(
       screen.getByText(
-        "No keyword shows your pages. Where a keyword is not found, the check read the first 16 to 17 results.",
+        "Where a keyword is not found, the check read the first 16 to 17 results.",
       ),
     ).toBeVisible();
+    // What a click on "Track" gives stands once, between the result and the rows with the buttons.
+    expect(screen.getAllByText(/^Track a keyword to keep it/)).toHaveLength(1);
     // The market shows once, in the result line, not once per row.
     expect(screen.getAllByText("United States · English")).toHaveLength(1);
     expect(
@@ -831,12 +840,43 @@ describe("Search Console queries", () => {
     ).toBeVisible();
     expect(screen.getAllByText("Not found")).toHaveLength(2);
     unmount();
-    // A read without a depth gives no depth sentence, but the hidden column is still explained.
+    // A read without a depth gives no depth sentence; the result line still says that no keyword is found.
     workspace.keywords = [
       missed({ id: "new", keyword: "battery app", checkedResults: null }),
     ];
     renderWorkspace(workspace);
     expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
-    expect(screen.getByText("No keyword shows your pages.")).toBeVisible();
+    expect(screen.queryByText(/the check read the first/)).toBeNull();
+    expect(
+      screen.getByText("Found in Google's results for 0 of 1 checked keyword"),
+    ).toBeVisible();
+    cleanup();
+    // The tracking sentence stands over rows with a Track button: without a row it has no place.
+    workspace.keywords = [];
+    renderWorkspace(workspace);
+    expect(screen.getByRole("heading", { name: "Keywords" })).toBeVisible();
+    expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
+    cleanup();
+    // It names the next rank check too: it has no place where no rank check can run.
+    workspace.keywords = [
+      missed({ id: "new", keyword: "battery app", checkedResults: null }),
+    ];
+    workspace.availableActions = {
+      ...workspace.availableActions,
+      canUsePaidSearchData: false,
+    };
+    renderWorkspace(workspace);
+    expect(screen.getByText("battery app")).toBeVisible();
+    expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
+    cleanup();
+    // A reader who cannot edit has no Track button, so no sentence about it.
+    workspace.availableActions = {
+      ...workspace.availableActions,
+      canUsePaidSearchData: true,
+      canEdit: false,
+    };
+    renderWorkspace(workspace);
+    expect(screen.getByText("battery app")).toBeVisible();
+    expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
   });
 });

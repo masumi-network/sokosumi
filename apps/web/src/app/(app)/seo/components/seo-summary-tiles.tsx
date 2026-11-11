@@ -40,7 +40,6 @@ function Tile({
   value,
   rest,
   bar,
-  note,
   children,
   testId,
 }: {
@@ -49,8 +48,6 @@ function Tile({
   /** The total the value is a part of, or its unit. */
   rest?: string;
   bar?: ReactNode;
-  /** A line every width shows. The bar and the parts show from the `sm` width up. */
-  note?: ReactNode;
   children?: ReactNode;
   testId: string;
 }) {
@@ -70,43 +67,39 @@ function Tile({
             </>
           ) : null}
         </p>
-        {/* A phone shows the number alone: four tiles with bars and parts fill its first screen. */}
-        {bar ? <div className="hidden sm:block">{bar}</div> : null}
+        {bar}
         {children ? (
-          <div className="text-muted-foreground hidden text-xs sm:block">
-            {children}
-          </div>
+          <div className="text-muted-foreground text-xs">{children}</div>
         ) : null}
-        {note ? <p className="text-muted-foreground text-xs">{note}</p> : null}
       </dd>
     </div>
   );
 }
 
 /**
- * The last check and the newest position reads as numbers with their parts.
- * The same row leads the Agent tab and the Health tab, so one result reads the same on both.
+ * Two numbers with their parts. The Health tab shows the page check (issues, tests); the Agent tab shows
+ * the rankings (keywords found, searches). No number shows on both tabs, so a pair fits one phone row.
  */
 export function SeoSummaryTiles({
   workspace,
   onOpenRankings,
-  dated,
+  show,
 }: {
   workspace: ProjectSeoWorkspace;
-  /** Dates the tests tile where no line near the row names the last check. The issues can come from older checks too. */
-  dated?: boolean;
+  show: "health" | "rankings";
   /** Opens the Rankings tab; absent where the reader is on it. */
   onOpenRankings?: () => void;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
-  const { issues, tests, keywords, searches } = seoSummary(workspace);
+  const summary = seoSummary(workspace);
+  const issues = show === "health" ? summary.issues : null;
+  const tests = show === "health" ? summary.tests : null;
+  const keywords = show === "rankings" ? summary.keywords : null;
+  const searches = show === "rankings" ? summary.searches : null;
   if (!issues && !tests && !keywords && !searches) return null;
   return (
-    <dl
-      className="grid grid-cols-2 gap-2 lg:grid-cols-4"
-      data-testid="seo-summary-tiles"
-    >
+    <dl className="grid grid-cols-2 gap-2" data-testid="seo-summary-tiles">
       {issues ? (
         <Tile
           label={t("summary.issues")}
@@ -192,24 +185,12 @@ export function SeoSummaryTiles({
           value={format.number(searches.total)}
           rest={t("summary.aMonth")}
           testId="seo-summary-searches"
-          // A sum for a part of the keywords says so at every width.
-          note={
-            searches.keywords === searches.of
-              ? undefined
-              : t("summary.searchesFor", {
-                  keywords: searches.keywords,
-                  of: searches.of,
-                  same: "no",
-                })
-          }
         >
-          {searches.keywords === searches.of
-            ? t("summary.searchesFor", {
-                keywords: searches.keywords,
-                of: searches.of,
-                same: "yes",
-              })
-            : null}
+          {t("summary.searchesFor", {
+            keywords: searches.keywords,
+            of: searches.of,
+            same: searches.keywords === searches.of ? "yes" : "no",
+          })}
         </Tile>
       ) : null}
       {tests ? (
@@ -218,31 +199,8 @@ export function SeoSummaryTiles({
           value={format.number(tests.decided)}
           rest={t("summary.of", { total: format.number(tests.total) })}
           testId="seo-summary-tests"
-          note={
-            dated ? (
-              <>
-                {t("agent.lastCheckOn")}{" "}
-                <SeoDate day value={tests.observedAt} />
-              </>
-            ) : undefined
-          }
-          bar={
-            <Bar
-              parts={[
-                {
-                  key: "decided",
-                  count: tests.decided,
-                  className: "bg-foreground",
-                },
-                {
-                  key: "rest",
-                  count: tests.undecided + tests.unavailable,
-                  className: REST_MARK_CLASS,
-                },
-              ]}
-            />
-          }
         >
+          {/* No bar: a nearly full bar reads as a health score, and this is a count of tests that ran. */}
           <span className="flex flex-wrap gap-x-3">
             {/* The same two counts, in the same words, as the row of the check in the Timeline. */}
             {tests.undecided ? (
@@ -258,6 +216,10 @@ export function SeoSummaryTiles({
             {tests.undecided + tests.unavailable ? null : (
               <span>{t("summary.testsAll")}</span>
             )}
+            {/* The issues can come from older checks too; the tests are of this one. */}
+            <span>
+              {t("agent.lastCheckOn")} <SeoDate day value={tests.observedAt} />
+            </span>
           </span>
         </Tile>
       ) : null}

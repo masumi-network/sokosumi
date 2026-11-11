@@ -317,13 +317,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
     : undefined;
   return (
     <div className="space-y-5">
-      <SeoSummaryTiles
-        dated
-        workspace={data}
-        onOpenRankings={() => {
-          void model.setFilters({ tab: "rankings" });
-        }}
-      />
+      <SeoSummaryTiles show="health" workspace={data} />
       {overview.issues.length ? (
         <SeoSection title={t("overview.findings")}>
           {/* One list, one row per issue: the row opens its evidence and the way to its fix. */}

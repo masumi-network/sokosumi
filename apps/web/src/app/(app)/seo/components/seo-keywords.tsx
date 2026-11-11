@@ -178,7 +178,6 @@ export function SeoKeywords({
       <div className={seoPhoneSectionClass(phoneSection === "keywords")}>
         <SeoSection
           title={t("keywords.title")}
-          description={paidOff ? undefined : t("keywords.help")}
           actions={
             model.data.availableActions.canEdit ? (
               <Button size="sm" onClick={() => model.setDialog("keyword")}>
@@ -225,22 +224,25 @@ export function SeoKeywords({
                   />
                 ) : null}
               </p>
-              {summary.depth || !shown.position ? (
+              {summary.depth ? (
                 <p className="text-muted-foreground text-sm">
-                  {shown.position ? null : `${t("keywords.noneFound")} `}
-                  {summary.depth
-                    ? t("keywords.depth", {
-                        ...summary.depth,
-                        same:
-                          summary.depth.min === summary.depth.max
-                            ? "yes"
-                            : "no",
-                      })
-                    : null}
+                  {t("keywords.depth", {
+                    ...summary.depth,
+                    same:
+                      summary.depth.min === summary.depth.max ? "yes" : "no",
+                  })}
                 </p>
               ) : null}
             </div>
           ) : null}
+          {paidOff ||
+          !rows.length ||
+          !model.data.availableActions.canEdit ? null : (
+            // Under the result and over the rows that carry the buttons: what a click on "Track" gives.
+            <p className="text-muted-foreground px-2 pb-1 text-sm">
+              {t("keywords.help")}
+            </p>
+          )}
           {rows.length ? (
             <div className={HOLDER_ITEM_CLASS}>
               <Table className={SEO_STACKED_TABLE_CLASS}>

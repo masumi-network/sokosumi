@@ -11043,7 +11043,8 @@
         "language": "Código de idioma",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "Seguir una palabra clave es gratis. No inicia comprobaciones de posición de pago.",
+        "help": "Sigue una palabra clave para que se quede en esta lista y para que la próxima comprobación de posición empiece con ella. Con Search Console conectado, cada sincronización guarda su posición. El seguimiento es gratis.",
+        "dialogHelp": "Seguir una palabra clave es gratis. No inicia comprobaciones de posición de pago.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
         "searchConsoleNote": "Promedio de Search Console, todos los países",
@@ -11067,7 +11068,6 @@
           },
           "short": "Ideas"
         },
-        "noneFound": "Ninguna palabra clave muestra tus páginas.",
         "intentMissing": "{count, plural, one {Los datos no indican la intención de # palabra clave.} other {Los datos no indican la intención de # palabras clave.}}",
         "readOn": "Posiciones leídas el"
       },
@@ -11082,7 +11082,7 @@
         "unconfirm": "Dejar de seguir",
         "rank": "Mejor posición",
         "backlinks": "Enlaces entrantes",
-        "domains": "Sitios que enlazan",
+        "domains": "Sitios que enlazan a esta página",
         "excluded": "No se puede confirmar este candidato.",
         "noMatch": "Ningún competidor coincide con esta búsqueda",
         "help": "Sitios en los resultados de Google para tus palabras clave principales. La posición es el mejor lugar que ocupa una página del sitio en esos resultados. Un sitio confirmado cuenta como tu competidor.",
@@ -11524,7 +11524,8 @@
         "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
         "lastCheckPages": "{pages, plural, one {# página} other {# páginas}}",
         "noneFound": "{count, plural, one {Ninguna de tus páginas está en los resultados de Google para la # palabra clave comprobada.} other {Ninguna de tus páginas está en los resultados de Google para las # palabras clave comprobadas.}}",
-        "noneFoundDepth": "{count, plural, one {Ninguna de tus páginas está en los primeros {depth} resultados de Google para la # palabra clave comprobada.} other {Ninguna de tus páginas está en los primeros {depth} resultados de Google para las # palabras clave comprobadas.}}"
+        "noneFoundDepth": "{count, plural, one {Ninguna de tus páginas está en los primeros {depth} resultados de Google para la # palabra clave comprobada.} other {Ninguna de tus páginas está en los primeros {depth} resultados de Google para las # palabras clave comprobadas.}}",
+        "openStep": "Abrir"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",

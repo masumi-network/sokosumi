@@ -35,11 +35,11 @@ import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import { SeoAutomation } from "./seo-monitors";
-import { seoOverviewModel } from "./seo-overview-model";
+import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunLeads } from "./seo-setup-model";
-import { SeoDate, SeoPeriod } from "./seo-shared";
+import { SeoDate, SeoPageLink, SeoPeriod, SeoSeverity } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { seoSummary } from "./seo-summary-model";
@@ -50,7 +50,7 @@ import { useSeoSetup } from "./use-seo-setup";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Next steps past this count fold behind a "show more" button. */
-const SEO_AGENT_VISIBLE_STEPS = 3;
+const SEO_AGENT_VISIBLE_STEPS = 6;
 const STEP_ICONS: Record<
   Exclude<SeoAgentStep, { kind: "action" }>["kind"],
   LucideIcon
@@ -296,6 +296,49 @@ function StepRow({
   );
 }
 
+/** An action without the primary button: its title and the way to its card. The Actions tab holds the cards, once. */
+function ActionStepRow({
+  action,
+  severity,
+  model,
+}: {
+  action: Extract<SeoAgentStep, { kind: "action" }>["action"];
+  severity: SeoIssueSeverity | null;
+  model: SeoWorkspaceModel;
+}) {
+  const t = useTranslations("App.Seo");
+  // Every row has the same button name; the title (and the page, where there are several) tells the rows apart.
+  const titleId = useId();
+  return (
+    <li
+      className={cn(
+        HOLDER_ITEM_CLASS,
+        "content-rise flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5",
+      )}
+    >
+      <div id={titleId} className="min-w-0 flex-1 basis-48">
+        <p className="text-sm font-medium break-words">{action.title}</p>
+        {model.data.scope.pageIds.length > 1 ? (
+          <SeoPageLink url={action.pageUrl} />
+        ) : null}
+      </div>
+      {severity ? (
+        <SeoSeverity severity={severity}>
+          {t(`severity.${severity}`)}
+        </SeoSeverity>
+      ) : null}
+      <Button
+        size="sm"
+        variant="outline"
+        aria-describedby={titleId}
+        onClick={() => model.showAction(action)}
+      >
+        {t("agent.openStep")}
+      </Button>
+    </li>
+  );
+}
+
 /** The SEO agent is the first thing on an Audit: what it knows, what it proposes, and a field to ask it. */
 export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
   const [now] = useState(() => new Date());
@@ -324,6 +367,7 @@ function SeoAgentPanel({
   autopilot: ReturnType<typeof useSeoAutopilot>;
 }) {
   const t = useTranslations("App.Seo");
+  const format = useFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
   // How the pages do in search sits next to whether they are healthy.
@@ -369,7 +413,19 @@ function SeoAgentPanel({
         );
   const periodId = useId();
   // "0 of 16" in a tile is a number; the sentence says what it means.
-  const keywordsRead = seoSummary(model.data).keywords;
+  const numbers = seoSummary(model.data);
+  const keywordsRead = numbers.keywords;
+  // The headline carries the severities, so the Agent tab needs no issues tile.
+  const severitySplit = numbers.issues
+    ? `: ${format.list(
+        numbers.issues.parts.map((part) =>
+          t("summary.severityCount", {
+            count: part.count,
+            severity: part.severity,
+          }),
+        ),
+      )}`
+    : "";
   const noneFound = keywordsRead?.found === 0 ? keywordsRead.read : 0;
   const { actionSeverity } = seoOverviewModel(model.data);
   const trafficLine = traffic
@@ -436,7 +492,7 @@ function SeoAgentPanel({
             aria-describedby={trafficLead ? periodId : undefined}
           >
             {brief.issues
-              ? t("agent.verdict.issues", { count: brief.issues })
+              ? `${t("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
               : brief.fixes
                 ? t("agent.verdict.fixes", { count: brief.fixes })
                 : brief.opportunities
@@ -479,8 +535,9 @@ function SeoAgentPanel({
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
-          {/* The results as numbers: issues by severity, keywords found, tests with a result. */}
+          {/* The keyword results as numbers. The issue count is in the headline; its tiles lead the Health tab. */}
           <SeoSummaryTiles
+            show="rankings"
             workspace={model.data}
             onOpenRankings={() => {
               void model.setFilters({ tab: "rankings" });
@@ -553,17 +610,26 @@ function SeoAgentPanel({
             <ul role="list" className="space-y-2">
               {shown.map((step, index) =>
                 step.kind === "action" ? (
-                  <li
-                    className="content-rise"
-                    key={`${step.action.observationId}:${step.action.id}`}
-                  >
-                    <SeoActionCard
+                  index === primary ? (
+                    <li
+                      className="content-rise"
+                      key={`${step.action.observationId}:${step.action.id}`}
+                    >
+                      <SeoActionCard
+                        action={step.action}
+                        model={model}
+                        severity={actionSeverity(step.action)}
+                        primary
+                      />
+                    </li>
+                  ) : (
+                    <ActionStepRow
+                      key={`${step.action.observationId}:${step.action.id}`}
                       action={step.action}
-                      model={model}
                       severity={actionSeverity(step.action)}
-                      primary={index === primary}
+                      model={model}
                     />
-                  </li>
+                  )
                 ) : (
                   <StepRow
                     key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}

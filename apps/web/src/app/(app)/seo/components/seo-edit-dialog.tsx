@@ -72,7 +72,7 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
               : kind === "page"
                 ? t("pageHelp")
                 : keywordForm
-                  ? t("keywords.help")
+                  ? t("keywords.dialogHelp")
                   : t("competitors.help")}
           </DialogDescription>
         </DialogHeader>

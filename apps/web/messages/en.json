@@ -11043,7 +11043,8 @@
         "language": "Language code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Tracking a keyword is free. It does not start paid rank checks.",
+        "help": "Track a keyword to keep it on this list and to have the next rank check start with it. With Search Console connected, each sync saves its position. Tracking is free.",
+        "dialogHelp": "Tracking a keyword is free. It does not start paid rank checks.",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
         "searchConsoleNote": "Search Console average, all countries",
@@ -11067,7 +11068,6 @@
           },
           "short": "Ideas"
         },
-        "noneFound": "No keyword shows your pages.",
         "intentMissing": "{count, plural, one {The keyword data gives no intent for # keyword.} other {The keyword data gives no intent for # keywords.}}",
         "readOn": "Positions read on"
       },
@@ -11082,7 +11082,7 @@
         "unconfirm": "Stop tracking",
         "rank": "Best position",
         "backlinks": "Backlinks",
-        "domains": "Linking sites",
+        "domains": "Sites linking to this page",
         "excluded": "This candidate cannot be confirmed.",
         "noMatch": "No competitor matches this search",
         "help": "Sites in Google's results for your focus keywords. The position is the best place a page of the site holds in those results. A confirmed site counts as your competitor.",
@@ -11524,7 +11524,8 @@
         "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
         "lastCheckPages": "{pages, plural, one {# page} other {# pages}}",
         "noneFound": "{count, plural, one {None of your pages is in Google's results for the # checked keyword.} other {None of your pages is in Google's results for the # checked keywords.}}",
-        "noneFoundDepth": "{count, plural, one {None of your pages is in Google's first {depth} results for the # checked keyword.} other {None of your pages is in Google's first {depth} results for the # checked keywords.}}"
+        "noneFoundDepth": "{count, plural, one {None of your pages is in Google's first {depth} results for the # checked keyword.} other {None of your pages is in Google's first {depth} results for the # checked keywords.}}",
+        "openStep": "Open"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

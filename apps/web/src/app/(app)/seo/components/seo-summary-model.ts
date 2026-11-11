@@ -42,7 +42,7 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
     ).values(),
   ].map((pages) => pages.find((group) => group.volume !== null)?.volume ?? 0);
   const measured = read.filter((group) => group.volume !== null).length;
-  // The same rule as the verdict above the tiles: a failed test in any check in view proves no clean result.
+  // The same rule as the Agent verdict: a failed test in any check in view proves no clean result.
   const incomplete =
     check !== null && (check.coverage.checked === 0 || hasFailedChecks);
   const tests = check

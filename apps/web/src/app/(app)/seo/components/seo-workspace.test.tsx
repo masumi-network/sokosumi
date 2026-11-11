@@ -261,11 +261,11 @@ describe("SEO workspace integration", () => {
     const measurement = screen.getByText("Title length measured:");
     expect(measurement).not.toBeVisible();
     expect(measurement.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       "No issues found in the last check",
     );
-    expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Traffic" }));
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
@@ -3680,7 +3680,7 @@ describe("SEO workspace integration", () => {
     // Every row is tracked, paid columns can never fill, and no Analytics data exists.
     expect(screen.queryByText("Tracked")).toBeNull();
     expect(screen.queryByText(/Search volume/)).toBeNull();
-    expect(screen.queryByText(/Tracking a keyword is free/)).toBeNull();
+    expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();
     // A competitor without numbers says why, instead of a bare URL.
     expect(
@@ -4002,7 +4002,7 @@ describe("SEO workspace integration", () => {
     const run = screen.getByRole("button", { name: "Run full audit" });
     expect(run).not.toHaveClass("bg-primary");
     expect(run).not.toHaveAttribute("aria-disabled");
-    // The position result sits next to the health result.
+    // The position result leads the Agent tab.
     expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
       "1 of 21 on the first pageOpen rankings",
     );
@@ -4016,6 +4016,87 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
     ).toHaveClass("bg-primary");
+  });
+
+  it("shows one fix as a card on the Agent tab and each later fix as a row that opens it on the Actions tab", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
+    workspace.observations.push({
+      id: observationId,
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile", "desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    const fix: Omit<(typeof workspace.actions)[number], "id" | "title"> = {
+      observationId,
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      why: "The check found it",
+      effort: "low",
+      expectedEffect: "A better search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    workspace.actions.push(
+      { ...fix, id: "title", title: "Fix the page title" },
+      { ...fix, id: "description", title: "Write a description" },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    // Only the top fix is a full card with its own button.
+    expect(
+      await screen.findAllByRole("button", { name: "Create draft task" }),
+    ).toHaveLength(1);
+    expect(screen.getAllByText("Why, and the evidence")).toHaveLength(1);
+    const row = screen.getByText("Write a description").closest("li");
+    expect(row).not.toBeNull();
+    // One page: the row needs no page.
+    expect(within(row!).queryByRole("link")).toBeNull();
+    await user.click(within(row!).getByRole("button", { name: "Open" }));
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // The Actions tab has the full card of each fix, and the card of the opened row takes the focus.
+    expect(
+      await screen.findAllByRole("button", { name: "Create draft task" }),
+    ).toHaveLength(2);
+    const card = screen
+      .getByRole("heading", { name: "Write a description" })
+      .closest("article");
+    await waitFor(() => expect(card).toHaveFocus());
+    cleanup();
+    // With several pages two fixes can have one title: the row names its page.
+    const pricing = "https://example.com/pricing";
+    const second = "a658c5bb-3084-4b26-81ee-b3208ee5ab61";
+    workspace.pages.push({ ...workspace.pages[0], id: second, url: pricing });
+    workspace.scope = {
+      ...workspace.scope,
+      pageIds: [...workspace.scope.pageIds, second],
+    };
+    workspace.actions[1] = { ...workspace.actions[1], pageUrl: pricing };
+    renderWorkspace(workspace, "?tab=agent");
+    const paged = (await screen.findByText("Write a description")).closest(
+      "li",
+    );
+    expect(within(paged!).getByRole("link", { name: pricing })).toBeVisible();
   });
 
   it("creates one draft action Task with its source references and guards repeated clicks", async () => {
@@ -4199,13 +4280,14 @@ describe("SEO workspace integration", () => {
     expect(line).toHaveTextContent(
       "None of your pages is in Google's results for the 1 checked keyword.",
     );
-    // The tile splits the tests without a result the way the Timeline row of the check does.
+    // The Health tile splits the tests without a result the way the Timeline row of the check does.
+    await userEvent.click(screen.getByRole("tab", { name: "Health" }));
     const tests = screen.getByTestId("seo-summary-tests");
     expect(within(tests).getByText("2 tests gave no result")).toBeVisible();
     expect(within(tests).getByText("1 unavailable")).toBeVisible();
   });
 
-  it("shows the last check as numbers on the Agent and Health tabs, and one Rankings list at a time on a phone", async () => {
+  it("shows the keyword numbers on the Agent tab and the page-check numbers on Health, and one Rankings list at a time on a phone", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observedAt = new Date("2026-01-03T12:00:00Z");
@@ -4325,14 +4407,12 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    const issues = await screen.findByTestId("seo-summary-issues");
-    expect(issues).toHaveTextContent(/^2/);
-    expect(within(issues).getByText("1 major")).toBeVisible();
-    expect(within(issues).getByText("1 minor")).toBeVisible();
-    // Tests without a result are part of the total, not hidden.
-    const tests = screen.getByTestId("seo-summary-tests");
-    expect(tests).toHaveTextContent("201 of 231");
-    expect(within(tests).getByText("30 tests gave no result")).toBeVisible();
+    // The Agent tab says the issue count once, in its headline, and shows the keyword numbers.
+    expect(await screen.findByTestId("seo-agent-verdict")).toHaveTextContent(
+      "2 issues to fix: 1 major and 1 minor",
+    );
+    expect(screen.queryByTestId("seo-summary-issues")).toBeNull();
+    expect(screen.queryByTestId("seo-summary-tests")).toBeNull();
     expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
       "1 of 2",
     );
@@ -4343,17 +4423,20 @@ describe("SEO workspace integration", () => {
     expect(
       within(searches).getByText("For the 2 checked keywords"),
     ).toBeVisible();
-    // The line above the tiles dates the check here.
-    expect(tests).not.toHaveTextContent("Last check");
-    // The same numbers lead the Health tab.
+    // The Health tab leads with the numbers of the page check, and not with the keyword numbers.
     await user.click(screen.getByRole("tab", { name: "Health" }));
-    expect(screen.getByTestId("seo-summary-tests")).toHaveTextContent(
-      "201 of 231",
-    );
-    // Health has no such line, and its issues can come from older checks: the tile dates its check.
-    expect(screen.getByTestId("seo-summary-tests")).toHaveTextContent(
-      "Last check Jan 3, 2026",
-    );
+    const issues = screen.getByTestId("seo-summary-issues");
+    expect(issues).toHaveTextContent(/^2/);
+    expect(within(issues).getByText("1 major")).toBeVisible();
+    expect(within(issues).getByText("1 minor")).toBeVisible();
+    // Tests without a result are part of the total, not hidden.
+    const tests = screen.getByTestId("seo-summary-tests");
+    expect(tests).toHaveTextContent("201 of 231");
+    expect(within(tests).getByText("30 tests gave no result")).toBeVisible();
+    // The issues can come from older checks: the tile dates its check.
+    expect(tests).toHaveTextContent("Last check Jan 3, 2026");
+    expect(screen.queryByTestId("seo-summary-keywords")).toBeNull();
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
     await user.click(
       within(screen.getByTestId("seo-summary-keywords")).getByRole("button", {
         name: "Open rankings",
