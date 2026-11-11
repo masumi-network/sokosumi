@@ -203,7 +203,20 @@ async function run() {
     );
   };
 
+  let stopping = false;
+  // Retries are cancelled on shutdown, and none is scheduled after it.
+  const retries = new Set<ReturnType<typeof setTimeout>>();
+  const retryLater = (retry: () => void, delay: number) => {
+    if (stopping) return;
+    const timer = setTimeout(() => {
+      retries.delete(timer);
+      retry();
+    }, delay);
+    retries.add(timer);
+  };
+
   const apply = (communityId: string, event: Event, attempt: number) => {
+    if (stopping) return;
     inbound = inbound.then(async () => {
       const finalAttempt = attempt + 1 >= TARGET_ATTEMPTS;
       // A target still on its way in (say Core is down and it keeps
@@ -234,7 +247,7 @@ async function run() {
           );
         const delay = Math.min(2_000 * 2 ** attempt, 5 * 60_000);
         if (targetInFlight) {
-          setTimeout(() => apply(communityId, event, attempt), delay);
+          retryLater(() => apply(communityId, event, attempt), delay);
           return;
         }
         if (!waiting) {
@@ -243,7 +256,7 @@ async function run() {
             reason,
           );
         }
-        setTimeout(() => apply(communityId, event, attempt + 1), delay);
+        retryLater(() => apply(communityId, event, attempt + 1), delay);
       }
     });
   };
@@ -372,9 +385,10 @@ async function run() {
     }
   }
 
-  let stopping = false;
   const stop = () => {
     stopping = true;
+    for (const timer of retries) clearTimeout(timer);
+    retries.clear();
     for (const { subscription } of live.values()) subscription.close();
   };
   process.on("SIGINT", stop);

@@ -369,15 +369,8 @@ export async function startBuzzAppLink(userId: string, publicKey: string) {
 
 /** Rooms the person is in that are on Buzz get their members pushed again. */
 async function resyncRoomsOf(userId: string) {
-  // A DM's people are fixed when it opens, so a DM with a key that is
-  // gone (or without one that is new) is let go: the next message opens one
-  // with the keys as they are now, and the old DM gets nothing more.
-  await prisma.buzzChannel.deleteMany({
-    where: {
-      membersHash: "direct",
-      room: { userMembers: { some: { userId } } },
-    },
-  });
+  // A DM keeps its hash: syncing it compares its keys and retires it if
+  // they changed.
   const channels = await prisma.buzzChannel.findMany({
     where: {
       room: { userMembers: { some: { userId } } },
@@ -385,7 +378,10 @@ async function resyncRoomsOf(userId: string) {
     select: { id: true, roomId: true },
   });
   await prisma.buzzChannel.updateMany({
-    where: { id: { in: channels.map((c) => c.id) } },
+    where: {
+      id: { in: channels.map((c) => c.id) },
+      NOT: { membersHash: { startsWith: DIRECT } },
+    },
     data: { membersHash: null },
   });
   if (channels.length > 0) {
@@ -756,12 +752,14 @@ async function resyncRoomsWithCoworkers(coworkerIds: string[]) {
   const channels = await prisma.buzzChannel.findMany({
     where: {
       room: { coworkerMembers: { some: { coworkerId: { in: coworkerIds } } } },
-      NOT: { membersHash: "direct" },
     },
     select: { id: true, roomId: true },
   });
   await prisma.buzzChannel.updateMany({
-    where: { id: { in: channels.map((c) => c.id) } },
+    where: {
+      id: { in: channels.map((c) => c.id) },
+      NOT: { membersHash: { startsWith: DIRECT } },
+    },
     data: { membersHash: null },
   });
   if (channels.length > 0) {
@@ -933,6 +931,43 @@ async function ensureProfile(
   });
 }
 
+const DIRECT = "direct";
+
+function isDirect(channel: { membersHash: string | null }): boolean {
+  return Boolean(channel.membersHash?.startsWith(DIRECT));
+}
+
+/**
+ * Lets a DM go whose people changed (a key unlinked, a member removed): a
+ * Buzz DM's people are fixed, so the next message opens a new one. Messages
+ * already in it stay linked there and get nothing more; what was still to be
+ * sent there is dropped.
+ */
+async function retireDirectMessage(
+  roomId: string,
+  channel: { id: string; channelId: string },
+) {
+  const linked = await prisma.buzzMessageLink.findMany({
+    where: { message: { roomId } },
+    select: { messageId: true },
+  });
+  await prisma.$transaction([
+    prisma.buzzMessageLink.updateMany({
+      where: { message: { roomId }, channelId: null },
+      data: { channelId: channel.channelId },
+    }),
+    prisma.buzzMessageLink.updateMany({
+      where: { channelId: channel.channelId },
+      data: { pendingEvent: PrismaNull.DbNull },
+    }),
+    prisma.buzzReactionLink.updateMany({
+      where: { messageId: { in: linked.map((link) => link.messageId) } },
+      data: { pendingEvent: PrismaNull.DbNull },
+    }),
+    prisma.buzzChannel.delete({ where: { id: channel.id } }),
+  ]);
+}
+
 function channelName(room: { name: string }): string {
   return room.name.trim() || "Chat";
 }
@@ -1007,7 +1042,16 @@ export async function syncRoomChannel(roomId: string) {
     members.length >= 2 &&
     directKeys.length <= MAX_DIRECT_MESSAGE_PEOPLE;
 
+  const directHash = `${DIRECT}:${contentHash([...directKeys].sort().join(","))}`;
   let channel = room.buzzChannel;
+  if (
+    channel &&
+    isDirect(channel) &&
+    (!asDirectMessage || channel.membersHash !== directHash)
+  ) {
+    await retireDirectMessage(room.id, channel);
+    channel = null;
+  }
   if (!channel && asDirectMessage) {
     const [opener] = members;
     const event = signEvent(
@@ -1036,7 +1080,7 @@ export async function syncRoomChannel(roomId: string) {
           roomId: room.id,
           communityId: community.id,
           channelId,
-          membersHash: "direct",
+          membersHash: directHash,
         },
       });
     }
@@ -1057,7 +1101,7 @@ export async function syncRoomChannel(roomId: string) {
       data: { roomId: room.id, communityId: community.id, channelId },
     });
   }
-  if (channel.membersHash === "direct") return { channel, relayUrl };
+  if (isDirect(channel)) return { channel, relayUrl };
 
   const wanted = new Map(
     members.flatMap((member) =>
@@ -1229,6 +1273,10 @@ export async function reconcileMessage(
   let link = message.buzzLink;
   // A Buzz agent's messages start on Buzz and are linked as they come in;
   // Sokosumi cannot sign for it, but people's reactions to them are theirs.
+  // Linked in a DM since retired: it stays as it was there.
+  if (link?.channelId && link.channelId !== channel.channelId) {
+    return "skipped";
+  }
   if (isExternal(authorIdentity)) {
     if (!link || message.deletedAt) return "skipped";
     await reconcileReactions({
@@ -1305,6 +1353,7 @@ export async function reconcileMessage(
           messageId: message.id,
           eventId: message.clientMessageId.slice("buzz:".length),
           contentHash: hash,
+          channelId: channel.channelId,
         },
         update: {},
       });
@@ -1338,6 +1387,7 @@ export async function reconcileMessage(
           messageId: message.id,
           eventId: event.id,
           contentHash: hash,
+          channelId: channel.channelId,
           pendingEvent: event as unknown as object,
         },
       });
@@ -1938,6 +1988,7 @@ export async function applyInboundEvent(
             eventId: event.id,
             contentHash: contentHash(content),
             signerPubkey,
+            channelId: channel.channelId,
           },
           update: {},
         });
@@ -2113,11 +2164,10 @@ export async function buzzSubscriptions() {
       { readerId: string; channelIds: string[] }
     >();
     for (const channel of community.channels) {
-      const readerId =
-        channel.membersHash === "direct"
-          ? (channel.room.userMembers.find((m) => m.user.buzzIdentity)?.user
-              .buzzIdentity?.id ?? null)
-          : "operator";
+      const readerId = isDirect(channel)
+        ? (channel.room.userMembers.find((m) => m.user.buzzIdentity)?.user
+            .buzzIdentity?.id ?? null)
+        : "operator";
       if (!readerId) continue;
       const reader = readers.get(readerId) ?? { readerId, channelIds: [] };
       reader.channelIds.push(channel.channelId);

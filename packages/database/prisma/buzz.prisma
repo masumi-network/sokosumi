@@ -81,7 +81,8 @@ model BuzzChannel {
   community   BuzzCommunity @relation(fields: [communityId], references: [id], onDelete: Cascade)
   /// The group id: the value of every event's `h` tag.
   channelId   String        @unique @db.Uuid
-  /// Hash of the member set last pushed, to resync only on change.
+  /// Hash of the member set last pushed, to resync only on change. A DM's is
+  /// `direct:` and the hash of the keys it was opened with, which never change.
   membersHash String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -110,6 +111,9 @@ model BuzzMessageLink {
   /// Set when the event was signed by the person's own app key: Sokosumi
   /// cannot edit or delete it on Buzz.
   signerPubkey String?
+  /// The Buzz channel the event is in. A DM is retired when its people
+  /// change; messages linked there stay there.
+  channelId    String?         @db.Uuid
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
