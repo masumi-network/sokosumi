@@ -40,6 +40,11 @@ overrides:
   # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again via
   # @hey-api/json-schema-ref-parser@1.4.4. pnpm audit reported the same three
   # GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm `latest` is 5.5.0.
+  # 2026-11-11 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins including eve 1.0.0-rc.9, pnpm 12.18.0) landed js-yaml@4.2.0 again via
+  # @hey-api/json-schema-ref-parser@1.4.4 (still latest). pnpm audit reported
+  # the same three GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm
+  # `latest` is 5.5.0.
   "js-yaml@<4.3.2": "4.3.2"
   # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c: dropped.
   # GHSA-w293-vg96-wgc3 (CVE-2026-84961) is patched in 7.29.1 and 8.10.2; 6.x is
@@ -68,6 +73,12 @@ overrides:
   # 8.12.4 is still npm `latest`. 7.30.2 is still the newest 7.x. 6.29.1 is
   # still the newest 6.x. pnpm audit still does not index the Nov 5 undici
   # GHSAs. The 8.x pin stays. No 7.x pin.
+  # 2026-11-11 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins, pnpm 12.18.0) landed undici@6.29.1, undici@7.30.2, and undici@8.12.3.
+  # npm `latest` is still 8.12.4. The v8.12.4 notes still name 8.12.2 and
+  # 8.12.3. 7.30.2 is still the newest 7.x. 6.29.1 is still the newest 6.x.
+  # pnpm audit on that resolve did not report undici. The 8.x pin stays. No
+  # 7.x pin.
   "undici@>=8.12.2 <8.12.4": "8.12.4"
   # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-04 re-resolve without an
   # override still lands only esbuild@0.28.2 (patched; 0.28.2 is still latest).
@@ -75,6 +86,7 @@ overrides:
   # 2026-11-06 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
   # 2026-11-09 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
   # 2026-11-10 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
+  # 2026-11-11 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
   # rendering PDF pages to images. Files extraction reads the **text layer
