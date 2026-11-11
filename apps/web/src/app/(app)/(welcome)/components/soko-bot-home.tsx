@@ -1,10 +1,11 @@
-import type { TaskActivitySummary } from "@sokosumi/core-client";
+import type { TaskActivitySummary, TaskListItem } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
+import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { SokoBotHomeComposer } from "./soko-bot-home-composer.client";
 import type { SokoBotHomeChat, SokoBotHomeTask } from "./soko-bot-home-data";
@@ -25,7 +26,7 @@ interface SokoBotHomeProps {
   summary: TaskActivitySummary | null;
   /** Tasks the team moved in the last 24 hours, newest first. */
   teamTasks: SokoBotHomeTask[];
-  /** Chats with a Soko Bot the reader took part in during the last 24 hours. */
+  /** Important chat messages the reader has not read, last 24 hours. */
   chats?: SokoBotHomeChat[];
   /** The reader's Tasks due today or overdue, first; nothing when none are. */
   myDay?: ReactNode;
@@ -37,8 +38,8 @@ interface SokoBotHomeProps {
 /**
  * `/` for a user with a personal Soko Bot, laid out as an entry page: the bot
  * and a greeting over a centered composer, a few things to ask, and a quiet
- * list of what the team moved in the last day, with the reader's chats with
- * a Soko Bot among it. What needs the reader sits
+ * list of what the team moved in the last day, with the important chat
+ * messages the reader has not read among it. What needs the reader sits
  * above that list, in the same quiet style. The conversation itself lives
  * in the bot's Direct, which every send opens.
  */
@@ -171,8 +172,8 @@ export async function SokoBotHome({
                       <span className="text-foreground min-w-0 flex-1 truncate text-sm">
                         {row.chat.title}
                       </span>
-                      <span className="text-muted-foreground hidden shrink-0 text-sm sm:inline">
-                        {t("chatKind")}
+                      <span className="text-muted-foreground hidden shrink-0 truncate text-sm sm:inline">
+                        {row.chat.from}
                       </span>
                       {timeOf(row.at)}
                       <span className="text-foreground shrink-0 text-sm font-medium">
@@ -186,11 +187,9 @@ export async function SokoBotHome({
                       href={`/tasks/${encodeURIComponent(row.task.id)}`}
                       className={rowClassName}
                     >
-                      <TaskStatusBadge
+                      <TaskStatusIcon
                         status={row.task.status}
                         label={tStatus(row.task.status)}
-                        showLabel={false}
-                        className="border-0 bg-transparent p-0"
                       />
                       <span className="text-foreground min-w-0 flex-1 truncate text-sm">
                         {row.task.name}
@@ -212,5 +211,25 @@ export async function SokoBotHome({
         </section>
       </div>
     </SokoBotHomeComposer>
+  );
+}
+
+/**
+ * A Task's status as its bare marker, in the colour it takes on the page.
+ * The chip's colour cannot be stripped instead: a failed Task's glyph is
+ * white on a red chip, so without the chip it vanished.
+ */
+function TaskStatusIcon({
+  status,
+  label,
+}: {
+  status: TaskListItem["status"];
+  label: string;
+}) {
+  const spec = getTaskStatusMarker(status);
+  return (
+    <span role="img" aria-label={label} title={label} className="inline-flex">
+      <StatusMarker spec={spec} tone={getToneStyle(spec.tone).onSurface} />
+    </span>
   );
 }

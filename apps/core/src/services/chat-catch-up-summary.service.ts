@@ -8,6 +8,7 @@ import {
   CHAT_CATCH_UP_BUCKETS,
   type ChatCatchUpBucket,
   chatCatchUpBucket,
+  type StoredChatSignal,
   sqlChatSignalHasTag,
   storedChatSignalTags,
 } from "@/lib/chat-signals/derive";
@@ -972,4 +973,85 @@ async function writtenSummary(input: {
   } finally {
     log.emit();
   }
+}
+
+/**
+ * What Home lists from chat: a message is worth a row when it asks something
+ * of the reader or changes their work. Questions to others, news and small
+ * talk wait for Catch up.
+ */
+const HOME_BUCKETS: ReadonlySet<ChatCatchUpBucket> = new Set([
+  "needsYou",
+  "escalation",
+  "urgent",
+  "blocker",
+  "bug",
+  "decisionMade",
+  "announcement",
+  "needsDecision",
+  "workRequest",
+  "review",
+]);
+
+/**
+ * Of unread messages from others, newest first: the newest per room since
+ * `since` whose bucket Home lists, at most `limit`.
+ */
+export function pickImportantChatMessages<
+  T extends {
+    roomId: string;
+    createdAt: Date;
+    signal: StoredChatSignal | null;
+  },
+>(
+  messages: readonly T[],
+  viewerId: string,
+  since: Date,
+  limit: number,
+): { message: T; bucket: ChatCatchUpBucket }[] {
+  const picked: { message: T; bucket: ChatCatchUpBucket }[] = [];
+  for (const message of messages) {
+    if (picked.length === limit) break;
+    if (message.createdAt < since || !message.signal) continue;
+    if (picked.some((entry) => entry.message.roomId === message.roomId))
+      continue;
+    const bucket = chatCatchUpBucket(
+      storedChatSignalTags(message.signal),
+      message.signal.addressedUserIds,
+      viewerId,
+    );
+    if (bucket && HOME_BUCKETS.has(bucket)) picked.push({ message, bucket });
+  }
+  return picked;
+}
+
+/**
+ * The reader's important unread chat messages since `since`, newest first:
+ * one per room, from someone else, that Jev tagged as asking something of
+ * them or changing their work.
+ */
+export async function listImportantChatItems(input: {
+  userId: string;
+  organizationId: string | null;
+  since: Date;
+  limit: number;
+}): Promise<ChatCatchUpItem[]> {
+  const rooms = await summaryRooms(input.userId, input.organizationId, null);
+  const roomById = new Map(rooms.map((room) => [room.id, room]));
+  const picked = pickImportantChatMessages(
+    await unreadTaggedMessages(
+      rooms.map((room) => room.id),
+      input.userId,
+    ),
+    input.userId,
+    input.since,
+    input.limit,
+  );
+  const names = await mentionNames(
+    picked.map(({ message }) => message.content),
+  );
+  return picked.flatMap(({ message, bucket }) => {
+    const room = roomById.get(message.roomId);
+    return room ? [toItem(message, room, bucket, names)] : [];
+  });
 }
