@@ -57,6 +57,7 @@ const {
   notifyWorkspaceApproversOfPendingGrantMock,
   projectFindFirstMock,
   projectUpdateManyMock,
+  contactTouchMock,
   prismaTransactionMock,
   requestWorkspaceGrantMock,
   resolveEffectiveDesignMdMock,
@@ -70,6 +71,7 @@ const {
   uploadProjectBriefingFileMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
+  contactTouchMock: vi.fn(),
   ensureProjectFilesTokenMock: vi.fn(),
   generateTaskNameMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -590,6 +592,7 @@ describe("POST /tasks", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
+          $executeRaw: contactTouchMock,
           project: {
             findFirst: projectFindFirstMock,
           },
@@ -778,6 +781,59 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("tags live contacts in the workspace", async () => {
+    const contactIds = [
+      "01960001-0001-7001-8001-000000000077",
+      "01960001-0001-7001-8001-000000000078",
+    ];
+    contactTouchMock.mockResolvedValue(2);
+
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Send the proposal",
+        // A repeated contact is tagged once.
+        contactIds: [...contactIds, contactIds[0]],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(contactTouchMock).toHaveBeenCalledWith(
+      expect.anything(),
+      contactIds,
+      "11111111-1111-7111-8111-111111111111",
+    );
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          contacts: {
+            create: contactIds.map((contactId) => ({ contactId })),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("rejects when any contact is outside the workspace or archived", async () => {
+    contactTouchMock.mockResolvedValue(1);
+
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Send the proposal",
+        contactIds: [
+          "01960001-0001-7001-8001-000000000077",
+          "01960001-0001-7001-8001-000000000078",
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("queues a Task that starts at its Run at", async () => {

@@ -9,6 +9,55 @@ import {
 } from "@/lib/utils/composer-markdown-dom";
 
 describe("markdownToHtml", () => {
+  it("round-trips a saved contact link as a link, not a mention", () => {
+    const source = "Call [Maya Stone](/contacts?contact=c-1) today";
+    const root = document.createElement("div");
+    root.innerHTML = sanitizeComposerHtml(
+      markdownToHtml(source, () => ({ displayName: "x", isKnown: false })),
+    );
+    expect(root.querySelector("[data-mention-key]")).toBeNull();
+    // A link, not raw Markdown, so the edit form stays compact.
+    expect(root.textContent).toBe("Call Maya Stone today");
+    expect(root.querySelector("a")?.getAttribute("href")).toBe(
+      "/contacts?contact=c-1",
+    );
+    expect(htmlToMarkdown(root).trim()).toBe(source);
+  });
+
+  it("carries NUL as a marker a browser's HTML parser keeps", () => {
+    // Chromium drops U+0000 from parsed text (see the .webkit test); happy-dom
+    // does not, so this checks the marker the browser relies on.
+    const source = "[go](/contacts\u0000x)";
+    const html = markdownToHtml(source);
+    expect(html).not.toContain("\u0000");
+    expect(html).toContain('<span data-nul=""></span>');
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    expect(root.querySelector("a")).toBeNull();
+    expect(htmlToMarkdown(root).trim()).toBe(source);
+  });
+
+  it("keeps app-relative destinations it cannot trust as the original text", () => {
+    for (const href of [
+      "//evil.test/x",
+      "/\\evil.test/x",
+      // Control characters: the sanitizer would strip such an href, and the
+      // next save would lose the destination.
+      "/\u0001/evil.test/x",
+      "/contacts\u0000x",
+      "/a\u001fb",
+      "/contacts?contact=c-1\u007f",
+    ]) {
+      const source = `[go](${href})`;
+      const root = document.createElement("div");
+      root.innerHTML = sanitizeComposerHtml(
+        markdownToHtml(source, () => ({ displayName: "x", isKnown: false })),
+      );
+      expect(root.querySelector("a"), JSON.stringify(href)).toBeNull();
+      expect(htmlToMarkdown(root).trim(), JSON.stringify(href)).toBe(source);
+    }
+  });
+
   it("preserves ID-only human tokens through rich editing and sanitization", () => {
     const source = "Hello @user-1, and @user-1:old-name";
     const root = document.createElement("div");

@@ -8,7 +8,12 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { type ComponentProps, forwardRef, useImperativeHandle } from "react";
+import {
+  type ComponentProps,
+  forwardRef,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
@@ -117,6 +122,76 @@ vi.mock("next-intl", () => ({
   }),
 }));
 
+vi.mock("@/app/contacts/components/use-contacts-data", () => {
+  const contact = (
+    id: string,
+    name: string,
+    more: Record<string, unknown> = {},
+  ) => ({
+    id,
+    name,
+    role: null,
+    organization: null,
+    location: null,
+    kind: "PERSON",
+    avatarUrl: null,
+    channels: [],
+    ...more,
+  });
+  const firstPage = {
+    contacts: [
+      contact("contact-1", "Maya Stone", {
+        role: "Head of Sales",
+        organization: "Stone Ventures",
+        location: "Zurich",
+        channels: [
+          {
+            id: "channel-1",
+            type: "EMAIL",
+            value: "maya@example.com",
+            isPrimary: true,
+          },
+        ],
+      }),
+      contact("contact-2", "Ivo Brandt"),
+    ],
+  };
+  return {
+    // A new result object each render, as a guard against render loops.
+    useContactRows: (_query: unknown, enabled = true) => ({
+      data: enabled ? { pages: [firstPage] } : undefined,
+    }),
+  };
+});
+
+vi.mock("@/lib/services/contacts.client", () => ({
+  contactsService: {
+    get: vi.fn(async (id: string) => ({
+      id,
+      name:
+        {
+          "contact-1": "Maya Stone",
+          "contact-2": "Ivo Brandt",
+          "contact-3": "Maya S.",
+          "contact-4": "Old Lead",
+          "contact-9": "Lena Kraft",
+        }[id] ?? id,
+      // contact-3 was merged into Maya; contact-4 is archived.
+      mergedIntoId: id === "contact-3" ? "contact-1" : null,
+      archivedAt: id === "contact-4" ? new Date("2026-11-01") : null,
+      role: id === "contact-1" ? "Head of Sales" : null,
+      organization: id === "contact-1" ? "Stone Ventures" : null,
+      location: null,
+      kind: "PERSON",
+      avatarUrl: null,
+      channels:
+        id === "contact-1"
+          ? [{ id: "c", type: "EMAIL", value: "maya@example.com" }]
+          : [],
+    })),
+  },
+}));
+
 vi.mock("./markdown-editor", () => ({
   MarkdownEditor: forwardRef(function MockMarkdownEditor(
     {
@@ -127,6 +202,8 @@ vi.mock("./markdown-editor", () => ({
       onAttachClick,
       attachLabel,
       mentions,
+      onMentionQueryChange,
+      renderMentionItem,
     }: {
       value: string;
       onChange: (value: string) => void;
@@ -134,7 +211,12 @@ vi.mock("./markdown-editor", () => ({
       placeholder: string;
       onAttachClick?: () => void;
       attachLabel?: string;
-      mentions?: Record<string, { value: string }>;
+      mentions?: Record<string, { value: string; data?: unknown }>;
+      onMentionQueryChange?: (query: string | null) => void;
+      renderMentionItem?: (
+        mention: { key: string; value: string; slug: string; data?: unknown },
+        isActive: boolean,
+      ) => React.ReactNode;
     },
     ref,
   ) {
@@ -146,6 +228,7 @@ vi.mock("./markdown-editor", () => ({
       mentions,
     });
 
+    const [isMentionMenuOpen, setIsMentionMenuOpen] = useState(false);
     useImperativeHandle(ref, () => ({
       insertText: (text: string) => onChange(`${value}${text}`),
       insertLink: (label: string, url: string) =>
@@ -161,6 +244,35 @@ vi.mock("./markdown-editor", () => ({
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />
+        {/* Typing "@" in the real editor; each option inserts its token. */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsMentionMenuOpen(true);
+            onMentionQueryChange?.("");
+          }}
+        >
+          @
+        </button>
+        <div role="listbox">
+          {Object.entries(isMentionMenuOpen ? (mentions ?? {}) : {}).map(
+            ([key, mention]) => {
+              const slug = mention.value.toLowerCase().replace(/\s+/g, "-");
+              return (
+                <div
+                  key={key}
+                  role="option"
+                  aria-selected={false}
+                  tabIndex={-1}
+                  onClick={() => onChange(`${value} @${key}:${slug}`)}
+                  onKeyDown={() => undefined}
+                >
+                  {renderMentionItem?.({ ...mention, key, slug }, false)}
+                </div>
+              );
+            },
+          )}
+        </div>
         {onAttachClick ? (
           <button type="button" onClick={onAttachClick}>
             {attachLabel ?? "Attach"}
@@ -703,6 +815,229 @@ describe("TaskForm", () => {
 
     expect(createTaskMock).toHaveBeenCalledTimes(1);
     expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("name");
+  });
+
+  describe("contact mentions", () => {
+    const SAVED =
+      "Call [Maya Stone](/contacts?contact=contact-1)\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Maya Stone** · Head of Sales, Stone Ventures · maya@example.com\n\n<!-- /sokosumi:contacts -->";
+
+    function renderEdit(
+      contacts: { id: string; name: string }[] | null,
+      description = SAVED,
+    ) {
+      render(
+        <TaskForm
+          mode="edit"
+          showCancel={false}
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          taskId="task-1"
+          initialValues={{
+            name: "Task name",
+            description,
+            assigneeId: "coworker-1",
+            status: TaskStatus.DRAFT,
+            contacts,
+          }}
+          onSuccess={vi.fn()}
+        />,
+      );
+    }
+
+    it("tags a contact picked with @ and adds the details only on create", async () => {
+      const user = userEvent.setup();
+      const createTaskMock = vi.mocked(createTask);
+      // The first try fails, so the retry shows details are never doubled.
+      createTaskMock
+        .mockResolvedValueOnce({
+          ok: false,
+          error: { kind: "status_not_selectable" },
+        })
+        .mockResolvedValueOnce(createTaskSuccess("task-1", "My task"));
+      render(
+        <TaskForm
+          mode="create"
+          showCancel={false}
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          initialValues={{ assigneeUserId: "user-1" }}
+          onSuccess={vi.fn()}
+        />,
+      );
+
+      await user.type(
+        screen.getByTestId("markdown-editor"),
+        "Send the deck to",
+      );
+      await user.click(screen.getByRole("button", { name: "@" }));
+      // Contacts say what they are, next to the agents in the same menu.
+      const maya = await screen.findByRole("option", { name: /Maya Stone/ });
+      expect(maya).toHaveTextContent("label");
+      await user.click(maya);
+      await user.click(screen.getByRole("option", { name: /Ivo Brandt/ }));
+
+      // While writing, the brief holds the mentions only.
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "Send the deck to @contact-1:maya-stone @contact-2:ivo-brandt",
+      );
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+      // The failed try left the brief as written.
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "Send the deck to @contact-1:maya-stone @contact-2:ivo-brandt",
+      );
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      const expected =
+        "Send the deck to [Maya Stone](/contacts?contact=contact-1) [Ivo Brandt](/contacts?contact=contact-2)\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Maya Stone** · Head of Sales, Stone Ventures · maya@example.com\n- **Ivo Brandt**\n\n<!-- /sokosumi:contacts -->";
+      expect(createTaskMock).toHaveBeenCalledTimes(2);
+      for (const [input] of createTaskMock.mock.calls) {
+        expect(input).toEqual(
+          expect.objectContaining({
+            contactIds: ["contact-1", "contact-2"],
+            description: expected,
+          }),
+        );
+      }
+    });
+
+    it("hides saved details while editing and rebuilds them on save", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      renderEdit([{ id: "contact-1", name: "Maya Stone" }]);
+
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "Call [Maya Stone](/contacts?contact=contact-1)",
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contactIds: ["contact-1"],
+          description: SAVED,
+        }),
+      );
+    });
+
+    it("untags a contact whose mention is removed, keeping tags set elsewhere", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // Lena was tagged without a mention (e.g. through the API).
+      renderEdit([
+        { id: "contact-1", name: "Maya Stone" },
+        { id: "contact-9", name: "Lena Kraft" },
+      ]);
+
+      const editor = screen.getByTestId("markdown-editor");
+      await user.clear(editor);
+      await user.type(editor, "Call nobody");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contactIds: ["contact-9"],
+          description:
+            "Call nobody\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Lena Kraft**\n\n<!-- /sokosumi:contacts -->",
+        }),
+      );
+    });
+
+    it("keeps text written after the details, with or without the end marker", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // Saved before the end marker existed, then appended to through the API.
+      const legacy = SAVED.replace("\n\n<!-- /sokosumi:contacts -->", "");
+      renderEdit(
+        [{ id: "contact-1", name: "Maya Stone" }],
+        `${legacy}\n\nAPI update: deadline Friday`,
+      );
+
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "Call [Maya Stone](/contacts?contact=contact-1)\n\nAPI update: deadline Friday",
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: SAVED.replace(
+            "contact-1)",
+            "contact-1)\n\nAPI update: deadline Friday",
+          ),
+        }),
+      );
+    });
+
+    it("re-tags a merged contact's survivor and drops an archived one", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // The merge moved the tag to Maya; the archived contact kept its tag.
+      renderEdit(
+        [
+          { id: "contact-1", name: "Maya Stone" },
+          { id: "contact-4", name: "Old Lead" },
+        ],
+        "Call [Maya S.](/contacts?contact=contact-3) and [Old Lead](/contacts?contact=contact-4)",
+      );
+
+      await user.type(screen.getByTestId("markdown-editor"), " today");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contactIds: ["contact-1"],
+          description: SAVED.replace(
+            "contact-1)",
+            "contact-1) and Old Lead today",
+          ),
+        }),
+      );
+    });
+
+    it("untags a merged contact's survivor when its old mention is removed", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // contact-3 was merged into Maya: Core reports Maya's tag while the
+      // brief still links contact-3, the only mention of her.
+      renderEdit(
+        [{ id: "contact-1", name: "Maya Stone" }],
+        "Call [Maya S.](/contacts?contact=contact-3)\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Maya S.**\n\n<!-- /sokosumi:contacts -->",
+      );
+
+      const editor = screen.getByTestId("markdown-editor");
+      expect(editor).toHaveValue("Call [Maya S.](/contacts?contact=contact-3)");
+      await user.clear(editor);
+      await user.type(editor, "Call nobody");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({ contactIds: [], description: "Call nobody" }),
+      );
+    });
+
+    it("leaves tags and the brief alone when tags could not be read", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      renderEdit(null);
+
+      await user.click(screen.getByRole("button", { name: "@" }));
+      expect(
+        screen.queryByRole("option", { name: /Maya Stone/ }),
+      ).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock.mock.calls[0]?.[0]).not.toHaveProperty(
+        "contactIds",
+      );
+      expect(updateTaskMock.mock.calls[0]?.[0]).toHaveProperty(
+        "description",
+        SAVED,
+      );
+    });
   });
 
   describe("copy of a Task", () => {

@@ -3408,6 +3408,16 @@ model Task {
   /// timezone; overdue is judged against the reader's own today.
   dueOn DateTime? @db.Date
 
+  /// Contacts tagged on this Task.
+  contacts TaskContact[]
+
+  /// @deprecated Single-contact link of the release before `contacts`. Kept
+  /// so that release keeps working while it still serves; a trigger mirrors
+  /// its writes into `task_contact`. Never read or write it; a later
+  /// migration drops it.
+  contactId     String?  @db.Uuid
+  legacyContact Contact? @relation("TaskLegacyContact", fields: [contactId], references: [id], onDelete: SetNull)
+
   @@unique([projectId, number])
   @@index([organizationId])
   @@index([workspaceId])
@@ -3424,6 +3434,7 @@ model Task {
   @@index([creatorSokoBotId])
   @@index([workspaceId, visibility])
   @@index([scheduleId])
+  @@index([contactId])
   @@index([status, runAt])
   @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
   @@map("task")

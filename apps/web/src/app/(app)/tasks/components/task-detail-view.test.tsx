@@ -39,6 +39,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
+    listTaskContacts: async () => [],
     listTaskActivityFeed: (...args: unknown[]) =>
       listTaskActivityFeedMock(...args),
   },

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Project } from "@sokosumi/core-client";
+import type { Contact, Project } from "@sokosumi/core-client";
 import { TaskStatus } from "@sokosumi/core-client";
 import {
   formatTaskAttachmentMarkdown,
@@ -28,6 +28,8 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "use-debounce";
+import { useContactRows } from "@/app/contacts/components/use-contacts-data";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
@@ -57,6 +59,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -65,6 +68,7 @@ import {
   updateTask,
 } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
+import { contactsService } from "@/lib/services/contacts.client";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
@@ -77,9 +81,19 @@ import {
   canSelectQueuedTaskStatus,
   TASK_STATUS_DISPLAY_ORDER,
 } from "@/lib/utils/task-status-order";
+import {
+  expandContactMentions,
+  mentionedContactIds,
+  stripContactDetails,
+} from "../utils/task-contact-details";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { TaskAssigneePicker } from "./task-assignee-picker";
+import {
+  ContactMentionItem,
+  MentionInitialItem,
+  type TaskContactTag,
+} from "./task-contacts";
 import {
   getDefaultTaskContextSelection,
   getTaskContextSelectionFromDescription,
@@ -174,6 +188,9 @@ interface TaskFormInitialValues {
   visibility?: "PUBLIC" | "PRIVATE";
   /** Create only: this form makes a copy of that Task ("Duplicate"). */
   copyOfTaskId?: string;
+  /** Contacts tagged on the Task; null when they could not be read, which
+   * hides tagging so a save cannot replace tags the form never saw. */
+  contacts?: TaskContactTag[] | null;
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
@@ -183,6 +200,18 @@ const CREATE_STATUS_OPTIONS = [
   TaskStatus.QUEUED,
   TaskStatus.READY,
 ] as const;
+
+/**
+ * The contact a tag on `id` means now: a merged contact's survivor, or null
+ * once it is archived, so a save never re-tags a contact Core would refuse.
+ */
+async function liveContact(id: string, hops = 0): Promise<Contact | null> {
+  const contact = await contactsService.get(id);
+  // ponytail: merges chain at most a few deep; 5 hops guards a cycle.
+  if (contact.mergedIntoId && hops < 5)
+    return liveContact(contact.mergedIntoId, hops + 1);
+  return contact.mergedIntoId || contact.archivedAt ? null : contact;
+}
 
 function isAgentAssigneeFields(fields: {
   assigneeId: string | null;
@@ -221,6 +250,7 @@ function getTaskFormStatusLabel(
 export interface TaskFormCreateInput {
   tagSuggestionReceipt?: string;
   copyOfTaskId?: string;
+  contactIds?: string[];
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -288,6 +318,7 @@ export function TaskForm({
   const { data: session } = useSession();
   const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
   const tRunAt = useTranslations("App.Tasks.RunAt");
+  const tContacts = useTranslations("App.Tasks.Contacts");
   const formatter = useFormatter();
   const hasProjectSelection = projectOptions !== undefined;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
@@ -298,6 +329,8 @@ export function TaskForm({
   const copyOfTaskId =
     mode === "create" ? initialValues?.copyOfTaskId : undefined;
   const isCopy = copyOfTaskId !== undefined;
+  const initialContacts = initialValues?.contacts;
+  const canTagContacts = initialContacts !== null;
   const [name, setName] = useState(initialValues?.name ?? "");
   const [isPrivate, setIsPrivate] = useState(
     initialValues?.visibility === "PRIVATE",
@@ -347,8 +380,12 @@ export function TaskForm({
         initialContext?.selection ??
         getDefaultTaskContextSelection(initialProject),
     );
-  const initialDescription =
+  const savedDescription =
     initialContext?.body ?? initialValues?.description ?? "";
+  // Contact details are added on save, never shown while writing.
+  const initialDescription = canTagContacts
+    ? stripContactDetails(savedDescription)
+    : savedDescription;
   const [description, setDescription] = useState(initialDescription);
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
@@ -483,9 +520,51 @@ export function TaskForm({
     () => extractTaskAttachmentUrls(description),
     [description],
   );
+  // Typing @ also offers the workspace's contacts. Each one seen stays known,
+  // so a picked contact keeps its name in the brief after the menu closes.
+  const [contactQuery, setContactQuery] = useState<string | null>(null);
+  const [debouncedContactQuery] = useDebounce(
+    contactQuery?.trim() ?? "",
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
+  const contactRows = useContactRows(
+    {
+      search: debouncedContactQuery || undefined,
+      sort: "name",
+      direction: "asc",
+    },
+    canTagContacts && contactQuery !== null,
+  );
+  const [seenContacts, setSeenContacts] = useState(
+    () => new Map<string, Contact>(),
+  );
+  const contactResults = useMemo(
+    // ponytail: first 8 matches only; typing more of the name narrows it.
+    () => contactRows.data?.pages[0]?.contacts.slice(0, 8) ?? [],
+    [contactRows.data],
+  );
+  useEffect(() => {
+    setSeenContacts((current) => {
+      if (
+        contactResults.every((contact) => current.get(contact.id) === contact)
+      )
+        return current;
+      const next = new Map(current);
+      for (const contact of contactResults) next.set(contact.id, contact);
+      return next;
+    });
+  }, [contactResults]);
   const mentionOptions = useMemo(
-    () => convertAgentNamesToMentionOptions(agentNameById),
-    [agentNameById],
+    () => ({
+      ...Object.fromEntries(
+        [...seenContacts.values()].map((contact) => [
+          contact.id,
+          { value: contact.name, data: contact },
+        ]),
+      ),
+      ...convertAgentNamesToMentionOptions(agentNameById),
+    }),
+    [agentNameById, seenContacts],
   );
   const isSubmittingAny = isSubmitting;
   useEffect(() => {
@@ -719,8 +798,64 @@ export function TaskForm({
     }
     setIsSubmitting(true);
     try {
-      const trimmedDescription = description.trim();
       const trimmedName = name.trim();
+      // Tags follow the contacts mentioned in the brief. A tag with no
+      // mention in the saved brief (set elsewhere) is kept.
+      let trimmedDescription = description.trim();
+      let contactIds: string[] | undefined;
+      if (canTagContacts) {
+        const initialIds = (initialContacts ?? []).map((contact) => contact.id);
+        const mentionedAtLoad = mentionedContactIds(
+          initialDescription,
+          new Set(initialIds),
+        );
+        const mentioned = mentionedContactIds(
+          trimmedDescription,
+          new Set(seenContacts.keys()),
+        );
+        const needed = new Set([...initialIds, ...mentioned]);
+        const read = [...new Set([...needed, ...mentionedAtLoad])];
+        if (read.length > 0) {
+          // Read now, with the reader's own access, so the Task gets current
+          // details only for contacts they may see. A merged contact stands
+          // for its survivor; an archived one is no longer tagged.
+          const live = new Map(
+            await Promise.all(
+              read.map(async (id) => {
+                // A removed mention only decides which tags it accounted
+                // for, so failing to read it never blocks the save.
+                const contact = needed.has(id)
+                  ? await liveContact(id)
+                  : await liveContact(id).catch(() => null);
+                return [id, contact] as const;
+              }),
+            ),
+          );
+          // A tag no mention accounted for at load was set elsewhere and is
+          // kept. Compared as live contacts: after a merge the tag is the
+          // survivor while the brief still links the merged contact.
+          const accounted = new Set(
+            mentionedAtLoad.flatMap((id) => [id, live.get(id)?.id ?? id]),
+          );
+          const ids = [
+            ...initialIds.filter((id) => !accounted.has(id)),
+            ...mentioned,
+          ];
+          const tagged = new Map(ids.map((id) => [id, live.get(id) ?? null]));
+          trimmedDescription = expandContactMentions(
+            trimmedDescription,
+            tagged,
+            tContacts("title"),
+          );
+          contactIds = [
+            ...new Set(
+              [...tagged.values()].flatMap((contact) =>
+                contact ? [contact.id] : [],
+              ),
+            ),
+          ];
+        }
+      }
       const context: TaskContextSelectionInput = {
         brand: {
           enabled: contextSelection.brand.enabled,
@@ -758,6 +893,7 @@ export function TaskForm({
             ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
             : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
+          ...(contactIds?.length ? { contactIds } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
           ...assigneeFields,
@@ -814,6 +950,7 @@ export function TaskForm({
         ...(hasProjectSelection ? { projectId } : {}),
         context,
         desiredStatus: status,
+        ...(contactIds ? { contactIds } : {}),
         ...(runAt !== initialRunAt &&
         (runAt !== null ||
           status === TaskStatus.DRAFT ||
@@ -839,6 +976,11 @@ export function TaskForm({
   }, [
     draftTags.tagSuggestionReceipt,
     copyOfTaskId,
+    seenContacts,
+    initialContacts,
+    initialDescription,
+    canTagContacts,
+    tContacts,
     isCopy,
     description,
     isSaveDisabled,
@@ -1285,6 +1427,16 @@ export function TaskForm({
                         void handleSave();
                       }}
                       mentions={mentionOptions}
+                      onMentionQueryChange={setContactQuery}
+                      renderMentionItem={(mention) =>
+                        mention.data ? (
+                          <ContactMentionItem
+                            contact={mention.data as Contact}
+                          />
+                        ) : (
+                          <MentionInitialItem mention={mention} />
+                        )
+                      }
                     />
                     <FileUploadTrigger asChild>
                       <button

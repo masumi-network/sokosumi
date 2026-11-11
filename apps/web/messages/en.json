@@ -2383,6 +2383,10 @@
           "finance": "Finance",
           "qa": "Review & QA"
         }
+      },
+      "Contacts": {
+        "title": "Contacts",
+        "label": "Contact"
       }
     },
     "Projects": {
@@ -11054,7 +11058,13 @@
         "enriched": "Filled {fields} from the web · 1 credit",
         "enrichedNone": "Nothing new found on the web. No credits used.",
         "enrichFailed": "Could not look them up. Try again.",
-        "connectedVia": "Connected via"
+        "connectedVia": "Connected via",
+        "tasks": {
+          "title": "Tasks",
+          "empty": "Tag {name} on a Task to see it here.",
+          "showMore": "Show more",
+          "error": "Tasks could not be loaded. Try again later."
+        }
       },
       "stageGroups": {
         "general": "General",

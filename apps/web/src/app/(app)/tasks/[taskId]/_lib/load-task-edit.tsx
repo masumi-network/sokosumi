@@ -52,6 +52,8 @@ interface TaskEditReady {
     status: TaskStatus;
     selectableStatuses: readonly TaskStatus[];
     runAt: string | null;
+    /** Null when they could not be read: the form then leaves tags alone. */
+    contacts: { id: string; name: string }[] | null;
   };
 }
 
@@ -96,15 +98,21 @@ export async function loadTaskEdit(
     };
   }
 
-  const [coworkerOptions, agents, projectOptions, initialDesignMdAttachment] =
-    await Promise.all([
-      listTaskAssigneeOptions(targetOrganizationId),
-      agentService.getAvailableAgentsWithCreditsPrice(),
-      getProjectFilterOptions(taskResult.projectId ?? null),
-      session?.user?.id
-        ? designMdService.resolveEffectiveDesignMd()
-        : Promise.resolve(null),
-    ]);
+  const [
+    coworkerOptions,
+    agents,
+    projectOptions,
+    initialDesignMdAttachment,
+    contacts,
+  ] = await Promise.all([
+    listTaskAssigneeOptions(targetOrganizationId),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+    getProjectFilterOptions(taskResult.projectId ?? null),
+    session?.user?.id
+      ? designMdService.resolveEffectiveDesignMd()
+      : Promise.resolve(null),
+    taskService.listTaskContacts(taskResult.id),
+  ]);
   const agentNameById = buildAgentNameById(agents);
 
   const [tEdit, tStatus, tTasks] = await Promise.all([
@@ -183,6 +191,7 @@ export async function loadTaskEdit(
       status: taskResult.status,
       selectableStatuses: taskResult.selectableStatuses,
       runAt: taskResult.runAt?.toISOString() ?? null,
+      contacts,
     },
   };
 }

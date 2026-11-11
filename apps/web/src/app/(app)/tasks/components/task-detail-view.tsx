@@ -17,6 +17,7 @@ import {
   type MentionableUser,
   TaskActivitySection,
 } from "@/app/tasks/components/task-activity";
+import { TaskContactsSection } from "@/app/tasks/components/task-contacts";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -487,7 +488,7 @@ async function TaskMetadataSection({
   hasAssignedSeatPromise: Promise<boolean>;
   projectPromise: Promise<ProjectResult>;
 }) {
-  const [project, hasAssignedSeat, t, tTasks, tStatus, tPriority] =
+  const [project, hasAssignedSeat, t, tTasks, tStatus, tPriority, contacts] =
     await Promise.all([
       projectPromise,
       hasAssignedSeatPromise,
@@ -495,6 +496,7 @@ async function TaskMetadataSection({
       getTranslations("App.Tasks"),
       getTranslations("App.Tasks.Filters.statusOptions"),
       getTranslations("App.Tasks.Priority"),
+      taskService.listTaskContacts(task.id),
     ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const isReadOnly = isReadOnlyForViewer({
@@ -574,6 +576,7 @@ async function TaskMetadataSection({
         }}
       />
       <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
+      {contacts?.length ? <TaskContactsSection contacts={contacts} /> : null}
     </div>
   );
 }

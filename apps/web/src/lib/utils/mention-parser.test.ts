@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+import {
+  formatMentionsAsMarkdownLinks,
+  parseMentions,
+} from "@/lib/utils/mention-parser";
+
+describe("parseMentions", () => {
+  it("leaves email addresses alone", () => {
+    expect(
+      parseMentions("Mail maya@stone-ventures.example or ask @bob").map(
+        (mention) => mention.id,
+      ),
+    ).toEqual(["bob"]);
+  });
+});
 
 describe("formatMentionsAsMarkdownLinks", () => {
   it("escapes markdown in human names so they cannot become links", () => {

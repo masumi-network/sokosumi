@@ -12912,6 +12912,11 @@ export type TaskScheduleMovedError = {
     };
 };
 
+export type TaskContact = {
+    id: string;
+    name: string;
+};
+
 export const UserWritableTaskLinkRelation = {
     RELATED: 'related',
     BLOCKS: 'blocks',
@@ -84799,6 +84804,10 @@ export type GetTasksData = {
          */
         scheduleId?: string;
         /**
+         * Only the Tasks this contact is tagged on
+         */
+        contactId?: string;
+        /**
          * Only Tasks due on or before this day (YYYY-MM-DD). Tasks without a due date are left out.
          */
         dueOnTo?: string;
@@ -84941,6 +84950,10 @@ export type PostTasksData = {
          * Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.
          */
         runAt?: Date | null;
+        /**
+         * Live contacts in the Task's workspace to tag on it. Each one lists the Task (`GET /v1/tasks?contactId=`).
+         */
+        contactIds?: Array<string>;
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;
@@ -86754,6 +86767,110 @@ export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors = {
 
 export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdError = PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors[keyof PatchTasksByIdScheduleOccurrencesByOccurrenceIdErrors];
 
+export type GetTasksByIdContactsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/contacts';
+};
+
+export type GetTasksByIdContactsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdContactsError = GetTasksByIdContactsErrors[keyof GetTasksByIdContactsErrors];
+
+export type GetTasksByIdContactsResponses = {
+    /**
+     * Tagged contacts
+     */
+    200: {
+        data: Array<TaskContact>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdContactsResponse = GetTasksByIdContactsResponses[keyof GetTasksByIdContactsResponses];
+
 export type GetTasksByIdLinksData = {
     body?: never;
     path: {
@@ -87451,6 +87568,10 @@ export type PatchTasksByIdData = {
          * The day the Task should be done by (YYYY-MM-DD); null clears it. A request that changes only dueOn also works outside draft, queued and ready, except on a Task parked in GRANT_PENDING.
          */
         dueOn?: string | null;
+        /**
+         * Live contacts in the Task's workspace to tag on it. Each one lists the Task (`GET /v1/tasks?contactId=`).
+         */
+        contactIds?: Array<string>;
     };
     path: {
         id: string;

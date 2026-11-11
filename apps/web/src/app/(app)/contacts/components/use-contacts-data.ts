@@ -45,10 +45,10 @@ function sameWorkspace<T>(
 
 type ContactPage = Awaited<ReturnType<typeof contactsService.list>>;
 
-export function useContactRows(query: ContactQuery) {
+export function useContactRows(query: ContactQuery, enabled = true) {
   const workspace = useWorkspace();
   return useInfiniteQuery({
-    enabled: workspace !== null,
+    enabled: enabled && workspace !== null,
     queryKey: [...CONTACTS_KEY, workspace, query],
     queryFn: ({ pageParam }) =>
       contactsService.list({

@@ -827,6 +827,25 @@ describe("updateTask Run at", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
+  it("replaces the tagged contacts in the same patch", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+    const { updateTask } = await import("./action");
+
+    await updateTask({
+      ...baseInput,
+      desiredStatus: TaskStatus.DRAFT,
+      contactIds: ["contact-1"],
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({ contactIds: ["contact-1"] }),
+    );
+  });
+
   it("sends no Run at when none is given", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
       id: "task-1",
@@ -1258,6 +1277,20 @@ describe("draft task tag actions", () => {
         name: "Weekly report",
         copyOfTaskId: "source-task",
       }),
+    );
+  });
+
+  it("forwards the tagged contacts to Core", async () => {
+    taskServiceMock.createTask.mockReset().mockResolvedValue(buildTask());
+    const { createTask } = await import("./action");
+    await createTask({
+      description: "Send the deck",
+      assigneeId: null,
+      status: TaskStatus.DRAFT,
+      contactIds: ["contact-1", "contact-2"],
+    });
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ contactIds: ["contact-1", "contact-2"] }),
     );
   });
 });

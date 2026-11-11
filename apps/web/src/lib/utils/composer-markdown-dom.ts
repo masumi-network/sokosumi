@@ -116,8 +116,37 @@ const COMPOSER_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
     "data-channel-label",
     "data-mention-key",
     "data-mention-slug",
+    "data-nul",
   ],
 };
+
+/**
+ * HTML parsing drops U+0000 from text, so a NUL (say, in a link destination
+ * kept as text) would vanish on load and change the Markdown on save. It
+ * travels as an empty marker span instead, which `htmlToMarkdown` reads back.
+ */
+const NUL = String.fromCharCode(0);
+const NUL_HTML = '<span data-nul=""></span>';
+
+/** `html` with every NUL outside a tag as NUL_HTML. */
+function encodeNul(html: string): string {
+  if (!html.includes(NUL)) return html;
+  // Split on tags: odd parts are tags, whose attributes stay as they are.
+  return html
+    .split(/(<[^>]*>)/)
+    .map((part, index) => (index % 2 ? part : part.split(NUL).join(NUL_HTML)))
+    .join("");
+}
+
+const APP_PATH = /^\/(?![/\\])[^\s\\]*$/;
+
+/** A same-origin app path: APP_PATH with no C0 control or DEL anywhere. */
+function isAppPath(url: string): boolean {
+  return (
+    APP_PATH.test(url) &&
+    [...url].every((char) => char > "\u001f" && char !== "\u007f")
+  );
+}
 
 /**
  * Boundary between the hand-built composer HTML and the two `markdownToHtml`
@@ -148,6 +177,7 @@ export function sanitizeComposerHtml(html: string): string {
     disallowedTagsMode: "discard",
     // The transform only ever emits http, https and mailto, already gated by
     // normalizeUrl. Protocol-relative URLs are not a composer feature.
+    // Same-origin app paths (isAppPath) are the one relative form it emits.
     allowProtocolRelative: false,
   });
 
@@ -221,7 +251,10 @@ export function markdownToHtml(
   const withLinkTokens = replaceMarkdownLinks(
     withCodeBlockTokens,
     ({ match, text: label, rawUrl }) => {
-      const normalizedUrl = normalizeUrl(unescapeMarkdownLinkUrl(rawUrl));
+      const url = unescapeMarkdownLinkUrl(rawUrl).trim();
+      // Saves write same-origin app links (a tagged contact), which stay a
+      // link here. `//host` and `/\host` would leave the app, so they don't.
+      const normalizedUrl = isAppPath(url) ? url : normalizeUrl(url);
       if (!normalizedUrl) {
         return match;
       }
@@ -365,7 +398,7 @@ export function markdownToHtml(
     return result.replace(underline.token, () => underline.html);
   }, withRestoredCode);
 
-  return sanitizeComposerHtml(restored);
+  return sanitizeComposerHtml(encodeNul(restored));
 }
 
 function getCodeLanguage(codeElement: HTMLElement): string {
@@ -495,6 +528,8 @@ export function htmlToMarkdown(element: HTMLElement): string {
 
       const htmlElement = node as HTMLElement;
       const tag = htmlElement.tagName.toLowerCase();
+
+      if (tag === "span" && htmlElement.hasAttribute("data-nul")) return NUL;
 
       if (tag === "pre") {
         const codeElement = htmlElement.querySelector("code");

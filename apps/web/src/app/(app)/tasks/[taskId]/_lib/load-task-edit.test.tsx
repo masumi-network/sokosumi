@@ -69,6 +69,7 @@ vi.mock("@/lib/services/agent.service", () => ({
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getTaskById: (...args: unknown[]) => getTaskByIdMock(...args),
+    listTaskContacts: async () => [{ id: "contact-1", name: "Maya Stone" }],
   },
 }));
 
@@ -259,6 +260,7 @@ describe("loadTaskEdit", () => {
           projectId: null,
           status: "READY",
           runAt: null,
+          contacts: [{ id: "contact-1", name: "Maya Stone" }],
         }),
       }),
     );
