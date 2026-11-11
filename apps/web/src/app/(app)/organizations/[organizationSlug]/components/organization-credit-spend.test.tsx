@@ -9,10 +9,8 @@ const { getOrganizationCreditSpendMock } = vi.hoisted(() => ({
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
-  getFormatter: async () => ({
-    number: (value: number) => String(value),
-    dateTime: (date: Date) => date.toISOString().slice(0, 7),
-  }),
+  getFormatter: async () =>
+    (await import("@/test/intl-formatter")).createTestFormatter(),
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -46,13 +44,20 @@ describe("OrganizationCreditSpendCard", () => {
         month: "2026-11",
         previousMonth: "2026-10",
         rows: [
-          { ...row, userId: "u1", name: "Ada", credits: 12.349 },
+          {
+            ...row,
+            userId: "u1",
+            name: "Ada",
+            credits: 0.29,
+            previousCredits: 4.1,
+          },
           {
             ...row,
             userId: "u2",
             name: "Gus",
             isMember: false,
-            credits: 4,
+            credits: 12.349,
+            previousCredits: 0.29,
           },
           { ...row, userId: null, name: null, isMember: false, credits: 1 },
           { ...row, userId: "u3", name: "Ida", credits: 0 },
@@ -64,12 +69,12 @@ describe("OrganizationCreditSpendCard", () => {
 
     expect(getOrganizationCreditSpendMock).toHaveBeenCalledWith("org_1");
     expect(
-      screen.getByRole("columnheader", { name: "2026-11" }),
+      screen.getByRole("columnheader", { name: "November 2026" }),
     ).toBeInTheDocument();
     const rows = screen.getAllByRole("row").slice(1);
     expect(rows.map((tr) => tr.textContent)).toEqual([
-      "Ada12.340",
-      "GusformerMember40",
+      "Ada0.294.1",
+      "GusformerMember12.350.29",
       "noPerson10",
       "Ida00",
     ]);

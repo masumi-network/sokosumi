@@ -54,7 +54,7 @@ export async function OrganizationCreditSpendCard({
       timeZone: "UTC",
     });
   const credits = (value: number) =>
-    format.number(Math.trunc(value * 100) / 100, { maximumFractionDigits: 2 });
+    format.number(value, { maximumFractionDigits: 2 });
   const hasSpend = spend.rows.some(
     (row) => row.credits > 0 || row.previousCredits > 0,
   );
