@@ -57,7 +57,9 @@ export function computeScheduleTitleInfo(
         const weekday = formatWeekday(parsed.dows[0], formatter, s.timezone);
         return { key: "weeklyWithWeekdayTime", values: { weekday, time } };
       }
-      const weekdays = parsed.dows.join(",");
+      const weekdays = parsed.dows
+        .map((dow) => formatWeekday(dow, formatter, s.timezone))
+        .join(", ");
       return { key: "weeklyListWithTime", values: { weekdays, time } };
     }
     case "monthlyOnDay": {

@@ -2154,6 +2154,21 @@
         },
         "newSchedule": "Neuer Zeitplan",
         "empty": "Hier gibt es noch keine Zeitpläne. Ein Zeitplan erstellt bei jedem Lauf einen neuen Task.",
+        "zoneTime": "Zeit {zone}",
+        "localTime": "{datetime} bei dir",
+        "nextRunWithLocal": "Nächster Lauf {datetime} ({local} bei dir)",
+        "emptyFiltered": {
+          "ACTIVE": "Keine aktiven Zeitpläne",
+          "PAUSED": "Keine pausierten Zeitpläne",
+          "ENDED": "Keine beendeten Zeitpläne"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# ist aktiv} other {# sind aktiv}}",
+          "PAUSED": "{count, plural, one {# ist pausiert} other {# sind pausiert}}",
+          "ENDED": "{count, plural, one {# ist beendet} other {# sind beendet}}"
+        },
+        "showAll": "Alle Zeitpläne zeigen",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Zeitpläne ließen sich nicht laden.",
         "nextRun": "Nächster Lauf {datetime}",
@@ -2265,7 +2280,6 @@
           "properties": "Eigenschaften",
           "state": "Status",
           "rule": "Wiederholung",
-          "timezone": "Zeitzone",
           "nextRun": "Nächster Lauf",
           "ends": "Endet",
           "assignee": "Zuständig",
