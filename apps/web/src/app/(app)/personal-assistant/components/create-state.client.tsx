@@ -205,8 +205,12 @@ export function CreateState({
           )}
           headingRef={pictureHeadingRef}
         />
-        {/* Locked while creating: the bot gets the picture picked on submit. */}
-        <fieldset disabled={isPending} className={cn(HOLDER_CLASS, "min-w-0")}>
+        {/* Locked while creating: the bot gets the picture picked on submit.
+            The scroll margin keeps a focused picture clear of the pinned buttons. */}
+        <fieldset
+          disabled={isPending}
+          className={cn(HOLDER_CLASS, "min-w-0 [&_button]:scroll-mb-40")}
+        >
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
             <AvatarPicker
               value={avatar?.id ?? null}
@@ -215,7 +219,8 @@ export function CreateState({
             />
           </div>
         </fieldset>
-        {/* Pinned to the foot on phones, so Create stays in reach above the pictures. */}
+        {/* Pinned to the foot on phones, so Create stays in reach above the pictures.
+            Only the two create buttons: a taller bar hid the pictures it sits over. */}
         <div
           className={cn(
             "bg-background sticky bottom-0 flex flex-col gap-2 pt-3 md:static md:pt-0",
@@ -248,6 +253,9 @@ export function CreateState({
           >
             {t("createWithoutPicture")}
           </Button>
+        </div>
+        {/* Right under the pinned buttons once scrolled to the end. */}
+        <div className="-mt-6 flex flex-col gap-2">
           <p
             id={noPictureHintId}
             className="text-muted-foreground text-center text-sm text-pretty wrap-anywhere"

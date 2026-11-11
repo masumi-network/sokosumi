@@ -63,7 +63,8 @@ function FlowsLayoutFooter() {
   const t = useTranslations("Auth.Footer");
 
   return (
-    <div className="flex items-center justify-center gap-4">
+    // Wraps: German labels at enlarged text overflow a 320px phone in one row.
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
       <Link
         href={LEGAL_URLS.PRIVACY_POLICY}
         target="_blank"
