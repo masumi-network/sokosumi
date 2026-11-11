@@ -45,6 +45,9 @@ const MAIN_APP_MOBILE_LIST_PATHS = [
   ...MOBILE_NON_TAB_HUB_LIST_PATHS,
 ] as const;
 
+/** You page rows that live outside `/you/`; back returns to You. */
+const YOU_HUB_CHILD_PATHS = ["/account", "/billing", "/connections"] as const;
+
 const AGENT_JOBS_PATH = /^\/agents\/([^/]+)\/jobs(?:\/|$)/;
 
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
@@ -87,6 +90,7 @@ export function getAgentJobsPathAgentId(
 /**
  * Back target for main list routes and their nested pages.
  * Tab list roots → null; Agents root → home; non-tab hub roots → Chats; nested → list root.
+ * You page rows outside `/you/` (Account, Billing, Connections) → You.
  */
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
@@ -94,6 +98,13 @@ export function resolveMobileAppBackTarget(
 ): MobileAppBackTarget | null {
   if (!pathname) {
     return null;
+  }
+  if (
+    YOU_HUB_CHILD_PATHS.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    )
+  ) {
+    return { href: "/you", labelKey: "back" };
   }
   const root = findMainAppListRoot(pathname);
   if (!root) {
