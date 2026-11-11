@@ -156,6 +156,51 @@ describe("CreateState", () => {
     expect(pictures).toBeDisabled();
   });
 
+  it("locks both create buttons while creating without a picture", async () => {
+    const user = userEvent.setup();
+    createMock.mockClear();
+    createMock.mockReturnValue(new Promise(() => {}));
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    await user.click(screen.getByRole("button", { name: "owl" }));
+    const noPicture = screen.getByRole("button", {
+      name: "Create without a picture",
+    });
+    const createButton = screen.getByRole("button", { name: "Create Atlas" });
+    await user.click(noPicture);
+    await user.click(createButton);
+
+    // Only the no-picture request runs, and it shows the progress.
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0][0].input.avatarId).toBeNull();
+    expect(createButton).toBeDisabled();
+    expect(createButton).not.toHaveAttribute("aria-busy", "true");
+    expect(noPicture).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("locks both create buttons while Create runs without a picked picture", async () => {
+    const user = userEvent.setup();
+    createMock.mockClear();
+    createMock.mockReturnValue(new Promise(() => {}));
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    const createButton = screen.getByRole("button", { name: "Create Atlas" });
+    const noPicture = screen.getByRole("button", {
+      name: "Create without a picture",
+    });
+    await user.click(createButton);
+    await user.click(noPicture);
+    await user.click(createButton);
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0][0].input.avatarId).toBeNull();
+    expect(createButton).toHaveAttribute("aria-busy", "true");
+    expect(noPicture).toBeDisabled();
+    expect(noPicture).not.toHaveAttribute("aria-busy", "true");
+  });
+
   it("holds Create while the pictures load", async () => {
     const user = userEvent.setup();
     pickerLoadsOnMount = false;

@@ -61,7 +61,7 @@ export function CreateState({
   const [loadingAvatars, setLoadingAvatars] = useState(true);
   const [isPending, startTransition] = useTransition();
   // Which button is creating, so "Create without a picture" shows its own progress.
-  const [creatingWithPicture, setCreatingWithPicture] = useState(true);
+  const [creatingWithoutPicture, setCreatingWithoutPicture] = useState(false);
   const [created, setCreated] = useState<{
     name: string;
     imageUrl: string | null;
@@ -94,15 +94,15 @@ export function CreateState({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (loadingAvatars) return;
+    if (loadingAvatars || isPending) return;
     create(avatar);
   }
 
   /** Create the bot with `picked`, or with no picture so it shows its orb. */
-  function create(picked: SokoBotAvatar | null) {
+  function create(picked: SokoBotAvatar | null, withoutPicture = false) {
     const trimmed = name.trim();
     if (!trimmed) return;
-    setCreatingWithPicture(picked !== null);
+    setCreatingWithoutPicture(withoutPicture);
     startTransition(async () => {
       const result = await createSokoBotAction({
         input: {
@@ -227,8 +227,9 @@ export function CreateState({
             type="submit"
             variant="primary"
             className="w-full"
-            disabled={loadingAvatars}
-            loading={isPending && creatingWithPicture}
+            // Locked while either button creates: a second submit would race the first.
+            disabled={loadingAvatars || isPending}
+            loading={isPending && !creatingWithoutPicture}
           >
             {/* Buttons do not wrap: a long name would push the phone page sideways. */}
             <span className="truncate">
@@ -241,9 +242,9 @@ export function CreateState({
             variant="ghost"
             className="w-full"
             disabled={isPending}
-            loading={isPending && !creatingWithPicture}
+            loading={isPending && creatingWithoutPicture}
             aria-describedby={noPictureHintId}
-            onClick={() => create(null)}
+            onClick={() => create(null, true)}
           >
             {t("createWithoutPicture")}
           </Button>
