@@ -5258,7 +5258,7 @@ export const getNotifications = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Counts over the interactive session user's in-app notification-center feed: rows still unread, rows whose request still waits on the reader (the Needs you view), and unread mentions (the Mentions view). CHAT kind is excluded except for room messages.
+ * Counts over the interactive session user's in-app notification-center feed: rows still unread, rows other than a Task's ask whose request still waits on the reader (the Needs you view lists waiting Tasks from the Task summary instead), and unread mentions (the Mentions view). CHAT kind is excluded except for room messages.
  */
 export const getNotificationsCounts = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsCountsData, ThrowOnError>): RequestResult<GetNotificationsCountsResponses, GetNotificationsCountsErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsCountsResponses, GetNotificationsCountsErrors, ThrowOnError>({
     responseTransformer: getNotificationsCountsResponseTransformer,

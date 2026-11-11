@@ -40,6 +40,9 @@ const patchNotificationsReadAllMock = vi.fn();
 const isMobileMock = vi.fn();
 const accountNoticeMock = vi.fn();
 const toastErrorMock = vi.fn();
+const sessionMock = vi.fn();
+const getTasksMock = vi.fn();
+const getTasksSummaryMock = vi.fn();
 let deliverRealtime: (event: NotificationEventData) => void = () => {};
 
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
@@ -78,8 +81,20 @@ vi.mock("next-intl", () => ({
     values?.message ? `${key}: ${String(values.message)}` : key,
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
-  useSession: () => ({ data: null }),
+  useSession: () => sessionMock(),
 }));
+vi.mock("@/lib/clients/core.browser.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/clients/core.browser.client")>();
+  return {
+    ...actual,
+    coreClient: {
+      ...actual.coreClient,
+      getTasks: (...args: unknown[]) => getTasksMock(...args),
+      getTasksSummary: (...args: unknown[]) => getTasksSummaryMock(...args),
+    },
+  };
+});
 vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
   useWorkspaceSwitcher: () => ({ handleSelectWorkspace: vi.fn() }),
 }));
@@ -103,6 +118,9 @@ vi.mock("@/lib/utils/notification-message", () => ({
   useNotificationMessage:
     () => (key: string, params?: Record<string, unknown>) =>
       typeof params?.label === "string" ? params.label : key,
+  useNotificationPreview:
+    () => (_key: string, params?: Record<string, unknown>) =>
+      typeof params?.messagePreview === "string" ? params.messagePreview : null,
 }));
 vi.mock("@/lib/utils/notification-time", () => ({
   useNotificationTimeFormatter: () => () => "today",
@@ -253,9 +271,13 @@ beforeEach(() => {
     isMobileMock,
     accountNoticeMock,
     toastErrorMock,
+    sessionMock,
+    getTasksMock,
+    getTasksSummaryMock,
   ]) {
     mock.mockReset();
   }
+  sessionMock.mockReturnValue({ data: null });
   isMobileMock.mockReturnValue(false);
   accountNoticeMock.mockReturnValue({ notice: null });
   getNotificationsCountsMock.mockResolvedValue({
@@ -1476,14 +1498,15 @@ describe("Notification Center view filter", () => {
  * count on the tab is Core's.
  */
 describe("Notification Center Needs you view", () => {
-  const TASK_ASK_KEY = "Notifications.Task.inputRequired";
+  // A Job's ask: a Task's ask is listed as the waiting Task instead.
+  const JOB_ASK_KEY = "Notifications.Job.inputRequired";
 
   function asked(id: string, overrides: Partial<NotificationItem> = {}) {
     return row(id, {
-      kind: "TASK",
-      messageKey: TASK_ASK_KEY,
+      kind: "JOB",
+      messageKey: JOB_ASK_KEY,
       messageParams: { label: id },
-      referenceId: `task-${id}`,
+      referenceId: `job-${id}`,
       isRead: false,
       readAt: null,
       ...overrides,
@@ -1503,6 +1526,96 @@ describe("Notification Center Needs you view", () => {
       created,
     } as NotificationEventData;
   }
+
+  it.each(FRAMES)(
+    "lists every Task waiting on the reader with Home's number, in the %s",
+    async (_, mount) => {
+      sessionMock.mockReturnValue({
+        data: {
+          user: { id: "user-1" },
+          session: { activeOrganizationId: "org-1" },
+        },
+      });
+      // Home's chip reads this summary; the tab must say the same number.
+      getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 3 } });
+      getTasksMock.mockResolvedValue({
+        data: [
+          {
+            id: "task-brief",
+            identifier: null,
+            name: "Q4 launch brief",
+            status: "INPUT_REQUIRED",
+            updatedAt: new Date("2026-06-18T09:00:00.000Z"),
+            assignee: {
+              type: "sokoBot",
+              id: "bot-1",
+              sokoBot: { name: "Pip" },
+            },
+          },
+          {
+            id: "task-newsletter",
+            identifier: null,
+            name: "Partner newsletter",
+            status: "APPROVAL_REQUIRED",
+            updatedAt: new Date("2026-06-18T08:00:00.000Z"),
+            assignee: null,
+          },
+        ],
+      });
+      // The Task's own ask is a notification row too; Needs you lists the
+      // Task instead, so it shows once.
+      const taskAsk = row("task-ask", {
+        kind: "TASK",
+        messageKey: "Notifications.Task.inputRequired",
+        messageParams: { label: "task-ask" },
+        referenceId: "task-brief",
+        isRead: false,
+        readAt: null,
+      });
+      const jobAsk = asked("job-ask");
+      getNotificationsMock.mockResolvedValue(page([taskAsk, jobAsk]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 1, mentions: 0 },
+      });
+
+      await mount();
+      await settle();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("tab", { name: "filterNeedsYou 4" }));
+      await settle();
+
+      expect(getTasksSummaryMock).toHaveBeenCalledWith({ scope: "workspace" });
+      expect(getTasksMock).toHaveBeenCalledWith({
+        scope: "workspace",
+        status: [
+          "GRANT_PENDING",
+          "INPUT_REQUIRED",
+          "APPROVAL_REQUIRED",
+          "AUTHENTICATION_REQUIRED",
+          "OUT_OF_CREDITS",
+        ],
+        sort: "updatedAt",
+        limit: 50,
+      });
+      const tasks = screen.getByRole("region", { name: "heading" });
+      const links = within(tasks).getAllByRole("link");
+      // Three wait and two are listed, so the rest are one click away.
+      expect(links.map((link) => link.getAttribute("href"))).toEqual([
+        "/tasks",
+        "/tasks/task-brief",
+        "/tasks/task-newsletter",
+      ]);
+      expect(links[1]?.textContent).toContain("Q4 launch brief");
+      expect(links[1]?.textContent).toContain("ask.INPUT_REQUIRED");
+      expect(links[1]?.textContent).toContain("action.INPUT_REQUIRED");
+      expect(links[2]?.textContent).toContain("status.APPROVAL_REQUIRED");
+      expect(links[2]?.textContent).toContain("action.APPROVAL_REQUIRED");
+      expect(screen.getByText("job-ask")).toBeTruthy();
+      expect(screen.queryByText("task-ask")).toBeNull();
+      expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
+    },
+  );
 
   it.each(FRAMES)(
     "lists what still waits on the reader, counted on its tab, in the %s",
@@ -1807,6 +1920,40 @@ describe("Notification Center Mentions view", () => {
     expect(screen.getByText("named")).toBeTruthy();
   });
 
+  it("quotes what the mention said and replies from the row", async () => {
+    const named = mention("named", {
+      messageParams: {
+        label: "named",
+        messagePreview: "can you check the hero copy?",
+      },
+    });
+    const silent = mention("silent");
+    getNotificationsMock.mockResolvedValue(page([named, silent]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 2, needsAction: 0, mentions: 2 },
+    });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...named, isRead: true, readAt: new Date() },
+    });
+
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "filterMentions 2" }));
+    await settle();
+
+    expect(screen.getByText("can you check the hero copy?")).toBeTruthy();
+    // Every mention can be answered, quoted or not.
+    expect(
+      screen.getByRole("button", { name: "replyTo: silent" }),
+    ).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "replyTo: named" }));
+    await settle();
+
+    // Reply opens the mention the way the row does, and reads it.
+    expect(patchNotificationReadMock).toHaveBeenCalledWith({ id: "named" });
+  });
+
   it("says nobody has mentioned the reader when nobody has", async () => {
     await renderPage();
     await userEvent
@@ -1827,7 +1974,7 @@ describe("Notification Center Mentions view", () => {
  * flashes All on the way.
  */
 describe("Notification Center remembered view", () => {
-  const TASK_ASK_KEY = "Notifications.Task.inputRequired";
+  const JOB_ASK_KEY = "Notifications.Job.inputRequired";
 
   function stored(view: string) {
     window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, view);
@@ -1836,8 +1983,8 @@ describe("Notification Center remembered view", () => {
   /** A row the Needs you view keeps: one that asked the reader something. */
   function asking(id: string, createdAt?: Date) {
     return row(id, {
-      kind: "TASK",
-      messageKey: TASK_ASK_KEY,
+      kind: "JOB",
+      messageKey: JOB_ASK_KEY,
       messageParams: { label: id },
       isRead: false,
       readAt: null,

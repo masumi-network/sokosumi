@@ -125,14 +125,20 @@ describe("GET /notifications/counts", () => {
           referenceId: "task_waiting",
         },
         {
-          id: "n_task_done",
-          messageKey: "Notifications.Task.inputRequired",
-          referenceId: "task_done",
+          id: "n_grant",
+          messageKey: "notifications.vendorGrant.pending",
+          referenceId: "grant_pending",
+        },
+        {
+          id: "n_grant_done",
+          messageKey: "notifications.vendorGrant.pending",
+          referenceId: "grant_done",
         },
       ],
       { unread: 5, needsAction: 1, mentions: 2 },
     );
     taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+    vendorGrantFindManyMock.mockResolvedValue([{ id: "grant_pending" }]);
 
     const app = createApp();
     const response = await app.request("http://localhost/counts");
@@ -149,9 +155,12 @@ describe("GET /notifications/counts", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
-        id: { in: ["n_task"] },
+        id: { in: ["n_grant"] },
       },
     });
+    // A Task's ask is not counted: Needs you lists the waiting Tasks
+    // themselves, counted from the Task summary.
+    expect(taskFindManyMock).not.toHaveBeenCalled();
     // The Mentions tab counts what is still unread under it.
     expect(notificationCountMock).toHaveBeenCalledWith({
       where: {

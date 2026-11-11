@@ -285,11 +285,14 @@ function recordKey(messageKey: string, referenceId: string): string {
  * equal to the rows under it.
  *
  * With `projectId`, only tasks and jobs in that project wait: a vendor grant
- * or coworker access request belongs to no project.
+ * or coworker access request belongs to no project. With `includeTasks`
+ * false, a Task's ask is left out: the Notification Center's Needs you view
+ * lists the waiting Tasks themselves, so its tab counts only the rest.
  */
 export async function findNeedsActionNotificationIds(
   userId: string,
   projectId?: string,
+  { includeTasks = true }: { includeTasks?: boolean } = {},
 ): Promise<string[]> {
   const asked: NeedsActionCandidate[] = await prisma.notification.findMany({
     where: { userId, messageKey: { in: [...NEEDS_ACTION_MESSAGE_KEYS] } },
@@ -309,7 +312,9 @@ export async function findNeedsActionNotificationIds(
       .filter((candidate) => candidate.messageKey === messageKey)
       .map((candidate) => candidate.referenceId);
 
-  const taskIds = referenceIdsFor(TASK_INPUT_REQUIRED_MESSAGE_KEY);
+  const taskIds = includeTasks
+    ? referenceIdsFor(TASK_INPUT_REQUIRED_MESSAGE_KEY)
+    : [];
   const jobIds = referenceIdsFor(JOB_INPUT_REQUIRED_MESSAGE_KEY);
   const grantIds = projectId
     ? []

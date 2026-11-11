@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef } from "react";
+import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
@@ -45,7 +46,8 @@ interface NotificationCenterViewFilterProps {
  * voice. A single-choice control on purpose: each view is a different list.
  * Needs you is not "unread": a row stays there, read or not, until the
  * request it stands for is answered. An account notice is one of those
- * requests: it lives on Needs you, so it counts on that tab. The push primer
+ * requests: it lives on Needs you, so it counts on that tab, and so does
+ * each Task waiting on the reader, by the number Home shows. The push primer
  * does not: it is an offer, and a blocked or iPhone browser would carry the
  * count for good.
  */
@@ -57,7 +59,9 @@ export function NotificationCenterViewFilter({
   const { view, setView, unreadCount, needsActionCount, mentionsCount } =
     useNotifications();
   const { notice } = useAccountNotice();
-  const needsYouCount = needsActionCount + (notice !== null ? 1 : 0);
+  const { data: waitingTasks } = useNeedsYouTasks();
+  const needsYouCount =
+    needsActionCount + (waitingTasks?.count ?? 0) + (notice !== null ? 1 : 0);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Four labels do not fit the bell panel in every locale, so the strip

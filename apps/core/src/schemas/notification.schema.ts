@@ -80,7 +80,7 @@ export const notificationCountsSchema = z
     }),
     needsAction: z.number().int().min(0).openapi({
       description:
-        "Number of feed notifications whose request still waits on the reader",
+        "Number of feed notifications whose request still waits on the reader, not counting a Task's ask: the Needs you view lists waiting Tasks from GET /tasks/summary instead",
       example: 2,
     }),
     mentions: z.number().int().min(0).openapi({

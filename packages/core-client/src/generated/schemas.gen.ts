@@ -40664,7 +40664,7 @@ export const NotificationCountsSchema = {
         needsAction: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of feed notifications whose request still waits on the reader',
+            description: 'Number of feed notifications whose request still waits on the reader, not counting a Task\'s ask: the Needs you view lists waiting Tasks from GET /tasks/summary instead',
             example: 2
         },
         mentions: {

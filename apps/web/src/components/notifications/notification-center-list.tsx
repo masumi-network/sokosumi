@@ -4,6 +4,7 @@ import type { NotificationItem } from "@sokosumi/core-client";
 import {
   isMentionNotification,
   isNeedsActionNotification,
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -14,12 +15,16 @@ import { NotificationsSkeletonRows } from "@/app/notifications/components/notifi
 import { NotificationCenterRow } from "@/components/notifications/notification-center-row";
 import { NotificationEmptyState } from "@/components/notifications/notification-empty-state";
 import { NotificationOlderBoundaryRow } from "@/components/notifications/notification-older-boundary-row";
+import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
-import { useNotificationMessage } from "@/lib/utils/notification-message";
+import {
+  useNotificationMessage,
+  useNotificationPreview,
+} from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 
@@ -48,11 +53,14 @@ export function NotificationCenterList({
   const tDetail = useTranslations("App.Tasks.Detail");
   const router = useRouter();
   const formatMessage = useNotificationMessage();
+  const formatPreview = useNotificationPreview();
   const formatTime = useNotificationTimeFormatter();
   const { data: session } = useSession();
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const { notice } = useAccountNotice();
+  const { data: waitingTasks, isLoading: isLoadingWaitingTasks } =
+    useNeedsYouTasks();
   const {
     notifications,
     unreadCount,
@@ -91,6 +99,8 @@ export function NotificationCenterList({
   // Needs you holds rows that asked the reader something, Mentions rows
   // that named them. A realtime row that is neither lands in the shared
   // feed all the same, for the bell, and stays out of those views here.
+  // A Task's ask stays out of Needs you too: the view lists the waiting
+  // Task itself above the rows, so the ask would be the same Task twice.
   const visibleNotifications =
     view === "unread"
       ? notifications.filter(
@@ -98,8 +108,10 @@ export function NotificationCenterList({
             !notification.isRead || !hiddenIds.has(notification.id),
         )
       : view === "needs-action"
-        ? notifications.filter((notification) =>
-            isNeedsActionNotification(notification.messageKey),
+        ? notifications.filter(
+            (notification) =>
+              isNeedsActionNotification(notification.messageKey) &&
+              notification.messageKey !== TASK_INPUT_REQUIRED_MESSAGE_KEY,
           )
         : view === "mentions"
           ? notifications.filter((notification) =>
@@ -205,10 +217,16 @@ export function NotificationCenterList({
       );
     }
 
-    // On Needs you an account notice above the list already gives the frame
-    // something to say, and "Nothing needs you" under it would read as a
-    // contradiction. The other views do not show the notice.
-    if (view === "needs-action" && notice !== null) {
+    // On Needs you an account notice or a waiting Task above the list
+    // already gives the frame something to say, and "Nothing needs you"
+    // under it would read as a contradiction. The other views show neither.
+    // While the Tasks are still loading, the answer is not known yet.
+    if (
+      view === "needs-action" &&
+      (notice !== null ||
+        isLoadingWaitingTasks ||
+        (waitingTasks?.count ?? 0) > 0)
+    ) {
       return null;
     }
 
@@ -236,6 +254,10 @@ export function NotificationCenterList({
               notification={notification}
               isPending={pendingNotificationId === notification.id}
               message={formatMessage(
+                notification.messageKey,
+                notification.messageParams ?? {},
+              )}
+              preview={formatPreview(
                 notification.messageKey,
                 notification.messageParams ?? {},
               )}
