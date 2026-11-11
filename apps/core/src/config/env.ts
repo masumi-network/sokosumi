@@ -375,6 +375,23 @@ const baseEnvSchema = z.object({
    */
   DATA_ROOM_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Buzz (Nostr) chat bridge. All three are needed before any organization
+   * can be put on Buzz; absent, chat stays Sokosumi-only.
+   * - BUZZ_COMMUNITY_URL_TEMPLATE: relay URL for an organization's community,
+   *   `{slug}` replaced by the organization slug (one relay, one host per
+   *   community), e.g. `wss://{slug}.chat.sokosumi.com` or `ws://localhost:3400`.
+   * - BUZZ_OPERATOR_SECRET_KEY: hex Nostr key of the relay owner; signs
+   *   community membership and channel administration.
+   * - BUZZ_KEY_ENCRYPTION_SECRET: encrypts the per-member Nostr keys and bridge
+   *   API keys at rest.
+   */
+  BUZZ_COMMUNITY_URL_TEMPLATE: z.string().min(1).optional(),
+  BUZZ_OPERATOR_SECRET_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
+  BUZZ_KEY_ENCRYPTION_SECRET: z.string().min(32).optional(),
+  /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
    * @see https://vercel.com/docs/vercel-blob/vercel-signed-urls

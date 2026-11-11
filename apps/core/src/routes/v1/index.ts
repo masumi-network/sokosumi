@@ -7,6 +7,7 @@ import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
 import impersonationRouter from "./admin/impersonation/index.js";
 import adminRouter from "./admin/index.js";
 import agentsRouter from "./agents/index.js";
+import buzzRouter from "./buzz/index.js";
 import categoriesRouter from "./categories/index.js";
 import chatRoomInviteLinksRouter from "./chat-room-invite-links/index.js";
 import chatsRouter from "./chats/index.js";
@@ -158,6 +159,7 @@ app.doc31("/openapi.json", {
 app.route("/admin/impersonation", impersonationRouter);
 app.route("/admin", adminRouter);
 app.route("/agents", agentsRouter);
+app.route("/buzz", buzzRouter);
 app.route("/categories", categoriesRouter);
 app.route("/chats", chatsRouter);
 app.route("/checkout", checkoutRouter);

@@ -11026,6 +11026,114 @@ export const AgentRatingRequestSchema = {
     ]
 } as const;
 
+export const BuzzConnectionSchema = {
+    type: 'object',
+    properties: {
+        available: {
+            type: 'boolean',
+            description: 'Whether this Sokosumi can put chats on Buzz at all.'
+        },
+        identity: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                pubkey: {
+                    type: 'string',
+                    description: 'Hex public key.'
+                },
+                npub: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'pubkey',
+                'npub'
+            ],
+            description: 'The caller\'s Buzz identity; null until one of their organizations is on Buzz.'
+        },
+        canEnable: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    organizationId: {
+                        type: 'string'
+                    },
+                    organizationName: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'organizationId',
+                    'organizationName'
+                ]
+            },
+            description: 'Organizations the caller owns or administers that are not on Buzz yet.'
+        },
+        communities: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    organizationId: {
+                        type: 'string'
+                    },
+                    organizationName: {
+                        type: 'string'
+                    },
+                    relayUrl: {
+                        type: 'string',
+                        description: 'The address to add in a Buzz client.',
+                        example: 'wss://acme.chat.sokosumi.com'
+                    }
+                },
+                required: [
+                    'organizationId',
+                    'organizationName',
+                    'relayUrl'
+                ]
+            }
+        }
+    },
+    required: [
+        'available',
+        'identity',
+        'canEnable',
+        'communities'
+    ]
+} as const;
+
+export const BuzzSecretKeySchema = {
+    type: 'object',
+    properties: {
+        nsec: {
+            type: 'string',
+            description: 'The caller\'s Nostr secret key, to import into a Buzz client. Anyone holding it can write as the caller.'
+        }
+    },
+    required: [
+        'nsec'
+    ]
+} as const;
+
+export const BuzzCommunitySchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: 'string'
+        },
+        relayUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'organizationId',
+        'relayUrl'
+    ]
+} as const;
+
 export const ChatRoomInvitationSchema = {
     type: 'object',
     properties: {

@@ -18,6 +18,7 @@ import {
   type ChatRoomMessage,
   chatRoomMessageSchema,
 } from "@/schemas/chat-room.schema";
+import { enqueueBuzzSync } from "@/services/buzz-bridge.service";
 
 type ChatRoomMessageWithInclude = Prisma.ChatRoomMessageGetPayload<{
   include: typeof chatRoomMessageInclude;
@@ -58,6 +59,9 @@ export async function publishChatRoomMessageRealtime(
   eventType: ChatRoomMessageEventType,
   options: { throwOnError?: boolean } = {},
 ): Promise<void> {
+  // Every chat change passes here, so this is where Buzz hears of it. Never
+  // throws; Buzz being down does not stop the chat.
+  await enqueueBuzzSync({ roomId: message.roomId, messageId: message.id });
   try {
     // A patch carries reactions, unfurls or mentions only and never reads the
     // reply count, so only a full message pays for counting.

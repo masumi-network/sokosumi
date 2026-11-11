@@ -142,6 +142,8 @@ model User {
   hermesPendingConnections HermesPendingConnection[]
   authoredSokoBotVersions  SokoBotAuthoredVersion[]  @relation("SokoBotAuthoredVersionAuthor")
 
+  buzzIdentity BuzzIdentity?
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")

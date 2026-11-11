@@ -8579,6 +8579,27 @@
       "tabs": {
         "connectedApps": "Connected apps",
         "mcp": "MCP"
+      },
+      "Buzz": {
+        "title": "Buzz",
+        "description": "Chat in your organization's rooms from a Buzz app as well as here. Same rooms, same people, same messages.",
+        "identityTitle": "Your Buzz identity",
+        "identityDescription": "Buzz signs you in with a key, not a password. Import your secret key into the Buzz app once.",
+        "publicKey": "Public key",
+        "secretKey": "Secret key",
+        "secretKeyHint": "Needed once, to sign in to the Buzz app.",
+        "secretKeyWarning": "Anyone with this key can write as you. Paste it only into the Buzz app.",
+        "reveal": "Show secret key",
+        "hide": "Hide",
+        "copy": "Copy",
+        "copied": "Copied",
+        "revealError": "Failed to show the secret key",
+        "communityDescription": "Add this address in the Buzz app to join this organization's chats.",
+        "relayUrl": "Address",
+        "enableDescription": "Not on Buzz yet. Its rooms become Buzz channels within a minute.",
+        "enable": "Put chats on Buzz",
+        "enabled": "Chats are on Buzz",
+        "enableError": "Failed to put chats on Buzz"
       }
     },
     "Channels": {

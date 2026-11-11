@@ -8534,6 +8534,27 @@
       "tabs": {
         "connectedApps": "Apps conectadas",
         "mcp": "MCP"
+      },
+      "Buzz": {
+        "title": "Buzz",
+        "description": "Chatea en las salas de tu organización también desde una app de Buzz. Mismas salas, mismas personas, mismos mensajes.",
+        "identityTitle": "Tu identidad de Buzz",
+        "identityDescription": "Buzz te identifica con una clave, no con una contraseña. Importa tu clave secreta en la app de Buzz una vez.",
+        "publicKey": "Clave pública",
+        "secretKey": "Clave secreta",
+        "secretKeyHint": "Necesaria una vez, para iniciar sesión en la app de Buzz.",
+        "secretKeyWarning": "Quien tenga esta clave puede escribir en tu nombre. Pégala solo en la app de Buzz.",
+        "reveal": "Mostrar clave secreta",
+        "hide": "Ocultar",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "revealError": "No se pudo mostrar la clave secreta",
+        "communityDescription": "Añade esta dirección en la app de Buzz para unirte a los chats de esta organización.",
+        "relayUrl": "Dirección",
+        "enableDescription": "Aún no está en Buzz. Sus salas serán canales de Buzz en menos de un minuto.",
+        "enable": "Llevar los chats a Buzz",
+        "enabled": "Los chats están en Buzz",
+        "enableError": "No se pudieron llevar los chats a Buzz"
       }
     },
     "Coworkers": {
