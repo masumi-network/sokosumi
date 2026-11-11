@@ -20,7 +20,7 @@ const {
   prismaTransactionMock,
   claimActionCreateMock,
   transactionCreateMock,
-  cusoFindFirstMock,
+  cusoUpdateManyMock,
 } = vi.hoisted(() => ({
   claimFindUniqueMock: vi.fn(),
   claimFindFirstMock: vi.fn(),
@@ -36,7 +36,7 @@ const {
   prismaTransactionMock: vi.fn(),
   claimActionCreateMock: vi.fn(),
   transactionCreateMock: vi.fn(),
-  cusoFindFirstMock: vi.fn(),
+  cusoUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -109,11 +109,11 @@ describe("task payment claims", () => {
             update: claimUpdateMock,
           },
           transaction: { create: transactionCreateMock },
-          sokoBot: { findFirst: cusoFindFirstMock },
+          sokoBot: { updateMany: cusoUpdateManyMock },
         }),
     );
     transactionCreateMock.mockResolvedValue({ id: "refund-1" });
-    cusoFindFirstMock.mockResolvedValue({ id: "cuso" });
+    cusoUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
   it("creates the durable claim through the charge transaction", async () => {

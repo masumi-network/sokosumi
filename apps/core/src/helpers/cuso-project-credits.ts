@@ -24,6 +24,28 @@ export async function forfeitCusoProjectCredits(
 }
 
 /**
+ * For a refund that lands in a Project: writes its credits off unless the
+ * Project still has a live Cuso.
+ *
+ * The check is a write to Cuso's row, not a read, so it serializes with
+ * `forfeitCusoProjectCredits`. Callers run Read Committed: if an archive or
+ * version change commits first, the UPDATE rechecks its WHERE on the new row
+ * and matches nothing. If the refund commits first, the Serializable archive
+ * fails on the row it then writes and retries on a snapshot with the refund.
+ * A FOR UPDATE alone would let that archive go on with its stale snapshot.
+ */
+export async function writeOffUnlessLiveCuso(
+  projectId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const { count } = await tx.sokoBot.updateMany({
+    where: { ...LIVE_CUSO_WHERE, projectId },
+    data: { updatedAt: new Date() },
+  });
+  if (count === 0) await writeOffProjectCredits(projectId, tx);
+}
+
+/**
  * Writes off what is left of one Project's credits. Also used for a refund
  * that lands after the Project lost its live Cuso, and for a version change
  * that takes Cuso off CMO.

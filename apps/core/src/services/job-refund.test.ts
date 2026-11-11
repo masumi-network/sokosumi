@@ -17,7 +17,7 @@ function jobTx(
     job: { findUnique: async () => job, update },
     transaction: { create: transactionCreate },
     sokoBot: {
-      findFirst: vi.fn().mockResolvedValue(liveCuso ? { id: "cuso" } : null),
+      updateMany: vi.fn().mockResolvedValue({ count: liveCuso ? 1 : 0 }),
     },
     $queryRaw: vi.fn().mockResolvedValue(remaining),
   } as unknown as Prisma.TransactionClient;

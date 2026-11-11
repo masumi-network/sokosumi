@@ -12,9 +12,9 @@ const PROJECT_ID = "22222222-2222-7222-8222-222222222222";
 function refundTx({ liveCuso = true, remaining = [] as unknown[] } = {}) {
   const created: { data: Prisma.TransactionUncheckedCreateInput }[] = [];
   const queryRaw = vi.fn().mockResolvedValue(remaining);
-  const findFirst = vi.fn().mockResolvedValue(liveCuso ? { id: "cuso" } : null);
+  const updateMany = vi.fn().mockResolvedValue({ count: liveCuso ? 1 : 0 });
   const tx = {
-    sokoBot: { findFirst },
+    sokoBot: { updateMany },
     $queryRaw: queryRaw,
     transaction: {
       create: async (args: {
@@ -25,7 +25,7 @@ function refundTx({ liveCuso = true, remaining = [] as unknown[] } = {}) {
       },
     },
   } as unknown as Prisma.TransactionClient;
-  return { tx, created, queryRaw, findFirst };
+  return { tx, created, queryRaw, updateMany };
 }
 
 const orgRefund: CompensatingRefundInput = {
@@ -139,7 +139,7 @@ describe("createCompensatingRefund", () => {
   });
 
   it("writes the Project part off at once when the Project has no live Cuso", async () => {
-    const { tx, created, findFirst } = refundTx({
+    const { tx, created, updateMany } = refundTx({
       liveCuso: false,
       remaining: [
         {
@@ -159,13 +159,13 @@ describe("createCompensatingRefund", () => {
       ],
     });
 
-    expect(findFirst).toHaveBeenCalledWith({
+    expect(updateMany).toHaveBeenCalledWith({
       where: expect.objectContaining({
         projectId: PROJECT_ID,
         deletedAt: null,
         archivedAt: null,
       }),
-      select: { id: true },
+      data: { updatedAt: expect.any(Date) },
     });
     // Refund, pool refund, then the write-off: the refund stays in history.
     expect(created.map(({ data }) => data.amount)).toEqual([10n, 90n, -10n]);
@@ -174,6 +174,23 @@ describe("createCompensatingRefund", () => {
       organizationId: "org-1",
       userId: null,
       creditConsumptions: { create: { amount: 10n, bucketId: "bucket-r" } },
+    });
+  });
+
+  it("checks the Cuso with a write to his row, so it serializes with an archive", async () => {
+    // A FOR UPDATE alone would let a Serializable archive that waited on it
+    // proceed on its stale snapshot; a committed write makes it retry.
+    const { tx, updateMany } = refundTx();
+
+    await createCompensatingRefund(tx, {
+      ...orgRefund,
+      consumptions: [{ amount: 100n, bucket: { projectId: PROJECT_ID } }],
+    });
+
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    expect(updateMany.mock.calls[0]?.[0]).toMatchObject({
+      where: { projectId: PROJECT_ID, deletedAt: null, archivedAt: null },
+      data: { updatedAt: expect.any(Date) },
     });
   });
 });

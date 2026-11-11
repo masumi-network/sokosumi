@@ -1,7 +1,6 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 
-import { writeOffProjectCredits } from "@/helpers/cuso-project-credits";
-import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
+import { writeOffUnlessLiveCuso } from "@/helpers/cuso-project-credits";
 
 export interface CompensatingRefundInput {
   /** Positive cents. Callers already negated the debit. */
@@ -88,11 +87,7 @@ export async function createCompensatingRefund(
   }
 
   for (const projectId of projectParts.keys()) {
-    const cuso = await tx.sokoBot.findFirst({
-      where: { ...LIVE_CUSO_WHERE, projectId },
-      select: { id: true },
-    });
-    if (!cuso) await writeOffProjectCredits(projectId, tx);
+    await writeOffUnlessLiveCuso(projectId, tx);
   }
 
   return ids[0] as string;

@@ -8,7 +8,7 @@ const {
   actionCreateMock,
   actionCreateManyMock,
   transactionCreateMock,
-  cusoFindFirstMock,
+  cusoUpdateManyMock,
 } = vi.hoisted(() => ({
   paymentUpdateManyMock: vi.fn(),
   paymentFindUniqueMock: vi.fn(),
@@ -16,7 +16,7 @@ const {
   actionCreateMock: vi.fn(),
   actionCreateManyMock: vi.fn(),
   transactionCreateMock: vi.fn(),
-  cusoFindFirstMock: vi.fn(),
+  cusoUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -33,7 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
           createMany: actionCreateManyMock,
         },
         transaction: { create: transactionCreateMock },
-        sokoBot: { findFirst: cusoFindFirstMock },
+        sokoBot: { updateMany: cusoUpdateManyMock },
       }),
   },
 }));
@@ -62,7 +62,7 @@ const ON_CHAIN_AMOUNT = "1500000";
 
 beforeEach(() => {
   transactionCreateMock.mockResolvedValue({ id: REFUND_TRANSACTION_ID });
-  cusoFindFirstMock.mockResolvedValue({ id: "cuso" });
+  cusoUpdateManyMock.mockResolvedValue({ count: 1 });
 });
 
 /**
