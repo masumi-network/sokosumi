@@ -41,6 +41,21 @@ describe("applyRunChange", () => {
     expect(untouched).toBe(other);
   });
 
+  it("puts a moved Run at its new time and leaves the others", () => {
+    const moving = run("moving", RULE_TIME);
+    const other = run("other", RULE_TIME);
+    const scheduledAt = new Date("2030-01-04T08:15:00.000Z");
+
+    const [moved, untouched] = applyRunChange([moving, other], {
+      runId: "moving",
+      action: "move",
+      scheduledAt,
+    });
+
+    expect(moved.scheduledAt).toEqual(scheduledAt);
+    expect(untouched).toBe(other);
+  });
+
   it("takes only the skipped Run away", () => {
     const skipped = run("skipped", RULE_TIME);
     const other = run("other", RULE_TIME);
@@ -79,11 +94,36 @@ describe("useRunChanges", () => {
     const second = changeable("second");
     const { result } = renderHook(() => useRunChanges([first, second]));
     await act(async () => {
-      result.current[1](first, "skip");
-      result.current[1](second, "skip");
+      result.current[1](first, { action: "skip" });
+      result.current[1](second, { action: "skip" });
     });
     return result;
   }
+
+  it("shows a moved Run at its new time before Core answers, and sends the move", async () => {
+    const moving = changeable("moving");
+    const scheduledAt = new Date("2030-01-04T08:15:00.000Z");
+    const { result } = renderHook(() => useRunChanges([moving]));
+
+    await act(async () => {
+      result.current[1](moving, { action: "move", scheduledAt });
+    });
+
+    expect(result.current[0][0].scheduledAt).toEqual(scheduledAt);
+    expect(changeRunMock).toHaveBeenCalledWith(moving, {
+      action: "move",
+      scheduledAt,
+    });
+
+    await act(async () =>
+      answerFirst({
+        ok: false,
+        error: { kind: "invalid_time", message: "no" },
+      }),
+    );
+    expect(result.current[0][0].scheduledAt).toEqual(RULE_TIME);
+    expect(reportFailureMock).toHaveBeenCalledWith("invalid_time");
+  });
 
   it("holds a second change on a schedule and sends it the revision the first one left", async () => {
     const result = await skipTwo();
@@ -110,9 +150,13 @@ describe("useRunChanges", () => {
     await act(async () => answerFirst({ ok: true, value: { revision: 4 } }));
 
     // Fresh entries, read after a change made elsewhere.
-    await act(async () => result.current[1](changeable("fresh", 9), "skip"));
+    await act(async () =>
+      result.current[1](changeable("fresh", 9), { action: "skip" }),
+    );
     // Entries not yet replaced after the last answer (revision 5).
-    await act(async () => result.current[1](changeable("old"), "skip"));
+    await act(async () =>
+      result.current[1](changeable("old"), { action: "skip" }),
+    );
 
     expect(sentRevisions()).toEqual([READ_REVISION, 4, 9, 5]);
   });

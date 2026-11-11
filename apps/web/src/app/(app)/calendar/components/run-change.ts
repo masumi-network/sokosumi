@@ -10,7 +10,7 @@ import {
   type TaskScheduleActionError,
 } from "@/lib/actions/task-schedule/action";
 
-type RunChange =
+export type RunChange =
   | { action: "skip" | "restore" }
   | { action: "move"; scheduledAt: Date };
 

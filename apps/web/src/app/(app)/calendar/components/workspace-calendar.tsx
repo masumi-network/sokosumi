@@ -1334,8 +1334,8 @@ export function WorkspaceCalendar({
 
   const runHandlers: RunHandlers = {
     onMoveRun: setMovingRun,
-    onRestoreRun: (item) => changeShownRun(item, "restore"),
-    onSkipRun: (item) => changeShownRun(item, "skip"),
+    onRestoreRun: (item) => changeShownRun(item, { action: "restore" }),
+    onSkipRun: (item) => changeShownRun(item, { action: "skip" }),
     onOpen: (path) => router.push(path),
   };
 
@@ -1782,6 +1782,9 @@ export function WorkspaceCalendar({
           item={movingRun}
           timeZone={timeZone}
           onClose={() => setMovingRun(null)}
+          onMove={(scheduledAt) =>
+            changeShownRun(movingRun, { action: "move", scheduledAt })
+          }
         />
       ) : null}
     </div>
