@@ -67,8 +67,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [chatOpen, setChatOpen] = useState(false);
   // A question another tab prepared; the chat shows it for the user to review and send.
   const [chatDraft, setChatDraft] = useState<string | null>(null);
-  // A question asked outside the chat sheet; the sheet sends it when it opens.
-  const [chatAsk, setChatAsk] = useState<string | null>(null);
   const [filters, setFilters] = useQueryStates({
     tab: parseAsSeoTab.withDefault("agent"),
     pageId: parseAsString,
@@ -271,10 +269,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     if (draft) setChatDraft(draft);
     setChatOpen(true);
   }
-  function askAgent(question: string) {
-    setChatAsk(question);
-    setChatOpen(true);
-  }
   const data = result.data ?? initialData;
   const filteredKeywords = data.keywords.filter((row) =>
     row.keyword.toLocaleLowerCase().includes(keywordSearch.toLocaleLowerCase()),
@@ -371,9 +365,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     shownAction,
     setShownAction,
     showAction,
-    askAgent,
-    chatAsk,
-    setChatAsk,
     chatDraft,
     setChatDraft,
     chatOpen,

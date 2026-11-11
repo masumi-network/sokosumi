@@ -69,7 +69,7 @@ export function seoTestObservation(
   };
 }
 
-/** An Audit with one finished check: the state in which the Agent tab has its question field. */
+/** An Audit with one finished check: the result card leads the Agent tab, not the setup card. */
 export function seoTestCheckedAudit(): ProjectSeoWorkspace {
   const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
   workspace.observations = [seoTestObservation(workspace)];

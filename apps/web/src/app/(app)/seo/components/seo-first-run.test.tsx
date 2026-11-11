@@ -1,7 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  act,
   cleanup,
   fireEvent,
   render,
@@ -115,12 +114,8 @@ function network(
   );
 }
 
-/**
- * The Agent tab holds no thread, and offers the conversation only when one exists.
- * The header's button on the other tabs opens the sheet in each case.
- */
+/** No tab holds a thread or a question field: the floating button opens the sheet on each of them. */
 async function openChat(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("tab", { name: "Health" }));
   await user.click(
     await screen.findByRole("button", { name: copy.chat.title }),
   );
@@ -544,10 +539,10 @@ describe("SEO agent chat", () => {
     scope: { pageIds: [] },
     createdAt: new Date().toISOString(),
   });
-  // The question field is part of the result card: the Audit has a finished check.
+  // An Audit with a finished check: the result card leads, not the setup card.
   const chatWorkspace = seoTestCheckedAudit;
 
-  it("has no question field while the setup card leads: the header's button opens the chat", async () => {
+  it("has no question field on the page while the setup card leads: the floating button opens the chat", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     network(workspace, {});
@@ -562,24 +557,35 @@ describe("SEO agent chat", () => {
     ).toBeVisible();
   });
 
-  it("keeps the question field and the way to the conversation when it cannot be read", async () => {
+  it("offers the agent from one floating button on every tab, and reads no conversation before it is pressed", async () => {
+    const user = userEvent.setup();
     const workspace = chatWorkspace();
     const reads = vi.fn();
     network(workspace, {
       chat: () => {
         reads();
-        return new Response(null, { status: 500 });
+        return Response.json({ sharing: "personal", turns: [] });
       },
     });
     renderWorkspace(workspace);
-    await waitFor(() => expect(reads).toHaveBeenCalled());
-    await act(async () => {});
-    expect(screen.getByLabelText("Your question")).toBeVisible();
-    // A conversation may exist: the button stays, and the sheet is where the read is tried again.
+    // The result card has no question field: the button is the one way to the agent.
+    await screen.findByTestId("seo-agent-verdict");
+    expect(screen.queryByLabelText("Your question")).toBeNull();
     expect(
-      await screen.findByRole("button", { name: copy.chat.continueThread }),
+      screen.getAllByRole("button", { name: copy.chat.title }),
+    ).toHaveLength(1);
+    await user.click(screen.getByRole("tab", { name: "Health" }));
+    expect(
+      screen.getAllByRole("button", { name: copy.chat.title }),
+    ).toHaveLength(1);
+    expect(reads).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: copy.chat.title }));
+    expect(
+      within(
+        await screen.findByRole("dialog", { name: copy.chat.title }),
+      ).getByLabelText("Your question"),
     ).toBeVisible();
-    expect(screen.queryByRole("alert")).toBeNull();
+    await waitFor(() => expect(reads).toHaveBeenCalled());
   });
 
   it("shows HTML tag names in a reply as text, and loads no image from it", async () => {
@@ -615,7 +621,9 @@ describe("SEO agent chat", () => {
       },
     });
     renderWorkspace(workspace);
-    const box = await screen.findByLabelText("Your question");
+    const box = within(await openChat(userEvent.setup())).getByLabelText(
+      "Your question",
+    );
     fireEvent.change(box, { target: { value: "First" } });
     fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
     // A text field starts no line on Ctrl+Enter by itself: the panel adds it.
@@ -637,7 +645,7 @@ describe("SEO agent chat", () => {
     expect(posts).toEqual(["Fi\nrst"]);
   });
 
-  it("asks from the page in the chat sheet: the question shows at once, and its field gets it back when the send fails", async () => {
+  it("shows a sent question in the thread at once, and gives it back to the field when the send fails", async () => {
     const user = userEvent.setup();
     const workspace = chatWorkspace();
     let answer: (response: Response) => void = () => {};
@@ -650,18 +658,18 @@ describe("SEO agent chat", () => {
           : Response.json({ sharing: "personal", turns: [] }),
     });
     renderWorkspace(workspace);
-    const bar = await screen.findByLabelText("Your question");
-    await user.type(bar, "Why did clicks fall?");
-    await user.click(screen.getByRole("button", { name: "Send question" }));
-    // Core has not answered: the sheet is open with the question in its thread.
-    const sheet = await screen.findByRole("dialog", { name: copy.chat.title });
+    const sheet = await openChat(user);
+    const box = within(sheet).getByLabelText("Your question");
+    await user.type(box, "Why did clicks fall?");
+    await user.click(
+      within(sheet).getByRole("button", { name: "Send question" }),
+    );
+    // Core has not answered: the question is in the thread, and the field is empty.
     expect(
       await within(sheet).findByText("Reading audit results"),
     ).toBeVisible();
     expect(within(sheet).getByText("Why did clicks fall?")).toBeVisible();
-    const box = within(sheet).getByLabelText("Your question");
     expect(box).toHaveValue("");
-    expect(bar).toHaveValue("");
     expect(within(sheet).getByText(copy.chat.asked)).toBeInTheDocument();
     answer(new Response(null, { status: 500 }));
     await waitFor(() => expect(box).toHaveValue("Why did clicks fall?"));
@@ -692,23 +700,29 @@ describe("SEO agent chat", () => {
     workspace.competitors = [{ ...rival, id: "own", role: "page" }];
     network(workspace);
     renderWorkspace(workspace);
+    const user = userEvent.setup();
+    const sheet = await openChat(user);
     expect(
-      await screen.findByRole("button", { name: copy.agent.prompts.first }),
+      await within(sheet).findByRole("button", {
+        name: copy.agent.prompts.first,
+      }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: copy.agent.prompts.competitors }),
+      within(sheet).queryByRole("button", {
+        name: copy.agent.prompts.competitors,
+      }),
     ).toBeNull();
     cleanup();
     workspace.competitors.push(rival);
     renderWorkspace(workspace);
     expect(
-      await screen.findByRole("button", {
+      await within(await openChat(user)).findByRole("button", {
         name: copy.agent.prompts.competitors,
       }),
     ).toBeVisible();
   });
 
-  it("sends a suggested question from the page in the chat sheet", async () => {
+  it("sends a suggested question with one click in the chat sheet", async () => {
     const user = userEvent.setup();
     const workspace = chatWorkspace();
     const posts: string[] = [];
@@ -723,10 +737,12 @@ describe("SEO agent chat", () => {
       },
     });
     renderWorkspace(workspace);
+    const sheet = await openChat(user);
     await user.click(
-      await screen.findByRole("button", { name: copy.agent.prompts.first }),
+      await within(sheet).findByRole("button", {
+        name: copy.agent.prompts.first,
+      }),
     );
-    const sheet = await screen.findByRole("dialog", { name: copy.chat.title });
     expect(
       await within(sheet).findByText("Start with the title."),
     ).toBeVisible();
@@ -749,7 +765,7 @@ describe("SEO agent chat", () => {
     );
   });
 
-  it("keeps a question asked on the page in the sheet's field while the agent still works on another", async () => {
+  it("keeps a question in the field, unsent and across a close, while the agent still works on another", async () => {
     const user = userEvent.setup();
     const workspace = chatWorkspace();
     const running = { ...turn("Earlier", ""), status: "running" };
@@ -761,24 +777,19 @@ describe("SEO agent chat", () => {
       },
     });
     renderWorkspace(workspace);
-    // The chat is read once: the page knows a turn is in flight and offers the conversation.
-    await user.click(
-      await screen.findByRole("button", { name: copy.chat.continueThread }),
-    );
-    const first = await screen.findByRole("dialog", { name: copy.chat.title });
+    const first = await openChat(user);
     await within(first).findByText("Earlier");
-    const typed = within(first).getByLabelText("Your question");
-    await user.type(typed, "Half a thought");
+    // A turn in flight takes no second question: Enter sends nothing.
+    await user.type(
+      within(first).getByLabelText("Your question"),
+      "Half a thought{Enter}",
+    );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    await user.type(
-      screen.getByLabelText("Your question"),
-      "Second question{Enter}",
-    );
-    const sheet = await screen.findByRole("dialog", { name: copy.chat.title });
-    // Not sent and not lost, after the text already in the field.
+    const sheet = await openChat(user);
+    // Not sent and not lost.
     expect(within(sheet).getByLabelText("Your question")).toHaveValue(
-      "Half a thought\n\nSecond question",
+      "Half a thought",
     );
     expect(posts).toBe(0);
   });

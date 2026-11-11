@@ -38,8 +38,8 @@ type Chat = ReturnType<typeof useSeoChat>;
 
 const threadId = (inputId: string) => `${inputId}-thread`;
 
-/** The agent's face next to a title and one line of help. Shared by the ask bar and the sheet. */
-export function SeoChatHeading({
+/** The agent's face next to a title and one line of help. */
+function SeoChatHeading({
   thinking = false,
   title,
   description,
@@ -263,8 +263,8 @@ export function SeoChatPanel({ model }: { model: SeoWorkspaceModel }) {
 function SeoChatSheet({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const chat = useSeoChat(model);
-  const { chatDraft, setChatDraft, chatAsk, setChatAsk } = model;
-  const { setQuestion, sending, busy, viewerId, send } = chat;
+  const { chatDraft, setChatDraft } = model;
+  const { setQuestion, sending } = chat;
   // A send in flight clears the input when it lands; the draft waits for it and keeps
   // any unsent text the user typed.
   useEffect(() => {
@@ -274,19 +274,6 @@ function SeoChatSheet({ model }: { model: SeoWorkspaceModel }) {
     );
     setChatDraft(null);
   }, [chatDraft, sending, setChatDraft, setQuestion]);
-  // A question asked on the page is sent here, so the thread shows it at once.
-  useEffect(() => {
-    // Without a viewer the question waits on the model: this sheet starts
-    // again when the session loads, and its field would lose the text.
-    if (!chatAsk || !viewerId) return;
-    setChatAsk(null);
-    // A turn in flight takes no second question: this one waits in the field.
-    if (busy)
-      setQuestion((typed) =>
-        typed.trim() ? `${typed.trimEnd()}\n\n${chatAsk}` : chatAsk,
-      );
-    else void send(chatAsk, true);
-  }, [chatAsk, setChatAsk, busy, viewerId, setQuestion, send]);
   return (
     <Sheet open={model.chatOpen} onOpenChange={model.setChatOpen}>
       <SheetContent

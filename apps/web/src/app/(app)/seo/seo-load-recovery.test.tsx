@@ -289,7 +289,7 @@ describe("SEO load recovery", () => {
     ).toHaveLength(1);
   });
 
-  it("asks once for the conversation when Core refuses it, and keeps the Agent tab", async () => {
+  it("asks for no conversation before the chat opens, and keeps the Agent tab when Core refuses it", async () => {
     const checked = workspace();
     checked.observations = [seoTestObservation(checked)];
     const chatReads = vi.fn();
@@ -302,12 +302,22 @@ describe("SEO load recovery", () => {
       }),
     );
     render(wrap(<SeoWorkspace workspace={checked} />, client()));
-    expect(await screen.findByLabelText("Your question")).toBeVisible();
-    await vi.waitFor(() => expect(chatReads).toHaveBeenCalled());
-    // Time for a retry to start: this client waits 0 ms between tries.
+    const ask = await screen.findByRole("button", {
+      name: "Ask the SEO agent",
+    });
+    // Time for a read to start: the page has none to make.
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
-    expect(chatReads).toHaveBeenCalledOnce();
-    expect(screen.getByLabelText("Your question")).toBeVisible();
+    expect(chatReads).not.toHaveBeenCalled();
+    await userEvent.click(ask);
+    // The refused read is the sheet's problem: it says so, and the page stays.
+    expect(
+      await within(await screen.findByRole("dialog")).findByText(
+        messages.App.Seo.chat.loadFailed,
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("tab", { name: "Agent", hidden: true }),
+    ).toBeInTheDocument();
   });
 
   it.each([

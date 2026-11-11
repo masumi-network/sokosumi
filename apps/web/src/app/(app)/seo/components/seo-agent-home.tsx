@@ -17,7 +17,6 @@ import {
   seoAgentBrief,
 } from "./seo-agent-model";
 import { SeoActionStepRow, SeoStepRow } from "./seo-agent-steps";
-import { SeoAskBar } from "./seo-ask-bar";
 import { useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
@@ -36,7 +35,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 /** Next steps past this count fold behind a "show more" button: three choices are enough to start. */
 const SEO_AGENT_VISIBLE_STEPS = 3;
 
-/** The SEO agent is the first thing on an Audit: what it knows, what it proposes, and a field to ask it. */
+/** The SEO agent is the first thing on an Audit: what it knows and what it proposes. */
 export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
   const [now] = useState(() => new Date());
   const brief = seoAgentBrief(model.data, now);
@@ -333,8 +332,6 @@ function SeoAgentPanel({
           ) : null}
           <SeoCheckRunning workspace={model.data} />
           {upkeep}
-          {/* The question field is part of the result: read it, then ask. The chat itself opens in the sheet, on every tab. */}
-          {model.data.auditId ? <SeoAskBar model={model} /> : null}
         </div>
       )}
       {/* The setup card has no line for upkeep, so it sits under the card. */}
@@ -350,15 +347,7 @@ function SeoAgentPanel({
       )}
       {(setup || banner) && !steps.length ? null : (
         <div className="space-y-2">
-          <div className="space-y-0.5 px-2">
-            <h3 className="text-sm font-semibold">{t("agent.nextTitle")}</h3>
-            {/* Which control does what: a step has its button, all other work goes to the question field. */}
-            {steps.length && model.data.auditId ? (
-              <p className="text-muted-foreground text-sm">
-                {t("agent.nextRule")}
-              </p>
-            ) : null}
-          </div>
+          <h3 className="px-2 text-sm font-semibold">{t("agent.nextTitle")}</h3>
           {steps.length ? (
             <ul role="list" className="space-y-2">
               {shown.slice(0, split).map(stepItem)}

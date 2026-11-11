@@ -7,7 +7,6 @@ import {
   RoomMessageComposer,
 } from "@/components/chat/room-message-composer";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { resolveComposerEnterAction } from "@/lib/utils/composer-wysiwyg-input-rules";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { SEO_CHAT_QUESTION_LIMIT } from "./use-seo-chat";
@@ -17,18 +16,15 @@ export const SEO_AGENT_PROMPTS = ["first", "queries", "competitors"] as const;
 /** An IME reports this key code for the Enter that confirms a composition. */
 const IME_KEY_CODE = 229;
 
-/** Questions the reader can send with one click. Shared by the ask bar and the chat sheet. */
+/** Questions the reader can send with one click. */
 export function SeoPromptChips({
   busy = false,
-  compact = false,
   competitors = true,
   onPick,
 }: {
   busy?: boolean;
   /** False where the Audit has no competitor: the question about them has no answer. */
   competitors?: boolean;
-  /** Below md, show only the first question, so the page under the chips stays in reach. */
-  compact?: boolean;
   onPick: (question: string) => void;
 }) {
   const t = useTranslations("App.Seo");
@@ -36,15 +32,12 @@ export function SeoPromptChips({
     <div className="flex flex-wrap gap-2">
       {SEO_AGENT_PROMPTS.filter(
         (prompt) => competitors || prompt !== "competitors",
-      ).map((prompt, index) => (
+      ).map((prompt) => (
         <button
           key={prompt}
           type="button"
           // The app's prompt chip: a quiet pill that wraps inside the panel on a phone.
-          className={cn(
-            "border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring press inline-flex min-h-8 max-w-full items-center rounded-full border px-3 py-1 text-start text-sm transition-colors outline-none focus-visible:ring-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 max-sm:min-h-10",
-            compact && index > 0 && "max-md:hidden",
-          )}
+          className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring press inline-flex min-h-8 max-w-full items-center rounded-full border px-3 py-1 text-start text-sm transition-colors outline-none focus-visible:ring-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 max-sm:min-h-10"
           // Not the disabled attribute: that drops focus from the chip just pressed.
           aria-disabled={busy || undefined}
           onClick={() => {

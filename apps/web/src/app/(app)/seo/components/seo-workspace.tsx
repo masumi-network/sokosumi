@@ -14,7 +14,6 @@ import {
   ListPlus,
   Loader2,
   type LucideIcon,
-  MessageSquare,
   MoreHorizontal,
   PencilLine,
   Play,
@@ -56,6 +55,7 @@ import { seoIndexHref } from "../seo-href";
 import { SeoActions } from "./seo-actions";
 import { SeoAgentHome } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
+import { SeoAskButton } from "./seo-ask-button";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoIndexStatus } from "./seo-index-status";
@@ -190,7 +190,8 @@ export function SeoWorkspace({
       : undefined;
   return (
     // Phone buttons and fields are at least 40 px tall; the tab row keeps its 36 px bar.
-    <div className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
+    // The space under the last row keeps it clear of the floating button.
+    <div className="space-y-6 pb-16 max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
       {/* On a phone the actions sit on the title row and the URL has its own row, so the header is as tall on every tab. */}
       <div className="flex flex-wrap items-end justify-between gap-3 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-y-1">
         <div className="min-w-0 space-y-1 max-sm:contents max-sm:space-y-0">
@@ -245,23 +246,6 @@ export function SeoWorkspace({
                 <span className="sm:hidden">{t("runShort")}</span>
               )}
               <span className="max-sm:hidden">{t(runAudit.label)}</span>
-            </Button>
-          ) : null}
-          {/* The Agent tab has its own question field, in the result card. During setup that card is not there yet. */}
-          {model.data.auditId && (model.filters.tab !== "agent" || setup) ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => model.openChat()}
-              aria-label={t("agent.ask")}
-              className={runAudit ? "max-sm:min-w-10" : undefined}
-            >
-              <MessageSquare className="size-4" />
-              {/* On the phone the run button keeps its word, so this one shows its icon only beside it. */}
-              <span className={runAudit ? "sr-only sm:hidden" : "sm:hidden"}>
-                {t("agent.askShort")}
-              </span>
-              <span className="max-sm:hidden">{t("agent.ask")}</span>
             </Button>
           ) : null}
           <DropdownMenu>
@@ -514,7 +498,12 @@ export function SeoWorkspace({
           </>
         )}
       </Tabs>
-      {model.data.auditId ? <SeoChatPanel model={model} /> : null}
+      {model.data.auditId ? (
+        <>
+          <SeoAskButton model={model} />
+          <SeoChatPanel model={model} />
+        </>
+      ) : null}
       {!unavailable ? (
         <>
           {editDialog ? <SeoEditDialog key={dialogKey} model={model} /> : null}

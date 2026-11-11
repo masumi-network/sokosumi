@@ -45,29 +45,6 @@ async function readSeoChat(
   return response.json();
 }
 
-/**
- * True when the Audit's conversation holds a question, or its read failed. Read
- * without the chat sheet, so the Agent tab offers the conversation only when one
- * can exist. After a failed read the sheet is the way to try again. Core returns
- * the newest turns only, so the page states no count.
- */
-export function useSeoChatStarted(model: SeoWorkspaceModel) {
-  const { data: session } = useSession();
-  const auditId = model.data.auditId;
-  const userId = session?.user.id;
-  const organizationId = session?.session.activeOrganizationId;
-  const history = useQuery<SeoAuditChatHistory>({
-    queryKey: seoChatKey(organizationId, userId, auditId),
-    queryFn: ({ signal }) =>
-      readSeoChat(auditId, userId, organizationId, signal),
-    enabled: !!auditId && !!userId,
-    refetchOnWindowFocus: false,
-    // The answer only shows or hides one button: a refused read is not asked again.
-    retry: false,
-  });
-  return history.isError || Boolean(history.data?.turns?.length);
-}
-
 export function useSeoChat(model: SeoWorkspaceModel) {
   const t = useTranslations("App.Seo");
   const { data: session } = useSession();
@@ -125,9 +102,9 @@ export function useSeoChat(model: SeoWorkspaceModel) {
   const busy = sending || turns.some((turn) => turn.status === "running");
   /**
    * Sends the typed question, or `prompt`. A typed question comes back to the
-   * field when its send fails; `restorable` asks the same for a prompt.
+   * field when its send fails; a prompt does not.
    */
-  async function send(prompt?: string, restorable = prompt === undefined) {
+  async function send(prompt?: string) {
     const text = (prompt ?? question).trim();
     if (!auditId || !session?.user.id || !text || busy || sendingRef.current)
       return;
@@ -147,7 +124,7 @@ export function useSeoChat(model: SeoWorkspaceModel) {
     // it back, ahead of anything the reader typed in the meantime.
     if (prompt === undefined) setQuestion("");
     const restore = () => {
-      if (!restorable) return;
+      if (prompt !== undefined) return;
       setQuestion((current) => (current.trim() ? `${text}\n${current}` : text));
     };
     const scope = Object.fromEntries(

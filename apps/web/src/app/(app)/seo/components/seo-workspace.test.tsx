@@ -403,7 +403,7 @@ describe("SEO workspace integration", () => {
     expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
   });
 
-  it("puts the question field in the result card and the numbers before the steps, and names a page of the site by its path", async () => {
+  it("puts the numbers before the steps, offers the agent only with an Audit, and names a page of the site by its path", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
@@ -461,29 +461,14 @@ describe("SEO workspace integration", () => {
       { ...read, id: "small", keyword: "charge timer", volume: 90 },
       { ...read, id: "large", keyword: "battery app", volume: 720 },
     );
-    // The chat starts empty; a question sent from the page gets one reply.
     let served: ProjectSeoWorkspace = workspace;
-    const turns: Array<Record<string, unknown>> = [];
-    const chatReads = vi.fn();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (!url.endsWith("/chat")) return Response.json(served);
-        if (init?.method !== "POST") {
-          chatReads();
-          return Response.json({ sharing: "personal", turns });
-        }
-        turns.push({
-          id: crypto.randomUUID(),
-          question: JSON.parse(String(init.body)).question,
-          response: "An answer",
-          status: "completed",
-          actions: [],
-          scope: { pageIds: workspace.scope.pageIds },
-          createdAt: new Date().toISOString(),
-        });
-        return Response.json(turns[0]);
-      }),
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.endsWith("/chat") ? { sharing: "personal", turns: [] } : served,
+        ),
+      ),
     );
     // A saved check: the result card leads, not the setup card.
     workspace.observations.push({
@@ -505,9 +490,10 @@ describe("SEO workspace integration", () => {
     // A phone gets the same order as a wide screen.
     vi.stubGlobal("innerWidth", 375);
     renderWorkspace(workspace);
-    // Without an Audit there is no agent to write to: no field, and no rule that names it.
-    expect(screen.queryByLabelText("Your question")).toBeNull();
-    expect(screen.queryByText(messages.App.Seo.agent.nextRule)).toBeNull();
+    // Without an Audit there is no agent to write to: no button offers one.
+    expect(
+      screen.queryByRole("button", { name: "Ask the SEO agent" }),
+    ).toBeNull();
     // The numbers are a block of their own, between the result and the steps.
     const verdict = screen.getByTestId("seo-agent-verdict");
     const tiles = screen.getByTestId("seo-summary-tiles");
@@ -521,29 +507,13 @@ describe("SEO workspace integration", () => {
       ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     cleanup();
-    // With an Audit the question field is part of the result card, and the steps say which control does what.
+    // With an Audit one floating button leads to the agent. The page itself has no question field.
     served = { ...workspace, auditId: SEO_TEST_AUDIT };
     renderWorkspace(served);
     expect(
-      screen.getByTestId("seo-agent-verdict").parentElement,
-    ).toContainElement(screen.getByLabelText("Your question"));
-    expect(screen.getByText(messages.App.Seo.agent.nextRule)).toBeVisible();
-    // The read of an empty conversation has ended: nothing to continue.
-    await waitFor(() => expect(chatReads).toHaveBeenCalled());
-    await act(async () => {});
-    expect(
-      screen.queryByRole("button", { name: "Continue the conversation" }),
-    ).toBeNull();
-    // A question sent from the field starts one. The page knows it from the sheet's record.
-    await user.type(
-      screen.getByLabelText("Your question"),
-      "A question{Enter}",
-    );
-    await within(await screen.findByRole("dialog")).findByText("An answer");
-    await user.keyboard("{Escape}");
-    expect(
-      await screen.findByRole("button", { name: "Continue the conversation" }),
-    ).toBeVisible();
+      screen.getAllByRole("button", { name: "Ask the SEO agent" }),
+    ).toHaveLength(1);
+    expect(screen.queryByLabelText("Your question")).toBeNull();
     // The page of the fix is a page of the site: its path, with the address as the link's name.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     const card = screen
@@ -3205,11 +3175,9 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace);
-    await userEvent.setup().click(
-      await screen.findByRole("button", {
-        name: /^Continue the conversation/,
-      }),
-    );
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("button", { name: "Ask the SEO agent" }));
     expect(
       await within(await screen.findByRole("dialog")).findByRole("button", {
         name: `Create draft task: ${opportunity.title}`,
@@ -3217,7 +3185,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
-  it("answers a question from the Agent tab in the chat sheet, and keeps the thread there on other tabs", async () => {
+  it("answers a question in the chat sheet, and keeps the thread there on other tabs", async () => {
     const user = userEvent.setup();
     const workspace = seoTestCheckedAudit();
     const turn = (question: string) => ({
@@ -3245,20 +3213,21 @@ describe("SEO workspace integration", () => {
       }),
     );
     renderWorkspace(workspace);
-    // The Agent tab holds one field and no thread. It reads the chat only to say that one exists.
-    const bar = await screen.findByLabelText("Your question");
-    expect(
-      await screen.findByRole("button", {
-        name: "Continue the conversation",
-      }),
-    ).toBeVisible();
+    // The Agent tab holds no thread and no field, and reads no chat before the sheet opens.
+    await screen.findByTestId("seo-agent-verdict");
     expect(screen.queryByText("Earlier visit question")).toBeNull();
-    expect(reads).toHaveBeenCalledOnce();
-    await user.type(bar, "New question");
-    await user.click(screen.getByRole("button", { name: "Send question" }));
+    expect(reads).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const sheet = await screen.findByRole("dialog", {
       name: "Ask the SEO agent",
     });
+    await user.type(
+      within(sheet).getByLabelText("Your question"),
+      "New question",
+    );
+    await user.click(
+      within(sheet).getByRole("button", { name: "Send question" }),
+    );
     expect(
       await within(sheet).findByText("Answer to New question"),
     ).toBeVisible();
@@ -3416,48 +3385,6 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByRole("button", { name: "Run page check" })).toBeNull();
   });
 
-  it("sends a question asked before the session loads once the session is there", async () => {
-    const user = userEvent.setup();
-    const workspace = seoTestCheckedAudit();
-    const turns: Array<Record<string, unknown>> = [];
-    const posts: string[] = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (!url.endsWith("/chat")) return Response.json(workspace);
-        if (init?.method !== "POST")
-          return Response.json({ sharing: "personal", turns });
-        const question = JSON.parse(String(init.body)).question;
-        posts.push(question);
-        turns.push({
-          id: crypto.randomUUID(),
-          question,
-          response: "Late answer",
-          status: "completed",
-          actions: [],
-          scope: { pageIds: workspace.scope.pageIds },
-          createdAt: new Date().toISOString(),
-        });
-        return Response.json(turns[0]);
-      }),
-    );
-    viewer.userId = null;
-    const view = renderWorkspace(workspace, "", false, 60_000);
-    await user.type(
-      screen.getByLabelText("Your question"),
-      "Early question{Enter}",
-    );
-    await screen.findByRole("dialog", { name: "Ask the SEO agent" });
-    expect(posts).toEqual([]);
-    // The chat starts again for the viewer who signed in: the question is still there to send.
-    viewer.userId = "owner";
-    view.refreshViewer();
-    expect(
-      await within(await screen.findByRole("dialog")).findByText("Late answer"),
-    ).toBeVisible();
-    expect(posts).toEqual(["Early question"]);
-  });
-
   it("keeps an answer asked in the chat sheet on another tab in reach from the Agent tab", async () => {
     const user = userEvent.setup();
     const workspace = seoTestCheckedAudit();
@@ -3498,9 +3425,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("tab", { name: "Agent" }));
-    await user.click(
-      await screen.findByRole("button", { name: "Continue the conversation" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     expect(
       await within(await screen.findByRole("dialog")).findByText(
         "Answer to Sheet question",
@@ -3533,11 +3458,17 @@ describe("SEO workspace integration", () => {
       }),
     );
     renderWorkspace(workspace);
+    await user.click(
+      await screen.findByRole("button", { name: "Ask the SEO agent" }),
+    );
+    const sheet = await screen.findByRole("dialog");
     await user.type(
-      await screen.findByLabelText("Your question"),
+      within(sheet).getByLabelText("Your question"),
       "Early question",
     );
-    await user.click(screen.getByRole("button", { name: "Send question" }));
+    await user.click(
+      within(sheet).getByRole("button", { name: "Send question" }),
+    );
     expect(
       await screen.findByText("Answer before history loaded"),
     ).toBeVisible();
