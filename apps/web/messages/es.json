@@ -11554,6 +11554,7 @@
         "statisticsMissing": "Las estadísticas no están configuradas",
         "demand": {
           "title": "Palabras clave comprobadas con más búsquedas",
+          "unit": "Búsquedas al mes",
           "position": "Posición {position}"
         }
       },

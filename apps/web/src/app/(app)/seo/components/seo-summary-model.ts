@@ -141,3 +141,26 @@ export function seoKeywordDemand(
       }
     : { rows: [], max: 0, manyMarkets: false };
 }
+
+/** About this many steps on the demand axis. */
+const DEMAND_AXIS_STEPS = 4;
+
+/**
+ * A round axis for the demand bars: steps of 1, 2 or 5 times a power of ten,
+ * whole searches only, ending at or above the largest count.
+ */
+export function seoDemandAxis(max: number) {
+  const rough = Math.max(1, max) / DEMAND_AXIS_STEPS;
+  const power = 10 ** Math.floor(Math.log10(rough));
+  const step = Math.max(
+    1,
+    [1, 2, 5, 10]
+      .map((factor) => factor * power)
+      .find((value) => value >= rough) ?? 10 * power,
+  );
+  const top = Math.max(step, Math.ceil(max / step) * step);
+  return {
+    top,
+    ticks: Array.from({ length: top / step + 1 }, (_, index) => index * step),
+  };
+}

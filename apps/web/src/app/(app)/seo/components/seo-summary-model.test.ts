@@ -2,6 +2,7 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   lastRuleCheck,
+  seoDemandAxis,
   seoKeywordDemand,
   seoSummary,
 } from "./seo-summary-model";
@@ -281,6 +282,26 @@ describe("seoKeywordDemand", () => {
       max: 0,
       manyMarkets: false,
     });
+  });
+});
+
+describe("seoDemandAxis", () => {
+  it("ends on a round step at or above the largest count", () => {
+    expect(seoDemandAxis(2400)).toEqual({
+      top: 3000,
+      ticks: [0, 1000, 2000, 3000],
+    });
+    expect(seoDemandAxis(720)).toEqual({
+      top: 800,
+      ticks: [0, 200, 400, 600, 800],
+    });
+    // A count on a step is the end of the axis.
+    expect(seoDemandAxis(1000).ticks).toEqual([0, 500, 1000]);
+    // Whole searches only: no step under one.
+    expect(seoDemandAxis(3).ticks).toEqual([0, 1, 2, 3]);
+    expect(seoDemandAxis(1).ticks).toEqual([0, 1]);
+    // No count is still an axis with a length, so a bar's share stays a number.
+    expect(seoDemandAxis(0)).toEqual({ top: 1, ticks: [0, 1] });
   });
 });
 

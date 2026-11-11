@@ -11554,6 +11554,7 @@
         "statisticsMissing": "Statistiken sind nicht eingerichtet",
         "demand": {
           "title": "Geprüfte Keywords mit den meisten Suchen",
+          "unit": "Suchen pro Monat",
           "position": "Position {position}"
         }
       },
