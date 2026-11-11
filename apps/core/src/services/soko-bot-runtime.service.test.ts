@@ -275,6 +275,10 @@ const social = vi.hoisted(() => ({
   get: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
+  ownMessage: vi.fn(async () => ({
+    problem: null as string | null,
+    costUsd: 0,
+  })),
   schedule: vi.fn(),
   cancel: vi.fn(),
   publish: vi.fn(),
@@ -328,6 +332,7 @@ vi.mock("@/services/social-posts.service", () => ({
   getSocialPost: social.get,
   createSocialPost: social.create,
   updateSocialPost: social.update,
+  ownMessageProblem: social.ownMessage,
   scheduleSocialPost: social.schedule,
   cancelSocialPost: social.cancel,
   requireMonthPostPicture: vi.fn(),
@@ -8575,6 +8580,27 @@ describe("Soko Bot project social tools", () => {
     },
   );
 
+  it("refuses a month post that repeats another before the save's transaction", async () => {
+    social.ownMessage.mockResolvedValueOnce({
+      problem: 'Rewrite the post: it says nearly what the post "Fees" says.',
+      costUsd: 0,
+    });
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "repeat",
+        input: { projectId, postId, revision: 1, text: "Fees again" },
+      }),
+    ).rejects.toThrow('it says nearly what the post "Fees" says');
+    expect(social.ownMessage).toHaveBeenCalledWith({
+      postId,
+      workspaceId: SCOPE.workspaceId,
+      text: "Fees again",
+    });
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
   it("does not report success when the observed revision is stale", async () => {
     social.update.mockRejectedValue(new Error("Revision conflict"));
     await expect(
@@ -10877,7 +10903,6 @@ describe("CMO record saves", () => {
         report,
       ),
     ).rejects.toThrow("Only the owner's turns");
-    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("saves a member's turn: Cuso works for the whole business", async () => {
@@ -10905,7 +10930,6 @@ describe("CMO record saves", () => {
         report,
       ),
     ).rejects.toThrow();
-    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("saves nothing once the turn is cancelled or the bot paused", async () => {

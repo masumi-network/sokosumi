@@ -6,8 +6,8 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { EmbedTexts } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
+import type { EmbedTexts } from "@/lib/embeddings";
 import { runContactTool } from "@/lib/soko-bot/contact-tools";
 import {
   breakDownContacts,

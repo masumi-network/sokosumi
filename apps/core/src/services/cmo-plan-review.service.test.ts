@@ -15,9 +15,30 @@ import {
   cmoPlanProblems,
   cmoPlanRuleProblems,
   cmoReplySafety,
+  cmoTitleRepeats,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
+
+/**
+ * Texts naming one topic say one thing; every other text gets a direction
+ * of its own, so it repeats nothing.
+ */
+function topicEmbed(topics: readonly RegExp[]) {
+  const own = new Map<string, number>();
+  return async (values: readonly string[]) => ({
+    costUsd: 0.000_01,
+    embeddings: values.map((value) => {
+      if (!own.has(value)) own.set(value, own.size);
+      const vector = Array.from({ length: topics.length + 64 }, () => 0);
+      topics.forEach((topic, index) => {
+        if (topic.test(value)) vector[index] = 1;
+      });
+      vector[topics.length + (own.get(value) ?? 0)] = 0.1;
+      return vector;
+    }),
+  });
+}
 
 const entry = (id: string, channel: string, format: string) => ({
   id,
@@ -485,16 +506,18 @@ describe("cmoDraftProblems", () => {
     draft,
   });
 
-  it("names drafts that open alike or break the copy rules", () => {
-    expect(
-      cmoDraftProblems([
+  it("names drafts that open alike or break the copy rules", async () => {
+    const { problems } = await cmoDraftProblems(
+      [
         piece("a", "Before choosing a shoe, look at the sole."),
         piece("b", "Before choosing a shoe, think about your commute."),
         piece("c", "Check the product page for the materials."),
         piece("d", "It's not a sneaker, it's a promise."),
         piece("e", "The Tree Runner is $98 and breathes in July heat."),
-      ]),
-    ).toEqual([
+      ],
+      topicEmbed([]),
+    );
+    expect(problems).toEqual([
       'b opens like a ("before choosing a shoe…"); give it its own first line.',
       "c tells people to check the details instead of giving one: name the product, its price or a real detail of the business.",
       "d uses \"it's not X, it's Y\".",
@@ -513,40 +536,96 @@ describe("repeated phrases in drafts", () => {
     draft,
   });
 
-  it("names a phrase that recurs across more than two drafts", () => {
-    const problems = cmoDraftProblems([
-      piece("a", "Morning: meet SoftSense, an 11-piece collection for studio."),
-      piece("b", "Studio day? SoftSense, an 11-piece collection for studio."),
-      piece(
-        "c",
-        "New this week. SoftSense, an 11-piece collection for studio.",
-      ),
-      piece("d", "Leggings at 45 pounds that stay put in a squat."),
-    ]);
+  it("names a phrase that recurs across more than two drafts", async () => {
+    const { problems } = await cmoDraftProblems(
+      [
+        piece(
+          "a",
+          "Morning: meet SoftSense, an 11-piece collection for studio.",
+        ),
+        piece("b", "Studio day? SoftSense, an 11-piece collection for studio."),
+        piece(
+          "c",
+          "New this week. SoftSense, an 11-piece collection for studio.",
+        ),
+        piece("d", "Leggings at 45 pounds that stay put in a squat."),
+      ],
+      topicEmbed([/softsense/i]),
+    );
     expect(problems).toEqual([
       '"softsense an 11 piece collection" is in 3 drafts (a, b, c); keep it in at most 2 and say something new in the rest.',
       "b says nearly what a says; give it its own message from its pillar.",
-      "c says nearly what b says; give it its own message from its pillar.",
+      "c says nearly what a says; give it its own message from its pillar.",
     ]);
   });
 
-  it("names a draft that says nearly what another says in other words", () => {
-    const problems = cmoDraftProblems([
-      piece(
-        "fee",
-        "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
-      ),
-      piece(
-        "fee-again",
-        "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
-      ),
-      piece(
-        "book",
-        "Book.io sold 130,000 NFT books across 70 titles with Studio handling every mint.",
-      ),
-    ]);
+  it("names a draft that says nearly what another says in other words", async () => {
+    const { problems, costUsd } = await cmoDraftProblems(
+      [
+        piece(
+          "fee",
+          "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
+        ),
+        piece(
+          "fee-again",
+          "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
+        ),
+        piece(
+          "book",
+          "Book.io sold 130,000 NFT books across 70 titles with Studio handling every mint.",
+        ),
+      ],
+      topicEmbed([/monthly fee/i]),
+    );
     expect(problems).toEqual([
       "fee-again says nearly what fee says; give it its own message from its pillar.",
     ]);
+    expect(costUsd).toBeGreaterThan(0);
+  });
+});
+
+describe("cmoTitleRepeats", () => {
+  const titled = (id: string, title: string) => ({
+    id,
+    date: "2026-11-02",
+    channel: "linkedin",
+    format: "post",
+    title,
+    status: "idea" as const,
+  });
+
+  it("names a title that says what an earlier one says in other words", async () => {
+    const { problems } = await cmoTitleRepeats(
+      [
+        titled("w1", "Make the first email relevant"),
+        titled("w2", "Cal.com vs Calendly for team booking"),
+        titled("w3", "How to write a relevant first email"),
+      ],
+      topicEmbed([/relevant first email|first email relevant/i]),
+    );
+    expect(problems).toEqual([
+      'w3 ("How to write a relevant first email") says what w1 ("Make the first email relevant") says; give it its own message from its pillar.',
+    ]);
+  });
+
+  it("leaves skipped entries out", async () => {
+    const { problems } = await cmoTitleRepeats(
+      [
+        { ...titled("w1", "Make the first email relevant"), status: "skipped" },
+        titled("w3", "How to write a relevant first email"),
+      ],
+      topicEmbed([/relevant first email|first email relevant/i]),
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it("names at most four, so one save is not flooded", async () => {
+    const { problems } = await cmoTitleRepeats(
+      Array.from({ length: 7 }, (_, index) =>
+        titled(`w${index}`, `Staking guide, take ${index}`),
+      ),
+      topicEmbed([/staking/i]),
+    );
+    expect(problems).toHaveLength(4);
   });
 });
