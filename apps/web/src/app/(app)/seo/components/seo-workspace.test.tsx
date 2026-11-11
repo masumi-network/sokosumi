@@ -3107,6 +3107,13 @@ describe("SEO workspace integration", () => {
         createdAt: new Date("2026-01-04T12:00:00Z"),
       },
     ];
+    // The Activity card's own run button starts no second check either.
+    renderWorkspace(workspace, "?tab=health");
+    const again = await screen.findByRole("button", { name: "Run a check" });
+    expect(again).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(again);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    cleanup();
     renderWorkspace(workspace, "?tab=rankings");
     const waiting = await screen.findByRole("button", {
       name: "Check running",

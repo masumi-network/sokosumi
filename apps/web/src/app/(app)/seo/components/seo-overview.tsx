@@ -25,6 +25,7 @@ import {
   withoutRuleCodes,
 } from "./seo-overview-model";
 import { SeoPages } from "./seo-pages";
+import { seoCheckRunning } from "./seo-setup-model";
 import {
   SeoDate,
   SeoPageLink,
@@ -252,6 +253,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const format = useFormatter();
   const { data } = model;
   const overview = seoOverviewModel(data);
+  const checkRunning = seoCheckRunning(data);
   // Timeline rows carry their own check's coverage; only checks without a row are listed here.
   const onTimeline = new Set(data.timeline.map((event) => event.observationId));
   const offTimeline = data.observations.filter(
@@ -397,7 +399,12 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
               variant="outline"
               size="sm"
               disabled={!data.scope.pageIds.length}
-              onClick={() => model.setDialog("analysis")}
+              // While a check runs the button keeps its place and its focus, and starts no second check.
+              aria-disabled={checkRunning || undefined}
+              className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+              onClick={() => {
+                if (!checkRunning) model.setDialog("analysis");
+              }}
             >
               <Play className="size-4" />
               {t("runAnalysis")}
@@ -405,7 +412,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           ) : undefined
         }
         onRetry={
-          data.availableActions.canRequestAnalysis
+          data.availableActions.canRequestAnalysis && !checkRunning
             ? () => model.setDialog("analysis")
             : undefined
         }
