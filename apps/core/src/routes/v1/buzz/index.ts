@@ -1,6 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { badRequest, forbidden, serviceUnavailable } from "@/helpers/error";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  serviceUnavailable,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -15,6 +20,7 @@ import {
   buzzConnectionFor,
   enableBuzzForOrganization,
   exportBuzzSecretKey,
+  setAllowPersonalAgents,
   startBuzzAppLink,
   unlinkBuzzApp,
 } from "@/services/buzz-bridge.service";
@@ -71,6 +77,13 @@ const connectionSchema = z
         relayUrl: z.string().openapi({
           description: "The address to add in a Buzz client.",
           example: "wss://acme.chat.sokosumi.com",
+        }),
+        allowPersonalAgents: z.boolean().openapi({
+          description:
+            "Members may bring their personal agents (run in their Buzz app) into rooms without approval.",
+        }),
+        canManage: z.boolean().openapi({
+          description: "The caller owns or administers this organization.",
         }),
       }),
     ),
@@ -194,6 +207,34 @@ const unlinkAppKey = createRoute({
   },
 });
 
+const updateOrganization = createRoute({
+  method: "patch",
+  path: "/organizations/{organizationId}",
+  tags: ["Buzz"],
+  description:
+    "Change an organization's Buzz settings. Owners and admins only.",
+  request: {
+    params: z.object({ organizationId: z.string() }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({ allowPersonalAgents: z.boolean() }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.object({ allowPersonalAgents: z.boolean() }),
+      "Saved",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not on Buzz"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
 const app = new OpenAPIHonoWithAuth();
 
 app.openapi(getConnection, async (c) => {
@@ -239,6 +280,31 @@ app.openapi(unlinkAppKey, async (c) => {
   if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
   await unlinkBuzzApp(userId);
   return ok(c, { unlinked: true });
+});
+
+app.openapi(updateOrganization, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  const { organizationId } = c.req.valid("param");
+  const { allowPersonalAgents } = c.req.valid("json");
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  const member = await prisma.member.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: {
+      role: true,
+      organization: { select: { buzzCommunity: { select: { id: true } } } },
+    },
+  });
+  if (member?.role !== "owner" && member?.role !== "admin") {
+    throw forbidden("Only owners and admins can change Buzz settings");
+  }
+  if (!member.organization.buzzCommunity) {
+    throw notFound("This organization is not on Buzz");
+  }
+  const community = await setAllowPersonalAgents(
+    organizationId,
+    allowPersonalAgents,
+  );
+  return ok(c, { allowPersonalAgents: community.allowPersonalAgents });
 });
 
 app.openapi(enableOrganization, async (c) => {

@@ -1927,6 +1927,8 @@ export async function validateChatCoworkerIds(
   coworkerIds: readonly string[],
   workspaceId: string,
   tx: Prisma.TransactionClient,
+  /** Who adds them: a personal agent (via Buzz) joins only by its owner. */
+  addedByUserId: string | null,
 ): Promise<string[]> {
   const uniqueCoworkerIds = normalizeUniqueStrings(coworkerIds);
   if (uniqueCoworkerIds.length === 0) {
@@ -1941,8 +1943,21 @@ export async function validateChatCoworkerIds(
       ...buildCoworkerNonEmptyBaseUrlWhere(),
       capabilities: { has: "chat" },
     },
-    select: { id: true, baseURL: true },
+    select: {
+      id: true,
+      baseURL: true,
+      buzzIdentity: { select: { ownerIdentity: { select: { userId: true } } } },
+    },
   });
+  if (
+    coworkers.some(
+      (coworker) =>
+        coworker.buzzIdentity?.ownerIdentity &&
+        coworker.buzzIdentity.ownerIdentity.userId !== addedByUserId,
+    )
+  ) {
+    throw forbidden("Only its owner can add a personal agent");
+  }
   const found = new Set(
     coworkers
       .filter((coworker) => hasNonEmptyBaseUrl(coworker.baseURL))
@@ -2554,6 +2569,7 @@ export async function createOrGetDirectRoom(params: {
           requestedCoworkerIds,
           workspaceId,
           tx,
+          currentUserId,
         );
         const directKey = buildDirectParticipantRoomKey({
           currentUserId,

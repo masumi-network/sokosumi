@@ -6,7 +6,10 @@ import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
 
 import { getEnv } from "@/config/env";
-import { notifyWorkspaceApproversOfPendingCoworkerAccess } from "@/helpers/coworker-workspace-access";
+import {
+  forceRevokeCoworkerWorkspaceAccessByPair,
+  notifyWorkspaceApproversOfPendingCoworkerAccess,
+} from "@/helpers/coworker-workspace-access";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
@@ -184,7 +187,9 @@ async function communitiesOf(userId: string) {
         select: {
           id: true,
           name: true,
-          buzzCommunity: { select: { id: true, relayUrl: true } },
+          buzzCommunity: {
+            select: { id: true, relayUrl: true, allowPersonalAgents: true },
+          },
         },
       },
     },
@@ -199,6 +204,7 @@ async function communitiesOf(userId: string) {
     select: {
       id: true,
       relayUrl: true,
+      allowPersonalAgents: true,
       organization: { select: { id: true, name: true } },
     },
   });
@@ -209,6 +215,7 @@ async function communitiesOf(userId: string) {
       organizationId: string;
       organizationName: string;
       relayUrl: string;
+      allowPersonalAgents: boolean;
     }
   >();
   for (const { organization } of memberships) {
@@ -218,12 +225,14 @@ async function communitiesOf(userId: string) {
       organizationId: organization.id,
       organizationName: organization.name,
       relayUrl: organization.buzzCommunity.relayUrl,
+      allowPersonalAgents: organization.buzzCommunity.allowPersonalAgents,
     });
   }
   for (const community of viaRooms) {
     if (byOrganization.has(community.organization.id)) continue;
     byOrganization.set(community.organization.id, {
       communityId: community.id,
+      allowPersonalAgents: community.allowPersonalAgents,
       organizationId: community.organization.id,
       organizationName: community.organization.name,
       relayUrl: community.relayUrl,
@@ -249,7 +258,13 @@ export async function buzzConnectionFor(userId: string) {
       : [],
   );
   if (communities.length === 0) {
-    return { identity: null, app: null, agents: [], communities, canEnable };
+    return {
+      identity: null,
+      app: null,
+      agents: [],
+      communities: [],
+      canEnable,
+    };
   }
   let identity = await ensureIdentity({ userId });
   if (identity.pendingAppPubkey) {
@@ -262,6 +277,11 @@ export async function buzzConnectionFor(userId: string) {
     });
   }
   const appKey = identity.appPubkey ?? identity.pendingAppPubkey;
+  const managed = new Set(
+    memberships
+      .filter(({ role }) => role === "owner" || role === "admin")
+      .map(({ organization }) => organization.id),
+  );
   const agents = await agentsOf(identity.id);
   return {
     identity: { pubkey: identity.pubkey, npub: npubEncode(identity.pubkey) },
@@ -274,7 +294,13 @@ export async function buzzConnectionFor(userId: string) {
         }
       : null,
     agents,
-    communities,
+    communities: communities.map((community) => ({
+      organizationId: community.organizationId,
+      organizationName: community.organizationName,
+      relayUrl: community.relayUrl,
+      allowPersonalAgents: community.allowPersonalAgents,
+      canManage: managed.has(community.organizationId),
+    })),
     canEnable,
   };
 }
@@ -531,17 +557,23 @@ function readJson(content: string): { name?: string; picture?: string } {
 
 /**
  * Where a person's agent may be used: their own workspace and each of their
- * organizations on Buzz, granted only where they own or administer it.
+ * organizations on Buzz. It is granted where the organization lets members
+ * bring personal agents (or the person administers it); elsewhere requested.
  */
 async function agentAccessOf(
   userId: string,
   memberships: { role: string; organization: { id: string } }[],
-  communities: { organizationId: string }[],
+  communities: { organizationId: string; allowPersonalAgents: boolean }[],
 ) {
   const admin = new Set(
     memberships
       .filter(({ role }) => role === "owner" || role === "admin")
       .map(({ organization }) => organization.id),
+  );
+  const open = new Set(
+    communities
+      .filter((community) => community.allowPersonalAgents)
+      .map((community) => community.organizationId),
   );
   const workspaces = await prisma.workspace.findMany({
     where: {
@@ -557,7 +589,8 @@ async function agentAccessOf(
     granted:
       workspace.userId === userId ||
       (workspace.organizationId !== null &&
-        admin.has(workspace.organizationId)),
+        (open.has(workspace.organizationId) ||
+          admin.has(workspace.organizationId))),
   }));
 }
 
@@ -621,9 +654,9 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
       // A key Sokosumi already knows as someone else stays theirs.
       if (existing && existing.ownerIdentityId !== owner.id) continue;
       const details = {
-        name: agent.name,
+        name: `${agent.name} (personal agent)`,
         image: agent.picture,
-        caption: `${owner.user?.name ?? "Someone"}'s Buzz agent`,
+        caption: `Personal agent via Buzz · ${owner.user?.name ?? "someone"}`,
         baseURL: `${BUZZ_AGENT_URL_PREFIX}${new URL(agent.relayUrl).host}`,
       };
       let coworkerId = existing?.coworkerId ?? null;
@@ -632,7 +665,8 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
           data: {
             ...details,
             slug: `buzz-${pubkey.slice(0, 16)}`,
-            description: "Runs in its owner's Buzz app; answers in Buzz.",
+            description:
+              "A personal agent: it runs in its owner's Buzz app, only its owner can add it to a room, and it answers there.",
             capabilities: ["chat"],
             isWhitelisted: false,
             vendorId: vendor.id,
@@ -666,7 +700,43 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
             workspaceId,
           },
         };
-        if (await prisma.coworkerWorkspaceAccess.findUnique({ where })) {
+        const existingAccess = await prisma.coworkerWorkspaceAccess.findUnique({
+          where,
+        });
+        if (existingAccess) {
+          // Revoked by the switch earlier: back on, back in.
+          const reopen =
+            existingAccess.status === "PENDING" ||
+            (existingAccess.status === "REVOKED" &&
+              existingAccess.resolvedById === userId);
+          if (granted && reopen) {
+            await prisma.coworkerWorkspaceAccess.update({
+              where,
+              data: {
+                status: "GRANTED",
+                resolvedById: userId,
+                resolvedAt: new Date(),
+              },
+            });
+          } else if (
+            !granted &&
+            existingAccess.status === "GRANTED" &&
+            existingAccess.resolvedById === userId
+          ) {
+            // Granted by the switch that is now off: the agent leaves.
+            await prisma.$transaction((tx) =>
+              forceRevokeCoworkerWorkspaceAccessByPair(
+                {
+                  coworkerId: coworkerId as string,
+                  workspaceId,
+                  resolvedById: userId,
+                },
+                tx,
+              ),
+            );
+            await resyncRoomsWithCoworkers([coworkerId as string]);
+            changed.push(`revoked:${coworkerId}`);
+          }
           continue;
         }
         const created = await prisma.coworkerWorkspaceAccess.create({
@@ -713,6 +783,45 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
     }
   }
   return changed;
+}
+
+/**
+ * A personal agent is in a room only with its owner: one whose owner left
+ * (or was removed) leaves too.
+ */
+export async function removeAgentsWithoutOwner() {
+  const memberships = await prisma.chatRoomCoworkerMember.findMany({
+    where: { coworker: { buzzIdentity: { ownerIdentityId: { not: null } } } },
+    select: {
+      roomId: true,
+      coworkerId: true,
+      room: { select: { userMembers: { select: { userId: true } } } },
+      coworker: {
+        select: {
+          buzzIdentity: {
+            select: { ownerIdentity: { select: { userId: true } } },
+          },
+        },
+      },
+    },
+  });
+  const orphaned = memberships.filter(
+    (membership) =>
+      !membership.room.userMembers.some(
+        (member) =>
+          member.userId ===
+          membership.coworker.buzzIdentity?.ownerIdentity?.userId,
+      ),
+  );
+  for (const { roomId, coworkerId } of orphaned) {
+    await prisma.chatRoomCoworkerMember.deleteMany({
+      where: { roomId, coworkerId },
+    });
+  }
+  await resyncRoomsWithCoworkers([
+    ...new Set(orphaned.map((membership) => membership.coworkerId)),
+  ]);
+  return orphaned.length;
 }
 
 /** The person's Buzz agents Sokosumi knows, for Connections. */
@@ -799,6 +908,21 @@ export async function exportBuzzSecretKey(userId: string): Promise<string> {
 
 export function communityUrlFor(slug: string): string {
   return requireConfig().communityUrlTemplate.replaceAll("{slug}", slug);
+}
+
+/**
+ * Whether members may bring their personal agents into this organization's
+ * rooms without approval. The worker applies it within a minute: agents
+ * granted by it are granted or revoked (and leave their rooms) to match.
+ */
+export async function setAllowPersonalAgents(
+  organizationId: string,
+  allowPersonalAgents: boolean,
+) {
+  return prisma.buzzCommunity.update({
+    where: { organizationId },
+    data: { allowPersonalAgents },
+  });
 }
 
 export async function enableBuzzForOrganization(organizationId: string) {
@@ -1771,6 +1895,61 @@ export async function drainBuzzOutbox(
 
 // ---------------------------------------------------------------- inbound
 
+/**
+ * A person added or removed their own personal agent in a Buzz channel: the
+ * same change in Sokosumi, as them, under the same rules (only its owner,
+ * only where the organization allows it). Anything else on Buzz is put back
+ * by the next member sync, since Sokosumi's rooms decide who is in.
+ */
+async function applyMemberChange(
+  event: Event,
+  change: { added: boolean; pubkeys: string[] },
+  author: BuzzIdentity,
+  core: CoreRequest,
+): Promise<InboundResult> {
+  if (!author.userId) return "ignored";
+  const channelId = channelIdOf(event);
+  const channel = channelId
+    ? await prisma.buzzChannel.findUnique({ where: { channelId } })
+    : null;
+  if (!channel || isDirect(channel)) return "ignored";
+  const agents = await prisma.buzzIdentity.findMany({
+    where: {
+      pubkey: { in: change.pubkeys },
+      ownerIdentityId: author.id,
+      coworkerId: { not: null },
+    },
+    select: { coworkerId: true },
+  });
+  const coworkerIds = agents.flatMap((agent) =>
+    agent.coworkerId ? [agent.coworkerId] : [],
+  );
+  if (coworkerIds.length === 0) return "ignored";
+  if (change.added) {
+    await sendAs(core, author, {
+      method: "POST",
+      path: `/v1/chats/rooms/${channel.roomId}/members`,
+      body: { coworkerIds },
+    });
+    return "members";
+  }
+  for (const coworkerId of coworkerIds) {
+    const response = await core({
+      method: "DELETE",
+      path: `/v1/chats/rooms/${channel.roomId}/coworkers/${coworkerId}`,
+      apiKey: await bridgeApiKeyFor(author),
+    });
+    // Already gone is what was asked.
+    if (response.status >= 400 && response.status !== 404) {
+      throw new CoreRejectedError(
+        response.status,
+        `Core DELETE coworker → ${response.status}`,
+      );
+    }
+  }
+  return "members";
+}
+
 /** Buzz text with each `nostr:npub…` turned into the name Sokosumi knows. */
 async function namedContent(content: string): Promise<string> {
   const pubkeys: string[] = [];
@@ -1856,6 +2035,7 @@ export async function bridgeApiKeyFor(identity: BuzzIdentity) {
 }
 
 export type InboundResult =
+  | "members"
   | "posted"
   | "edited"
   | "deleted"
@@ -1945,6 +2125,9 @@ export async function applyInboundEvent(
   // An agent only posts: Core lets Coworkers write messages, not edit,
   // delete or react.
   if (agent && change.type !== "message") return "ignored";
+  if (change.type === "members") {
+    return applyMemberChange(event, change, author, core);
+  }
   const signerPubkey =
     event.pubkey === author.pubkey && !agent ? null : event.pubkey;
 

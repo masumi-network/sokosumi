@@ -3026,6 +3026,14 @@ export type BuzzConnection = {
          * The address to add in a Buzz client.
          */
         relayUrl: string;
+        /**
+         * Members may bring their personal agents (run in their Buzz app) into rooms without approval.
+         */
+        allowPersonalAgents: boolean;
+        /**
+         * The caller owns or administers this organization.
+         */
+        canManage: boolean;
     }>;
 };
 
@@ -23530,6 +23538,100 @@ export type PostBuzzAppKeyResponses = {
 };
 
 export type PostBuzzAppKeyResponse = PostBuzzAppKeyResponses[keyof PostBuzzAppKeyResponses];
+
+export type PatchBuzzOrganizationsByOrganizationIdData = {
+    body?: {
+        allowPersonalAgents: boolean;
+    };
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/buzz/organizations/{organizationId}';
+};
+
+export type PatchBuzzOrganizationsByOrganizationIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not on Buzz
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Buzz is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchBuzzOrganizationsByOrganizationIdError = PatchBuzzOrganizationsByOrganizationIdErrors[keyof PatchBuzzOrganizationsByOrganizationIdErrors];
+
+export type PatchBuzzOrganizationsByOrganizationIdResponses = {
+    /**
+     * Saved
+     */
+    200: {
+        data: {
+            allowPersonalAgents: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchBuzzOrganizationsByOrganizationIdResponse = PatchBuzzOrganizationsByOrganizationIdResponses[keyof PatchBuzzOrganizationsByOrganizationIdResponses];
 
 export type PostBuzzOrganizationsByOrganizationIdData = {
     body?: never;

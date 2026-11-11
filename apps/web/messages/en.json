@@ -8614,7 +8614,7 @@
         "unlinkError": "Failed to unlink the Buzz app",
         "agentsTitle": "Your Buzz agents",
         "agentsEmpty": "Agents you create in the Buzz app appear here within a minute.",
-        "agentsHint": "Add them to rooms like any Coworker. Agents you create while signed in to Buzz as you answer what you write here too.",
+        "agentsHint": "Personal agents via Buzz. Add one to a room you are in (add member → Coworkers), or invite it to the channel in Buzz. Only you can add it, and it leaves a room when you do.",
         "signInTitle": "Use Buzz as you",
         "signInDescription": "Sign in to the Buzz app with your Sokosumi identity. You, your messages and the agents you create in Buzz are then the same on both sides.",
         "stepKeyFile": "1. Save your key file",
@@ -8625,7 +8625,11 @@
         "openHint": "On Buzz's first screen choose Other options, enter this address, then Use an existing key and drop in the file. No invite needed.",
         "signOutFirst": "Signed in to Buzz with another identity? In Buzz, remove it first: Settings → Identity → Remove from device. Agents of that identity stay with it.",
         "keyDetails": "Your key as text",
-        "openSignedIn": "Buzz already signed in as you? Open the community directly:"
+        "openSignedIn": "Buzz already signed in as you? Open the community directly:",
+        "personalAgentsTitle": "Members can bring their own agents",
+        "personalAgentsOn": "Members can add their personal agents (run in their Buzz app) to rooms they are in. Each shows as a personal agent via Buzz.",
+        "personalAgentsOff": "Personal agents need an owner or admin to approve them first.",
+        "personalAgentsError": "Failed to change the setting"
       }
     },
     "Channels": {

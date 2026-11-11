@@ -158,6 +158,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           body.coworkerIds ?? [],
           workspaceId,
           tx,
+          userContext.userId,
         );
         const sokoBotIds = await validateChatSokoBotIds(
           body.sokoBotIds ?? [],

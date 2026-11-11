@@ -8569,7 +8569,7 @@
         "unlinkError": "No se pudo desvincular la app de Buzz",
         "agentsTitle": "Tus agentes de Buzz",
         "agentsEmpty": "Los agentes que crees en la app de Buzz aparecen aquí en un minuto.",
-        "agentsHint": "Añádelos a salas como cualquier Coworker. Los agentes que creas con la sesión de Buzz iniciada como tú también responden a lo que escribes aquí.",
+        "agentsHint": "Agentes personales vía Buzz. Añade uno a una sala en la que estés (añadir miembro → Coworkers) o invítalo al canal en Buzz. Solo tú puedes añadirlo, y sale de una sala cuando tú sales.",
         "signInTitle": "Usa Buzz como tú",
         "signInDescription": "Inicia sesión en la app de Buzz con tu identidad de Sokosumi. Tú, tus mensajes y los agentes que crees en Buzz sois los mismos en ambos lados.",
         "stepKeyFile": "1. Guarda tu archivo de clave",
@@ -8580,7 +8580,11 @@
         "openHint": "En la primera pantalla de Buzz elige «Other options», introduce esta dirección, luego «Use an existing key» y suelta el archivo. No hace falta invitación.",
         "signOutFirst": "¿Has iniciado sesión en Buzz con otra identidad? Quítala primero en Buzz: Settings → Identity → Remove from device. Los agentes de esa identidad se quedan con ella.",
         "keyDetails": "Tu clave como texto",
-        "openSignedIn": "¿Buzz ya ha iniciado sesión como tú? Abre la comunidad directamente:"
+        "openSignedIn": "¿Buzz ya ha iniciado sesión como tú? Abre la comunidad directamente:",
+        "personalAgentsTitle": "Los miembros pueden traer sus propios agentes",
+        "personalAgentsOn": "Los miembros pueden añadir sus agentes personales (de su app de Buzz) a las salas en las que están. Cada uno aparece como agente personal vía Buzz.",
+        "personalAgentsOff": "Los agentes personales necesitan primero la aprobación de un propietario o administrador.",
+        "personalAgentsError": "No se pudo cambiar el ajuste"
       }
     },
     "Coworkers": {

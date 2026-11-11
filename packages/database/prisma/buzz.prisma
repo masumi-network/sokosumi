@@ -10,6 +10,9 @@ model BuzzCommunity {
   /// `created_at` (unix seconds) up to which every inbound event has been
   /// applied; the worker resumes reading from here, with overlap.
   inboundCursor  Int          @default(0)
+  /// Members may bring their personal agents (agents they run in their Buzz
+  /// app) into rooms without approval. Owners and admins can turn it off.
+  allowPersonalAgents Boolean @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

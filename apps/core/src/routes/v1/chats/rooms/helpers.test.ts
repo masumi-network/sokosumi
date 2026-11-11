@@ -163,9 +163,9 @@ describe("validateChatCoworkerIds", () => {
   });
 
   it("accepts empty coworker list without querying", async () => {
-    await expect(validateChatCoworkerIds([], workspaceId, tx)).resolves.toEqual(
-      [],
-    );
+    await expect(
+      validateChatCoworkerIds([], workspaceId, tx, "user_1"),
+    ).resolves.toEqual([]);
     expect(coworkerFindManyMock).not.toHaveBeenCalled();
   });
 
@@ -175,7 +175,7 @@ describe("validateChatCoworkerIds", () => {
     ]);
 
     await expect(
-      validateChatCoworkerIds(["cow_1"], workspaceId, tx),
+      validateChatCoworkerIds(["cow_1"], workspaceId, tx, "user_1"),
     ).resolves.toEqual(["cow_1"]);
 
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
@@ -186,15 +186,40 @@ describe("validateChatCoworkerIds", () => {
         AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
         capabilities: { has: "chat" },
       },
-      select: { id: true, baseURL: true },
+      select: {
+        id: true,
+        baseURL: true,
+        buzzIdentity: {
+          select: { ownerIdentity: { select: { userId: true } } },
+        },
+      },
     });
+  });
+
+  it("lets only its owner add a personal agent (via Buzz)", async () => {
+    coworkerFindManyMock.mockResolvedValue([
+      {
+        id: "cow_agent",
+        baseURL: "buzz://acme.example",
+        buzzIdentity: { ownerIdentity: { userId: "user_owner" } },
+      },
+    ]);
+    await expect(
+      validateChatCoworkerIds(["cow_agent"], workspaceId, tx, "user_owner"),
+    ).resolves.toEqual(["cow_agent"]);
+    await expect(
+      validateChatCoworkerIds(["cow_agent"], workspaceId, tx, "user_other"),
+    ).rejects.toThrow("Only its owner can add a personal agent");
+    await expect(
+      validateChatCoworkerIds(["cow_agent"], workspaceId, tx, null),
+    ).rejects.toThrow("Only its owner can add a personal agent");
   });
 
   it("rejects coworkers not usable in the workspace", async () => {
     coworkerFindManyMock.mockResolvedValue([]);
 
     await expect(
-      validateChatCoworkerIds(["cow_missing"], workspaceId, tx),
+      validateChatCoworkerIds(["cow_missing"], workspaceId, tx, "user_1"),
     ).rejects.toThrow("Room AI coworkers must be active chat coworkers");
   });
 });

@@ -46,6 +46,8 @@ export const INBOUND_KINDS = [
   BUZZ_KIND.reaction,
   BUZZ_KIND.deletion,
   BUZZ_KIND.adminDelete,
+  BUZZ_KIND.addMember,
+  BUZZ_KIND.removeMember,
 ];
 
 export interface EventDraft {
@@ -255,6 +257,8 @@ export type InboundChange =
   | { type: "edit"; targetEventId: string; content: string }
   | { type: "delete"; targetEventIds: string[] }
   | { type: "reaction"; targetEventId: string; emoji: string }
+  /** Someone added or removed channel members on Buzz (NIP-29 9000/9001). */
+  | { type: "members"; added: boolean; pubkeys: string[] }
   | { type: "ignore" };
 
 export function readInbound(event: Event): InboundChange {
@@ -291,6 +295,17 @@ export function readInbound(event: Event): InboundChange {
         targetEventId: target,
         emoji: emoji === "+" ? "👍" : emoji,
       };
+    }
+    case BUZZ_KIND.addMember:
+    case BUZZ_KIND.removeMember: {
+      const pubkeys = [...new Set(tagValues(event, "p"))];
+      return pubkeys.length > 0
+        ? {
+            type: "members",
+            added: event.kind === BUZZ_KIND.addMember,
+            pubkeys,
+          }
+        : { type: "ignore" };
     }
     default:
       return { type: "ignore" };

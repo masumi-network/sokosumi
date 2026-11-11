@@ -11130,12 +11130,22 @@ export const BuzzConnectionSchema = {
                         type: 'string',
                         description: 'The address to add in a Buzz client.',
                         example: 'wss://acme.chat.sokosumi.com'
+                    },
+                    allowPersonalAgents: {
+                        type: 'boolean',
+                        description: 'Members may bring their personal agents (run in their Buzz app) into rooms without approval.'
+                    },
+                    canManage: {
+                        type: 'boolean',
+                        description: 'The caller owns or administers this organization.'
                     }
                 },
                 required: [
                     'organizationId',
                     'organizationName',
-                    'relayUrl'
+                    'relayUrl',
+                    'allowPersonalAgents',
+                    'canManage'
                 ]
             }
         }

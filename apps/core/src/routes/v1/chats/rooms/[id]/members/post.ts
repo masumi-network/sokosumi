@@ -184,6 +184,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               requestedCoworkerIds,
               workspaceId,
               tx,
+              userContext.userId,
             );
             await tx.chatRoomCoworkerMember.createMany({
               data: requestedCoworkerIds.map((coworkerId) => ({

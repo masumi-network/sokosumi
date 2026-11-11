@@ -757,7 +757,11 @@ describe("a person's own Buzz agents", () => {
         organization: {
           id: "org",
           name: "Acme",
-          buzzCommunity: { relayUrl: "wss://acme.example" },
+          // An organization that asks for approval of personal agents.
+          buzzCommunity: {
+            relayUrl: "wss://acme.example",
+            allowPersonalAgents: false,
+          },
         },
       },
     ]);
@@ -807,7 +811,8 @@ describe("a person's own Buzz agents", () => {
     expect(db.coworker.create).toHaveBeenCalledTimes(1);
     expect(db.coworker.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        name: "Claude Code",
+        name: "Claude Code (personal agent)",
+        caption: "Personal agent via Buzz · Bob",
         baseURL: "buzz://acme.example",
         capabilities: ["chat"],
         assignments: { create: { userId: "user-bob" } },
@@ -905,6 +910,72 @@ describe("agents of a person signed in to Buzz with Sokosumi's key", () => {
       secretKey: expect.any(Uint8Array),
       filters: [{ kinds: [30177], authors: [SOKOSUMI_PUBKEY] }],
     });
+  });
+});
+
+describe("personal agents", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: {} }));
+  const AGENT = getPublicKey(generateSecretKey());
+  const bob = {
+    id: "identity-bob",
+    pubkey: BOB_PUBKEY,
+    appPubkey: null,
+    userId: "user-bob",
+    coworkerId: null,
+    encryptedSecretKey: "x",
+    encryptedApiKey: sealSecret("bob-api-key", SECRET),
+  };
+
+  it("adds to the Sokosumi room the agent its owner invited on Buzz", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([{ coworkerId: "cw-agent" }]);
+    const invite = nostrEvent({
+      kind: 9000,
+      tags: [
+        ["h", CHANNEL],
+        ["p", AGENT],
+      ],
+    });
+    await expect(applyInboundEvent(invite, core)).resolves.toBe("members");
+    expect(db.buzzIdentity.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ ownerIdentityId: "identity-bob" }),
+      }),
+    );
+    expect(core).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/v1/chats/rooms/room/members",
+      apiKey: "bob-api-key",
+      body: { coworkerIds: ["cw-agent"] },
+    });
+  });
+
+  it("leaves Buzz invites of anything but one's own agent to the member sync", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    const invite = nostrEvent({
+      kind: 9000,
+      tags: [
+        ["h", CHANNEL],
+        ["p", AGENT],
+      ],
+    });
+    await expect(applyInboundEvent(invite, core)).resolves.toBe("ignored");
+    expect(core).not.toHaveBeenCalled();
   });
 });
 

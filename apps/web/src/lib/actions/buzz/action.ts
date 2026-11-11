@@ -99,3 +99,26 @@ export const unlinkBuzzApp = withSession<
     return toActionResult(err({ message: t("unlinkError") }));
   }
 });
+
+interface PersonalAgentsParameters extends AuthenticatedRequest {
+  organizationId: string;
+  allowPersonalAgents: boolean;
+}
+
+/** Whether members may bring their personal agents (owners and admins). */
+export const setBuzzPersonalAgents = withSession<
+  PersonalAgentsParameters,
+  ActionResultDto<{ allowPersonalAgents: boolean }, BuzzActionError>
+>(async ({ organizationId, allowPersonalAgents }) => {
+  const t = await getTranslations("App.Connections.Buzz");
+  try {
+    const response = await coreClientNoRedirect.patchBuzzOrganization(
+      organizationId,
+      allowPersonalAgents,
+    );
+    revalidatePath("/connections");
+    return toActionResult(ok(response.data));
+  } catch {
+    return toActionResult(err({ message: t("personalAgentsError") }));
+  }
+});

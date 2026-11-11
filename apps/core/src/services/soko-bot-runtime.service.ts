@@ -2009,6 +2009,7 @@ export class SokoBotRuntimeService {
           input.coworkerIds,
           authorized.turn.workspaceId,
           tx,
+          null,
         );
       } catch (error) {
         if (!(error instanceof HTTPException)) throw error;

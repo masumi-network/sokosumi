@@ -27,6 +27,7 @@ import {
   enableBuzzForOrganization,
   linkedBuzzRooms,
   readerSecretKey,
+  removeAgentsWithoutOwner,
   saveInboundCursor,
   syncBuzzAgents,
   syncRoomChannel,
@@ -415,6 +416,8 @@ async function run() {
       // organization). Cheap when nothing changed: a hash compare per room.
       if (Date.now() - lastMemberSweep > 60_000) {
         lastMemberSweep = Date.now();
+        const left = await removeAgentsWithoutOwner();
+        if (left > 0) log(`${left} personal agent(s) left with their owner`);
         for (const room of await linkedBuzzRooms()) {
           try {
             await syncRoomChannel(room.roomId);

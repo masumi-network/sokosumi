@@ -413,6 +413,7 @@ import {
   markUserBadgeCampaignSeen as coreMarkUserBadgeCampaignSeen,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
+  patchBuzzOrganizationsByOrganizationId as corePatchBuzzOrganizationsByOrganizationId,
   patchChatsRoomsById as corePatchChatsRoomsById,
   patchChatsRoomsByIdMessagesByMessageId as corePatchChatsRoomsByIdMessagesByMessageId,
   patchCoworkersById as corePatchCoworkersById,
@@ -1027,6 +1028,23 @@ export function createCoreClient(getClient: GetCoreClient) {
       getClient,
       (client) => coreDeleteBuzzAppKey({ client, cache: "no-store" }),
       "Failed to unlink the Buzz app",
+    );
+  }
+
+  async function patchBuzzOrganization(
+    organizationId: string,
+    allowPersonalAgents: boolean,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchBuzzOrganizationsByOrganizationId({
+          client,
+          path: { organizationId },
+          body: { allowPersonalAgents },
+          cache: "no-store",
+        }),
+      "Failed to change Buzz settings",
     );
   }
 
@@ -7289,6 +7307,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postBuzzAppKey,
     deleteBuzzAppKey,
     postBuzzOrganization,
+    patchBuzzOrganization,
     getProjectsByIdNewsletterSendingDomain,
     putProjectsByIdNewsletterSendingDomain,
     deleteProjectsByIdNewsletterSendingDomain,

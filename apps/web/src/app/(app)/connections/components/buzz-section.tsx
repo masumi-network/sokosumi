@@ -7,6 +7,7 @@ import { buzzService } from "@/lib/services/buzz.service";
 import {
   BuzzAppLink,
   BuzzCopyField,
+  BuzzPersonalAgentsSwitch,
   BuzzSecretKey,
   BuzzSignIn,
   EnableBuzzButton,
@@ -104,6 +105,11 @@ export async function BuzzSection() {
               </p>
             </div>
             <BuzzCopyField label={t("relayUrl")} value={community.relayUrl} />
+            <BuzzPersonalAgentsSwitch
+              organizationId={community.organizationId}
+              allowed={community.allowPersonalAgents}
+              canManage={community.canManage}
+            />
           </Card>
         ))}
         {connection.canEnable.map((organization) => (

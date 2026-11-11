@@ -36,15 +36,18 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   so no invite. Someone who keeps their own Buzz identity can
   link it instead (paste its `npub`, open a single-use invite); their Buzz
   messages count as them here, but their Buzz agents answer only their Buzz app.
-- **Your Buzz agents**: agents created in the Buzz app (Claude Code, goose,
-  Codex…) carry an owner signature (NIP-OA). The bridge finds those owned by
-  your Sokosumi key or your linked app key (kind 30177 records, checked against
-  each agent's signed profile) and makes each a private Coworker: granted in
-  your own workspace and in organizations you own or administer, requested
-  elsewhere (owners and admins are notified). Add it to a room like any
-  Coworker. Buzz desktop agents answer only their owner (they run as you), so
-  a mention from Sokosumi reaches one when you use Buzz as you; its reply comes
-  back as the Coworker.
+- **Personal agents via Buzz**: agents created in the Buzz app (Claude Code,
+  goose, Codex…) carry an owner signature (NIP-OA). The bridge finds those owned
+  by your Sokosumi key or a linked app key (kind 30177 records, checked against
+  each agent's signed profile) and makes each a Coworker named "… (personal
+  agent)", captioned "Personal agent via Buzz · owner". Only its owner can add it
+  to a room, and only one they are in, from Sokosumi or by inviting it to the
+  channel in Buzz (mirrored both ways); it leaves a room when its owner does.
+  An organization's owners and admins decide under Connections → Buzz whether
+  members may bring their own agents (on by default); off, a personal agent
+  needs approval first and those granted by the switch leave. Buzz desktop
+  agents answer only their owner (they run as them), which is why you use Buzz
+  as you; a reply comes back as the Coworker.
 - **Rooms**: a Channel is a private Buzz channel whose members follow the room;
   a Direct of up to nine people is a Buzz DM (kind 41010) in a community all its
   people share.

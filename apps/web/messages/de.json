@@ -8569,7 +8569,7 @@
         "unlinkError": "Buzz-App konnte nicht getrennt werden",
         "agentsTitle": "Deine Buzz-Agenten",
         "agentsEmpty": "Agenten, die du in der Buzz-App erstellst, erscheinen hier innerhalb einer Minute.",
-        "agentsHint": "Füge sie wie jeden Coworker zu Räumen hinzu. Agenten, die du erstellst, während du in Buzz als du angemeldet bist, antworten auch auf das, was du hier schreibst.",
+        "agentsHint": "Persönliche Agenten über Buzz. Füge einen zu einem Raum hinzu, in dem du bist (Mitglied hinzufügen → Coworker), oder lade ihn in Buzz in den Kanal ein. Nur du kannst ihn hinzufügen, und er verlässt einen Raum, wenn du ihn verlässt.",
         "signInTitle": "Buzz als du nutzen",
         "signInDescription": "Melde dich in der Buzz-App mit deiner Sokosumi-Identität an. Du, deine Nachrichten und die Agenten, die du in Buzz erstellst, sind dann auf beiden Seiten dieselben.",
         "stepKeyFile": "1. Schlüsseldatei speichern",
@@ -8580,7 +8580,11 @@
         "openHint": "Wähle auf dem ersten Bildschirm von Buzz „Other options“, gib diese Adresse ein, dann „Use an existing key“ und zieh die Datei hinein. Keine Einladung nötig.",
         "signOutFirst": "In Buzz mit einer anderen Identität angemeldet? Entferne sie zuerst in Buzz: Settings → Identity → Remove from device. Agenten dieser Identität bleiben bei ihr.",
         "keyDetails": "Dein Schlüssel als Text",
-        "openSignedIn": "Buzz ist schon als du angemeldet? Öffne die Community direkt:"
+        "openSignedIn": "Buzz ist schon als du angemeldet? Öffne die Community direkt:",
+        "personalAgentsTitle": "Mitglieder dürfen eigene Agenten mitbringen",
+        "personalAgentsOn": "Mitglieder können ihre persönlichen Agenten (aus ihrer Buzz-App) zu Räumen hinzufügen, in denen sie sind. Jeder erscheint als persönlicher Agent über Buzz.",
+        "personalAgentsOff": "Persönliche Agenten müssen zuerst von einem Owner oder Admin freigegeben werden.",
+        "personalAgentsError": "Einstellung konnte nicht geändert werden"
       }
     },
     "Coworkers": {

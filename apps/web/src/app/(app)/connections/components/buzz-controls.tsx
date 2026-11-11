@@ -8,10 +8,12 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   enableBuzzForOrganization,
   linkBuzzApp,
   revealBuzzSecretKey,
+  setBuzzPersonalAgents,
   unlinkBuzzApp,
 } from "@/lib/actions/buzz/action";
 
@@ -323,6 +325,58 @@ export function BuzzAppLink({ app }: { app: BuzzConnection["app"] }) {
           {invites.length > 0 ? t("waiting") : t("waitingNoInvite")}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Whether members may bring their personal agents into this organization's
+ * rooms without approval. Owners and admins change it; others see it.
+ */
+export function BuzzPersonalAgentsSwitch({
+  organizationId,
+  allowed,
+  canManage,
+}: {
+  organizationId: string;
+  allowed: boolean;
+  canManage: boolean;
+}) {
+  const t = useTranslations("App.Connections.Buzz");
+  const router = useRouter();
+  const [checked, setChecked] = useState(allowed);
+  const [saving, setSaving] = useState(false);
+  const id = `buzz-personal-agents-${organizationId}`;
+  return (
+    <div className="flex items-start justify-between gap-3 border-t pt-3">
+      <div className="space-y-1">
+        <label htmlFor={id} className="text-sm font-medium">
+          {t("personalAgentsTitle")}
+        </label>
+        <p className="text-muted-foreground text-xs">
+          {checked ? t("personalAgentsOn") : t("personalAgentsOff")}
+        </p>
+      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        disabled={!canManage || saving}
+        onCheckedChange={async (next) => {
+          setChecked(next);
+          setSaving(true);
+          const result = await setBuzzPersonalAgents({
+            organizationId,
+            allowPersonalAgents: next,
+          });
+          setSaving(false);
+          if (result.ok) {
+            router.refresh();
+          } else {
+            setChecked(!next);
+            toast.error(result.error.message);
+          }
+        }}
+      />
     </div>
   );
 }
