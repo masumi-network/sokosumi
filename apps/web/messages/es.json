@@ -11054,7 +11054,7 @@
         "trendNotRequested": "No se leyó en la última sincronización. Hasta 25 palabras clave seguidas reciben posiciones diarias.",
         "trendLabel": "Posición media de «{keyword}»",
         "trendNoImpressions": "Sin impresiones",
-        "summary": "En los resultados de Google para {found} de {read, plural, one {# palabra clave comprobada} other {# palabras clave comprobadas}}",
+        "summary": "En los primeros resultados de Google para {found} de {read, plural, one {# palabra clave comprobada} other {# palabras clave comprobadas}}",
         "firstPage": "{count} en la primera página",
         "more": "{count, plural, one {Mostrar # palabra clave más} other {Mostrar # palabras clave más}}",
         "ideas": {
@@ -11498,8 +11498,8 @@
           "keyword": "Search Console aún no muestra búsquedas de «{keyword}» para {pages, plural, one {tu página} other {tus páginas}}. El agente puede preparar un plan para que aparezcas en esa búsqueda.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas.",
           "pagesOff": "Esta auditoría cubre 1 página. Añade tus otras páginas importantes para ver también sus búsquedas.",
-          "measure": "Sugerencia: {name} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes.",
-          "measureOnPage": "Sugerencia: {name} en {url} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. El agente puede preparar un cambio para que lo apruebes.",
+          "measure": "Sugerencia: {name} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}.",
+          "measureOnPage": "Sugerencia: {name} en {url} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}.",
           "strategy": "La auditoría del sitio recomienda {count, plural, one {# acción} other {# acciones}} de la estrategia de palabras clave. La primera: {title}."
         },
         "prompts": {
@@ -11655,7 +11655,7 @@
         "issues": "Problemas",
         "issuesNone": "Ninguno encontrado",
         "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {{count, plural, one {importante} other {importantes}}} other {{count, plural, one {menor} other {menores}}}}",
-        "keywords": "Palabras clave encontradas en Google",
+        "keywords": "Palabras clave en los primeros resultados de Google",
         "of": "de {total}",
         "searches": "Búsquedas de tus palabras clave",
         "searchesFor": "{same, select, yes {Para {of, plural, one {la palabra clave comprobada} other {las # palabras clave comprobadas}}} other {Para {keywords} de {of} palabras clave comprobadas}}",

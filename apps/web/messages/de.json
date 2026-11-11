@@ -11054,7 +11054,7 @@
         "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 25 verfolgte Keywords erhalten tägliche Positionen.",
         "trendLabel": "Durchschnittliche Position für „{keyword}“",
         "trendNoImpressions": "Keine Impressionen",
-        "summary": "In den Google-Ergebnissen für {found} von {read, plural, one {# geprüftem Keyword} other {# geprüften Keywords}} gefunden",
+        "summary": "In den ersten Google-Ergebnissen für {found} von {read, plural, one {# geprüftem Keyword} other {# geprüften Keywords}}",
         "firstPage": "{count} auf der ersten Seite",
         "more": "{count, plural, one {# weiteres Keyword anzeigen} other {# weitere Keywords anzeigen}}",
         "ideas": {
@@ -11498,8 +11498,8 @@
           "keyword": "Search Console listet noch keine Suchen nach „{keyword}“ für {pages, plural, one {deine Seite} other {deine Seiten}}. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden.",
           "pagesOff": "Dieses Audit umfasst 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um auch ihre Suchanfragen zu sehen.",
-          "measure": "Vorschlag: {name} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst.",
-          "measureOnPage": "Vorschlag: {name} auf {url} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst.",
+          "measure": "Vorschlag: {name} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}.",
+          "measureOnPage": "Vorschlag: {name} auf {url} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}.",
           "strategy": "Das Website-Audit empfiehlt {count, plural, one {# Aktion} other {# Aktionen}} aus der Keyword-Strategie. Die erste: {title}."
         },
         "prompts": {
@@ -11655,7 +11655,7 @@
         "issues": "Probleme",
         "issuesNone": "Keine gefunden",
         "severityCount": "{count} {severity, select, critical {kritisch} major {schwerwiegend} other {gering}}",
-        "keywords": "Keywords bei Google gefunden",
+        "keywords": "Keywords in den ersten Google-Ergebnissen",
         "of": "von {total}",
         "searches": "Suchen nach deinen Keywords",
         "searchesFor": "{same, select, yes {Für {of, plural, one {das geprüfte Keyword} other {die # geprüften Keywords}}} other {Für {keywords} von {of} geprüften Keywords}}",

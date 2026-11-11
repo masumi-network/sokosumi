@@ -325,7 +325,7 @@ describe("SEO workspace integration", () => {
       // A test name reads like a pass.
       title: "Markup matches the visible page",
       severity: "major",
-      evidence: ["The markup says 6.99, the page shows 9.99."],
+      evidence: ["The markup says 6.99, the page shows 9.99. (prices in USD)"],
       sourceRef: "html:head",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
@@ -388,6 +388,8 @@ describe("SEO workspace integration", () => {
         "Not passed: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
       ),
     ).toBeVisible();
+    // The rule's footnote is on the card too; the open card shows it.
+    expect(within(card!).getByText("(prices in USD)")).toBeInTheDocument();
     expect(
       within(card!).getByText("Expected effect: One price."),
     ).not.toBeVisible();
@@ -3171,7 +3173,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     expect(
       await screen.findByText(
-        "Suggestion: Meta description length is 163 characters, outside the range of Ahrefs. The agent can draft a change for you to approve.",
+        "Suggestion: Meta description length is 163 characters, outside the range of Ahrefs.",
       ),
     ).toBeVisible();
     // The verdict counts it as a suggestion, so a passed check does not read as broken.

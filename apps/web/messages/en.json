@@ -11054,7 +11054,7 @@
         "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
         "trendLabel": "Average position for “{keyword}”",
         "trendNoImpressions": "No impressions",
-        "summary": "Found in Google's results for {found} of {read, plural, one {# checked keyword} other {# checked keywords}}",
+        "summary": "In Google's top results for {found} of {read, plural, one {# checked keyword} other {# checked keywords}}",
         "firstPage": "{count} on the first page",
         "more": "{count, plural, one {Show # more keyword} other {Show # more keywords}}",
         "ideas": {
@@ -11498,8 +11498,8 @@
           "keyword": "Search Console lists no searches for “{keyword}” on {pages, plural, one {your page} other {your pages}} yet. The agent can draft a plan to rank for it.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches.",
           "pagesOff": "This audit covers 1 page. Add your other important pages to see their searches too.",
-          "measure": "Suggestion: {name} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve.",
-          "measureOnPage": "Suggestion: {name} on {url} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. The agent can draft a change for you to approve.",
+          "measure": "Suggestion: {name} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}.",
+          "measureOnPage": "Suggestion: {name} on {url} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}.",
           "strategy": "The site audit recommends {count, plural, one {# action} other {# actions}} from the keyword strategy. The first: {title}."
         },
         "prompts": {
@@ -11655,7 +11655,7 @@
         "issues": "Issues",
         "issuesNone": "None found",
         "severityCount": "{count} {severity, select, critical {critical} major {major} other {minor}}",
-        "keywords": "Keywords found in Google",
+        "keywords": "Keywords in Google's top results",
         "of": "of {total}",
         "searches": "Searches for your keywords",
         "searchesFor": "{same, select, yes {For the {of, plural, one {checked keyword} other {# checked keywords}}} other {For {keywords} of {of} checked keywords}}",

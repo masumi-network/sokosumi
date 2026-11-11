@@ -90,6 +90,12 @@ export function SeoActionCard({
               found: problem.found,
             })
           : action.expectedEffect}
+        {problem?.footnote ? (
+          <span className="hidden group-has-[details[open]]:inline">
+            {" "}
+            {problem.footnote}
+          </span>
+        ) : null}
       </p>
       <SeoPageLink url={action.pageUrl} />
       <details className="text-sm">

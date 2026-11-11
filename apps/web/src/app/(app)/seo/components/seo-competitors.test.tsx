@@ -1,6 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -265,17 +265,21 @@ describe("SEO competitor baselines", () => {
     }));
     renderWorkspace(workspace);
     // The chosen competitor leads, so it never hides behind "Show more".
-    expect(screen.getByText("https://rival-11.example/")).toBeVisible();
-    expect(screen.getByText("https://rival-8.example/")).toBeVisible();
-    expect(screen.queryByText("https://rival-9.example/")).toBeNull();
+    expect(screen.getByText("rival-11.example")).toBeVisible();
+    expect(screen.getByText("rival-8.example")).toBeVisible();
+    expect(screen.queryByText("rival-9.example")).toBeNull();
     expect(
       screen.getByRole("columnheader", { name: "Backlinks" }),
     ).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Show 2 more sites" }));
-    expect(screen.getByText("https://rival-10.example/")).toBeVisible();
+    expect(screen.getByText("rival-10.example")).toBeVisible();
     expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
     // A search with no match does not say that there are no competitors.
     await user.type(screen.getByRole("searchbox", { name: "Search" }), "zzz");
+    // No site matches now: the box stays, with the text in it.
+    expect(screen.getByRole("searchbox", { name: "Search" })).toHaveValue(
+      "zzz",
+    );
     expect(screen.getByText("No competitor matches this search")).toBeVisible();
     expect(screen.queryByText("No competitors yet")).toBeNull();
   });
@@ -318,7 +322,7 @@ describe("SEO competitor baselines", () => {
     workspace.competitors = [
       {
         id: "saved-competitor",
-        url: "https://competitor.example/",
+        url: "https://competitor.example/guides/keep-it.plugged",
         role: "competitor",
         confirmed: true,
         source: "saved",
@@ -338,16 +342,17 @@ describe("SEO competitor baselines", () => {
     );
     renderWorkspace(workspace);
     // Confirmed is the default row; a badge would repeat on every row.
-    expect(screen.getByText("https://competitor.example/")).toBeVisible();
+    expect(screen.getByText("competitor.example")).toBeVisible();
     expect(screen.queryByText("Confirmed competitor")).toBeNull();
     expect(screen.queryByText("From the search results")).toBeNull();
-    // The address may wrap after "." or "/", never inside "//"; its name stays whole.
+    // The site is the row's first line, so the page under it shows as its path; the link's name stays the whole address.
     const link = screen.getByRole("link", {
-      name: "https://competitor.example/",
+      name: "https://competitor.example/guides/keep-it.plugged",
     });
-    expect(link.querySelectorAll("wbr")).toHaveLength(2);
-    expect(link.innerHTML).not.toContain("/<wbr>/");
-    expect(link.innerHTML).toContain("competitor.<wbr>example/");
+    expect(link).toHaveTextContent(/^\/guides\/keep-it\.plugged$/);
+    // The path may wrap after "." or "/".
+    expect(link.innerHTML).toContain("guides/<wbr>");
+    expect(link.innerHTML).toContain("keep-it.<wbr>plugged");
   });
 
   it("shows one row per site, and video sites and forums apart", async () => {
@@ -401,9 +406,20 @@ describe("SEO competitor baselines", () => {
       name: "https://www.youtube.com/watch?v=1",
     });
     expect(platform).not.toBeVisible();
+    // A whole address may wrap after "." or "/", never inside "//".
+    expect(platform.innerHTML).not.toContain("/<wbr>/");
+    expect(platform.innerHTML).toContain("youtube.<wbr>com/");
     await user.click(screen.getByText("Other sites in the results (1)"));
     expect(platform).toBeVisible();
     expect(screen.getByText("Position 1 · 900 linking sites")).toBeVisible();
+    // Every site is in view, so there is nothing to filter: 12 pages of 2 sites show no filter box.
+    workspace.competitors = Array.from({ length: 12 }, (_, index) =>
+      found(`https://rival-${index % 2}.example/${index}`, index + 1, 1),
+    );
+    cleanup();
+    renderWorkspace(workspace);
+    expect(screen.getAllByRole("row").slice(1)).toHaveLength(2);
+    expect(screen.queryByRole("searchbox")).toBeNull();
   });
 
   it("marks a found site only in a list that also holds a chosen one", () => {

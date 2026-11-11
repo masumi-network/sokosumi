@@ -113,15 +113,23 @@ export function SeoSection({
 }) {
   return (
     <section className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}>
-      <div className="flex flex-wrap items-start justify-between gap-2 px-2 pt-1">
-        {/* Below 14rem beside the actions, the title and its text take their own row. */}
-        <div className="min-w-0 flex-1 basis-56 space-y-0.5">
-          <h2 className="text-sm font-semibold">{title}</h2>
-          {description ? (
-            <p className="text-muted-foreground text-sm">{description}</p>
-          ) : null}
+      <div className="space-y-0.5 px-2 pt-1">
+        {/* The button stands on the line of the title, on a phone too: a row of its own pushed the list down. */}
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          {/* Beside a button the title takes the button's height, so the two share a middle line; taller controls start at the title. */}
+          <h2
+            className={cn(
+              "min-w-0 text-sm font-semibold",
+              actions && "leading-8",
+            )}
+          >
+            {title}
+          </h2>
+          {actions}
         </div>
-        {actions}
+        {description ? (
+          <p className="text-muted-foreground text-sm">{description}</p>
+        ) : null}
       </div>
       {children}
     </section>

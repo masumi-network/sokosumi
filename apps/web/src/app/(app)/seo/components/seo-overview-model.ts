@@ -89,8 +89,28 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
       action.findingIds.some((id) => issue.findingIds.includes(id)),
     );
     // A line of white space only says nothing.
-    const found = issue?.evidence.find((line) => line.trim());
-    return issue && found ? { check: checkName(issue.title), found } : null;
+    const line = issue?.evidence.find((line) => line.trim());
+    if (!issue || !line) return null;
+    // A bracket that ends the line is the rule's footnote: the card shows it with the details.
+    // The footnote can hold brackets of its own, so the cut is at the bracket that the last one closes.
+    let open = -1;
+    if (line.endsWith(")")) {
+      let depth = 0;
+      for (let at = line.length - 1; at >= 0 && open < 0; at--) {
+        if (line[at] === ")") depth++;
+        else if (line[at] === "(" && --depth === 0) open = at;
+      }
+    }
+    // A bracket with no space before it belongs to its word; a line that is a bracket alone stays whole.
+    const cut =
+      open > 0 && line[open - 1] === " " && line.slice(0, open).trim()
+        ? open - 1
+        : line.length;
+    return {
+      check: checkName(issue.title),
+      found: line.slice(0, cut),
+      footnote: line.slice(cut + 1) || null,
+    };
   };
   const fixOf = (issue: { findingIds: string[] }) =>
     actions.find((action) =>

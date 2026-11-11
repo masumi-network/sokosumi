@@ -29,7 +29,6 @@ import {
 import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
-  SEO_SEARCH_MIN_ROWS,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -109,8 +108,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         ) : null
       }
     >
-      {model.data.competitors.length >= SEO_SEARCH_MIN_ROWS ||
-      model.competitorSearch ? (
+      {/* A list that shows every site needs no filter. */}
+      {sites.length > SEO_LIST_PAGE_SIZE || model.competitorSearch ? (
         <div className="px-2 pb-3">
           <Label htmlFor="seo-competitor-search" className="sr-only">
             {t("search")}
@@ -224,7 +223,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       <p className="font-medium [overflow-wrap:anywhere]">
                         {host}
                       </p>
-                      <SeoPageLink url={row.url} />
+                      {/* The site is the line above: the page shows as its path. */}
+                      <SeoPageLink url={row.url} site={row.url} />
                       {mixed && !chosen(row) ? (
                         <div className="mt-1">
                           <SeoState>{t("competitors.suggested")}</SeoState>
@@ -245,7 +245,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                           <ul className="space-y-1 pb-1">
                             {pages.slice(1).map((page) => (
                               <li key={page.id}>
-                                <SeoPageLink url={page.url} />
+                                <SeoPageLink url={page.url} site={page.url} />
                                 {facts(page) ? (
                                   <p className="text-xs tabular-nums">
                                     {facts(page)}

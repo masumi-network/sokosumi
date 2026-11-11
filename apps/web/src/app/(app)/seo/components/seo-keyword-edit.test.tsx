@@ -528,7 +528,7 @@ describe("Keywords after a check", () => {
     ];
     renderWorkspace(workspace);
     expect(
-      screen.getByText("Found in Google's results for 0 of 1 checked keyword"),
+      screen.getByText("In Google's top results for 0 of 1 checked keyword"),
     ).toBeVisible();
     expect(screen.getAllByText("battery app")).toHaveLength(1);
     // No keyword shows a page: the result line says so once, with how deep the check read.
@@ -676,9 +676,7 @@ describe("Keywords after a check", () => {
     await user.type(search, "read 10");
     expect(screen.queryByText("read 9")).toBeNull();
     expect(
-      screen.getByText(
-        "Found in Google's results for 11 of 11 checked keywords",
-      ),
+      screen.getByText("In Google's top results for 11 of 11 checked keywords"),
     ).toBeVisible();
     // A search without a match says so; it does not ask for a first check.
     await user.clear(search);
@@ -879,7 +877,7 @@ describe("Search Console queries", () => {
     expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
     expect(screen.queryByText(/the check read the first/)).toBeNull();
     expect(
-      screen.getByText("Found in Google's results for 0 of 1 checked keyword"),
+      screen.getByText("In Google's top results for 0 of 1 checked keyword"),
     ).toBeVisible();
     cleanup();
     // The tracking sentence stands over rows with a Track button: without a row it has no place.

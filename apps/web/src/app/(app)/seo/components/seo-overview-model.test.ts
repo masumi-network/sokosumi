@@ -125,8 +125,36 @@ describe("SEO overview relevance", () => {
     expect(actionProblem(action("both", ["minor", "critical"]))).toEqual({
       check: "Indexable",
       found: "the raw HTML has a noindex",
+      footnote: null,
     });
     expect(actionProblem(action("silent", ["silent"]))).toBeNull();
+    // Only a bracket that ends the line is a footnote; one inside the sentence stays in it.
+    const lines = (evidence: string) => {
+      workspace.findings = [
+        { ...finding("one", "minor"), evidence: [evidence] },
+      ];
+      const { found, footnote } =
+        seoOverviewModel(workspace).actionProblem(action("a", ["one"])) ?? {};
+      return [found, footnote];
+    };
+    expect(lines("no download link among 17 controls (words in en)")).toEqual([
+      "no download link among 17 controls",
+      "(words in en)",
+    ]);
+    expect(lines("title (56 characters) is long")).toEqual([
+      "title (56 characters) is long",
+      null,
+    ]);
+    // A footnote can hold brackets of its own; a bracket on a word is no footnote.
+    expect(lines("calls f(x) (twice (or more))")).toEqual([
+      "calls f(x)",
+      "(twice (or more))",
+    ]);
+    expect(lines("the page calls f(x)")).toEqual(["the page calls f(x)", null]);
+    expect(lines("(all of it)")).toEqual(["(all of it)", null]);
+    expect(lines("3 links (so far")).toEqual(["3 links (so far", null]);
+    // A line that is a bracket alone keeps its words in view.
+    expect(lines("  (only a note)")).toEqual(["  (only a note)", null]);
     expect(actionProblem(action("search-only", []))).toBeNull();
   });
 
