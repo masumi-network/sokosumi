@@ -72,7 +72,7 @@ const env = Object.fromEntries(
     ]),
 );
 console.log(`\nAdd to apps/core/.env (see scripts/buzz-local/README.md):
-BUZZ_RELAY_URL=${env.RELAY_URL}
+BUZZ_COMMUNITY_URL_TEMPLATE=${env.RELAY_URL}
 BUZZ_OPERATOR_SECRET_KEY=<SOKOSUMI_BUZZ_OPERATOR_SECRET_KEY from scripts/buzz-local/.env>
 BUZZ_KEY_ENCRYPTION_SECRET=<any 32+ character secret>
 DATABASE_URL=postgresql://sokosumi:<SOKOSUMI_DB_PASSWORD>@localhost:${env.SOKOSUMI_DB_PORT}/sokosumi`);

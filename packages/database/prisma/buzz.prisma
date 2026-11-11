@@ -83,6 +83,9 @@ model BuzzMessageLink {
   /// sha256 of the content last on Buzz; a differing message is sent as an edit.
   contentHash String
   deleted     Boolean         @default(false)
+  /// `created_at` (unix seconds) of the newest edit applied, either way; an
+  /// older edit replayed later is ignored.
+  lastEditAt  Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 

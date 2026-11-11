@@ -19,6 +19,7 @@ import {
   type CoreRequest,
   drainBuzzOutbox,
   enableBuzzForOrganization,
+  linkedBuzzRooms,
   syncRoomChannel,
   unlinkedBuzzRooms,
 } from "@/services/buzz-bridge.service";
@@ -111,14 +112,14 @@ async function run() {
     string,
     { key: string; subscription: RelaySubscription }
   >();
-  // Inbound events are applied one at a time, in arrival order.
+  // Inbound events are applied one at a time, in arrival order. One that
+  // fails (Core down, rate limited) is retried with backoff; `seen` holds only
+  // events that are done or queued.
   let inbound = Promise.resolve();
   const seen = new Set<string>();
+  const MAX_ATTEMPTS = 6;
 
-  const onEvent = (event: Event) => {
-    if (seen.has(event.id)) return;
-    seen.add(event.id);
-    if (seen.size > 50_000) seen.clear();
+  const apply = (event: Event, attempt: number) => {
     inbound = inbound.then(async () => {
       try {
         const result = await applyInboundEvent(event, core);
@@ -126,12 +127,26 @@ async function run() {
           log(`in  kind ${event.kind} ${event.id.slice(0, 8)} → ${result}`);
         }
       } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        if (attempt + 1 >= MAX_ATTEMPTS) {
+          log(`in  kind ${event.kind} ${event.id.slice(0, 8)} gave up`, reason);
+          return;
+        }
+        const delay = 2_000 * 2 ** attempt;
         log(
-          `in  kind ${event.kind} ${event.id.slice(0, 8)} failed`,
-          error instanceof Error ? error.message : error,
+          `in  kind ${event.kind} ${event.id.slice(0, 8)} failed, retry in ${delay / 1000}s`,
+          reason,
         );
+        setTimeout(() => apply(event, attempt + 1), delay);
       }
     });
+  };
+
+  const onEvent = (event: Event) => {
+    if (seen.has(event.id)) return;
+    seen.add(event.id);
+    if (seen.size > 50_000) seen.clear();
+    apply(event, 0);
   };
 
   async function refreshSubscriptions() {
@@ -181,6 +196,7 @@ async function run() {
   process.on("SIGTERM", stop);
 
   let lastRoomSweep = 0;
+  let lastMemberSweep = 0;
   while (!stopping) {
     try {
       if (Date.now() - lastRoomSweep > 30_000) {
@@ -188,6 +204,21 @@ async function run() {
         for (const room of await unlinkedBuzzRooms()) {
           await syncRoomChannel(room.id);
           log(`out room ${room.id.slice(0, 8)} → channel`);
+        }
+      }
+      // Members can change with no message to carry it (someone leaves the
+      // organization). Cheap when nothing changed: a hash compare per room.
+      if (Date.now() - lastMemberSweep > 60_000) {
+        lastMemberSweep = Date.now();
+        for (const room of await linkedBuzzRooms()) {
+          try {
+            await syncRoomChannel(room.roomId);
+          } catch (error) {
+            log(
+              `out room ${room.roomId.slice(0, 8)} member sync failed`,
+              error instanceof Error ? error.message : error,
+            );
+          }
         }
       }
       for (const outcome of await drainBuzzOutbox()) {

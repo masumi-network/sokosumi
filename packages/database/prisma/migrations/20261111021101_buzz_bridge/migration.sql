@@ -53,6 +53,7 @@ CREATE TABLE "buzz_message_link" (
     "eventId" TEXT NOT NULL,
     "contentHash" TEXT NOT NULL,
     "deleted" BOOLEAN NOT NULL DEFAULT false,
+    "lastEditAt" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

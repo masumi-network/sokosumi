@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { BuzzIdentity } from "@sokosumi/database";
 import { npubEncode, nsecEncode } from "nostr-tools/nip19";
 import type { Event } from "nostr-tools/pure";
-import { generateSecretKey, getPublicKey } from "nostr-tools/pure";
+import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
 
 import { getEnv } from "@/config/env";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -100,6 +100,24 @@ async function publish(
   const event = signEvent(draft, secretKey);
   await publishSignedEvent({ relayUrl, event, secretKey });
   return event;
+}
+
+/**
+ * Records a change as known (so its echo is recognised), then does it; if it
+ * fails, the record is undone so the next attempt does it again.
+ */
+async function markThenDo<T>(
+  mark: () => Promise<unknown>,
+  work: () => Promise<T>,
+  unmark: () => Promise<unknown>,
+): Promise<T> {
+  await mark();
+  try {
+    return await work();
+  } catch (error) {
+    await unmark();
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------- identities
@@ -574,13 +592,16 @@ export async function reconcileMessage(
   if (!link) {
     if (message.deletedAt) return "skipped";
     if (message.clientMessageId?.startsWith("buzz:")) {
-      // Posted from Buzz: the event already exists.
-      link = await prisma.buzzMessageLink.create({
-        data: {
+      // Posted from Buzz: the event already exists. Inbound usually linked
+      // it already; this covers a worker that stopped in between.
+      link = await prisma.buzzMessageLink.upsert({
+        where: { messageId: message.id },
+        create: {
           messageId: message.id,
           eventId: message.clientMessageId.slice("buzz:".length),
           contentHash: hash,
         },
+        update: {},
       });
       result = "linked";
     } else {
@@ -629,39 +650,52 @@ export async function reconcileMessage(
       result = "published";
     }
   } else if (message.deletedAt && !link.deleted) {
-    await prisma.buzzMessageLink.update({
-      where: { messageId: message.id },
-      data: { deleted: true },
-    });
-    await publish(
-      relayUrl,
-      authorKey,
-      deletionDraft({ channelId: channel.channelId, eventId: link.eventId }),
+    const eventId = link.eventId;
+    await markThenDo(
+      () =>
+        prisma.buzzMessageLink.update({
+          where: { messageId: message.id },
+          data: { deleted: true },
+        }),
+      () =>
+        publish(
+          relayUrl,
+          authorKey,
+          deletionDraft({ channelId: channel.channelId, eventId }),
+        ),
+      () =>
+        prisma.buzzMessageLink.update({
+          where: { messageId: message.id },
+          data: { deleted: false },
+        }),
     );
     return "deleted";
   } else if (!message.deletedAt && link.contentHash !== hash) {
-    const previous = link.contentHash;
-    await prisma.buzzMessageLink.update({
-      where: { messageId: message.id },
-      data: { contentHash: hash },
-    });
-    try {
-      await publish(
-        relayUrl,
-        authorKey,
-        editDraft({
-          channelId: channel.channelId,
-          eventId: link.eventId,
-          content: message.content,
+    const previous = link;
+    const event = signEvent(
+      editDraft({
+        channelId: channel.channelId,
+        eventId: link.eventId,
+        content: message.content,
+      }),
+      authorKey,
+    );
+    await markThenDo(
+      () =>
+        prisma.buzzMessageLink.update({
+          where: { messageId: message.id },
+          data: { contentHash: hash, lastEditAt: event.created_at },
         }),
-      );
-    } catch (error) {
-      await prisma.buzzMessageLink.update({
-        where: { messageId: message.id },
-        data: { contentHash: previous },
-      });
-      throw error;
-    }
+      () => publishSignedEvent({ relayUrl, event, secretKey: authorKey }),
+      () =>
+        prisma.buzzMessageLink.update({
+          where: { messageId: message.id },
+          data: {
+            contentHash: previous.contentHash,
+            lastEditAt: previous.lastEditAt,
+          },
+        }),
+    );
     result = "edited";
   }
 
@@ -731,33 +765,49 @@ async function reconcileReactions(input: {
       }),
       secretKey,
     );
+    let linkId: string;
     try {
-      await prisma.buzzReactionLink.create({
-        data: {
-          messageId: input.messageId,
-          identityId: identity.id,
-          emoji: reaction.emoji,
-          eventId: event.id,
-        },
-      });
+      linkId = (
+        await prisma.buzzReactionLink.create({
+          data: {
+            messageId: input.messageId,
+            identityId: identity.id,
+            emoji: reaction.emoji,
+            eventId: event.id,
+          },
+        })
+      ).id;
     } catch (error) {
       if (isPrismaUniqueViolation(error)) continue;
       throw error;
     }
-    await publishSignedEvent({
-      relayUrl: input.relayUrl,
-      event,
-      secretKey,
-    });
+    await markThenDo(
+      async () => {},
+      () => publishSignedEvent({ relayUrl: input.relayUrl, event, secretKey }),
+      () => prisma.buzzReactionLink.delete({ where: { id: linkId } }),
+    );
   }
 
   for (const link of links) {
     if (wanted.has(`${link.identity.userId}\n${link.emoji}`)) continue;
-    await prisma.buzzReactionLink.delete({ where: { id: link.id } });
-    await publish(
-      input.relayUrl,
-      identitySecretKey(link.identity),
-      deletionDraft({ channelId: input.channelId, eventId: link.eventId }),
+    await markThenDo(
+      () => prisma.buzzReactionLink.delete({ where: { id: link.id } }),
+      () =>
+        publish(
+          input.relayUrl,
+          identitySecretKey(link.identity),
+          deletionDraft({ channelId: input.channelId, eventId: link.eventId }),
+        ),
+      () =>
+        prisma.buzzReactionLink.create({
+          data: {
+            id: link.id,
+            messageId: link.messageId,
+            identityId: link.identityId,
+            emoji: link.emoji,
+            eventId: link.eventId,
+          },
+        }),
     );
   }
 }
@@ -891,6 +941,9 @@ export async function applyInboundEvent(
   core: CoreRequest,
 ): Promise<InboundResult> {
   const config = requireConfig();
+  // The relay checks signatures too; a bridge that acts as people does not
+  // take that on trust.
+  if (!verifyEvent(event)) return "ignored";
   if (event.pubkey === config.operatorPubkey) return "echo";
   const channelId = channelIdOf(event);
   const change = readInbound(event);
@@ -950,12 +1003,13 @@ export async function applyInboundEvent(
       const content = readableContent(change.content, (pubkey) =>
         names.get(pubkey),
       );
-      await sendAs(core, author, {
+      const clientMessageId = `buzz:${event.id}`;
+      const response = await sendAs(core, author, {
         method: "POST",
         path: `/v1/chats/rooms/${channel.roomId}/messages`,
         body: {
           content,
-          clientMessageId: `buzz:${event.id}`,
+          clientMessageId,
           ...(parentMessageId ? { parentMessageId } : {}),
           mentionedUserIds: mentioned.flatMap((m) =>
             m.userId ? [m.userId] : [],
@@ -968,6 +1022,30 @@ export async function applyInboundEvent(
           ),
         },
       });
+      // Link now, not when the outbox settles: a reply, edit or reaction to
+      // this message may be the very next event.
+      const created = (response.body as { data?: { id?: unknown } } | null)
+        ?.data?.id;
+      const messageId =
+        typeof created === "string"
+          ? created
+          : (
+              await prisma.chatRoomMessage.findFirst({
+                where: { roomId: channel.roomId, clientMessageId },
+                select: { id: true },
+              })
+            )?.id;
+      if (messageId) {
+        await prisma.buzzMessageLink.upsert({
+          where: { messageId },
+          create: {
+            messageId,
+            eventId: event.id,
+            contentHash: contentHash(content),
+          },
+          update: {},
+        });
+      }
       return "posted";
     }
     case "edit": {
@@ -976,21 +1054,36 @@ export async function applyInboundEvent(
         select: {
           messageId: true,
           contentHash: true,
+          lastEditAt: true,
           message: { select: { roomId: true } },
         },
       });
       if (!link) return "ignored";
       const hash = contentHash(change.content);
       if (link.contentHash === hash) return "echo";
-      await prisma.buzzMessageLink.update({
-        where: { messageId: link.messageId },
-        data: { contentHash: hash },
-      });
-      await sendAs(core, author, {
-        method: "PATCH",
-        path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}`,
-        body: { content: change.content },
-      });
+      // A replayed or late edit must not undo a newer one.
+      if (event.created_at <= link.lastEditAt) return "echo";
+      await markThenDo(
+        () =>
+          prisma.buzzMessageLink.update({
+            where: { messageId: link.messageId },
+            data: { contentHash: hash, lastEditAt: event.created_at },
+          }),
+        () =>
+          sendAs(core, author, {
+            method: "PATCH",
+            path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}`,
+            body: { content: change.content },
+          }),
+        () =>
+          prisma.buzzMessageLink.update({
+            where: { messageId: link.messageId },
+            data: {
+              contentHash: link.contentHash,
+              lastEditAt: link.lastEditAt,
+            },
+          }),
+      );
       return "edited";
     }
     case "delete": {
@@ -1006,14 +1099,23 @@ export async function applyInboundEvent(
         });
         if (messageLink) {
           if (messageLink.deleted) continue;
-          await prisma.buzzMessageLink.update({
-            where: { messageId: messageLink.messageId },
-            data: { deleted: true },
-          });
-          await sendAs(core, author, {
-            method: "DELETE",
-            path: `/v1/chats/rooms/${messageLink.message.roomId}/messages/${messageLink.messageId}`,
-          });
+          await markThenDo(
+            () =>
+              prisma.buzzMessageLink.update({
+                where: { messageId: messageLink.messageId },
+                data: { deleted: true },
+              }),
+            () =>
+              sendAs(core, author, {
+                method: "DELETE",
+                path: `/v1/chats/rooms/${messageLink.message.roomId}/messages/${messageLink.messageId}`,
+              }),
+            () =>
+              prisma.buzzMessageLink.update({
+                where: { messageId: messageLink.messageId },
+                data: { deleted: false },
+              }),
+          );
           result = "deleted";
           continue;
         }
@@ -1025,14 +1127,22 @@ export async function applyInboundEvent(
           where: { id: reactionLink.messageId },
           select: { roomId: true },
         });
-        await prisma.buzzReactionLink.delete({
-          where: { id: reactionLink.id },
-        });
-        if (!message) continue;
-        await sendAs(core, author, {
-          method: "DELETE",
-          path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
-        });
+        if (!message) {
+          await prisma.buzzReactionLink.delete({
+            where: { id: reactionLink.id },
+          });
+          continue;
+        }
+        await markThenDo(
+          () =>
+            prisma.buzzReactionLink.delete({ where: { id: reactionLink.id } }),
+          () =>
+            sendAs(core, author, {
+              method: "DELETE",
+              path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
+            }),
+          () => prisma.buzzReactionLink.create({ data: reactionLink }),
+        );
         result = "unreacted";
       }
       return result;
@@ -1043,23 +1153,31 @@ export async function applyInboundEvent(
         select: { messageId: true, message: { select: { roomId: true } } },
       });
       if (!link) return "ignored";
+      let reactionLinkId: string;
       try {
-        await prisma.buzzReactionLink.create({
-          data: {
-            messageId: link.messageId,
-            identityId: author.id,
-            emoji: change.emoji,
-            eventId: event.id,
-          },
-        });
+        reactionLinkId = (
+          await prisma.buzzReactionLink.create({
+            data: {
+              messageId: link.messageId,
+              identityId: author.id,
+              emoji: change.emoji,
+              eventId: event.id,
+            },
+          })
+        ).id;
       } catch (error) {
         if (isPrismaUniqueViolation(error)) return "echo";
         throw error;
       }
-      await sendAs(core, author, {
-        method: "PUT",
-        path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,
-      });
+      await markThenDo(
+        async () => {},
+        () =>
+          sendAs(core, author, {
+            method: "PUT",
+            path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,
+          }),
+        () => prisma.buzzReactionLink.delete({ where: { id: reactionLinkId } }),
+      );
       return "reacted";
     }
   }
@@ -1079,6 +1197,14 @@ export async function buzzSubscriptions() {
     relayUrl: community.relayUrl,
     channelIds: community.channels.map((channel) => channel.channelId),
   }));
+}
+
+/**
+ * Every linked room, for the worker's periodic member check: a membership can
+ * change (someone leaves the organization) without any message to carry it.
+ */
+export async function linkedBuzzRooms() {
+  return prisma.buzzChannel.findMany({ select: { roomId: true } });
 }
 
 /** Rooms of Buzz organizations that have no channel yet. */

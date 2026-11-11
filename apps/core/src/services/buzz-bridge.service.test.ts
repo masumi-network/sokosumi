@@ -1,4 +1,8 @@
-import { getPublicKey } from "nostr-tools/pure";
+import {
+  finalizeEvent,
+  generateSecretKey,
+  getPublicKey,
+} from "nostr-tools/pure";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const OPERATOR_KEY = "1".repeat(64);
@@ -14,6 +18,7 @@ const db = vi.hoisted(() => {
     findMany: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    upsert: vi.fn(),
     updateMany: vi.fn(),
     delete: vi.fn(),
     deleteMany: vi.fn(),
@@ -41,29 +46,26 @@ import {
 } from "./buzz-bridge.service";
 
 const CHANNEL = "6f7c1b2e-0000-4000-8000-000000000001";
-const BOB_PUBKEY = "b".repeat(64);
+const BOB_KEY = generateSecretKey();
+const BOB_PUBKEY = getPublicKey(BOB_KEY);
 const BOT_PUBKEY = "c".repeat(64);
 const SECRET = "s".repeat(32);
 
+/** A signed event, as the relay delivers it. */
 function nostrEvent(
-  overrides: Partial<{
-    id: string;
-    pubkey: string;
-    kind: number;
-    tags: string[][];
-    content: string;
-  }>,
+  overrides: Partial<{ kind: number; tags: string[][]; content: string }>,
+  secretKey: Uint8Array = BOB_KEY,
 ) {
-  return {
-    id: "e".repeat(64),
-    pubkey: BOB_PUBKEY,
-    created_at: 0,
-    kind: 9,
-    tags: [["h", CHANNEL]],
-    content: "",
-    sig: "",
-    ...overrides,
-  };
+  return finalizeEvent(
+    {
+      created_at: 0,
+      kind: 9,
+      tags: [["h", CHANNEL]],
+      content: "",
+      ...overrides,
+    },
+    secretKey,
+  );
 }
 
 beforeEach(() => {
@@ -121,6 +123,12 @@ describe("applyInboundEvent", () => {
     db.buzzIdentity.findUnique.mockResolvedValue(bob);
   });
 
+  it("ignores an event whose signature does not check out", async () => {
+    const forged = { ...nostrEvent({ content: "x" }), content: "changed" };
+    await expect(applyInboundEvent(forged, core)).resolves.toBe("ignored");
+    expect(core).not.toHaveBeenCalled();
+  });
+
   it("treats events the bridge sent itself as echoes", async () => {
     db.buzzMessageLink.findUnique.mockResolvedValueOnce({ messageId: "m" });
     await expect(
@@ -128,7 +136,7 @@ describe("applyInboundEvent", () => {
     ).resolves.toBe("echo");
     await expect(
       applyInboundEvent(
-        nostrEvent({ pubkey: getPublicKey(Buffer.from(OPERATOR_KEY, "hex")) }),
+        nostrEvent({}, Uint8Array.from(Buffer.from(OPERATOR_KEY, "hex"))),
         core,
       ),
     ).resolves.toBe("echo");
@@ -174,26 +182,33 @@ describe("applyInboundEvent", () => {
       },
     ]);
     const parentEventId = "f".repeat(64);
-    await expect(
-      applyInboundEvent(
-        nostrEvent({
-          tags: [
-            ["h", CHANNEL],
-            ["e", parentEventId, "", "reply"],
-            ["p", BOT_PUBKEY],
-          ],
-          content: "what is 2 + 2?",
-        }),
-        core,
-      ),
-    ).resolves.toBe("posted");
+    const reply = nostrEvent({
+      tags: [
+        ["h", CHANNEL],
+        ["e", parentEventId, "", "reply"],
+        ["p", BOT_PUBKEY],
+      ],
+      content: "what is 2 + 2?",
+    });
+    core.mockResolvedValueOnce({
+      status: 201,
+      body: { data: { id: "new-message" } },
+    });
+    await expect(applyInboundEvent(reply, core)).resolves.toBe("posted");
+    // Linked at once, so a reply or reaction to it right after finds it.
+    expect(db.buzzMessageLink.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { messageId: "new-message" },
+        create: expect.objectContaining({ eventId: reply.id }),
+      }),
+    );
     expect(core).toHaveBeenCalledWith({
       method: "POST",
       path: "/v1/chats/rooms/room/messages",
       apiKey: "bob-api-key",
       body: {
         content: "what is 2 + 2?",
-        clientMessageId: `buzz:${"e".repeat(64)}`,
+        clientMessageId: `buzz:${reply.id}`,
         parentMessageId: "root-1",
         mentionedUserIds: [],
         mentionedSokoBotIds: ["bot-1"],
@@ -233,6 +248,67 @@ describe("applyInboundEvent", () => {
         body: { content: "fixed" },
       }),
     );
+  });
+});
+
+describe("applyInboundEvent edits", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: {} }));
+  const editOf = (createdAt: number, content: string) =>
+    finalizeEvent(
+      {
+        created_at: createdAt,
+        kind: 40003,
+        tags: [
+          ["h", CHANNEL],
+          ["e", "f".repeat(64)],
+        ],
+        content,
+      },
+      BOB_KEY,
+    );
+
+  beforeEach(() => {
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findUnique.mockResolvedValue({
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      userId: "user-bob",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+    });
+  });
+
+  it("ignores an edit older than the newest one applied, as on a replay", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: "newer",
+        lastEditAt: 200,
+        message: { roomId: "room" },
+      });
+    await expect(applyInboundEvent(editOf(100, "older"), core)).resolves.toBe(
+      "echo",
+    );
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("forgets the edit when Core refuses it, so a retry applies it", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: "old",
+        lastEditAt: 0,
+        message: { roomId: "room" },
+      });
+    core.mockResolvedValueOnce({ status: 503, body: {} });
+    await expect(
+      applyInboundEvent(editOf(300, "fixed"), core),
+    ).rejects.toThrow();
+    expect(db.buzzMessageLink.update).toHaveBeenLastCalledWith({
+      where: { messageId: "m1" },
+      data: { contentHash: "old", lastEditAt: 0 },
+    });
   });
 });
 
