@@ -11386,7 +11386,7 @@
         "sharedShort": "Compartido en tu organización",
         "asked": "Pregunta enviada. El agente SEO está trabajando.",
         "tooLong": "Tu pregunta supera los {limit, number} caracteres. Acórtala y envíala de nuevo.",
-        "openThread": "Abrir conversación"
+        "continueThread": "Continuar la conversación"
       },
       "connections": {
         "connect": "Conectar {provider}",
@@ -11479,7 +11479,8 @@
         "title": "Agente SEO",
         "refreshing": "El agente está actualizando Search Console.",
         "refreshFailed": "No se pudo actualizar Search Console. Usa «Sincronizar ahora» para intentarlo de nuevo.",
-        "nextTitle": "Siguientes pasos",
+        "nextTitle": "El agente propone",
+        "nextRule": "Pulsa el botón de un paso para iniciarlo. Para todo lo demás, escribe al agente.",
         "nothingNext": "No hay nada pendiente. El agente sincroniza Search Console cuando abres esta auditoría y los datos tienen más de un día.",
         "steps": {
           "refresh": {

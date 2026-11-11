@@ -9,7 +9,6 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SeoActionCard } from "./seo-actions";
 import { SeoAgentGraphics } from "./seo-agent-graphics";
@@ -168,10 +167,6 @@ function SeoAgentPanel({
         refreshing={autopilot.state === "refreshing"}
       />
     ) : null;
-  // On a phone the numbers before the steps pushed the first step's button under the first screen.
-  // There the first action leads and the numbers follow it.
-  const tilesAfterFirstStep = useIsMobile() && split > 0;
-  const lead = tilesAfterFirstStep ? 1 : 0;
   const stepItem = (step: SeoAgentStep, index: number) =>
     step.kind === "action" ? (
       index === primary ? (
@@ -299,7 +294,6 @@ function SeoAgentPanel({
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
-          {tilesAfterFirstStep ? null : tiles}
           {traffic ? (
             // The link is its own item: when it wraps, no separator leads its line.
             <p
@@ -351,6 +345,8 @@ function SeoAgentPanel({
             </span>
           ) : null}
           {upkeep}
+          {/* The question field is part of the result: read it, then ask. The chat itself opens in the sheet, on every tab. */}
+          {model.data.auditId ? <SeoAskBar model={model} /> : null}
         </div>
       )}
       {/* The setup card has no line for upkeep, so it sits under the card. */}
@@ -360,34 +356,30 @@ function SeoAgentPanel({
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}
+      {/* The numbers and the pictures are one block, in one place on every width. No number and no picture: no card. */}
+      {setup ? null : (
+        <div className={cn(HOLDER_ITEM_CLASS, "space-y-2 p-4 empty:hidden")}>
+          {tiles}
+        </div>
+      )}
       {(setup || banner) && !steps.length ? null : (
         <div className="space-y-2">
-          <h3 className="px-2 text-sm font-semibold">
-            {t(setup ? "setup.more" : "agent.nextTitle")}
-          </h3>
+          <div className="space-y-0.5 px-2">
+            <h3 className="text-sm font-semibold">
+              {t(setup ? "setup.more" : "agent.nextTitle")}
+            </h3>
+            {/* Which control does what: a step has its button, all other work goes to the question field. */}
+            {!setup && steps.length && model.data.auditId ? (
+              <p className="text-muted-foreground text-sm">
+                {t("agent.nextRule")}
+              </p>
+            ) : null}
+          </div>
           {steps.length ? (
             <>
-              {tilesAfterFirstStep ? (
-                <>
-                  <ul role="list" className="space-y-2">
-                    {stepItem(shown[0], 0)}
-                  </ul>
-                  {/* No number and no picture: no card. */}
-                  <div
-                    className={cn(
-                      HOLDER_ITEM_CLASS,
-                      "space-y-2 p-4 empty:hidden",
-                    )}
-                  >
-                    {tiles}
-                  </div>
-                </>
-              ) : null}
-              {split && (split > lead || moreActions) ? (
+              {split ? (
                 <ul role="list" className="space-y-2">
-                  {shown
-                    .slice(lead, split)
-                    .map((step, index) => stepItem(step, index + lead))}
+                  {shown.slice(0, split).map(stepItem)}
                   {moreActions ? (
                     // The Agent tab shows the first actions only: the rest must not look absent.
                     <li
@@ -456,8 +448,6 @@ function SeoAgentPanel({
           ) : null}
         </div>
       )}
-      {/* The next steps come first; a question to the agent follows them. The chat itself opens in the sheet, on every tab. */}
-      {model.data.auditId ? <SeoAskBar model={model} /> : null}
       {/* During setup a schedule is not the next step: show only one that exists. */}
       {setup && !model.data.monitors.length ? null : (
         <SeoAutomation model={model} />

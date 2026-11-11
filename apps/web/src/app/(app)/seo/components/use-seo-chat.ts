@@ -14,6 +14,59 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 const SEO_CHAT_POLL_MS = 2_000;
 export const SEO_CHAT_QUESTION_LIMIT = 4_000;
 
+/** One record per viewer and Audit: the chat sheet and the Agent tab read the same one. */
+const seoChatKey = (
+  organizationId: string | null | undefined,
+  userId: string | undefined,
+  auditId: string | null | undefined,
+) => ["seo-chat", organizationId, userId, auditId];
+const seoChatEndpoint = (auditId: string | null | undefined) =>
+  `/api/seo/audits/${encodeURIComponent(auditId ?? "")}/chat`;
+/** A reply that is still in work is read again until it ends. */
+const seoChatPoll = (history: SeoAuditChatHistory | undefined) =>
+  (history?.turns ?? []).some((turn) => turn.status === "running")
+    ? SEO_CHAT_POLL_MS
+    : false;
+
+/** One read of the conversation, for both readers of the record. */
+async function readSeoChat(
+  auditId: string | null | undefined,
+  userId: string | undefined,
+  organizationId: string | null | undefined,
+  signal: AbortSignal,
+): Promise<SeoAuditChatHistory> {
+  const response = await fetch(seoChatEndpoint(auditId), {
+    signal,
+    headers: seoViewerHeaders(userId, organizationId),
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+  if (!response.ok) throw new Error("Audit conversation unavailable");
+  return response.json();
+}
+
+/**
+ * True when the Audit's conversation holds a question. Read without the chat sheet,
+ * so the Agent tab offers the conversation only when one exists. Core returns the
+ * newest turns only, so the page states no count.
+ */
+export function useSeoChatStarted(model: SeoWorkspaceModel) {
+  const { data: session } = useSession();
+  const auditId = model.data.auditId;
+  const userId = session?.user.id;
+  const organizationId = session?.session.activeOrganizationId;
+  const history = useQuery<SeoAuditChatHistory>({
+    queryKey: seoChatKey(organizationId, userId, auditId),
+    queryFn: ({ signal }) =>
+      readSeoChat(auditId, userId, organizationId, signal),
+    enabled: !!auditId && !!userId,
+    refetchOnWindowFocus: false,
+    // The answer only shows or hides one button: a refused read is not asked again.
+    retry: false,
+  });
+  return Boolean(history.data?.turns?.length);
+}
+
 export function useSeoChat(model: SeoWorkspaceModel) {
   const t = useTranslations("App.Seo");
   const { data: session } = useSession();
@@ -40,41 +93,32 @@ export function useSeoChat(model: SeoWorkspaceModel) {
     };
   }, []);
   const auditId = model.data.auditId;
-  const key = [
-    "seo-chat",
+  const key = seoChatKey(
     session?.session.activeOrganizationId,
     session?.user.id,
     auditId,
-  ];
-  const endpoint = `/api/seo/audits/${encodeURIComponent(auditId ?? "")}/chat`;
+  );
+  const endpoint = seoChatEndpoint(auditId);
   const history = useQuery<SeoAuditChatHistory>({
     queryKey: key,
     queryFn: async ({ signal }) => {
       if (!alive.current)
         throw new DOMException("SEO viewer changed", "AbortError");
-      const response = await fetch(endpoint, {
+      const data = await readSeoChat(
+        auditId,
+        session?.user.id,
+        session?.session.activeOrganizationId,
         signal,
-        headers: seoViewerHeaders(
-          session?.user.id,
-          session?.session.activeOrganizationId,
-        ),
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-      if (!alive.current)
-        throw new DOMException("SEO viewer changed", "AbortError");
-      if (!response.ok) throw new Error("Audit conversation unavailable");
-      const data: SeoAuditChatHistory = await response.json();
+      );
       if (!alive.current)
         throw new DOMException("SEO viewer changed", "AbortError");
       return data;
     },
     enabled: model.chatOpen && !!auditId && !!session?.user.id,
+    // The Agent tab reads the same record: the sheet still reads it new each time it opens.
+    staleTime: 0,
     refetchOnWindowFocus: false,
-    refetchInterval: (query) =>
-      query.state.data?.turns.some((turn) => turn.status === "running")
-        ? SEO_CHAT_POLL_MS
-        : false,
+    refetchInterval: (query) => seoChatPoll(query.state.data),
   });
   const turns = history.data?.turns ?? [];
   const busy = sending || turns.some((turn) => turn.status === "running");

@@ -17,6 +17,7 @@ import messages from "../../../../messages/en.json";
 import {
   SEO_TEST_AUDIT,
   SEO_TEST_PAGE,
+  seoTestObservation,
   seoTestWorkspace,
 } from "./components/seo-test-fixture";
 import { SeoWorkspace } from "./components/seo-workspace";
@@ -286,6 +287,27 @@ describe("SEO load recovery", () => {
         url.startsWith(`/api/seo/audits/${SEO_TEST_AUDIT}`),
       ),
     ).toHaveLength(1);
+  });
+
+  it("asks once for the conversation when Core refuses it, and keeps the Agent tab", async () => {
+    const checked = workspace();
+    checked.observations = [seoTestObservation(checked)];
+    const chatReads = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (!url.endsWith("/chat")) return Response.json(checked);
+        chatReads();
+        return new Response(null, { status: 500 });
+      }),
+    );
+    render(wrap(<SeoWorkspace workspace={checked} />, client()));
+    expect(await screen.findByLabelText("Your question")).toBeVisible();
+    await vi.waitFor(() => expect(chatReads).toHaveBeenCalled());
+    // Time for a retry to start: this client waits 0 ms between tries.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(chatReads).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("Your question")).toBeVisible();
   });
 
   it.each([

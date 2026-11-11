@@ -1,6 +1,7 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -19,6 +20,7 @@ import { seoSetup } from "./seo-setup-model";
 import {
   openStatisticsSetup,
   SEO_TEST_AUDIT,
+  seoTestCheckedAudit,
   seoTestMetric,
   seoTestWorkspace,
 } from "./seo-test-fixture";
@@ -113,10 +115,14 @@ function network(
   );
 }
 
-/** The Agent tab holds no thread: the conversation opens in the sheet. */
+/**
+ * The Agent tab holds no thread, and offers the conversation only when one exists.
+ * The header's button on the other tabs opens the sheet in each case.
+ */
 async function openChat(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("tab", { name: "Health" }));
   await user.click(
-    await screen.findByRole("button", { name: copy.chat.openThread }),
+    await screen.findByRole("button", { name: copy.chat.title }),
   );
   return screen.findByRole("dialog", { name: copy.chat.title });
 }
@@ -638,9 +644,41 @@ describe("SEO agent chat", () => {
     scope: { pageIds: [] },
     createdAt: new Date().toISOString(),
   });
-  const chatWorkspace = () => ({
-    ...seoTestWorkspace(),
-    auditId: SEO_TEST_AUDIT,
+  // The question field is part of the result card: the Audit has a finished check.
+  const chatWorkspace = seoTestCheckedAudit;
+
+  it("has no question field while the setup card leads: the header's button opens the chat", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    network(workspace, {});
+    renderWorkspace(workspace);
+    await screen.findByTestId("seo-setup");
+    expect(screen.queryByLabelText("Your question")).toBeNull();
+    await user.click(screen.getByRole("button", { name: copy.chat.title }));
+    expect(
+      within(
+        await screen.findByRole("dialog", { name: copy.chat.title }),
+      ).getByLabelText("Your question"),
+    ).toBeVisible();
+  });
+
+  it("keeps the question field and shows no error when the conversation cannot be read", async () => {
+    const workspace = chatWorkspace();
+    const reads = vi.fn();
+    network(workspace, {
+      chat: () => {
+        reads();
+        return new Response(null, { status: 500 });
+      },
+    });
+    renderWorkspace(workspace);
+    await waitFor(() => expect(reads).toHaveBeenCalled());
+    await act(async () => {});
+    expect(screen.getByLabelText("Your question")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: copy.chat.continueThread }),
+    ).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows HTML tag names in a reply as text, and loads no image from it", async () => {
@@ -822,8 +860,11 @@ describe("SEO agent chat", () => {
       },
     });
     renderWorkspace(workspace);
-    // The sheet has read the chat once: it knows a turn is in flight.
-    const first = await openChat(user);
+    // The chat is read once: the page knows a turn is in flight and offers the conversation.
+    await user.click(
+      await screen.findByRole("button", { name: copy.chat.continueThread }),
+    );
+    const first = await screen.findByRole("dialog", { name: copy.chat.title });
     await within(first).findByText("Earlier");
     const typed = within(first).getByLabelText("Your question");
     await user.type(typed, "Half a thought");

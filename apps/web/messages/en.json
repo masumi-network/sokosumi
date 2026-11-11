@@ -11386,7 +11386,7 @@
         "sharedShort": "Shared in your organization",
         "asked": "Question sent. The SEO agent is working.",
         "tooLong": "Your question is over {limit, number} characters. Shorten it and send it again.",
-        "openThread": "Open conversation"
+        "continueThread": "Continue the conversation"
       },
       "connections": {
         "connect": "Connect {provider}",
@@ -11479,7 +11479,8 @@
         "title": "SEO agent",
         "refreshing": "The agent is refreshing Search Console.",
         "refreshFailed": "Search Console could not be refreshed. Use “Sync now” to try again.",
-        "nextTitle": "Next steps",
+        "nextTitle": "The agent proposes",
+        "nextRule": "Press the button of a step to start it. For all other work, write to the agent.",
         "nothingNext": "Nothing is waiting. The agent syncs Search Console when you open this audit and the data is older than a day.",
         "steps": {
           "refresh": {

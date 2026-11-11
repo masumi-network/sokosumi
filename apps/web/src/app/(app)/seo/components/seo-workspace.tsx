@@ -229,7 +229,8 @@ export function SeoWorkspace({
               <span className="max-sm:hidden">{t(runAudit.label)}</span>
             </Button>
           ) : null}
-          {model.data.auditId && model.filters.tab !== "agent" ? (
+          {/* The Agent tab has its own question field, in the result card. During setup that card is not there yet. */}
+          {model.data.auditId && (model.filters.tab !== "agent" || setup) ? (
             <Button
               variant="outline"
               size="sm"

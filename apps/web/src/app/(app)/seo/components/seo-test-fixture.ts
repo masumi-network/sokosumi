@@ -36,6 +36,35 @@ export function seoTestMetric(): ProjectSeoWorkspace["metrics"][number] {
   };
 }
 
+/** One finished page check. With it the result card leads the Agent tab, not the setup card. */
+export function seoTestObservation(
+  workspace: ProjectSeoWorkspace,
+): ProjectSeoWorkspace["observations"][number] {
+  return {
+    id: "5b0f4c1e-4a55-4a43-9a41-0f2f4f7f2b10",
+    kind: "page_check",
+    source: "seo_coworker",
+    observedAt: new Date("2026-01-03T12:00:00Z"),
+    pageIds: workspace.scope.pageIds,
+    scopeVersion: workspace.scope.version,
+    sourceTaskId: null,
+    countryCode: "US",
+    languageCode: "en",
+    devices: ["desktop"],
+    rulebookVersion: "html-v1",
+    artifactHash: "checked-html",
+    issues: 0,
+    coverage: { checked: 12, skipped: 0, failed: 0 },
+  };
+}
+
+/** An Audit with one finished check: the state in which the Agent tab has its question field. */
+export function seoTestCheckedAudit(): ProjectSeoWorkspace {
+  const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+  workspace.observations = [seoTestObservation(workspace)];
+  return workspace;
+}
+
 export function seoTestWorkspace(): ProjectSeoWorkspace {
   return {
     projectId: SEO_TEST_PROJECT,
