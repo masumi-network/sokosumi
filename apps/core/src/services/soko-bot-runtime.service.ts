@@ -355,6 +355,7 @@ import {
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import {
+  CMO_CALENDAR_REVIEWS_PER_TURN,
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
   type CmoPlanReview,
@@ -5767,7 +5768,13 @@ export class SokoBotRuntimeService {
           },
         })
       : saves - 1;
-    if (reviewed >= CMO_PLAN_REVIEWS_PER_TURN) return null;
+    if (
+      reviewed >=
+      (plan.calendarSent
+        ? CMO_CALENDAR_REVIEWS_PER_TURN
+        : CMO_PLAN_REVIEWS_PER_TURN)
+    )
+      return null;
     const titles = await cmoTitleRepeats(strategy.calendar);
     await this.chargeCheck(input, EMBEDDING_MODEL, titles.costUsd);
     const problems = [...cmoPlanProblems(strategy), ...titles.problems];
