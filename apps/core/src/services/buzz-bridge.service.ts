@@ -643,12 +643,13 @@ export async function reconcileMessage(
   if (link && unfinished) {
     const messageLinkId = message.id;
     const sent = await deliver(relayUrl, unfinished, (fresh) =>
-      fresh.kind === BUZZ_KIND.message
-        ? prisma.buzzMessageLink.update({
-            where: { messageId: messageLinkId },
-            data: { eventId: fresh.id },
-          })
-        : Promise.resolve(),
+      prisma.buzzMessageLink.update({
+        where: { messageId: messageLinkId },
+        data: {
+          pendingEvent: fresh as unknown as object,
+          ...(fresh.kind === BUZZ_KIND.message ? { eventId: fresh.id } : {}),
+        },
+      }),
     );
     link = await prisma.buzzMessageLink.update({
       where: { messageId: message.id },
@@ -674,7 +675,12 @@ export async function reconcileMessage(
       where: { messageId: message.id },
       data: { ...data, pendingEvent: event as unknown as object },
     });
-    await deliver(relayUrl, event);
+    await deliver(relayUrl, event, (fresh) =>
+      prisma.buzzMessageLink.update({
+        where: { messageId: message.id },
+        data: { pendingEvent: fresh as unknown as object },
+      }),
+    );
     link = await prisma.buzzMessageLink.update({
       where: { messageId: message.id },
       data: { pendingEvent: PrismaNull.DbNull },
@@ -731,7 +737,7 @@ export async function reconcileMessage(
       const sent = await deliver(relayUrl, event, (fresh) =>
         prisma.buzzMessageLink.update({
           where: { messageId: message.id },
-          data: { eventId: fresh.id },
+          data: { eventId: fresh.id, pendingEvent: fresh as unknown as object },
         }),
       );
       link = await prisma.buzzMessageLink.update({
@@ -826,12 +832,13 @@ async function reconcileReactions(input: {
     const pending = asPending(link.pendingEvent);
     if (!pending) continue;
     const sent = await deliver(input.relayUrl, pending, (fresh) =>
-      fresh.kind === BUZZ_KIND.reaction
-        ? prisma.buzzReactionLink.update({
-            where: { id: link.id },
-            data: { eventId: fresh.id },
-          })
-        : Promise.resolve(),
+      prisma.buzzReactionLink.update({
+        where: { id: link.id },
+        data: {
+          pendingEvent: fresh as unknown as object,
+          ...(fresh.kind === BUZZ_KIND.reaction ? { eventId: fresh.id } : {}),
+        },
+      }),
     );
     if (pending.kind === BUZZ_KIND.deletion) {
       await prisma.buzzReactionLink.delete({ where: { id: link.id } });
@@ -883,7 +890,7 @@ async function reconcileReactions(input: {
     const sent = await deliver(input.relayUrl, event, (fresh) =>
       prisma.buzzReactionLink.update({
         where: { id: linkId },
-        data: { eventId: fresh.id },
+        data: { eventId: fresh.id, pendingEvent: fresh as unknown as object },
       }),
     );
     await prisma.buzzReactionLink.update({
@@ -902,7 +909,12 @@ async function reconcileReactions(input: {
       where: { id: link.id },
       data: { pendingEvent: event as unknown as object },
     });
-    await deliver(input.relayUrl, event);
+    await deliver(input.relayUrl, event, (fresh) =>
+      prisma.buzzReactionLink.update({
+        where: { id: link.id },
+        data: { pendingEvent: fresh as unknown as object },
+      }),
+    );
     await prisma.buzzReactionLink.delete({ where: { id: link.id } });
   }
 }
@@ -1044,7 +1056,7 @@ async function sendAs(
  * `finalAttempt` and the event is applied as well as it can be.
  */
 export class BuzzTargetPendingError extends Error {
-  constructor(targetEventId: string) {
+  constructor(readonly targetEventId: string) {
     super(`Waiting for ${targetEventId.slice(0, 8)} to be linked`);
   }
 }

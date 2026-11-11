@@ -135,15 +135,33 @@ async function backlog(input: {
         },
       ],
     });
-    let added = 0;
-    for (const event of events) {
-      if (!found.has(event.id)) added++;
-      found.set(event.id, event);
-    }
-    if (events.length < PAGE || added === 0) break;
-    // Inclusive, so events sharing the oldest second are not skipped.
+    for (const event of events) found.set(event.id, event);
+    if (events.length < PAGE) break;
     const oldest = Math.min(...events.map((event) => event.created_at));
-    until = oldest < until ? oldest : until - 1;
+    if (oldest === until) {
+      // A whole page in one second: read that second in full, then go on
+      // before it, so no event in a crowded second is skipped.
+      for (const event of await queryEvents({
+        relayUrl: input.relayUrl,
+        secretKey: input.secretKey,
+        filters: [
+          {
+            kinds: INBOUND_KINDS,
+            "#h": input.channelIds,
+            since: oldest,
+            until: oldest,
+            limit: 50_000,
+          },
+        ],
+      })) {
+        found.set(event.id, event);
+      }
+      until = oldest - 1;
+    } else {
+      // Inclusive, so events sharing the oldest second are read again.
+      until = oldest;
+    }
+    if (until < input.since) break;
   }
   return chronological([...found.values()]);
 }
@@ -183,6 +201,8 @@ async function run() {
   const apply = (communityId: string, event: Event, attempt: number) => {
     inbound = inbound.then(async () => {
       const finalAttempt = attempt + 1 >= TARGET_ATTEMPTS;
+      // A target still on its way in (say Core is down and it keeps
+      // retrying) is worth waiting for however long that takes.
       try {
         const result = await applyInboundEvent(event, core, { finalAttempt });
         if (result !== "echo" && result !== "ignored") {
@@ -192,7 +212,16 @@ async function run() {
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         const waiting = error instanceof BuzzTargetPendingError;
+        const targetInFlight =
+          waiting &&
+          [...unfinished.values()].some((open) =>
+            open.has(error.targetEventId),
+          );
         const delay = Math.min(2_000 * 2 ** attempt, 5 * 60_000);
+        if (targetInFlight) {
+          setTimeout(() => apply(communityId, event, attempt), delay);
+          return;
+        }
         if (!waiting) {
           log(
             `in  kind ${event.kind} ${event.id.slice(0, 8)} failed, retry in ${delay / 1000}s`,
@@ -216,6 +245,12 @@ async function run() {
 
   async function saveCursors() {
     for (const [communityId, done] of newestDone) {
+      // A reader that is down or still catching up has not read up to here:
+      // hold the community's cursor until every reader is live again.
+      const readers = expected.get(communityId) ?? [];
+      if (readers.some((slot) => !live.has(slot) || opening.has(slot))) {
+        continue;
+      }
       const open = [...(unfinished.get(communityId)?.values() ?? [])];
       const cursor = open.length > 0 ? Math.min(...open) - 1 : done;
       if (cursor > 0) await saveInboundCursor(communityId, cursor);
@@ -231,6 +266,8 @@ async function run() {
   >();
   const reconnect = new Map<string, { failures: number; at: number }>();
   const opening = new Set<string>();
+  // Per community, the reader slots it should have.
+  const expected = new Map<string, string[]>();
 
   async function open(
     community: Awaited<ReturnType<typeof buzzSubscriptions>>[number],
@@ -287,6 +324,12 @@ async function run() {
 
   async function refreshSubscriptions() {
     for (const community of await buzzSubscriptions()) {
+      expected.set(
+        community.communityId,
+        community.readers.map(
+          (reader) => `${community.communityId}:${reader.readerId}`,
+        ),
+      );
       for (const reader of community.readers) {
         const slot = `${community.communityId}:${reader.readerId}`;
         const key = reader.channelIds.toSorted().join(",");

@@ -21,6 +21,12 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   message gets mentions, Soko Bot replies and notifications like a typed one.
 - **Echo**: links (`buzz_message_link`, `buzz_reaction_link`) are written before
   an event is sent, and a Buzz post carries `clientMessageId: buzz:<event id>`.
+- **Nothing lost**: each signed event stays on its link (`pendingEvent`) until
+  the relay accepts it (re-signed if an outage made it too old); outbox rows
+  retry with backoff and are never dropped; inbound events retry while Core is
+  down, wait for the message they refer to, and catch up oldest-first from a
+  saved cursor (paged) after the worker was away. Edits settle newest-wins,
+  ties to the lower event id.
 - **Identity**: Sokosumi keeps one Nostr key per person, Soko Bot and Coworker
   (AES-GCM at rest). People export theirs on **Connections → Buzz** to sign in
   to the Buzz app as the same identity.
@@ -73,4 +79,9 @@ local relay has one community. The worker must run somewhere long-lived
   Buzz shows the message text.
 - Messages from people Sokosumi does not know are ignored; only Sokosumi
   identities are community members.
-- A person's bridge API key appears in their API keys as "Buzz bridge".
+- A person's bridge API key appears in their API keys as "Buzz bridge"; it is a
+  full user key.
+- A message from Buzz into a one-on-one Direct with a Coworker is stored but
+  does not start the Coworker's reply: Sokosumi clients reach that reply
+  through the room's `/stream` endpoint, which the bridge does not call yet.
+- Run one worker; two would each send their own copy of an inbound change.
