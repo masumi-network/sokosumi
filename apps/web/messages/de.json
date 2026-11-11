@@ -1674,6 +1674,19 @@
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
       },
+      "Archived": {
+        "title": "Archivierte Aufgaben",
+        "link": "Archiviert",
+        "description": "Aufgaben, die in diesem Workspace archiviert wurden, die neuesten zuerst. Stelle eine wieder her, um sie zurück auf das Board zu holen.",
+        "back": "Zurück zu den Aufgaben",
+        "empty": "Keine archivierten Aufgaben. Aufgaben, die du archivierst, erscheinen hier, damit du sie zurückholen kannst.",
+        "draftNote": "Aufgaben, die auf ihren Start gewartet haben, kommen als Entwurf zurück. Nichts startet, bis du es wieder startest.",
+        "restore": "Wiederherstellen",
+        "restoreNamed": "{name} wiederherstellen",
+        "restored": "{name} ist wieder auf dem Board",
+        "open": "Öffnen",
+        "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut."
+      },
       "Columns": {
         "backlog": "Backlog",
         "todo": "Offen",
