@@ -597,7 +597,6 @@ function CalendarView({
   timeZone: string;
   view: CalendarView;
 }) {
-  const router = useRouter();
   const isMobile = useIsMobile();
   const calendarRef = useRef<HTMLDivElement>(null);
   const [fillHeight, setFillHeight] = useState<number | null>(null);
@@ -691,7 +690,9 @@ function CalendarView({
           reportRunChangeFailure(result.error.kind);
           return;
         }
-        router.refresh();
+        // No router.refresh() after a write here: each action revalidates,
+        // so its response already carries this page. A refresh on top holds
+        // that render back until a second full page render ends.
       } catch {
         clearPendingMove(item.id);
         info.revert();
@@ -730,7 +731,6 @@ function CalendarView({
         return;
       }
       reportMovedQuotes(result.value);
-      router.refresh();
     } catch {
       clearPendingMove(item.id);
       revert?.();
@@ -1349,7 +1349,6 @@ export function WorkspaceCalendar({
         reportRunChangeFailure(result.error.kind);
         return;
       }
-      router.refresh();
     } catch {
       reportRunChangeFailure("failed");
     }
