@@ -49,6 +49,8 @@ import {
   seoMarketName,
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
+import { SeoKeywordDemand, SeoStrategyCard } from "./seo-strategy";
+import { seoStrategyGroupOf } from "./seo-strategy-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** One filter for search queries and tracked keywords; it shows once a list is long enough to need it. */
@@ -128,8 +130,10 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
     Number(shown.intent) +
     Number(shown.priority);
   const first = model.data.keywords[0];
+  const groupOf = seoStrategyGroupOf(model.data.strategy);
   return (
     <div className="space-y-5">
+      <SeoStrategyCard model={model} />
       {/* The lists show a keyword once, so the search counts keywords, not device rows. */}
       <SeoQueryFilter
         model={model}
@@ -253,6 +257,10 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                                 t("keywords.anyPage")}
                             </p>
                           ) : null}
+                          <SeoKeywordDemand
+                            group={groupOf(row)}
+                            keyword={row.keyword}
+                          />
                           <SeoKeywordTrendToggle
                             trend={cellSaysEmpty ? { state: "absent" } : trend}
                             open={trendOpen === row.id}

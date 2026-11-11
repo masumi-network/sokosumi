@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  Compass,
   FileText,
   Lightbulb,
   type LucideIcon,
@@ -39,6 +40,7 @@ import { SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunLeads } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
+import { SeoStrategyLine } from "./seo-strategy";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import { useSeoSetup } from "./use-seo-setup";
@@ -51,6 +53,7 @@ const STEP_ICONS: Record<
   LucideIcon
 > = {
   measure: Lightbulb,
+  strategy: Compass,
   keyword: Search,
   pages: FileText,
   refresh: RefreshCw,
@@ -128,121 +131,137 @@ function StepRow({
             </Button>
           ) : null,
         ]
-      : step.kind === "keyword"
+      : step.kind === "strategy"
         ? [
-            t("agent.steps.keyword", {
-              keyword: step.keyword,
-              pages: model.data.scope.pageIds.length,
-            }),
-            model.data.auditId ? (
-              <Button
-                key="keyword"
-                size="sm"
-                variant={variant}
-                aria-describedby={bodyId}
-                onClick={() => {
-                  model.askAgent(
-                    t("agent.prompts.keyword", { keyword: step.keyword }),
-                  );
-                }}
-              >
-                <WandSparkles />
-                {t("agent.askHow")}
-              </Button>
-            ) : null,
+            t("agent.steps.strategy", { count: step.count, title: step.title }),
+            <Button
+              key="strategy"
+              size="sm"
+              // A link to a list, not a piece of work: it never takes the filled style.
+              variant="outline"
+              aria-describedby={bodyId}
+              onClick={() => {
+                void model.setFilters({ tab: "actions" });
+              }}
+            >
+              {t("strategy.actions.open")}
+            </Button>,
           ]
-        : step.kind === "pages"
+        : step.kind === "keyword"
           ? [
-              // No promise of issues where no check can find them.
-              t(
-                canRequestAnalysis
-                  ? "agent.steps.pages"
-                  : "agent.steps.pagesOff",
-              ),
-              <Button
-                key="pages"
-                size="sm"
-                variant={variant}
-                onClick={() => model.setDialog("page")}
-              >
-                <Plus />
-                {t("addPage")}
-              </Button>,
-            ]
-          : step.kind === "refresh"
-            ? [
-                t(`agent.steps.refresh.${step.reason}`),
+              t("agent.steps.keyword", {
+                keyword: step.keyword,
+                pages: model.data.scope.pageIds.length,
+              }),
+              model.data.auditId ? (
                 <Button
-                  key="refresh"
+                  key="keyword"
                   size="sm"
                   variant={variant}
-                  loading={refreshing}
-                  disabled={model.pending}
-                  onClick={refresh}
+                  aria-describedby={bodyId}
+                  onClick={() => {
+                    model.askAgent(
+                      t("agent.prompts.keyword", { keyword: step.keyword }),
+                    );
+                  }}
                 >
-                  <RefreshCw />
-                  {t("syncNow")}
+                  <WandSparkles />
+                  {t("agent.askHow")}
+                </Button>
+              ) : null,
+            ]
+          : step.kind === "pages"
+            ? [
+                // No promise of issues where no check can find them.
+                t(
+                  canRequestAnalysis
+                    ? "agent.steps.pages"
+                    : "agent.steps.pagesOff",
+                ),
+                <Button
+                  key="pages"
+                  size="sm"
+                  variant={variant}
+                  onClick={() => model.setDialog("page")}
+                >
+                  <Plus />
+                  {t("addPage")}
                 </Button>,
               ]
-            : step.kind === "connect"
+            : step.kind === "refresh"
               ? [
-                  t(
-                    sync
-                      ? `agent.steps.sync.${step.provider}`
-                      : `agent.steps.connect.${step.provider}`,
-                  ),
-                  sync ? (
-                    <Button
-                      key="sync"
-                      size="sm"
-                      variant={variant}
-                      onClick={() => model.openStatistics(step.provider)}
-                    >
-                      <RefreshCw />
-                      {t("syncStatistics")}
-                    </Button>
-                  ) : step.provider === "search_console" ? (
-                    <SeoGoogleConnection
-                      key="connect"
-                      variant={variant}
-                      onConnected={model.openStatistics}
-                      inRow
-                    />
-                  ) : (
-                    <SeoConnectionButton
-                      key="connect"
-                      provider={step.provider}
-                      variant={variant}
-                      onConnected={() => model.openStatistics(step.provider)}
-                    />
-                  ),
+                  t(`agent.steps.refresh.${step.reason}`),
+                  <Button
+                    key="refresh"
+                    size="sm"
+                    variant={variant}
+                    loading={refreshing}
+                    disabled={model.pending}
+                    onClick={refresh}
+                  >
+                    <RefreshCw />
+                    {t("syncNow")}
+                  </Button>,
                 ]
-              : [
-                  t(
-                    step.available
-                      ? "agent.steps.competitors.available"
-                      : "agent.steps.competitors.unavailable",
-                  ),
-                  canEdit && (canRequestAnalysis || !step.available) ? (
-                    <Button
-                      key="competitors"
-                      size="sm"
-                      variant={variant}
-                      onClick={() =>
-                        model.setDialog(
-                          step.available ? "analysis" : "competitor",
-                        )
-                      }
-                    >
-                      {step.available ? <Search /> : <Plus />}
-                      {t(
-                        step.available
-                          ? "agent.researchCompetitors"
-                          : "competitors.add",
-                      )}
-                    </Button>
-                  ) : null,
-                ];
+              : step.kind === "connect"
+                ? [
+                    t(
+                      sync
+                        ? `agent.steps.sync.${step.provider}`
+                        : `agent.steps.connect.${step.provider}`,
+                    ),
+                    sync ? (
+                      <Button
+                        key="sync"
+                        size="sm"
+                        variant={variant}
+                        onClick={() => model.openStatistics(step.provider)}
+                      >
+                        <RefreshCw />
+                        {t("syncStatistics")}
+                      </Button>
+                    ) : step.provider === "search_console" ? (
+                      <SeoGoogleConnection
+                        key="connect"
+                        variant={variant}
+                        onConnected={model.openStatistics}
+                        inRow
+                      />
+                    ) : (
+                      <SeoConnectionButton
+                        key="connect"
+                        provider={step.provider}
+                        variant={variant}
+                        onConnected={() => model.openStatistics(step.provider)}
+                      />
+                    ),
+                  ]
+                : [
+                    t(
+                      step.available
+                        ? "agent.steps.competitors.available"
+                        : "agent.steps.competitors.unavailable",
+                    ),
+                    canEdit && (canRequestAnalysis || !step.available) ? (
+                      <Button
+                        key="competitors"
+                        size="sm"
+                        variant={variant}
+                        onClick={() =>
+                          model.setDialog(
+                            step.available ? "analysis" : "competitor",
+                          )
+                        }
+                      >
+                        {step.available ? <Search /> : <Plus />}
+                        {t(
+                          step.available
+                            ? "agent.researchCompetitors"
+                            : "competitors.add",
+                        )}
+                      </Button>
+                    ) : null,
+                  ];
   const Icon = STEP_ICONS[step.kind];
   return (
     <li
@@ -341,7 +360,9 @@ function SeoAgentPanel({
             ? Boolean(model.data.auditId)
             : step.kind === "competitors"
               ? canEdit && (canRequestAnalysis || !step.available)
-              : step.kind !== "action" || (canEdit && !step.action.taskId),
+              : step.kind === "strategy"
+                ? false
+                : step.kind !== "action" || (canEdit && !step.action.taskId),
         );
   const periodId = useId();
   const trafficLine = traffic
@@ -441,6 +462,7 @@ function SeoAgentPanel({
                 : null}
             </p>
           ) : null}
+          <SeoStrategyLine strategy={model.data.strategy} />
           {brief.rankings.read ? (
             <p
               className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"

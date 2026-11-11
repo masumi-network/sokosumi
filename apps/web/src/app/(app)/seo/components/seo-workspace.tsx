@@ -158,6 +158,7 @@ export function SeoWorkspace({
     (tab) =>
       tab !== "actions" ||
       model.data.actions.length > 0 ||
+      Boolean(model.data.strategy?.actions.length) ||
       model.filters.tab === "actions",
   );
   const { canRequestAnalysis } = model.data.availableActions;

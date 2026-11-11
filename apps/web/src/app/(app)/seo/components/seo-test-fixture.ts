@@ -89,3 +89,83 @@ export function seoTestWorkspace(): ProjectSeoWorkspace {
     },
   };
 }
+
+/** A site audit's strategy results: one group that can be reached, one that ranks, one with words a newer bot sends. */
+export function seoTestStrategy(): NonNullable<
+  ProjectSeoWorkspace["strategy"]
+> {
+  const group = {
+    pageUrl: "https://example.com/",
+    volume: 140,
+    recent: 47,
+    trend: "falling",
+    reach: "in reach",
+    position: null,
+  } as const;
+  return {
+    verdict: "keep",
+    // The SEO bot's own sentence forms.
+    why: '160 of 160 monthly searches of the keyword groups with a known reach lie in groups the site ranks for or can reach. "battery app" falls to 47 searches a month in the last 3 months, against a 12-month mean of 140; "charge timer" rises to 60 searches a month in the last 3 months, against a 12-month mean of 20. 1 of 4 keyword groups are left out: no search volume, or no referring-domains count to compare.',
+    groups: [
+      {
+        ...group,
+        lead: "battery app",
+        // One search intent, three keywords. The numbers are those of the lead.
+        keywords: ["battery app", "Battery Apps", "battery health checker"],
+      },
+      {
+        ...group,
+        lead: "charge timer",
+        keywords: ["charge timer"],
+        trend: "flat",
+        reach: "ranks",
+        position: 4,
+      },
+      {
+        ...group,
+        lead: "battery widget",
+        keywords: ["battery widget"],
+        trend: null,
+        recent: null,
+        reach: "open",
+      },
+    ],
+    actions: [
+      {
+        kind: "get listed",
+        title: "Ask to be added to these lists of products",
+        why: "2 lists of products are in the top 10.",
+        expectedEffect: "People who compare products can find the product.",
+        effort: "medium",
+        limit: "Ask on the product's merits only.",
+        targets: [
+          {
+            url: "https://lists.example/best",
+            title: "Best battery apps",
+            type: "listicle",
+            state: "not mentioned",
+          },
+          {
+            url: "https://other.example/page",
+            title: null,
+            type: "other",
+            state: "not read",
+          },
+        ],
+      },
+      {
+        kind: "new page",
+        title: "Write a comparison page for “battery app alternative”",
+        why: "People search it 90 times a month.",
+        expectedEffect: "People who compare apps can find the site.",
+        effort: "high",
+        limit: null,
+        targets: [],
+      },
+    ],
+    observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+    observedAt: new Date("2026-11-11T00:26:00Z"),
+    countryCode: "US",
+    languageCode: "en",
+  };
+}

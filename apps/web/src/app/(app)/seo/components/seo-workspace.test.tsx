@@ -24,6 +24,7 @@ import {
   SEO_TEST_AUDIT,
   SEO_TEST_PROJECT,
   seoTestMetric,
+  seoTestStrategy,
   seoTestWorkspace,
 } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
@@ -3334,6 +3335,170 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("tab", { name: "Rankings", selected: true }),
     ).toBeVisible();
+  });
+
+  it("shows the site audit's keyword result on the Agent tab and its strategy actions as a step", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    workspace.actions = [];
+    workspace.observations = [
+      {
+        id: seoTestStrategy().observationId,
+        kind: "audit_full",
+        source: "seo_coworker",
+        observedAt: new Date("2026-11-11T00:26:00Z"),
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["mobile", "desktop"],
+        rulebookVersion: "html-v1",
+        artifactHash: "checked-html",
+        issues: 0,
+        coverage: { checked: 12, skipped: 0, failed: 0 },
+      },
+    ];
+    workspace.strategy = seoTestStrategy();
+    const asked: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (!url.endsWith("/chat")) return Response.json(workspace);
+        if (init?.method === "POST") asked.push(String(init.body));
+        return Response.json({ turns: [] });
+      }),
+    );
+    renderWorkspace(workspace);
+    expect(await screen.findByTestId("seo-agent-strategy")).toHaveTextContent(
+      "Keyword strategy: Keep these keywords: the site can reach at least half of their searches",
+    );
+    expect(
+      screen.getByText(
+        "The site audit recommends 2 actions from the keyword strategy. The first: Ask to be added to these lists of products.",
+      ),
+    ).toBeVisible();
+    // The step opens a list and has no end, so it never takes the filled style.
+    expect(
+      screen.getByRole("button", { name: "View these actions" }),
+    ).not.toHaveClass("bg-primary");
+    // The Audit has no page action; the strategy actions alone show the tab.
+    expect(screen.getByRole("tab", { name: "Actions" })).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "View these actions" }),
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: "Actions from the keyword strategy",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "The site audit recommends these from the search results for your keywords. Each one needs a plan, so the button puts a question to the SEO agent in the chat.",
+      ),
+    ).toBeVisible();
+    // "No recommended actions" above these cards would say two things at once.
+    expect(screen.queryByRole("heading", { name: "Actions" })).toBeNull();
+    expect(screen.queryByText("No recommended actions")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    const card = screen
+      .getByRole("heading", {
+        name: "Ask to be added to these lists of products",
+      })
+      .closest("article");
+    if (!card) throw new Error("no card");
+    expect(within(card).getByText("Effort: Medium")).toBeVisible();
+    expect(within(card).getByText("On another site")).toBeVisible();
+    // An action on the site's own pages says so.
+    const page = screen
+      .getByRole("heading", { name: /Write a comparison page/ })
+      .closest("article");
+    if (!page) throw new Error("no page card");
+    expect(within(page).getByText("New page")).toBeVisible();
+    expect(within(page).queryByText("Limit")).toBeNull();
+    // Both buttons have one name; each card's title tells them apart.
+    expect(
+      within(page).getByRole("button", { name: "Draft a plan" }),
+    ).toHaveAccessibleDescription(
+      "Write a comparison page for “battery app alternative”",
+    );
+    expect(
+      within(card).getByText("Ask on the product's merits only."),
+    ).toBeVisible();
+    const list = within(card).getByRole("link", { name: "Best battery apps" });
+    expect(list).toHaveAttribute("href", "https://lists.example/best");
+    expect(list.closest("li")).toHaveTextContent(
+      "List of products · Does not name the product",
+    );
+    // A type and a state without a label add no note.
+    expect(
+      within(card)
+        .getByRole("link", { name: "https://other.example/page" })
+        .closest("li"),
+    ).not.toHaveTextContent("·");
+    // An action without a limit and without places asks for neither.
+    await user.click(
+      within(page).getByRole("button", { name: "Draft a plan" }),
+    );
+    expect(
+      within(await screen.findByRole("dialog")).getByLabelText("Your question"),
+    ).toHaveValue(
+      "The site audit recommends: “Write a comparison page for “battery app alternative””. Draft a plan with the steps in order.",
+    );
+    await user.keyboard("{Escape}");
+    await user.click(
+      within(card).getByRole("button", { name: "Draft a plan" }),
+    );
+    // The limit goes with the question: the agent may not have this action in its evidence.
+    // The chat field keeps the question that was not sent, and the new one follows it.
+    expect(
+      within(await screen.findByRole("dialog")).getByLabelText("Your question"),
+    ).toHaveValue(
+      "The site audit recommends: “Write a comparison page for “battery app alternative””. Draft a plan with the steps in order.\n\nThe site audit recommends: “Ask to be added to these lists of products”. Draft a plan with the steps in order. Keep to this limit: Ask on the product's merits only. The places: https://lists.example/best and https://other.example/page",
+    );
+    expect(asked).toEqual([]);
+  });
+
+  it("leaves the filled button to the next step with work when the strategy step comes first", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canRequestAnalysis = false;
+    workspace.strategy = seoTestStrategy();
+    workspace.observations = [
+      {
+        id: seoTestStrategy().observationId,
+        kind: "audit_full",
+        source: "seo_coworker",
+        observedAt: new Date("2026-11-11T00:26:00Z"),
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        sourceTaskId: null,
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["mobile"],
+        rulebookVersion: "html-v1",
+        artifactHash: "checked-html",
+        issues: 0,
+        coverage: { checked: 12, skipped: 0, failed: 0 },
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByRole("button", { name: "View these actions" }),
+    ).not.toHaveClass("bg-primary");
+    const pagesStep = screen
+      .getByText(/^This audit covers 1 page/)
+      .closest("li");
+    if (!pagesStep) throw new Error("Pages step missing");
+    expect(
+      within(pagesStep).getByRole("button", { name: "Add a page" }),
+    ).toHaveClass("bg-primary");
   });
 
   it("shows the Actions tab only once the Audit has actions", async () => {

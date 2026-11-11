@@ -23,6 +23,7 @@ export type SeoAgentStep =
       tools: string[];
       pageUrl: string;
     }
+  | { kind: "strategy"; count: number; title: string }
   | { kind: "keyword"; keyword: string }
   | { kind: "pages" }
   | { kind: "refresh"; reason: "stale" | "no_queries" }
@@ -87,6 +88,15 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
     SEO_AGENT_ACTION_LIMIT,
   ))
     steps.push({ kind: "measure", name, value, tools, pageUrl });
+  // The audit's strategy actions are one step that opens their list. It has no end,
+  // so it comes after the work that has one.
+  const strategyActions = workspace.strategy?.actions ?? [];
+  if (strategyActions.length)
+    steps.push({
+      kind: "strategy",
+      count: strategyActions.length,
+      title: strategyActions[0].title,
+    });
   if (workspace.availableActions.canEdit && workspace.pages.length === 1)
     steps.push({ kind: "pages" });
   if (refresh && (staleSearch || !workspace.searchQueries))

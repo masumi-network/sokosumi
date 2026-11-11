@@ -14,6 +14,7 @@ import {
   SeoSource,
   SeoState,
 } from "./seo-shared";
+import { SeoStrategyActions } from "./seo-strategy";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoActionCard({
@@ -170,77 +171,84 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const tracked = overview.actions.some(
     (action) => action.status !== "recommended",
   );
+  // "No recommended actions" above the strategy actions would say two things at once.
+  const strategyOnly =
+    !overview.actions.length && Boolean(model.data.strategy?.actions.length);
+  if (strategyOnly) return <SeoStrategyActions model={model} />;
   return (
-    <SeoSection
-      title={t("actions.title")}
-      description={tracked ? t("actions.help") : undefined}
-    >
-      {overview.actions.length ? (
-        <div className="space-y-5">
-          <ActionGroup
-            title={t("actions.fixesTitle")}
-            help={t("actions.fixesHelp")}
-            actions={fixes}
-            model={model}
-          />
-          <ActionGroup
-            title={t("actions.opportunitiesTitle")}
-            help={t("actions.opportunitiesHelp")}
-            actions={opportunities}
-            model={model}
-          />
-        </div>
-      ) : (
-        <SeoEmpty
-          title={t(
-            overview.emptyState === "no_fixes"
-              ? "actions.noFixes"
-              : overview.emptyState === "incomplete"
-                ? "actions.checksIncomplete"
+    <div className="space-y-5">
+      <SeoSection
+        title={t("actions.title")}
+        description={tracked ? t("actions.help") : undefined}
+      >
+        {overview.actions.length ? (
+          <div className="space-y-5">
+            <ActionGroup
+              title={t("actions.fixesTitle")}
+              help={t("actions.fixesHelp")}
+              actions={fixes}
+              model={model}
+            />
+            <ActionGroup
+              title={t("actions.opportunitiesTitle")}
+              help={t("actions.opportunitiesHelp")}
+              actions={opportunities}
+              model={model}
+            />
+          </div>
+        ) : (
+          <SeoEmpty
+            title={t(
+              overview.emptyState === "no_fixes"
+                ? "actions.noFixes"
+                : overview.emptyState === "incomplete"
+                  ? "actions.checksIncomplete"
+                  : overview.emptyState === "issues"
+                    ? "actions.unplannedIssues"
+                    : "actions.empty",
+            )}
+            body={t(
+              overview.emptyState === "incomplete"
+                ? "actions.checksIncompleteBody"
                 : overview.emptyState === "issues"
-                  ? "actions.unplannedIssues"
-                  : "actions.empty",
-          )}
-          body={t(
-            overview.emptyState === "incomplete"
-              ? "actions.checksIncompleteBody"
-              : overview.emptyState === "issues"
-                ? "actions.unplannedIssuesBody"
-                : overview.emptyState !== "no_fixes"
-                  ? model.data.availableActions.canRequestAnalysis
-                    ? "actions.emptyBody"
-                    : "actions.emptyBodyOff"
-                  : searchLoaded
-                    ? "actions.noOpportunitiesBody"
-                    : "actions.noFixesBody",
-          )}
-        >
-          {/* The header already offers "Ask the SEO agent"; the empty state offers the next concrete step. */}
-          {overview.emptyState === "issues" ? null : overview.emptyState ===
-              "no_fixes" &&
-            searchLoaded &&
-            model.data.availableActions.canEdit ? (
-            <Button variant="outline" onClick={() => model.setDialog("page")}>
-              {t("addPage")}
-            </Button>
-          ) : model.data.availableActions.canSyncMetrics &&
-            overview.emptyState !== "no_checks" ? (
-            <Button
-              variant="outline"
-              onClick={() => model.setDialog("statistics")}
-            >
-              {t("overview.manageConnections")}
-            </Button>
-          ) : model.data.availableActions.canRequestAnalysis ? (
-            <Button
-              variant="outline"
-              onClick={() => model.setDialog("analysis")}
-            >
-              {t("runAnalysis")}
-            </Button>
-          ) : null}
-        </SeoEmpty>
-      )}
-    </SeoSection>
+                  ? "actions.unplannedIssuesBody"
+                  : overview.emptyState !== "no_fixes"
+                    ? model.data.availableActions.canRequestAnalysis
+                      ? "actions.emptyBody"
+                      : "actions.emptyBodyOff"
+                    : searchLoaded
+                      ? "actions.noOpportunitiesBody"
+                      : "actions.noFixesBody",
+            )}
+          >
+            {/* The header already offers "Ask the SEO agent"; the empty state offers the next concrete step. */}
+            {overview.emptyState === "issues" ? null : overview.emptyState ===
+                "no_fixes" &&
+              searchLoaded &&
+              model.data.availableActions.canEdit ? (
+              <Button variant="outline" onClick={() => model.setDialog("page")}>
+                {t("addPage")}
+              </Button>
+            ) : model.data.availableActions.canSyncMetrics &&
+              overview.emptyState !== "no_checks" ? (
+              <Button
+                variant="outline"
+                onClick={() => model.setDialog("statistics")}
+              >
+                {t("overview.manageConnections")}
+              </Button>
+            ) : model.data.availableActions.canRequestAnalysis ? (
+              <Button
+                variant="outline"
+                onClick={() => model.setDialog("analysis")}
+              >
+                {t("runAnalysis")}
+              </Button>
+            ) : null}
+          </SeoEmpty>
+        )}
+      </SeoSection>
+      <SeoStrategyActions model={model} />
+    </div>
   );
 }

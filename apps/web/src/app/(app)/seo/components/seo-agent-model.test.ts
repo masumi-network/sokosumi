@@ -5,7 +5,7 @@ import {
   SEO_SEARCH_STALE_MS,
   seoAgentBrief,
 } from "./seo-agent-model";
-import { seoTestWorkspace } from "./seo-test-fixture";
+import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
 
 const synced = new Date("2026-11-07T12:00:00Z");
 function searchMetric(
@@ -58,6 +58,28 @@ function connected() {
 }
 
 describe("SEO agent brief", () => {
+  it("offers the audit's strategy actions as one step after the fixes and before upkeep", () => {
+    const workspace = connected();
+    workspace.actions = [opportunity("first")];
+    expect(
+      seoAgentBrief(workspace, synced).steps.some(
+        (step) => step.kind === "strategy",
+      ),
+    ).toBe(false);
+    workspace.strategy = seoTestStrategy();
+    const steps = seoAgentBrief(workspace, synced).steps;
+    expect(steps.map((step) => step.kind).slice(0, 3)).toEqual([
+      "action",
+      "strategy",
+      "pages",
+    ]);
+    expect(steps[1]).toEqual({
+      kind: "strategy",
+      count: 2,
+      title: "Ask to be added to these lists of products",
+    });
+  });
+
   it("loads missing query rows after a retry delay, not right after a sync", () => {
     const brief = seoAgentBrief(connected(), synced);
     expect(brief.steps).toContainEqual({

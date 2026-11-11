@@ -11481,7 +11481,8 @@
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden.",
           "pagesOff": "Dieses Audit umfasst 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um auch ihre Suchanfragen zu sehen.",
           "measure": "Vorschlag: {name} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst.",
-          "measureOnPage": "Vorschlag: {name} auf {url} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst."
+          "measureOnPage": "Vorschlag: {name} auf {url} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Der Agent kann eine Änderung entwerfen, die du freigibst.",
+          "strategy": "Das Website-Audit empfiehlt {count, plural, one {# Aktion} other {# Aktionen}} aus der Keyword-Strategie. Die erste: {title}."
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
@@ -11575,6 +11576,58 @@
         "checkUnavailable": "Prüfungen sind in diesem Workspace nicht verfügbar. Du kannst weiterhin Search Console verbinden und Suchstatistiken sehen.",
         "checkFailed": "Die letzte Prüfung wurde nicht abgeschlossen. Starte sie erneut.",
         "checkEnded": "Die Prüfung ist beendet."
+      },
+      "strategy": {
+        "title": "Keyword-Strategie",
+        "from": "Aus dem Website-Audit vom",
+        "verdict": {
+          "keep": "Behalte diese Keywords: Die Website kann mindestens die Hälfte ihrer Suchen erreichen",
+          "outOfReach": "Die meisten Suchen dieser Keywords sind für die Website außer Reichweite",
+          "lowDemand": "Diese Keywords haben wenige Suchen",
+          "notDetermined": "Das Audit konnte kein Keyword-Ergebnis liefern",
+          "narrow": "Eine engere Nische ist in Reichweite der Website",
+          "move": "Ein naher Markt ist in Reichweite der Website",
+          "noFit": "Keine der Nischen, die das Audit gelesen hat, passt zur Website"
+        },
+        "reach": {
+          "ranks": "Rankt bereits",
+          "inReach": "In Reichweite",
+          "open": "Offen: ein Forum ist in den Ergebnissen",
+          "outOfReach": "Außer Reichweite",
+          "notDetermined": "Reichweite nicht bestimmt"
+        },
+        "falling": "{count, plural, one {# Keyword-Gruppe verliert Suchen} other {# Keyword-Gruppen verlieren Suchen}}",
+        "details": "So liest du das",
+        "reachHelp": "Die Zahlen zählen Keyword-Gruppen. Rankt bereits: Eine Seite der Website rankt schon für das Keyword oder steht im Featured Snippet. In Reichweite: Das Audit hat die verweisenden Domains der Website mit der schwächsten Top-10-Seite verglichen, die es zählen konnte, und die Website ist nah genug. Offen: Ein Forum ist in den Suchergebnissen, ein Zeichen, dass die Ergebnisse für neue Seiten offen sind.",
+        "trend": {
+          "falling": "Suchen fallen: {recent} pro Monat in den letzten Monaten",
+          "rising": "Suchen steigen: {recent} pro Monat in den letzten Monaten"
+        },
+        "targetType": {
+          "appStore": "App Store",
+          "directory": "Verzeichnis",
+          "forum": "Forum",
+          "list": "Produktliste",
+          "video": "Video"
+        },
+        "targetState": {
+          "links": "Verlinkt die Website",
+          "mentioned": "Nennt das Produkt ohne Link",
+          "notMentioned": "Nennt das Produkt nicht"
+        },
+        "actions": {
+          "title": "Aktionen aus der Keyword-Strategie",
+          "help": "Das Website-Audit empfiehlt diese Aktionen aus den Suchergebnissen für deine Keywords.",
+          "helpAsk": "Jede braucht einen Plan, daher stellt die Schaltfläche dem SEO-Agenten eine Frage im Chat.",
+          "limit": "Grenze",
+          "prompt": "Das Website-Audit empfiehlt: „{title}“. Entwirf einen Plan mit den Schritten in Reihenfolge.{hasLimit, select, yes { Halte diese Grenze ein: {limit}} other {}}{count, plural, =0 {} one { Der Ort: {targets}} other { Die Orte: {targets}}}",
+          "open": "Diese Aktionen ansehen"
+        },
+        "actionKind": {
+          "getListed": "Auf einer anderen Website",
+          "newPage": "Neue Seite",
+          "retargetPage": "Seitenänderung"
+        }
       }
     }
   },

@@ -10,7 +10,7 @@ import enMessages from "../../../../../messages/en.json";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoKeywords } from "./seo-keywords";
 import { SeoSearchQueries } from "./seo-search-queries";
-import { seoTestWorkspace } from "./seo-test-fixture";
+import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 type Messages = { [key: string]: string | Messages };
@@ -359,6 +359,89 @@ function queryOrder() {
 }
 
 describe("Keywords after a check", () => {
+  it("leads with the site audit's keyword result and says each keyword's reach and falling searches", () => {
+    const { workspace } = savedKeywordWorkspace();
+    const row = (keyword: string) => ({
+      ...workspace.keywords[0],
+      id: keyword,
+      keyword,
+      saved: false,
+      version: 0,
+      countryCode: "US",
+      languageCode: "en",
+    });
+    workspace.keywords = [
+      row("battery app"),
+      // Another keyword of the same group: the group's searches are not its searches.
+      row("Battery apps"),
+      row("charge timer"),
+      row("battery widget"),
+      row("no group"),
+      // The audit read the US Market; the same keyword in Germany has other numbers.
+      {
+        ...row("battery health checker"),
+        countryCode: "DE",
+        languageCode: "de",
+      },
+    ];
+    workspace.strategy = seoTestStrategy();
+    // A trend without its recent searches has no number to show.
+    workspace.strategy.groups[2].trend = "rising";
+    const { unmount } = renderWorkspace(workspace);
+    expect(screen.getByTestId("seo-strategy-verdict")).toHaveTextContent(
+      "Keep these keywords: the site can reach at least half of their searches",
+    );
+    expect(
+      screen.getByText(
+        "160 of 160 monthly searches of the keyword groups with a known reach lie in groups the site ranks for or can reach.",
+      ),
+    ).toBeVisible();
+    // Each keyword's numbers are one line of the folded details.
+    expect(
+      screen.getByText(
+        '"charge timer" rises to 60 searches a month in the last 3 months, against a 12-month mean of 20.',
+      ).tagName,
+    ).toBe("LI");
+    expect(
+      screen.getByText(/^1 of 4 keyword groups are left out/).tagName,
+    ).toBe("LI");
+    expect(screen.getByText("1 keyword group loses searches")).toBeVisible();
+    const cell = (keyword: string) => {
+      const found = screen.getByText(keyword).closest("td");
+      if (!found) throw new Error(`no cell for ${keyword}`);
+      return found;
+    };
+    expect(cell("battery app")).toHaveTextContent(
+      "In reach · Searches fall: 47 a month in recent months",
+    );
+    expect(cell("Battery apps")).toHaveTextContent("In reach");
+    expect(cell("Battery apps")).not.toHaveTextContent("Searches");
+    // A rank shows as a position, and flat searches say nothing.
+    expect(cell("charge timer")).not.toHaveTextContent(
+      /Ranks now|Searches|trend/,
+    );
+    expect(cell("battery widget")).toHaveTextContent(
+      "Open: a forum is in the results",
+    );
+    expect(cell("battery health checker")).not.toHaveTextContent(
+      /reach|Searches/i,
+    );
+    expect(cell("battery widget")).not.toHaveTextContent("Searches");
+    expect(cell("no group")).not.toHaveTextContent(/reach|Searches/i);
+    unmount();
+    // A verdict word from a newer SEO bot shows as it came.
+    workspace.strategy = {
+      ...seoTestStrategy(),
+      verdict: "expand",
+      groups: [],
+    };
+    renderWorkspace(workspace);
+    expect(screen.getByTestId("seo-strategy-verdict")).toHaveTextContent(
+      "expand",
+    );
+    expect(screen.queryByText(/loses searches/)).toBeNull();
+  });
+
   it("shows a keyword once, the result first, and the unread keywords as ideas", async () => {
     const user = userEvent.setup();
     const { workspace } = savedKeywordWorkspace();
