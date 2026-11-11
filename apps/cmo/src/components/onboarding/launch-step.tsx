@@ -2,16 +2,21 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
+  formatDay,
   isSocialProvider,
   type SocialProvider,
 } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
+import {
+  listenForConnectDone,
+  openConnectWindow,
+} from "../../lib/connect-window";
 import { joinNames } from "../../lib/names";
-import type { AdActions } from "../ads";
+import { type AdActions, adsResultMessage } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
@@ -79,18 +84,60 @@ export function optionalChannels(
 const isAds = (key: string): key is "google_ads" | "meta_ads" =>
   key === "google_ads" || key === "meta_ads";
 
+/** How often Launch checks whether the founder closed the connect window. */
+const POPUP_CHECK_MS = 500;
+const CONNECT_FAILED = "That connection didn't finish. Try again.";
+/** One function for every render, so the done listener is not re-made. */
+const NO_RETURN = async () => {};
+
 interface LaunchStepProps {
   overview: CmoOverview;
   onConnect: (
     provider: SocialProvider,
+    from: "onboarding" | "popup",
   ) => Promise<{ url: string | null; error: string | null }>;
   onConnectAds: AdActions["connectAds"];
+  /** Polls the overview at once, when a connect window finishes or closes. */
+  onReturn?: () => Promise<void>;
   /** Runs before the celebration shows. */
   onLaunch: () => Promise<void>;
   /** Records the finish and opens the app. */
   onGoToday: () => void;
   /** Why a connection came back without an account, from the return address. */
   notice?: string | null;
+  /** Launch was pressed, or taken back with Change settings. */
+  onCelebrate?: (celebrating: boolean) => void;
+}
+
+/**
+ * The next post still to come on a connected network, as "Tue 6 Oct, 09:00";
+ * empty when none. Calendar days and times are the founder's local ones.
+ */
+export function firstPost(
+  calendar: { date: string; time?: string; channel: string }[],
+  connected: ReadonlySet<string>,
+  now = new Date(),
+): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const clock = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const first = calendar
+    .filter(
+      (entry) =>
+        connected.has(channelKey(entry.channel) ?? "") &&
+        (entry.date > today ||
+          (entry.date === today && (entry.time ?? clock) >= clock)),
+    )
+    .map((entry) => `${entry.date} ${entry.time ?? ""}`.trim())
+    .sort()[0];
+  if (!first) return "";
+  const [date = "", time] = first.split(" ");
+  const day = formatDay(date, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  return time ? `${day}, ${time}` : day;
 }
 
 /**
@@ -102,9 +149,11 @@ export function LaunchStep({
   overview,
   onConnect,
   onConnectAds,
+  onReturn = NO_RETURN,
   onLaunch,
   onGoToday,
   notice = null,
+  onCelebrate,
 }: LaunchStepProps) {
   const required = strategySocialChannels(overview);
   const optional = optionalChannels(overview);
@@ -120,7 +169,11 @@ export function LaunchStep({
   // Undefined until the founder acts: then the return notice no longer shows.
   const [error, setError] = useState<string | null | undefined>(undefined);
   const shownError = error === undefined ? notice : error;
-  const [celebrating, setCelebrating] = useState(false);
+  const [celebrating, setCelebratingState] = useState(false);
+  const setCelebrating = (on: boolean) => {
+    setCelebratingState(on);
+    onCelebrate?.(on);
+  };
   const [, startTransition] = useTransition();
   const [launching, startLaunching] = useTransition();
   // One of the plan's networks is enough to start; the rest can follow.
@@ -129,23 +182,64 @@ export function LaunchStep({
   const pieces = (key: string) =>
     calendar.filter((entry) => channelKey(entry.channel) === key).length;
 
+  // Closed without a word (the founder gave up, or the window lost us): check.
+  const popupCheck = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearInterval(popupCheck.current), []);
+  // A connect window says how it ended; Launch polls at once, no reload.
+  useEffect(
+    () =>
+      listenForConnectDone(overview.projectId, (result) => {
+        window.clearInterval(popupCheck.current);
+        setPending(null);
+        setError(
+          result === "failed"
+            ? CONNECT_FAILED
+            : result === "none"
+              ? adsResultMessage("none")
+              : null,
+        );
+        void onReturn();
+      }),
+    [overview.projectId, onReturn],
+  );
+  function watch(popup: Window) {
+    window.clearInterval(popupCheck.current);
+    popupCheck.current = window.setInterval(() => {
+      if (!popup.closed) return;
+      window.clearInterval(popupCheck.current);
+      setPending(null);
+      void onReturn();
+    }, POPUP_CHECK_MS);
+  }
+
   function connect(key: string) {
     setPending(key);
     setError(null);
+    // Opened in the click, before any wait, so a popup blocker lets it
+    // through. Blocked, Connect leaves the page as it always did.
+    const popup = openConnectWindow();
+    const from = popup ? "popup" : "onboarding";
     startTransition(async () => {
       try {
         const result = isAds(key)
-          ? await onConnectAds(key, "onboarding")
+          ? await onConnectAds(key, from)
           : isSocialProvider(key)
-            ? await onConnect(key)
+            ? await onConnect(key, from)
             : { url: null, error: null };
-        if (result.url) {
+        if (!result.url) {
+          popup?.close();
+          setPending(null);
+          setError(result.error);
+          return;
+        }
+        if (!popup) {
           window.location.assign(result.url);
           return;
         }
-        setPending(null);
-        setError(result.error);
+        popup.location.href = result.url;
+        watch(popup);
       } catch {
+        popup?.close();
         setPending(null);
         setError("Could not connect. Try again.");
       }
@@ -155,6 +249,11 @@ export function LaunchStep({
   if (celebrating) {
     const pace = PACES.find((option) => option.level === plan?.pace?.level);
     const ads = plan?.ads;
+    const month = (plan?.calendar ?? []).filter(
+      (entry) => entry.status !== "skipped",
+    );
+    const total = overview.production.total || month.length;
+    // What is done, then what still runs.
     const summary = [
       {
         term: "Pace",
@@ -176,6 +275,11 @@ export function LaunchStep({
           required.filter((key) => connected.has(key)).map(channelLabel),
         ),
       },
+      {
+        term: "This month",
+        value: total > 0 ? `${total} ${total === 1 ? "piece" : "pieces"}` : "",
+      },
+      { term: "First post", value: firstPost(month, connected) },
     ].filter((row) => row.value);
     return (
       <section className="ob-launch ob-launch-done">
@@ -190,7 +294,6 @@ export function LaunchStep({
           </div>
         </div>
         <div className="ob-celebration-copy">
-          <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
           <p className="muted">
             {AGENT_NAME} makes your month now and posts on your plan's schedule.
             Pause or change any piece from the calendar.
@@ -205,6 +308,10 @@ export function LaunchStep({
               ))}
             </dl>
           ) : null}
+          <p className="ob-small muted">
+            Still running: {AGENT_NAME} is making your month, piece by piece.
+            Watch them land on Today.
+          </p>
           <button type="button" className="button ob-wide" onClick={onGoToday}>
             Go to Today
             <ArrowRight size={16} aria-hidden="true" />
@@ -232,9 +339,6 @@ export function LaunchStep({
   return (
     <section className="ob-launch">
       <CusoAvatar pose="done" size={96} />
-      <h1 className="ob-h1">
-        {accounts ? "One thing, then I start." : "Ready when you are."}
-      </h1>
       <p className="muted">
         {accounts
           ? "Your plan is approved. Connect where I post."

@@ -145,12 +145,33 @@ describe("onboardingStep", () => {
     ).toEqual({ step: "plan", phase: "planning" });
     // A stopped planning run keeps the screen, where Cuso offers a retry.
     expect(
-      onboardingStep(saved({ work: running("strategy", "failed") })).phase,
+      onboardingStep(
+        saved({
+          brandBrainConfirmedAt: confirmed,
+          work: running("strategy", "failed"),
+        }),
+      ).phase,
     ).toBe("planning");
+    // Core starts the first plan when the research ends: until the founder
+    // confirms the brand, they stay on Brand.
+    expect(onboardingStep(saved({ work: running("strategy") }))).toEqual({
+      step: "brand",
+      phase: "review",
+    });
+    // The plan part shows while Cuso writes the calendar.
     expect(onboardingStep(draft({ work: running("strategy") }))).toEqual({
       step: "plan",
-      phase: "planning",
+      phase: "review",
     });
+    expect(
+      onboardingStep(
+        draft({
+          strategy: { ...cmoStrategy, changes: [], calendar: [] },
+          work: running("strategy"),
+        }),
+      ).phase,
+    ).toBe("review");
+    // A first plan that stopped before its calendar offers a retry.
     expect(
       onboardingStep(
         draft({ strategy: { ...cmoStrategy, changes: [], calendar: [] } }),

@@ -122,6 +122,57 @@ export const work = (
   ...patch,
 });
 
+/** Core's six research groups, in the order Cuso saves them. */
+const RESEARCH_GROUPS: Omit<
+  NonNullable<CmoOverview["research"]>["groups"][number],
+  "state"
+>[] = [
+  {
+    key: "website",
+    label: "Website",
+    sections: ["company", "offer", "pricing"],
+  },
+  {
+    key: "buyers",
+    label: "Buyers' world",
+    sections: ["problems", "customers", "buyers", "value"],
+  },
+  {
+    key: "competitors",
+    label: "Competitors",
+    sections: ["positioning", "competition", "sales"],
+  },
+  {
+    key: "social",
+    label: "Social accounts",
+    sections: ["marketing", "content"],
+  },
+  { key: "reviews", label: "Reviews", sections: ["proof", "reputation"] },
+  {
+    key: "news",
+    label: "News and people",
+    sections: ["momentum", "opportunities"],
+  },
+];
+
+/** The quick look Core writes from the homepage at the hire. */
+export const quickLook = {
+  line: "You sell launch rockets to small space startups.",
+  facts: ["From $9 a month", "Based in Berlin"],
+};
+
+/** The research with its first `done` groups in, and the quick look if any. */
+export const research = (
+  done: number,
+  preview: CmoOverview["research"]["preview"] = null,
+): CmoOverview["research"] => ({
+  groups: RESEARCH_GROUPS.map((group, at) => ({
+    ...group,
+    state: at < done ? "done" : "running",
+  })),
+  preview,
+});
+
 /** Reading the site: no Brand Brain yet. */
 export const reading = (patch: Partial<CmoOverview> = {}) =>
   cmoOverview({
@@ -335,5 +386,90 @@ export const richPlan: Strategy = {
       question: "Are your buyers on LinkedIn?",
       statement: "Their buyers are on LinkedIn.",
     },
+  ],
+};
+
+/** A Brand Brain whose read placed Acme among three rivals on two axes. */
+export const mappedBrain: Brain = {
+  ...richBrain,
+  competitors: [
+    {
+      name: "Moonshot",
+      url: "https://moonshot.io",
+      note: "Leads with a launch discount.",
+    },
+    { name: "Orbit Labs", note: "Rockets for enterprises, sold by sales." },
+  ],
+  alternatives: [{ name: "Build it" }],
+  reveal: {
+    ...(richBrain.reveal as NonNullable<Brain["reveal"]>),
+    map: {
+      x: { low: "For one person", high: "For whole teams" },
+      y: { low: "Do it yourself", high: "Done for you" },
+      players: [
+        { name: "Acme", x: 70, y: 72, you: true },
+        { name: "Moonshot", x: 40, y: 60 },
+        { name: "Orbit Labs", x: 88, y: 30 },
+        { name: "Build it in house", x: 15, y: 20 },
+      ],
+    },
+  },
+};
+
+type Entry = Strategy["calendar"][number];
+const piece = (
+  id: string,
+  channel: string,
+  format: string,
+  patch: Partial<Entry> = {},
+): Entry => ({
+  id,
+  date: "2026-10-07",
+  time: "09:00",
+  channel,
+  format,
+  title: `Launch on ${channel}`,
+  status: "idea",
+  hook: `Ship your launch on ${channel}.`,
+  draft: `Ship your launch on ${channel}. Here is how a team of ten does it.`,
+  ...patch,
+});
+
+/** The plan on seven of October's preview frames: every network, both ads and a newsletter. */
+export const sevenPlan: Strategy = {
+  ...richPlan,
+  channels: [
+    "x",
+    "linkedin",
+    "instagram",
+    "facebook",
+    "meta_ads",
+    "google_ads",
+    "newsletter",
+  ].map((channel) => ({ channel, cadence: "1 a week" })),
+  calendar: [
+    piece("s-news", "newsletter", "newsletter", {
+      title: "October launches",
+      draft: "Subject: Our first launch\n\nIt flew, on the day.",
+    }),
+    piece("s-google-1", "google_ads", "search_ad", {
+      title: "Rockets for Teams · Ship on Time",
+      hook: "Rockets for Teams · Ship on Time",
+    }),
+    piece("s-google-2", "google_ads", "search_ad", {
+      date: "2026-10-08",
+      title: "Rocket Pro · 14-Day Free Trial",
+      hook: "Rocket Pro · 14-Day Free Trial",
+      draft: undefined,
+    }),
+    piece("s-meta", "meta_ads", "image", { title: "Try it free" }),
+    piece("s-fb", "facebook", "post"),
+    piece("s-ig-1", "instagram", "image", { hook: "Launch day" }),
+    piece("s-ig-2", "instagram", "image", {
+      date: "2026-10-08",
+      hook: "Meet the crew",
+    }),
+    piece("s-li", "linkedin", "post"),
+    piece("s-x", "x", "post"),
   ],
 };

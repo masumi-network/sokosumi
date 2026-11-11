@@ -9,28 +9,28 @@ type Page = CmoBrandMedia["pages"][number];
 export function SiteShowcase({
   media,
   host,
+  pending,
 }: {
   media: CmoBrandMedia | null;
   host: string;
+  /** Core is still capturing: each shot keeps its place until it lands. Defaults to "no media yet". */
+  pending?: boolean;
 }) {
+  const waiting = pending ?? media === null;
   const desktop = media?.pages.find(
     (page) => page.device === "desktop" && page.label === "Home",
   );
   const phone = media?.pages.find((page) => page.device === "mobile");
-  if (!desktop) {
-    return media ? null : (
-      <div className="bm-show bm-pending" aria-hidden="true">
-        <Browser host={host} />
-      </div>
-    );
-  }
+  if (!desktop && !waiting) return null;
   return (
-    <div className="bm-show">
+    <div className={desktop ? "bm-show" : "bm-show bm-pending"}>
       <Browser host={host} page={desktop} />
       {phone ? (
         <div className="bm-phone">
           <img src={phone.url} alt={`${host} on a phone`} loading="lazy" />
         </div>
+      ) : waiting ? (
+        <div className="bm-phone bm-phone-empty" aria-hidden="true" />
       ) : null}
     </div>
   );

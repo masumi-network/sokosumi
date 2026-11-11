@@ -7,8 +7,18 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
-import { asking, brain, draft, strategy } from "../../test-fixtures/onboarding";
+import {
+  asking,
+  brain,
+  draft,
+  mappedBrain,
+  research,
+  sevenPlan,
+  strategy,
+  work,
+} from "../../test-fixtures/onboarding";
 import { Onboarding } from "../onboarding";
+import { LAND_MS } from "../type-in";
 import { inertOnboardingActions, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
 import { OnboardingFlow } from "./flow";
@@ -306,7 +316,159 @@ it("approves the Brand Brain, then asks for the plan", async () => {
   );
   await press("Looks like us");
   expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
-  expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
+  expect(actions.requestStrategy).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(actions.requestStrategy).mock.calls[0]?.[0]).toBeUndefined();
+});
+
+// The plan starts when the research ends: Looks like us only confirms.
+
+it("confirms the brand without asking for a second plan while one writes", async () => {
+  const writing = asking({ research: research(6), work: work("strategy") });
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      draft({ ...writing, brandBrainConfirmedAt: new Date(), strategy: null }),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={writing}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
+  expect(actions.requestStrategy).not.toHaveBeenCalled();
+  expect(text()).toContain("Writing your plan");
+});
+
+it("confirms the brand while a fix runs: Core starts the plan after it", async () => {
+  const fixing = asking({
+    research: research(6),
+    work: work("strategy", { change: "fix" }),
+  });
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      draft({ ...fixing, brandBrainConfirmedAt: new Date(), strategy: null }),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={fixing}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
+  expect(actions.requestStrategy).not.toHaveBeenCalled();
+});
+
+it("confirms a brand whose plan is written without re-planning it", async () => {
+  const written = asking({ research: research(6), strategy });
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      draft({ ...written, brandBrainConfirmedAt: new Date() }),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={written}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.requestStrategy).not.toHaveBeenCalled();
+  expect(text()).toContain("Approve plan");
+});
+
+it("sends a no as a fix to its one section once the research is in", async () => {
+  const actions = actionsFor({ fixBrandSection: vi.fn(async () => null) });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
+    ),
+  );
+  await press("Yes");
+  await press("No");
+  await press("Save");
+  expect(actions.fixBrandSection).toHaveBeenCalledTimes(1);
+  expect(actions.fixBrandSection).toHaveBeenCalledWith(
+    "offer",
+    "Not true: The 14-day trial is the main offer",
+  );
+});
+
+it("says why Core refused the fix a no sent", async () => {
+  const actions = actionsFor({
+    fixBrandSection: vi.fn(async () => "Cuso is out of credits"),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
+    ),
+  );
+  await press("No");
+  await press("Save");
+  expect(text()).toContain("out of credits");
+});
+
+it("sends no fix while Cuso still reads: the plan takes the no in", async () => {
+  const actions = actionsFor({ fixBrandSection: vi.fn(async () => null) });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={asking({ work: work("research") })}
+        messages={[]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("No");
+  await press("Save");
+  expect(actions.fixBrandSection).not.toHaveBeenCalled();
+});
+
+it("restarts a slow plan from Try again", async () => {
+  vi.useFakeTimers({
+    now: new Date("2026-10-05T09:15:00Z"),
+    toFake: ["Date"],
+  });
+  try {
+    const slow = draft({
+      research: research(6),
+      strategy: null,
+      work: work("strategy"),
+    });
+    const actions = actionsFor({
+      restartStrategy: vi.fn(async () => ({ overview: null, error: null })),
+    });
+    await act(async () =>
+      root.render(
+        <OnboardingFlow
+          overview={slow}
+          messages={[]}
+          skipped={["questions"]}
+          actions={actions}
+        />,
+      ),
+    );
+    await press("Try again");
+    expect(actions.restartStrategy).toHaveBeenCalledTimes(1);
+    expect(actions.requestStrategy).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 // Brand: a tile opens the side panel.
@@ -422,10 +584,11 @@ it("resets the section editor when switching brand tiles", async () => {
   expect(editor()?.querySelector("input")?.value).toBe("");
 });
 
-// Plan: a change, a pace, a budget put the plan away until Cuso answers.
+// Plan: a written change puts the plan away until Cuso answers; a pace or a
+// budget patches it in place.
 
 async function renderPlan(
-  onRequest: (note?: string) => Promise<string | null>,
+  onRequest: (note?: string, patch?: boolean) => Promise<string | null>,
   onSetAds: (monthly: number, currency: string) => Promise<string | null>,
 ) {
   await act(async () =>
@@ -462,25 +625,27 @@ const planHidden = () =>
   container.querySelector(".ob-plan-body")?.hasAttribute("hidden");
 const replanning = () => text().includes("Cuso is re-planning your month");
 
-it("swaps the plan for a re-planning screen the moment a pace is tapped", async () => {
+const patching = () => text().includes("Cuso is changing");
+
+it("patches the plan in place the moment a pace is tapped", async () => {
   const core = pending();
   await renderPlan(core.call, async () => null);
   await press("All-in");
 
   expect(core.call).toHaveBeenCalledWith(
     expect.stringContaining("Change the pace to All-in"),
+    true,
   );
-  expect(replanning()).toBe(true);
-  expect(text()).toContain("All-in pace.");
-  expect(planHidden()).toBe(true);
-
-  await act(async () => core.answer("Not enough credits"));
   expect(replanning()).toBe(false);
   expect(planHidden()).toBe(false);
+  expect(patching()).toBe(true);
+
+  await act(async () => core.answer("Not enough credits"));
+  expect(patching()).toBe(false);
   expect(text()).toContain("You're out of credits.");
 });
 
-it("re-plans on a new ad budget at once, and keeps the amount when it is refused", async () => {
+it("patches the plan for a new ad budget, and keeps the amount when it is refused", async () => {
   const core = pending();
   await renderPlan(async () => null, core.call);
   await press("Change");
@@ -490,14 +655,15 @@ it("re-plans on a new ad budget at once, and keeps the amount when it is refused
   await press("Set budget");
 
   expect(core.call).toHaveBeenCalledWith(300, "EUR");
-  expect(replanning()).toBe(true);
+  expect(planHidden()).toBe(false);
+  expect(patching()).toBe(true);
 
   await act(async () => core.answer("Not enough credits"));
-  expect(replanning()).toBe(false);
+  expect(patching()).toBe(false);
   expect(container.querySelector(amount)).not.toBeNull();
 });
 
-it("shows the re-planning screen for a written change before Core answers", async () => {
+it("shows the re-planning screen for a written change, with the usual time", async () => {
   const core = pending();
   await renderPlan(core.call, async () => null);
   await press("Ask for a change");
@@ -509,9 +675,35 @@ it("shows the re-planning screen for a written change before Core answers", asyn
 
   expect(core.call).toHaveBeenCalledWith("More videos");
   expect(replanning()).toBe(true);
+  expect(text()).toContain("Usually about 6 min");
+  expect(text()).not.toContain("About two minutes");
 
   await act(async () => core.answer(null));
   expect(replanning()).toBe(false);
+});
+
+it("sends a tile's fix to its section, not to the chat", async () => {
+  const onFix = vi.fn(async () => {});
+  const onCorrect = vi.fn(async () => {});
+  await act(async () =>
+    root.render(
+      <BrandStep
+        overview={draft({ brandBrainConfirmedAt: null })}
+        messages={[]}
+        onCorrect={onCorrect}
+        onFix={onFix}
+        onSave={noop}
+      />,
+    ),
+  );
+  await press("What you sell");
+  typeInto(
+    container.querySelector<HTMLInputElement>("#ob-tell"),
+    "From 19 dollars a month.",
+  );
+  await press("Send");
+  expect(onFix).toHaveBeenCalledWith("offer", "From 19 dollars a month.");
+  expect(onCorrect).not.toHaveBeenCalled();
 });
 
 it("opens the tab the founder picks, and keeps Results one tap away", async () => {
@@ -861,7 +1053,7 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
   expect(onLaunch).toHaveBeenCalledTimes(1);
   expect(text()).not.toContain("is on it.");
   await act(async () => finish());
-  expect(text()).toContain("Cuso is on it.");
+  expect(text()).toContain("Still running:");
   expect(text()).toContain("Active, 7 pieces a week");
   expect(text()).toContain("€200 a month");
   expect(text()).toContain("posts on your plan's schedule");
@@ -870,9 +1062,184 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
   expect(text()).not.toContain("Approvals");
   expect(goToday).not.toHaveBeenCalled();
   await press("Change settings");
-  expect(text()).toContain("One thing, then I start.");
+  expect(text()).toContain("Connect where I post.");
   await press("Launch Cuso");
   await act(async () => finish());
   await press("Go to Today");
   expect(goToday).toHaveBeenCalledTimes(1);
+});
+
+// One shell: the heading and the markers change in place, the page never remounts.
+
+it("keeps one mounted shell from Site to Launch, changing the heading in place", async () => {
+  vi.stubGlobal("matchMedia", () => ({
+    matches: true,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      draft({ strategy: { ...strategy, changes: [], questions: [] } }),
+    ),
+    approveStrategy: vi.fn(async () => draft(cmoStrategyVersion(new Date()))),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
+    ),
+  );
+  const shell = container.querySelector(".ob-shell");
+  const heading = container.querySelector(".ob-head h1");
+  const main = container.querySelector(".ob-main");
+  const seen = () => {
+    expect(container.querySelector(".ob-shell")).toBe(shell);
+    expect(container.querySelector(".ob-head h1")).toBe(heading);
+    expect(container.querySelector(".ob-main")).toBe(main);
+    expect(container.querySelectorAll("h1")).toHaveLength(1);
+    return [
+      heading?.textContent,
+      container.querySelector(".ob-step.now")?.textContent?.replace(/^\d/, ""),
+    ];
+  };
+  expect(shell).not.toBeNull();
+  expect(seen()).toEqual([
+    "I read acme.io. Answer a few before I show you.",
+    "Site",
+  ]);
+  await press("Yes");
+  await press("Yes");
+  await press("See your brand");
+  expect(seen()).toEqual(["Here's acme.io as I see it.", "Brand"]);
+  await press("Looks like us");
+  expect(seen()).toEqual(["Your first month.", "Plan"]);
+  await press("Approve plan");
+  expect(seen()).toEqual(["One thing, then I start.", "Launch"]);
+  vi.unstubAllGlobals();
+});
+
+it("ends Launch with a recap: what is done and what still runs", async () => {
+  // The first post is the next one on a connected network.
+  vi.useFakeTimers({ now: new Date("2026-10-01T08:00:00Z"), toFake: ["Date"] });
+  await act(async () =>
+    root.render(
+      <LaunchStep
+        overview={draft({
+          ...cmoStrategyVersion(new Date()),
+          channels: [{ ...active, id: "li", provider: "linkedin" }],
+        })}
+        onConnect={async () => ({ url: null, error: null })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onLaunch={async () => {}}
+        onGoToday={() => {}}
+      />,
+    ),
+  );
+  await press("Launch Cuso");
+  expect(text()).toContain("This month3 pieces");
+  expect(text()).toContain("First postTue 6 Oct, 09:00");
+  expect(text()).toContain("Posting toLinkedIn");
+  expect(text()).toContain(
+    "Still running: Cuso is making your month, piece by piece. Watch them land on Today.",
+  );
+  vi.useRealTimers();
+});
+
+// Brand: the competitor map and the rival rows pick each other.
+
+it("picks a rival's row from its dot, and its dot from its row", async () => {
+  await act(async () =>
+    root.render(
+      <BrandStep
+        overview={draft({ brandBrain: mappedBrain, strategy: null })}
+        messages={[]}
+        onCorrect={noop}
+        onSave={noop}
+        onAnswer={noop}
+        onApprove={async () => null}
+      />,
+    ),
+  );
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-tile")]
+      .find((tile) => tile.textContent?.startsWith("Competitors"))
+      ?.click(),
+  );
+  const dot = (name: string) =>
+    [
+      ...container.querySelectorAll<HTMLButtonElement>("button.ob-map-dot"),
+    ].find((candidate) => candidate.textContent === name);
+  const row = (name: string) =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-rival")].find(
+      (candidate) => candidate.querySelector("b")?.textContent === name,
+    );
+  const pressed = (element: HTMLElement | undefined) =>
+    element?.getAttribute("aria-pressed");
+
+  expect(pressed(dot("Moonshot"))).toBe("false");
+  await act(async () => dot("Moonshot")?.click());
+  expect(pressed(dot("Moonshot"))).toBe("true");
+  expect(pressed(row("Moonshot"))).toBe("true");
+  expect(pressed(row("Orbit Labs"))).toBe("false");
+
+  await act(async () => row("Orbit Labs")?.click());
+  expect(pressed(dot("Orbit Labs"))).toBe("true");
+  expect(pressed(dot("Moonshot"))).toBe("false");
+  expect(pressed(row("Moonshot"))).toBe("false");
+
+  // Picking it again lets go.
+  await act(async () => dot("Orbit Labs")?.click());
+  expect(pressed(row("Orbit Labs"))).toBe("false");
+
+  // A dot named a little longer still finds its row.
+  await act(async () => row("Build it")?.click());
+  expect(pressed(dot("Build it in house"))).toBe("true");
+});
+
+// Plan: account previews land one at a time while the plan writes.
+
+it("lands each new account preview one at a time", async () => {
+  vi.useFakeTimers();
+  try {
+    const at = (calendar: typeof sevenPlan.calendar) => (
+      <PlanStep
+        overview={draft({
+          strategy: { ...sevenPlan, calendar },
+          work: {
+            kind: "strategy",
+            status: "running",
+            startedAt: new Date("2026-10-05T09:00:00Z"),
+            steps: [],
+            sections: [],
+            sectionsSaved: 0,
+            sectionsTotal: 0,
+          },
+        })}
+        phase="review"
+        initialTab="month"
+        onRequest={async () => null}
+        onSetAds={async () => null}
+        onAnswer={noop}
+        onUpdate={async () => null}
+        onApprove={noop}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+      />
+    );
+    const frames = () =>
+      container.querySelectorAll(".ob-showcases .ob-showcase-label").length;
+    const newsletter = sevenPlan.calendar.filter(
+      (entry) => entry.channel === "newsletter",
+    );
+    await act(async () => root.render(at(newsletter)));
+    expect(frames()).toBe(1);
+    await act(async () => root.render(at(sevenPlan.calendar)));
+    expect(frames()).toBe(1);
+    await act(async () => vi.advanceTimersByTime(LAND_MS));
+    expect(frames()).toBe(2);
+    for (let landed = 3; landed <= 7; landed++) {
+      await act(async () => vi.advanceTimersByTime(LAND_MS));
+      expect(frames()).toBe(landed);
+    }
+  } finally {
+    vi.useRealTimers();
+  }
 });

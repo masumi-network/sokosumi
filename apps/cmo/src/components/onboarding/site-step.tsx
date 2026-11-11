@@ -10,18 +10,14 @@ import {
   sourceHost,
 } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
-import { hostOf } from "../brand-profile";
+import { clip, hostOf } from "../brand-profile";
 import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
-import { brandTiles, tileSource } from "./brand-step";
-import {
-  Checklist,
-  RESEARCH_PHASES,
-  SkeletonTile,
-  useElapsed,
-  workChecklist,
-} from "./checklist";
+import { TypeIn } from "../type-in";
+import { brandTiles, SiteCard, tileSource } from "./brand-step";
+import { Checklist, RESEARCH_PHASES, workChecklist } from "./checklist";
+import { researchGroups, setupRows, siteQuestion } from "./live";
 import {
   type Answer,
   QuestionCard,
@@ -57,6 +53,13 @@ interface SiteStepProps {
   onReply: (text: string) => Promise<void>;
 }
 
+interface FoundItem {
+  id: string;
+  label: string;
+  value: string;
+  source?: string;
+}
+
 /**
  * Cuso reading the founder's site, live. While he reads, his yes/no questions
  * arrive on the right, one at a time; once they are done, so is the step.
@@ -77,14 +80,7 @@ export function SiteStep({
   const brain = overview.brandBrain;
   const work = overview.work?.kind === "research" ? overview.work : null;
   const site = hostOf(overview.websiteUrl);
-  // Cuso may stop to ask the founder something before he saves a Brand Brain.
-  const stopped =
-    phase === "failed" &&
-    overview.learning !== "failed" &&
-    work?.status !== "failed";
-  const asked = stopped
-    ? [...messages].reverse().find((message) => message.fromCuso)
-    : undefined;
+  const asked = siteQuestion(overview, messages, phase);
   const failed = phase === "failed" && !asked;
   const running = phase === "reading" && !finished;
   const noCredits = failed && overview.billing.availableCredits <= 0;
@@ -100,18 +96,6 @@ export function SiteStep({
   const index = at ?? Math.max(firstOpen, 0);
   const question = questions[index];
 
-  const title = failed
-    ? "The read stopped."
-    : asked
-      ? "I have a question."
-      : running
-        ? questions.length > 0
-          ? `Reading ${site}. Answer a few while you wait.`
-          : `Reading ${site}.`
-        : finished
-          ? `I read ${site}.`
-          : `I read ${site}. Answer a few before I show you.`;
-
   const found = work
     ? {
         saved: work.sectionsSaved,
@@ -124,6 +108,54 @@ export function SiteStep({
   const composing =
     running && !brain && found && found.saved >= found.total
       ? found.total
+      : null;
+  // The Brand Brain's first tiles once it exists, else the latest sections
+  // Cuso saved; every slot keeps its place before it fills.
+  const items: FoundItem[] = brain
+    ? brandTiles(brain, async () => {})
+        .slice(0, MAX_FOUND)
+        .map((tile) => ({
+          id: tile.id,
+          label: tile.label,
+          value: tile.value,
+          source: sourceHost(
+            tileSource(tile, brandProfile(brain), overview.websiteUrl),
+          ),
+        }))
+    : (found?.sections ?? []).slice(-MAX_FOUND).map((section) => ({
+        id: section.key,
+        label: BRAND_SECTIONS[section.key].title,
+        value: section.headline,
+      }));
+  // Core's research groups: one slot each, filled as the group lands.
+  const groups = researchGroups(overview);
+  const profile = brain ? brandProfile(brain) : {};
+  const headline = (key: keyof typeof BRAND_SECTIONS) => {
+    const saved = found?.sections.find((section) => section.key === key);
+    const section = profile[key];
+    return (
+      saved?.headline ??
+      section?.headline ??
+      (section ? clip(section.answer, 72) : undefined)
+    );
+  };
+  const groupItems = groups?.map((group): FoundItem | null =>
+    group.state === "done"
+      ? {
+          id: group.key,
+          label: group.label,
+          value:
+            group.sections.map(headline).find(Boolean) ??
+            "Nothing public found",
+        }
+      : null,
+  );
+  // The quick look until the essentials replace it with the summary.
+  const preview = overview.research?.preview ?? null;
+  const glance = brain
+    ? { text: brain.summary, facts: [], from: "From the full read" }
+    : preview
+      ? { text: preview.line, facts: preview.facts, from: "From your homepage" }
       : null;
   const rivals =
     (brain?.competitors.length ?? 0) + (brain?.alternatives?.length ?? 0);
@@ -140,7 +172,6 @@ export function SiteStep({
         : item.label,
     state: brain && !running ? ("done" as const) : item.state,
   }));
-  const elapsed = useElapsed(work?.startedAt, running);
 
   return (
     <section className="panel ob-site">
@@ -154,80 +185,83 @@ export function SiteStep({
           />
           <p className="muted">
             {running
-              ? `${AGENT_NAME} is reading${elapsed ? ` · ${elapsed}` : ""}`
+              ? `${AGENT_NAME} is reading`
               : `${AGENT_NAME} read your site`}
           </p>
-          <h1 className="ob-h1">{title}</h1>
-          <Checklist items={checklist} />
+          {/* The group chips under the heading are the progress. */}
+          {groups ? null : <Checklist items={checklist} />}
         </div>
-        {found || brain ? (
-          <div className="card ob-found">
-            <div className="ob-found-head">
-              <h2>What I found so far</h2>
-              {found ? (
-                <span className="ob-small num">
-                  {found.saved} of {found.total} sections
-                </span>
-              ) : null}
-            </div>
-            {brain ? (
-              <ul className="ob-found-list">
-                {brandTiles(brain, async () => {})
-                  .slice(0, MAX_FOUND)
-                  .map((tile) => (
-                    <li key={tile.id}>
-                      <span className="ob-small muted">{tile.label}</span>
-                      <b>{tile.value}</b>
-                      <span className="ob-tile-source">
-                        Source:{" "}
-                        {sourceHost(
-                          tileSource(
-                            tile,
-                            brandProfile(brain),
-                            overview.websiteUrl,
-                          ),
-                        )}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
+        <SiteCard
+          overview={overview}
+          host={site}
+          pending={phase === "reading"}
+        />
+        <div className="card ob-found">
+          <div className="ob-found-head">
+            <h2>What I found so far</h2>
+            {composing !== null ? (
+              <span className="ob-small">All {composing} sections are in.</span>
             ) : found ? (
-              <>
-                {found.sections.length > 0 ? (
-                  // The latest sections Cuso saved, as he saves them.
-                  <ul className="ob-found-list">
-                    {found.sections.slice(-MAX_FOUND).map((section) => (
-                      <li key={section.key}>
-                        <span className="ob-small muted">
-                          {BRAND_SECTIONS[section.key].title}
-                        </span>
-                        <b>{section.headline}</b>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {composing !== null ? (
-                  <p className="muted">All {composing} sections are in.</p>
-                ) : (
-                  <div className="ob-skeletons">
-                    {Array.from(
-                      {
-                        length: Math.min(
-                          Math.max(found.total - found.saved, 0),
-                          MAX_FOUND,
-                        ),
-                      },
-                      (_, skeleton) => (
-                        // Placeholders have no identity beyond their place.
-                        <SkeletonTile key={skeleton} />
-                      ),
-                    )}
-                  </div>
-                )}
-              </>
+              <span className="ob-small num">
+                {found.saved} of {found.total} sections
+              </span>
             ) : null}
           </div>
-        ) : null}
+          {groups ? (
+            glance ? (
+              <div className="ob-glance">
+                <span className="ob-small muted">At a glance</span>
+                <b>
+                  <TypeIn text={glance.text} />
+                </b>
+                {glance.facts.length > 0 ? (
+                  <span className="ob-small">{glance.facts.join(" · ")}</span>
+                ) : null}
+                <span className="ob-tile-source">{glance.from}</span>
+              </div>
+            ) : (
+              <div className="ob-glance ob-skeleton" aria-hidden="true">
+                <span />
+                <span />
+              </div>
+            )
+          ) : null}
+          <ul
+            className={
+              groupItems ? "ob-found-list ob-found-groups" : "ob-found-list"
+            }
+          >
+            {Array.from(
+              { length: groupItems?.length ?? MAX_FOUND },
+              (_, slot) => {
+                const item = groupItems ? groupItems[slot] : items[slot];
+                // A slot is its place in the list: it stays mounted as it fills.
+                return item ? (
+                  <li key={slot} className="ob-slot">
+                    <span className="ob-small muted">{item.label}</span>
+                    <b>
+                      <TypeIn text={item.value} />
+                    </b>
+                    {item.source ? (
+                      <span className="ob-tile-source">
+                        Source: {item.source}
+                      </span>
+                    ) : null}
+                  </li>
+                ) : (
+                  <li
+                    key={slot}
+                    className="ob-slot ob-skeleton"
+                    aria-hidden="true"
+                  >
+                    <span />
+                    <span />
+                  </li>
+                );
+              },
+            )}
+          </ul>
+        </div>
       </div>
 
       <div className="ob-site-right">
@@ -297,16 +331,30 @@ export function SiteStep({
             ) : null}
           </div>
         ) : (
-          <div className="card ob-says" aria-live="polite">
-            <CusoAvatar pose="reading" size={96} />
-            <p className="ob-value">
-              {questions.length > 0
-                ? "Thanks. I'm finishing the read."
-                : composing !== null
-                  ? `Now I'm putting your ${composing} sections together: your promise, your voice and the questions I still have.`
-                  : "My questions come when the read lands."}
-            </p>
-          </div>
+          <>
+            {questions.length === 0 ? (
+              // Once, until the first question: what hiring set up.
+              <div className="card ob-setup">
+                <h2>Set up for {site}</h2>
+                <Checklist
+                  items={setupRows(overview).map((label) => ({
+                    label,
+                    state: "done" as const,
+                  }))}
+                />
+              </div>
+            ) : null}
+            <div className="card ob-says" aria-live="polite">
+              <CusoAvatar pose="reading" size={96} />
+              <p className="ob-value">
+                {questions.length > 0
+                  ? "Thanks. I'm finishing the read."
+                  : composing !== null
+                    ? `Now I'm putting your ${composing} sections together: your promise, your voice and the questions I still have.`
+                    : "My questions come when the read lands."}
+              </p>
+            </div>
+          </>
         )}
       </div>
     </section>

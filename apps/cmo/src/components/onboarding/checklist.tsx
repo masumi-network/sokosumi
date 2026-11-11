@@ -12,11 +12,16 @@ interface ChecklistItem {
 
 interface ChecklistProps {
   items: ChecklistItem[];
+  /** "ob-chips" lays the same items out in a row. */
+  className?: string;
 }
 
-export function Checklist({ items }: ChecklistProps) {
+export function Checklist({
+  items,
+  className = "ob-checklist",
+}: ChecklistProps) {
   return (
-    <ol className="ob-checklist">
+    <ol className={className}>
       {items.map((item) => (
         <li key={item.label} className={item.state}>
           <span className="ob-box" aria-hidden="true">
@@ -42,11 +47,11 @@ export function Checklist({ items }: ChecklistProps) {
 
 type Work = NonNullable<CmoOverview["work"]>;
 
-/** "4 min so far": the time since the work started, ticking while it runs. */
-export function useElapsed(
+/** Seconds since the work started, ticking while it runs. */
+export function useElapsedSeconds(
   since: Date | string | undefined,
   running: boolean,
-): string | null {
+): number | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!running) return;
@@ -54,9 +59,7 @@ export function useElapsed(
     return () => window.clearInterval(timer);
   }, [running]);
   if (!running || !since) return null;
-  return elapsedLabel(
-    Math.max(0, Math.round((now - new Date(since).getTime()) / 1_000)),
-  );
+  return Math.max(0, Math.round((now - new Date(since).getTime()) / 1_000));
 }
 
 /** "12s so far", "4 min so far", "2 h so far". */

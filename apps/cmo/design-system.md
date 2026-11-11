@@ -5,8 +5,8 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 - **Voice, product, agent naming:** [`DESIGN.md`](DESIGN.md). This file covers how things look.
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
-- **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
+- **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/showcases.css` is exempt because it draws the networks' own UIs.
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, start, reading, reading-slow, writing, asking, brand, plan, planning, planning-slow, launch, launch-connected) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
 
 ## Five rules
 
@@ -104,7 +104,11 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Checklist.** 18px boxes, 6px radius. Done: green fill, ink line, check. Working: dashed ink line with a dot. Not yet: hairline.
 
-**Skeleton.** Dashed hairline box with hairline bars. Never a shimmer.
+**Skeleton.** Dashed hairline box with hairline bars. Never a shimmer. Every slot is on screen, with its skeleton, before its content lands, and keeps the same height filled, so nothing moves under the founder's cursor.
+
+**Onboarding shell.** Site, Brand, Plan and Launch are one screen that changes in place: the H1 and one live line sit above the step's panel and never remount. The live line is Core's latest work label with a green live dot, then the time so far against the usual time (research about 7 min, plan about 6 min). Past the usual time it says so; from twice the usual time it adds Try again (full width on a phone). No percentages. It keeps its height when nothing runs.
+
+**Typing.** New text Cuso writes types in over about a second with a 2px caret (`useTypeIn`, `TypeIn`); text the screen mounted with never replays, and reduced motion shows it at once. Nothing else animates text. A count of pieces on Today climbs one at a time (`useLanding`).
 
 **Assumption chip.** Sits on the line it changes (the budget, a move): panel fill, 8px radius, a 20px yellow disc with a Neutral 950 "!", the question, a small Yes button and a text alternative ("Change", "No").
 
@@ -141,4 +145,4 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 Raise these with the guide owner rather than drifting further.
 
-Last updated: 2026-11-05
+Last updated: 2026-11-10

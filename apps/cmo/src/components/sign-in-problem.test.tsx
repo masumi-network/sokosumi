@@ -98,4 +98,12 @@ describe("sign-in problem page", () => {
       );
     },
   );
+
+  it("says the website typed before sign in is kept for the retry", () => {
+    const html = renderToStaticMarkup(
+      <SignInProblem error="access_denied" signIn={signIn} website="acme.io" />,
+    );
+    expect(html).toContain("I kept acme.io. You won&#x27;t type it again.");
+    expect(alertFor("access_denied")).not.toContain("I kept");
+  });
 });

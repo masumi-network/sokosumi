@@ -18,7 +18,7 @@ import { channelLabel } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { joinNames } from "../../lib/names";
-import { CompetitorCards, SiteShowcase } from "../brand-media";
+import { SiteShowcase } from "../brand-media";
 import {
   Accounts,
   AskForm,
@@ -27,7 +27,6 @@ import {
   firstSentence,
   hostOf,
   Offers,
-  RivalFacts,
   SectionEditor,
   Voice,
 } from "../brand-profile";
@@ -35,6 +34,9 @@ import { BusinessMark } from "../business-mark";
 import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
+import { TypeIn } from "../type-in";
+import { planWriting, researchGroups, stepTitle } from "./live";
+import { Competitors } from "./market-map";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -148,29 +150,7 @@ export function brandTiles(
       value: `${rivals.length} compared`,
       detail: short(rivals.map((rival) => rival.name).join(", ")),
       section: "competition",
-      body: (
-        <>
-          {media && media.competitors.length > 0 ? (
-            <CompetitorCards brain={brain} media={media} />
-          ) : (
-            <ul className="ob-list">
-              {rivals.map((rival) => (
-                <li key={rival.name}>
-                  {rival.url ? (
-                    <a href={rival.url} target="_blank" rel="noreferrer">
-                      {rival.name}
-                    </a>
-                  ) : (
-                    rival.name
-                  )}
-                  {rival.note ? ` · ${rival.note}` : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-          <RivalFacts competitors={brain.competitors} />
-        </>
-      ),
+      body: <Competitors brain={brain} media={media} />,
     });
   }
   if (brain.channels.length > 0) {
@@ -189,6 +169,8 @@ interface BrandStepProps {
   overview: CmoOverview;
   messages: CusoMessage[];
   onCorrect: (text: string) => Promise<void>;
+  /** Sends a fix to one section; without it a fix goes to the chat. */
+  onFix?: (section: BrandSectionKey, note: string) => Promise<void>;
   onSave: (brain: BrandBrain) => Promise<void>;
   /** Approves the Brand Brain and asks for the plan; a refusal comes back as text. Without it the step only shows the Brand Brain. */
   onApprove?: () => Promise<string | null>;
@@ -200,6 +182,8 @@ interface BrandStepProps {
   ) => Promise<void>;
   /** Set when the founder opened this step again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
+  /** Renders the heading itself; the onboarding shell shows it instead. */
+  titled?: boolean;
 }
 
 /** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
@@ -207,10 +191,12 @@ export function BrandStep({
   overview,
   messages,
   onCorrect,
+  onFix,
   onSave,
   onApprove,
   onAnswer,
   ahead,
+  titled = true,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -244,8 +230,17 @@ export function BrandStep({
     return () => window.clearTimeout(timer);
   }, [sent, answered, idle]);
   const fixing = sent !== null && !answered && !stale;
-  // Right after research Cuso is still wrapping up his turn for a few seconds.
-  const finishing = !fixing && !stale && overview.botStatus === "RUNNING";
+  // Right after research Cuso is still wrapping up his turn for a few
+  // seconds. The plan Core starts after it never holds the founder back.
+  const writing = planWriting(overview);
+  const finishing =
+    !fixing && !stale && overview.botStatus === "RUNNING" && !writing;
+  // The plan's slot: Core started it when the research ended, and it opens
+  // once the founder confirms the brand.
+  const planSlot =
+    researchGroups(overview) !== null &&
+    !overview.brandBrainConfirmedAt &&
+    (writing || (overview.strategy?.calendar.length ?? 0) > 0);
 
   async function ask(text: string) {
     setSent({ text, after: lastWord?.id ?? null });
@@ -286,7 +281,9 @@ export function BrandStep({
       <div className="ob-title-row">
         <CusoAvatar pose="thinking" size={48} />
         <div className="ob-title-copy">
-          <h1 className="ob-h1">Here's {site} as I see it.</h1>
+          {titled ? (
+            <h1 className="ob-h1">{stepTitle({ step: "brand", overview })}</h1>
+          ) : null}
           <p className="muted">
             {AGENT_NAME} · tap any tile to see the source or fix it
           </p>
@@ -352,6 +349,20 @@ export function BrandStep({
             {hasShot ? <SiteCard overview={overview} host={site} /> : null}
           </div>
 
+          {planSlot ? (
+            <div className="card ob-plan-slot" aria-live="polite">
+              <span className="ob-small muted">Your plan</span>
+              <b>
+                <TypeIn
+                  text={writing ? "Writing your plan" : "Your plan is ready"}
+                />
+              </b>
+              <span className="ob-small muted">
+                It opens when you say Looks like us.
+              </span>
+            </div>
+          ) : null}
+
           {left.length > 0 ? (
             <div className="card card-focus ob-left">
               <p>
@@ -383,6 +394,7 @@ export function BrandStep({
               <Tile
                 key={tile.id}
                 label={tile.label}
+                mark={fixMark(tile.section ? profile[tile.section] : undefined)}
                 value={tile.value}
                 detail={tile.detail}
                 source={`Source: ${sourceHost(tileSource(tile, profile, overview.websiteUrl))}`}
@@ -441,7 +453,15 @@ export function BrandStep({
                 inputId="ob-tell"
                 cta="Send"
                 placeholder="Say what to fix"
-                onAsk={ask}
+                {...(shown.section && onFix
+                  ? {
+                      sentNote: overview.strategy
+                        ? `Sent. ${AGENT_NAME} rewrites this part, then fits your plan to it.`
+                        : `Sent. ${AGENT_NAME} rewrites this part.`,
+                      onAsk: (text: string) =>
+                        onFix(shown.section as BrandSectionKey, text),
+                    }
+                  : { onAsk: ask })}
               />
             </div>
             {sent && answered && lastWord ? (
@@ -454,6 +474,12 @@ export function BrandStep({
       </div>
     </section>
   );
+}
+
+/** Whether the founder's fix on a section is in, or Cuso is still on it. */
+function fixMark(section: BrandSection | undefined): string | undefined {
+  if (!section?.fix) return undefined;
+  return section.fix.fixed ? "Fixed by you" : `${AGENT_NAME} is fixing this`;
 }
 
 interface TileDetailProps {
@@ -527,18 +553,27 @@ function TileDetail({ section, body, onSave }: TileDetailProps) {
 interface SiteCardProps {
   overview: CmoOverview;
   host: string;
+  /** Core is still capturing: what has not landed keeps its place. */
+  pending?: boolean;
 }
 
 /** The homepage as visitors see it, with the brand's logo and colours. */
-function SiteCard({ overview, host }: SiteCardProps) {
+export function SiteCard({ overview, host, pending = false }: SiteCardProps) {
   const colors = (overview.brandVisual?.colors ?? []).slice(0, MAX_COLORS);
   return (
     <div className="card ob-sitecard">
       <h2>Your site</h2>
-      <SiteShowcase media={overview.brandMedia} host={host} />
+      <SiteShowcase media={overview.brandMedia} host={host} pending={pending} />
       <div className="ob-brandmark">
         <BusinessMark overview={overview} size={36} wide />
-        {colors.length > 0 ? (
+        {colors.length === 0 && pending ? (
+          <ul className="ob-swatches" aria-hidden="true">
+            {Array.from({ length: MAX_COLORS }, (_, swatch) => (
+              // Placeholders have no identity beyond their place.
+              <li key={swatch} className="ob-swatch-skeleton" />
+            ))}
+          </ul>
+        ) : colors.length > 0 ? (
           <ul className="ob-swatches" aria-label="Brand colours">
             {colors.map((color) => (
               <li key={color} style={{ background: color }}>

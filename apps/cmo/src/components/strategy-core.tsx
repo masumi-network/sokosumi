@@ -294,7 +294,7 @@ export function PacePicker({
                 setAsked(option.level);
                 try {
                   await onAsk?.(
-                    `Change the pace to ${option.name} (${option.does.toLowerCase()}) and re-plan the calendar to match.`,
+                    `Change the pace to ${option.name} (${option.does.toLowerCase()}): add or drop only the calendar entries the new pace needs.`,
                     `${option.name} pace`,
                   );
                 } catch {

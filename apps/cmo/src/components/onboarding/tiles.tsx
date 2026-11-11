@@ -64,6 +64,8 @@ export function GoalBlock({
 
 interface TileProps {
   label: string;
+  /** A short state beside the label, such as "Fixed by you". */
+  mark?: string;
   value: string;
   detail?: string;
   source?: string;
@@ -77,6 +79,7 @@ interface TileProps {
  */
 export function Tile({
   label,
+  mark,
   value,
   detail,
   source,
@@ -92,6 +95,7 @@ export function Tile({
     >
       <span className="ob-tile-head">
         <span className="ob-tile-label">{label}</span>
+        {mark ? <span className="ob-tile-mark">{mark}</span> : null}
         <ChevronRight size={16} aria-hidden="true" className="ob-tile-go" />
       </span>
       <span className="ob-tile-value">{value}</span>

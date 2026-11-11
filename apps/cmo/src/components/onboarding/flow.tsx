@@ -12,13 +12,48 @@ import { adsReturnError } from "../ads";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
+import { TypeIn } from "../type-in";
 import { type AnswerInput, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
+import { Checklist, useElapsedSeconds } from "./checklist";
 import { LaunchStep } from "./launch-step";
+import {
+  liveLine,
+  researchGroups,
+  slowCopy,
+  stepTitle,
+  USUAL_SECONDS,
+} from "./live";
 import { PlanStep } from "./plan-step";
+import { RetryButton } from "./questions";
+import { Refusal } from "./refusal";
 import { SiteStep } from "./site-step";
 import { type OnboardingStep, onboardingStep, STEPS, stepIndex } from "./step";
 import { StepMarkers } from "./step-markers";
+
+interface ResearchChipsProps {
+  overview: CmoOverview;
+}
+
+/**
+ * The research's six groups under the live line, on Site: each ticks off
+ * as Cuso saves its sections. A group the read never reached stays open.
+ */
+function ResearchChips({ overview }: ResearchChipsProps) {
+  const groups = researchGroups(overview);
+  if (!groups) return null;
+  const reading =
+    overview.work?.kind === "research" && overview.work.status === "running";
+  return (
+    <Checklist
+      className="ob-chips"
+      items={groups.map((group) => ({
+        label: group.label,
+        state: group.state === "done" ? "done" : reading ? "working" : "next",
+      }))}
+    />
+  );
+}
 
 /** The steps the founder can open again once past them; Site only leads to Brand. */
 function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
@@ -29,9 +64,52 @@ function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
 const POLL_MS = 2_500;
 /** A hidden tab still checks in, so coming back shows where Cuso is now. */
 const HIDDEN_POLL_MS = 20_000;
-/** The change request after a no, once a plan exists. */
-const BRAND_CORRECTED =
-  "I said no to some of your Brand Brain questions. Fit the plan to the corrected Brand Brain.";
+
+interface LiveLineProps {
+  overview: CmoOverview;
+  /** Asked for the plan, before Core reports the work. */
+  starting: boolean;
+  onRetry: () => Promise<string | null>;
+  topUpUrl: string;
+}
+
+/**
+ * One line under the heading: what Cuso is doing now, from Core's work
+ * labels, and the time so far against the usual. Past twice the usual time
+ * it offers Try again (Core restarts the slow run; an older Core first needs
+ * five quiet minutes). It keeps its height when nothing runs.
+ */
+function LiveLine({ overview, starting, onRetry, topUpUrl }: LiveLineProps) {
+  const live = liveLine(overview);
+  const elapsed = useElapsedSeconds(live?.work.startedAt, live !== null);
+  const quiet = useElapsedSeconds(live?.lastAt, live !== null);
+  const label = live?.label ?? (starting ? "Planning your month" : "");
+  const slow =
+    live && elapsed !== null
+      ? slowCopy(
+          elapsed,
+          USUAL_SECONDS[live.work.kind],
+          quiet ?? 0,
+          researchGroups(overview) !== null,
+        )
+      : null;
+  return (
+    <div className="ob-live-line">
+      {label ? (
+        <>
+          <span className="dot live" aria-hidden="true" />
+          <span className="ob-live-what">
+            <TypeIn text={label} />
+          </span>
+          {slow ? <span className="muted num">{slow.line}</span> : null}
+          {slow?.retry ? (
+            <RetryButton onRetry={onRetry} topUpUrl={topUpUrl} small />
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 interface OnboardingFlowProps {
   overview: CmoOverview;
@@ -44,8 +122,10 @@ interface OnboardingFlowProps {
 }
 
 /**
- * CMO's first run: four full-screen steps from Cuso reading the site to
- * launching him. The chat becomes home once the founder starts.
+ * CMO's first run: one screen that changes in place from Cuso reading the
+ * site to launching him. The heading, the live line and the step markers sit
+ * above the step and never remount. The chat becomes home once the founder
+ * starts.
  */
 export function OnboardingFlow({
   overview: initialOverview,
@@ -160,10 +240,10 @@ export function OnboardingFlow({
     if (result.overview) setOverview(result.overview);
     return result.error;
   };
-  const request = async (note?: string) => {
+  const request = async (note?: string, patch?: boolean) => {
     setPlanRequested(true);
     try {
-      const refused = settle(await actions.requestStrategy(note));
+      const refused = settle(await actions.requestStrategy(note, patch));
       if (refused) setPlanRequested(false);
       return refused;
     } catch (error) {
@@ -171,12 +251,60 @@ export function OnboardingFlow({
       throw error;
     }
   };
+  // Why Core refused the founder's last fix, shown under the heading.
+  const [fixRefusal, setFixRefusal] = useState<string | null>(null);
+  const fixSection = async (
+    section: Parameters<OnboardingActions["fixBrandSection"]>[0],
+    note: string,
+  ) => {
+    const refused = await actions.fixBrandSection(section, note);
+    setFixRefusal(refused);
+    return refused;
+  };
   const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));
+    // While Cuso reads, the plan he starts next takes the no in. Afterwards
+    // it is a fix to its one section, which Core runs now or once his
+    // current turn ends.
+    const question = overview.brandBrain?.questions?.find(
+      (candidate) => candidate.id === input.questionId,
+    );
+    const reading =
+      overview.work?.kind === "research" && overview.work.status === "running";
+    if (input.answer !== "no" || !question || reading) return;
+    await fixSection(
+      question.section,
+      input.note?.trim() || `Not true: ${question.statement}`,
+    );
   };
+  const retryLearning = async () => {
+    const result = await actions.retryLearning();
+    setOverview(result.overview);
+    return result.error;
+  };
+  // Launch was pressed: the heading says Cuso is live.
+  const [launched, setLaunched] = useState(false);
+  const sitePhase = position.step === "site" ? position.phase : "asking";
+  const planRunning =
+    starting ||
+    (overview.work?.kind === "strategy" && overview.work.status === "running");
+  const title =
+    step === "site"
+      ? stepTitle({
+          step,
+          overview,
+          messages,
+          phase: sitePhase,
+          finished: derived !== "site",
+        })
+      : step === "plan"
+        ? stepTitle({ step, overview, phase: planPhase, running: planRunning })
+        : step === "launch"
+          ? stepTitle({ step, overview, launched })
+          : stepTitle({ step, overview });
 
   return (
-    <div className="ob">
+    <div className="ob ob-shell">
       <header className="ob-top">
         <Logo />
         <StepMarkers
@@ -203,12 +331,34 @@ export function OnboardingFlow({
         />
       </header>
 
-      <main className="ob-main" key={step}>
+      <main className={`ob-main ob-main-${step}`}>
+        <div className="ob-head">
+          <h1 className="ob-h1">
+            <TypeIn text={title} />
+          </h1>
+          <LiveLine
+            overview={overview}
+            starting={starting}
+            onRetry={
+              overview.work?.kind !== "strategy"
+                ? retryLearning
+                : researchGroups(overview)
+                  ? async () => settle(await actions.restartStrategy())
+                  : () => request()
+            }
+            topUpUrl={overview.subscribeUrl}
+          />
+          {step === "site" ? <ResearchChips overview={overview} /> : null}
+          {/* Fixes are asked on Site and Brand; the refusal stays there. */}
+          {fixRefusal && (step === "site" || step === "brand") ? (
+            <Refusal text={fixRefusal} topUpUrl={overview.subscribeUrl} />
+          ) : null}
+        </div>
         {step === "site" ? (
           <SiteStep
             overview={overview}
             messages={messages}
-            phase={position.step === "site" ? position.phase : "asking"}
+            phase={sitePhase}
             next={derived === "plan" ? "plan" : "brand"}
             finished={derived !== "site"}
             skipped={skipped.includes("questions")}
@@ -222,11 +372,7 @@ export function OnboardingFlow({
               ]);
             }}
             onContinue={() => setHeldSite(false)}
-            onRetry={async () => {
-              const result = await actions.retryLearning();
-              setOverview(result.overview);
-              return result.error;
-            }}
+            onRetry={retryLearning}
             onReply={async (text) => {
               await actions.sendMessage(text);
               await refresh();
@@ -234,11 +380,17 @@ export function OnboardingFlow({
           />
         ) : step === "brand" ? (
           <BrandStep
+            titled={false}
             overview={overview}
             messages={messages}
             ahead={ahead}
             onCorrect={async (text) => {
               await actions.sendMessage(text);
+              await refresh();
+            }}
+            onFix={async (section, note) => {
+              const refused = await fixSection(section, note);
+              if (refused) throw new Error(refused);
               await refresh();
             }}
             onSave={async (brandBrain) => {
@@ -249,16 +401,24 @@ export function OnboardingFlow({
             }
             onApprove={async () => {
               setOverview(await actions.approveBrandBrain());
-              // Once a plan exists, the corrected Brand Brain changes it.
-              const refused = await request(
-                overview.strategy ? BRAND_CORRECTED : undefined,
-              );
+              // Core starts the plan when the research ends, and again once a
+              // fix that ran first lands: confirming starts nothing while Cuso
+              // writes a plan or a fix, or once a plan is written.
+              const busy =
+                overview.work?.kind === "strategy" &&
+                overview.work.status === "running";
+              if (overview.strategy !== null || busy) {
+                setViewing(null);
+                return null;
+              }
+              const refused = await request();
               if (!refused) setViewing(null);
               return refused;
             }}
           />
         ) : step === "plan" ? (
           <PlanStep
+            titled={false}
             overview={overview}
             phase={planPhase}
             starting={starting}
@@ -285,9 +445,11 @@ export function OnboardingFlow({
           />
         ) : (
           <LaunchStep
+            onCelebrate={setLaunched}
             overview={overview}
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}
+            onReturn={refresh}
             notice={returnNotice}
             // Launch needs a connected network, and Core ends hiring on the
             // first connection, so the celebration is client-only. Recording

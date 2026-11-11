@@ -83,7 +83,14 @@ export function onboardingStep(
   // skip, so a reload after Launch resumes in the app.
   if (strategy && approved) return { step: "launch", phase: "review" };
 
-  if (!strategy && work?.kind === "strategy" && work.status !== "done") {
+  // Core starts the first plan when the research ends; it is the Plan step
+  // only once the founder confirmed the brand.
+  if (
+    !strategy &&
+    work?.kind === "strategy" &&
+    work.status !== "done" &&
+    overview.brandBrainConfirmedAt
+  ) {
     return { step: "plan", phase: "planning" };
   }
   if (!overview.brandBrainConfirmedAt && !approved) {
@@ -101,14 +108,14 @@ export function onboardingStep(
     return { step: "plan", phase: "writing-needed" };
   }
 
-  // Cuso saves a first plan in two parts, the calendar last: it waits on the
-  // planning screen until there is a whole plan to approve. Answered checks
-  // mean Cuso is fitting a plan the founder has seen.
+  // Cuso saves a first plan in two parts, the calendar last: the plan part
+  // shows while he writes the calendar. A first plan that stopped before its
+  // calendar waits on the planning screen, which offers a retry.
   const firstPlan =
     (strategy.changes ?? []).length === 0 &&
     !(strategy.questions ?? []).some((question) => question.answer);
   const writing = work?.kind === "strategy" && work.status === "running";
-  if (firstPlan && (writing || strategy.calendar.length === 0)) {
+  if (firstPlan && !writing && strategy.calendar.length === 0) {
     return { step: "plan", phase: "planning" };
   }
   return { step: "plan", phase: "review" };

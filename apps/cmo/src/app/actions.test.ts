@@ -4,8 +4,18 @@ const signInSocial = vi.fn();
 const signOutApi = vi.fn();
 const redirectMock = vi.fn();
 
+const cookieJar = new Map<string, { value: string; options: unknown }>();
+
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name)
+        ? { name, value: cookieJar.get(name)?.value }
+        : undefined,
+    set: (name: string, value: string, options: unknown) =>
+      cookieJar.set(name, { value, options }),
+  }),
 }));
 
 vi.mock("next/navigation", async (importOriginal) => {
@@ -28,7 +38,11 @@ vi.mock("../lib/auth", async (importOriginal) => ({
 }));
 
 const { notFound } = await import("next/navigation");
-const { signIn, signOut } = await import("./actions");
+const { continueWithWebsite, createAccountAgain, signIn, signOut } =
+  await import("./actions");
+const { KEPT_WEBSITE_COOKIE, KEPT_WEBSITE_OPTIONS } = await import(
+  "../lib/kept-website"
+);
 
 /** Runs an action to its redirect, which Next throws to end the action. */
 async function settle(action: () => Promise<void>) {
@@ -40,6 +54,7 @@ async function settle(action: () => Promise<void>) {
 describe("CMO sign-in actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cookieJar.clear();
     signInSocial.mockResolvedValue({
       headers: new Headers(),
       response: { url: "https://core.example/authorize" },
@@ -94,5 +109,112 @@ describe("CMO sign-in actions", () => {
 
     await expect(signIn()).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("the website before sign in", () => {
+  const EMPTY = { attempt: 0, websiteUrl: "", errors: {} };
+
+  function form(websiteUrl: string) {
+    const data = new FormData();
+    data.set("websiteUrl", websiteUrl);
+    return data;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    cookieJar.clear();
+    signInSocial.mockResolvedValue({
+      headers: new Headers(),
+      response: { url: "https://core.example/authorize" },
+    });
+  });
+
+  it("keeps the website, then creates the account with it", async () => {
+    await continueWithWebsite(EMPTY, form(" acme.io ")).catch(
+      (error: unknown) => {
+        if (!String(error).includes("NEXT_REDIRECT")) throw error;
+      },
+    );
+
+    expect(cookieJar.get(KEPT_WEBSITE_COOKIE)).toEqual({
+      value: "https://acme.io/",
+      options: KEPT_WEBSITE_OPTIONS,
+    });
+    const params = signInSocial.mock.lastCall?.[0].body.additionalParams;
+    expect(params?.prompt).toBe("create");
+    expect(JSON.parse(params?.signup_context)).toEqual({
+      url: "https://acme.io/",
+    });
+    expect(redirectMock).toHaveBeenCalledWith("https://core.example/authorize");
+  });
+
+  it("sends a Create account link's parameters after the website", async () => {
+    const data = form("acme.io");
+    data.set("signup.ref", "partner");
+    data.set("signup.url", "elsewhere.io");
+    data.set("signup.constructor", "x");
+
+    await continueWithWebsite(EMPTY, data).catch((error: unknown) => {
+      if (!String(error).includes("NEXT_REDIRECT")) throw error;
+    });
+
+    const params = signInSocial.mock.lastCall?.[0].body.additionalParams;
+    expect(params?.signup_context).toBe(
+      JSON.stringify({
+        url: "https://acme.io/",
+        ref: "partner",
+        constructor: "x",
+      }),
+    );
+  });
+
+  it("tries Create account again with the kept website", async () => {
+    cookieJar.set(KEPT_WEBSITE_COOKIE, {
+      value: "https://acme.io/",
+      options: {},
+    });
+
+    await settle(createAccountAgain);
+
+    const params = signInSocial.mock.lastCall?.[0].body.additionalParams;
+    expect(params?.prompt).toBe("create");
+    expect(JSON.parse(params?.signup_context)).toEqual({
+      url: "https://acme.io/",
+    });
+  });
+
+  it("signs in again when no website is kept", async () => {
+    await settle(createAccountAgain);
+
+    expect(
+      signInSocial.mock.lastCall?.[0].body.additionalParams?.prompt,
+    ).toBeUndefined();
+  });
+
+  it("asks again for a website it cannot read, without signing in", async () => {
+    const state = await continueWithWebsite(EMPTY, form("not a site"));
+
+    expect(state).toEqual({
+      attempt: 1,
+      websiteUrl: "not a site",
+      errors: { websiteUrl: "Enter a website, like acme.com." },
+    });
+    expect(cookieJar.size).toBe(0);
+    expect(signInSocial).not.toHaveBeenCalled();
+  });
+
+  it("keeps the website when sign in cannot start", async () => {
+    signInSocial.mockRejectedValue(new TypeError("fetch failed"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await continueWithWebsite(EMPTY, form("acme.io")).catch(
+      (error: unknown) => {
+        if (!String(error).includes("NEXT_REDIRECT")) throw error;
+      },
+    );
+
+    expect(cookieJar.get(KEPT_WEBSITE_COOKIE)?.value).toBe("https://acme.io/");
+    expect(redirectMock).toHaveBeenCalledWith("/?error=unavailable");
   });
 });

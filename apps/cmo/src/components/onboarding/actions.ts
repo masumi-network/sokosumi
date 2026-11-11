@@ -1,5 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
+import type { BrandSectionKey } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { AdActions } from "../ads";
 import type { Answer } from "./questions";
@@ -32,16 +33,33 @@ export interface OnboardingBrandActions {
   saveBrandBrain: (
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
   ) => Promise<CmoOverview>;
+  /**
+   * The founder says one section is wrong: Cuso rewrites only it, now or
+   * once his current turn ends. A refusal comes back as text.
+   */
+  fixBrandSection: (
+    section: BrandSectionKey,
+    note: string,
+  ) => Promise<string | null>;
 }
 
 /** Ask for, check, and approve the plan. */
 export interface OnboardingPlanActions {
-  requestStrategy: (note?: string) => Promise<{
+  /** With `patch`, the note changes only the entries it touches. */
+  requestStrategy: (
+    note?: string,
+    patch?: boolean,
+  ) => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
+  /** Try again: Core replaces a plan running past twice the usual time. */
+  restartStrategy: () => Promise<{
     overview: CmoOverview | null;
     error: string | null;
   }>;
   approveStrategy: () => Promise<CmoOverview>;
-  /** The owner's own monthly ad budget; Cuso re-plans around it. */
+  /** The owner's own monthly ad budget; Cuso patches the ads around it. */
   setAdBudget: (
     monthly: number,
     currency: string,
@@ -59,6 +77,7 @@ export interface OnboardingConnectActions {
   finishAccounts: () => Promise<never>;
   connectChannel: (
     provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
+    from?: "onboarding" | "popup",
   ) => Promise<{ url: string | null; error: string | null }>;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
@@ -104,12 +123,14 @@ export function inertOnboardingActions(
     sendMessage: async () => {},
     retryLearning: async () => ({ overview, error: null }),
     requestStrategy: result,
+    restartStrategy: result,
     approveStrategy: same,
     setAdBudget: result,
     approveBrandBrain: same,
     answerBrandQuestion: same,
     skipBrandQuestions: same,
     saveBrandBrain: same,
+    fixBrandSection: async () => null,
     answerPlanQuestion: same,
     applyPlanAnswers: result,
     finishAccounts: () => new Promise<never>(() => {}),
