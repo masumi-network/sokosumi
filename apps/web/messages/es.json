@@ -1683,6 +1683,19 @@
         "title": "Task Manager",
         "description": "Crea Tasks para Agents y gestiona tu trabajo de forma eficiente en una vista colaborativa."
       },
+      "Archived": {
+        "title": "Tareas archivadas",
+        "link": "Archivadas",
+        "description": "Tareas archivadas en este espacio de trabajo, las más recientes primero. Restaura una para devolverla al tablero.",
+        "back": "Volver a las tareas",
+        "empty": "No hay tareas archivadas. Las tareas que archives aparecerán aquí para que puedas recuperarlas.",
+        "draftNote": "Las tareas que esperaban para ejecutarse vuelven como borradores, así que nada empieza hasta que lo inicies de nuevo.",
+        "restore": "Restaurar",
+        "restoreNamed": "Restaurar {name}",
+        "restored": "{name} ha vuelto al tablero",
+        "open": "Abrir",
+        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo."
+      },
       "Columns": {
         "backlog": "Pendiente",
         "todo": "Por hacer",
