@@ -604,7 +604,7 @@ describe("cmoTitleRepeats", () => {
       topicEmbed([/relevant first email|first email relevant/i]),
     );
     expect(problems).toEqual([
-      'w3 ("How to write a relevant first email") says what w1 ("Make the first email relevant") says; give it its own message from its pillar.',
+      'w1, w3 say one thing ("Make the first email relevant", "How to write a relevant first email"); keep w1 and give the others their own message from their pillar.',
     ]);
   });
 
@@ -619,13 +619,21 @@ describe("cmoTitleRepeats", () => {
     expect(problems).toEqual([]);
   });
 
-  it("names at most four, so one save is not flooded", async () => {
+  it("names every repeat in one review, one line per message said twice", async () => {
     const { problems } = await cmoTitleRepeats(
-      Array.from({ length: 7 }, (_, index) =>
-        titled(`w${index}`, `Staking guide, take ${index}`),
-      ),
-      topicEmbed([/staking/i]),
+      [
+        titled("w1", "Staking basics"),
+        titled("w2", "Wallet access basics"),
+        titled("w3", "How staking works"),
+        titled("w4", "Who holds wallet access"),
+        titled("w5", "Staking in two taps"),
+        titled("w6", "Begin vs Eternl"),
+      ],
+      topicEmbed([/staking/i, /wallet access/i]),
     );
-    expect(problems).toHaveLength(4);
+    expect(problems).toEqual([
+      'w1, w3, w5 say one thing ("Staking basics", "How staking works", "Staking in two taps"); keep w1 and give the others their own message from their pillar.',
+      'w2, w4 say one thing ("Wallet access basics", "Who holds wallet access"); keep w2 and give the others their own message from their pillar.',
+    ]);
   });
 });

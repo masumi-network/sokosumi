@@ -11141,10 +11141,10 @@ describe("CMO record saves", () => {
         result: { path: ["review", "calendar"], equals: true },
       },
     });
-    // Calendar saves have their own four reviews, so a fixed calendar is
-    // checked again.
-    await expect(review(6, true, 3)).resolves.toMatchObject({ save: 7 });
-    await expect(review(6, true, 4)).resolves.toBeNull();
+    // Calendar saves have their own two reviews: the first calendar and its
+    // fix. Each round resends the whole calendar, so more cost minutes.
+    await expect(review(6, true, 1)).resolves.toMatchObject({ save: 7 });
+    await expect(review(6, true, 2)).resolves.toBeNull();
   });
 
   it("saves the Brand Brain to Cuso's Project", async () => {

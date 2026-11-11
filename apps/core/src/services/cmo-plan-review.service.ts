@@ -19,8 +19,14 @@ export interface CmoPlanReview {
   problems: string[];
 }
 
-/** Plan saves, and calendar saves, that land in one planning turn the review answers; past them Cuso finishes as he is. */
+/** Plan saves that land in one planning turn the review answers; past them Cuso finishes as he is. */
 export const CMO_PLAN_REVIEWS_PER_TURN = 4;
+/**
+ * Calendar saves the review answers in one turn: the first calendar and its
+ * fix. Each round resends the whole calendar, a model step of 30 to 90 s; a
+ * begin.is plan took five.
+ */
+export const CMO_CALENDAR_REVIEWS_PER_TURN = 2;
 
 const MIN_PIECES = 16;
 const MIN_FORMATS = 6;
@@ -298,13 +304,11 @@ export async function cmoDraftProblems(
   return { problems: problems.slice(0, MAX_DRAFT_PROBLEMS), costUsd };
 }
 
-/** Title repeats one review names, so one save is not flooded. */
-const MAX_TITLE_REPEATS = 4;
-
 /**
  * Calendar entries whose title says what an earlier title says in other
  * words ("Pick a CRM by the team that uses it", "Start your CRM choice with
- * your team"): one piece twice.
+ * your team"): one piece twice. Every repeat is named in one review, a line
+ * per message, since each fix round resends the whole calendar.
  */
 export async function cmoTitleRepeats(
   calendar: MarketingStrategyPlan["calendar"],
@@ -316,16 +320,23 @@ export async function cmoTitleRepeats(
     "title",
     embed,
   );
-  const problems = repeats.flatMap((earlier, index) => {
-    const entry = planned[index];
-    const repeated = earlier === null ? undefined : planned[earlier];
-    return entry && repeated
-      ? [
-          `${entry.id} ("${entry.title}") says what ${repeated.id} ("${repeated.title}") says; give it its own message from its pillar.`,
-        ]
-      : [];
+  // Each title joins the message of the earlier title it repeats.
+  const message = planned.map((_, index) => index);
+  repeats.forEach((earlier, index) => {
+    if (earlier !== null) message[index] = message[earlier] ?? earlier;
   });
-  return { problems: problems.slice(0, MAX_TITLE_REPEATS), costUsd };
+  const said = new Map<number, typeof planned>();
+  planned.forEach((entry, index) => {
+    const first = message[index] ?? index;
+    said.set(first, [...(said.get(first) ?? []), entry]);
+  });
+  const problems = [...said.values()]
+    .filter((entries) => entries.length > 1)
+    .map(
+      (entries) =>
+        `${entries.map((entry) => entry.id).join(", ")} say one thing (${entries.map((entry) => `"${entry.title}"`).join(", ")}); keep ${entries[0]?.id} and give the others their own message from their pillar.`,
+    );
+  return { problems, costUsd };
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */
