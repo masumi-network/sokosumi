@@ -12,6 +12,7 @@ const {
   grantSignupBonusCreditsMock: vi.fn(),
   markOutOfCreditsTasksAsToppedUpMock: vi.fn(),
   tx: {
+    $queryRaw: vi.fn(),
     subscription: { findFirst: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
     workspace: { create: vi.fn(), findUnique: vi.fn() },
@@ -64,7 +65,7 @@ describe("createPersonalWorkspace", () => {
       userId: "user_1",
     });
     tx.subscription.findFirst.mockResolvedValue(null);
-    tx.user.findUnique.mockResolvedValue({ stripeCustomerId: "cus_1" });
+    tx.$queryRaw.mockResolvedValue([{ stripeCustomerId: "cus_1" }]);
     ensureInitialLocalFreeSubscriptionPeriodMock.mockResolvedValue({
       grantsCreated: 1,
     });
@@ -104,6 +105,30 @@ describe("createPersonalWorkspace", () => {
 
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
     expect(grantSignupBonusCreditsMock).toHaveBeenCalled();
+  });
+
+  it("checks for an active plan after acquiring the user lock", async () => {
+    let releaseLock!: () => void;
+    const lock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    const lockRequested = new Promise<void>((resolve) => {
+      tx.$queryRaw.mockImplementationOnce(async () => {
+        resolve();
+        await lock;
+        return [{ stripeCustomerId: "cus_1" }];
+      });
+    });
+
+    const creation = createPersonalWorkspace("user_1");
+    await Promise.race([lockRequested, creation]);
+    expect(tx.subscription.findFirst).not.toHaveBeenCalled();
+
+    tx.subscription.findFirst.mockResolvedValueOnce({ id: "sub_1" });
+    releaseLock();
+    await creation;
+
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
   it("does not top up tasks when nothing new was granted", async () => {

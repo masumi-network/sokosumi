@@ -36,6 +36,15 @@ async function grantPersonalWorkspaceCredits(
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Delete and recreate can leave two workspace creations granting at once.
+      const [user] = await tx.$queryRaw<{ stripeCustomerId: string | null }[]>`
+        SELECT "stripeCustomerId" FROM "user" WHERE "id" = ${userId}
+        FOR NO KEY UPDATE
+      `;
+      if (!user) {
+        return;
+      }
+
       // Users from before this change already have a renewing free plan.
       const activeFreePlan = await tx.subscription.findFirst({
         where: {
@@ -48,16 +57,12 @@ async function grantPersonalWorkspaceCredits(
 
       let freePlanGranted = false;
       if (!activeFreePlan) {
-        const user = await tx.user.findUnique({
-          where: { id: userId },
-          select: { stripeCustomerId: true },
-        });
         const { grantsCreated } =
           await ensureInitialLocalFreeSubscriptionPeriod(
             {
               createdAt: workspaceCreatedAt,
               kind: "user",
-              stripeCustomerId: user?.stripeCustomerId ?? null,
+              stripeCustomerId: user.stripeCustomerId,
               userId,
             },
             tx,
