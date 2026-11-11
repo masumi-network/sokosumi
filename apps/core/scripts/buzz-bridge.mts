@@ -84,7 +84,7 @@ async function status() {
 }
 
 function coreRequester(baseUrl: string): CoreRequest {
-  return async ({ method, path, apiKey, body }) => {
+  return async ({ method, path, apiKey, body, timeoutMs }) => {
     const response = await fetch(new URL(path, baseUrl), {
       method,
       headers: {
@@ -92,7 +92,7 @@ function coreRequester(baseUrl: string): CoreRequest {
         ...(body === undefined ? {} : { "content-type": "application/json" }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(timeoutMs ?? 30_000),
     });
     const text = await response.text();
     let parsed: unknown = text;

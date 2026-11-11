@@ -23,6 +23,7 @@ import {
   deletionDraft,
   type EventDraft,
   editDraft,
+  isBuzzAgentBaseUrl,
   MAX_DIRECT_MESSAGE_PEOPLE,
   messageDraft,
   openDirectMessageDraft,
@@ -2092,6 +2093,106 @@ async function applyMemberChange(
   return "members";
 }
 
+/** A Direct of just this person and one Coworker that answers over HTTP. */
+async function isCoworkerDirect(roomId: string, author: BuzzIdentity) {
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: roomId },
+    select: {
+      kind: true,
+      userMembers: { select: { userId: true } },
+      coworkerMembers: { select: { coworker: { select: { baseURL: true } } } },
+      sokoBotMembers: { select: { sokoBotId: true } },
+    },
+  });
+  return (
+    room?.kind === "direct" &&
+    room.userMembers.length === 1 &&
+    room.userMembers[0]?.userId === author.userId &&
+    room.sokoBotMembers.length === 0 &&
+    room.coworkerMembers.length === 1 &&
+    !isBuzzAgentBaseUrl(room.coworkerMembers[0]?.coworker.baseURL)
+  );
+}
+
+/**
+ * Asks the Coworker of a one-on-one Direct, as the person, through the
+ * room's stream: Core stores the message and the Coworker's answer, which
+ * then goes out to Buzz like any message. One turn per Buzz message: a
+ * retry finds the message stored and only links it.
+ */
+async function postToCoworkerDirect(input: {
+  core: CoreRequest;
+  author: BuzzIdentity;
+  roomId: string;
+  clientMessageId: string;
+  content: string;
+  parentMessageId: string | undefined;
+  eventId: string;
+  signerPubkey: string | null;
+  channelId: string;
+}): Promise<InboundResult> {
+  const stored = () =>
+    prisma.chatRoomMessage.findFirst({
+      where: {
+        roomId: input.roomId,
+        clientMessageId: input.clientMessageId,
+        senderUserId: input.author.userId,
+      },
+      select: { id: true },
+    });
+  let message = await stored();
+  if (!message) {
+    // The answer streams for as long as the Coworker takes; inbound events
+    // must not wait behind it. Wait only until Core has stored the message.
+    let failed: unknown = null;
+    void sendAs(input.core, input.author, {
+      method: "POST",
+      path: `/v1/chats/rooms/${input.roomId}/stream`,
+      timeoutMs: 15 * 60_000,
+      body: {
+        messages: [
+          {
+            id: input.clientMessageId,
+            role: "user",
+            parts: [{ type: "text", text: input.content }],
+          },
+        ],
+        ...(input.parentMessageId
+          ? { parentMessageId: input.parentMessageId }
+          : {}),
+      },
+    }).catch((error: unknown) => {
+      failed = error;
+    });
+    for (let waited = 0; !message && !failed && waited < 60_000; ) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      waited += 500;
+      message = await stored();
+    }
+    if (!message) {
+      // Another answer is still streaming in this room: ask again later.
+      if (failed instanceof CoreRejectedError && failed.status === 409) {
+        throw new CoreRejectedError(503, failed.message, failed.kind);
+      }
+      throw failed ?? new Error("Core did not store the Direct message");
+    }
+  }
+  if (message) {
+    await prisma.buzzMessageLink.upsert({
+      where: { messageId: message.id },
+      create: {
+        messageId: message.id,
+        eventId: input.eventId,
+        contentHash: contentHash(input.content),
+        signerPubkey: input.signerPubkey,
+        channelId: input.channelId,
+      },
+      update: {},
+    });
+  }
+  return "posted";
+}
+
 /** Buzz text with each `nostr:npub…` turned into the name Sokosumi knows. */
 async function namedContent(content: string): Promise<string> {
   const pubkeys: string[] = [];
@@ -2131,6 +2232,8 @@ export type CoreRequest = (input: {
   path: string;
   apiKey: string;
   body?: unknown;
+  /** How long to wait; a Coworker's streamed answer can take minutes. */
+  timeoutMs?: number;
 }) => Promise<{ status: number; body: unknown }>;
 
 export async function bridgeApiKeyFor(identity: BuzzIdentity) {
@@ -2340,6 +2443,22 @@ export async function applyInboundEvent(
         names.get(pubkey),
       );
       const clientMessageId = `buzz:${event.id}`;
+      // A one-on-one Direct with a Coworker is answered through the room's
+      // stream (what Sokosumi's own clients call); a plain post would sit
+      // there unanswered.
+      if (!agent && (await isCoworkerDirect(channel.roomId, author))) {
+        return postToCoworkerDirect({
+          core,
+          author,
+          roomId: channel.roomId,
+          clientMessageId,
+          content,
+          parentMessageId,
+          eventId: event.id,
+          signerPubkey,
+          channelId: channel.channelId,
+        });
+      }
       const response = await sendAs(core, author, {
         method: "POST",
         path: `/v1/chats/rooms/${channel.roomId}/messages`,

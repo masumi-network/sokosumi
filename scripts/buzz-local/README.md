@@ -50,6 +50,10 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   as you; a reply comes back as the Coworker. Anyone else who mentions one is
   told so: the agent replies in Sokosumi ("I only answer …"), and Sokosumi posts
   the same in the Buzz thread.
+- **Coworkers and Soko Bots** each speak on Buzz with their own key. A
+  mention from Buzz runs Sokosumi's usual dispatch, and a message from Buzz in
+  a one-on-one Coworker Direct goes through the room's stream, as Sokosumi's
+  own clients do; the answer reaches Buzz when it is complete.
 - **Rooms**: a Channel is a private Buzz channel whose members follow the room;
   a Direct of up to nine people is a Buzz DM (kind 41010) in a community all its
   people share.
@@ -101,9 +105,6 @@ local relay has one community. The worker must run somewhere long-lived
   identities are community members.
 - A person's bridge API key appears in their API keys as "Buzz bridge"; it is a
   full user key.
-- A message from Buzz into a one-on-one Direct with a Coworker is stored but
-  does not start the Coworker's reply: Sokosumi clients reach that reply
-  through the room's `/stream` endpoint, which the bridge does not call yet.
 - Run one worker; two would each send their own copy of an inbound change.
 - A linked app key: what it writes is the person's in Sokosumi, but what they
   write in Sokosumi reaches Buzz from Sokosumi's key, named "<name> (via

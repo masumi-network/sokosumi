@@ -101,6 +101,8 @@ function nostrEvent(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Each test sets the room it needs; none inherits another's.
+  db.chatRoom.findUnique.mockReset();
   env.value = {
     BUZZ_COMMUNITY_URL_TEMPLATE: "ws://relay",
     BUZZ_OPERATOR_SECRET_KEY: OPERATOR_KEY,
@@ -1012,6 +1014,62 @@ describe("personal agents", () => {
     });
     await expect(applyInboundEvent(invite, core)).resolves.toBe("ignored");
     expect(core).not.toHaveBeenCalled();
+  });
+});
+
+describe("one-on-one Direct with a Coworker", () => {
+  it("asks the Coworker through the room's stream, as the person", async () => {
+    const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: "" }));
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue({
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      userId: "user-bob",
+      coworkerId: null,
+      encryptedSecretKey: "x",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "direct",
+      channelId: CHANNEL,
+    });
+    db.chatRoom.findUnique.mockResolvedValue({
+      kind: "direct",
+      userMembers: [{ userId: "user-bob" }],
+      coworkerMembers: [{ coworker: { baseURL: "https://agent.example" } }],
+      sokoBotMembers: [],
+    });
+    db.chatRoomMessage.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ id: "stored" });
+    const event = nostrEvent({ content: "summarize this" });
+    await expect(applyInboundEvent(event, core)).resolves.toBe("posted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        path: "/v1/chats/rooms/direct/stream",
+        apiKey: "bob-api-key",
+        body: {
+          messages: [
+            {
+              id: `buzz:${event.id}`,
+              role: "user",
+              parts: [{ type: "text", text: "summarize this" }],
+            },
+          ],
+        },
+      }),
+    );
+    expect(db.buzzMessageLink.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          messageId: "stored",
+          eventId: event.id,
+        }),
+      }),
+    );
   });
 });
 
