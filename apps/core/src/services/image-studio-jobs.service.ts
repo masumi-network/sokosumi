@@ -271,6 +271,7 @@ async function requireBalanceForQuote(options: {
 }): Promise<void> {
   if (options.chargedCents <= 0n) return;
 
+  // shortcut: in-flight sums the requester's pending jobs across all Projects, so it can only refuse too often, never overspend; scope it per Project when pending images in two scoped Projects get refused.
   const committed = await options.tx.projectImageJob.aggregate({
     where: {
       requestedByUserId: options.userId,
