@@ -44,9 +44,11 @@ import {
   SOKO_BOT_MAX_STEPS,
 } from "./turn-loop";
 import {
+  endedByTool,
   partTools,
   TURN_PART_MAX_MS,
   TURN_PART_MAX_STEPS,
+  toolEndedTurn,
   withPartHandOvers,
 } from "./turn-parts";
 
@@ -153,7 +155,7 @@ async function runTurn(
           messages: [{ role: "user", content: message }],
           tools: offered,
           prepareStep: prepareEvaluationStep,
-          stopWhen: stepCountIs(maxSteps),
+          stopWhen: [stepCountIs(maxSteps), endedByTool],
           abortSignal: signal,
           async onStepFinish(step) {
             assertSokoBotInferenceRegion(step.providerMetadata, {
@@ -185,8 +187,9 @@ async function runTurn(
       // A model can answer in one step and end on an empty one; `text` is
       // only the last step's.
       const text =
-        result.text ||
-        (result.steps.findLast((step) => step.text.trim())?.text ?? "");
+        toolEndedTurn(result.steps) ??
+        (result.text ||
+          (result.steps.findLast((step) => step.text.trim())?.text ?? ""));
       return { text, finishReason: result.finishReason };
     };
 

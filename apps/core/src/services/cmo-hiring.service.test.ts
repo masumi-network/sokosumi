@@ -101,6 +101,7 @@ vi.mock("@/config/env", async (importOriginal) =>
 import {
   cmoLearningState,
   cmoResearch,
+  cmoResearchEndAnswer,
   cmoResearchParts,
   cmoWork,
   describeCmoStep,
@@ -840,5 +841,55 @@ describe("research in parts (SOKD-167)", () => {
     expect(startTurn.mock.calls[0]?.[0].message).toContain(
       "read the website, search for the company, its reviews, competitors, news and social profiles",
     );
+  });
+});
+
+describe("ending a read in parts on its essentials (SOKD-167)", () => {
+  const onboarding = {
+    clientTurnId: "cmo:onboarding:bot-1",
+    versionId: "cmo-v2",
+  };
+  const essentials = {
+    reveal: { positioning: "Scheduling infrastructure for everyone" },
+    questions: [{ id: "q1" }],
+    marketingToday: { summary: "Mostly organic" },
+  };
+
+  it("answers with the reveal's position once the essentials are complete", () => {
+    expect(cmoResearchEndAnswer(onboarding, essentials)).toBe(
+      "Scheduling infrastructure for everyone",
+    );
+  });
+
+  it("lets the turn go on while the essentials still miss a piece", () => {
+    for (const missing of ["reveal", "marketingToday"] as const)
+      expect(
+        cmoResearchEndAnswer(onboarding, {
+          ...essentials,
+          [missing]: undefined,
+        }),
+      ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer(onboarding, { ...essentials, questions: [] }),
+    ).toBeUndefined();
+    expect(cmoResearchEndAnswer(onboarding, null)).toBeUndefined();
+  });
+
+  it("keeps cmo-v1 and every other turn on Cuso's own closing step", () => {
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, versionId: "cmo-v1" }, essentials),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, versionId: null }, essentials),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer(
+        { ...onboarding, clientTurnId: "chat-1" },
+        essentials,
+      ),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, clientTurnId: null }, essentials),
+    ).toBeUndefined();
   });
 });

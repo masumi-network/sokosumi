@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { partTools, type TurnPart, withPartHandOvers } from "./turn-parts";
+import {
+  partTools,
+  type TurnPart,
+  toolEndedTurn,
+  withPartHandOvers,
+} from "./turn-parts";
 
 const parts: TurnPart[] = [
   { key: "website", title: "Website", message: "Read the site", tools: [] },
@@ -81,5 +86,41 @@ describe("partTools", () => {
         ),
       ),
     ).toEqual(["web_fetch", "save_brand_brain"]);
+  });
+});
+
+describe("toolEndedTurn", () => {
+  const step = (...outputs: unknown[]) => ({
+    toolResults: outputs.map((output) => ({ output })),
+  });
+  const report = (message: string) =>
+    JSON.stringify({
+      kind: "REPORT",
+      message,
+      question: null,
+      observationToolCallIds: [],
+    });
+
+  it("answers with a tool's endTurn from the last step, bare or as a read", () => {
+    expect(toolEndedTurn([step({ endTurn: " Done. " })])).toBe(report("Done."));
+    expect(
+      toolEndedTurn([
+        step(
+          { saved: "x" },
+          { evidenceToolCallId: "c1", result: { endTurn: "Done." } },
+        ),
+      ]),
+    ).toBe(report("Done."));
+  });
+
+  it("lets the turn go on otherwise", () => {
+    expect(toolEndedTurn([])).toBeUndefined();
+    expect(
+      toolEndedTurn([step({ saved: "x" }), step(null, "text")]),
+    ).toBeUndefined();
+    expect(toolEndedTurn([step({ endTurn: "  " })])).toBeUndefined();
+    expect(toolEndedTurn([step({ endTurn: 3 })])).toBeUndefined();
+    // Only the step that just ran counts.
+    expect(toolEndedTurn([step({ endTurn: "Done." }), step()])).toBeUndefined();
   });
 });

@@ -224,7 +224,7 @@ describe("InProcessSokoBotRuntime", () => {
     expect(calls).toHaveLength(3);
     expect(most).toBe(2);
     // Parts get a short step cap; the turn keeps its own.
-    expect(calls[0].stopWhen).toBe(12);
+    expect(calls[0].stopWhen[0]).toBe(12);
     // A part never gets the turn's outward tools.
     expect(Object.keys(calls[0].tools)).toEqual([]);
     expect(Object.keys(calls[2].tools)).toEqual(["create_task"]);
@@ -236,6 +236,48 @@ describe("InProcessSokoBotRuntime", () => {
     expect(
       recordedEvents().filter((event) => event.type === "step.started"),
     ).toHaveLength(3);
+  });
+
+  it("ends a turn on the step whose tool said so, with that tool's answer", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "cmo-v2" },
+      grant: { capabilities: ["read_memory"] },
+    });
+    cmoTurnPartsMock.mockResolvedValue([]);
+    const ended = {
+      text: "",
+      toolResults: [
+        {
+          output: {
+            evidenceToolCallId: "c1",
+            result: { endTurn: "Scheduling for everyone" },
+          },
+        },
+      ],
+    };
+    streamModelCallMock.mockResolvedValue({
+      text: "",
+      finishReason: "tool-calls",
+      steps: [ended],
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Save the essentials",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const [, endedByTool] = streamModelCallMock.mock.calls[0]?.[0].stopWhen;
+    expect(endedByTool({ steps: [ended] })).toBe(true);
+    expect(endedByTool({ steps: [{ text: "", toolResults: [] }] })).toBe(false);
+    expect(
+      recordedEvents().find((event) => event.type === "message.completed")?.data
+        .message,
+    ).toBe("Scheduling for everyone");
   });
 
   it("reports the model and metered usage the drain bills on", async () => {

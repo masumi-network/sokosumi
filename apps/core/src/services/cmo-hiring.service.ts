@@ -192,6 +192,25 @@ export function cmoResearchParts(
 }
 
 /** The parts of this turn, when it is a Cuso's research; none otherwise. */
+/**
+ * A first read in parts ends on the save that completes the essentials, with
+ * the reveal's position as Cuso's answer: no closing model step after it.
+ */
+export function cmoResearchEndAnswer(
+  turn: { clientTurnId: string | null; versionId: string | null },
+  brain: {
+    reveal?: { positioning: string } | null;
+    questions: readonly unknown[];
+    marketingToday?: unknown;
+  } | null,
+): string | undefined {
+  if (!turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)) return undefined;
+  if (!readsInParts(turn.versionId)) return undefined;
+  if (!brain?.reveal || brain.questions.length === 0 || !brain.marketingToday)
+    return undefined;
+  return brain.reveal.positioning;
+}
+
 export async function cmoTurnParts(turnId: string): Promise<TurnPart[]> {
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: turnId },

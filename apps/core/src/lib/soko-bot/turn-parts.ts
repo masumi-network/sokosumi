@@ -67,3 +67,32 @@ export async function withPartHandOvers(
     handOvers.join("\n\n"),
   ].join("\n");
 }
+
+/**
+ * A tool may end its turn by returning `{ endTurn: message }`, bare or as a
+ * read's `{ result }`: the step that called it is the turn's last, and the
+ * message is its answer, so the model writes no closing step.
+ */
+export function toolEndedTurn(
+  steps: readonly { toolResults: readonly { output: unknown }[] }[],
+): string | undefined {
+  for (const { output } of steps.at(-1)?.toolResults ?? []) {
+    const value = (output as { result?: unknown } | null)?.result ?? output;
+    const message = (value as { endTurn?: unknown } | null)?.endTurn;
+    if (typeof message === "string" && message.trim())
+      return JSON.stringify({
+        kind: "REPORT",
+        message: message.trim(),
+        question: null,
+        observationToolCallIds: [],
+      });
+  }
+  return undefined;
+}
+
+/** A `stopWhen` condition: the last step's tool ended the turn. */
+export const endedByTool = ({
+  steps,
+}: {
+  steps: readonly { toolResults: readonly { output: unknown }[] }[];
+}): boolean => toolEndedTurn(steps) !== undefined;
