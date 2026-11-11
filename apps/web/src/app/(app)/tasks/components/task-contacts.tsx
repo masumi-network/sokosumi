@@ -5,9 +5,8 @@ import { UserRound } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ContactAvatar } from "@/app/contacts/components/contact-visuals";
-import { primaryEmail, sortChannels } from "@/app/contacts/contacts-view";
+import { primaryEmail } from "@/app/contacts/contacts-view";
 import type { NormalizedMention } from "@/components/ui/mention-textarea-utils";
-import { parseMentions } from "@/lib/utils/mention-parser";
 
 export interface TaskContactTag {
   id: string;
@@ -78,80 +77,4 @@ export function MentionInitialItem({
       <span className="truncate">{mention.value}</span>
     </>
   );
-}
-
-/**
- * Starts the contact details the form adds on save. Everything from it to the
- * end is rebuilt from the tagged contacts on every save, so edits and retries
- * never repeat it. Rendered Markdown drops the comment.
- */
-const CONTACT_DETAILS_MARKER = "<!-- sokosumi:contacts -->";
-const CONTACT_LINK = /\[(?:\\.|[^\]\\])*\]\(\/contacts\?contact=([\w-]+)\)/g;
-
-/** The brief without the contact details a save added. */
-export function stripContactDetails(description: string): string {
-  const start = description.indexOf(CONTACT_DETAILS_MARKER);
-  return start === -1 ? description : description.slice(0, start).trimEnd();
-}
-
-/**
- * Contacts the brief mentions, in order: `@id:slug` tokens picked from the @
- * menu (ids in `known`) and the contact links an earlier save left.
- */
-export function mentionedContactIds(
-  brief: string,
-  known: ReadonlySet<string>,
-): string[] {
-  const found = [
-    ...parseMentions(brief).map((mention) => ({
-      id: mention.id,
-      at: mention.start,
-    })),
-    ...[...brief.matchAll(CONTACT_LINK)].map((match) => ({
-      id: match[1] ?? "",
-      at: match.index,
-      link: true,
-    })),
-  ]
-    .filter((item) => "link" in item || known.has(item.id))
-    .sort((a, b) => a.at - b.at)
-    .map((item) => item.id);
-  return [...new Set(found)];
-}
-
-/** What a tagged contact adds to the Task: who they are and how to reach them. */
-export function contactBrief(contact: Contact): string {
-  const about = [
-    [contact.role, contact.organization].filter(Boolean).join(", "),
-    contact.location,
-    ...sortChannels(contact.channels).map((channel) => channel.value),
-  ].filter(Boolean);
-  return [`**${contact.name}**`, ...about].join(" · ");
-}
-
-/**
- * The brief as saved: each picked `@id:slug` becomes a link to the contact
- * (its name, no @, so the editor reads it back as a link, not a mention),
- * and the tagged contacts' details follow at the end under `heading`.
- */
-export function expandContactMentions(
-  brief: string,
-  contacts: readonly Contact[],
-  heading: string,
-): string {
-  const byId = new Map(contacts.map((contact) => [contact.id, contact]));
-  let body = "";
-  let last = 0;
-  for (const mention of parseMentions(brief)) {
-    const contact = byId.get(mention.id);
-    if (!contact) continue;
-    body += `${brief.slice(last, mention.start)}[${contact.name.replace(/[[\]\\]/g, "\\$&")}](/contacts?contact=${contact.id})`;
-    last = mention.end;
-  }
-  body = `${body}${brief.slice(last)}`.trimEnd();
-  if (contacts.length === 0) return body;
-  const details = contacts.map((contact) => `- ${contactBrief(contact)}`);
-  return [body, CONTACT_DETAILS_MARKER, `**${heading}**`, details.join("\n")]
-    .filter(Boolean)
-    .join("\n\n");
 }

@@ -81,15 +81,17 @@ import {
   canSelectQueuedTaskStatus,
   TASK_STATUS_DISPLAY_ORDER,
 } from "@/lib/utils/task-status-order";
+import {
+  expandContactMentions,
+  mentionedContactIds,
+  stripContactDetails,
+} from "../utils/task-contact-details";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { TaskAssigneePicker } from "./task-assignee-picker";
 import {
   ContactMentionItem,
-  expandContactMentions,
   MentionInitialItem,
-  mentionedContactIds,
-  stripContactDetails,
   type TaskContactTag,
 } from "./task-contacts";
 import {
@@ -198,6 +200,18 @@ const CREATE_STATUS_OPTIONS = [
   TaskStatus.QUEUED,
   TaskStatus.READY,
 ] as const;
+
+/**
+ * The contact a tag on `id` means now: a merged contact's survivor, or null
+ * once it is archived, so a save never re-tags a contact Core would refuse.
+ */
+async function liveContact(id: string, hops = 0): Promise<Contact | null> {
+  const contact = await contactsService.get(id);
+  // ponytail: merges chain at most a few deep; 5 hops guards a cycle.
+  if (contact.mergedIntoId && hops < 5)
+    return liveContact(contact.mergedIntoId, hops + 1);
+  return contact.mergedIntoId || contact.archivedAt ? null : contact;
+}
 
 function isAgentAssigneeFields(fields: {
   assigneeId: string | null;
@@ -806,16 +820,25 @@ export function TaskForm({
         ];
         if (ids.length > 0 || initialIds.length > 0) {
           // Read now, with the reader's own access, so the Task gets current
-          // details only for contacts they may see.
-          const tagged = await Promise.all(
-            ids.map((id) => contactsService.get(id)),
+          // details only for contacts they may see. A merged contact stands
+          // for its survivor; an archived one is no longer tagged.
+          const live = new Map(
+            await Promise.all(
+              ids.map(async (id) => [id, await liveContact(id)] as const),
+            ),
           );
           trimmedDescription = expandContactMentions(
             trimmedDescription,
-            tagged,
+            live,
             tContacts("title"),
           );
-          contactIds = ids;
+          contactIds = [
+            ...new Set(
+              [...live.values()].flatMap((contact) =>
+                contact ? [contact.id] : [],
+              ),
+            ),
+          ];
         }
       }
       const context: TaskContextSelectionInput = {

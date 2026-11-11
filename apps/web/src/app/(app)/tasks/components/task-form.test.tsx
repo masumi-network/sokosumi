@@ -172,8 +172,13 @@ vi.mock("@/lib/services/contacts.client", () => ({
         {
           "contact-1": "Maya Stone",
           "contact-2": "Ivo Brandt",
+          "contact-3": "Maya S.",
+          "contact-4": "Old Lead",
           "contact-9": "Lena Kraft",
         }[id] ?? id,
+      // contact-3 was merged into Maya; contact-4 is archived.
+      mergedIntoId: id === "contact-3" ? "contact-1" : null,
+      archivedAt: id === "contact-4" ? new Date("2026-11-01") : null,
       role: id === "contact-1" ? "Head of Sales" : null,
       organization: id === "contact-1" ? "Stone Ventures" : null,
       location: null,
@@ -814,7 +819,7 @@ describe("TaskForm", () => {
 
   describe("contact mentions", () => {
     const SAVED =
-      "Call [Maya Stone](/contacts?contact=contact-1)\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Maya Stone** · Head of Sales, Stone Ventures · maya@example.com";
+      "Call [Maya Stone](/contacts?contact=contact-1)\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Maya Stone** · Head of Sales, Stone Ventures · maya@example.com\n\n<!-- /sokosumi:contacts -->";
 
     function renderEdit(
       contacts: { id: string; name: string }[] | null,
@@ -883,7 +888,7 @@ describe("TaskForm", () => {
       await user.click(screen.getByRole("button", { name: "Create Task" }));
 
       const expected =
-        "Send the deck to [Maya Stone](/contacts?contact=contact-1) [Ivo Brandt](/contacts?contact=contact-2)\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Maya Stone** · Head of Sales, Stone Ventures · maya@example.com\n- **Ivo Brandt**";
+        "Send the deck to [Maya Stone](/contacts?contact=contact-1) [Ivo Brandt](/contacts?contact=contact-2)\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Maya Stone** · Head of Sales, Stone Ventures · maya@example.com\n- **Ivo Brandt**\n\n<!-- /sokosumi:contacts -->";
       expect(createTaskMock).toHaveBeenCalledTimes(2);
       for (const [input] of createTaskMock.mock.calls) {
         expect(input).toEqual(
@@ -933,7 +938,60 @@ describe("TaskForm", () => {
         expect.objectContaining({
           contactIds: ["contact-9"],
           description:
-            "Call nobody\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Lena Kraft**",
+            "Call nobody\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Lena Kraft**\n\n<!-- /sokosumi:contacts -->",
+        }),
+      );
+    });
+
+    it("keeps text written after the details, with or without the end marker", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // Saved before the end marker existed, then appended to through the API.
+      const legacy = SAVED.replace("\n\n<!-- /sokosumi:contacts -->", "");
+      renderEdit(
+        [{ id: "contact-1", name: "Maya Stone" }],
+        `${legacy}\n\nAPI update: deadline Friday`,
+      );
+
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "Call [Maya Stone](/contacts?contact=contact-1)\n\nAPI update: deadline Friday",
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: SAVED.replace(
+            "contact-1)",
+            "contact-1)\n\nAPI update: deadline Friday",
+          ),
+        }),
+      );
+    });
+
+    it("re-tags a merged contact's survivor and drops an archived one", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // The merge moved the tag to Maya; the archived contact kept its tag.
+      renderEdit(
+        [
+          { id: "contact-1", name: "Maya Stone" },
+          { id: "contact-4", name: "Old Lead" },
+        ],
+        "Call [Maya S.](/contacts?contact=contact-3) and [Old Lead](/contacts?contact=contact-4)",
+      );
+
+      await user.type(screen.getByTestId("markdown-editor"), " today");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contactIds: ["contact-1"],
+          description: SAVED.replace(
+            "contact-1)",
+            "contact-1) and Old Lead today",
+          ),
         }),
       );
     });

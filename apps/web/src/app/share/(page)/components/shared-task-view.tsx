@@ -26,6 +26,7 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
+import { unlinkContacts } from "@/app/tasks/utils/task-contact-details";
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
@@ -70,8 +71,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+  // Contacts are private to the workspace: readers get names, not links.
   const publicDescription = task.description
-    ? removeTaskContextAttachmentLinks(task.description)
+    ? unlinkContacts(removeTaskContextAttachmentLinks(task.description))
     : "";
 
   const propertiesPanel = (

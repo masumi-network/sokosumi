@@ -61,6 +61,21 @@ describe("SharedTaskView", () => {
     expect(screen.queryByText(/DESIGN.md/)).not.toBeInTheDocument();
   });
 
+  it("shows tagged contacts by name, without links into the workspace", async () => {
+    render(
+      await SharedTaskView({
+        task: {
+          ...task,
+          description: "Call [Maya Stone](/contacts?contact=contact-1)",
+        },
+      }),
+    );
+
+    expect(screen.getByTestId("public-description")).toHaveTextContent(
+      /^Call Maya Stone$/,
+    );
+  });
+
   it("applies md:pt-4 on the metadata aside", async () => {
     const { container } = render(await SharedTaskView({ task }));
     const aside = container.querySelector("aside");
