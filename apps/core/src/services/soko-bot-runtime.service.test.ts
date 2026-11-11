@@ -11102,8 +11102,8 @@ describe("CMO record saves", () => {
       },
     });
     await expect(review(4)).resolves.toBeNull();
-    // A plan saved in parts lands its calendar last: the first calendar save
-    // of the turn is always reviewed, however many saves came before it.
+    // A plan saved in parts lands its calendar last: its calendar saves are
+    // reviewed however many plan and patch saves came before them.
     await expect(review(6, true, 0)).resolves.toMatchObject({
       save: 7,
       calendar: true,
@@ -11117,7 +11117,10 @@ describe("CMO record saves", () => {
         result: { path: ["review", "calendar"], equals: true },
       },
     });
-    await expect(review(6, true, 1)).resolves.toBeNull();
+    // Calendar saves have their own four reviews, so a fixed calendar is
+    // checked again.
+    await expect(review(6, true, 3)).resolves.toMatchObject({ save: 7 });
+    await expect(review(6, true, 4)).resolves.toBeNull();
   });
 
   it("saves the Brand Brain to Cuso's Project", async () => {

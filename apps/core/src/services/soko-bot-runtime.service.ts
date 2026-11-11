@@ -5739,21 +5739,19 @@ export class SokoBotRuntimeService {
     };
     const saves =
       (await prisma.sokoBotToolCall.count({ where: landedBefore })) + 1;
-    // A plan saved in parts lands its calendar last, so the turn's first
-    // part calendar save is reviewed however many saves came before it.
-    if (
-      saves > CMO_PLAN_REVIEWS_PER_TURN &&
-      (!plan.calendarSent ||
-        (await prisma.sokoBotToolCall.count({
+    // A plan saved in parts lands its calendar last, so calendar saves have
+    // their own reviews, however many plan and patch saves came before.
+    const reviewed = plan.calendarSent
+      ? await prisma.sokoBotToolCall.count({
           // The review, not the input: a calendar's input is too long to
           // keep whole, so its part is not stored.
           where: {
             ...landedBefore,
             result: { path: ["review", "calendar"], equals: true },
           },
-        })) > 0)
-    )
-      return null;
+        })
+      : saves - 1;
+    if (reviewed >= CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
     const bot = plan.planSent
       ? await prisma.sokoBot.findUnique({

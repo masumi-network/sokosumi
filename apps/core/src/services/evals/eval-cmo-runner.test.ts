@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
-import { cmoPlanRuleProblems } from "@/services/cmo-plan-review.service";
+import {
+  cmoPlanProblems,
+  cmoPlanRuleProblems,
+} from "@/services/cmo-plan-review.service";
 import {
   changeRequestPlan,
   commentChecks,
@@ -123,11 +126,18 @@ describe("changeRequestPlan", () => {
       (entry) => entry.channel === "linkedin",
     );
     expect(linkedin).toHaveLength(12);
+    // Cutting LinkedIn to one a week still leaves the 16 pieces a save needs,
+    // and the review finds nothing the case did not ask about.
+    expect(plan.calendar.length - 8).toBeGreaterThanOrEqual(16);
+    expect(
+      new Set(plan.calendar.map((e) => `${e.channel}/${e.format}`)).size,
+    ).toBeGreaterThanOrEqual(6);
+    expect(cmoPlanProblems(plan)).toEqual([]);
     expect(plan.channels.find((c) => c.channel === "linkedin")?.cadence).toBe(
       "3 posts a week",
     );
     expect(plan.calendar[0]?.date).toBe("2026-11-10");
-    expect(plan.calendar.at(-1)?.date).toBe("2026-12-05");
+    expect(plan.calendar.at(-1)?.date).toBe("2026-12-07");
     expect(cmoPlanRuleProblems(plan)).toEqual([]);
   });
 });

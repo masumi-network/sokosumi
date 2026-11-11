@@ -14,13 +14,13 @@ export type CmoPlanOfferVerdict = "ok" | "drift" | "unavailable" | "skipped";
 export interface CmoPlanReview {
   /** Which save of the turn that landed this was, from 1. */
   save: number;
-  /** The save was part calendar: a turn's first one is always reviewed. */
+  /** The save was part calendar: calendar saves have their own reviews. */
   calendar: boolean;
   mainOffer: CmoPlanOfferVerdict;
   problems: string[];
 }
 
-/** Saves that land in one planning turn the review answers; past them Cuso finishes as he is. */
+/** Plan saves, and calendar saves, that land in one planning turn the review answers; past them Cuso finishes as he is. */
 export const CMO_PLAN_REVIEWS_PER_TURN = 4;
 
 const MIN_PIECES = 16;
