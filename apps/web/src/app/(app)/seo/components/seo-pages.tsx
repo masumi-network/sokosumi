@@ -76,6 +76,7 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                   variant="outline"
                   onClick={() => model.setDialog("scope")}
                 >
+                  <Plus />
                   {t("createScope")}
                 </Button>
               ) : null}

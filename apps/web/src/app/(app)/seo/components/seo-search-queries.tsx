@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Plug, RefreshCw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -140,6 +140,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
                 void model.refreshSearchStatistics(saved);
               }}
             >
+              <RefreshCw />
               {t("syncNow")}
             </Button>
           ) : canSync ? (
@@ -147,6 +148,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
               variant="outline"
               onClick={() => model.openStatistics("search_console")}
             >
+              {connected ? <RefreshCw /> : <Plug />}
               {t(connected ? "syncStatistics" : "queries.connect")}
             </Button>
           ) : null}

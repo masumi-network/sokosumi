@@ -1,5 +1,6 @@
 "use client";
 
+import { RefreshCw, RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,6 +92,7 @@ export function SeoStatisticsDialog({
                   void form.properties.refetch();
                 }}
               >
+                <RotateCw />
                 {t("retry")}
               </Button>
             </div>
@@ -177,6 +179,7 @@ export function SeoStatisticsDialog({
                   !model.data.availableActions.canSyncMetrics
                 }
               >
+                <RefreshCw />
                 {t("statistics.submit")}
               </Button>
             )}

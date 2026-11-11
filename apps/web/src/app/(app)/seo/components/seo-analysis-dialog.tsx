@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -399,6 +399,7 @@ export function SeoAnalysisDialog({
                 form.workspace.scope.pageIds.length > SEO_MAX_PAGES
               }
             >
+              {monitor ? <CalendarClock /> : <Play />}
               {t(monitor ? "monitor.create" : "analysis.submit")}
             </Button>
           </DialogFooter>

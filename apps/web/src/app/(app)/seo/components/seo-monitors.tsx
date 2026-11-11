@@ -72,6 +72,7 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
           disabled={!scope.pageIds.length}
           onClick={() => model.setDialog("monitor")}
         >
+          <CalendarClock />
           {t("monitor.agentWeekly")}
         </Button>
       )}

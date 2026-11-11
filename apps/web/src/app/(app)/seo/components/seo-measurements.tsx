@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Plug, RefreshCw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -201,6 +201,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         void model.refreshSearchStatistics(active);
       }}
     >
+      <RefreshCw />
       {t("syncNow")}
     </Button>
   ) : canSync ? (
@@ -215,6 +216,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         )
       }
     >
+      <RefreshCw />
       {t("syncStatistics")}
     </Button>
   ) : null;
@@ -454,6 +456,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                 model.openStatistics(connected ? "search_console" : undefined)
               }
             >
+              {connected ? <RefreshCw /> : <Plug />}
               {t(connected ? "syncStatistics" : "overview.manageConnections")}
             </Button>
           ) : null}

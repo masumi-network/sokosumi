@@ -2,12 +2,18 @@
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
+  Bot,
   CalendarClock,
+  ChartLine,
   ChevronDown,
   Eye,
+  HeartPulse,
   Info,
+  ListChecks,
+  ListOrdered,
   ListPlus,
   Loader2,
+  type LucideIcon,
   MessageSquare,
   MoreHorizontal,
   PencilLine,
@@ -74,6 +80,19 @@ const SKELETON_ROWS = ["first", "second"] as const;
 
 /** The notice that says checks are off; the header's run button points to it. */
 const SEO_DISPATCH_PAUSED_ID = "seo-dispatch-paused";
+const SEO_TAB_ICONS: Record<SeoTab, LucideIcon> = {
+  agent: Bot,
+  actions: ListChecks,
+  traffic: ChartLine,
+  rankings: ListOrdered,
+  health: HeartPulse,
+};
+
+/** The picture of a tab. A phone has no room for it: five tabs fill the row. */
+function TabIcon({ tab }: { tab: SeoTab }) {
+  const Icon = SEO_TAB_ICONS[tab];
+  return <Icon className="size-4 max-sm:hidden" />;
+}
 
 export function SeoWorkspace({
   workspace,
@@ -374,9 +393,10 @@ export function SeoWorkspace({
                 value={tab}
                 className={cn(
                   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-                  "max-sm:min-h-9 max-sm:flex-1 max-sm:px-1.5",
+                  "gap-1.5 max-sm:min-h-9 max-sm:flex-1 max-sm:px-1.5",
                 )}
               >
+                <TabIcon tab={tab} />
                 {t(`tabs.${tab}`)}
               </TabsTrigger>
             ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectSeoAction } from "@sokosumi/core-client";
+import { ArrowUpRight, ClipboardPlus, Play, Plug, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -154,6 +155,7 @@ export function SeoActionCard({
         {action.taskId ? (
           <Button asChild size="sm" variant="outline">
             <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
+              <ArrowUpRight />
               {t("openTask")}
             </Link>
           </Button>
@@ -166,6 +168,7 @@ export function SeoActionCard({
               void model.createActionTask(action);
             }}
           >
+            <ClipboardPlus />
             {t("actions.createTask")}
           </Button>
         ) : null}
@@ -286,6 +289,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               searchLoaded &&
               model.data.availableActions.canEdit ? (
               <Button variant="outline" onClick={() => model.setDialog("page")}>
+                <Plus />
                 {t("addPage")}
               </Button>
             ) : model.data.availableActions.canSyncMetrics &&
@@ -294,6 +298,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
                 variant="outline"
                 onClick={() => model.setDialog("statistics")}
               >
+                <Plug />
                 {t("overview.manageConnections")}
               </Button>
             ) : model.data.availableActions.canRequestAnalysis ? (
@@ -301,6 +306,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
                 variant="outline"
                 onClick={() => model.setDialog("analysis")}
               >
+                <Play />
                 {t("runAnalysis")}
               </Button>
             ) : null}

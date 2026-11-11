@@ -9,6 +9,7 @@ import {
   CircleAlert,
   FolderOpen,
   PencilLine,
+  Play,
   SearchCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -420,6 +421,7 @@ export function SeoTimeline({
                       )}
                       {failed && event.kind === "check" && onRetry ? (
                         <Button variant="outline" size="sm" onClick={onRetry}>
+                          <Play />
                           {t("timeline.runNewCheck")}
                         </Button>
                       ) : null}
