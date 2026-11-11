@@ -101,7 +101,7 @@ function SeoAgentPanel({
   const primary =
     setup?.next || seoRunLeads(model.data)
       ? -1
-      : steps.findIndex((step) =>
+      : shown.findIndex((step) =>
           step.kind === "keyword" ||
           step.kind === "positions" ||
           step.kind === "measure"
