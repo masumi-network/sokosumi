@@ -381,8 +381,16 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(card).not.toHaveAttribute("aria-current");
     expect(within(card!).getByText("Major")).toBeVisible();
-    // What the fix brings is in view; the reasons stay closed.
-    expect(within(card!).getByText("One price.")).toBeVisible();
+    // What the check found is in view; the reasons and the effect of the fix stay closed.
+    // The line alone can be a bare count, so the name of its check goes with it.
+    expect(
+      within(card!).getByText(
+        "Not passed: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(card!).getByText("Expected effect: One price."),
+    ).not.toBeVisible();
     expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
   });
 
@@ -4712,7 +4720,7 @@ describe("SEO workspace integration", () => {
     );
     expect(part(/^Keyword ideas/)).toHaveClass("hidden");
     // One box searches both lists: a match in the ideas does not hide behind the switch.
-    const search = screen.getByPlaceholderText("Filter queries and keywords");
+    const search = screen.getByPlaceholderText("Filter keywords");
     await user.type(search, "widget");
     expect(part(/^Keyword ideas/)).not.toHaveClass("hidden");
     expect(part("Keywords")).not.toHaveClass("hidden");

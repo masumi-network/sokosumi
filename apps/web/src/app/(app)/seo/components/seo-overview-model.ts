@@ -82,6 +82,16 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   // The worst issue an action fixes; an action from search data alone has none.
   const actionSeverity = (action: Action) =>
     SEO_ISSUE_SEVERITY_NAMES[actionRank(action)] ?? null;
+  // What is wrong, in the check's own words: the worst issue the action fixes and its first evidence line, named as Health names it.
+  // The line alone can be a bare count ("4 of 20 images"), so the name of the check goes with it.
+  const actionProblem = (action: Action) => {
+    const issue = issues.find((issue) =>
+      action.findingIds.some((id) => issue.findingIds.includes(id)),
+    );
+    // A line of white space only says nothing.
+    const found = issue?.evidence.find((line) => line.trim());
+    return issue && found ? { check: checkName(issue.title), found } : null;
+  };
   const fixOf = (issue: { findingIds: string[] }) =>
     actions.find((action) =>
       action.findingIds.some((id) => issue.findingIds.includes(id)),
@@ -126,6 +136,7 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     diagnostics,
     actions,
     actionSeverity,
+    actionProblem,
     issueFix,
     recommendedActions,
     recentChecks,

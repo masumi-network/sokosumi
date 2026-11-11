@@ -51,6 +51,7 @@ import {
   SeoState,
   seoMarketName,
   seoSectionClass,
+  seoSiteUrl,
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
 import { SeoKeywordDemand, SeoStrategyCard } from "./seo-strategy";
@@ -77,7 +78,11 @@ export function SeoQueryFilter({
         type="search"
         value={model.keywordSearch}
         onChange={(event) => model.setKeywordSearch(event.target.value)}
-        placeholder={t("keywords.searchPlaceholder")}
+        placeholder={t(
+          model.data.searchQueries?.rows.length
+            ? "keywords.searchPlaceholder"
+            : "keywords.searchKeywords",
+        )}
       />
     </div>
   );
@@ -224,7 +229,7 @@ export function SeoKeywords({
                 ) : null}
                 {summary.depth ? (
                   <span>
-                    {t("keywords.depth", {
+                    {t("summary.depth", {
                       ...summary.depth,
                       same:
                         summary.depth.min === summary.depth.max ? "yes" : "no",
@@ -306,7 +311,10 @@ export function SeoKeywords({
                             {/* In a one-page scope the page link only repeats; "any page" still says something. */}
                             {row.pageUrl ? (
                               manyPages ? (
-                                <SeoPageLink url={row.pageUrl} />
+                                <SeoPageLink
+                                  url={row.pageUrl}
+                                  site={seoSiteUrl(model.data)}
+                                />
                               ) : null
                             ) : (
                               <span className="text-muted-foreground text-sm">

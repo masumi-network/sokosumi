@@ -11036,15 +11036,14 @@
         "ranked": "Position {position}",
         "noMatch": "Kein verfolgtes oder geprüftes Keyword passt zur Suche",
         "readFailed": "Keine Position gelesen",
-        "depth": "{same, select, yes {Wo ein Keyword nicht gefunden wurde, hat die Prüfung die ersten {max} Ergebnisse gelesen.} other {Wo ein Keyword nicht gefunden wurde, hat die Prüfung die ersten {min} bis {max} Ergebnisse gelesen.}}",
         "notFound": "Nicht gefunden",
         "unavailable": "Noch nicht geprüft",
         "country": "Ländercode",
         "language": "Sprachcode",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
-        "help": "Verfolge ein Keyword, damit es in dieser Liste bleibt. Die nächste Rangprüfung beginnt damit. Das Verfolgen ist kostenlos.",
-        "dialogHelp": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Rangprüfungen.",
+        "help": "Verfolge ein Keyword, damit es in dieser Liste bleibt: Die nächste Positionsprüfung prüft es mit. Das Verfolgen ist kostenlos.",
+        "dialogHelp": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Positionsprüfungen.",
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
         "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder",
@@ -11071,7 +11070,8 @@
         "intentMissing": "{count, plural, one {Die Keyword-Daten nennen für # Keyword keine Suchabsicht.} other {Die Keyword-Daten nennen für # Keywords keine Suchabsicht.}}",
         "addButton": "Keyword hinzufügen",
         "keywordAndPage": "Keyword und seine Seite",
-        "readOn": "Letzte Positionsprüfung"
+        "readOn": "Letzte Positionsprüfung",
+        "searchKeywords": "Keywords filtern"
       },
       "competitors": {
         "title": "Mitbewerber",
@@ -11135,7 +11135,8 @@
         "kind": {
           "fix": "Bestätigtes Problem",
           "opportunity": "Vorschlag"
-        }
+        },
+        "problem": "{check}. Gefunden: {found}"
       },
       "pages": {
         "title": "Seiten",
@@ -11154,7 +11155,8 @@
         "issues": "{count, plural, =0 {keine Probleme} one {# Problem} other {# Probleme}}",
         "notChecked": "Noch nicht geprüft",
         "notCheckedInDates": "Keine Prüfung in diesem Zeitraum",
-        "checkIncomplete": "Prüfung unvollständig"
+        "checkIncomplete": "Prüfung unvollständig",
+        "home": "Startseite"
       },
       "timeline": {
         "title": "Verlauf",

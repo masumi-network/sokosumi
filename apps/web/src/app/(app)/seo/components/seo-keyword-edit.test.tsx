@@ -208,6 +208,38 @@ describe("Saved keyword edits", () => {
     },
   );
 
+  it("shows a keyword's page as the address after the site, and the home page by name", () => {
+    const { workspace, pricingPage } = savedKeywordWorkspace();
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    // An Audit saves no site: its primary page stands for it.
+    workspace.websiteUrl = null;
+    const saved = workspace.keywords[workspace.keywords.length - 1];
+    workspace.keywords.push(
+      {
+        ...saved,
+        id: "home",
+        keyword: "Wallets",
+        pageUrl: workspace.pages[0].url,
+      },
+      {
+        ...saved,
+        id: "other",
+        keyword: "Bridges",
+        pageUrl: "https://other.example/x",
+      },
+    );
+    renderWorkspace(workspace);
+    // The link keeps the whole address as its name and its target.
+    const page = (url: string) => screen.getByRole("link", { name: url });
+    expect(page(pricingPage.url).textContent).toBe("/pricing");
+    expect(page(pricingPage.url)).toHaveAttribute("href", pricingPage.url);
+    expect(page(workspace.pages[0].url).textContent).toBe("Home page");
+    // A page of another site keeps its site.
+    expect(page("https://other.example/x").textContent).toBe(
+      "https://other.example/x",
+    );
+  });
+
   it("names a tracked keyword's market in words", () => {
     const { workspace } = savedKeywordWorkspace();
     vi.stubGlobal(
@@ -236,7 +268,7 @@ describe("Saved keyword edits", () => {
     );
     renderWorkspace(workspace);
     await user.type(
-      screen.getByPlaceholderText("Filter queries and keywords"),
+      screen.getByPlaceholderText("Filter keywords"),
       "Stablecoins",
     );
     await waitFor(() =>
@@ -504,9 +536,8 @@ describe("Keywords after a check", () => {
     expect(screen.queryByText("Not found")).toBeNull();
     expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
     expect(
-      screen.getByText(
-        "Where a keyword is not found, the check read the first 16 to 17 results.",
-      ),
+      // The same words as the keyword tile of the Agent tab.
+      screen.getByText("Results read per keyword: 16 to 17"),
     ).toBeVisible();
     // What a click on "Track" gives stands once, between the result and the rows with the buttons.
     expect(screen.getAllByText(/^Track a keyword to keep it/)).toHaveLength(1);
@@ -857,7 +888,7 @@ describe("Search Console queries", () => {
     expect(screen.getByRole("heading", { name: "Keywords" })).toBeVisible();
     expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
     cleanup();
-    // It names the next rank check too: it has no place where no rank check can run.
+    // It names the next position check too: it has no place where no position check can run.
     workspace.keywords = [
       missed({ id: "new", keyword: "battery app", checkedResults: null }),
     ];

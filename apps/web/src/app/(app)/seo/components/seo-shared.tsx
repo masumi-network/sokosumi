@@ -221,13 +221,39 @@ function seoUrlBreaks(url: string) {
   });
 }
 
+/** The site of the workspace. An Audit saves none, so its primary page stands for it. */
+export function seoSiteUrl(workspace: ProjectSeoWorkspace) {
+  return (
+    workspace.websiteUrl ??
+    workspace.pages.find((page) => page.relationship === "primary")?.url ??
+    null
+  );
+}
+
+/** The address after the site. Null for a page of another site, and for an address that does not parse. */
+export function seoPagePath(url: string, site: string) {
+  try {
+    const page = new URL(url);
+    return page.host === new URL(site).host
+      ? `${page.pathname}${page.search}`
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function SeoPageLink({
   url,
   label,
+  site,
 }: {
   url: string;
   label?: string | null;
+  /** The site of the Audit. Rows of one site then show the path alone: the site would repeat on every row. */
+  site?: string | null;
 }) {
+  const t = useTranslations("App.Seo");
+  const path = site ? seoPagePath(url, site) : null;
   return (
     <Link
       href={url}
@@ -235,10 +261,11 @@ export function SeoPageLink({
       rel="noopener noreferrer"
       // The break points split the text; the name stays the whole address.
       aria-label={label || url}
+      title={path ? url : undefined}
       className="inline-flex min-w-0 items-start gap-1 text-sm underline-offset-4 hover:underline"
     >
       <bdi className="[overflow-wrap:anywhere]">
-        {label || seoUrlBreaks(url)}
+        {label || (path === "/" ? t("pages.home") : seoUrlBreaks(path ?? url))}
       </bdi>
       <ArrowUpRight className="mt-0.5 size-3 shrink-0" aria-hidden />
     </Link>

@@ -109,6 +109,27 @@ describe("SEO overview relevance", () => {
     expect(workspace.findings[0].id).toBe("measure");
   });
 
+  it("names what an action fixes by its worst issue and that issue's first line, or by nothing", () => {
+    const workspace = seoTestWorkspace();
+    workspace.findings = [
+      { ...finding("minor", "minor"), evidence: ["4 of 20 images"] },
+      {
+        ...finding("critical", "critical"),
+        title: "Raw HTML: Indexable",
+        evidence: ["the raw HTML has a noindex", "second line"],
+      },
+      // A line of no characters says nothing: the card then keeps the effect of the fix.
+      { ...finding("silent", "major"), evidence: ["", " "] },
+    ];
+    const { actionProblem } = seoOverviewModel(workspace);
+    expect(actionProblem(action("both", ["minor", "critical"]))).toEqual({
+      check: "Indexable",
+      found: "the raw HTML has a noindex",
+    });
+    expect(actionProblem(action("silent", ["silent"]))).toBeNull();
+    expect(actionProblem(action("search-only", []))).toBeNull();
+  });
+
   it("shows a measurement once per check when each device reported it", () => {
     const workspace = seoTestWorkspace();
     const measured = (id: string, observationId: string) => ({

@@ -11036,15 +11036,14 @@
         "ranked": "Position {position}",
         "noMatch": "No tracked or checked keyword matches this search",
         "readFailed": "No position read",
-        "depth": "{same, select, yes {Where a keyword is not found, the check read the first {max} results.} other {Where a keyword is not found, the check read the first {min} to {max} results.}}",
         "notFound": "Not found",
         "unavailable": "Not checked yet",
         "country": "Country code",
         "language": "Language code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Track a keyword to keep it on this list. The next rank check starts with it. Tracking is free.",
-        "dialogHelp": "Tracking a keyword is free. It does not start paid rank checks.",
+        "help": "Track a keyword to keep it on this list: the next position check reads it. Tracking is free.",
+        "dialogHelp": "Tracking a keyword is free. It does not start paid position checks.",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
         "searchConsoleNote": "Search Console average, all countries",
@@ -11071,7 +11070,8 @@
         "intentMissing": "{count, plural, one {The keyword data gives no intent for # keyword.} other {The keyword data gives no intent for # keywords.}}",
         "addButton": "Add a keyword",
         "keywordAndPage": "Keyword and its page",
-        "readOn": "Last position check"
+        "readOn": "Last position check",
+        "searchKeywords": "Filter keywords"
       },
       "competitors": {
         "title": "Competitors",
@@ -11135,7 +11135,8 @@
         "kind": {
           "fix": "Confirmed issue",
           "opportunity": "Suggestion"
-        }
+        },
+        "problem": "{check}. Found: {found}"
       },
       "pages": {
         "title": "Pages",
@@ -11154,7 +11155,8 @@
         "issues": "{count, plural, =0 {no issues} one {# issue} other {# issues}}",
         "notChecked": "Not checked yet",
         "notCheckedInDates": "No check in these dates",
-        "checkIncomplete": "check incomplete"
+        "checkIncomplete": "check incomplete",
+        "home": "Home page"
       },
       "timeline": {
         "title": "Timeline",

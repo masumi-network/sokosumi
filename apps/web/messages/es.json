@@ -11036,15 +11036,14 @@
         "ranked": "Posición {position}",
         "noMatch": "Ninguna palabra clave seguida o comprobada coincide con la búsqueda",
         "readFailed": "No se leyó ninguna posición",
-        "depth": "{same, select, yes {Donde no se encontró una palabra clave, la comprobación leyó los primeros {max} resultados.} other {Donde no se encontró una palabra clave, la comprobación leyó los primeros {min} a {max} resultados.}}",
         "notFound": "No encontrada",
         "unavailable": "Aún sin comprobar",
         "country": "Código de país",
         "language": "Código de idioma",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "Sigue una palabra clave para que se quede en esta lista. La próxima comprobación de posición empieza con ella. El seguimiento es gratis.",
-        "dialogHelp": "Seguir una palabra clave es gratis. No inicia comprobaciones de posición de pago.",
+        "help": "Sigue una palabra clave para que se quede en esta lista: la próxima comprobación de posiciones la incluye. El seguimiento es gratis.",
+        "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
         "searchConsoleNote": "Promedio de Search Console, todos los países",
@@ -11071,7 +11070,8 @@
         "intentMissing": "{count, plural, one {Los datos no indican la intención de # palabra clave.} other {Los datos no indican la intención de # palabras clave.}}",
         "addButton": "Añadir una palabra clave",
         "keywordAndPage": "Palabra clave y su página",
-        "readOn": "Última comprobación de posiciones"
+        "readOn": "Última comprobación de posiciones",
+        "searchKeywords": "Filtrar palabras clave"
       },
       "competitors": {
         "title": "Competidores",
@@ -11135,7 +11135,8 @@
         "kind": {
           "fix": "Problema confirmado",
           "opportunity": "Sugerencia"
-        }
+        },
+        "problem": "{check}. Hallazgo: {found}"
       },
       "pages": {
         "title": "Páginas",
@@ -11154,7 +11155,8 @@
         "issues": "{count, plural, =0 {sin problemas} one {# problema} other {# problemas}}",
         "notChecked": "Aún sin comprobar",
         "notCheckedInDates": "Sin comprobación en estas fechas",
-        "checkIncomplete": "comprobación incompleta"
+        "checkIncomplete": "comprobación incompleta",
+        "home": "Página de inicio"
       },
       "timeline": {
         "title": "Cronología",

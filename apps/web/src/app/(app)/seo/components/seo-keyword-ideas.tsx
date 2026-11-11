@@ -24,6 +24,7 @@ import {
   SeoSection,
   SeoShowMore,
   seoMarketName,
+  seoSiteUrl,
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -100,7 +101,10 @@ export function SeoKeywordIdeas({
                     </p>
                   ) : null}
                   {manyPages && lead.pageUrl ? (
-                    <SeoPageLink url={lead.pageUrl} />
+                    <SeoPageLink
+                      url={lead.pageUrl}
+                      site={seoSiteUrl(model.data)}
+                    />
                   ) : null}
                 </TableCell>
                 {shown.volume ? (

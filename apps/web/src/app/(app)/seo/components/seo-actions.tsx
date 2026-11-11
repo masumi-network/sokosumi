@@ -37,6 +37,7 @@ export function SeoActionCard({
   primary?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const problem = seoOverviewModel(model.data).actionProblem(action);
   const card = useRef<HTMLElement>(null);
   // "See the fix" on the Health tab and on an Agent row lead here: the card scrolls into view and takes the focus once.
   const shown = model.shownAction === seoActionKey(action);
@@ -81,9 +82,14 @@ export function SeoActionCard({
           ) : null}
         </div>
       </div>
-      {/* What the fix changes for the reader, in view: the title alone names the edit. Two lines; the open details show all of it. */}
-      <p className="text-muted-foreground line-clamp-2 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none">
-        {action.expectedEffect}
+      {/* In view: what the check found, where an issue is behind the action; the effect of the fix reads like a spec and waits in the details. Two lines, four on a phone; the open details show all of it. */}
+      <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
+        {problem
+          ? t("actions.problem", {
+              check: t("overview.failedCheck", { name: problem.check }),
+              found: problem.found,
+            })
+          : action.expectedEffect}
       </p>
       <SeoPageLink url={action.pageUrl} />
       <details className="text-sm">
@@ -94,6 +100,11 @@ export function SeoActionCard({
           <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
             {action.why}
           </p>
+          {problem ? (
+            <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
+              {t("actions.effect")}: {action.expectedEffect}
+            </p>
+          ) : null}
           <p className="text-muted-foreground text-xs">
             {t("actions.effort")}: {t(`priority.${action.effort}`)}
           </p>
