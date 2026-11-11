@@ -1635,7 +1635,12 @@ export async function reconcileMessage(
         });
         // Never post a reply as a new thread; the outbox retries it.
         if (!parentLink) throw new Error("Thread root is not on Buzz yet");
-        threadRootEventId = parentLink.eventId;
+        // Unless the thread started in a DM since retired: its start is not
+        // in this conversation, so the reply stands on its own here.
+        threadRootEventId =
+          parentLink.channelId && parentLink.channelId !== channel.channelId
+            ? null
+            : parentLink.eventId;
       }
       const event = signEvent(
         messageDraft({
@@ -2402,13 +2407,16 @@ export async function applyInboundEvent(
           contentHash: true,
           lastEditAt: true,
           lastEditEventId: true,
-          message: { select: { roomId: true } },
+          deleted: true,
+          message: { select: { roomId: true, deletedAt: true } },
         },
       });
       if (!link) {
         if (options.finalAttempt) return "ignored";
         throw new BuzzTargetPendingError(change.targetEventId);
       }
+      // Gone in Sokosumi: nothing left to edit (Core would refuse for good).
+      if (link.deleted || link.message.deletedAt) return "ignored";
       // The newest edit wins; on a tie the lower id, as Nostr orders
       // replaceable events. A replayed or late edit never undoes a newer one.
       const newer =

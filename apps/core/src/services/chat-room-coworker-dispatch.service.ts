@@ -151,6 +151,13 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   // with its key tagged) and answers there; its reply comes back as a message.
   // It answers only its owner, so anyone else is told so instead of silence.
   if (mention.coworker && isBuzzAgentBaseUrl(mention.coworker.baseURL)) {
+    // Same rules as any dispatch: nothing for a deleted message, and one
+    // dispatch at a time, so a refusal is never posted twice.
+    if (mention.message.deletedAt != null) {
+      await markMentionFailed(mentionId, "Source message was deleted");
+      return;
+    }
+    if (!(await claimMentionForDispatch(mentionId))) return;
     const owner = await personalAgentOwnerOf(mention.coworker.id);
     let responseMessageId: string | undefined;
     if (owner && mention.message.senderUserId !== owner.userId) {
