@@ -7,7 +7,7 @@ import {
   type SocialPostStatus,
   type SocialQueueSlot,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
+import { isValidTimezone } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -101,6 +101,15 @@ import {
   formatComposerHandle,
 } from "./social-post-account-chip-label";
 import { socialPostCreatorLabel } from "./social-post-creator-label";
+import {
+  calendarDateParam,
+  isBrowserOffline,
+  isRevisionConflict,
+  isTimeoutRejection,
+  sectionOf,
+  sortSection,
+  upsertPost,
+} from "./social-post-list";
 import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
@@ -204,45 +213,6 @@ const LOAD_MORE_ERROR_COPY = {
   failed: "loadMoreError",
 } as const;
 
-function timeOf(value: Date | null): number {
-  return value ? new Date(value).getTime() : 0;
-}
-
-function sectionOf(post: SocialPost): SectionKey | undefined {
-  return SECTION_ORDER.find((section) =>
-    SECTION_STATUSES[section].includes(post.status),
-  );
-}
-
-function sortSection(posts: SocialPost[], section: SectionKey): SocialPost[] {
-  if (section === "attention") {
-    return [...posts].sort(
-      (a, b) =>
-        timeOf(b.lastAttemptAt) - timeOf(a.lastAttemptAt) ||
-        timeOf(b.scheduledAt) - timeOf(a.scheduledAt) ||
-        b.id.localeCompare(a.id),
-    );
-  }
-  return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
-}
-
-/** Same `yyyy-MM-dd` WorkspaceCalendar reads from `?date=`. */
-function calendarDateParam(date: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const values: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
-  for (const part of parts) {
-    if (part.type !== "literal") {
-      values[part.type] = part.value;
-    }
-  }
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
 function actionSubject(post: SocialPost, untitled: string): string {
   const handle = formatComposerHandle(
     post.socialConnection?.externalHandle ?? null,
@@ -251,31 +221,6 @@ function actionSubject(post: SocialPost, untitled: string): string {
   const name = post.socialConnection?.displayName?.trim();
   if (name) return name;
   return untitled;
-}
-
-function isRevisionConflict(error: ActionError): boolean {
-  return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
-}
-
-function isBrowserOffline(): boolean {
-  return typeof navigator !== "undefined" && navigator.onLine === false;
-}
-
-function isTimeoutRejection(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const name = "name" in error ? error.name : undefined;
-  if (name === "AbortError" || name === "TimeoutError") return true;
-  const message =
-    "message" in error && typeof error.message === "string"
-      ? error.message.toLowerCase()
-      : "";
-  return message.includes("timed out") || message.includes("timeout");
-}
-
-function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
-  const index = posts.findIndex((post) => post.id === next.id);
-  if (index === -1) return [next, ...posts];
-  return posts.map((post) => (post.id === next.id ? next : post));
 }
 
 function previewAccountFor(
