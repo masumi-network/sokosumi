@@ -264,6 +264,8 @@ async function reserveJob(input: ReserveImageJobInput) {
 async function requireBalanceForQuote(options: {
   userId: string;
   organizationId: string | null;
+  /** The job's Project: the balance its delivery will charge (ADR 0067). */
+  projectId: string;
   chargedCents: bigint;
   tx: Prisma.TransactionClient;
 }): Promise<void> {
@@ -281,6 +283,7 @@ async function requireBalanceForQuote(options: {
     options.userId,
     options.organizationId,
     options.tx,
+    { projectId: options.projectId },
   );
   const required = inFlight + options.chargedCents;
   if (balance >= required) return;
@@ -466,6 +469,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     await requireBalanceForQuote({
       userId: input.userId,
       organizationId: input.organizationId,
+      projectId: input.projectId,
       chargedCents,
       tx,
     });
@@ -1999,6 +2003,7 @@ async function insertAsset(input: {
         transactionId = await createTaskEventTransaction({
           userId: input.job.requestedByUserId,
           organizationId: input.job.organizationId,
+          projectId: input.job.projectId,
           cents: chargedCents,
           tx,
         });

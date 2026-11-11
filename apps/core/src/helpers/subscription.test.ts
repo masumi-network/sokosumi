@@ -688,6 +688,7 @@ describe("buildCreditsPayload", () => {
         "user_1",
         null,
         tx,
+        { projectId: undefined },
       );
 
       expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
@@ -793,6 +794,7 @@ describe("buildCreditsPayload", () => {
         "user_1",
         null,
         tx,
+        { projectId: undefined },
       );
 
       expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
@@ -873,10 +875,36 @@ describe("buildCreditsPayload", () => {
         "user_1",
         "org_1",
         tx,
+        { projectId: undefined },
       );
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("reads Project credits with the pool for a Project", async () => {
+    // Cuso's overview and context packet: his Project's credits count.
+    getCreditsMock.mockResolvedValue(10);
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    const { tx } = createTransactionClient({ totalCents: 0n, usedCents: 0n });
+
+    await buildCreditsPayload({
+      userId: null,
+      organizationId: "org_1",
+      referenceId: "org_1",
+      projectId: "project_1",
+      tx,
+    });
+
+    const scope = { projectId: "project_1" };
+    expect(getCreditsMock).toHaveBeenCalledWith(null, "org_1", tx, scope);
+    expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
+      null,
+      "org_1",
+      tx,
+      scope,
+    );
   });
 
   it("excludes enterprise pool remaining from credits.buffer", async () => {
