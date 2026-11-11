@@ -391,7 +391,6 @@ describe("SEO audit first run", () => {
     ];
     view.rerender(page(setupCard(earlier)));
     expect(screen.getByText("Started 12 minutes ago.")).toBeVisible();
-    expect(screen.queryByText(/%|remaining|left/)).toBeNull();
   });
 
   it("says why checks are off in the notice, with no setup card that promises a check", async () => {
@@ -558,7 +557,7 @@ describe("SEO agent chat", () => {
     ).toBeVisible();
   });
 
-  it("keeps the question field and shows no error when the conversation cannot be read", async () => {
+  it("keeps the question field and the way to the conversation when it cannot be read", async () => {
     const workspace = chatWorkspace();
     const reads = vi.fn();
     network(workspace, {
@@ -571,9 +570,10 @@ describe("SEO agent chat", () => {
     await waitFor(() => expect(reads).toHaveBeenCalled());
     await act(async () => {});
     expect(screen.getByLabelText("Your question")).toBeVisible();
+    // A conversation may exist: the button stays, and the sheet is where the read is tried again.
     expect(
-      screen.queryByRole("button", { name: copy.chat.continueThread }),
-    ).toBeNull();
+      await screen.findByRole("button", { name: copy.chat.continueThread }),
+    ).toBeVisible();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

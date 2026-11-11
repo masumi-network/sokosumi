@@ -46,9 +46,10 @@ async function readSeoChat(
 }
 
 /**
- * True when the Audit's conversation holds a question. Read without the chat sheet,
- * so the Agent tab offers the conversation only when one exists. Core returns the
- * newest turns only, so the page states no count.
+ * True when the Audit's conversation holds a question, or its read failed. Read
+ * without the chat sheet, so the Agent tab offers the conversation only when one
+ * can exist. After a failed read the sheet is the way to try again. Core returns
+ * the newest turns only, so the page states no count.
  */
 export function useSeoChatStarted(model: SeoWorkspaceModel) {
   const { data: session } = useSession();
@@ -63,8 +64,10 @@ export function useSeoChatStarted(model: SeoWorkspaceModel) {
     refetchOnWindowFocus: false,
     // The answer only shows or hides one button: a refused read is not asked again.
     retry: false,
+    // A reply in work must not stay "running" in the record while the sheet is closed.
+    refetchInterval: (query) => seoChatPoll(query.state.data),
   });
-  return Boolean(history.data?.turns?.length);
+  return history.isError || Boolean(history.data?.turns?.length);
 }
 
 export function useSeoChat(model: SeoWorkspaceModel) {
