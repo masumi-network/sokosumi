@@ -188,14 +188,19 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
 
 const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
 
-/** LinkedIn rewards one real story; a month without them read as generic tips. */
+/**
+ * LinkedIn rewards one real story, and proof without one is a vague "a
+ * reviewer liked it"; a month without them read as generic tips.
+ */
 function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
   const missing = pieces.filter(
-    (entry) => entry.channel === "linkedin" && !entry.story,
+    (entry) =>
+      (entry.channel === "linkedin" || entry.approach === "social-proof") &&
+      !entry.story,
   );
   if (missing.length === 0) return [];
   return [
-    `${missing.length} LinkedIn pieces have no story (${missing
+    `${missing.length} LinkedIn or social-proof pieces have no story (${missing
       .slice(0, 3)
       .map((entry) => entry.id)
       .join(
@@ -304,39 +309,71 @@ export async function cmoDraftProblems(
   return { problems: problems.slice(0, MAX_DRAFT_PROBLEMS), costUsd };
 }
 
+/** Entries whose texts say one thing, by meaning: each group in calendar order. */
+async function sameMessage(
+  entries: MarketingStrategyPlan["calendar"],
+  text: (entry: MarketingStrategyPlan["calendar"][number]) => string,
+  embed?: EmbedTexts,
+): Promise<{ groups: MarketingStrategyPlan["calendar"][]; costUsd: number }> {
+  const { repeats, costUsd } = await findRepeats(
+    entries.map(text),
+    "title",
+    embed,
+  );
+  // Each text joins the message of the earlier text it repeats.
+  const message = entries.map((_, index) => index);
+  repeats.forEach((earlier, index) => {
+    if (earlier !== null) message[index] = message[earlier] ?? earlier;
+  });
+  const groups = new Map<number, MarketingStrategyPlan["calendar"]>();
+  entries.forEach((entry, index) => {
+    const first = message[index] ?? index;
+    groups.set(first, [...(groups.get(first) ?? []), entry]);
+  });
+  return { groups: [...groups.values()], costUsd };
+}
+
+/** Pieces one story may carry ("Use each story in at most two pieces"). */
+const MAX_STORY_PIECES = 2;
+
 /**
  * Calendar entries whose title says what an earlier title says in other
  * words ("Pick a CRM by the team that uses it", "Start your CRM choice with
- * your team"): one piece twice. Every repeat is named in one review, a line
- * per message, since each fix round resends the whole calendar.
+ * your team"): one piece twice. And stories told in more than two pieces: a
+ * begin.is month told one customer's eSIM four times. Every repeat is named
+ * in one review, a line per message, since each fix round resends the whole
+ * calendar.
  */
-export async function cmoTitleRepeats(
+export async function cmoCalendarRepeats(
   calendar: MarketingStrategyPlan["calendar"],
   embed?: EmbedTexts,
 ): Promise<{ problems: string[]; costUsd: number }> {
   const planned = calendar.filter((entry) => entry.status !== "skipped");
-  const { repeats, costUsd } = await findRepeats(
-    planned.map((entry) => entry.title),
-    "title",
-    embed,
-  );
-  // Each title joins the message of the earlier title it repeats.
-  const message = planned.map((_, index) => index);
-  repeats.forEach((earlier, index) => {
-    if (earlier !== null) message[index] = message[earlier] ?? earlier;
-  });
-  const said = new Map<number, typeof planned>();
-  planned.forEach((entry, index) => {
-    const first = message[index] ?? index;
-    said.set(first, [...(said.get(first) ?? []), entry]);
-  });
-  const problems = [...said.values()]
-    .filter((entries) => entries.length > 1)
-    .map(
-      (entries) =>
-        `${entries.map((entry) => entry.id).join(", ")} say one thing (${entries.map((entry) => `"${entry.title}"`).join(", ")}); keep ${entries[0]?.id} and give the others their own message from their pillar.`,
-    );
-  return { problems, costUsd };
+  const [titles, stories] = await Promise.all([
+    sameMessage(planned, (entry) => entry.title, embed),
+    sameMessage(
+      planned.filter((entry) => entry.story?.trim()),
+      (entry) => entry.story ?? "",
+      embed,
+    ),
+  ]);
+  const ids = (entries: MarketingStrategyPlan["calendar"]) =>
+    entries.map((entry) => entry.id).join(", ");
+  const problems = [
+    ...titles.groups
+      .filter((entries) => entries.length > 1)
+      .map(
+        (entries) =>
+          `${ids(entries)} say one thing (${entries.map((entry) => `"${entry.title}"`).join(", ")}); keep ${entries[0]?.id} and give the others their own message from their pillar.`,
+      ),
+    ...stories.groups
+      .filter((entries) => entries.length > MAX_STORY_PIECES)
+      .map(
+        (entries) =>
+          `${ids(entries)} tell one story ("${entries[0]?.story}"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.`,
+      ),
+  ];
+  return { problems, costUsd: titles.costUsd + stories.costUsd };
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */

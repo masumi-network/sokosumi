@@ -359,11 +359,11 @@ import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
   type CmoPlanReview,
+  cmoCalendarRepeats,
   cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoReplySafety,
-  cmoTitleRepeats,
 } from "@/services/cmo-plan-review.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
 import {
@@ -5775,7 +5775,7 @@ export class SokoBotRuntimeService {
         : CMO_PLAN_REVIEWS_PER_TURN)
     )
       return null;
-    const titles = await cmoTitleRepeats(strategy.calendar);
+    const titles = await cmoCalendarRepeats(strategy.calendar);
     await this.chargeCheck(input, EMBEDDING_MODEL, titles.costUsd);
     const problems = [...cmoPlanProblems(strategy), ...titles.problems];
     const bot = plan.planSent
