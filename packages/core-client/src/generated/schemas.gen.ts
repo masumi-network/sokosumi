@@ -50043,6 +50043,29 @@ export const TaskSellerReceiptSchema = {
     ]
 } as const;
 
+export const SendTaskToChatRequestSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 2000
+        },
+        clientMessageId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'roomId',
+        'clientMessageId'
+    ]
+} as const;
+
 export const TaskWorkspaceSchema = {
     type: 'object',
     properties: {

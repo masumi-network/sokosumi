@@ -32,7 +32,6 @@ import {
   chatRoomMessageSchema,
   createChatRoomMessageRequestSchema,
 } from "@/schemas/chat-room.schema";
-import { enqueueChatMessageSignal } from "@/services/chat-message-signals.service";
 import {
   resolveAttachedSkills,
   skillMetadata,
@@ -55,6 +54,7 @@ import {
   resolveThreadParentMessageId,
   withChatRoomReplyCount,
 } from "../../helpers";
+import { emitHumanRoomMessageEffects } from "../../human-message-effects";
 import { markChatRoomThreadRead } from "../../room-unread";
 import { requireWritableChatRoom } from "../../writable-chat-room";
 
@@ -540,13 +540,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         waitUntil(dispatchChatRoomMention(mentionId));
       }
 
-      // The same rule the direct-message row is written by, so a mention and
-      // a message in the same room cannot disagree about whether that room is
-      // a pair.
-      const isDirectPair = shouldEmitChatDirectMessageNotifications({
-        kind: room.kind,
-        memberUserIds: room.memberUserIds,
-      });
       if (mentionedUserIds.length > 0) {
         waitUntil(
           emitChatMentionNotifications({
@@ -567,49 +560,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      if (isDirectPair) {
-        const recipientUserIds = room.memberUserIds.filter(
-          (userId) => userId !== userContext.userId,
-        );
-        if (recipientUserIds.length > 0) {
-          waitUntil(
-            emitChatDirectMessageNotifications({
-              roomId: room.id,
-              roomName: room.name,
-              organizationId: room.organizationId,
-              messageId: message.id,
-              parentMessageId: message.parentMessageId,
-              content: message.content,
-              authorUserId: userContext.userId,
-              authorName: message.senderUser?.name ?? "Someone",
-              recipientUserIds,
-              mentionedUserIds,
-            }),
-          );
-        }
-      }
-
-      waitUntil(
-        emitChatRoomMessageCreatedEffects({
-          roomId: room.id,
-          roomName: room.name,
-          roomKind: room.kind,
-          organizationId: room.organizationId,
-          messageId: message.id,
-          parentMessageId: message.parentMessageId,
-          content: message.content,
-          authorUserId: userContext.userId,
-          authorName: message.senderUser?.name ?? "Someone",
-          // Read inside the write transaction, so the roster is the one the
-          // message was posted against.
-          memberUserIds: room.memberUserIds,
-          mentionedUserIds,
-        }),
-      );
-
-      waitUntil(scheduleChatRoomMessageUnfurls(message.id));
-      // Jev reads it once the room goes quiet; never in front of the send.
-      waitUntil(enqueueChatMessageSignal(message.id));
+      emitHumanRoomMessageEffects({
+        message,
+        room,
+        authorUserId: userContext.userId,
+        mentionedUserIds,
+      });
     }
 
     await publishChatRoomMessageRealtime(message, "create");
