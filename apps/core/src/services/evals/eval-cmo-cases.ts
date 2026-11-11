@@ -19,6 +19,10 @@ export interface CmoEvalBrand {
   planLanguage?: string;
   /** A business with many product lines lists at least this many offers. */
   minOffers?: number;
+  /** The main offer's price as its site publishes it. */
+  price?: string;
+  /** A social profile the site links to that the Brand Brain must list. */
+  profile?: string;
   why?: string;
 }
 
@@ -60,6 +64,7 @@ const RESEARCH_BRANDS = [
   "Apple",
   "Blue Bottle Coffee",
   "utxo.ag",
+  "Begin",
 ];
 
 /**

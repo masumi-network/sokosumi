@@ -41,6 +41,22 @@ export function brandBrainChecks(
       pass: brain.offers.length >= brand.minOffers,
       actual: brain.offers.map((offer) => offer.name).join(", "),
     });
+  if (brand.price)
+    checks.push({
+      label: "Prices the main offer as published",
+      pass: new RegExp(brand.price, "i").test(brain.offers[0]?.price ?? ""),
+      actual: brain.offers[0]?.price ?? "no offer",
+    });
+  if (brand.profile)
+    checks.push({
+      label: "Lists its social profile",
+      pass: brain.channels.some((channel) =>
+        new RegExp(brand.profile ?? "", "i").test(channel.url ?? ""),
+      ),
+      actual: brain.channels
+        .map((channel) => channel.url ?? channel.name)
+        .join(", "),
+    });
   return { brain, checks };
 }
 
