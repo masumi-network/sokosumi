@@ -147,7 +147,7 @@ export default function Sidebar({
         position where a DM row lands flush against it the chip reads as one
         more room. It marks the footer as chrome.
       */}
-      <SidebarFooter className="border-sidebar-border mt-auto shrink-0 border-t px-0">
+      <SidebarFooter className="border-sidebar-border relative mt-auto shrink-0 border-t px-0">
         <BuzzConnectCard />
         <AnnouncementCards />
         {/* No bottom padding of its own: `SidebarFooter` already contributes
