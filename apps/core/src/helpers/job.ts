@@ -9,6 +9,7 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
+import type { CreditBucketProjectOption } from "@sokosumi/database/helpers";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 import {
   type JobWithListSummaryRelations,
@@ -70,15 +71,15 @@ export interface JobContext {
 
 /**
  * Validates that user or organization has sufficient credit balance.
- * `creditProjectId` is the Project the charge will carry: its Project credits
- * count, then the pool. Null sees only the pool (ADR 0067).
+ * `projectId` is the Project the charge will carry: its Project credits
+ * count, then the pool. None sees only the pool (ADR 0067).
  */
 async function validateCreditBalance(
   userId: string | null,
   organizationId: string | null,
   costCents: bigint,
   tx: Prisma.TransactionClient,
-  creditProjectId: string | null = null,
+  options: CreditBucketProjectOption = {},
 ): Promise<void> {
   if (costCents <= 0) {
     return;
@@ -88,7 +89,7 @@ async function validateCreditBalance(
     userId,
     organizationId,
     tx,
-    { projectId: creditProjectId },
+    options,
   );
 
   if (centsBalance < costCents) {
@@ -633,7 +634,7 @@ export async function createAgentJobForUser(
           owner.organizationId,
           cost.cents,
           tx,
-          creditProjectId,
+          { projectId: creditProjectId },
         ),
       "Balance preflight conflicted with a concurrent credit update. Please retry.",
     );
@@ -899,7 +900,7 @@ export async function createAgentJobForUser(
       owner.organizationId,
       cost.cents,
       tx,
-      creditProjectId,
+      { projectId: creditProjectId },
     );
 
     let createdJob: JobWithListSummaryRelations;
