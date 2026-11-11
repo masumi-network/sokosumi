@@ -7,6 +7,8 @@ import {
   buildCreditBucketScopeSql,
   buildEnterprisePoolScopeSql,
   buildOrganizationPoolScopeSql,
+  type CreditBucketProjectOption,
+  creditBucketProjectFirstOrderSql,
   resolveCreditBucketScopeContext,
 } from "../helpers/credit-bucket-scope.js";
 
@@ -35,12 +37,13 @@ export const creditBucketRepository = {
   /**
    * What `userId` can spend in this workspace. A null user with an
    * organization reads the Organization pool a charge with no member draws on
-   * (ADR 0057).
+   * (ADR 0057). With a Project it adds that Project's credits (ADR 0067).
    */
   async getBalance(
     userId: string | null,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
+    options: CreditBucketProjectOption = {},
   ): Promise<bigint> {
     const now = new Date();
     const scopeContext = await resolveCreditBucketScopeContext(
@@ -50,7 +53,7 @@ export const creditBucketRepository = {
       now,
     );
     return await sumAvailableCents(
-      buildCreditBucketScopeSql(scopeContext),
+      buildCreditBucketScopeSql(scopeContext, options),
       now,
       tx,
     );
@@ -63,10 +66,11 @@ export const creditBucketRepository = {
   async getOrganizationPoolBalance(
     organizationId: string,
     tx: Prisma.TransactionClient,
+    options: CreditBucketProjectOption = {},
   ): Promise<bigint> {
     const now = new Date();
     return await sumAvailableCents(
-      await buildOrganizationPoolScopeSql(organizationId, tx, now),
+      await buildOrganizationPoolScopeSql(organizationId, tx, now, options),
       now,
       tx,
     );
@@ -76,12 +80,14 @@ export const creditBucketRepository = {
    * Unexpired buckets with remaining > 0. Omits subscription-period buckets
    * (`referenceType` subscription); those credits live on the subscription
    * payload. Order: expiresAt ASC NULLS LAST, smallest original `amount`,
-   * then createdAt ASC, then id ASC. Amounts in cents.
+   * then createdAt ASC, then id ASC; a Project's credits come first when
+   * given one. Amounts in cents.
    */
   async listAvailableBucketsWithBalances(
     userId: string | null,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
+    options: CreditBucketProjectOption = {},
   ): Promise<CreditBucketBalanceRow[]> {
     const now = new Date();
     const scopeContext = await resolveCreditBucketScopeContext(
@@ -90,7 +96,7 @@ export const creditBucketRepository = {
       tx,
       now,
     );
-    const where = buildCreditBucketScopeSql(scopeContext);
+    const where = buildCreditBucketScopeSql(scopeContext, options);
 
     return await tx.$queryRaw<
       Array<{
@@ -105,7 +111,8 @@ export const creditBucketRepository = {
           cb.amount,
           (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
           cb."expiresAt",
-          cb."createdAt"
+          cb."createdAt",
+          cb."projectId"
         FROM credit_bucket cb
         LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
         WHERE ${where}
@@ -114,7 +121,7 @@ export const creditBucketRepository = {
           AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
           AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}
           AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_TOP_UP}
-        GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
+        GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt", cb."projectId"
         HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
       )
       SELECT
@@ -122,7 +129,7 @@ export const creditBucketRepository = {
         available AS "remainingCents",
         "expiresAt"
       FROM bucket_avail
-      ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+      ORDER BY ${creditBucketProjectFirstOrderSql(options.projectId)}"expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
     `;
   },
 
@@ -240,13 +247,15 @@ export const creditBucketRepository = {
   /**
    * FIFO consume in list order until `cents` is covered. Throws if
    * insufficient. A null user with an organization consumes the Organization
-   * pool with no member and no Seat (ADR 0057).
+   * pool with no member and no Seat (ADR 0057). With a Project it draws that
+   * Project's credits first, then the pool (ADR 0067).
    */
   async prepareConsumption(
     userId: string | null,
     organizationId: string | null,
     cents: bigint,
     tx: Prisma.TransactionClient,
+    options: CreditBucketProjectOption = {},
   ): Promise<Consumption[]> {
     if (cents <= BigInt(0)) {
       throw new Error("Cents to consume must be positive");
@@ -259,6 +268,7 @@ export const creditBucketRepository = {
       now,
       cents,
       tx,
+      options,
     );
 
     const consumptions: Consumption[] = [];
@@ -318,6 +328,7 @@ async function getFifoBucketsToCoverSpend(
   now: Date,
   cents: bigint,
   tx: Prisma.TransactionClient,
+  options: CreditBucketProjectOption,
 ): Promise<Array<{ id: string; available: bigint }>> {
   const scopeContext = await resolveCreditBucketScopeContext(
     userId,
@@ -325,7 +336,8 @@ async function getFifoBucketsToCoverSpend(
     tx,
     now,
   );
-  const where = buildCreditBucketScopeSql(scopeContext);
+  const where = buildCreditBucketScopeSql(scopeContext, options);
+  const projectFirst = creditBucketProjectFirstOrderSql(options.projectId);
 
   return await tx.$queryRaw<Array<{ id: string; available: bigint }>>`
     WITH bucket_avail AS (
@@ -334,13 +346,14 @@ async function getFifoBucketsToCoverSpend(
         cb.amount,
         (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
         cb."expiresAt",
-        cb."createdAt"
+        cb."createdAt",
+        cb."projectId"
       FROM credit_bucket cb
       LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
         AND ${creditBucketActivatesAtOrBeforeSql(now)}
-      GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
+      GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt", cb."projectId"
       HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
     ),
     ordered AS (
@@ -350,14 +363,15 @@ async function getFifoBucketsToCoverSpend(
         available,
         "expiresAt",
         "createdAt",
+        "projectId",
         SUM(available) OVER (
-          ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+          ORDER BY ${projectFirst}"expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
         ) AS running_total
       FROM bucket_avail
     )
     SELECT id, available
     FROM ordered
     WHERE running_total - available < ${cents}
-    ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+    ORDER BY ${projectFirst}"expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
   `;
 }
