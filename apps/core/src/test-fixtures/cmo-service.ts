@@ -10,6 +10,7 @@ import { vi } from "vitest";
 
 export const memberFindMany = vi.fn();
 export const sokoBotFindUnique = vi.fn();
+export const sokoBotUpdateMany = vi.fn();
 export const cusoFindMany = vi.fn();
 export const memberFindUnique = vi.fn();
 export const chatRoomDelete = vi.fn();
@@ -214,6 +215,7 @@ const client = {
     // Finding Cuso by his bot or by a member: the Cuso `cusoFind` stands for.
     findFirst: async (args: unknown) => asCusoBot(await cusoFind(args)),
     findMany: cusoFindMany,
+    updateMany: sokoBotUpdateMany,
   },
   chatRoom: { delete: chatRoomDelete, update: chatRoomUpdate },
   chatRoomMessage: {
@@ -374,6 +376,8 @@ export function resetCmoServiceMocks(): void {
     metadata: args.create.metadata,
   }));
   projectUpdateMany.mockResolvedValue({ count: 1 });
+  // The starter grant's liveness write finds the live Cuso unless a test archives him.
+  sokoBotUpdateMany.mockResolvedValue({ count: 1 });
   messageFindMany.mockResolvedValue([]);
   // Every hire lives in the business's organization (ADR 0065), and the
   // member asking owns it unless a test says otherwise.

@@ -37,7 +37,10 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
-import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
+import {
+  forfeitCusoProjectCredits,
+  forfeitCusoProjectCreditsIfLeavingCmo,
+} from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -3409,12 +3412,15 @@ export class SokoBotControlPlane {
         "Cuso runs CMO's own version, which cannot be changed here",
       );
     }
-    const updated = await prisma.sokoBot.updateMany({
-      where: { id: bot.id, archivedAt: null },
-      data: { versionId },
-    });
-    if (updated.count === 0)
-      throw new SokoBotNotFoundError("Soko Bot not found");
+    await serializableTransaction(async (tx) => {
+      await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
+      const updated = await tx.sokoBot.updateMany({
+        where: { id: bot.id, archivedAt: null },
+        data: { versionId },
+      });
+      if (updated.count === 0)
+        throw new SokoBotNotFoundError("Soko Bot not found");
+    }, "Soko Bot version changed concurrently");
   }
 
   /**
@@ -4144,6 +4150,8 @@ export class SokoBotControlPlane {
           if (!current || current.archivedAt) {
             throw new SokoBotNotFoundError("Soko Bot not found");
           }
+          // Leaving CMO ends Cuso, so his Project credits end too (ADR 0067).
+          await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
           const updated = await tx.sokoBot.update({
             where: { id: bot.id },
             data: { versionId },
