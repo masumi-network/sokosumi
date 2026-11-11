@@ -4,8 +4,6 @@ import type { BuzzConnection } from "@sokosumi/core-client";
 import { getBuzzConnectionResponseTransformer } from "@sokosumi/core-client/transformers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft,
-  ArrowRight,
   Check,
   Copy,
   Download,
@@ -21,8 +19,6 @@ import {
   BUZZ_ACTION_STYLE,
   BuzzIconTile,
   BuzzLogo,
-  BuzzMark,
-  BuzzProgress,
   BuzzSurface,
 } from "@/components/buzz/buzz-brand";
 import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
@@ -193,21 +189,16 @@ function BuzzConnectFlow({
   const next = () => setStep(path[index + 1] ?? "done");
 
   return (
-    <DialogContent className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[640px] sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6">
+    <DialogContent className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[600px] sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6">
       <DialogTitle className="sr-only">{t("dialogTitle")}</DialogTitle>
       <DialogDescription className="sr-only">{t("subtitle")}</DialogDescription>
 
-      <BuzzSurface clearCorner className="px-6 pt-5 pb-4 sm:px-8">
-        <span className="flex h-7 items-center gap-2">
-          <BuzzMark className="w-8" />
-          <span className="text-lg font-bold tracking-[-0.03em]">Buzz</span>
+      <div className="flex h-16 items-center gap-2 px-6 sm:px-8">
+        <BuzzLogo className="size-6 rounded-md" />
+        <span className="text-[15px] font-semibold tracking-[-0.01em]">
+          Buzz
         </span>
-        <span className="mt-4 flex h-1">
-          {step !== "choose" ? (
-            <BuzzProgress total={path.length - 1} done={index} />
-          ) : null}
-        </span>
-      </BuzzSurface>
+      </div>
 
       <div className="app-scrollbar flex min-h-0 flex-col items-center overflow-y-auto overscroll-contain px-6 py-4 text-center sm:px-14">
         <div
@@ -454,14 +445,13 @@ function BuzzConnectFlow({
       </div>
 
       {/* Footer: one filled action at a time, Back on the left. */}
-      <div className="bg-background flex min-h-20 items-center justify-between gap-3 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8">
+      <div className="bg-background relative flex min-h-20 items-center justify-between gap-3 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8">
         {step !== "choose" && step !== "done" ? (
           <Button
             variant="ghost"
             className="text-muted-foreground h-11 px-4"
             onClick={back}
           >
-            <ArrowLeft className="size-4" />
             {t("back")}
           </Button>
         ) : step === "choose" && onNotNow ? (
@@ -476,6 +466,10 @@ function BuzzConnectFlow({
           <span />
         )}
 
+        {step !== "choose" && step !== "done" ? (
+          <StepDots total={path.length - 2} current={index - 1} />
+        ) : null}
+
         {step === "new-get" && (
           <Button
             variant="primary"
@@ -485,7 +479,6 @@ function BuzzConnectFlow({
             onClick={next}
           >
             {t("get.next")}
-            <ArrowRight className="size-4" />
           </Button>
         )}
         {step === "new-key" && (
@@ -498,7 +491,6 @@ function BuzzConnectFlow({
             disabled={!keySaved}
           >
             {t("next")}
-            <ArrowRight className="size-4" />
           </Button>
         )}
         {step === "new-signin" && (
@@ -510,7 +502,6 @@ function BuzzConnectFlow({
             onClick={next}
           >
             {t("signin.next")}
-            <ArrowRight className="size-4" />
           </Button>
         )}
         {step === "have-key" && (
@@ -525,7 +516,6 @@ function BuzzConnectFlow({
             disabled={!publicKey.trim()}
           >
             {t("next")}
-            <ArrowRight className="size-4" />
           </Button>
         )}
         {waiting && (
@@ -538,7 +528,7 @@ function BuzzConnectFlow({
             variant="primary"
             size="lg"
             style={BUZZ_ACTION_STYLE}
-            className="rounded-full h-11 w-full px-6"
+            className="rounded-full h-11 px-6"
             onClick={finish}
           >
             {t("done.close")}
@@ -570,7 +560,7 @@ function Stage({
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="mt-5 text-3xl leading-[1.1] font-bold tracking-[-0.03em] text-balance outline-none"
+        className="mt-6 text-[28px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance outline-none"
       >
         {title}
       </h2>
@@ -598,8 +588,8 @@ function Choice({
   onSelect: () => void;
 }) {
   const body = (
-    <span className="flex min-h-28 flex-col p-4 sm:min-h-36">
-      <span className="block text-base leading-tight font-bold tracking-[-0.02em]">
+    <span className="flex min-h-24 flex-col p-4 sm:min-h-32">
+      <span className="block text-base leading-tight font-semibold tracking-[-0.01em]">
         {title}
       </span>
       <span
@@ -610,7 +600,6 @@ function Choice({
       >
         {description}
       </span>
-      <ArrowRight className="mt-auto size-5 self-end" />
     </span>
   );
   return (
@@ -630,6 +619,26 @@ function Choice({
         body
       )}
     </button>
+  );
+}
+
+/** Where you are in the steps, as small dots between Back and the action. */
+function StepDots({ total, current }: { total: number; current: number }) {
+  return (
+    <span
+      className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 gap-1.5"
+      aria-hidden
+    >
+      {Array.from({ length: total }).map((_, dot) => (
+        <span
+          key={dot}
+          className={cn(
+            "size-1.5 rounded-full transition-colors duration-200",
+            dot === current ? "bg-foreground" : "bg-foreground/15",
+          )}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -655,8 +664,10 @@ function CopyChip({ value, label }: { value: string; label?: string }) {
       type="button"
       onClick={() => void copy(value)}
       className={cn(
-        "press bg-muted hover:bg-quinary focus-visible:ring-ring mt-2 inline-flex max-w-full items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
-        !label && "font-mono",
+        "press focus-visible:ring-ring mt-2 inline-flex max-w-full items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+        label
+          ? "text-muted-foreground hover:text-foreground"
+          : "bg-muted hover:bg-quinary font-mono",
       )}
     >
       <span className="truncate">{label ?? value}</span>

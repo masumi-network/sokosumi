@@ -37,14 +37,11 @@ export function BuzzSurface({
   className,
   children,
   bees = true,
-  clearCorner = false,
 }: {
   className?: string;
   children: ReactNode;
   /** The scattered bees; off where text fills the surface. */
   bees?: boolean;
-  /** Keep the bees clear of a close button in the top corner. */
-  clearCorner?: boolean;
 }) {
   return (
     <div
@@ -59,24 +56,15 @@ export function BuzzSurface({
       {bees ? (
         <span aria-hidden>
           <BuzzBee
-            className={cn(
-              "absolute top-3 w-4 rotate-[18deg]",
-              clearCorner ? "right-24" : "right-10",
-            )}
+            className="absolute top-3 right-10 w-4 rotate-[18deg]"
             color={PALE_BEE}
           />
           <BuzzBee
-            className={cn(
-              "absolute w-3 -rotate-12",
-              clearCorner ? "top-10 right-16" : "top-9 right-4",
-            )}
+            className="absolute top-9 right-4 w-3 -rotate-12"
             color={PALE_BEE}
           />
           <BuzzBee
-            className={cn(
-              "absolute w-3 rotate-[40deg]",
-              clearCorner ? "top-4 right-36" : "top-14 right-14",
-            )}
+            className="absolute top-14 right-14 w-3 rotate-[40deg]"
             color={PALE_BEE}
           />
         </span>
@@ -111,21 +99,6 @@ export const BUZZ_ACTION_STYLE = {
   backgroundColor: INK,
   color: YELLOW,
 } as const;
-
-/** Steps done, drawn in ink on Buzz yellow. */
-export function BuzzProgress({ total, done }: { total: number; done: number }) {
-  return (
-    <span className="flex w-full gap-1" aria-hidden>
-      {Array.from({ length: total }).map((_, index) => (
-        <span
-          key={index}
-          className="h-1 flex-1 rounded-full transition-colors duration-200"
-          style={{ backgroundColor: index < done ? INK : `${INK}26` }}
-        />
-      ))}
-    </span>
-  );
-}
 
 /** A step's icon: the symbol in Buzz yellow on an ink tile. */
 export function BuzzIconTile({ children }: { children: ReactNode }) {
