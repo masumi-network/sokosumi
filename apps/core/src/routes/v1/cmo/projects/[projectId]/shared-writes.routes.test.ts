@@ -230,6 +230,12 @@ const WRITES = [
   },
 ] as const;
 
+function named(name: (typeof WRITES)[number]["name"]) {
+  const found = WRITES.find((entry) => entry.name === name);
+  if (!found) throw new Error(`No write named ${name}`);
+  return found;
+}
+
 function send(
   write: (typeof WRITES)[number],
   auth: AuthenticationContext = CMO_TOKEN,
@@ -292,7 +298,7 @@ describe("CMO's own routes for its writes on the Cuso's Project", () => {
   });
 
   it("acts on the Cuso's Project and workspace, with no organization header", async () => {
-    await send(WRITES[5]);
+    await send(named("social connection initiate"));
     expect(m.initiateProjectSocialConnection).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
@@ -304,15 +310,15 @@ describe("CMO's own routes for its writes on the Cuso's Project", () => {
 
   it("lets a plain member answer the strategy but not approve it (ADR 0061)", async () => {
     m.members.set("user-1:org-1", "member");
-    const approve = await send(WRITES[3]);
+    const approve = await send(named("strategy approve"));
     expect(approve.status).toBe(403);
     expect(m.startCmoProductionForProject).not.toHaveBeenCalled();
 
-    const answer = await send(WRITES[4]);
+    const answer = await send(named("strategy answer"));
     expect(answer.status).toBe(200);
   });
 
-  it("refuses a coworker on every write, as the strategy routes did", async () => {
+  it("refuses a coworker on every write, as every /v1/cmo route does", async () => {
     const coworker: AuthenticationContext = {
       actor: "coworker",
       coworkerId: "coworker-1",
@@ -329,7 +335,10 @@ describe("CMO's own routes for its writes on the Cuso's Project", () => {
       ...CMO_TOKEN,
       firstPartyClient: false,
     };
-    for (const write of [WRITES[5], WRITES[6]]) {
+    for (const write of [
+      named("social connection initiate"),
+      named("social connection finalize"),
+    ]) {
       const response = await send(write, otherApp);
       expect(response.status, write.name).toBe(403);
     }
