@@ -132,6 +132,16 @@ describe("SEO statistics presentation", () => {
     expect(
       choose([properties[0], { id: "properties/6", name: "www.example.com." }]),
     ).toBe("properties/6");
+    // "www." inside a name is part of the name.
+    expect(
+      seoMatchingProperty(
+        "ga4",
+        [properties[0], { id: "properties/7", name: "awww.com" }],
+        "https://awww.com/",
+      ),
+    ).toBe("properties/7");
+    // A page address with no host names no property, and the search for it ends.
+    expect(seoMatchingProperty("ga4", properties, "https://www./")).toBe("");
   });
 });
 

@@ -64,8 +64,6 @@ export function useSeoChatStarted(model: SeoWorkspaceModel) {
     refetchOnWindowFocus: false,
     // The answer only shows or hides one button: a refused read is not asked again.
     retry: false,
-    // A reply in work must not stay "running" in the record while the sheet is closed.
-    refetchInterval: (query) => seoChatPoll(query.state.data),
   });
   return history.isError || Boolean(history.data?.turns?.length);
 }

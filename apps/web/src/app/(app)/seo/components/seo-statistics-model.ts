@@ -58,6 +58,8 @@ export function savedSeoStatistics(
 
 /** True when the text names this host as a whole: "staging.example.com" and "myexample.com" do not name example.com. */
 function namesHost(text: string, host: string) {
+  // An empty host is found at every place, and the search below would not end.
+  if (!host) return false;
   for (
     let at = text.indexOf(host);
     at !== -1;
@@ -92,7 +94,11 @@ export function seoMatchingProperty(
   const host = page.hostname.replace(/^www\./, "");
   const rank = (property: { id: string; name: string }) => {
     if (provider === "ga4")
-      return namesHost(property.name.toLowerCase().replaceAll("www.", ""), host)
+      return namesHost(
+        // "www." counts only where a host starts: "awww.com" keeps its name.
+        property.name.toLowerCase().replace(/(^|[^a-z0-9.-])www\./g, "$1"),
+        host,
+      )
         ? 1
         : 0;
     if (property.id.startsWith(SEARCH_DOMAIN_PROPERTY)) {
