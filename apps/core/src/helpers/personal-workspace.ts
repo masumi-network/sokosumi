@@ -1,10 +1,19 @@
+import * as Sentry from "@sentry/node";
 import type { Workspace } from "@sokosumi/database";
+import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
+  ensureInitialLocalFreeSubscriptionPeriod,
+  FREE_SUBSCRIPTION_PLAN,
+  getCreditExpiryDate,
+  grantSignupBonusCredits,
+} from "@sokosumi/database/helpers";
 import {
   vendorGrantRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
+import { getEnv } from "@/config/env";
 import { conflict, notFound } from "@/helpers/error";
 import {
   isPrismaForeignKeyViolation,
@@ -12,15 +21,93 @@ import {
 } from "@/helpers/prisma";
 import { isLastWorkspace } from "@/helpers/workspace-access";
 import prisma from "@/lib/db/prisma";
+import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
+
+// Personal credits (free plan and signup bonus) belong to the personal
+// workspace, so they start with it. Best effort: a failed grant must not undo
+// the workspace. Deleting and recreating the workspace grants nothing new.
+async function grantPersonalWorkspaceCredits(
+  userId: string,
+  workspaceCreatedAt: Date,
+): Promise<void> {
+  const { SIGNUP_BONUS_CREDITS, SIGNUP_BONUS_TTL_DAYS } = getEnv();
+  const grantedAt = new Date();
+  const expiresAt = getCreditExpiryDate(grantedAt, SIGNUP_BONUS_TTL_DAYS);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Delete and recreate can leave two workspace creations granting at once.
+      const [user] = await tx.$queryRaw<{ stripeCustomerId: string | null }[]>`
+        SELECT "stripeCustomerId" FROM "user" WHERE "id" = ${userId}
+        FOR NO KEY UPDATE
+      `;
+      if (!user) {
+        return;
+      }
+
+      // Users from before this change already have a renewing free plan.
+      const activeFreePlan = await tx.subscription.findFirst({
+        where: {
+          plan: FREE_SUBSCRIPTION_PLAN,
+          referenceId: userId,
+          status: { in: [...ACTIVE_SUBSCRIPTION_STATUSES] },
+        },
+        select: { id: true },
+      });
+
+      let freePlanGranted = false;
+      if (!activeFreePlan) {
+        const { grantsCreated } =
+          await ensureInitialLocalFreeSubscriptionPeriod(
+            {
+              createdAt: workspaceCreatedAt,
+              kind: "user",
+              stripeCustomerId: user.stripeCustomerId,
+              userId,
+            },
+            tx,
+          );
+        freePlanGranted = grantsCreated > 0;
+      }
+
+      const { created: bonusGranted } = await grantSignupBonusCredits(
+        {
+          credits: SIGNUP_BONUS_CREDITS,
+          expiresAt,
+          userId,
+        },
+        tx,
+      );
+
+      if (freePlanGranted || bonusGranted) {
+        await markOutOfCreditsTasksAsToppedUp({
+          organizationId: null,
+          tx,
+          userId,
+        });
+      }
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "personal_workspace_credits",
+      },
+      extra: {
+        userId,
+      },
+    });
+  }
+}
 
 /**
  * Creates the user's one personal workspace and makes it preferred by
  * clearing preferredOrganizationId. Conflicts when one already exists.
+ * Grants the personal credits: the free plan and the signup bonus.
  */
 export async function createPersonalWorkspace(
   userId: string,
 ): Promise<Workspace> {
-  return await prisma.$transaction(async (tx) => {
+  const workspace = await prisma.$transaction(async (tx) => {
     const existing = await tx.workspace.findUnique({
       where: { userId },
     });
@@ -60,6 +147,10 @@ export async function createPersonalWorkspace(
 
     return createdWorkspace;
   });
+
+  await grantPersonalWorkspaceCredits(userId, workspace.createdAt);
+
+  return workspace;
 }
 
 /**

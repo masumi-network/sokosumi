@@ -17,6 +17,7 @@ import {
   strategy,
   work,
 } from "../../test-fixtures/onboarding";
+import { Onboarding } from "../onboarding";
 import { LAND_MS } from "../type-in";
 import { inertOnboardingActions, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
@@ -73,6 +74,40 @@ function typeInto(input: HTMLInputElement | null, value: string) {
 }
 
 const noop = async () => {};
+
+it("opens the Cuso picker from the hire form account menu", async () => {
+  await act(async () =>
+    root.render(
+      <Onboarding
+        signOut={noop}
+        cusoPicker
+        onboard={async (previous) => previous}
+      />,
+    ),
+  );
+
+  await press("Account");
+
+  expect(container.querySelector('a[href="/?cusos=1"]')?.textContent).toBe(
+    "Your Cusos",
+  );
+});
+
+it("leaves the Cuso picker out of the hire form account menu without a Cuso", async () => {
+  await act(async () =>
+    root.render(
+      <Onboarding
+        signOut={noop}
+        onboard={async (previous) => previous}
+        cusoPicker={false}
+      />,
+    ),
+  );
+
+  await press("Account");
+
+  expect(container.querySelector('a[href="/?cusos=1"]')).toBeNull();
+});
 
 // The questions: a tap shows at once, a failed save takes it back.
 

@@ -7,6 +7,7 @@ import {
   registerImageStudioSessionRequestSchema,
   registerImageStudioSessionSchema,
 } from "@/schemas/project-image-studio.schema";
+import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 import { registerCreatedSession } from "@/services/image-studio-sessions.service";
 
 /**
@@ -60,6 +61,8 @@ export default function mount(
   app.openapi(route, async (c) => {
     const context = c.var.agentGrant;
     const input = c.req.valid("json");
+
+    await requireNotCmoProject(context.projectId, context.workspaceId);
 
     const session = await registerCreatedSession({
       projectId: context.projectId,

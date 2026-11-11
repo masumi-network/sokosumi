@@ -10,19 +10,21 @@ export function newsletterHref(path: string, projectId: string): string {
 /**
  * The newsletter section's tabs, in one place so a new section is added here.
  * Until the newsletter exists only Settings, where it is created, is there.
- * Calendar is the Calendar page filtered to Newsletter issues.
+ * Calendar is the Calendar page filtered to Newsletter issues. A CMO Project
+ * (`cmo`) has read-only Settings and Signup form once it has a newsletter (ADR 0066).
  */
 export function getNewsletterTabs(
   projectId: string,
   hasNewsletter: boolean,
   t: IntlTranslation<"App.Projects.Newsletter">,
+  cmo = false,
 ): ProjectTab[] {
   const settings: ProjectTab = {
     id: "settings",
     href: newsletterHref("/newsletter/settings", projectId),
     label: t("settings"),
   };
-  if (!hasNewsletter) return [settings];
+  if (!hasNewsletter) return cmo ? [] : [settings];
   return [
     {
       id: "issues",

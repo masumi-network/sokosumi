@@ -249,12 +249,15 @@ export async function requireTaskWriteAccess(
   userContext: UserContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-  { right = "edit" }: { right?: WorkRight } = {},
+  {
+    right = "edit",
+    archived = false,
+  }: { right?: WorkRight; archived?: boolean } = {},
 ): Promise<Task> {
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
-      archivedAt: null,
+      archivedAt: archived ? { not: null } : null,
       ...buildTaskWriteAccessWhere(userContext.userId),
     },
   });

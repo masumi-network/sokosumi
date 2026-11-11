@@ -1,3 +1,4 @@
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { botFindFirstMock, botFindManyMock, memberFindFirstMock, resolveMock } =
@@ -113,6 +114,42 @@ describe("getSokoBotState", () => {
 describe("listSharedSokoBots", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("marks Cuso: a Project bot on CMO's version", async () => {
+    const shared = {
+      userId: null,
+      workspaceId: WORKSPACE_ID,
+      name: null,
+      avatarSeed: null,
+      avatarImageUrl: null,
+      status: "IDLE",
+      archivedAt: null,
+      sharedRoomId: null,
+    };
+    botFindManyMock.mockResolvedValue([
+      {
+        ...shared,
+        id: "cuso",
+        projectId: "p1",
+        versionId: CMO_SOKO_BOT_VERSION_IDS[0],
+      },
+      { ...shared, id: "helper", projectId: "p1", versionId: "v1" },
+      {
+        ...shared,
+        id: "team",
+        projectId: null,
+        versionId: CMO_SOKO_BOT_VERSION_IDS[0],
+      },
+    ]);
+
+    const bots = await listSharedSokoBots(VIEWER, WORKSPACE_ID);
+
+    expect(bots.map(({ id, cuso }) => [id, cuso])).toEqual([
+      ["cuso", true],
+      ["helper", false],
+      ["team", false],
+    ]);
   });
 
   it("lists only owner-less, undeleted bots of an organization workspace the viewer reaches", async () => {

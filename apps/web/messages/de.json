@@ -816,7 +816,33 @@
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
-      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden"
+      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden",
+      "reply": "Antworten",
+      "replyTo": "Antworten: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# Aufgabe wartet auf dich} other {# Aufgaben warten auf dich}}",
+        "showAll": "Alle in Aufgaben anzeigen",
+        "loadError": "Die Aufgaben, die auf dich warten, konnten nicht geladen werden",
+        "ask": {
+          "INPUT_REQUIRED": "{name} braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "{name} braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "{name} braucht deine Anmeldung"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "Braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "Braucht deine Anmeldung",
+          "OUT_OF_CREDITS": "Pausiert, bis Credits aufgeladen sind",
+          "GRANT_PENDING": "Wartet auf Workspace-Zugriff"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Antworten",
+          "APPROVAL_REQUIRED": "Prüfen",
+          "AUTHENTICATION_REQUIRED": "Anmelden",
+          "OUT_OF_CREDITS": "Öffnen",
+          "GRANT_PENDING": "Öffnen"
+        }
+      }
     },
     "HashValue": {
       "copy": "Kopieren",
@@ -1072,6 +1098,22 @@
     },
     "ConnectLink": {
       "error": "Die Verbindung konnte nicht gestartet werden."
+    },
+    "TeamView": {
+      "loading": "Team wird geladen",
+      "failed": "Diese Team-Datei kann nicht angezeigt werden. Prüfe, ob sie eine gültige Team-Datei ist.",
+      "advisors": "Berater",
+      "linkedin": "LinkedIn-Profil",
+      "highlights": "Highlights",
+      "experience": "Berufserfahrung",
+      "education": "Ausbildung"
+    },
+    "CmoProject": {
+      "badge": "CMO",
+      "title": "Von CMO verwaltet",
+      "description": "CMO führt dieses Projekt, deshalb änderst du es in CMO. Hier kannst du es lesen.",
+      "open": "In CMO öffnen",
+      "newTab": "(öffnet in einem neuen Tab)"
     }
   },
   "Join": {
@@ -1631,7 +1673,6 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
-          "chatKind": "Chat",
           "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
@@ -1673,6 +1714,19 @@
       "Page": {
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
+      },
+      "Archived": {
+        "title": "Archivierte Aufgaben",
+        "link": "Archiviert",
+        "description": "Aufgaben, die in diesem Workspace archiviert wurden, die neuesten zuerst. Stelle eine wieder her, um sie zurück auf das Board zu holen.",
+        "back": "Zurück zu den Aufgaben",
+        "empty": "Keine archivierten Aufgaben. Aufgaben, die du archivierst, erscheinen hier, damit du sie zurückholen kannst.",
+        "draftNote": "Aufgaben, die auf ihren Start gewartet haben, kommen als Entwurf zurück. Nichts startet, bis du es wieder startest.",
+        "restore": "Wiederherstellen",
+        "restoreNamed": "{name} wiederherstellen",
+        "restored": "{name} ist wieder auf dem Board",
+        "open": "Öffnen",
+        "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut."
       },
       "Columns": {
         "backlog": "Backlog",
@@ -1895,7 +1949,26 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren"
+          "duplicate": "Als Entwurf duplizieren",
+          "sendToChat": {
+            "menuItem": "In Chat senden",
+            "title": "Aufgabe in Chat senden",
+            "description": "Poste einen Link zu dieser Aufgabe in einen Kanal oder eine Direktnachricht. Alle dort sehen den Titel; mehr sehen nur Personen, die die Aufgabe öffnen dürfen. Räume mit KI-Coworkern oder Gästen werden nicht angeboten.",
+            "roomLabel": "Senden an",
+            "roomPlaceholder": "Kanal oder Direktnachricht wählen",
+            "noteLabel": "Nachricht (optional)",
+            "notePlaceholder": "Füge eine Notiz hinzu, z. B. was du brauchst",
+            "noRooms": "Du hast in diesem Workspace noch keine Chats, an die du senden kannst.",
+            "send": "Senden",
+            "cancel": "Abbrechen",
+            "success": "Aufgabe in den Chat gesendet",
+            "openChat": "Chat öffnen",
+            "error": "Die Aufgabe konnte nicht gesendet werden. Versuche es erneut.",
+            "loadError": "Deine Chats konnten nicht geladen werden. Versuche es erneut.",
+            "refused": "Dieser Chat kann diese Aufgabe nicht mehr erhalten. Wähle einen anderen.",
+            "retry": "Erneut senden",
+            "retryHint": "Das letzte Senden ist vielleicht nicht angekommen. Erneutes Senden postet sie nicht doppelt; wenn du Chat oder Nachricht änderst, wird eine neue gesendet."
+          }
         },
         "ShareModal": {
           "title": "Share task",
@@ -2126,6 +2199,21 @@
         },
         "newSchedule": "Neuer Zeitplan",
         "empty": "Hier gibt es noch keine Zeitpläne. Ein Zeitplan erstellt bei jedem Lauf einen neuen Task.",
+        "zoneTime": "Zeit {zone}",
+        "localTime": "{datetime} bei dir",
+        "nextRunWithLocal": "Nächster Lauf {datetime} ({local} bei dir)",
+        "emptyFiltered": {
+          "ACTIVE": "Keine aktiven Zeitpläne",
+          "PAUSED": "Keine pausierten Zeitpläne",
+          "ENDED": "Keine beendeten Zeitpläne"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# ist aktiv} other {# sind aktiv}}",
+          "PAUSED": "{count, plural, one {# ist pausiert} other {# sind pausiert}}",
+          "ENDED": "{count, plural, one {# ist beendet} other {# sind beendet}}"
+        },
+        "showAll": "Alle Zeitpläne zeigen",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Zeitpläne ließen sich nicht laden.",
         "nextRun": "Nächster Lauf {datetime}",
@@ -2237,7 +2325,6 @@
           "properties": "Eigenschaften",
           "state": "Status",
           "rule": "Wiederholung",
-          "timezone": "Zeitzone",
           "nextRun": "Nächster Lauf",
           "ends": "Endet",
           "assignee": "Zuständig",
@@ -5238,6 +5325,8 @@
       "statusCancel": "Abonnement-Checkout wurde abgebrochen.",
       "currentPlanBadge": "Aktuell",
       "pricePerMonth": "pro Monat",
+      "pricePerSeatPerMonth": "pro Seat / Monat",
+      "seatTotal": "{total} pro Monat für {seats, plural, =1 {# Seat} other {# Seats}}",
       "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
       "mostPopularBadge": "Am beliebtesten",
       "canceling": "Kündigung wird geplant...",
@@ -7183,6 +7272,7 @@
       "topUpDescription": "Wähle einen Betrag oder gib einen eigenen Wert ein",
       "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
       "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
+      "seePlans": "Pläne ansehen",
       "couponExpiryPolicyNotice": "Aktionsguthaben kann verfallen; die Bedingungen hängen vom jeweiligen Gutschein oder Angebot ab.",
       "costPerCredit": "{cost} pro Credit",
       "youSaveLabel": "Spare {amount}",
@@ -8037,6 +8127,7 @@
             "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
             "decrease": "Einen Seat entfernen",
             "increase": "Einen Seat hinzufügen",
+            "minimum": "{count, plural, =1 {Gib mindestens # Seat ein.} other {Gib mindestens # Seats ein.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
               "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",
@@ -8059,6 +8150,18 @@
             }
           },
           "seatsCheckoutLabel": "Zu kaufende Seats"
+        },
+        "CreditSpend": {
+          "title": "Verbrauchte Credits pro Person",
+          "description": "Credits, die jeder Person in diesem und im letzten Monat berechnet wurden, vor Rückerstattungen. Monate nach UTC. Aufladungen zählen nicht.",
+          "person": "Person",
+          "noPerson": "Organisationskosten (keine Person)",
+          "unknownPerson": "Unbekannte Person",
+          "otherSpend": "Alle übrigen Ausgaben",
+          "formerMember": "Ehemaliges Mitglied",
+          "empty": "In diesem und im letzten Monat wurden keine Credits verbraucht.",
+          "loadError": "Der Credit-Verbrauch konnte nicht geladen werden. Versuche es erneut.",
+          "retry": "Erneut versuchen"
         },
         "Seats": {
           "title": "Seat Übersicht",
@@ -9282,12 +9385,17 @@
           "title": "Entscheidungen",
           "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
           "loadOlder": "Ältere laden",
-          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag."
+          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag.",
+          "description": "Entscheidungen aus deinen Chats, die neuesten zuerst, auch bereits gelesene.",
+          "error": "Entscheidungen konnten nicht geladen werden.",
+          "untitled": "Nachricht ohne Text",
+          "inThread": "In einem Thread"
         },
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
           "threads": "Threads",
+          "decisions": "Entscheidungen",
           "saved": "Gespeichert"
         },
         "Briefing": {
@@ -9778,7 +9886,8 @@
         "continue": "Weiter",
         "back": "Zurück",
         "pictureTitle": "Wähle ein Bild für {name}",
-        "skip": "Überspringen"
+        "createWithoutPicture": "Ohne Bild erstellen",
+        "createWithoutPictureHint": "{name} startet mit seiner Farbkugel. Ein Bild fügst du jederzeit in den Einstellungen hinzu."
       },
       "Memory": {
         "title": "Gedächtnis",

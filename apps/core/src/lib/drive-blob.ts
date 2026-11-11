@@ -272,7 +272,12 @@ export async function driveRead(
       access: store.access,
       token: store.token,
       abortSignal: options.abortSignal,
-      ...(options.range ? { headers: { range: options.range } } : {}),
+      // Blob compresses text (SVG, Markdown, HTML) and then sends no
+      // content-length, which `get` reports as size 0; routes send that size.
+      headers: {
+        "accept-encoding": "identity",
+        ...(options.range ? { range: options.range } : {}),
+      },
     }).catch((error: unknown) => {
       if (error instanceof BlobNotFoundError) return null;
       throw error;

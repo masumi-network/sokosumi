@@ -8,9 +8,11 @@ import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   formatTaskScheduleRule,
+  formatTaskScheduleTime,
   taskScheduleAssigneeId,
   taskScheduleAssigneeLabel,
   taskSchedulePath,
+  taskScheduleZoneName,
 } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -83,11 +85,22 @@ export function TaskScheduleRow({
     assigneeDisplayOptions,
     { unassigned: t("unassigned"), unavailable: t("unavailableAssignee") },
   );
-  const nextRunLabel = schedule.nextRunAt
-    ? t("nextRun", {
-        datetime: formatter.dateTime(schedule.nextRunAt, "dateTimeMedium"),
-      })
-    : t("noNextRun");
+  // Every time reads on the schedule's own clock, as its rule does.
+  const nextRun = schedule.nextRunAt
+    ? formatTaskScheduleTime(
+        schedule.nextRunAt,
+        schedule.rule.timezone,
+        formatter,
+      )
+    : null;
+  const nextRunLabel = !nextRun
+    ? t("noNextRun")
+    : nextRun.local
+      ? t("nextRunWithLocal", {
+          datetime: nextRun.schedule,
+          local: nextRun.local,
+        })
+      : t("nextRun", { datetime: nextRun.schedule });
 
   return (
     <li
@@ -145,6 +158,10 @@ export function TaskScheduleRow({
             </span>
             <span>
               {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
+              {" · "}
+              {t("zoneTime", {
+                zone: taskScheduleZoneName(schedule.rule.timezone),
+              })}
             </span>
             <span className="tabular-nums">{nextRunLabel}</span>
           </div>

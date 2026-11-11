@@ -65,6 +65,8 @@ interface ProjectSocialAccountsProps {
   projectId: string;
   /** Closing or closed projects cannot add or replace accounts. */
   connectDisabled?: boolean;
+  /** A CMO Project: CMO connects its accounts, so the list is read-only. */
+  readOnly?: boolean;
   reconnections?: SocialReconnection[];
   onReconnected?: (
     connection: ProjectSocialConnection,
@@ -154,6 +156,7 @@ export function ProjectSocialAccounts({
   projectId,
   queueSlots,
   connectDisabled = false,
+  readOnly = false,
   reconnections,
   onReconnected,
 }: ProjectSocialAccountsProps) {
@@ -546,74 +549,76 @@ export function ProjectSocialAccounts({
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="flex items-center justify-end gap-4">
-        {connectDisabled ? (
-          <p className="text-muted-foreground me-auto text-sm">
-            {t("projectClosed")}
-          </p>
-        ) : null}
-        <DropdownMenu>
-          {/* Disabled on the trigger, not the button: a loading button drops
+      {readOnly ? null : (
+        <div className="flex items-center justify-end gap-4">
+          {connectDisabled ? (
+            <p className="text-muted-foreground me-auto text-sm">
+              {t("projectClosed")}
+            </p>
+          ) : null}
+          <DropdownMenu>
+            {/* Disabled on the trigger, not the button: a loading button drops
               native `disabled`, and only the trigger's own flag stops Radix
               from opening the menu. */}
-          <DropdownMenuTrigger asChild disabled={isBusy || connectDisabled}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-11 shrink-0 md:h-8"
-              loading={pendingAction === "connect"}
-            >
-              <Plus className="size-4" aria-hidden />
-              {t("connectAccount")}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {socialProvidersEnabledFirst(enabledProviders).map((provider) => {
-              const { id, name, Icon } = provider;
-              const comingSoon = !isProviderEnabled(provider.id);
-              return (
-                <DropdownMenuItem
-                  key={id}
-                  className="min-h-11"
-                  aria-label={
-                    comingSoon
-                      ? t("connectComingSoon", { provider: name })
-                      : t("connect", { provider: name })
-                  }
-                  disabled={comingSoon}
-                  onSelect={() => {
-                    void startOAuth("connect", undefined, id);
-                  }}
-                >
-                  <Icon
-                    className={cn("size-4", comingSoon && "grayscale")}
-                    aria-hidden
-                  />
-                  {id === "linkedin" && !comingSoon ? (
-                    <span className="flex flex-col">
-                      {name}
-                      <span
-                        className="text-muted-foreground text-xs"
-                        data-testid="linkedin-personal-only"
-                      >
-                        {t("linkedinPersonalOnly")}
+            <DropdownMenuTrigger asChild disabled={isBusy || connectDisabled}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-11 shrink-0 md:h-8"
+                loading={pendingAction === "connect"}
+              >
+                <Plus className="size-4" aria-hidden />
+                {t("connectAccount")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {socialProvidersEnabledFirst(enabledProviders).map((provider) => {
+                const { id, name, Icon } = provider;
+                const comingSoon = !isProviderEnabled(provider.id);
+                return (
+                  <DropdownMenuItem
+                    key={id}
+                    className="min-h-11"
+                    aria-label={
+                      comingSoon
+                        ? t("connectComingSoon", { provider: name })
+                        : t("connect", { provider: name })
+                    }
+                    disabled={comingSoon}
+                    onSelect={() => {
+                      void startOAuth("connect", undefined, id);
+                    }}
+                  >
+                    <Icon
+                      className={cn("size-4", comingSoon && "grayscale")}
+                      aria-hidden
+                    />
+                    {id === "linkedin" && !comingSoon ? (
+                      <span className="flex flex-col">
+                        {name}
+                        <span
+                          className="text-muted-foreground text-xs"
+                          data-testid="linkedin-personal-only"
+                        >
+                          {t("linkedinPersonalOnly")}
+                        </span>
                       </span>
-                    </span>
-                  ) : (
-                    name
-                  )}
-                  {comingSoon ? (
-                    <Badge variant="secondary" className="ms-auto">
-                      {t("comingSoon")}
-                    </Badge>
-                  ) : null}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+                    ) : (
+                      name
+                    )}
+                    {comingSoon ? (
+                      <Badge variant="secondary" className="ms-auto">
+                        {t("comingSoon")}
+                      </Badge>
+                    ) : null}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
       {feedback ? (
         <p
@@ -709,99 +714,101 @@ export function ProjectSocialAccounts({
                     </span>
                   </p>
                 </div>
-                <div className="ms-auto flex items-center gap-2">
-                  {canReconnect ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-11 md:h-8"
-                      disabled={isBusy || connectDisabled || comingSoon}
-                      loading={isRowPending && pendingAction === "reconnect"}
-                      onClick={() => {
-                        void startOAuth("reconnect", connection.id);
-                      }}
-                    >
-                      <RefreshCw className="size-4" aria-hidden />
-                      {t("reconnect")}
-                    </Button>
-                  ) : null}
-                  {canStartOver ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isBusy || connectDisabled || comingSoon}
-                      loading={isRowPending && pendingAction === "startOver"}
-                      onClick={() => {
-                        void handleStartOver(connection);
-                      }}
-                    >
-                      <RotateCcw className="size-4" aria-hidden />
-                      {t("startOver")}
-                    </Button>
-                  ) : null}
-                  {canDisconnect ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild disabled={isBusy}>
-                        <Button
-                          ref={(node) => {
-                            if (node) {
-                              actionTriggersRef.current.set(
-                                connection.id,
-                                node,
-                              );
-                            } else {
-                              actionTriggersRef.current.delete(connection.id);
+                {readOnly ? null : (
+                  <div className="ms-auto flex items-center gap-2">
+                    {canReconnect ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-11 md:h-8"
+                        disabled={isBusy || connectDisabled || comingSoon}
+                        loading={isRowPending && pendingAction === "reconnect"}
+                        onClick={() => {
+                          void startOAuth("reconnect", connection.id);
+                        }}
+                      >
+                        <RefreshCw className="size-4" aria-hidden />
+                        {t("reconnect")}
+                      </Button>
+                    ) : null}
+                    {canStartOver ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isBusy || connectDisabled || comingSoon}
+                        loading={isRowPending && pendingAction === "startOver"}
+                        onClick={() => {
+                          void handleStartOver(connection);
+                        }}
+                      >
+                        <RotateCcw className="size-4" aria-hidden />
+                        {t("startOver")}
+                      </Button>
+                    ) : null}
+                    {canDisconnect ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild disabled={isBusy}>
+                          <Button
+                            ref={(node) => {
+                              if (node) {
+                                actionTriggersRef.current.set(
+                                  connection.id,
+                                  node,
+                                );
+                              } else {
+                                actionTriggersRef.current.delete(connection.id);
+                              }
+                            }}
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            loading={
+                              isRowPending &&
+                              pendingAction !== "reconnect" &&
+                              pendingAction !== "startOver"
                             }
-                          }}
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          loading={
-                            isRowPending &&
-                            pendingAction !== "reconnect" &&
-                            pendingAction !== "startOver"
-                          }
-                          aria-label={t("actions", { account: primary })}
-                        >
-                          <MoreHorizontal className="size-4" aria-hidden />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {connection.status === "active" ? (
+                            aria-label={t("actions", { account: primary })}
+                          >
+                            <MoreHorizontal className="size-4" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {connection.status === "active" ? (
+                            <DropdownMenuItem
+                              className="min-h-11"
+                              onSelect={() => {
+                                void handleSyncNow(connection);
+                              }}
+                            >
+                              {t("syncNow")}
+                            </DropdownMenuItem>
+                          ) : null}
+                          {canReplace ? (
+                            <DropdownMenuItem
+                              className="min-h-11"
+                              onSelect={() => {
+                                requestConfirmation("replace", connection);
+                              }}
+                            >
+                              {t("replace")}
+                            </DropdownMenuItem>
+                          ) : null}
                           <DropdownMenuItem
                             className="min-h-11"
+                            variant="destructive"
                             onSelect={() => {
-                              void handleSyncNow(connection);
+                              requestConfirmation("disconnect", connection);
                             }}
                           >
-                            {t("syncNow")}
+                            {t("disconnect")}
                           </DropdownMenuItem>
-                        ) : null}
-                        {canReplace ? (
-                          <DropdownMenuItem
-                            className="min-h-11"
-                            onSelect={() => {
-                              requestConfirmation("replace", connection);
-                            }}
-                          >
-                            {t("replace")}
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuItem
-                          className="min-h-11"
-                          variant="destructive"
-                          onSelect={() => {
-                            requestConfirmation("disconnect", connection);
-                          }}
-                        >
-                          {t("disconnect")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : null}
-                </div>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
+                  </div>
+                )}
               </li>
             );
           })}
@@ -816,7 +823,7 @@ export function ProjectSocialAccounts({
         </div>
       )}
 
-      {queueSlots ? (
+      {queueSlots && !readOnly ? (
         <ProjectSocialQueueSlots
           projectId={projectId}
           queueSlots={queueSlots}

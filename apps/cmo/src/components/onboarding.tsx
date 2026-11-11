@@ -15,6 +15,7 @@ import { useFormStatus } from "react-dom";
 import type { OnboardFormState } from "../app/cmo-actions";
 import { AGENT_NAME } from "../lib/agent";
 import { SIGN_UP_CONTEXT_FIELD } from "../lib/kept-website";
+import { AccountMenu } from "./account-menu";
 import { CusoAvatar } from "./cuso";
 import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
@@ -67,6 +68,11 @@ interface OnboardingProps {
   signedOut?: boolean;
   /** Before sign in: a Create account link's parameters, sent with the website. */
   signUpContext?: Record<string, string>;
+  /** The person's organizations, which Cuso may go into instead of a new one. */
+  organizations?: { id: string; name: string }[];
+  signOut?: () => Promise<void>;
+  /** False without a Cuso: the picker would only reload this form. */
+  cusoPicker?: boolean;
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -74,14 +80,19 @@ interface OnboardingProps {
 }
 
 /**
- * Hiring Cuso, step one: the website, before sign in too. An error sits by
- * it and what was typed stays.
+/**
+ * Hiring Cuso, step one: the website, before sign in too, then where he goes
+ * when the person belongs to an organization (ADR 0065). An error sits by it
+ * and what was typed stays.
  */
 export function Onboarding({
   websiteUrl,
   autoStart = false,
   signedOut = false,
   signUpContext = {},
+  organizations = [],
+  signOut,
+  cusoPicker,
   onboard,
 }: OnboardingProps) {
   const [state, formAction, starting] = useActionState(onboard, {
@@ -100,19 +111,29 @@ export function Onboarding({
   // Once, even when Strict Mode runs effects twice: each start is a hire.
   const started = useRef(false);
   useEffect(() => {
-    if (!autoStart || !websiteUrl || started.current) return;
+    // With organizations, the person still picks where Cuso goes.
+    if (!autoStart || !websiteUrl || organizations.length > 0) return;
+    if (started.current) return;
     started.current = true;
     const data = new FormData();
     data.set("websiteUrl", websiteUrl);
     startTransition(() => formAction(data));
-  }, [autoStart, websiteUrl, formAction]);
+  }, [autoStart, websiteUrl, organizations.length, formAction]);
 
   return (
     <div className="ob">
       <header className="ob-top">
         <Logo />
         <StepMarkers current={0} reached={0} />
-        <span />
+        {signOut ? (
+          <AccountMenu
+            label="Account"
+            signOut={signOut}
+            cusoPicker={cusoPicker}
+          />
+        ) : (
+          <span />
+        )}
       </header>
       <main className="ob-main">
         <div className="ob-hire">
@@ -190,6 +211,30 @@ export function Onboarding({
                 </span>
               )}
             </div>
+            {organizations.length > 0 ? (
+              <fieldset className="ob-where">
+                <legend>Where</legend>
+                {[
+                  {
+                    id: "",
+                    name: "New organization (named after your website)",
+                  },
+                  ...organizations,
+                ].map((organization) => (
+                  <label key={organization.id}>
+                    <input
+                      type="radio"
+                      name="organizationId"
+                      value={organization.id}
+                      defaultChecked={
+                        organization.id === (state.organizationId ?? "")
+                      }
+                    />
+                    {organization.name}
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
             <StatRow stats={STATS} />
             {signedOut ? (
               <p className="ob-small muted">

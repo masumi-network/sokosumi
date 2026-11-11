@@ -54,6 +54,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
+import { DriveCmoProjectBanner } from "@/app/drive/components/drive-cmo-project-banner";
 import {
   DriveDataRoomDialog,
   type DriveDataRoomFolder,
@@ -1668,6 +1669,12 @@ function DrivePageWorkspace({
 
   return (
     <div className={cn("@container w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+      {/* Drive scopes to a Project only on the Tasks view. */}
+      <DriveCmoProjectBanner
+        projectId={
+          isTasksView && projectIdParam !== "null" ? projectIdParam : null
+        }
+      />
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <div
           data-testid="files-desktop-header"

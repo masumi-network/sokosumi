@@ -51,8 +51,9 @@ export default async function SubscribersPage({
 
   return (
     <NewsletterPageShell
+      cmoProjectId={project.cmo ? project.id : undefined}
       navigationLabel={t("navigation")}
-      tabs={getNewsletterTabs(project.id, true, t)}
+      tabs={getNewsletterTabs(project.id, true, t, project.cmo)}
       title={page("title")}
     >
       <Subscribers
@@ -61,6 +62,7 @@ export default async function SubscribersPage({
         contactListId={newsletter.contactListId}
         data={response.data}
         pagination={response.meta.pagination}
+        readOnly={project.cmo}
       />
     </NewsletterPageShell>
   );
