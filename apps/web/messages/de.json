@@ -9101,7 +9101,9 @@
         "removeConfirmTitle": "{name} aus diesem Kanal entfernen?",
         "removeConfirmDescription": "{name} sieht diesen Kanal und seine Nachrichten dann nicht mehr.",
         "removeSuccess": "{name} aus dem Kanal entfernt.",
-        "undo": "Rückgängig"
+        "removeError": "{name} konnte nicht aus dem Kanal entfernt werden.",
+        "undo": "Rückgängig",
+        "undoError": "{name} konnte nicht wieder zum Kanal hinzugefügt werden."
       },
       "AddMembers": {
         "title": "Mitglieder hinzufügen",

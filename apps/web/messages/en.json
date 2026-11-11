@@ -9101,7 +9101,9 @@
         "removeConfirmTitle": "Remove {name} from this channel?",
         "removeConfirmDescription": "{name} will no longer see this channel or its messages.",
         "removeSuccess": "Removed {name} from the channel.",
-        "undo": "Undo"
+        "removeError": "Could not remove {name} from the channel.",
+        "undo": "Undo",
+        "undoError": "Could not put {name} back in the channel."
       },
       "AddMembers": {
         "title": "Add members",
