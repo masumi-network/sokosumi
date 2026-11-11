@@ -16,7 +16,25 @@ describe("markdownToHtml", () => {
       markdownToHtml(source, () => ({ displayName: "x", isKnown: false })),
     );
     expect(root.querySelector("[data-mention-key]")).toBeNull();
+    // A link, not raw Markdown, so the edit form stays compact.
+    expect(root.textContent).toBe("Call Maya Stone today");
+    expect(root.querySelector("a")?.getAttribute("href")).toBe(
+      "/contacts?contact=c-1",
+    );
     expect(htmlToMarkdown(root).trim()).toBe(source);
+  });
+
+  it("keeps links that would leave the app as text", () => {
+    for (const href of ["//evil.test/x", "/\\evil.test/x"]) {
+      const root = document.createElement("div");
+      root.innerHTML = sanitizeComposerHtml(
+        markdownToHtml(`[go](${href})`, () => ({
+          displayName: "x",
+          isKnown: false,
+        })),
+      );
+      expect(root.querySelector("a")).toBeNull();
+    }
   });
 
   it("preserves ID-only human tokens through rich editing and sanitization", () => {

@@ -119,6 +119,8 @@ const COMPOSER_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
   ],
 };
 
+const APP_PATH = /^\/(?![/\\])[^\s\\]*$/;
+
 /**
  * Boundary between the hand-built composer HTML and the two `markdownToHtml`
  * call sites, both of which assign the result to `innerHTML`. The transform
@@ -148,6 +150,7 @@ export function sanitizeComposerHtml(html: string): string {
     disallowedTagsMode: "discard",
     // The transform only ever emits http, https and mailto, already gated by
     // normalizeUrl. Protocol-relative URLs are not a composer feature.
+    // Same-origin app paths (APP_PATH) are the one relative form it emits.
     allowProtocolRelative: false,
   });
 
@@ -221,7 +224,10 @@ export function markdownToHtml(
   const withLinkTokens = replaceMarkdownLinks(
     withCodeBlockTokens,
     ({ match, text: label, rawUrl }) => {
-      const normalizedUrl = normalizeUrl(unescapeMarkdownLinkUrl(rawUrl));
+      const url = unescapeMarkdownLinkUrl(rawUrl).trim();
+      // Saves write same-origin app links (a tagged contact), which stay a
+      // link here. `//host` and `/\host` would leave the app, so they don't.
+      const normalizedUrl = APP_PATH.test(url) ? url : normalizeUrl(url);
       if (!normalizedUrl) {
         return match;
       }
