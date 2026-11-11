@@ -4,6 +4,8 @@ import { isOwnedUserChatRoomFileUrl } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   generateId,
   type ModelMessage,
   streamText,
@@ -50,6 +52,7 @@ import {
   ensureThreadProviderConversation,
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
 } from "@/helpers/room-stream-thread";
+import { isBuzzAgentBaseUrl } from "@/lib/buzz/events";
 import prisma from "@/lib/db/prisma";
 import { tryUseLogger } from "@/lib/evlog";
 import {
@@ -273,6 +276,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest(
         "Coworker chat requires a user or system message with text to respond to.",
       );
+    }
+
+    // A person's own Buzz agent has no Responses API: the message goes to it
+    // through the Buzz bridge, and its answer comes back as a room message.
+    if (isBuzzAgentBaseUrl(coworker.baseURL)) {
+      if (lastMessage.role === "user" || lastMessage.role === "system") {
+        await persistUserMessageToChatRoom({
+          roomId: room.id,
+          senderUserId: userContext.userId,
+          contentText: lastUserMessageText,
+          clientMessageId:
+            typeof lastMessage.id === "string" ? lastMessage.id : null,
+          parentMessageId,
+          ...(userMessageMetadata ? { metadata: userMessageMetadata } : {}),
+        });
+      }
+      return createUIMessageStreamResponse({
+        stream: createUIMessageStream({ execute: () => {} }),
+      });
     }
 
     // Acquire before persist so concurrent POSTs cannot duplicate turns.

@@ -107,6 +107,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       isCoworkerAuthContext(authContext) ||
       isSokoBotAuthContext(authContext)
     ) {
+      // A replay of an agent's post (say the bridge lost Core's answer) is the
+      // same message, not a second one.
+      if (body.clientMessageId) {
+        const replayed = await prisma.chatRoomMessage.findFirst({
+          where: {
+            roomId: id,
+            clientMessageId: body.clientMessageId,
+            senderCoworkerId: isCoworkerAuthContext(authContext)
+              ? authContext.coworkerId
+              : null,
+            senderSokoBotId: isSokoBotAuthContext(authContext)
+              ? authContext.sokoBotId
+              : null,
+          },
+          include: chatRoomMessageInclude,
+        });
+        if (replayed) {
+          return created(
+            c,
+            chatRoomMessageSchema.parse(
+              mapChatRoomMessage(
+                await withChatRoomReplyCount(prisma, replayed),
+              ),
+            ),
+          );
+        }
+      }
       const persisted = await prisma.$transaction(async (tx) => {
         const room = isCoworkerAuthContext(authContext)
           ? await requireChatRoomCoworkerAccess(id, authContext.coworkerId, tx)
@@ -137,6 +164,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             senderSokoBotId: isSokoBotAuthContext(authContext)
               ? authContext.sokoBotId
               : null,
+            clientMessageId: body.clientMessageId ?? null,
             content: body.content,
             ...(metadata ? { metadata } : {}),
           },

@@ -32,6 +32,14 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   app they already use (paste its `npub`, click **Open in Buzz** to join with a
   single-use invite; the key is linked once it has joined) or exports
   Sokosumi's key to sign in to Buzz with it.
+- **Your Buzz agents**: agents you create in the Buzz app (Claude Code,
+  goose, Codex…) carry an owner signature (NIP-OA) from your Buzz key. Once
+  that key is linked, the bridge finds them (your kind 30177 records, checked
+  against each agent's signed profile) and makes each a private Coworker:
+  granted in your own workspace and in organizations you own or administer,
+  requested (for an owner or admin to approve) elsewhere. Add it to a room like
+  any Coworker; a mention reaches it on Buzz, which answers there, and its
+  reply comes back as the Coworker. Set the agent to answer anyone in Buzz.
 - **Rooms**: a Channel is a private Buzz channel whose members follow the room;
   a Direct of up to nine people is a Buzz DM (kind 41010) in a community all its
   people share.
@@ -92,6 +100,8 @@ local relay has one community. The worker must run somewhere long-lived
   Sokosumi)", since Sokosumi never holds their own key. Sokosumi cannot edit or
   delete on Buzz what the app key wrote. Directs opened before the link stay
   without the app key (a Buzz DM's people are fixed).
+- A Buzz agent only posts into Sokosumi: its edits, deletes and reactions
+  stay on Buzz (Core takes none of those from a Coworker).
 - Linking proves the key joined with an invite issued after the request, not
   which invite: someone could paste another person's `npub` and forward them
   the invite, and their Buzz messages would then count as the requester's. Two

@@ -721,7 +721,10 @@ describe("a person's own Buzz agents", () => {
       },
     ]);
     db.buzzCommunity.findMany.mockResolvedValue([]);
-    db.workspace.findMany.mockResolvedValue([{ id: "workspace" }]);
+    db.workspace.findMany.mockResolvedValue([
+      { id: "workspace", userId: "user-bob", organizationId: null },
+      { id: "org-workspace", userId: null, organizationId: "org" },
+    ]);
     db.vendor.upsert.mockResolvedValue({ id: "vendor" });
     db.buzzIdentity.findUnique.mockResolvedValue(null);
     db.coworker.create.mockResolvedValue({ id: "coworker-new" });
@@ -758,20 +761,27 @@ describe("a person's own Buzz agents", () => {
         assignments: { create: { userId: "user-bob" } },
       }),
     });
-    expect(db.buzzIdentity.create).toHaveBeenCalledWith({
-      data: {
-        pubkey: AGENT_PUBKEY,
-        coworkerId: "coworker-new",
-        ownerIdentityId: "identity-bob",
-      },
+    expect(db.coworker.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        buzzIdentity: {
+          create: { pubkey: AGENT_PUBKEY, ownerIdentityId: "identity-bob" },
+        },
+      }),
     });
     expect(db.coworkerWorkspaceAccess.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: [
+          // Bob's own workspace: his to grant.
           expect.objectContaining({
             coworkerId: "coworker-new",
             workspaceId: "workspace",
             status: "GRANTED",
+          }),
+          // An organization he is only a member of: asked for.
+          expect.objectContaining({
+            coworkerId: "coworker-new",
+            workspaceId: "org-workspace",
+            status: "PENDING",
           }),
         ],
       }),

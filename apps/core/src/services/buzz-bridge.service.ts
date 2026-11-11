@@ -517,13 +517,36 @@ function readJson(content: string): { name?: string; picture?: string } {
   }
 }
 
-/** The person's own workspace and those of their organizations on Buzz. */
-async function workspaceIdsOf(userId: string, organizationIds: string[]) {
+/**
+ * Where a person's agent may be used: their own workspace and each of their
+ * organizations on Buzz, granted only where they own or administer it.
+ */
+async function agentAccessOf(
+  userId: string,
+  memberships: { role: string; organization: { id: string } }[],
+  communities: { organizationId: string }[],
+) {
+  const admin = new Set(
+    memberships
+      .filter(({ role }) => role === "owner" || role === "admin")
+      .map(({ organization }) => organization.id),
+  );
   const workspaces = await prisma.workspace.findMany({
-    where: { OR: [{ userId }, { organizationId: { in: organizationIds } }] },
-    select: { id: true },
+    where: {
+      OR: [
+        { userId },
+        { organizationId: { in: communities.map((c) => c.organizationId) } },
+      ],
+    },
+    select: { id: true, userId: true, organizationId: true },
   });
-  return workspaces.map((workspace) => workspace.id);
+  return workspaces.map((workspace) => ({
+    workspaceId: workspace.id,
+    granted:
+      workspace.userId === userId ||
+      (workspace.organizationId !== null &&
+        admin.has(workspace.organizationId)),
+  }));
 }
 
 /**
@@ -543,13 +566,10 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
   const changed: string[] = [];
   for (const owner of owners) {
     const userId = owner.userId as string;
-    const { communities } = await communitiesOf(userId);
+    const { memberships, communities } = await communitiesOf(userId);
     const relayUrls = [...new Set(communities.map((c) => c.relayUrl))];
     const found = await ownedAgents(owner.appPubkey as string, relayUrls);
-    const workspaceIds = await workspaceIdsOf(
-      userId,
-      communities.map((c) => c.organizationId),
-    );
+    const access = await agentAccessOf(userId, memberships, communities);
     const vendor = await prisma.vendor.upsert({
       where: { slug: AGENT_VENDOR_SLUG },
       create: { slug: AGENT_VENDOR_SLUG, name: "Buzz agents", listed: false },
@@ -579,12 +599,12 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
             isWhitelisted: false,
             vendorId: vendor.id,
             assignments: { create: { userId } },
+            buzzIdentity: {
+              create: { pubkey, ownerIdentityId: owner.id },
+            },
           },
         });
         coworkerId = coworker.id;
-        await prisma.buzzIdentity.create({
-          data: { pubkey, coworkerId, ownerIdentityId: owner.id },
-        });
         changed.push(coworkerId);
       } else if (
         existing?.coworker &&
@@ -598,14 +618,20 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
         });
         changed.push(coworkerId);
       }
+      // Granted where the owner may grant (their own workspace, organizations
+      // they own or administer); elsewhere asked for, for an admin to decide.
       await prisma.coworkerWorkspaceAccess.createMany({
-        data: workspaceIds.map((workspaceId) => ({
+        data: access.map(({ workspaceId, granted }) => ({
           coworkerId: coworkerId as string,
           workspaceId,
-          status: "GRANTED" as const,
           requestedByUserId: userId,
-          resolvedById: userId,
-          resolvedAt: new Date(),
+          ...(granted
+            ? {
+                status: "GRANTED" as const,
+                resolvedById: userId,
+                resolvedAt: new Date(),
+              }
+            : { status: "PENDING" as const }),
         })),
         skipDuplicates: true,
       });
@@ -1121,8 +1147,19 @@ export async function reconcileMessage(
   const authorIdentity = await ensureIdentity(author);
   let link = message.buzzLink;
   // A Buzz agent's messages start on Buzz and are linked as they come in;
-  // Sokosumi cannot sign for it.
-  if (isExternal(authorIdentity)) return "skipped";
+  // Sokosumi cannot sign for it, but people's reactions to them are theirs.
+  if (isExternal(authorIdentity)) {
+    if (!link || message.deletedAt) return "skipped";
+    await reconcileReactions({
+      messageId: message.id,
+      eventId: link.eventId,
+      authorPubkey: authorIdentity.pubkey,
+      channelId: channel.channelId,
+      relayUrl,
+      reactions: message.reactions,
+    });
+    return "unchanged";
+  }
   const authorKey = identitySecretKey(authorIdentity);
   const hash = contentHash(message.content);
   let result: ReconcileResult = "unchanged";
@@ -1740,9 +1777,8 @@ export async function applyInboundEvent(
                 where: agent
                   ? {
                       roomId: channel.roomId,
+                      clientMessageId,
                       senderCoworkerId: author.coworkerId,
-                      content,
-                      createdAt: { gte: new Date(Date.now() - 60_000) },
                     }
                   : {
                       roomId: channel.roomId,
