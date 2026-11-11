@@ -37,6 +37,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -4633,6 +4634,8 @@ export class SokoBotControlPlane {
           eveSessionId: null,
         },
       });
+      // Start over archives through here, so it forfeits too (ADR 0067).
+      await forfeitCusoProjectCredits(bot, tx);
       const mentionMessageIds = await failOpenChatRoomMentions(
         {
           where: { sokoBotId: bot.id },
