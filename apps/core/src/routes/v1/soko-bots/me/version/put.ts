@@ -44,6 +44,10 @@ const updateVersionByIdRoute = createRoute({
   path: "/{sokoBotId}/version",
   operationId: "updateSokoBotVersion",
   request: { body, params: sokoBotIdParams },
+  responses: {
+    ...spec.responses,
+    409: jsonErrorResponse("CMO project is read-only"),
+  },
 });
 
 /** A setting: any member with access may pin a shared bot's version. */

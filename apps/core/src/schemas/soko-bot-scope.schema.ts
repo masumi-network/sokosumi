@@ -70,6 +70,8 @@ export const sharedSokoBotSummarySchema = z
     /** The room every member shares with this bot. */
     sharedRoomId: z.string().uuid().nullable(),
     viewerCanManage: z.boolean(),
+    /** Cuso, archived or not: CMO alone changes him (ADR 0066). */
+    cuso: z.boolean(),
   })
   .openapi("SharedSokoBotSummary");
 

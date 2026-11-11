@@ -56,8 +56,9 @@ export default async function NewsletterAnalyticsPage({
 
   return (
     <NewsletterPageShell
+      cmoProjectId={project.cmo ? project.id : undefined}
       navigationLabel={t("navigation")}
-      tabs={getNewsletterTabs(project.id, true, t)}
+      tabs={getNewsletterTabs(project.id, true, t, project.cmo)}
       title={page("title")}
     >
       <NewsletterAnalyticsView projectId={project.id} analytics={analytics} />

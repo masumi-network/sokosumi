@@ -61,7 +61,8 @@ export default async function SharedSokoBotPage({
         </h1>
         <p className="text-muted-foreground text-sm">{t("description")}</p>
         <div className="flex justify-center gap-2">
-          {summary.viewerCanManage ? (
+          {/* Reactivating Cuso is CMO's call (ADR 0066). */}
+          {summary.viewerCanManage && !summary.cuso ? (
             <ReactivateSharedBotButton botId={id} />
           ) : null}
           <Button asChild variant="outline">
@@ -106,6 +107,8 @@ export default async function SharedSokoBotPage({
       paidByOrganization
       botId={id}
       canManage={state.bot.viewerCanManage}
+      // A live Cuso is what makes his Project a CMO Project.
+      cmoProjectId={summary.cuso ? summary.projectId : null}
       sharedRoomId={summary.sharedRoomId}
       ads={
         adAccounts && {

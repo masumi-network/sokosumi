@@ -34,6 +34,8 @@ import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 export interface CreateSokoBotProject {
   id: string;
   name: string;
+  /** A CMO Project: Core refuses a new bot there, so it is not a choice. */
+  cmo?: boolean;
 }
 
 interface CreateSokoBotDialogProps {
@@ -171,11 +173,13 @@ export function CreateSokoBotDialog({
                   <SelectValue placeholder={t("projectPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.name}
-                    </SelectItem>
-                  ))}
+                  {projects
+                    .filter((option) => !option.cmo)
+                    .map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

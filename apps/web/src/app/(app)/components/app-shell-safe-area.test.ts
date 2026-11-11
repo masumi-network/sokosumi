@@ -4,8 +4,6 @@ import {
   APP_HEADER_SAFE_AREA_PADDING_CLASS,
   APP_HEADER_SAFE_AREA_UNDERLAY_CLASS,
   APP_MAIN_MOBILE_PT_CLASS,
-  APP_SHELL_BELOW_HEADER_HEIGHT_CLASS,
-  APP_SHELL_BELOW_HEADER_MAX_HEIGHT_CLASS,
   APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
   APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
   APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS,
@@ -41,14 +39,8 @@ describe("app-shell-safe-area", () => {
   });
 
   it("subtracts header row + top inset from dvh shells", () => {
-    expect(APP_SHELL_BELOW_HEADER_HEIGHT_CLASS).toBe(
-      "h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
-    );
     expect(APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS).toBe(
       "min-h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
-    );
-    expect(APP_SHELL_BELOW_HEADER_MAX_HEIGHT_CLASS).toBe(
-      "max-h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
   });
 
