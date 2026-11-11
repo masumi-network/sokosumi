@@ -184,7 +184,7 @@ async function communitiesOf(userId: string) {
         select: {
           id: true,
           name: true,
-          buzzCommunity: { select: { relayUrl: true } },
+          buzzCommunity: { select: { id: true, relayUrl: true } },
         },
       },
     },
@@ -197,17 +197,24 @@ async function communitiesOf(userId: string) {
       channels: { some: { room: { userMembers: { some: { userId } } } } },
     },
     select: {
+      id: true,
       relayUrl: true,
       organization: { select: { id: true, name: true } },
     },
   });
   const byOrganization = new Map<
     string,
-    { organizationId: string; organizationName: string; relayUrl: string }
+    {
+      communityId: string;
+      organizationId: string;
+      organizationName: string;
+      relayUrl: string;
+    }
   >();
   for (const { organization } of memberships) {
     if (!organization.buzzCommunity) continue;
     byOrganization.set(organization.id, {
+      communityId: organization.buzzCommunity.id,
       organizationId: organization.id,
       organizationName: organization.name,
       relayUrl: organization.buzzCommunity.relayUrl,
@@ -216,6 +223,7 @@ async function communitiesOf(userId: string) {
   for (const community of viaRooms) {
     if (byOrganization.has(community.organization.id)) continue;
     byOrganization.set(community.organization.id, {
+      communityId: community.id,
       organizationId: community.organization.id,
       organizationName: community.organization.name,
       relayUrl: community.relayUrl,
@@ -361,12 +369,18 @@ export async function startBuzzAppLink(userId: string, publicKey: string) {
 
 /** Rooms the person is in that are on Buzz get their members pushed again. */
 async function resyncRoomsOf(userId: string) {
-  // A DM's people are fixed when it opens ("direct" marks it), so only
-  // channels take the new key.
+  // A DM's people are fixed when it opens, so a DM with a key that is
+  // gone (or without one that is new) is let go: the next message opens one
+  // with the keys as they are now, and the old DM gets nothing more.
+  await prisma.buzzChannel.deleteMany({
+    where: {
+      membersHash: "direct",
+      room: { userMembers: { some: { userId } } },
+    },
+  });
   const channels = await prisma.buzzChannel.findMany({
     where: {
       room: { userMembers: { some: { userId } } },
-      NOT: { membersHash: "direct" },
     },
     select: { id: true, roomId: true },
   });
@@ -757,9 +771,21 @@ async function resyncRoomsWithCoworkers(coworkerIds: string[]) {
   }
 }
 
-/** The secret key, for importing into a Buzz client. */
+/**
+ * The secret key, for importing into a Buzz client. The key is admitted to
+ * each of the person's communities first, so the Buzz app can join with it
+ * even before any room of theirs is on Buzz.
+ */
 export async function exportBuzzSecretKey(userId: string): Promise<string> {
   const identity = await ensureIdentity({ userId });
+  const { communities } = await communitiesOf(userId);
+  for (const community of communities) {
+    await ensureCommunityMember(
+      community.communityId,
+      community.relayUrl,
+      identity,
+    );
+  }
   return nsecEncode(identitySecretKey(identity));
 }
 
@@ -997,14 +1023,23 @@ export async function syncRoomChannel(roomId: string) {
     });
     const channelId = openedDirectMessageChannelId(message);
     if (!channelId) throw new Error(`Buzz did not open the DM: ${message}`);
-    channel = await prisma.buzzChannel.create({
-      data: {
-        roomId: room.id,
-        communityId: community.id,
-        channelId,
-        membersHash: "direct",
-      },
+    // A Buzz DM is its people: a second Direct between the same ones (say a
+    // personal and an organization one) gets a private channel instead.
+    const taken = await prisma.buzzChannel.findUnique({
+      where: { channelId },
     });
+    if (taken?.roomId === room.id) {
+      channel = taken;
+    } else if (!taken) {
+      channel = await prisma.buzzChannel.create({
+        data: {
+          roomId: room.id,
+          communityId: community.id,
+          channelId,
+          membersHash: "direct",
+        },
+      });
+    }
   }
   if (!channel) {
     await ensureOperatorProfile(relayUrl);

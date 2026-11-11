@@ -110,6 +110,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // A replay of an agent's post (say the bridge lost Core's answer) is the
       // same message, not a second one.
       if (body.clientMessageId) {
+        // Only a current member gets its earlier message back.
+        if (isCoworkerAuthContext(authContext)) {
+          await requireChatRoomCoworkerAccess(
+            id,
+            authContext.coworkerId,
+            prisma,
+          );
+        } else {
+          await requireChatRoomSokoBotAccess(id, authContext.sokoBotId, prisma);
+        }
         const replayed = await prisma.chatRoomMessage.findFirst({
           where: {
             roomId: id,
