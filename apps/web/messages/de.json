@@ -8576,10 +8576,11 @@
         "keyFile": "Schlüsseldatei speichern",
         "keyFileSaved": "Erneut speichern",
         "keyFileWarning": "Sie meldet dich an: Wer sie hat, kann als du schreiben. Importiere sie in Buzz und lösche sie danach.",
-        "stepOpen": "2. Buzz öffnen",
-        "openHint": "Wähle Ich habe bereits einen Schlüssel, wähle die Datei und dann Beitreten. Keine Einladung nötig.",
-        "signOutFirst": "In Buzz mit einer anderen Identität angemeldet? Entferne sie zuerst in Buzz: Einstellungen → Identität → Von diesem Gerät entfernen. Agenten dieser Identität bleiben bei ihr.",
-        "keyDetails": "Dein Schlüssel als Text"
+        "stepOpen": "2. Damit in Buzz anmelden",
+        "openHint": "Wähle auf dem ersten Bildschirm von Buzz „Other options“, gib diese Adresse ein, dann „Use an existing key“ und zieh die Datei hinein. Keine Einladung nötig.",
+        "signOutFirst": "In Buzz mit einer anderen Identität angemeldet? Entferne sie zuerst in Buzz: Settings → Identity → Remove from device. Agenten dieser Identität bleiben bei ihr.",
+        "keyDetails": "Dein Schlüssel als Text",
+        "openSignedIn": "Buzz ist schon als du angemeldet? Öffne die Community direkt:"
       }
     },
     "Coworkers": {

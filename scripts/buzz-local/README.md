@@ -29,9 +29,11 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   ties to the lower event id.
 - **Identity**: Sokosumi keeps one Nostr key per person, Soko Bot and Coworker
   (AES-GCM at rest). The recommended way in is **Connections → Buzz → Use Buzz
-  as you**: save the key file, click **Open in Buzz**, choose _I already have a
-  key_ and the file. The Buzz app then signs in as the same identity, already a
-  community member, so no invite. Someone who keeps their own Buzz identity can
+  as you**: save the key file; on Buzz's first screen choose _Other options_,
+  enter the community address, then _Use an existing key_ and drop in the file
+  (Buzz 1.0 leads with Builderlab email sign-in; a key is the other way in).
+  The Buzz app then signs in as the same identity, already a community member,
+  so no invite. Someone who keeps their own Buzz identity can
   link it instead (paste its `npub`, open a single-use invite); their Buzz
   messages count as them here, but their Buzz agents answer only their Buzz app.
 - **Your Buzz agents**: agents created in the Buzz app (Claude Code, goose,

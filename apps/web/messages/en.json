@@ -8621,10 +8621,11 @@
         "keyFile": "Save key file",
         "keyFileSaved": "Save again",
         "keyFileWarning": "It signs in as you: anyone with it can write as you. Import it into Buzz, then delete it.",
-        "stepOpen": "2. Open Buzz",
-        "openHint": "Choose I already have a key, pick the file, then Join. No invite needed.",
+        "stepOpen": "2. Sign in to Buzz with it",
+        "openHint": "On Buzz's first screen choose Other options, enter this address, then Use an existing key and drop in the file. No invite needed.",
         "signOutFirst": "Signed in to Buzz with another identity? In Buzz, remove it first: Settings → Identity → Remove from device. Agents of that identity stay with it.",
-        "keyDetails": "Your key as text"
+        "keyDetails": "Your key as text",
+        "openSignedIn": "Buzz already signed in as you? Open the community directly:"
       }
     },
     "Channels": {

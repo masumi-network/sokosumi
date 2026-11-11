@@ -92,12 +92,20 @@ export function BuzzSignIn({ relayUrls }: { relayUrls: string[] }) {
           {saved ? t("keyFileSaved") : t("keyFile")}
         </Button>
       </li>
-      <li className="space-y-1">
+      <li className="space-y-2">
         <p className="font-medium">{t("stepOpen")}</p>
         <p className="text-muted-foreground text-xs">{t("openHint")}</p>
+        {relayUrls.map((relayUrl) => (
+          <BuzzCopyField
+            key={relayUrl}
+            label={t("relayUrl")}
+            value={new URL(relayUrl).host}
+          />
+        ))}
+        <p className="text-muted-foreground text-xs">{t("openSignedIn")}</p>
         <div className="flex flex-wrap gap-2">
           {relayUrls.map((relayUrl) => (
-            <Button key={relayUrl} asChild size="sm">
+            <Button key={relayUrl} asChild size="sm" variant="outline">
               <a href={`buzz://connect?relay=${encodeURIComponent(relayUrl)}`}>
                 {relayUrls.length > 1
                   ? `${t("openInBuzz")} · ${new URL(relayUrl).host}`

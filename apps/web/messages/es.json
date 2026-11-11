@@ -8576,10 +8576,11 @@
         "keyFile": "Guardar archivo de clave",
         "keyFileSaved": "Guardar de nuevo",
         "keyFileWarning": "Inicia sesión como tú: quien lo tenga puede escribir como tú. Impórtalo en Buzz y luego bórralo.",
-        "stepOpen": "2. Abre Buzz",
-        "openHint": "Elige Ya tengo una clave, selecciona el archivo y luego Unirse. No hace falta invitación.",
-        "signOutFirst": "¿Has iniciado sesión en Buzz con otra identidad? Quítala primero en Buzz: Ajustes → Identidad → Quitar del dispositivo. Los agentes de esa identidad se quedan con ella.",
-        "keyDetails": "Tu clave como texto"
+        "stepOpen": "2. Inicia sesión en Buzz con él",
+        "openHint": "En la primera pantalla de Buzz elige «Other options», introduce esta dirección, luego «Use an existing key» y suelta el archivo. No hace falta invitación.",
+        "signOutFirst": "¿Has iniciado sesión en Buzz con otra identidad? Quítala primero en Buzz: Settings → Identity → Remove from device. Los agentes de esa identidad se quedan con ella.",
+        "keyDetails": "Tu clave como texto",
+        "openSignedIn": "¿Buzz ya ha iniciado sesión como tú? Abre la comunidad directamente:"
       }
     },
     "Coworkers": {
