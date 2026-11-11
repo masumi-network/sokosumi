@@ -1072,6 +1072,78 @@
     },
     "ConnectLink": {
       "error": "Could not start the connection."
+    },
+    "BuzzConnect": {
+      "title": "Chat from Buzz",
+      "subtitle": "Your rooms, people and agents, in the Buzz app too. How do you want to start?",
+      "choose": {
+        "newTitle": "I'm new to Buzz",
+        "newDescription": "Get Buzz and sign in as you.",
+        "haveTitle": "I already use Buzz",
+        "haveDescription": "Bring your Buzz identity to Sokosumi."
+      },
+      "get": {
+        "title": "Get Buzz",
+        "subtitle": "Buzz is a chat app by Block for your Mac. Install it, then come back here.",
+        "download": "Download Buzz",
+        "next": "I have Buzz"
+      },
+      "key": {
+        "title": "Save your key",
+        "subtitle": "Buzz signs you in with a key instead of a password. This file holds yours.",
+        "save": "Save key file",
+        "saved": "Saved",
+        "warning": "Anyone with this file can write as you. Import it into Buzz, then delete it."
+      },
+      "signin": {
+        "title": "Sign in to Buzz",
+        "subtitle": "Open Buzz and follow these steps.",
+        "open": "Open Buzz.",
+        "options": "On the first screen, choose <b>Other options</b>.",
+        "address": "Enter this address:",
+        "key": "Choose <b>Use an existing key</b> and drop in the file.",
+        "otherIdentity": "Signed in to Buzz as someone else? In Buzz, choose <b>Settings → Identity → Remove from device</b> first.",
+        "next": "I'm signed in"
+      },
+      "hello": {
+        "title": "Say hello",
+        "subtitle": "Send a message in any room in Buzz. When it arrives here, you're connected.",
+        "waiting": "Waiting for your message…"
+      },
+      "have": {
+        "title": "Your Buzz key",
+        "subtitle": "In Buzz, open <b>Settings → Identity</b> and copy your public key. It starts with npub.",
+        "label": "Buzz public key",
+        "agentsNote": "Your Buzz agents then answer only what you write in Buzz. To use them from Sokosumi too, choose I'm new to Buzz and sign in as you."
+      },
+      "join": {
+        "title": "Join from Buzz",
+        "subtitle": "Open the invite in Buzz and choose <b>Join</b>. This continues by itself when it's done.",
+        "open": "Open in Buzz",
+        "openNamed": "Open {name} in Buzz",
+        "copyInvite": "Copy invite link",
+        "waiting": "Waiting for Buzz…"
+      },
+      "done": {
+        "title": "You're on Buzz",
+        "subtitle": "Your rooms are in Buzz now. Agents you create in Buzz show up here as your personal agents.",
+        "appTitle": "Buzz is linked",
+        "appSubtitle": "What you write in Buzz now shows here as you.",
+        "close": "Done"
+      },
+      "back": "Back",
+      "next": "Continue",
+      "later": "Finish later",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy",
+      "card": {
+        "new": "New",
+        "title": "Chat from Buzz",
+        "summary": "Your rooms and agents, in the Buzz app too.",
+        "connect": "Connect",
+        "dismiss": "Dismiss"
+      },
+      "dialogTitle": "Connect Buzz"
     }
   },
   "Join": {
@@ -8583,12 +8655,6 @@
       "Buzz": {
         "title": "Buzz",
         "description": "Chat in your organization's rooms from a Buzz app as well as here. Same rooms, same people, same messages.",
-        "publicKey": "Public key",
-        "secretKey": "Secret key",
-        "secretKeyHint": "Needed once, to sign in to the Buzz app.",
-        "secretKeyWarning": "Anyone with this key can write as you. Paste it only into the Buzz app.",
-        "reveal": "Show secret key",
-        "hide": "Hide",
         "copy": "Copy",
         "copied": "Copied",
         "revealError": "Failed to show the secret key",
@@ -8598,16 +8664,6 @@
         "enable": "Put chats on Buzz",
         "enabled": "Chats are on Buzz",
         "enableError": "Failed to put chats on Buzz",
-        "appTitle": "Keep your own Buzz identity",
-        "appDescription": "Already use Buzz as someone else? Link it: what you write in Buzz counts as you here. Its agents still answer only what you write in Buzz.",
-        "appPublicKey": "Buzz public key",
-        "link": "Link",
-        "newInvite": "New invite",
-        "openInBuzz": "Open in Buzz",
-        "copyInvite": "Copy invite link",
-        "waiting": "Waiting for Buzz to join. This page updates when it has.",
-        "waitingNoInvite": "Waiting for this key to join. Its invite was shown once; get a new one if you need it.",
-        "appLinked": "Linked Buzz key",
         "unlink": "Unlink",
         "linkInvalid": "Enter a Buzz public key (npub1…).",
         "linkError": "Failed to link the Buzz app",
@@ -8615,21 +8671,17 @@
         "agentsTitle": "Your Buzz agents",
         "agentsEmpty": "Agents you create in the Buzz app appear here within a minute.",
         "agentsHint": "Personal agents via Buzz. Add one to a room you are in (add member → Coworkers), or invite it to the channel in Buzz. Only you can add it, and it leaves a room when you do.",
-        "signInTitle": "Use Buzz as you",
-        "signInDescription": "Sign in to the Buzz app with your Sokosumi identity. You, your messages and the agents you create in Buzz are then the same on both sides.",
-        "stepKeyFile": "1. Save your key file",
-        "keyFile": "Save key file",
-        "keyFileSaved": "Save again",
-        "keyFileWarning": "It signs in as you: anyone with it can write as you. Import it into Buzz, then delete it.",
-        "stepOpen": "2. Sign in to Buzz with it",
-        "openHint": "On Buzz's first screen choose Other options, enter this address, then Use an existing key and drop in the file. No invite needed.",
-        "signOutFirst": "Signed in to Buzz with another identity? In Buzz, remove it first: Settings → Identity → Remove from device. Agents of that identity stay with it.",
-        "keyDetails": "Your key as text",
-        "openSignedIn": "Buzz already signed in as you? Open the community directly:",
         "personalAgentsTitle": "Members can bring their own agents",
         "personalAgentsOn": "Members can add their personal agents (run in their Buzz app) to rooms they are in. Each shows as a personal agent via Buzz.",
         "personalAgentsOff": "Personal agents need an owner or admin to approve them first.",
-        "personalAgentsError": "Failed to change the setting"
+        "personalAgentsError": "Failed to change the setting",
+        "statusTitle": "Buzz",
+        "statusNotConnected": "Not connected yet. Chat in the same rooms from the Buzz app.",
+        "statusConnected": "Connected. You're on Buzz as you.",
+        "statusLinked": "Linked to your Buzz identity {npub}.",
+        "connect": "Connect Buzz",
+        "connectAgain": "Connect again",
+        "readError": "Couldn't load Buzz"
       }
     },
     "Channels": {

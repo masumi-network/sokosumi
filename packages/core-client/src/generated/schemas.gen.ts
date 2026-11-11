@@ -11096,6 +11096,18 @@ export const BuzzConnectionSchema = {
             },
             description: 'The caller\'s Buzz agents, usable as Coworkers in their rooms.'
         },
+        lastActiveOnBuzzAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When the caller last did something from a Buzz app; null until they have.'
+        },
         canEnable: {
             type: 'array',
             items: {
@@ -11155,6 +11167,7 @@ export const BuzzConnectionSchema = {
         'identity',
         'app',
         'agents',
+        'lastActiveOnBuzzAt',
         'canEnable',
         'communities'
     ]

@@ -3013,6 +3013,10 @@ export type BuzzConnection = {
         npub: string;
     }>;
     /**
+     * When the caller last did something from a Buzz app; null until they have.
+     */
+    lastActiveOnBuzzAt: Date | null;
+    /**
      * Organizations the caller owns or administers that are not on Buzz yet.
      */
     canEnable: Array<{

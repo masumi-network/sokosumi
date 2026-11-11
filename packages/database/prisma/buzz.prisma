@@ -44,6 +44,9 @@ model BuzzIdentity {
   encryptedApiKey    String?
   /// Hash of the kind:0 profile last published, to republish only on change.
   profileHash        String?
+  /// When the person last did something from a Buzz app (with either key):
+  /// how Sokosumi knows they are connected.
+  lastActiveOnBuzzAt DateTime?
   /// The person's own Buzz app key (hex), linked once it joined a community
   /// with an invite Sokosumi issued for it. What they write from Buzz with it
   /// is theirs in Sokosumi; Sokosumi still signs with `pubkey`.

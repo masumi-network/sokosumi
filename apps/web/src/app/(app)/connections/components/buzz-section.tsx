@@ -1,15 +1,14 @@
 import type { BuzzConnection } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
-
+import { BuzzLogo } from "@/components/buzz/buzz-logo";
 import { Card } from "@/components/ui/card";
 import { buzzService } from "@/lib/services/buzz.service";
 
 import {
-  BuzzAppLink,
+  BuzzConnectButton,
   BuzzCopyField,
   BuzzPersonalAgentsSwitch,
-  BuzzSecretKey,
-  BuzzSignIn,
+  BuzzUnlinkButton,
   EnableBuzzButton,
 } from "./buzz-controls";
 
@@ -32,6 +31,14 @@ export async function BuzzSection() {
     return null;
   }
 
+  const linked = connection.app?.status === "linked";
+  const connected = linked || connection.lastActiveOnBuzzAt !== null;
+  const status = linked
+    ? t("statusLinked", { npub: `${connection.app?.npub.slice(0, 16)}…` })
+    : connection.lastActiveOnBuzzAt
+      ? t("statusConnected")
+      : t("statusNotConnected");
+
   return (
     <section className="space-y-3" data-testid="connections-buzz">
       <div className="space-y-1">
@@ -40,58 +47,46 @@ export async function BuzzSection() {
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {connection.identity && (
-          <Card className="space-y-4 p-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold">{t("signInTitle")}</h3>
-              <p className="text-muted-foreground text-xs">
-                {t("signInDescription")}
-              </p>
-            </div>
-            <BuzzSignIn
-              relayUrls={[
-                ...new Set(connection.communities.map((c) => c.relayUrl)),
-              ]}
-            />
-            <div className="space-y-1 border-t pt-3">
-              <p className="text-muted-foreground text-xs font-medium">
-                {t("agentsTitle")}
-              </p>
-              {connection.agents.length > 0 && (
-                <ul className="space-y-1 text-sm">
-                  {connection.agents.map((agent) => (
-                    <li key={agent.npub}>{agent.name}</li>
-                  ))}
-                </ul>
-              )}
-              <p className="text-muted-foreground text-xs">
-                {connection.agents.length > 0
-                  ? t("agentsHint")
-                  : t("agentsEmpty")}
-              </p>
-            </div>
-          </Card>
-        )}
-        {connection.identity && (
-          <Card className="space-y-4 p-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold">{t("appTitle")}</h3>
-              <p className="text-muted-foreground text-xs">
-                {t("appDescription")}
-              </p>
-            </div>
-            <BuzzAppLink app={connection.app} />
-            <details className="text-xs">
-              <summary className="text-muted-foreground cursor-pointer">
-                {t("keyDetails")}
-              </summary>
-              <div className="space-y-3 pt-3">
-                <BuzzCopyField
-                  label={t("publicKey")}
-                  value={connection.identity.npub}
-                />
-                <BuzzSecretKey />
+          <Card className="flex flex-col gap-4 p-4 md:col-span-2">
+            <div className="flex flex-wrap items-center gap-4">
+              <BuzzLogo className="size-12 rounded-xl" />
+              <div className="min-w-0 flex-1 space-y-1">
+                <h3 className="text-sm font-semibold">{t("statusTitle")}</h3>
+                <p className="text-muted-foreground text-sm">{status}</p>
               </div>
-            </details>
+              {connection.app?.status === "linked" ? (
+                <BuzzUnlinkButton />
+              ) : (
+                <BuzzConnectButton
+                  variant={connected ? "outline" : "primary"}
+                  label={connected ? t("connectAgain") : t("connect")}
+                />
+              )}
+            </div>
+            {connected ? (
+              <div className="space-y-1 border-t pt-3">
+                <p className="text-muted-foreground text-xs font-medium">
+                  {t("agentsTitle")}
+                </p>
+                {connection.agents.length > 0 ? (
+                  <ul className="flex flex-wrap gap-2">
+                    {connection.agents.map((agent) => (
+                      <li
+                        key={agent.npub}
+                        className="bg-muted rounded-md px-2 py-1 text-sm"
+                      >
+                        {agent.name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <p className="text-muted-foreground text-xs">
+                  {connection.agents.length > 0
+                    ? t("agentsHint")
+                    : t("agentsEmpty")}
+                </p>
+              </div>
+            ) : null}
           </Card>
         )}
         {connection.communities.map((community) => (
@@ -115,7 +110,7 @@ export async function BuzzSection() {
         {connection.canEnable.map((organization) => (
           <Card
             key={organization.organizationId}
-            className="flex flex-wrap items-center justify-between gap-3 p-4"
+            className="flex flex-col items-start justify-between gap-4 p-4"
           >
             <div className="space-y-1">
               <h3 className="text-sm font-semibold">

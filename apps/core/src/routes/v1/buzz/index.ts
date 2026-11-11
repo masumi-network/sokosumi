@@ -62,6 +62,10 @@ const connectionSchema = z
       description:
         "The caller's Buzz agents, usable as Coworkers in their rooms.",
     }),
+    lastActiveOnBuzzAt: z.union([z.date(), z.null()]).openapi({
+      description:
+        "When the caller last did something from a Buzz app; null until they have.",
+    }),
     canEnable: z
       .array(
         z.object({ organizationId: z.string(), organizationName: z.string() }),
@@ -250,6 +254,7 @@ app.openapi(getConnection, async (c) => {
             identity: null,
             app: null,
             agents: [],
+            lastActiveOnBuzzAt: null,
             communities: [],
             canEnable: [],
           },

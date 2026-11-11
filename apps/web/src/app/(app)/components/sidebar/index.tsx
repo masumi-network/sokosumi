@@ -14,6 +14,7 @@ import type { CreditUsage } from "@/lib/types/credit";
 import type { CreditWalletScope } from "./components/account-summary-types";
 
 import AnnouncementCards from "./components/announcement-cards";
+import { BuzzConnectCard } from "./components/buzz-connect-card";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
@@ -147,6 +148,7 @@ export default function Sidebar({
         more room. It marks the footer as chrome.
       */}
       <SidebarFooter className="border-sidebar-border mt-auto shrink-0 border-t px-0">
+        <BuzzConnectCard />
         <AnnouncementCards />
         {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only

@@ -1006,7 +1006,15 @@ export const postAgentsByIdJobsResponseTransformer = async (data: any): Promise<
     return data;
 };
 
+const buzzConnectionSchemaResponseTransformer = (data: any) => {
+    if (data.lastActiveOnBuzzAt) {
+        data.lastActiveOnBuzzAt = new Date(data.lastActiveOnBuzzAt);
+    }
+    return data;
+};
+
 export const getBuzzConnectionResponseTransformer = async (data: any): Promise<GetBuzzConnectionResponse> => {
+    data.data = buzzConnectionSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

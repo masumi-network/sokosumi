@@ -1,6 +1,6 @@
 "use server";
 
-import type { BuzzAppKeyInvites } from "@sokosumi/core-client";
+import type { BuzzAppKeyInvites, BuzzConnection } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
@@ -120,5 +120,19 @@ export const setBuzzPersonalAgents = withSession<
     return toActionResult(ok(response.data));
   } catch {
     return toActionResult(err({ message: t("personalAgentsError") }));
+  }
+});
+
+/** The caller's Buzz connection, for the connect dialog and its sidebar card. */
+export const readBuzzConnection = withSession<
+  AuthenticatedRequest,
+  ActionResultDto<BuzzConnection, BuzzActionError>
+>(async () => {
+  const t = await getTranslations("App.Connections.Buzz");
+  try {
+    const response = await coreClientNoRedirect.getBuzzConnection();
+    return toActionResult(ok(response.data));
+  } catch {
+    return toActionResult(err({ message: t("readError") }));
   }
 });

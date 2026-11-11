@@ -350,6 +350,7 @@ export async function buzzConnectionFor(userId: string) {
       identity: null,
       app: null,
       agents: [],
+      lastActiveOnBuzzAt: null,
       communities: [],
       canEnable,
     };
@@ -382,6 +383,7 @@ export async function buzzConnectionFor(userId: string) {
         }
       : null,
     agents,
+    lastActiveOnBuzzAt: identity.lastActiveOnBuzzAt,
     communities: communities.map((community) => ({
       organizationId: community.organizationId,
       organizationName: community.organizationName,
@@ -2404,6 +2406,17 @@ export async function applyInboundEvent(
   // An agent only posts: Core lets Coworkers write messages, not edit,
   // delete or react.
   if (agent && change.type !== "message") return "ignored";
+  // Seen on Buzz: the person is connected (refreshed at most every minute).
+  if (
+    author.userId &&
+    (!author.lastActiveOnBuzzAt ||
+      Date.now() - author.lastActiveOnBuzzAt.getTime() > 60_000)
+  ) {
+    await prisma.buzzIdentity.update({
+      where: { id: author.id },
+      data: { lastActiveOnBuzzAt: new Date() },
+    });
+  }
   if (change.type === "members") {
     return applyMemberChange(event, change, author, core);
   }
