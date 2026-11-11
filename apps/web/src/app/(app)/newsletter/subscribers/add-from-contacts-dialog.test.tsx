@@ -215,7 +215,7 @@ describe("AddFromContactsDialog", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       COPY.FromContacts.doneDescription,
     );
-    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+    expect(mocks.refresh).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: COPY.done }));
     expect(mocks.close).toHaveBeenCalled();
   });

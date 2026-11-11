@@ -5,7 +5,6 @@ import {
   NewsletterConsent,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { useDebounce } from "use-debounce";
@@ -52,7 +51,6 @@ export function AddFromContactsDialog({
 }: AddFromContactsDialogProps) {
   const t = useTranslations("App.Projects.Newsletter.Subscribers");
   const format = useFormatter();
-  const router = useRouter();
   const cache = useQueryClient();
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(
@@ -110,7 +108,6 @@ export function AddFromContactsDialog({
       }
       setResult(response.value);
       void refreshContacts(cache);
-      router.refresh();
     } catch {
       setError(t("FromContacts.error"));
     } finally {
