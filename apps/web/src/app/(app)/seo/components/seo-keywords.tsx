@@ -183,6 +183,14 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                 />
               ) : null}
             </p>
+            {summary.depth ? (
+              <p className="text-muted-foreground text-sm">
+                {t("keywords.depth", {
+                  ...summary.depth,
+                  same: summary.depth.min === summary.depth.max ? "yes" : "no",
+                })}
+              </p>
+            ) : null}
           </div>
         ) : null}
         {rows.length ? (
@@ -317,11 +325,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                                   ) : null}
                                   {line.position !== null
                                     ? format.number(line.position)
-                                    : line.depth === null
-                                      ? t("keywords.notInRangeUnknown")
-                                      : t("keywords.notInRange", {
-                                          count: line.depth,
-                                        })}
+                                    : t("keywords.notFound")}
                                 </p>
                               ))}
                               {/* The result line dates the newest check; a row from an older one carries its own date. */}

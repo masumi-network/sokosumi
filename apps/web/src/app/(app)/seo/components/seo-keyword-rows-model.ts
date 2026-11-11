@@ -126,11 +126,23 @@ export function keywordPage(checked: SeoKeywordGroup[], size: number) {
 export function keywordSummary(groups: SeoKeywordGroup[]) {
   const read = groups.filter((group) => group.reads.length > 0);
   const found = read.filter((group) => group.best !== null);
+  // Only a read that did not find the page says how deep it looked.
+  const missed = read
+    .flatMap((group) => group.reads)
+    .filter((row) => row.positionStatus === "not_in_range");
+  const depths = missed.flatMap((row) =>
+    row.checkedResults === null ? [] : [row.checkedResults],
+  );
   return {
     read: read.length,
     found: found.length,
     firstPage: found.filter((group) => (group.best ?? 0) <= SEO_FIRST_PAGE_RANK)
       .length,
+    // What "Not found" means, said once for all rows. One read without a depth, and no number holds for all.
+    depth:
+      missed.length && depths.length === missed.length
+        ? { min: Math.min(...depths), max: Math.max(...depths) }
+        : null,
     // The newest read dates the result once, instead of once per row.
     newest:
       read
@@ -147,32 +159,18 @@ export function keywordSummary(groups: SeoKeywordGroup[]) {
 
 /**
  * The position lines of one keyword: one line where every device reads the same, else one per device.
- * A null position with a depth means "not in the first <depth> results".
+ * A null position means the page is not in the results the check read.
  */
 export function keywordPositions(reads: Keyword[]) {
-  const line = (row: Keyword) => ({
+  const lines = reads.map((row) => ({
     device: row.device,
     position: row.positionStatus === "ranked" ? row.position : null,
-    depth: row.checkedResults,
-  });
-  if (reads.length < 2) return reads.map(line);
-  if (reads.every((row) => row.positionStatus === "not_in_range")) {
-    const depths = reads.flatMap((row) =>
-      row.checkedResults === null ? [] : [row.checkedResults],
-    );
-    // "Not in the first 16" holds for the device that read 17 results too.
-    return [
-      {
-        device: null,
-        position: null,
-        depth: depths.length === reads.length ? Math.min(...depths) : null,
-      },
-    ];
-  }
-  const lines = reads.map(line);
-  return lines.every(
-    (item) => item.position !== null && item.position === lines[0].position,
-  )
+  }));
+  return lines.length > 1 &&
+    (reads.every((row) => row.positionStatus === "not_in_range") ||
+      lines.every(
+        (item) => item.position !== null && item.position === lines[0].position,
+      ))
     ? [{ ...lines[0], device: null }]
     : lines;
 }

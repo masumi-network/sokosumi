@@ -246,6 +246,7 @@ describe("SEO keyword rows", () => {
         observedAt: new Date("2026-11-11T00:37:00.000Z"),
       }),
       row({ keyword: "c", device: "mobile", ...notFound }),
+      row({ keyword: "c", device: "desktop", ...notFound, checkedResults: 16 }),
       // Tracked, but no position read: not part of the result.
       row({ keyword: "d", source: "saved", saved: true, version: 1 }),
     ]);
@@ -253,39 +254,51 @@ describe("SEO keyword rows", () => {
       read: 3,
       found: 2,
       firstPage: 1,
+      // Only the reads that did not find the page give the depth: the ranked rows have none.
+      depth: { min: 16, max: 17 },
       newest: {
         keyword: "b",
         observedAt: new Date("2026-11-11T00:37:00.000Z"),
       },
     });
+    // One miss without a depth: no number holds for every "Not found".
+    const unknown = keywordGroups([
+      row({ keyword: "c", device: "mobile", ...notFound }),
+      row({ keyword: "e", ...notFound, checkedResults: null }),
+    ]);
+    expect(keywordSummary(unknown.checked).depth).toBeNull();
+    // Every keyword found: nothing to explain.
+    const found = keywordGroups([
+      row({ keyword: "a", positionStatus: "ranked", position: 4 }),
+    ]);
+    expect(keywordSummary(found.checked).depth).toBeNull();
   });
 
   it("writes one position line where the devices agree, else one per device", () => {
     const mobile = row({ device: "mobile", ...notFound });
     const desktop = row({ device: "desktop", ...notFound, checkedResults: 16 });
-    // The smaller depth holds for both devices.
     expect(keywordPositions([mobile, desktop])).toEqual([
-      { device: null, position: null, depth: 16 },
+      { device: null, position: null },
     ]);
     const ranked = (device: "mobile" | "desktop", position: number) =>
       row({ device, positionStatus: "ranked", position });
     expect(
       keywordPositions([ranked("mobile", 4), ranked("desktop", 4)]),
-    ).toEqual([{ device: null, position: 4, depth: null }]);
+    ).toEqual([{ device: null, position: 4 }]);
     expect(
       keywordPositions([ranked("mobile", 4), ranked("desktop", 9)]),
     ).toEqual([
-      { device: "mobile", position: 4, depth: null },
-      { device: "desktop", position: 9, depth: null },
+      { device: "mobile", position: 4 },
+      { device: "desktop", position: 9 },
     ]);
-    // Found on one device only: both lines stay, the miss keeps its depth.
+    // Found on one device only: both lines stay.
     expect(keywordPositions([ranked("mobile", 4), desktop])).toEqual([
-      { device: "mobile", position: 4, depth: null },
-      { device: "desktop", position: null, depth: 16 },
+      { device: "mobile", position: 4 },
+      { device: "desktop", position: null },
     ]);
     // One read keeps its device: the other device was not read.
     expect(keywordPositions([mobile])).toEqual([
-      { device: "mobile", position: null, depth: 17 },
+      { device: "mobile", position: null },
     ]);
   });
 });

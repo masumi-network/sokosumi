@@ -492,8 +492,13 @@ describe("Keywords after a check", () => {
       screen.getByText("Found in Google's results for 0 of 1 checked keyword"),
     ).toBeVisible();
     expect(screen.getAllByText("battery app")).toHaveLength(1);
-    // One line for both devices, with the depth that holds for both.
-    expect(screen.getByText("Not in the first 16 results")).toBeVisible();
+    // One line for both devices; the result line says once how deep the check read.
+    expect(screen.getByText("Not found")).toBeVisible();
+    expect(
+      screen.getByText(
+        "“Not found” means the page is not in the first 16 to 17 results, by check.",
+      ),
+    ).toBeVisible();
     // The market shows once, in the result line, not once per row.
     expect(screen.getAllByText("United States · English")).toHaveLength(1);
     expect(

@@ -35,6 +35,7 @@ import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import { SeoAutomation } from "./seo-monitors";
+import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunLeads } from "./seo-setup-model";
@@ -365,6 +366,7 @@ function SeoAgentPanel({
                 : step.kind !== "action" || (canEdit && !step.action.taskId),
         );
   const periodId = useId();
+  const { actionSeverity } = seoOverviewModel(model.data);
   const trafficLine = traffic
     ? t("agent.traffic", {
         impressions: traffic.impressions,
@@ -543,12 +545,6 @@ function SeoAgentPanel({
       )}
       {/* The setup card has no line for upkeep, so it sits under the card. */}
       {setup && upkeep ? <div className="px-2">{upkeep}</div> : null}
-      {/* The chat itself opens in the sheet, on every tab. */}
-      {model.data.auditId ? <SeoAskBar model={model} /> : null}
-      {/* During setup a schedule is not the next step: show only one that exists. */}
-      {setup && !model.data.monitors.length ? null : (
-        <SeoAutomation model={model} />
-      )}
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}
@@ -568,7 +564,7 @@ function SeoAgentPanel({
                     <SeoActionCard
                       action={step.action}
                       model={model}
-                      step
+                      severity={actionSeverity(step.action)}
                       primary={index === primary}
                     />
                   </li>
@@ -612,6 +608,12 @@ function SeoAgentPanel({
             </Button>
           ) : null}
         </div>
+      )}
+      {/* The next steps come first; a question to the agent follows them. The chat itself opens in the sheet, on every tab. */}
+      {model.data.auditId ? <SeoAskBar model={model} /> : null}
+      {/* During setup a schedule is not the next step: show only one that exists. */}
+      {setup && !model.data.monitors.length ? null : (
+        <SeoAutomation model={model} />
       )}
     </section>
   );

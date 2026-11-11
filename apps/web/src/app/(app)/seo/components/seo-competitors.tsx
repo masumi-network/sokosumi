@@ -1,9 +1,15 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,13 +39,15 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
-  // The reader's own page and the competitors they chose lead, so a row they
-  // just added never hides behind "Show more". The sort keeps Core's order within each part.
-  const part = (row: (typeof model.filteredCompetitors)[number]) =>
-    row.role === "page" ? 0 : row.confirmed ? 1 : 2;
-  const all = model.filteredCompetitors.toSorted(
-    (left, right) => part(left) - part(right),
-  );
+  // The reader's own pages are not competitors: they sit above the table.
+  const own = model.filteredCompetitors.filter((row) => row.role === "page");
+  // The competitors the reader chose lead, so a row they just added never hides
+  // behind "Show more". The sort keeps Core's order within each part.
+  const all = model.filteredCompetitors
+    .filter((row) => row.role !== "page")
+    .toSorted(
+      (left, right) => Number(right.confirmed) - Number(left.confirmed),
+    );
   const [expanded, setExpanded] = useState(false);
   // A search already narrows the list; it shows every match.
   const rows =
@@ -61,13 +69,10 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     shown.observed ? null : t("observed"),
   ].filter((label): label is string => label !== null);
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
-  // A confirmed competitor is the default row; only the other states need a badge.
+  // A confirmed competitor is the default row; a page a check found says where it comes from.
+  // A page the reader added and then stopped tracking came from no check.
   const state = (row: (typeof rows)[number]) =>
-    row.role === "page"
-      ? "competitors.yourPage"
-      : row.confirmed
-        ? null
-        : "competitors.suggested";
+    row.confirmed || row.source === "saved" ? null : "competitors.suggested";
   return (
     <SeoSection
       title={t("competitors.title")}
@@ -95,6 +100,33 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             placeholder={t("search")}
           />
         </div>
+      ) : null}
+      {own.length ? (
+        <dl className="space-y-1 px-2 pb-3 text-sm">
+          <dt className="font-medium">
+            {t("competitors.yourPages", { count: own.length })}
+          </dt>
+          {own.map((row) => (
+            <dd
+              key={row.id}
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-1"
+            >
+              <SeoPageLink url={row.url} />
+              {row.backlinks !== null || row.referringDomains !== null ? (
+                <span className="text-muted-foreground tabular-nums">
+                  {t("competitors.backlinks")}: {number(row.backlinks)} ·{" "}
+                  {t("competitors.domains")}: {number(row.referringDomains)}
+                </span>
+              ) : null}
+              {row.observationId ? (
+                <SeoSource
+                  workspace={model.data}
+                  observationId={row.observationId}
+                />
+              ) : null}
+            </dd>
+          ))}
+        </dl>
       ) : null}
       {rows.length ? (
         <div className={HOLDER_ITEM_CLASS}>
@@ -204,41 +236,51 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       </TableCell>
                     ) : null}
                     <TableCell className="text-right">
-                      {/* No buttons, no wrapper: an empty cell takes no row on a phone. */}
+                      {/* One menu per row: two buttons made the table wider than its card. No action, no trigger. */}
                       {compare || toggle ? (
-                        <div className="flex flex-wrap justify-end gap-2 max-sm:justify-start">
-                          {compare ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() =>
-                                model.openChat(
-                                  t("competitors.compareDraft", {
-                                    url: row.url,
-                                  }),
-                                )
-                              }
+                              className="min-w-10"
+                              aria-label={t("competitors.rowActions", {
+                                url: row.url,
+                              })}
                             >
-                              {t("competitors.compare")}
+                              <MoreHorizontal className="size-4" />
                             </Button>
-                          ) : null}
-                          {toggle ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={model.pending}
-                              onClick={() => {
-                                void model.toggleCompetitor(row);
-                              }}
-                            >
-                              {t(
-                                row.confirmed
-                                  ? "competitors.unconfirm"
-                                  : "competitors.confirm",
-                              )}
-                            </Button>
-                          ) : null}
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {compare ? (
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  model.openChat(
+                                    t("competitors.compareDraft", {
+                                      url: row.url,
+                                    }),
+                                  )
+                                }
+                              >
+                                {t("competitors.compare")}
+                              </DropdownMenuItem>
+                            ) : null}
+                            {toggle ? (
+                              <DropdownMenuItem
+                                disabled={model.pending}
+                                onSelect={() => {
+                                  void model.toggleCompetitor(row);
+                                }}
+                              >
+                                {t(
+                                  row.confirmed
+                                    ? "competitors.unconfirm"
+                                    : "competitors.confirm",
+                                )}
+                              </DropdownMenuItem>
+                            ) : null}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       ) : null}
                     </TableCell>
                   </TableRow>
@@ -257,12 +299,21 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         </div>
       ) : (
         <SeoEmpty
-          title={t("competitors.empty")}
-          description={t(
-            model.data.availableActions.canRequestAnalysis
-              ? "competitors.emptyBody"
-              : "competitors.emptyBodyOff",
+          // A search with no match does not mean there are no competitors.
+          title={t(
+            model.competitorSearch
+              ? "competitors.noMatch"
+              : "competitors.empty",
           )}
+          description={
+            model.competitorSearch
+              ? undefined
+              : t(
+                  model.data.availableActions.canRequestAnalysis
+                    ? "competitors.emptyBody"
+                    : "competitors.emptyBodyOff",
+                )
+          }
         />
       )}
       {all.length > SEO_LIST_PAGE_SIZE && !model.competitorSearch ? (

@@ -1,8 +1,12 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 
 const ISSUE_SEVERITIES = { critical: 0, major: 1, minor: 2 } as const;
-const NON_ISSUE_RANK = Object.keys(ISSUE_SEVERITIES).length;
+const ISSUE_SEVERITY_NAMES = Object.keys(
+  ISSUE_SEVERITIES,
+) as SeoIssueSeverity[];
+const NON_ISSUE_RANK = ISSUE_SEVERITY_NAMES.length;
 
+export type SeoIssueSeverity = keyof typeof ISSUE_SEVERITIES;
 type Finding = ProjectSeoWorkspace["findings"][number];
 type Action = ProjectSeoWorkspace["actions"][number];
 
@@ -34,6 +38,7 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     ).values(),
   ].map((group) => ({
     ...group[0],
+    findingIds: group.map(({ id }) => id),
     devices: [
       ...new Set(group.flatMap(({ device }) => (device ? [device] : []))),
     ],
@@ -56,8 +61,11 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
         ]),
     ).values(),
   ];
+  // A device row takes the rating of its issue, so an action and its issue show the same severity.
   const findingRanks = new Map(
-    failed.map((finding) => [finding.id, issueRank(finding)]),
+    issues.flatMap((issue) =>
+      issue.findingIds.map((id) => [id, issueRank(issue)] as const),
+    ),
   );
   const actionRank = (action: Action) =>
     Math.min(
@@ -68,6 +76,24 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   const actions = workspace.actions.toSorted(
     (left, right) => actionRank(left) - actionRank(right),
   );
+  // The worst issue an action fixes; an action from search data alone has none.
+  const actionSeverity = (action: Action) =>
+    ISSUE_SEVERITY_NAMES[actionRank(action)] ?? null;
+  const fixOf = (issue: { findingIds: string[] }) =>
+    actions.find((action) =>
+      action.findingIds.some((id) => issue.findingIds.includes(id)),
+    ) ?? null;
+  // The action that fixes an issue names the problem; the issue's own title names the test.
+  // One action can fix several issues: its title then names none of them.
+  const issueFix = (issue: { findingIds: string[] }) => {
+    const action = fixOf(issue);
+    return action
+      ? {
+          action,
+          named: issues.filter((other) => fixOf(other) === action).length === 1,
+        }
+      : null;
+  };
   const recommendedActions = actions.filter(
     (action) => action.status === "recommended",
   );
@@ -96,6 +122,8 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     issues,
     diagnostics,
     actions,
+    actionSeverity,
+    issueFix,
     recommendedActions,
     recentChecks,
     hasFailedChecks,

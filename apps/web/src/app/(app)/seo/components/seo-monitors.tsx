@@ -9,27 +9,14 @@ import { cn } from "@/lib/utils";
 import { SeoDate, SeoState } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** Scheduled checks on the agent's home: off until the owner turns them on; the schedule page holds the details. Editors see one line when the workspace cannot schedule. */
+/** Scheduled checks on the agent's home: off until the owner turns them on; the schedule page holds the details. Nothing shows when no schedule exists and the workspace cannot make one. */
 export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const scheduleT = useTranslations("App.Tasks.Schedules");
   const { monitors, availableActions, scope } = model.data;
   const canCreate = availableActions.canCreateMonitor === true;
-  if (!monitors.length && !canCreate && !availableActions.canEdit) return null;
-  // Nothing to act on: one quiet line, not a card.
-  if (!monitors.length && !canCreate) {
-    // With all checks off, the notice above the tabs already says so.
-    if (!availableActions.canRequestAnalysis) return null;
-    return (
-      <p
-        className="text-muted-foreground flex items-center gap-2 px-2 text-xs"
-        data-testid="seo-automation"
-      >
-        <CalendarClock className="size-3.5 shrink-0" aria-hidden />
-        {t("monitor.offUnavailable")}
-      </p>
-    );
-  }
+  // No schedule and no way to make one: nothing to show and nothing to act on.
+  if (!monitors.length && !canCreate) return null;
   return (
     <div
       className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4")}
@@ -78,7 +65,7 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
             </li>
           ))}
         </ul>
-      ) : canCreate ? (
+      ) : (
         <Button
           variant="outline"
           size="sm"
@@ -87,7 +74,7 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
         >
           {t("monitor.agentWeekly")}
         </Button>
-      ) : null}
+      )}
     </div>
   );
 }

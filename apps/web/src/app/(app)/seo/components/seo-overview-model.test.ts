@@ -163,6 +163,22 @@ describe("SEO overview relevance", () => {
     ]);
     // An action that cites the merged device row still ranks as a fix for an issue.
     expect(result.recommendedActions.map((item) => item.id)).toEqual(["fix"]);
+    // The issue finds its fix through either device row; an issue without an action has none.
+    expect(
+      result.issues.map((item) => result.issueFix(item)?.action.id),
+    ).toEqual(["fix", undefined, undefined]);
+    expect(result.issueFix(result.issues[0])?.named).toBe(true);
+    // The action cites the row rated minor, and shows the rating of its issue.
+    expect(result.actionSeverity(workspace.actions[0])).toBe("major");
+    expect(result.actionSeverity(action("search", []))).toBeNull();
+    // One action for two issues: its title names neither of them.
+    workspace.actions = [action("both", ["a-mobile", "c-desktop"])];
+    const shared = seoOverviewModel(workspace);
+    expect(shared.issues.map((item) => shared.issueFix(item)?.named)).toEqual([
+      false,
+      undefined,
+      false,
+    ]);
     workspace.pages[0].url = "https://example.com/";
     workspace.scope.pageIds = [workspace.pages[0].id];
     workspace.observations = [

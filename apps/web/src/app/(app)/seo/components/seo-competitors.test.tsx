@@ -96,6 +96,7 @@ describe("SEO competitor baselines", () => {
   it.each([false, true])(
     "labels the audited page truthfully and keeps its backlink baseline without competitor controls (confirmed=%s)",
     async (confirmed) => {
+      const user = userEvent.setup();
       const workspace = seoTestWorkspace();
       const page = {
         id: "page-baseline",
@@ -127,22 +128,44 @@ describe("SEO competitor baselines", () => {
           version: 0,
           canConfirm: true,
         },
+        // Added by the reader, then no longer tracked: no check found it.
+        {
+          ...page,
+          id: "stopped",
+          url: "https://stopped.example/",
+          role: "competitor",
+          confirmed: false,
+          source: "saved",
+          backlinks: null,
+          referringDomains: null,
+          version: 2,
+          canConfirm: true,
+        },
       ];
       vi.stubGlobal(
         "fetch",
         vi.fn(async () => Response.json(workspace)),
       );
       renderWorkspace(workspace);
+      // The audited page is no competitor: it sits above the table, with its numbers and no controls.
       const ownLink = screen.getByRole("link", { name: page.url });
-      const ownRow = ownLink.closest("tr");
-      expect(ownRow).not.toBeNull();
-      expect(within(ownRow!).getByText("Your page")).toBeVisible();
-      expect(within(ownRow!).getByText("10")).toBeVisible();
-      expect(within(ownRow!).getByText("4")).toBeVisible();
-      expect(within(ownRow!).queryByRole("button")).toBeNull();
-      expect(screen.getAllByText("Suggested competing page")).toHaveLength(1);
+      expect(ownLink.closest("tr")).toBeNull();
+      const own = ownLink.closest("dl");
+      expect(own).not.toBeNull();
+      expect(within(own!).getByText("Your page")).toBeVisible();
       expect(
-        screen.getByRole("button", { name: "Confirm competitor" }),
+        within(own!).getByText("Backlinks: 10 · Referring domains: 4"),
+      ).toBeVisible();
+      expect(within(own!).queryByRole("button")).toBeNull();
+      expect(screen.getAllByText("From the search results")).toHaveLength(1);
+      // One menu per competitor row holds its actions.
+      await user.click(
+        screen.getByRole("button", {
+          name: "Actions for https://competitor.example/",
+        }),
+      );
+      expect(
+        screen.getByRole("menuitem", { name: "Confirm competitor" }),
       ).toBeVisible();
     },
   );
@@ -178,6 +201,10 @@ describe("SEO competitor baselines", () => {
     await user.click(screen.getByRole("button", { name: "Show 2 more pages" }));
     expect(screen.getByText("https://rival-10.example/")).toBeVisible();
     expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
+    // A search with no match does not say that there are no competitors.
+    await user.type(screen.getByRole("searchbox", { name: "Search" }), "zzz");
+    expect(screen.getByText("No competitor matches this search")).toBeVisible();
+    expect(screen.queryByText("No competitors yet")).toBeNull();
   });
 
   it("leaves the actions cell empty when a row has no button", () => {
@@ -240,7 +267,7 @@ describe("SEO competitor baselines", () => {
     // Confirmed is the default row; a badge would repeat on every row.
     expect(screen.getByText("https://competitor.example/")).toBeVisible();
     expect(screen.queryByText("Confirmed competitor")).toBeNull();
-    expect(screen.queryByText("Suggested competing page")).toBeNull();
+    expect(screen.queryByText("From the search results")).toBeNull();
     // The address may wrap after "." or "/", never inside "//"; its name stays whole.
     const link = screen.getByRole("link", {
       name: "https://competitor.example/",

@@ -1,6 +1,5 @@
 "use client";
 
-import { Play } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useLayoutEffect, useRef, useState } from "react";
@@ -247,7 +246,7 @@ function PageDetail({
   );
 }
 
-/** Site health: run a check, then what the checks found, page by page and over time. */
+/** Site health: what the checks found, page by page and over time. */
 export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -317,44 +316,70 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
     <div className="space-y-5">
       {overview.issues.length ? (
         <SeoSection title={t("overview.findings")}>
-          {overview.issues.map((finding) => (
-            <article
-              key={finding.id}
-              className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4")}
-            >
-              <div className="flex flex-wrap items-start gap-2">
-                <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
-                <h3 className="text-sm font-medium">{finding.title}</h3>
-                {finding.devices.length ? (
-                  <span className="text-muted-foreground text-sm">
-                    {format.list(
-                      finding.devices.map((device) => t(`analysis.${device}`)),
-                    )}
-                  </span>
-                ) : null}
-              </div>
-              <SeoPageLink url={finding.pageUrl} />
-              <details className="text-muted-foreground text-sm">
-                <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
-                  {t("overview.checkDetails")}
-                </summary>
-                <ul className="list-inside list-disc space-y-1 pt-3">
-                  {finding.evidence.map((evidence, index) => (
-                    <li key={`${index}:${evidence}`} className="break-words">
-                      {evidence}
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex flex-wrap gap-3 pt-3 text-xs">
-                  <SeoDate value={finding.observedAt} />
-                  <SeoSource
-                    observationId={finding.observationId}
-                    workspace={data}
-                  />
+          {overview.issues.map((finding) => {
+            // A test name reads like a pass; the fix names what is wrong.
+            const fix = overview.issueFix(finding);
+            return (
+              <article
+                key={finding.id}
+                className={cn(HOLDER_ITEM_CLASS, "space-y-1 px-4 py-3")}
+              >
+                <div className="flex flex-wrap items-start gap-2">
+                  <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
+                  <h3 className="text-sm font-medium break-words">
+                    {fix?.named ? fix.action.title : finding.title}
+                  </h3>
+                  {finding.devices.length ? (
+                    <span className="text-muted-foreground text-sm">
+                      {format.list(
+                        finding.devices.map((device) =>
+                          t(`analysis.${device}`),
+                        ),
+                      )}
+                    </span>
+                  ) : null}
                 </div>
-              </details>
-            </article>
-          ))}
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <SeoPageLink url={finding.pageUrl} />
+                  {fix ? (
+                    <button
+                      type="button"
+                      className="focus-visible:ring-ring rounded-sm py-2.5 text-sm underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+                      onClick={() => {
+                        void model.setFilters({ tab: "actions" });
+                      }}
+                    >
+                      {t("overview.seeFix")}
+                    </button>
+                  ) : null}
+                </div>
+                <details className="text-muted-foreground text-sm">
+                  <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
+                    {t("overview.checkDetails")}
+                  </summary>
+                  {fix?.named ? (
+                    <p className="pt-3">
+                      {t("overview.failedCheck", { name: finding.title })}
+                    </p>
+                  ) : null}
+                  <ul className="list-inside list-disc space-y-1 pt-3">
+                    {finding.evidence.map((evidence, index) => (
+                      <li key={`${index}:${evidence}`} className="break-words">
+                        {evidence}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex flex-wrap gap-3 pt-3 text-xs">
+                    <SeoDate value={finding.observedAt} />
+                    <SeoSource
+                      observationId={finding.observationId}
+                      workspace={data}
+                    />
+                  </div>
+                </details>
+              </article>
+            );
+          })}
         </SeoSection>
       ) : null}
       {overview.hasFailedChecks && overview.emptyState !== "incomplete" ? (
@@ -392,25 +417,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
       ) : null}
       <SeoTimeline
         workspace={data}
-        // Like Sync now and Add a page: the card's own action sits in its header.
-        actions={
-          data.availableActions.canRequestAnalysis ? (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.scope.pageIds.length}
-              // While a check runs the button keeps its place and its focus, and starts no second check.
-              aria-disabled={checkRunning || undefined}
-              className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-              onClick={() => {
-                if (!checkRunning) model.setDialog("analysis");
-              }}
-            >
-              <Play className="size-4" />
-              {t("runAnalysis")}
-            </Button>
-          ) : undefined
-        }
         onRetry={
           data.availableActions.canRequestAnalysis && !checkRunning
             ? () => model.setDialog("analysis")

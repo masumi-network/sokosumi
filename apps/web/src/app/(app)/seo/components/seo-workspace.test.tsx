@@ -296,12 +296,74 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace, "?tab=health");
     expect(screen.getByText("The page has no description")).toBeVisible();
+    // No action fixes this issue, so no link promises a fix.
+    expect(screen.queryByRole("button", { name: "See the fix" })).toBeNull();
     const evidence = screen.getByText(
       "Raw HTML evidence: no meta description element.",
     );
     expect(evidence).not.toBeVisible();
     await user.click(screen.getByText("Check details"));
     expect(evidence).toBeVisible();
+  });
+
+  it("names an issue after its fix on Site health and leads to the fix", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
+    workspace.findings.push({
+      id: "price",
+      observationId,
+      pageUrl: workspace.pages[0].url,
+      device: "mobile",
+      rowId: "SD-08",
+      // A test name reads like a pass.
+      title: "Markup matches the visible page",
+      severity: "major",
+      evidence: ["The markup says 6.99, the page shows 9.99."],
+      sourceRef: "html:head",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    workspace.actions.push({
+      id: "fix-price",
+      observationId,
+      pageUrl: workspace.pages[0].url,
+      findingIds: ["price"],
+      title: "Make the markup price match the page",
+      why: "The two prices differ.",
+      effort: "low",
+      expectedEffect: "One price.",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    expect(
+      screen.getByRole("heading", {
+        name: "Make the markup price match the page",
+      }),
+    ).toBeVisible();
+    // The test's own name stays in the details.
+    const check = screen.getByText(
+      "Check not passed: Markup matches the visible page",
+    );
+    expect(check).not.toBeVisible();
+    await user.click(screen.getByRole("button", { name: "See the fix" }));
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // The same title on the same kind of card, with the severity of its issue.
+    const card = screen
+      .getByRole("heading", { name: "Make the markup price match the page" })
+      .closest("article");
+    expect(within(card!).getByText("Major")).toBeVisible();
+    expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
   });
 
   it("splits page details into measurements and notes and folds their references", async () => {
@@ -1212,7 +1274,12 @@ describe("SEO workspace integration", () => {
     vi.stubGlobal("fetch", fetch);
     renderWorkspace(workspace, "tab=rankings");
     await user.click(
-      screen.getByRole("button", { name: "Compare with my page" }),
+      screen.getByRole("button", {
+        name: "Actions for https://rival.example/",
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "Compare with my page" }),
     );
     const sheet = await screen.findByRole("dialog");
     expect(within(sheet).getByLabelText("Your question")).toHaveValue(
@@ -2484,10 +2551,8 @@ describe("SEO workspace integration", () => {
       ).toBeNull();
       view.unmount();
       renderWorkspace(workspace, "", true);
-      // An editor still learns the schedule is off, without a button that cannot work.
-      expect(screen.getByTestId("seo-automation")).toHaveTextContent(
-        "Scheduled checks are off in this workspace.",
-      );
+      // A schedule the workspace cannot make shows nothing: no notice and no button.
+      expect(screen.queryByTestId("seo-automation")).toBeNull();
       expect(
         screen.queryByRole("button", { name: "Let the agent check weekly" }),
       ).toBeNull();
@@ -3084,9 +3149,6 @@ describe("SEO workspace integration", () => {
     expect(keywords()).toHaveValue("stablecoins");
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    // The header's choice does not stay for the tab's own button.
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
-    expect(checkType()).toHaveTextContent("Page check");
     cleanup();
     // Without paid search data a full audit cannot run: the button names the page check.
     workspace.availableActions.canUsePaidSearchData = false;
@@ -3108,12 +3170,12 @@ describe("SEO workspace integration", () => {
         createdAt: new Date("2026-01-04T12:00:00Z"),
       },
     ];
-    // The Activity card's own run button starts no second check either.
+    // Site health has one run control: the header's.
     renderWorkspace(workspace, "?tab=health");
-    const again = await screen.findByRole("button", { name: "Run a check" });
-    expect(again).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(again);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      await screen.findByRole("button", { name: "Check running" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
     cleanup();
     renderWorkspace(workspace, "?tab=rankings");
     const waiting = await screen.findByRole("button", {
@@ -3891,9 +3953,9 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByText("Why, and the evidence"));
     expect(screen.getByText("The title is missing")).toBeVisible();
     expect(screen.getByText("A descriptive search result")).toBeVisible();
-    // The Actions tab is the full list: the reasons show, and no card takes the filled style.
+    // The Actions tab is the full list of the same cards: the reasons stay closed, and no card takes the filled style.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
-    expect(await screen.findByText("The title is missing")).toBeVisible();
+    expect(await screen.findByText("The title is missing")).not.toBeVisible();
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
     ).not.toHaveClass("bg-primary");
