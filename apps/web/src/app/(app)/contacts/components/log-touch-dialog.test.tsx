@@ -2,6 +2,7 @@ import type { ContactDetail } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Dialog } from "@/components/ui/dialog";
 import { LogTouchDialog } from "./log-touch-dialog";
 
 // The service is a plain delegate, not the spy itself: Vitest fails a test
@@ -37,14 +38,18 @@ function renderDialog() {
   const onClose = vi.fn();
   const view = render(
     <QueryClientProvider client={client}>
-      <LogTouchDialog contact={contact} onClose={onClose} />
+      <Dialog open>
+        <LogTouchDialog contact={contact} onClose={onClose} />
+      </Dialog>
     </QueryClientProvider>,
   );
   // A teammate's save arriving through the contact query.
   const refetch = (next: Partial<ContactDetail>) =>
     view.rerender(
       <QueryClientProvider client={client}>
-        <LogTouchDialog contact={{ ...contact, ...next }} onClose={onClose} />
+        <Dialog open>
+          <LogTouchDialog contact={{ ...contact, ...next }} onClose={onClose} />
+        </Dialog>
       </QueryClientProvider>,
     );
   return Object.assign(onClose, { refetch });

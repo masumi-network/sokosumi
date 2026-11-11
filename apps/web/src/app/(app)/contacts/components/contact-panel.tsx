@@ -47,6 +47,7 @@ import {
 } from "@/app/contacts/contacts-view";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -1041,16 +1042,23 @@ function TimelineSection({ contact }: { contact: ContactDetail }) {
               {t("interactionCount", { count: contact.interactionCount })}
             </span>
           ) : null}
-          <Button size="sm" variant="outline" onClick={() => setLogging(true)}>
-            <PenLine aria-hidden />
-            {t("logTouch")}
-          </Button>
+          <Dialog open={logging} onOpenChange={setLogging}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline">
+                <PenLine aria-hidden />
+                {t("logTouch")}
+              </Button>
+            </DialogTrigger>
+            {logging ? (
+              <LogTouchDialog
+                contact={contact}
+                onClose={() => setLogging(false)}
+              />
+            ) : null}
+          </Dialog>
         </div>
       }
     >
-      {logging ? (
-        <LogTouchDialog contact={contact} onClose={() => setLogging(false)} />
-      ) : null}
       {timeline.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : items.length === 0 ? (

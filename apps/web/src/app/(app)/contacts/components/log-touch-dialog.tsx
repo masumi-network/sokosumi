@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { coreErrorOf } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -49,7 +48,8 @@ function planOf(contact: ContactDetail) {
  * next in the same write. Next step and follow-up start as they are and are
  * only sent when changed. When a newer contact arrives (a refetch, or the
  * reload after a version conflict), fields the reader left alone take the
- * new values; a field both changed keeps the draft and says so.
+ * new values; a field both changed keeps the draft and says so. Render it
+ * inside the caller's open `Dialog`, whose `DialogTrigger` gets focus back.
  */
 export function LogTouchDialog({
   contact,
@@ -129,111 +129,109 @@ export function LogTouchDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <form onSubmit={handleSubmit} className="grid gap-5">
-          <DialogHeader>
-            <DialogTitle>
-              {t("logTouch.title", { name: contact.name })}
-            </DialogTitle>
-            <DialogDescription>{t("logTouch.description")}</DialogDescription>
-          </DialogHeader>
-          <fieldset className="grid gap-2">
-            <legend className="mb-2 text-sm font-medium">
-              {t("logTouch.kind")}
-            </legend>
-            <div className="flex flex-wrap gap-1">
-              {KINDS.map(({ channel }) => (
-                <label
-                  key={channel}
-                  className={cn(
-                    "has-focus-visible:ring-ring flex h-10 cursor-pointer items-center rounded-md border px-3 text-sm has-focus-visible:ring-2 md:h-8",
-                    kind === channel
-                      ? "bg-quaternary border-foreground"
-                      : "hover:bg-quinary",
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="log-touch-kind"
-                    value={channel}
-                    checked={kind === channel}
-                    onChange={() => setKind(channel)}
-                    className="sr-only"
-                  />
-                  {t(`panel.interactionChannels.${channel}`)}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <div className="grid gap-2">
-            <Label htmlFor="log-touch-summary">{t("logTouch.summary")}</Label>
-            <Textarea
-              id="log-touch-summary"
-              value={summary}
-              maxLength={300}
-              rows={2}
-              autoFocus
-              aria-invalid={!!error && !summary.trim()}
-              aria-describedby={error ? "log-touch-error" : undefined}
-              placeholder={t("logTouch.summaryPlaceholder")}
-              onChange={(event) => setSummary(event.target.value)}
-            />
+    <DialogContent className="sm:max-w-md">
+      <form onSubmit={handleSubmit} className="grid gap-5">
+        <DialogHeader>
+          <DialogTitle>
+            {t("logTouch.title", { name: contact.name })}
+          </DialogTitle>
+          <DialogDescription>{t("logTouch.description")}</DialogDescription>
+        </DialogHeader>
+        <fieldset className="grid gap-2">
+          <legend className="mb-2 text-sm font-medium">
+            {t("logTouch.kind")}
+          </legend>
+          <div className="flex flex-wrap gap-1">
+            {KINDS.map(({ channel }) => (
+              <label
+                key={channel}
+                className={cn(
+                  "has-focus-visible:ring-ring flex h-10 cursor-pointer items-center rounded-md border px-3 text-sm has-focus-visible:ring-2 md:h-8",
+                  kind === channel
+                    ? "bg-quaternary border-foreground"
+                    : "hover:bg-quinary",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="log-touch-kind"
+                  value={channel}
+                  checked={kind === channel}
+                  onChange={() => setKind(channel)}
+                  className="sr-only"
+                />
+                {t(`panel.interactionChannels.${channel}`)}
+              </label>
+            ))}
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="log-touch-next-step">{t("panel.nextStep")}</Label>
-            <Input
-              id="log-touch-next-step"
-              value={nextStep}
-              maxLength={500}
-              autoComplete="off"
-              placeholder={t("panel.nextStepPlaceholder")}
-              onChange={(event) => setNextStep(event.target.value)}
-            />
+        </fieldset>
+        <div className="grid gap-2">
+          <Label htmlFor="log-touch-summary">{t("logTouch.summary")}</Label>
+          <Textarea
+            id="log-touch-summary"
+            value={summary}
+            maxLength={300}
+            rows={2}
+            autoFocus
+            aria-invalid={!!error && !summary.trim()}
+            aria-describedby={error ? "log-touch-error" : undefined}
+            placeholder={t("logTouch.summaryPlaceholder")}
+            onChange={(event) => setSummary(event.target.value)}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="log-touch-next-step">{t("panel.nextStep")}</Label>
+          <Input
+            id="log-touch-next-step"
+            value={nextStep}
+            maxLength={500}
+            autoComplete="off"
+            placeholder={t("panel.nextStepPlaceholder")}
+            onChange={(event) => setNextStep(event.target.value)}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="log-touch-follow-up">{t("columns.followUp")}</Label>
+          <Input
+            id="log-touch-follow-up"
+            type="date"
+            value={followUpAt}
+            className="tabular-nums"
+            onChange={(event) => setFollowUpAt(event.target.value)}
+          />
+          <div className="flex flex-wrap gap-1">
+            {presets.map((preset) => (
+              <Button
+                key={preset.label}
+                type="button"
+                size="sm"
+                variant="outline"
+                aria-pressed={followUpAt === preset.value}
+                onClick={() => setFollowUpAt(preset.value)}
+              >
+                {preset.label}
+              </Button>
+            ))}
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="log-touch-follow-up">{t("columns.followUp")}</Label>
-            <Input
-              id="log-touch-follow-up"
-              type="date"
-              value={followUpAt}
-              className="tabular-nums"
-              onChange={(event) => setFollowUpAt(event.target.value)}
-            />
-            <div className="flex flex-wrap gap-1">
-              {presets.map((preset) => (
-                <Button
-                  key={preset.label}
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  aria-pressed={followUpAt === preset.value}
-                  onClick={() => setFollowUpAt(preset.value)}
-                >
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {error ? (
-            <p
-              id="log-touch-error"
-              role="alert"
-              className="text-foreground text-sm"
-            >
-              {error}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t("logTouch.cancel")}
-            </Button>
-            <Button type="submit" variant="primary" loading={pending}>
-              {t("logTouch.submit")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+        {error ? (
+          <p
+            id="log-touch-error"
+            role="alert"
+            className="text-foreground text-sm"
+          >
+            {error}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t("logTouch.cancel")}
+          </Button>
+          <Button type="submit" variant="primary" loading={pending}>
+            {t("logTouch.submit")}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 }
