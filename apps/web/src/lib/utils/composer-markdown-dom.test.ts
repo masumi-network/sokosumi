@@ -24,6 +24,19 @@ describe("markdownToHtml", () => {
     expect(htmlToMarkdown(root).trim()).toBe(source);
   });
 
+  it("carries NUL as a marker a browser's HTML parser keeps", () => {
+    // Chromium drops U+0000 from parsed text (see the .webkit test); happy-dom
+    // does not, so this checks the marker the browser relies on.
+    const source = "[go](/contacts\u0000x)";
+    const html = markdownToHtml(source);
+    expect(html).not.toContain("\u0000");
+    expect(html).toContain('<span data-nul=""></span>');
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    expect(root.querySelector("a")).toBeNull();
+    expect(htmlToMarkdown(root).trim()).toBe(source);
+  });
+
   it("keeps app-relative destinations it cannot trust as the original text", () => {
     for (const href of [
       "//evil.test/x",
