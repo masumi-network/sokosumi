@@ -23878,6 +23878,85 @@ export const OrganizationSeatSummarySchema = {
     ]
 } as const;
 
+export const OrganizationCreditSpendSchema = {
+    type: 'object',
+    properties: {
+        month: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}$',
+            description: 'Current UTC calendar month, as YYYY-MM',
+            example: '2026-11'
+        },
+        previousMonth: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}$',
+            description: 'Previous UTC calendar month, as YYYY-MM',
+            example: '2026-10'
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    userId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'User the credits were billed to. Null for organization charges billed to no person.',
+                        example: 'user_123'
+                    },
+                    name: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'Display name of the billed user',
+                        example: 'Jane Doe'
+                    },
+                    image: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'Avatar of the billed user',
+                        example: null
+                    },
+                    isMember: {
+                        type: 'boolean',
+                        description: 'Whether the billed user is a member of the organization today. False for former members and for the no-person row.',
+                        example: true
+                    },
+                    credits: {
+                        type: 'number',
+                        description: 'Credits spent this month, before refunds. Top ups are not spend.',
+                        example: 12.5
+                    },
+                    previousCredits: {
+                        type: 'number',
+                        description: 'Credits spent last month, before refunds',
+                        example: 3
+                    }
+                },
+                required: [
+                    'userId',
+                    'name',
+                    'image',
+                    'isMember',
+                    'credits',
+                    'previousCredits'
+                ]
+            },
+            description: 'One row per current member (zero when they spent nothing), plus former members and the no-person row when they spent in either month. Highest spend this month first.'
+        }
+    },
+    required: [
+        'month',
+        'previousMonth',
+        'rows'
+    ]
+} as const;
+
 export const OrganizationBillingPlanSchema = {
     type: 'object',
     properties: {
@@ -50059,6 +50138,29 @@ export const TaskSellerReceiptSchema = {
         'settled',
         'txHash',
         'withdrawnForSeller'
+    ]
+} as const;
+
+export const SendTaskToChatRequestSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 2000
+        },
+        clientMessageId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'roomId',
+        'clientMessageId'
     ]
 } as const;
 

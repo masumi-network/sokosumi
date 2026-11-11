@@ -156,6 +156,7 @@ import type {
   PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
+  PostTasksByIdChatMessagesData,
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
@@ -305,6 +306,7 @@ import {
   getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdCoworkerAccess as coreGetOrganizationsByIdCoworkerAccess,
+  getOrganizationsByIdCreditSpend as coreGetOrganizationsByIdCreditSpend,
   getOrganizationsByIdDeletion as coreGetOrganizationsByIdDeletion,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
@@ -521,6 +523,7 @@ import {
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postPublicNewslettersByPublicSlugSubscribe as corePostPublicNewslettersByPublicSlugSubscribe,
   postTasks as corePostTasks,
+  postTasksByIdChatMessages as corePostTasksByIdChatMessages,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
@@ -1881,6 +1884,22 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id: roomId, messageId },
         }),
       "Failed to send message to yourself",
+    );
+  }
+
+  async function sendTaskToChat(
+    taskId: string,
+    body: NonNullable<PostTasksByIdChatMessagesData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdChatMessages({
+          client,
+          path: { id: taskId },
+          body,
+        }),
+      "Failed to send task to chat",
     );
   }
 
@@ -3648,6 +3667,23 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization seat summary",
+    );
+  }
+
+  /**
+   * Credits an organization spent this UTC month and last, per billed user.
+   * Core allows owners and admins only.
+   */
+  async function getOrganizationCreditSpend(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdCreditSpend({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization credit spend",
     );
   }
 
@@ -6949,6 +6985,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     pinChatRoomMessage,
     unpinChatRoomMessage,
     sendChatRoomMessageToSelf,
+    sendTaskToChat,
     muteChatRoom,
     unmuteChatRoom,
     markChatRoomUnread,
@@ -7101,6 +7138,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listCoworkerAssignments,
     assignCoworkerDeveloper,
     unassignCoworkerDeveloper,
+    getOrganizationCreditSpend,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
