@@ -718,13 +718,13 @@ export async function saveCmoStrategy(
 ): Promise<MarketingStrategy> {
   const cuso = await requireCuso(where, db);
   // What the last patch changed is Core's to say.
-  const { patched: _patched, ...strategy } = save;
+  const { patched, ...strategy } = save;
   if (options.part === "pieces") {
     // Pieces write the approved version's Social posts and never a plan.
     const approved = await approvedMarketingStrategy(cuso.projectId, db);
     if (!approved) {
       throw new CmoConflictError(
-        "Pieces fill in the approved strategy; no version is approved yet",
+        "Pieces fill in the approved strategy; no version is approved yet; until the owner approves, change entries with part patch (only those entries, by id) or the whole month with part calendar",
       );
     }
     await planMarketingStrategyPosts(db, {
@@ -774,6 +774,12 @@ export async function saveCmoStrategy(
   let stored: MarketingStrategyPlan;
   if (options.part === "patch") {
     if (!before) throw new CmoConflictError("There is no plan to patch yet");
+    // Cuso once sent his changes as `patched` with an empty calendar, ten
+    // times in a row: each patch saved nothing and the review said so again.
+    if (patched?.length && !strategy.calendar?.length)
+      throw unprocessableEntity(
+        "save_strategy saved nothing: patched is Core's record of what the last patch changed, and a save never sets it. Send each entry you change in calendar (its id and every field), and save again.",
+      );
     const sent = options.turnId
       ? withoutDashes({ ...strategy, calendar: strategy.calendar ?? [] })
       : { ...strategy, calendar: strategy.calendar ?? [] };
