@@ -5854,6 +5854,24 @@ export class SokoBotRuntimeService {
                 ...(stored.questions.length > 0 ? [] : ["questions"]),
               ]
             : [];
+          // A first read in parts ends on this save: no closing step.
+          const endTurn = save.brandBrain
+            ? (
+                await import("@/services/cmo-hiring.service")
+              ).cmoResearchEndAnswer(
+                {
+                  clientTurnId:
+                    (
+                      await prisma.sokoBotTurn.findUnique({
+                        where: { id: authorized.turn.id },
+                        select: { clientTurnId: true },
+                      })
+                    )?.clientTurnId ?? null,
+                  versionId: authorized.turn.versionId,
+                },
+                stored,
+              )
+            : undefined;
           return {
             targetId: saved.id,
             result: {
@@ -5867,6 +5885,7 @@ export class SokoBotRuntimeService {
                     next: `Send ${missing.join(" and ")} with save_brand_brain, on their own (no brandBrain): they add to the essentials you saved.`,
                   }
                 : {}),
+              ...(endTurn ? { endTurn } : {}),
             },
           };
         }

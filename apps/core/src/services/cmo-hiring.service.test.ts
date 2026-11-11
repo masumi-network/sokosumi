@@ -1,5 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import {
+  CMO_RESEARCH_GROUPS,
+  CMO_SOKO_BOT_VERSION_ID,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   archiveBot,
@@ -96,14 +99,16 @@ vi.mock("@/config/env", async (importOriginal) =>
 );
 
 import {
-  CMO_RESEARCH_GROUPS,
   cmoLearningState,
   cmoResearch,
+  cmoResearchEndAnswer,
+  cmoResearchParts,
   cmoWork,
   describeCmoStep,
   retryCmoOnboarding,
   startCmoOnboarding,
   startCmoOver,
+  startCmoResearch,
 } from "./cmo-hiring.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -755,5 +760,156 @@ describe("startCmoOnboarding", () => {
     });
     expect(createOrganizationWorkspace).not.toHaveBeenCalled();
     expect(projectCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("research in parts (SOKD-167)", () => {
+  const cuso = {
+    sokoBotId: "bot-1",
+    projectId: "project-1",
+    createdAt: new Date("2026-11-10T10:00:00Z"),
+    workspaceId: "ws-1",
+    websiteUrl: "https://acme.io",
+    businessName: "acme.io",
+    brandBrain: null,
+    brandBrainUpdatedAt: null,
+    brandBrainConfirmedAt: null,
+  };
+  const section = (answer: string) => ({ answer, findings: [] });
+
+  it("gives a first read on cmo-v2 one part per research group", () => {
+    const parts = cmoResearchParts("cmo-v2", cuso);
+    expect(parts.map((part) => part.key)).toEqual(
+      CMO_RESEARCH_GROUPS.map((group) => group.key),
+    );
+    expect(parts[0]?.title).toBe("Website");
+    expect(parts[0]?.message).toContain("acme.io (https://acme.io)");
+    expect(parts[0]?.message).toContain('"### Website"');
+    expect(parts[0]?.message).toContain("company, offer, pricing");
+    // Research and save only: never chat, posts or reports mid-read.
+    expect(parts[0]?.tools).toContain("save_brand_brain");
+    expect(parts[0]?.tools).not.toContain("post_chat");
+    expect(parts[0]?.tools).not.toContain("report_update");
+  });
+
+  it("gives a retry parts only for the groups still missing", () => {
+    const parts = cmoResearchParts("cmo-v2", {
+      ...cuso,
+      brandBrain: {
+        profile: {
+          company: section("Acme sells rockets."),
+          offer: section("Rockets."),
+          pricing: section("$9."),
+          proof: section("Named customers."),
+        },
+      },
+    });
+    // Reviews has proof but not reputation, so it runs again.
+    expect(parts.map((part) => part.key)).toEqual([
+      "buyers",
+      "competitors",
+      "social",
+      "reviews",
+      "news",
+    ]);
+  });
+
+  it("gives none on cmo-v1, or once the essentials exist", () => {
+    expect(cmoResearchParts("cmo-v1", cuso)).toEqual([]);
+    expect(cmoResearchParts(null, cuso)).toEqual([]);
+    expect(
+      cmoResearchParts("cmo-v2", {
+        ...cuso,
+        brandBrain: {
+          summary: "Acme sells rockets to hobbyists.",
+          voice: { tone: "Clear.", do: [], dont: [], examples: [] },
+          audience: [],
+          products: [],
+          competitors: [],
+          channels: [],
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("asks cmo-v2's first read for the essentials from the hand-overs", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(cuso, "user-1");
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain("hand-overs");
+    expect(message).toContain("save the essentials");
+    expect(message).not.toContain("read the website, search for the company");
+  });
+
+  it("tells a cmo-v2 retry its new sections are in the hand-overs", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(
+      { ...cuso, brandBrain: { profile: { company: section("Rockets.") } } },
+      "user-1",
+    );
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain("save the essentials");
+    expect(message).toContain("their hand-overs below do");
+  });
+
+  it("keeps cmo-v1's first read word for word", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v1" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(cuso, "user-1");
+    expect(startTurn.mock.calls[0]?.[0].message).toContain(
+      "read the website, search for the company, its reviews, competitors, news and social profiles",
+    );
+  });
+});
+
+describe("ending a read in parts on its essentials (SOKD-167)", () => {
+  const onboarding = {
+    clientTurnId: "cmo:onboarding:bot-1",
+    versionId: "cmo-v2",
+  };
+  const essentials = {
+    reveal: { positioning: "Scheduling infrastructure for everyone" },
+    questions: [{ id: "q1" }],
+    marketingToday: { summary: "Mostly organic" },
+  };
+
+  it("answers with the reveal's position once the essentials are complete", () => {
+    expect(cmoResearchEndAnswer(onboarding, essentials)).toBe(
+      "Scheduling infrastructure for everyone",
+    );
+  });
+
+  it("lets the turn go on while the essentials still miss a piece", () => {
+    for (const missing of ["reveal", "marketingToday"] as const)
+      expect(
+        cmoResearchEndAnswer(onboarding, {
+          ...essentials,
+          [missing]: undefined,
+        }),
+      ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer(onboarding, { ...essentials, questions: [] }),
+    ).toBeUndefined();
+    expect(cmoResearchEndAnswer(onboarding, null)).toBeUndefined();
+  });
+
+  it("keeps cmo-v1 and every other turn on Cuso's own closing step", () => {
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, versionId: "cmo-v1" }, essentials),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, versionId: null }, essentials),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer(
+        { ...onboarding, clientTurnId: "chat-1" },
+        essentials,
+      ),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, clientTurnId: null }, essentials),
+    ).toBeUndefined();
   });
 });

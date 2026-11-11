@@ -113,6 +113,44 @@ export const CMO_BRAND_SECTIONS: Record<
 };
 
 /**
+ * Cuso's research in six groups of Brand Brain sections, in the order the
+ * serial skill saves them. The CMO shows them as the research runs, and on a
+ * version that reads in groups each one is its own part of the turn.
+ */
+export const CMO_RESEARCH_GROUPS: readonly {
+  key: string;
+  label: string;
+  sections: readonly CmoBrandSectionKey[];
+}[] = [
+  {
+    key: "website",
+    label: "Website",
+    sections: ["company", "offer", "pricing"],
+  },
+  {
+    key: "buyers",
+    label: "Buyers' world",
+    sections: ["problems", "customers", "buyers", "value"],
+  },
+  {
+    key: "competitors",
+    label: "Competitors",
+    sections: ["positioning", "competition", "sales"],
+  },
+  {
+    key: "social",
+    label: "Social accounts",
+    sections: ["marketing", "content"],
+  },
+  { key: "reviews", label: "Reviews", sections: ["proof", "reputation"] },
+  {
+    key: "news",
+    label: "News and people",
+    sections: ["momentum", "opportunities"],
+  },
+];
+
+/**
  * What the owner can connect so Cuso measures the funnel instead of
  * estimating it. Ids are Composio toolkit slugs.
  */

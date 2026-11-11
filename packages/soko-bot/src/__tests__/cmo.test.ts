@@ -61,7 +61,11 @@ describe("CMO version", () => {
     expect(two.model).toBe(one.model);
     expect(two.skills).toEqual(
       one.skills.map((skill) =>
-        skill === "cmo-strategy" ? "cmo-strategy-patches" : skill,
+        skill === "cmo-brand-brain"
+          ? "cmo-brand-brain-groups"
+          : skill === "cmo-strategy"
+            ? "cmo-strategy-patches"
+            : skill,
       ),
     );
   });
