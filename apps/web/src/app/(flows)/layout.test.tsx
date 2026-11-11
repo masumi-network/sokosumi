@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
-import FlowsLayout from "./layout";
+import FlowsLayout, { generateMetadata } from "./layout";
 
 vi.mock("next/headers", () => ({
   headers: async () => ({
@@ -136,5 +136,13 @@ describe("FlowsLayout impersonation banner", () => {
       screen.queryByTestId("impersonation-banner"),
     ).not.toBeInTheDocument();
     expect(screen.getByText("gate content")).toBeInTheDocument();
+  });
+});
+
+describe("FlowsLayout metadata", () => {
+  it("brands setup tab titles like the app", async () => {
+    await expect(generateMetadata()).resolves.toEqual({
+      title: { default: "Title.default", template: "Title.template" },
+    });
   });
 });
