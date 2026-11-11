@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cmoOverview } from "../test-fixtures/cmo";
 
 const startCmoOnboarding = vi.fn();
-const getCmoOverview = vi.fn();
+const listCmoCusos = vi.fn();
 const getContactLists = vi.fn();
 const postContactLists = vi.fn();
 const postContactListsByIdImport = vi.fn();
@@ -79,7 +79,7 @@ vi.mock("../lib/core", () => ({
 
 vi.mock("@sokosumi/core-client", () => ({
   startCmoOnboarding,
-  getCmoOverview,
+  listCmoCusos,
   getContactLists,
   postContactLists,
   postContactListsByIdImport,
@@ -121,6 +121,7 @@ const {
   connectSetupChannel,
   finalizeChannel,
   finishAccounts,
+  loadCusos,
   loadOverview,
   onboard,
   skipBrandQuestions,
@@ -133,28 +134,56 @@ if (!cmoBrandBrain) throw new Error("The fixture has a Brand Brain");
 
 const EMPTY = { attempt: 0, websiteUrl: "", errors: {} };
 
-function form(websiteUrl: string) {
+function form(websiteUrl: string, organizationId?: string) {
   const data = new FormData();
   data.set("websiteUrl", websiteUrl);
+  if (organizationId !== undefined) data.set("organizationId", organizationId);
   return data;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   cookieJar.clear();
-  startCmoOnboarding.mockResolvedValue({ data: {}, error: undefined });
+  startCmoOnboarding.mockResolvedValue({
+    data: { data: { projectId: "project-9" } },
+    error: undefined,
+  });
 });
 
 describe("onboard", () => {
-  it("hires Cuso with only the website, normalized", async () => {
-    await onboard(EMPTY, form("acme.io"));
+  it("hires Cuso into a new organization with only the website, normalized", async () => {
+    await expect(onboard(EMPTY, form("acme.io", ""))).rejects.toThrow(
+      "redirect",
+    );
 
     expect(startCmoOnboarding).toHaveBeenCalledWith(
       expect.objectContaining({
         body: { websiteUrl: "https://acme.io/" },
       }),
     );
-    expect(revalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("hires Cuso into the organization the person chose", async () => {
+    await expect(onboard(EMPTY, form("acme.io", "org-team"))).rejects.toThrow(
+      "redirect",
+    );
+
+    expect(startCmoOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: { websiteUrl: "https://acme.io/", organizationId: "org-team" },
+      }),
+    );
+  });
+
+  it("opens the hired Cuso and remembers him on this device", async () => {
+    await expect(onboard(EMPTY, form("acme.io"))).rejects.toThrow(
+      "redirect /?project=project-9",
+    );
+    expect(setCookie).toHaveBeenCalledWith(
+      "cmo-last-cuso",
+      "project-9",
+      expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 24 * 365 }),
+    );
   });
 
   it("keeps what was typed and names the website when it is not one", async () => {
@@ -164,27 +193,67 @@ describe("onboard", () => {
     expect(state).toEqual({
       attempt: 1,
       websiteUrl: "not a site",
+      organizationId: "",
       errors: { websiteUrl: "Enter a website, like acme.com." },
     });
   });
 
-  it("links to top up when Core refuses for credits", async () => {
+  it("links to top up when the organization is out of credits", async () => {
     startCmoOnboarding.mockResolvedValue({
-      error: { message: "You're out of credits" },
+      error: { message: "You're out of credits", kind: "insufficient_balance" },
     });
-    const state = await onboard(EMPTY, form("acme.io"));
+    const state = await onboard(EMPTY, form("acme.io", "org-team"));
     expect(state.errors.form).toContain("out of credits");
     expect(state.topUpUrl).toMatch(/\/billing$/);
+    // The choice stays for the next try.
+    expect(state.organizationId).toBe("org-team");
   });
 
-  it("says so when Core refuses, keeping the answers", async () => {
+  it.each([
+    ["cmo_hire_not_allowed", "invite-only"],
+    ["organization_seat_required", "Seat"],
+    ["organization_limit_reached", "organization limit"],
+    ["organization_membership_required", "no longer a member"],
+  ])("names the reason when Core refuses with %s", async (kind, words) => {
+    startCmoOnboarding.mockResolvedValue({
+      error: { message: "Forbidden", kind },
+    });
+    const state = await onboard(EMPTY, form("acme.io", "org-team"));
+    expect(state.errors.form).toContain(words);
+    expect(state.topUpUrl).toBeUndefined();
+  });
+
+  it("says so when Core refuses for another reason, keeping the answers", async () => {
     startCmoOnboarding.mockResolvedValue({ error: { message: "nope" } });
 
     const state = await onboard(EMPTY, form("acme.io"));
 
     expect(state.errors).toEqual({ form: "That did not work. Try again." });
     expect(state.websiteUrl).toBe("acme.io");
-    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe("loadCusos", () => {
+  it("lists the person's Cusos as Core orders them", async () => {
+    listCmoCusos.mockResolvedValue({
+      data: {
+        data: {
+          cusos: [{ projectId: "project-2" }, { projectId: "project-1" }],
+          mayHire: false,
+        },
+      },
+      response: { status: 200 },
+    });
+    expect(await loadCusos()).toEqual({
+      cusos: [{ projectId: "project-2" }, { projectId: "project-1" }],
+      mayHire: false,
+    });
+  });
+
+  it("fails when Core cannot list them", async () => {
+    listCmoCusos.mockResolvedValue({ response: { status: 500 } });
+    await expect(loadCusos()).rejects.toThrow();
   });
 });
 
@@ -327,21 +396,20 @@ describe("skipped hiring steps", () => {
       data: { data: { projectId: "project-1", onboardingStep: "accounts" } },
       response: { status: 200 },
     };
-    getCmoOverview.mockResolvedValue(overview);
     getCmoOverviewForProject.mockResolvedValue(overview);
   });
 
   it("resumes on Core's step without CMO's cookie", async () => {
-    expect((await loadOverview())?.onboardingStep).toBe("accounts");
+    expect((await loadOverview("project-1"))?.onboardingStep).toBe("accounts");
   });
 
   it("resumes past the steps CMO's cookie skipped for this Cuso", async () => {
     cookieJar.set("cmo-skipped-project-1", "accounts");
-    expect((await loadOverview())?.onboardingStep).toBe("done");
+    expect((await loadOverview("project-1"))?.onboardingStep).toBe("done");
     // Another Cuso's choices do not count.
     cookieJar.clear();
     cookieJar.set("cmo-skipped-project-2", "accounts");
-    expect((await loadOverview())?.onboardingStep).toBe("accounts");
+    expect((await loadOverview("project-1"))?.onboardingStep).toBe("accounts");
   });
 
   it("opens the app on Continue from the accounts step, kept in an httpOnly cookie", async () => {
@@ -379,24 +447,31 @@ describe("skipped brand questions", () => {
 });
 
 describe("start over", () => {
-  it("archives the Cuso on screen, then opens the Project Core selected", async () => {
+  it("archives the Cuso on screen, then opens the hire form", async () => {
     startCmoOverForProject.mockResolvedValue({
-      data: { data: { startedOver: true, projectId: "project-3" } },
+      data: { data: { startedOver: true } },
+    });
+    listCmoCusos.mockResolvedValue({
+      data: { data: { cusos: [], mayHire: true } },
     });
     await expect(startOver("project-2")).rejects.toThrow("redirect /");
-    expect(redirect).toHaveBeenCalledWith("/?project=project-3");
+    expect(redirect).toHaveBeenCalledWith("/?hire=1");
     expect(startCmoOverForProject).toHaveBeenCalledWith(
       expect.objectContaining({ path: { projectId: "project-2" } }),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 
-  it("opens the hiring form when no Cuso is left", async () => {
+  it("opens the Cusos left instead for a person who may not hire", async () => {
     startCmoOverForProject.mockResolvedValue({
-      data: { data: { startedOver: true, projectId: null } },
+      data: { data: { startedOver: true } },
     });
+    listCmoCusos.mockResolvedValue({
+      data: { data: { cusos: [], mayHire: false } },
+    });
+    // The picker shows the invite-only page when none are left.
     await expect(startOver("project-2")).rejects.toThrow("redirect /");
-    expect(redirect).toHaveBeenCalledWith("/");
+    expect(redirect).toHaveBeenCalledWith("/?cusos=1");
   });
 
   it("says why when Core refuses", async () => {
@@ -411,7 +486,7 @@ describe("start over", () => {
 });
 
 describe("the Cuso on screen", () => {
-  // The person's default Cuso is project-1 in acme; the page shows project-2.
+  // The person also works with project-1 in acme; the page shows project-2.
   const onScreen = {
     projectId: "project-2",
     organizationSlug: "beta",
@@ -424,10 +499,6 @@ describe("the Cuso on screen", () => {
   };
 
   beforeEach(() => {
-    getCmoOverview.mockResolvedValue({
-      data: { data: { ...onScreen, projectId: "project-1" } },
-      response: { status: 200 },
-    });
     getCmoOverviewForProject.mockImplementation(async ({ path }) => ({
       data: { data: { ...onScreen, projectId: path.projectId } },
       response: { status: 200 },
@@ -443,8 +514,7 @@ describe("the Cuso on screen", () => {
   });
 
   afterEach(() => {
-    // No action falls back to the default Cuso.
-    expect(getCmoOverview).not.toHaveBeenCalled();
+    // Every action reads the Cuso on screen.
     for (const call of getCmoOverviewForProject.mock.calls) {
       expect(call[0].path).toEqual({ projectId: "project-2" });
     }

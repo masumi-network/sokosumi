@@ -149,6 +149,21 @@ describe("Newsletter environment", () => {
   );
 });
 
+describe("CMO hire allowlist", () => {
+  it.each([
+    [undefined, []],
+    ["", []],
+    [" , ", []],
+    [
+      " Lena@HarborBikes.com , @NMKR.io,,",
+      ["lena@harborbikes.com", "@nmkr.io"],
+    ],
+  ])("parses %j as %j", (value, entries) => {
+    vi.stubEnv("CMO_HIRE_ALLOWLIST", value);
+    expect(validateEnv().CMO_HIRE_ALLOWLIST).toEqual(entries);
+  });
+});
+
 describe("Turnstile deployment configuration", () => {
   let consoleWarn: MockInstance<typeof console.warn>;
 

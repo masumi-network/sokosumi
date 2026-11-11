@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
@@ -9,7 +10,15 @@ import { serializableTransaction } from "@/lib/db/transaction";
 const SOKO_BOT_TURN_COST_HISTORY_SIZE = 3;
 const SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND = "insufficient_credits";
 
-export class SokoBotBillingAccessError extends Error {}
+/** A turn cannot start: the member has no Seat, or there are not enough credits. */
+export class SokoBotBillingAccessError extends Error {
+  constructor(
+    message: string,
+    readonly reason: "seat" | "credits" = "credits",
+  ) {
+    super(message);
+  }
+}
 
 export interface SokoBotUsageChargeResult {
   chargedCents: bigint;
@@ -237,9 +246,6 @@ export async function requireSokoBotTurnFunding(
         })
       : null,
   ]);
-  const minimumCents = convertCreditsToCents(
-    getEnv().SOKO_BOT_MIN_TURN_CREDITS,
-  );
   const recentTurnCents = recentUsage.reduce(
     (maximum, usage) => (usage.cents > maximum ? usage.cents : maximum),
     0n,
@@ -262,11 +268,58 @@ export async function requireSokoBotTurnFunding(
       `Insufficient ${payerLabel(organizationId)} credits to cover the unpaid remainder from a prior Soko Bot turn.`,
     );
   }
+  requireTurnMinimum(balance, organizationId, recentTurnCents);
+}
+
+function requireTurnMinimum(
+  balance: bigint,
+  organizationId: string | null,
+  recentTurnCents = 0n,
+): void {
+  const minimumCents = convertCreditsToCents(
+    getEnv().SOKO_BOT_MIN_TURN_CREDITS,
+  );
   if (balance < minimumCents || balance < recentTurnCents) {
     throw new SokoBotBillingAccessError(
       `Insufficient ${payerLabel(organizationId)} credits to start a Soko Bot turn.`,
     );
   }
+}
+
+/** A member's turn in a paid organization needs their Seat (ADR 0057). */
+async function requireMemberSeat(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  if (!(await hasAssignedOrganizationSeat(userId, organizationId, prisma))) {
+    throw new SokoBotBillingAccessError(
+      "An assigned seat is required to use this organization",
+      "seat",
+    );
+  }
+}
+
+/**
+ * What a member's first turn on a bot that does not exist yet must pass (a
+ * Cuso being hired): with no cost history, the turn minimum against what the
+ * member can spend in the organization, Seat included, as
+ * `requireSokoBotTurnFunding` reads it.
+ */
+export async function requireMemberTurnFunding(
+  userId: string,
+  organizationId: string,
+  starterCredits = 0,
+): Promise<void> {
+  await requireMemberSeat(userId, organizationId);
+  const balance = await creditBucketRepository.getBalance(
+    userId,
+    organizationId,
+    prisma,
+  );
+  requireTurnMinimum(
+    balance + convertCreditsToCents(starterCredits),
+    organizationId,
+  );
 }
 
 export async function recordSokoBotTurnUsage(

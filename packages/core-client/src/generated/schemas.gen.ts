@@ -41700,6 +41700,76 @@ export const PublicSharedTaskFileSchema = {
     ]
 } as const;
 
+export const CmoCusoListSchema = {
+    type: 'object',
+    properties: {
+        cusos: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCuso'
+            }
+        },
+        mayHire: {
+            type: 'boolean',
+            description: 'The caller is on Core\'s hire allowlist (CMO_HIRE_ALLOWLIST).'
+        }
+    },
+    required: [
+        'cusos',
+        'mayHire'
+    ]
+} as const;
+
+export const CmoCusoSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string'
+        },
+        businessName: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: 'string'
+        },
+        projectLogo: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        organizationId: {
+            type: 'string'
+        },
+        organizationName: {
+            type: 'string'
+        },
+        hiring: {
+            type: 'boolean',
+            description: 'No plan of his is approved yet: he is still being hired.'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'businessName',
+        'websiteUrl',
+        'projectLogo',
+        'organizationId',
+        'organizationName',
+        'hiring',
+        'createdAt'
+    ]
+} as const;
+
 export const CmoOverviewSchema = {
     type: 'object',
     properties: {
@@ -46073,7 +46143,12 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             maxLength: 500,
             format: 'uri',
-            description: 'The business\'s website. Cuso is hired into a new organization named after it.'
+            description: 'The business\'s website, which names the new Project.'
+        },
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
         }
     },
     required: [

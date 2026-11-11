@@ -162,12 +162,120 @@ export async function projectComposioFetch(
   }
 }
 
+interface XImageUploadFailure {
+  reason: string;
+  message: string;
+}
+
+/** Read error fields only; validation input and request bodies can contain secrets. */
+function composioErrorText(body: unknown): string {
+  const messages: string[] = [];
+  function collect(value: unknown, depth: number): void {
+    if (depth > 5 || messages.length >= 20) return;
+    if (typeof value === "string") {
+      messages.push(value.slice(0, 2000));
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value.slice(0, 20)) collect(entry, depth + 1);
+      return;
+    }
+    const detail = record(value);
+    if (!detail) return;
+    if (Array.isArray(detail.loc)) {
+      for (const field of detail.loc.slice(0, 20)) {
+        if (
+          typeof field === "string" &&
+          /^(?:mimetype|mime_type|media_type|content_type|file|image|media)$/.test(
+            field,
+          )
+        ) {
+          messages.push(field);
+        }
+      }
+    }
+    for (const key of [
+      "message",
+      "msg",
+      "detail",
+      "error",
+      "errors",
+      "title",
+      "code",
+      "data",
+    ]) {
+      collect(detail[key], depth + 1);
+    }
+  }
+  if (record(body)) collect(body, 0);
+  return messages.join(" ");
+}
+
+/** Fixed explanations preserve useful provider diagnoses without echoing their text. */
+export function composioXImageUploadFailure(
+  body: unknown,
+  status?: number | null,
+): XImageUploadFailure {
+  const text = composioErrorText(body);
+  let reason =
+    "The upload service could not accept the image. Try again or use a different image.";
+  if (
+    /unauthori[sz]ed|forbidden|permission|(?:missing|insufficient).?scope|access denied|(?:invalid|expired).{0,20}token|token.{0,20}expired|\b40[13]\b/i.test(
+      text,
+    )
+  ) {
+    reason =
+      "The X connection is unauthorized or missing permission to upload images. Reconnect it and try again.";
+  } else if (/rate.?limit|too many requests|\b429\b/i.test(text)) {
+    reason = "X's upload rate limit was reached. Try again later.";
+  } else if (/time.?out|timed out/i.test(text)) {
+    reason = "The image upload timed out. Try again later.";
+  } else if (/temporarily|service unavailable|\b50[0234]\b/i.test(text)) {
+    reason =
+      "The image upload service is temporarily unavailable. Try again later.";
+  } else if (
+    /(?:mime|media|image|file)[ _-]?(?:type|format)|\bmimetype\b|\bcontent[ _-]?type\b/i.test(
+      text,
+    ) &&
+    /unsupported|invalid|not (?:supported|allowed)|must|expected|should be|required|missing|only supports|allowed/i.test(
+      text,
+    )
+  ) {
+    reason = "The image type was rejected. Try a JPEG or PNG image.";
+  } else if (
+    /size|bytes?|payload|content.?length|\b\d+(?:\.\d+)?\s*mi?b\b/i.test(
+      text,
+    ) &&
+    /too (?:large|big)|exceed|maximum.{0,20}size|size limit|larger than/i.test(
+      text,
+    )
+  ) {
+    reason = "The image file is too large. Use an image under 5 MB.";
+  } else if (
+    /image|file|media/i.test(text) &&
+    /invalid|corrupt|damaged|cannot (?:identify|decode)|unrecognized/i.test(
+      text,
+    )
+  ) {
+    reason = "The image file is invalid or damaged. Try a different image.";
+  } else if (
+    /file|image|media/i.test(text) &&
+    /missing|required|not found|empty/i.test(text)
+  ) {
+    reason = "The image file is missing. Attach it again.";
+  }
+  return {
+    reason,
+    message: `X could not upload the image${status ? ` (${status})` : ""}: ${reason}`,
+  };
+}
+
 /** Provider text can echo credentials. Only fixed diagnostic labels reach logs. */
-function recordComposioResponseFailure(
+export function recordComposioResponseFailure(
   response: Response,
   operation: string,
   body: unknown,
-  failure: "http_error" | "invalid_response",
+  failure: "http_error" | "invalid_response" | "tool_error",
 ): void {
   const payload = record(body);
   const error = record(payload?.error);
@@ -223,6 +331,9 @@ function recordComposioResponseFailure(
       reasons: Object.entries(reasons)
         .filter(([, pattern]) => pattern.test(text))
         .map(([reason]) => reason),
+      ...(operation === "upload X image"
+        ? { reason: composioXImageUploadFailure(body).reason }
+        : {}),
     },
   });
 }
@@ -243,7 +354,9 @@ export async function projectComposioResponse<T>(
     throw new ComposioApiError(
       response.status,
       undefined,
-      `${context} failed (${response.status})`,
+      context === "upload X image"
+        ? composioXImageUploadFailure(body, response.status).message
+        : `${context} failed (${response.status})`,
     );
   }
   return body as T;

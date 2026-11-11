@@ -304,6 +304,7 @@ export function CmoApp({
         onSelect={go}
         name={name}
         email={email}
+        signOut={actions.signOut}
       />
 
       <main className="main">

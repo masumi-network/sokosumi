@@ -28,8 +28,15 @@ export function entityTagFor(version: {
   resourceId: string;
   contentRevision: number;
 }): string {
-  return `${version.resourceId}-${version.contentRevision}`;
+  return `${version.resourceId}-${version.contentRevision}${CONTENT_TAG_GENERATION}`;
 }
+
+/**
+ * Bumped when served bytes were wrong for unchanged revisions, so browsers
+ * drop what they cached. "-b": text files went out empty (#7071), and the
+ * platform answers 304 to the old tag, keeping the empty copy forever.
+ */
+export const CONTENT_TAG_GENERATION = "-b";
 
 /**
  * Serving the bytes behind a catalog entry.
