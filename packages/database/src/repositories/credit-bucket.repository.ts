@@ -8,7 +8,7 @@ import {
   buildEnterprisePoolScopeSql,
   buildOrganizationPoolScopeSql,
   type CreditBucketProjectOption,
-  creditBucketProjectFirstOrderSql,
+  creditBucketSpendOrderSql,
   resolveCreditBucketScopeContext,
 } from "../helpers/credit-bucket-scope.js";
 
@@ -129,7 +129,7 @@ export const creditBucketRepository = {
         available AS "remainingCents",
         "expiresAt"
       FROM bucket_avail
-      ORDER BY ${creditBucketProjectFirstOrderSql(options.projectId)}"expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+      ${creditBucketSpendOrderSql(options.projectId)}
     `;
   },
 
@@ -337,7 +337,7 @@ async function getFifoBucketsToCoverSpend(
     now,
   );
   const where = buildCreditBucketScopeSql(scopeContext, options);
-  const projectFirst = creditBucketProjectFirstOrderSql(options.projectId);
+  const spendOrder = creditBucketSpendOrderSql(options.projectId);
 
   return await tx.$queryRaw<Array<{ id: string; available: bigint }>>`
     WITH bucket_avail AS (
@@ -365,13 +365,13 @@ async function getFifoBucketsToCoverSpend(
         "createdAt",
         "projectId",
         SUM(available) OVER (
-          ORDER BY ${projectFirst}"expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+          ${spendOrder}
         ) AS running_total
       FROM bucket_avail
     )
     SELECT id, available
     FROM ordered
     WHERE running_total - available < ${cents}
-    ORDER BY ${projectFirst}"expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+    ${spendOrder}
   `;
 }

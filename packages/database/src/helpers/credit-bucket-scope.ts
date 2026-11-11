@@ -210,11 +210,18 @@ function organizationPoolSql(
   `;
 }
 
-/** Spend order key: the charge's Project credits before the pool (ADR 0067). */
-export function creditBucketProjectFirstOrderSql(
+/**
+ * The spend order as a whole ORDER BY clause: soonest expiry, smallest
+ * original amount, oldest, then id. Spend order key: the charge's Project
+ * credits before the pool (ADR 0067).
+ */
+export function creditBucketSpendOrderSql(
   projectId: string | null | undefined,
 ): Prisma.Sql {
-  return projectId ? Prisma.sql`("projectId" IS NULL) ASC, ` : Prisma.empty;
+  const order = Prisma.sql`"expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC`;
+  return projectId
+    ? Prisma.sql`ORDER BY ("projectId" IS NULL) ASC, ${order}`
+    : Prisma.sql`ORDER BY ${order}`;
 }
 
 export function buildEnterprisePoolScopeSql(
