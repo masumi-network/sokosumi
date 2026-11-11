@@ -276,26 +276,51 @@ export function changeRequestPlan(now: Date): MarketingStrategyPlan {
       .map((row) =>
         row.channel === "linkedin" ? { ...row, after: "3 posts weekly" } : row,
       ),
-    // Week one in full, weeks two to four as titles, like a first plan; only
-    // LinkedIn pieces carry the template's story.
-    calendar: slots.map(({ week, day, piece }, index) => ({
-      time: template.time,
-      status: "idea" as const,
-      campaignId: template.campaignId,
-      ...(week === 0 ? { brief: template.brief, why: template.why } : {}),
-      ...(piece.channel === "linkedin" && template.story
-        ? { story: template.story }
-        : {}),
-      ...piece,
-      id: `${piece.channel}-w${week + 1}-${day}`,
-      date: new Date(now.getTime() + (week * 7 + day) * DAY_MS)
-        .toISOString()
-        .slice(0, 10),
-      title: CHANGE_REQUEST_TITLES[index] ?? template.title,
-      approach: approaches[index]?.approach ?? template.approach,
-      pillar: pillars[index]?.name ?? template.pillar,
-    })),
+    // Week one in full, weeks two to four as titles, like a first plan.
+    calendar: tellStories(
+      slots.map(({ week, day, piece }, index) => ({
+        time: template.time,
+        status: "idea" as const,
+        campaignId: template.campaignId,
+        ...(week === 0 ? { brief: template.brief, why: template.why } : {}),
+        ...piece,
+        id: `${piece.channel}-w${week + 1}-${day}`,
+        date: new Date(now.getTime() + (week * 7 + day) * DAY_MS)
+          .toISOString()
+          .slice(0, 10),
+        title: CHANGE_REQUEST_TITLES[index] ?? template.title,
+        approach: approaches[index]?.approach ?? template.approach,
+        pillar: pillars[index]?.name ?? template.pillar,
+      })),
+    ),
   };
+}
+
+/**
+ * cal.com's stories from its Brand Brain, one per pair of LinkedIn and
+ * social-proof pieces: the plan review names a story told in three.
+ */
+const CHANGE_REQUEST_STORIES = [
+  "Deel saves more than 6,000 hours a week on scheduling with Cal.com.",
+  "Mintlify halved the time it takes to find a meeting slot across the company.",
+  "Pennie raised its lead connect rate by 15% with Cal.com routing.",
+  "Dr. B saved three months of product work by building on Cal.com routing.",
+  "A G2 reviewer integrated Cal.com into their website and called the setup simple.",
+  "Peer Richelsen and Bailey Pumfleet started Cal.com as Calendso in 2021.",
+  "Cal.com shipped v6.9.5 on October 15, 2026, adding workflow delays and out-of-office integrations.",
+  "Cal.com moved its commercial product to closed source in April 2026 and released Cal.diy for the community.",
+];
+
+function tellStories(
+  calendar: MarketingStrategyPlan["calendar"],
+): MarketingStrategyPlan["calendar"] {
+  let told = 0;
+  return calendar.map((entry) => {
+    if (entry.channel !== "linkedin" && entry.approach !== "social-proof")
+      return entry;
+    const story = CHANGE_REQUEST_STORIES[Math.floor(told++ / 2)];
+    return story ? { ...entry, story } : entry;
+  });
 }
 
 /** The lane's Cuso on cal.com with the change request's month, waiting for approval. */

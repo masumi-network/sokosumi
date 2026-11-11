@@ -10,12 +10,12 @@ vi.mock("@/lib/soko-bot/jev", () => ({
 }));
 
 import {
+  cmoCalendarRepeats,
   cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoPlanRuleProblems,
   cmoReplySafety,
-  cmoTitleRepeats,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
@@ -168,16 +168,20 @@ describe("cmoPlanProblems", () => {
     expect(cmoPlanRuleProblems(plan({ calendar: [] }))).toEqual([]);
   });
 
-  it("asks for a story on every LinkedIn piece", () => {
+  it("asks for a story on every LinkedIn and social-proof piece", () => {
     const problems = cmoPlanProblems(
       plan({
         calendar: [
           entry("a", "linkedin", "post"),
           { ...entry("b", "linkedin", "image"), story: "A shop sold out" },
+          { ...entry("c", "x", "post"), approach: "social-proof" },
+          { ...entry("d", "x", "post"), approach: "educational" },
         ],
       }),
     ).join("\n");
-    expect(problems).toMatch(/1 LinkedIn pieces have no story \(a\)/);
+    expect(problems).toMatch(
+      /2 LinkedIn or social-proof pieces have no story \(a, c\)/,
+    );
   });
 
   it("asks for a source of truth and the month's experiment", () => {
@@ -584,7 +588,7 @@ describe("repeated phrases in drafts", () => {
   });
 });
 
-describe("cmoTitleRepeats", () => {
+describe("cmoCalendarRepeats", () => {
   const titled = (id: string, title: string) => ({
     id,
     date: "2026-11-02",
@@ -595,7 +599,7 @@ describe("cmoTitleRepeats", () => {
   });
 
   it("names a title that says what an earlier one says in other words", async () => {
-    const { problems } = await cmoTitleRepeats(
+    const { problems } = await cmoCalendarRepeats(
       [
         titled("w1", "Make the first email relevant"),
         titled("w2", "Cal.com vs Calendly for team booking"),
@@ -609,7 +613,7 @@ describe("cmoTitleRepeats", () => {
   });
 
   it("leaves skipped entries out", async () => {
-    const { problems } = await cmoTitleRepeats(
+    const { problems } = await cmoCalendarRepeats(
       [
         { ...titled("w1", "Make the first email relevant"), status: "skipped" },
         titled("w3", "How to write a relevant first email"),
@@ -620,7 +624,7 @@ describe("cmoTitleRepeats", () => {
   });
 
   it("names every repeat in one review, one line per message said twice", async () => {
-    const { problems } = await cmoTitleRepeats(
+    const { problems } = await cmoCalendarRepeats(
       [
         titled("w1", "Staking basics"),
         titled("w2", "Wallet access basics"),
@@ -634,6 +638,47 @@ describe("cmoTitleRepeats", () => {
     expect(problems).toEqual([
       'w1, w3, w5 say one thing ("Staking basics", "How staking works", "Staking in two taps"); keep w1 and give the others their own message from their pillar.',
       'w2, w4 say one thing ("Wallet access basics", "Who holds wallet access"); keep w2 and give the others their own message from their pillar.',
+    ]);
+  });
+
+  it("names a story told in more than two pieces", async () => {
+    const told = (id: string, title: string, story: string) => ({
+      ...titled(id, title),
+      approach: "social-proof" as const,
+      story,
+    });
+    const { problems } = await cmoCalendarRepeats(
+      [
+        told(
+          "p1",
+          "A Japan trip paid in ADA",
+          "Sri Charran bought a Japan eSIM with ADA",
+        ),
+        told(
+          "p2",
+          "One user's ADA purchase crossed borders",
+          "Sri Charran paid ADA for an eSIM in Japan",
+        ),
+        told(
+          "p3",
+          "A named user tried an ADA purchase",
+          "Sri Charran's eSIM, bought with ADA",
+        ),
+        told(
+          "p4",
+          "A reviewer on the clean look",
+          "An App Store reviewer praised the clean look",
+        ),
+        told(
+          "p5",
+          "A reviewer on the web3 browser",
+          "An App Store reviewer praised the clean look",
+        ),
+      ],
+      topicEmbed([/esim/i]),
+    );
+    expect(problems).toEqual([
+      'p1, p2, p3 tell one story ("Sri Charran bought a Japan eSIM with ADA"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.',
     ]);
   });
 });
