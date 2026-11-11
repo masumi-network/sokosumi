@@ -9304,12 +9304,17 @@
           "title": "Decisiones",
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
-          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta."
+          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta.",
+          "description": "Decisiones encontradas en tus chats, las más recientes primero, también las que ya leíste.",
+          "error": "No se pudieron cargar las decisiones.",
+          "untitled": "Mensaje sin texto",
+          "inThread": "En un hilo"
         },
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",
           "overview": "Resumen",
           "threads": "Hilos",
+          "decisions": "Decisiones",
           "saved": "Guardados"
         },
         "Briefing": {
