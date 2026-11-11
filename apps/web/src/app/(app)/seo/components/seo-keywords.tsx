@@ -121,7 +121,6 @@ export function SeoKeywords({
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     volume: checked.some((group) => group.volume !== null),
-    intent: checked.some((group) => group.intent !== null),
     // Where no keyword shows a page, the result line says so once; a column of "Not found" adds nothing.
     // The column also dates each row, so it stays while the reads come from more than one check.
     position: !(
@@ -139,10 +138,9 @@ export function SeoKeywords({
     // All keywords decide, so a search does not hide the column.
     priority: new Set(model.data.keywords.map((row) => row.priority)).size > 1,
   };
-  const hidden = [
-    shown.volume ? null : t("keywords.volume"),
-    shown.intent ? null : t("keywords.intent"),
-  ].filter((label): label is string => label !== null);
+  const hidden = [shown.volume ? null : t("keywords.volume")].filter(
+    (label): label is string => label !== null,
+  );
   // Without paid search data these columns can never fill, so nothing names them.
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
   // A state label only helps when the list mixes tracked and found keywords.
@@ -155,7 +153,6 @@ export function SeoKeywords({
     Number(shown.position) +
     Number(shown.market) +
     Number(shown.volume) +
-    Number(shown.intent) +
     Number(shown.priority);
   const first = model.data.keywords[0];
   // The bars set each keyword against the most searched one of the list.
@@ -163,7 +160,6 @@ export function SeoKeywords({
     0,
     ...checked.map((group) => group.volume ?? 0),
   );
-  const noIntent = rows.filter((group) => group.intent === null).length;
   const groupOf = seoStrategyGroupOf(model.data.strategy);
   // One search box filters keywords and ideas: while it holds text, both lists show their matches.
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
@@ -278,9 +274,6 @@ export function SeoKeywords({
                     {shown.position ? (
                       <TableHead>{t("keywords.position")}</TableHead>
                     ) : null}
-                    {shown.intent ? (
-                      <TableHead>{t("keywords.intent")}</TableHead>
-                    ) : null}
                     {shown.priority ? (
                       <TableHead>{t("keywords.priority")}</TableHead>
                     ) : null}
@@ -290,7 +283,7 @@ export function SeoKeywords({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map(({ lead: row, reads, volume, intent, sources }) => {
+                  {rows.map(({ lead: row, reads, volume, sources }) => {
                     const target = model.data.pages.find(
                       (page) => page.id === row.targetPageId,
                     );
@@ -323,6 +316,7 @@ export function SeoKeywords({
                                 <SeoPageText
                                   url={row.pageUrl}
                                   workspace={model.data}
+                                  skipPrimary
                                 />
                               ) : null
                             ) : (
@@ -489,10 +483,6 @@ export function SeoKeywords({
                               )}
                             </TableCell>
                           ) : null}
-                          {shown.intent ? (
-                            // No intent in the keyword data: the cell stays empty and the line under the table counts them.
-                            <TableCell>{intent}</TableCell>
-                          ) : null}
                           {shown.priority ? (
                             <TableCell data-label={t("keywords.priority")}>
                               {t(`priority.${row.priority}`)}
@@ -552,11 +542,6 @@ export function SeoKeywords({
                   {t("unmeasuredColumns", {
                     columns: format.list(hidden),
                   })}
-                </p>
-              ) : null}
-              {shown.intent && noIntent ? (
-                <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-                  {t("keywords.intentMissing", { count: noIntent })}
                 </p>
               ) : null}
             </div>

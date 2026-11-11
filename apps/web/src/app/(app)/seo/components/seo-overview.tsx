@@ -30,6 +30,7 @@ import { seoCheckRunning } from "./seo-setup-model";
 import {
   SEO_ROW_BUTTON_CLASS,
   SeoDate,
+  SeoFoldSummary,
   SeoPageLink,
   SeoSection,
   SeoSeverity,
@@ -244,10 +245,11 @@ function PageDetail({
         </div>
       ) : null}
       {dated ? (
-        // The record link's hit area reaches up; the gap keeps it off the page link.
+        // The date is the link to the check; its hit area grows down, off the page link over it.
         <div className="text-muted-foreground flex flex-wrap gap-3 pt-2 text-xs">
-          <SeoDate value={finding.observedAt} />
-          <SeoSource observationId={finding.observationId} workspace={data} />
+          <SeoSource observationId={finding.observationId} workspace={data}>
+            <SeoDate value={finding.observedAt} />
+          </SeoSource>
         </div>
       ) : null}
     </li>
@@ -379,11 +381,13 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           url={finding.pageUrl}
                           site={seoSiteUrl(data)}
                         />
-                        <SeoDate value={finding.observedAt} />
+                        {/* The date is the link to the check, as on every other line that dates one. */}
                         <SeoSource
                           observationId={finding.observationId}
                           workspace={data}
-                        />
+                        >
+                          <SeoDate value={finding.observedAt} />
+                        </SeoSource>
                       </div>
                       {fix ? (
                         <button
@@ -520,8 +524,9 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                   </p>
                 ) : null}
                 <div className="flex flex-wrap gap-3 text-xs">
-                  <SeoDate value={observation.observedAt} />
-                  <SeoSource observationId={observation.id} workspace={data} />
+                  <SeoSource observationId={observation.id} workspace={data}>
+                    <SeoDate value={observation.observedAt} />
+                  </SeoSource>
                 </div>
               </div>
             ))}
@@ -577,13 +582,13 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
             {/* Rows show their value and guidance; provenance folds once. */}
             {references.length || ruleCodes.length ? (
               <details className="text-muted-foreground text-sm">
-                <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
+                <SeoFoldSummary className="py-2.5">
                   {references.length && ruleCodes.length
                     ? t("overview.referencesAndRules")
                     : references.length
                       ? t("overview.references", { count: references.length })
                       : t("overview.rulesOnly")}
-                </summary>
+                </SeoFoldSummary>
                 <ul className="list-inside list-disc space-y-1 pt-1">
                   {references.map((reference) => (
                     <li key={reference.line} className="break-words">

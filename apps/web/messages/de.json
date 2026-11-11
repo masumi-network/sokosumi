@@ -10894,7 +10894,7 @@
       "save": "Speichern",
       "search": "Suchen",
       "more": "Weitere laden",
-      "allPages": "Alle Seiten",
+      "allPagesCount": "{count, plural, one {Alle Seiten} other {Alle # Seiten}}",
       "page": "Seite",
       "scope": "Seiten",
       "dateFrom": "Aktivität ab",
@@ -11025,7 +11025,6 @@
         "volume": "Suchen pro Monat",
         "volumeUnit": "{count, plural, one {Suche pro Monat} other {Suchen pro Monat}}",
         "position": "Position",
-        "intent": "Suchabsicht",
         "priority": "Priorität",
         "saved": "Verfolgt",
         "discovered": "Entdeckt",
@@ -11040,7 +11039,7 @@
         "language": "Sprachcode",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
-        "help": "Das Verfolgen ist kostenlos: Jede Positionsprüfung liest die verfolgten Keywords.",
+        "help": "Verfolge ein Keyword, um nach jeder Prüfung seine Google-Position zu sehen. Das Verfolgen ist kostenlos.",
         "dialogHelp": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Positionsprüfungen.",
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
@@ -11056,16 +11055,15 @@
         "firstPage": "{count} auf der ersten Seite",
         "more": "{count, plural, one {# weiteres Keyword anzeigen} other {# weitere Keywords anzeigen}}",
         "ideas": {
-          "title": "Keyword-Ideen ({count})",
-          "help": "Suchen, die die letzte Prüfung für diese Seiten gefunden hat. Verfolge eine: Die nächste Positionsprüfung liest sie mit.",
+          "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
           "why": "Warum es gelistet ist",
           "source": {
             "gap": "Wettbewerber ranken dafür",
             "opportunity": "Verwandte Suche"
           },
-          "short": "Ideen"
+          "short": "Ideen",
+          "more": "{count, plural, one {# weitere Idee anzeigen} other {# weitere Ideen anzeigen}}"
         },
-        "intentMissing": "{count, plural, one {Die Keyword-Daten nennen für # Keyword keine Suchabsicht.} other {Die Keyword-Daten nennen für # Keywords keine Suchabsicht.}}",
         "addButton": "Keyword hinzufügen",
         "keywordAndPage": "Keyword und seine Seite",
         "readOn": "Letzte Positionsprüfung",
@@ -11082,7 +11080,6 @@
         "unconfirm": "Nicht mehr verfolgen",
         "rank": "Beste Position",
         "backlinks": "Backlinks",
-        "domains": "Websites, die auf diese Seite verlinken",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
         "noMatch": "Kein Mitbewerber passt zu dieser Suche",
         "help": "Websites in den Google-Ergebnissen für deine Keywords",
@@ -11100,7 +11097,7 @@
         "platformsHelp": "Videoseiten, Foren, Shops und Hilfeseiten. Sie haben einen Platz in den Ergebnissen, sind aber keine Rivalen deiner Website.",
         "dialogHelp": "Füge eine Website hinzu, mit der du konkurrierst. Sie bleibt als dein Mitbewerber in dieser Liste.",
         "searchPlaceholder": "Websites filtern",
-        "rankHint": "Beste Position ist der beste Platz, den eine Seite der Website in den Ergebnissen hat.",
+        "rankHint": "Beste Position: der höchste Platz, den eine Seite dieser Website für eines deiner Keywords hat.",
         "domainsShort": "Verlinkende Websites"
       },
       "actions": {
@@ -11544,7 +11541,7 @@
           "position": "Position {position}"
         }
       },
-      "scopeFilters": "Seiten und Filter",
+      "scopeFilters": "Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",
@@ -11660,7 +11657,7 @@
         "keywords": "Keywords in den ersten Google-Ergebnissen",
         "of": "von {total}",
         "searches": "Suchen nach deinen Keywords",
-        "searchesFor": "{same, select, yes {Für {of, plural, one {das geprüfte Keyword} other {die # geprüften Keywords}}} other {Für {keywords} von {of} geprüften Keywords}}",
+        "searchesFor": "Für {keywords} von {of} geprüften Keywords",
         "tests": "Abgeschlossene Tests",
         "testsNoResult": "{count, plural, one {# Test ohne Ergebnis} other {# Tests ohne Ergebnis}}",
         "testsAll": "Jeder Test hat ein Ergebnis",

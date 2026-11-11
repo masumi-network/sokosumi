@@ -62,7 +62,6 @@ describe("SEO keyword rows", () => {
     expect(checked[0]).toMatchObject({
       best: 8,
       volume: 140,
-      intent: "commercial",
       sources: ["focus", "gap"],
     });
   });

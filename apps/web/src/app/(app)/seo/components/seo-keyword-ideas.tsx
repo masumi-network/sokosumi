@@ -47,12 +47,10 @@ export function SeoKeywordIdeas({
       : ideas.slice(0, SEO_LIST_PAGE_SIZE);
   const shown = {
     volume: ideas.some((group) => group.volume !== null),
-    intent: ideas.some((group) => group.intent !== null),
   };
   const manyPages = model.data.scope.pageIds.length > 1;
   // The bars set each idea against the most searched one of the list.
   const mostSearched = Math.max(0, ...ideas.map((group) => group.volume ?? 0));
-  const noIntent = rows.filter((group) => group.intent === null).length;
   // "Track" saves the row's market: with several, each row names its own.
   const manyMarkets =
     new Set(ideas.map(({ lead }) => `${lead.countryCode}:${lead.languageCode}`))
@@ -60,7 +58,14 @@ export function SeoKeywordIdeas({
   return (
     <SeoSection
       title={t("keywords.ideas.title", { count: ideas.length })}
-      description={t("keywords.ideas.help")}
+      // The one Track sentence, in the words and under the rule of the Keywords list:
+      // it names the next position check, so it has no place where none can run.
+      description={
+        model.data.availableActions.canEdit &&
+        model.data.availableActions.canUsePaidSearchData === true
+          ? t("keywords.help")
+          : undefined
+      }
     >
       <div className={HOLDER_ITEM_CLASS}>
         <Table className={SEO_COMPACT_ROWS_CLASS}>
@@ -74,9 +79,6 @@ export function SeoKeywordIdeas({
                   {t("keywords.volume")}
                 </TableHead>
               ) : null}
-              {shown.intent ? (
-                <TableHead>{t("keywords.intent")}</TableHead>
-              ) : null}
               <TableHead>{t("keywords.ideas.why")}</TableHead>
               <TableHead>
                 <span className="sr-only">{t("queries.rowActions")}</span>
@@ -84,7 +86,7 @@ export function SeoKeywordIdeas({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(({ lead, volume, intent, sources }) => (
+            {rows.map(({ lead, volume, sources }) => (
               <TableRow key={lead.id}>
                 <TableCell className="min-w-48 whitespace-normal">
                   <p className="font-medium break-words">
@@ -100,7 +102,11 @@ export function SeoKeywordIdeas({
                     </p>
                   ) : null}
                   {manyPages && lead.pageUrl ? (
-                    <SeoPageText url={lead.pageUrl} workspace={model.data} />
+                    <SeoPageText
+                      url={lead.pageUrl}
+                      workspace={model.data}
+                      skipPrimary
+                    />
                   ) : null}
                 </TableCell>
                 {shown.volume ? (
@@ -121,12 +127,6 @@ export function SeoKeywordIdeas({
                       />
                     )}
                   </TableCell>
-                ) : null}
-                {shown.intent ? (
-                  // No intent in the keyword data: the cell stays empty and the line under the table counts them.
-                  // A phone row has one line of values: the searches and where the idea comes from.
-                  // The important mark: the phone rule that lays a value out as a line is more specific than a plain utility.
-                  <TableCell className="max-sm:hidden!">{intent}</TableCell>
                 ) : null}
                 <TableCell className="whitespace-normal">
                   {format.list(
@@ -155,15 +155,10 @@ export function SeoKeywordIdeas({
             ))}
           </TableBody>
         </Table>
-        {shown.intent && noIntent ? (
-          <p className="text-muted-foreground border-t px-4 py-2 text-xs max-sm:hidden">
-            {t("keywords.intentMissing", { count: noIntent })}
-          </p>
-        ) : null}
       </div>
       {ideas.length > SEO_LIST_PAGE_SIZE && !model.keywordSearch ? (
         <SeoShowMore
-          more={t("keywords.more", {
+          more={t("keywords.ideas.more", {
             count: ideas.length - SEO_LIST_PAGE_SIZE,
           })}
           expanded={expanded}

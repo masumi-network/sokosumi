@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   SeoDate,
   SeoEmpty,
+  SeoFoldSummary,
   SeoSection,
   SeoState,
   seoMarketName,
@@ -354,14 +355,14 @@ export function SeoTimeline({
                         ) : null
                       ) : (
                         <details className="text-muted-foreground">
-                          <summary className="cursor-pointer py-3 underline-offset-4 hover:underline">
+                          <SeoFoldSummary className="py-3 underline-offset-4 hover:underline">
                             {/* Folded checks open to a list of the checks, each with its own results link. */}
                             {observation
                               ? t("timeline.viewEachResult", {
                                   count: earlier.length + 1,
                                 })
                               : t("timeline.sourceDetails")}
-                          </summary>
+                          </SeoFoldSummary>
                           <div className="space-y-2 pt-2">
                             {observation ? (
                               // Folded checks, newest first: each keeps its time, its gaps and its Task.

@@ -84,11 +84,11 @@ describe("SEO competitor baselines", () => {
       .map((header) => header.textContent);
     expect(headers).toContain("Backlinks");
     expect(headers).not.toContain("Best position");
-    expect(headers).not.toContain("Sites linking to this page");
+    expect(headers).not.toContain("Linking sites");
     expect(screen.getByRole("cell", { name: "12" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Not measured for these rows yet: Best position and Sites linking to this page.",
+        "Not measured for these rows yet: Best position and Linking sites.",
       ),
     ).toBeInTheDocument();
   });

@@ -10894,7 +10894,7 @@
       "save": "Guardar",
       "search": "Buscar",
       "more": "Cargar más",
-      "allPages": "Todas las páginas",
+      "allPagesCount": "{count, plural, one {Todas las páginas} other {Las # páginas}}",
       "page": "Página",
       "scope": "Páginas",
       "dateFrom": "Actividad desde",
@@ -11025,7 +11025,6 @@
         "volume": "Búsquedas al mes",
         "volumeUnit": "{count, plural, one {búsqueda al mes} other {búsquedas al mes}}",
         "position": "Posición",
-        "intent": "Intención",
         "priority": "Prioridad",
         "saved": "Seguida",
         "discovered": "Descubierta",
@@ -11040,7 +11039,7 @@
         "language": "Código de idioma",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "El seguimiento es gratis: cada comprobación de posiciones lee las palabras clave seguidas.",
+        "help": "Sigue una palabra clave para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
         "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
@@ -11056,16 +11055,15 @@
         "firstPage": "{count} en la primera página",
         "more": "{count, plural, one {Mostrar # palabra clave más} other {Mostrar # palabras clave más}}",
         "ideas": {
-          "title": "Ideas de palabras clave ({count})",
-          "help": "Búsquedas que la última comprobación encontró para estas páginas. Sigue una: la próxima comprobación de posiciones la lee.",
+          "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
           "why": "Por qué aparece",
           "source": {
             "gap": "La competencia posiciona para ella",
             "opportunity": "Búsqueda relacionada"
           },
-          "short": "Ideas"
+          "short": "Ideas",
+          "more": "{count, plural, one {Mostrar # idea más} other {Mostrar # ideas más}}"
         },
-        "intentMissing": "{count, plural, one {Los datos no indican la intención de # palabra clave.} other {Los datos no indican la intención de # palabras clave.}}",
         "addButton": "Añadir una palabra clave",
         "keywordAndPage": "Palabra clave y su página",
         "readOn": "Última comprobación de posiciones",
@@ -11082,7 +11080,6 @@
         "unconfirm": "Dejar de seguir",
         "rank": "Mejor posición",
         "backlinks": "Enlaces entrantes",
-        "domains": "Sitios que enlazan a esta página",
         "excluded": "No se puede confirmar este candidato.",
         "noMatch": "Ningún competidor coincide con esta búsqueda",
         "help": "Sitios en los resultados de Google para tus palabras clave",
@@ -11100,7 +11097,7 @@
         "platformsHelp": "Sitios de vídeo, foros, tiendas y páginas de ayuda. Ocupan un lugar en los resultados, pero no son rivales de tu sitio.",
         "dialogHelp": "Añade un sitio con el que compites. Se queda en esta lista como tu competidor.",
         "searchPlaceholder": "Filtrar sitios",
-        "rankHint": "La mejor posición es el mejor lugar que ocupa una página del sitio.",
+        "rankHint": "Mejor posición: el lugar más alto que ocupa una página de este sitio para una de tus palabras clave.",
         "domainsShort": "Sitios que enlazan"
       },
       "actions": {
@@ -11544,7 +11541,7 @@
           "position": "Posición {position}"
         }
       },
-      "scopeFilters": "Páginas y filtros",
+      "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",
@@ -11660,7 +11657,7 @@
         "keywords": "Palabras clave en los primeros resultados de Google",
         "of": "de {total}",
         "searches": "Búsquedas de tus palabras clave",
-        "searchesFor": "{same, select, yes {Para {of, plural, one {la palabra clave comprobada} other {las # palabras clave comprobadas}}} other {Para {keywords} de {of} palabras clave comprobadas}}",
+        "searchesFor": "Para {keywords} de {of} palabras clave comprobadas",
         "tests": "Pruebas completadas",
         "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
         "testsAll": "Todas las pruebas tienen resultado",

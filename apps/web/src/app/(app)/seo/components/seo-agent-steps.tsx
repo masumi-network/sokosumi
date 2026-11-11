@@ -192,7 +192,8 @@ export function SeoStepRow({
               id={bodyId}
               className={cn(
                 "col-start-1 row-start-1 text-sm break-words",
-                banner && "text-muted-foreground",
+                // On a phone the banner is its title and its button: the sentence stands on the Traffic tab.
+                banner && "text-muted-foreground max-sm:hidden",
                 connectError && "invisible",
               )}
             >

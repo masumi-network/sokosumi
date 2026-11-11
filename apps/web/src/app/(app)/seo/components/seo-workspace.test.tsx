@@ -933,7 +933,7 @@ describe("SEO workspace integration", () => {
     expect(times[0].getAttribute("datetime")).toBe("2026-01-03T12:00:00.000Z");
     // The Timeline row links the check's results; the rows do not repeat the link.
     expect(
-      within(details).queryAllByRole("link", { name: "View results" }),
+      within(details).queryAllByRole("link", { name: /View results/ }),
     ).toHaveLength(0);
     // A long line without a label is the value under its rule, not a heading.
     expect(
@@ -1220,15 +1220,43 @@ describe("SEO workspace integration", () => {
     // One page is all pages; the picker would only repeat it.
     expect(screen.queryByRole("combobox", { name: "Pages" })).toBeNull();
     expect(
-      screen.queryByRole("button", { name: /Pages and filters/ }),
-    ).toBeNull();
-    expect(
       screen.getByRole("button", { name: "Filter by date" }),
     ).toBeVisible();
     unmount();
     // A page the Audit no longer has stays visible, so the filter can be cleared.
     renderWorkspace(workspace, "?pageId=removed-page");
     expect(screen.getByRole("combobox", { name: "Pages" })).toBeVisible();
+  });
+
+  it("puts the page filter in the header line of every tab, and its first choice counts the Audit's pages", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      label: "Blog",
+    });
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    workspace.metrics = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const traffic = renderWorkspace(workspace, "tab=traffic");
+    // No statistics for all pages: one page can still have them, so the filter stays.
+    // The count is the filter: no labelled row of its own.
+    expect(screen.getByRole("combobox", { name: "Pages" })).toHaveTextContent(
+      "All 2 pages",
+    );
+    expect(screen.queryByText("2 pages")).toBeNull();
+    traffic.unmount();
+    // One page in view: the first choice still counts every page of the Audit.
+    workspace.scope.pageIds = [workspace.pages[0].id];
+    renderWorkspace(workspace, `tab=health&pageId=${workspace.pages[0].id}`);
+    await user.click(screen.getByRole("combobox", { name: "Pages" }));
+    expect(
+      screen.getByRole("option", { name: "All 2 pages" }),
+    ).toBeInTheDocument();
   });
 
   it.each([true, false])(
@@ -1565,8 +1593,10 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(two)),
     );
     const both = renderWorkspace(two, "tab=health");
-    // Two pages in view: the header counts them.
-    expect(screen.getByText("2 pages")).toBeVisible();
+    // Two pages in view: the header counts them, and the count is the page filter.
+    expect(screen.getByRole("combobox", { name: "Pages" })).toHaveTextContent(
+      "All 2 pages",
+    );
     // Totals for two pages belong to neither page.
     expect(screen.queryByText("Search clicks")).toBeNull();
     both.unmount();
@@ -3823,7 +3853,7 @@ describe("SEO workspace integration", () => {
     // Every row is tracked, paid columns can never fill, and no Analytics data exists.
     expect(screen.queryByText("Tracked")).toBeNull();
     expect(screen.queryByText(/Search volume/)).toBeNull();
-    expect(screen.queryByText(/^Tracking is free/)).toBeNull();
+    expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();
     // A competitor without numbers says why, instead of a bare URL.
     await userEvent.click(screen.getByRole("button", { name: "Competitors" }));
@@ -4689,9 +4719,8 @@ describe("SEO workspace integration", () => {
     );
     const searches = screen.getByTestId("seo-summary-searches");
     expect(searches).toHaveTextContent("810 a month");
-    expect(
-      within(searches).getByText("For the 2 checked keywords"),
-    ).toBeVisible();
+    // Every checked keyword has a number: the tile beside this one already says how many they are.
+    expect(within(searches).queryByText(/checked keywords?$/)).toBeNull();
     // The Health tab leads with the numbers of the page check, and not with the keyword numbers.
     await user.click(screen.getByRole("tab", { name: "Health" }));
     const issues = screen.getByTestId("seo-summary-issues");
@@ -4717,17 +4746,14 @@ describe("SEO workspace integration", () => {
     );
     // One keyword is found, so the Position column shows.
     expect(screen.getByText("Not found")).toBeVisible();
-    // A keyword without an intent has an empty cell, counted once under the table.
-    // The one idea has no intent either, so its table has no Intent column and no such line.
+    // The lists have no Intent column: the word drives no action here.
     expect(screen.queryByText("Not available")).toBeNull();
-    expect(
-      screen.getByText("The keyword data gives no intent for 1 keyword."),
-    ).toBeVisible();
+    expect(screen.queryByText(/intent/i)).toBeNull();
     // One list shows at a time.
     const part = (name: string | RegExp) =>
       screen.getByRole("heading", { name }).closest("section")?.parentElement;
     expect(part(/^In Google's top results for/)).not.toHaveClass("hidden");
-    expect(part(/^Keyword ideas/)).toHaveClass("hidden");
+    expect(part(/^\d+ keyword ideas?$/)).toHaveClass("hidden");
     expect(part(/^Sites in Google's results/)).toHaveClass("hidden");
     const competitors = screen.getByRole("button", { name: "Competitors" });
     expect(competitors).toHaveAttribute("aria-pressed", "false");
@@ -4736,7 +4762,7 @@ describe("SEO workspace integration", () => {
     expect(part(/^Sites in Google's results/)).not.toHaveClass("hidden");
     expect(part(/^In Google's top results for/)).toHaveClass("hidden");
     await user.click(screen.getByRole("button", { name: "Ideas" }));
-    expect(part(/^Keyword ideas/)).not.toHaveClass("hidden");
+    expect(part(/^\d+ keyword ideas?$/)).not.toHaveClass("hidden");
     expect(part(/^Sites in Google's results/)).toHaveClass("hidden");
     // The last idea leaves the list (the reader tracked it): the keywords show, not an empty tab.
     const client = clients.at(-1);
@@ -4817,9 +4843,9 @@ describe("SEO workspace integration", () => {
       positionStatus: "unavailable",
       checkedResults: null,
     } as const;
-    // Ten keywords: enough for the search box.
+    // Twenty keywords: enough for the search box.
     workspace.keywords = [
-      ...Array.from({ length: 10 }, (_, index) => ({
+      ...Array.from({ length: 20 }, (_, index) => ({
         ...read,
         id: `read-${index}`,
         keyword: `read ${index}`,
@@ -4840,18 +4866,18 @@ describe("SEO workspace integration", () => {
       "aria-pressed",
       "true",
     );
-    expect(part(/^Keyword ideas/)).toHaveClass("hidden");
+    expect(part(/^\d+ keyword ideas?$/)).toHaveClass("hidden");
     // One box searches both lists: a match in the ideas does not hide behind the switch.
     const search = screen.getByPlaceholderText("Filter keywords");
     await user.type(search, "widget");
-    expect(part(/^Keyword ideas/)).not.toHaveClass("hidden");
+    expect(part(/^\d+ keyword ideas?$/)).not.toHaveClass("hidden");
     expect(part(/^In Google's top results for/)).not.toHaveClass("hidden");
     await user.click(screen.getByRole("button", { name: "Competitors" }));
-    expect(part(/^Keyword ideas/)).toHaveClass("hidden");
+    expect(part(/^\d+ keyword ideas?$/)).toHaveClass("hidden");
     expect(part(/^In Google's top results for/)).toHaveClass("hidden");
     await user.click(screen.getByRole("button", { name: "Keywords" }));
     await user.clear(search);
-    expect(part(/^Keyword ideas/)).toHaveClass("hidden");
+    expect(part(/^\d+ keyword ideas?$/)).toHaveClass("hidden");
     cleanup();
     // Ideas and no tracked or checked keyword: the Keywords list is empty, so the tab opens on the ideas.
     workspace.keywords = [idea];
@@ -4860,6 +4886,6 @@ describe("SEO workspace integration", () => {
       "aria-pressed",
       "true",
     );
-    expect(part(/^Keyword ideas/)).not.toHaveClass("hidden");
+    expect(part(/^\d+ keyword ideas?$/)).not.toHaveClass("hidden");
   });
 });

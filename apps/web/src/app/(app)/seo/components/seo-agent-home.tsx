@@ -24,7 +24,12 @@ import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunLeads, seoSetup } from "./seo-setup-model";
-import { SEO_ROW_BUTTON_CLASS, SeoDate, SeoPeriod } from "./seo-shared";
+import {
+  SEO_ROW_BUTTON_CLASS,
+  SEO_ROW_LIST_CLASS,
+  SeoDate,
+  SeoPeriod,
+} from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { seoSummary } from "./seo-summary-model";
@@ -347,7 +352,7 @@ function SeoAgentPanel({
         <div className="space-y-2">
           <h3 className="px-2 text-sm font-semibold">{t("agent.nextTitle")}</h3>
           {steps.length ? (
-            <ul role="list" className="space-y-2">
+            <ul role="list" className={SEO_ROW_LIST_CLASS}>
               {shown.slice(0, split).map(stepItem)}
               {moreActions ? (
                 // The Agent tab shows the first actions only: the rest must not look absent.

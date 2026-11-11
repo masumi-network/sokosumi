@@ -90,7 +90,7 @@ export function seoSectionClass(shown: boolean) {
 }
 
 /** A search box helps only in a list longer than about one screen. */
-export const SEO_SEARCH_MIN_ROWS = 10;
+export const SEO_SEARCH_MIN_ROWS = 20;
 /** Rows a long list shows before its "Show more" button. */
 export const SEO_LIST_PAGE_SIZE = 10;
 /** The mark of the chosen one in a set of bordered toggle buttons. */
@@ -116,6 +116,7 @@ export function SeoSection({
   children,
   actions,
   strong = false,
+  titleHidden = false,
 }: {
   title: string;
   description?: ReactNode;
@@ -123,10 +124,12 @@ export function SeoSection({
   actions?: ReactNode;
   /** The title is the result of the list, not its name: it reads as the loudest line. */
   strong?: boolean;
+  /** The chosen tab already says this title: it stays for screen readers only. */
+  titleHidden?: boolean;
 }) {
   return (
     <section className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}>
-      <div className="space-y-0.5 px-2 pt-1">
+      <div className={cn("space-y-0.5 px-2 pt-1", titleHidden && "sr-only")}>
         {/* The button stands on the line of the title, on a phone too: a row of its own pushed the list down. */}
         <div className="flex flex-wrap items-start justify-between gap-2">
           {/* Beside a button the title takes the room that is left and breaks inside it, so the button never drops to a
@@ -277,11 +280,14 @@ export function SeoPageLink({
   url,
   label,
   site,
+  clamp = false,
 }: {
   url: string;
   label?: string | null;
   /** The site of the Audit. Rows of one site then show the path alone: the site would repeat on every row. */
   site?: string | null;
+  /** On a phone the address keeps to one line and ends in dots: a path of three lines made a row 130 px high. The link opens the whole address. */
+  clamp?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const path = site ? seoPagePath(url, site) : null;
@@ -293,9 +299,14 @@ export function SeoPageLink({
       // The break points split the text; the name stays the whole address.
       aria-label={label || url}
       title={path ? url : undefined}
-      className="inline-flex min-w-0 items-start gap-1 text-sm underline-offset-4 hover:underline"
+      className="inline-flex max-w-full min-w-0 items-start gap-1 text-sm underline-offset-4 hover:underline"
     >
-      <bdi className="[overflow-wrap:anywhere]">
+      <bdi
+        className={cn(
+          "min-w-0 [overflow-wrap:anywhere]",
+          clamp && "max-sm:truncate",
+        )}
+      >
         {label || (path === "/" ? t("pages.home") : seoUrlBreaks(path ?? url))}
       </bdi>
       <ArrowUpRight className="mt-0.5 size-3 shrink-0" aria-hidden />
@@ -454,11 +465,20 @@ export function SeoBarNumber({
 export function SeoPageText({
   url,
   workspace,
+  skipPrimary = false,
 }: {
   url: string;
   workspace: ProjectSeoWorkspace;
+  /** A list where most rows belong to the one primary page names only the other pages. */
+  skipPrimary?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const primary = workspace.pages.filter(
+    (page) => page.relationship === "primary",
+  );
+  if (skipPrimary && primary.length === 1 && primary[0].url === url) {
+    return null;
+  }
   return (
     <bdi className="text-muted-foreground block text-xs [overflow-wrap:anywhere]">
       {seoPageName(url, seoSiteUrl(workspace), t("pages.home"))}
@@ -517,6 +537,45 @@ export function SeoActionName({
         <SeoPageText url={pageUrl} workspace={workspace} />
       ) : null}
     </span>
+  );
+}
+
+/**
+ * Rows of one group as one list: the frame is the list's and a line divides the rows, so a row inside has no
+ * frame of its own. Separate framed rows read as separate things.
+ */
+export const SEO_ROW_LIST_CLASS = cn(
+  HOLDER_ITEM_CLASS,
+  "[&>li]:rounded-none [&>li]:border-0 [&>li+li]:border-t [&>li+li]:border-border [&>li:first-child]:rounded-t-lg [&>li:last-child]:rounded-b-lg",
+  "[&>li>article]:rounded-none [&>li>article]:border-0 [&>li:first-child>article]:rounded-t-lg [&>li:last-child>article]:rounded-b-lg",
+  "[&>li>button]:rounded-none [&>li>button]:border-0 [&>li:first-child>button]:rounded-t-lg [&>li:last-child>button]:rounded-b-lg",
+  // The head of a card that opens: square too, round only at the list's own corners.
+  "[&>li>article>h3>button]:rounded-none [&>li:first-child>article>h3>button]:rounded-t-lg [&>li:last-child>article>h3>button[aria-expanded=false]]:rounded-b-lg",
+  // The rows touch, so the row with a focus ring or a mark stands over its neighbours.
+  "[&>li:focus-within]:relative [&>li:focus-within]:z-10 [&>li:has(>[aria-current=true])]:relative [&>li:has(>[aria-current=true])]:z-10",
+);
+
+/** The line that opens a fold in place: its words and one arrow, the same on every tab (no native triangle). */
+export function SeoFoldSummary({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <summary
+      className={cn(
+        "focus-visible:ring-ring flex cursor-pointer list-none items-center gap-1 rounded-sm focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden",
+        className,
+      )}
+    >
+      {children}
+      <ChevronDown
+        aria-hidden
+        className="size-4 shrink-0 transition-transform duration-150 ease-out motion-reduce:transition-none [details[open]>summary>&]:rotate-180"
+      />
+    </summary>
   );
 }
 

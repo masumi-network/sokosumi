@@ -17,7 +17,6 @@ export type SeoKeywordGroup = {
   /** One position read per device, mobile first; a read without a device stands alone. Empty for an idea. */
   reads: Keyword[];
   volume: number | null;
-  intent: string | null;
   /** The best rank over the reads; null where the page is in none of the read results. */
   best: number | null;
   /** Why the check lists the keyword, for an idea ("gap", "opportunity"). */
@@ -71,7 +70,6 @@ export function keywordGroups(rows: Keyword[]) {
       lead: group.find((row) => row.saved) ?? reads[0] ?? group[0],
       reads,
       volume: group.find((row) => row.volume !== null)?.volume ?? null,
-      intent: group.find((row) => row.intent !== null)?.intent ?? null,
       best: ranks.length ? Math.min(...ranks) : null,
       sources: [...new Set(group.map((row) => row.source))],
     };

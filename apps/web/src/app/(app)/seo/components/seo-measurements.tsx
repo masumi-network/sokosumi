@@ -18,6 +18,7 @@ import { seoRunLeads } from "./seo-setup-model";
 import {
   SEO_CHOSEN_CLASS,
   SeoDate,
+  SeoFoldSummary,
   SeoPeriod,
   SeoSection,
   SeoState,
@@ -226,6 +227,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("overview.measurements")}
+      titleHidden={!active}
       description={
         active ? (
           <>
@@ -407,9 +409,9 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               )}
             </div>
             <details className="text-muted-foreground text-xs">
-              <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-3 focus-visible:ring-2 focus-visible:outline-none">
+              <SeoFoldSummary className="py-3">
                 {t("overview.measurementDetails")}
-              </summary>
+              </SeoFoldSummary>
               <div className="space-y-2 pt-2">
                 {compared ? (
                   <p>

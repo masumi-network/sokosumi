@@ -10894,7 +10894,7 @@
       "save": "Save",
       "search": "Search",
       "more": "Load more",
-      "allPages": "All pages",
+      "allPagesCount": "{count, plural, one {All pages} other {All # pages}}",
       "page": "Page",
       "scope": "Pages",
       "dateFrom": "Activity from",
@@ -11025,7 +11025,6 @@
         "volume": "Searches a month",
         "volumeUnit": "{count, plural, one {search a month} other {searches a month}}",
         "position": "Position",
-        "intent": "Intent",
         "priority": "Priority",
         "saved": "Tracked",
         "discovered": "Discovered",
@@ -11040,7 +11039,7 @@
         "language": "Language code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Tracking is free: each position check reads the tracked keywords.",
+        "help": "Track a keyword to see its Google position after every check. Tracking is free.",
         "dialogHelp": "Tracking a keyword is free. It does not start paid position checks.",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
@@ -11056,16 +11055,15 @@
         "firstPage": "{count} on the first page",
         "more": "{count, plural, one {Show # more keyword} other {Show # more keywords}}",
         "ideas": {
-          "title": "Keyword ideas ({count})",
-          "help": "Searches the last check found for these pages. Track one: the next position check reads it.",
+          "title": "{count, plural, one {# keyword idea} other {# keyword ideas}}",
           "why": "Why it is listed",
           "source": {
             "gap": "Competitors rank for it",
             "opportunity": "Related search"
           },
-          "short": "Ideas"
+          "short": "Ideas",
+          "more": "{count, plural, one {Show # more idea} other {Show # more ideas}}"
         },
-        "intentMissing": "{count, plural, one {The keyword data gives no intent for # keyword.} other {The keyword data gives no intent for # keywords.}}",
         "addButton": "Add a keyword",
         "keywordAndPage": "Keyword and its page",
         "readOn": "Last position check",
@@ -11082,7 +11080,6 @@
         "unconfirm": "Stop tracking",
         "rank": "Best position",
         "backlinks": "Backlinks",
-        "domains": "Sites linking to this page",
         "excluded": "This candidate cannot be confirmed.",
         "noMatch": "No competitor matches this search",
         "help": "Sites in Google's results for your keywords",
@@ -11100,7 +11097,7 @@
         "platformsHelp": "Video sites, forums, stores and help pages. They hold a place in the results, but they are not rivals of your site.",
         "dialogHelp": "Add a site you compete with. It stays on this list as your competitor.",
         "searchPlaceholder": "Filter sites",
-        "rankHint": "Best position is the best place one page of the site holds.",
+        "rankHint": "Best position: the highest place one page of this site holds for one of your keywords.",
         "domainsShort": "Linking sites"
       },
       "actions": {
@@ -11544,7 +11541,7 @@
           "position": "Position {position}"
         }
       },
-      "scopeFilters": "Pages and filters",
+      "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
       "filterDates": "Filter by date",
       "syncNow": "Sync now",
@@ -11660,7 +11657,7 @@
         "keywords": "Keywords in Google's top results",
         "of": "of {total}",
         "searches": "Searches for your keywords",
-        "searchesFor": "{same, select, yes {For the {of, plural, one {checked keyword} other {# checked keywords}}} other {For {keywords} of {of} checked keywords}}",
+        "searchesFor": "For {keywords} of {of} checked keywords",
         "tests": "Tests completed",
         "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
         "testsAll": "Every test gave a result",

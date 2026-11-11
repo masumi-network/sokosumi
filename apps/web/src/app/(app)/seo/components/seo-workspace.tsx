@@ -64,6 +64,7 @@ import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoRankings } from "./seo-rankings";
 import {
+  SeoPagePicker,
   SeoScopeBar,
   seoScopeControls,
   useSeoDateFields,
@@ -105,7 +106,10 @@ export function SeoWorkspace({
   // Phones show the agent first; pages and filters open on demand (always open from md up).
   // With only the date filter left, its own button is enough and needs no fold.
   const controls = seoScopeControls(model);
-  const foldFilters = controls.pages || controls.channel;
+  // The page picker stands in the header line of every tab. An empty Traffic tab keeps it: statistics can
+  // exist for one page while the view of all pages has none.
+  const pagePicker = controls.pages;
+  const foldFilters = controls.channel;
   const editScope = Boolean(
     model.data.scope.id && model.data.availableActions.canEdit,
   );
@@ -208,9 +212,10 @@ export function SeoWorkspace({
           ) : null}
           {/* One page in view: its URL says more than a count. */}
           <div className="min-w-0 max-sm:col-span-2 max-sm:row-start-3">
+            {pagePicker ? <SeoPagePicker model={model} /> : null}
             {scopePage ? (
               <SeoPageLink url={scopePage.url} />
-            ) : (
+            ) : pagePicker ? null : (
               <p className="text-muted-foreground text-sm">
                 {t("pages.count", { count: model.data.scope.pageIds.length })}
               </p>

@@ -238,6 +238,50 @@ describe("Saved keyword edits", () => {
     expect(screen.queryByRole("link", { name: pricingPage.url })).toBeNull();
   });
 
+  it("names no page under a keyword of the one primary page", () => {
+    const { workspace, pricingPage } = savedKeywordWorkspace();
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    workspace.websiteUrl = null;
+    pricingPage.relationship = "related";
+    const saved = workspace.keywords[workspace.keywords.length - 1];
+    workspace.keywords.push({
+      ...saved,
+      id: "home",
+      keyword: "Wallets",
+      pageUrl: workspace.pages[0].url,
+    });
+    renderWorkspace(workspace);
+    // Most keywords belong to the primary page: only a keyword of another page names its page.
+    expect(screen.getByText("Wallets")).toBeVisible();
+    expect(screen.queryByText("Home page")).toBeNull();
+    expect(screen.getByText("/pricing")).toBeVisible();
+  });
+
+  it("shows the filter box only over a list long enough to need it", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    const [saved] = workspace.keywords;
+    // Three checked keywords and twenty ideas.
+    workspace.keywords = Array.from({ length: 23 }, (_, index) => ({
+      ...saved,
+      id: `row-${index}`,
+      keyword: `row ${index}`,
+      saved: false,
+      version: 0,
+      source: index < 3 ? "focus" : "gap",
+      device: "mobile",
+      position: index < 3 ? index + 1 : null,
+      positionStatus: index < 3 ? "ranked" : "unavailable",
+      checkedResults: index < 3 ? 20 : null,
+      observedAt: new Date("2026-11-11T00:26:00Z"),
+    }));
+    renderWorkspace(workspace);
+    // The list in view decides: the long Ideas list does not bring a box to three keywords.
+    expect(document.getElementById("seo-keyword-search")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Ideas" }));
+    expect(document.getElementById("seo-keyword-search")).not.toBeNull();
+  });
+
   it("names a tracked keyword's market in words", () => {
     const { workspace } = savedKeywordWorkspace();
     vi.stubGlobal(
@@ -253,7 +297,7 @@ describe("Saved keyword edits", () => {
     const user = userEvent.setup();
     const { workspace } = savedKeywordWorkspace();
     // Enough keywords for the search field; one of them has another priority.
-    for (const index of Array.from({ length: 10 }, (_, i) => i))
+    for (const index of Array.from({ length: 20 }, (_, i) => i))
       workspace.keywords.push({
         ...workspace.keywords[0],
         id: `keyword-${index}`,
@@ -538,16 +582,19 @@ describe("Keywords after a check", () => {
       screen.getByText(/Results read per keyword: 16 to 17$/),
     ).toBeVisible();
     // What a click on "Track" gives stands once, between the result and the rows with the buttons.
-    expect(screen.getAllByText(/^Tracking is free/)).toHaveLength(1);
+    // Once per list (Keywords and Ideas); one list shows at a time.
+    expect(screen.getAllByText(/^Track a keyword to see/)).toHaveLength(2);
     // The market shows once, in the result line, not once per row.
     expect(screen.getAllByText(/^United States · English/)).toHaveLength(1);
     expect(
-      screen.getByRole("heading", { name: "Keyword ideas (12)" }),
+      screen.getByRole("heading", {
+        name: "12 keyword ideas",
+      }),
     ).toBeVisible();
     expect(screen.getByText("idea 9")).toBeVisible();
     expect(screen.queryByText("idea 10")).toBeNull();
     expect(screen.getAllByText("Competitors rank for it")).toHaveLength(5);
-    const more = screen.getByRole("button", { name: "Show 2 more keywords" });
+    const more = screen.getByRole("button", { name: "Show 2 more ideas" });
     await user.click(more);
     expect(screen.getByText("idea 11")).toBeVisible();
     // The same button stays, so the keyboard focus stays.
@@ -619,7 +666,9 @@ describe("Keywords after a check", () => {
     ];
     renderWorkspace(workspace);
     expect(
-      screen.getByRole("heading", { name: "Keyword ideas (1)" }),
+      screen.getByRole("heading", {
+        name: "1 keyword idea",
+      }),
     ).toBeVisible();
     expect(screen.queryByText("No tracked keywords yet")).toBeNull();
   });
@@ -648,7 +697,7 @@ describe("Keywords after a check", () => {
     const user = userEvent.setup();
     const { workspace } = savedKeywordWorkspace();
     const [saved] = workspace.keywords;
-    workspace.keywords = Array.from({ length: 11 }, (_, index) => ({
+    workspace.keywords = Array.from({ length: 21 }, (_, index) => ({
       ...saved,
       id: `read-${index}`,
       keyword: `read ${index}`,
@@ -665,7 +714,7 @@ describe("Keywords after a check", () => {
     expect(screen.getByText("read 9")).toBeVisible();
     expect(screen.queryByText("read 10")).toBeNull();
     await user.click(
-      screen.getByRole("button", { name: "Show 1 more keyword" }),
+      screen.getByRole("button", { name: "Show 11 more keywords" }),
     );
     expect(screen.getByText("read 10")).toBeVisible();
     // A search narrows the rows; the result line still speaks for every keyword.
@@ -674,7 +723,7 @@ describe("Keywords after a check", () => {
     await user.type(search, "read 10");
     expect(screen.queryByText("read 9")).toBeNull();
     expect(
-      screen.getByText("In Google's top results for 11 of 11 checked keywords"),
+      screen.getByText("In Google's top results for 21 of 21 checked keywords"),
     ).toBeVisible();
     // A search without a match says so; it does not ask for a first check.
     await user.clear(search);
@@ -882,11 +931,20 @@ describe("Search Console queries", () => {
     workspace.keywords = [];
     renderWorkspace(workspace);
     expect(screen.getByRole("heading", { name: "Keywords" })).toBeVisible();
-    expect(screen.queryByText(/^Tracking is free/)).toBeNull();
+    expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
     cleanup();
     // It names the next position check too: it has no place where no position check can run.
+    // The Ideas list follows the same rule.
     workspace.keywords = [
       missed({ id: "new", keyword: "battery app", checkedResults: null }),
+      missed({
+        id: "gap",
+        keyword: "battery widget",
+        source: "gap",
+        positionStatus: "unavailable",
+        device: null,
+        checkedResults: null,
+      }),
     ];
     workspace.availableActions = {
       ...workspace.availableActions,
@@ -894,7 +952,7 @@ describe("Search Console queries", () => {
     };
     renderWorkspace(workspace);
     expect(screen.getByText("battery app")).toBeVisible();
-    expect(screen.queryByText(/^Tracking is free/)).toBeNull();
+    expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
     cleanup();
     // A reader who cannot edit has no Track button, so no sentence about it.
     workspace.availableActions = {
@@ -904,6 +962,6 @@ describe("Search Console queries", () => {
     };
     renderWorkspace(workspace);
     expect(screen.getByText("battery app")).toBeVisible();
-    expect(screen.queryByText(/^Tracking is free/)).toBeNull();
+    expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
   });
 });

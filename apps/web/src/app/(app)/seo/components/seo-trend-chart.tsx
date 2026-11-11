@@ -3,6 +3,7 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
+import { SeoFoldSummary } from "./seo-shared";
 import { seoTrendModel } from "./seo-trend-model";
 
 interface SeoTrendChartProps {
@@ -306,9 +307,9 @@ export function SeoTrendChart({
         </figcaption>
       ) : null}
       <details className="text-sm">
-        <summary className="text-muted-foreground focus-visible:ring-ring cursor-pointer rounded-sm py-3 text-xs focus-visible:ring-2 focus-visible:outline-none">
+        <SeoFoldSummary className="text-muted-foreground py-3 text-xs">
           {t("dailyValues")}
-        </summary>
+        </SeoFoldSummary>
         <div className="max-h-64 overflow-y-auto pt-2">
           <table className="w-full text-xs">
             <thead className="text-muted-foreground text-left">

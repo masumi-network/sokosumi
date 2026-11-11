@@ -84,6 +84,56 @@ export function useSeoDateFields({
   };
 }
 
+/**
+ * The pages in view, as the line under the Audit's name: "All 2 pages" is the
+ * count and the filter in one control. A labelled row of its own stood over
+ * every tab for a choice most Audits never change.
+ */
+export function SeoPagePicker({ model }: { model: SeoWorkspaceModel }) {
+  const t = useTranslations("App.Seo");
+  const { data, filters, setFilters } = model;
+  const selected = filters.scopeId
+    ? `scope:${filters.scopeId}`
+    : filters.pageId
+      ? `page:${filters.pageId}`
+      : "all";
+  return (
+    <Select
+      value={selected}
+      onValueChange={(value) => {
+        const [kind, id] = value.split(":");
+        void setFilters({
+          scopeId: kind === "scope" ? id : null,
+          pageId: kind === "page" ? id : null,
+        });
+      }}
+    >
+      <SelectTrigger
+        aria-label={t("scope")}
+        // Quiet: text and an arrow, no box. 40 px high on a phone for the finger.
+        className="text-muted-foreground hover:text-foreground -my-1 max-w-full gap-1 border-0 px-0 py-0 text-sm! data-[size=default]:h-10 sm:data-[size=default]:h-7 dark:bg-transparent dark:hover:bg-transparent *:data-[slot=select-value]:block! *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">
+          {t("allPagesCount", { count: data.pages.length })}
+        </SelectItem>
+        {data.scopes.map((scope) => (
+          <SelectItem key={scope.id} value={`scope:${scope.id}`}>
+            {scope.name}
+          </SelectItem>
+        ))}
+        {data.pages.map((page) => (
+          <SelectItem key={page.id} value={`page:${page.id}`}>
+            <bdi>{page.label || page.url}</bdi>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function SeoScopeBar({
   model,
   dateFields,
@@ -92,47 +142,10 @@ export function SeoScopeBar({
   dateFields: ReturnType<typeof useSeoDateFields>;
 }) {
   const t = useTranslations("App.Seo");
-  const { data, filters, setFilters } = model;
-  const selected = filters.scopeId
-    ? `scope:${filters.scopeId}`
-    : filters.pageId
-      ? `page:${filters.pageId}`
-      : "all";
+  const { filters, setFilters } = model;
   const controls = seoScopeControls(model);
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      {controls.pages ? (
-        <div className="w-full space-y-2 sm:w-72">
-          <Label htmlFor="seo-scope">{t("scope")}</Label>
-          <Select
-            value={selected}
-            onValueChange={(value) => {
-              const [kind, id] = value.split(":");
-              void setFilters({
-                scopeId: kind === "scope" ? id : null,
-                pageId: kind === "page" ? id : null,
-              });
-            }}
-          >
-            <SelectTrigger id="seo-scope" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allPages")}</SelectItem>
-              {data.scopes.map((scope) => (
-                <SelectItem key={scope.id} value={`scope:${scope.id}`}>
-                  {scope.name}
-                </SelectItem>
-              ))}
-              {data.pages.map((page) => (
-                <SelectItem key={page.id} value={`page:${page.id}`}>
-                  <bdi>{page.label || page.url}</bdi>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : null}
+    <div className="flex flex-wrap items-end gap-3 empty:hidden">
       {controls.channel ? (
         <div className="min-w-48 space-y-2">
           <Label htmlFor="seo-channel">{t("statistics.channel")}</Label>

@@ -192,11 +192,13 @@ export function SeoSummaryTiles({
           rest={t("summary.aMonth")}
           testId="seo-summary-searches"
         >
-          {t("summary.searchesFor", {
-            keywords: searches.keywords,
-            of: searches.of,
-            same: searches.keywords === searches.of ? "yes" : "no",
-          })}
+          {/* All checked keywords have a number: the tile beside this one says how many they are. */}
+          {searches.keywords === searches.of
+            ? null
+            : t("summary.searchesFor", {
+                keywords: searches.keywords,
+                of: searches.of,
+              })}
         </Tile>
       ) : null}
       {tests ? (

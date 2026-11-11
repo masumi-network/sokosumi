@@ -32,6 +32,7 @@ import {
   SeoAddButton,
   SeoDate,
   SeoEmpty,
+  SeoFoldSummary,
   SeoPageLink,
   SeoSection,
   SeoShowMore,
@@ -76,7 +77,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
   // The check reads no backlink count for a competitor, so the line under the table does not name that column.
   const hidden = [
     shown.rank ? null : t("competitors.rank"),
-    shown.domains ? null : t("competitors.domains"),
+    shown.domains ? null : t("competitors.domainsShort"),
   ].filter((label): label is string => label !== null);
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
   // A page the reader added and then stopped tracking came from no check.
@@ -195,7 +196,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                 ) : null}
                 {shown.domains ? (
                   <TableHead className="text-right">
-                    {t("competitors.domains")}
+                    {t("competitors.domainsShort")}
                   </TableHead>
                 ) : null}
                 {shown.observed ? <TableHead>{t("observed")}</TableHead> : null}
@@ -219,7 +220,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                         {host}
                       </p>
                       {/* The site is the line above: the page shows as its path. */}
-                      <SeoPageLink url={row.url} site={row.url} />
+                      <SeoPageLink url={row.url} site={row.url} clamp />
                       {mixed && !chosen(row) ? (
                         <div className="mt-1">
                           <SeoState>{t("competitors.suggested")}</SeoState>
@@ -232,11 +233,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       ) : null}
                       {pages.length > 1 ? (
                         <details className="text-muted-foreground text-sm">
-                          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1.5 focus-visible:ring-2 focus-visible:outline-none">
+                          <SeoFoldSummary className="py-1.5">
                             {t("competitors.morePages", {
                               count: pages.length - 1,
                             })}
-                          </summary>
+                          </SeoFoldSummary>
                           <ul className="space-y-1 pb-1">
                             {pages.slice(1).map((page) => (
                               <li key={page.id}>
@@ -291,7 +292,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="min-w-10"
+                              // Ten bright marks read as ten equal choices: the mark is quiet until the row is in use.
+                              className="text-muted-foreground hover:text-foreground min-w-10"
                               aria-label={t("competitors.rowActions", {
                                 url: row.url,
                               })}
@@ -382,9 +384,9 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       {platforms.length ? (
         // In the results, but no rival: closed, so the list above stays the list of competitors.
         <details className="px-2 text-sm">
-          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
+          <SeoFoldSummary className="py-2.5 font-medium">
             {t("competitors.platforms", { count: platforms.length })}
-          </summary>
+          </SeoFoldSummary>
           <p className="text-muted-foreground pb-2">
             {t("competitors.platformsHelp")}
           </p>

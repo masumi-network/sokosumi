@@ -9,6 +9,7 @@ import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import {
   SeoDate,
+  SeoFoldSummary,
   SeoPageLink,
   SeoSection,
   SeoSource,
@@ -104,9 +105,9 @@ export function SeoStrategyCard({ model }: { model: SeoWorkspaceModel }) {
           </p>
         ) : null}
         <details className="text-sm">
-          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
+          <SeoFoldSummary className="py-2.5 font-medium">
             {t("strategy.details")}
-          </summary>
+          </SeoFoldSummary>
           <div className="text-muted-foreground max-w-prose space-y-2 pt-1">
             <p>{t("strategy.reachHelp")}</p>
             {reason.details.length ? (

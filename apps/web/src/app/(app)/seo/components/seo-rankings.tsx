@@ -69,7 +69,10 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
         >
           <SeoQueryFilter
             model={model}
-            rows={groups.checked.length + groups.ideas.length}
+            // The list in view decides: 16 keywords need no filter box, 71 ideas do.
+            rows={
+              section === "ideas" ? groups.ideas.length : groups.checked.length
+            }
           />
         </div>
       </div>

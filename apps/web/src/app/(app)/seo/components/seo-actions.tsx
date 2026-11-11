@@ -20,8 +20,10 @@ import {
 import { cn } from "@/lib/utils";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
+  SEO_ROW_LIST_CLASS,
   SeoActionName,
   SeoEmpty,
+  SeoFoldSummary,
   SeoPageLink,
   SeoSection,
   SeoSeverity,
@@ -179,9 +181,9 @@ export function SeoActionCard({
           </p>
           <SeoPageLink url={action.pageUrl} site={seoSiteUrl(model.data)} />
           <details className="text-sm">
-            <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
+            <SeoFoldSummary className="py-2.5 font-medium">
               {t("actions.whyDetails")}
-            </summary>
+            </SeoFoldSummary>
             <div className="space-y-3 pt-3">
               {/* What the level means, in words: a hint on the label alone does not reach a phone or a screen reader. */}
               {severity ? (
@@ -295,15 +297,18 @@ function ActionGroup({
           ) : null}
         </div>
       ) : null}
-      {actions.map((action) => (
-        <SeoActionCard
-          key={seoActionKey(action)}
-          action={action}
-          model={model}
-          severity={severity(action)}
-          primary={action === primary}
-        />
-      ))}
+      <ul role="list" className={SEO_ROW_LIST_CLASS}>
+        {actions.map((action) => (
+          <li key={seoActionKey(action)}>
+            <SeoActionCard
+              action={action}
+              model={model}
+              severity={severity(action)}
+              primary={action === primary}
+            />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -335,6 +340,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
       <SeoSection
         title={t("actions.title")}
         description={tracked ? t("actions.help") : undefined}
+        titleHidden={!tracked}
       >
         {overview.actions.length ? (
           <div className="space-y-5">
