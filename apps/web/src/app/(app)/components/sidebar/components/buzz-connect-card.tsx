@@ -53,11 +53,12 @@ export function BuzzConnectCard() {
     <>
       {show ? (
         // Floats over the end of the chat list, anchored on the footer's top
-        // edge, so the footer keeps its height and nothing moves.
+        // edge, so the footer keeps its height and nothing moves. White with a
+        // hairline, like our components: no shadow.
         <div className="animate-in fade-in-0 slide-in-from-bottom-1 pointer-events-none absolute inset-x-0 bottom-full z-10 px-2 pb-2 duration-200 ease-out motion-reduce:animate-none">
           <div className="pointer-events-auto">
             <article
-              className="border-sidebar-border bg-sidebar press hover:bg-sidebar-accent focus-visible:ring-sidebar-ring relative cursor-pointer overflow-hidden rounded-lg border shadow-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
+              className="border-border bg-card press hover:bg-quinary focus-visible:ring-sidebar-ring relative cursor-pointer overflow-hidden rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
               role="button"
               tabIndex={0}
               onClick={() => setOpen(true)}
