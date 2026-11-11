@@ -9,9 +9,11 @@ import { Download, File, Folder, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
+import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { fileTitle, isTeamFileName } from "@/lib/team-file";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import { RoomMark } from "./room-mark";
@@ -125,7 +127,9 @@ function RoomRow({
         {row.number}
       </span>
       <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate text-sm">{row.name}</span>
+      <span className="min-w-0 flex-1 truncate text-sm">
+        {fileTitle(row.name)}
+      </span>
       {row.isNew ? (
         <span className="bg-muted shrink-0 rounded px-1.5 text-2xs font-medium">
           {t("new")}
@@ -181,7 +185,7 @@ function RoomFile({
             <span className="text-muted-foreground me-2 tabular-nums">
               {row.number}
             </span>{" "}
-            {row.name}
+            {fileTitle(row.name)}
           </h2>
           {row.sizeBytes !== null ? (
             <p className="text-muted-foreground text-xs tabular-nums">
@@ -202,7 +206,9 @@ function RoomFile({
         <p className="text-muted-foreground text-xs">{t("watermarkNote")}</p>
       ) : null}
 
-      {mime === "application/pdf" ? (
+      {isTeamFileName(row.name) ? (
+        <TeamFileView url={url} />
+      ) : mime === "application/pdf" ? (
         <RoomPdf url={url} />
       ) : IMAGE_TYPES.has(mime) ? (
         <img
