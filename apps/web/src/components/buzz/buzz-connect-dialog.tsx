@@ -20,7 +20,14 @@ import {
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useState } from "react";
 
-import { BuzzLogo } from "@/components/buzz/buzz-brand";
+import {
+  BUZZ_ACTION_STYLE,
+  BuzzIconTile,
+  BuzzLogo,
+  BuzzMark,
+  BuzzProgress,
+  BuzzSurface,
+} from "@/components/buzz/buzz-brand";
 import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import { Button } from "@/components/ui/button";
 import {
@@ -193,25 +200,17 @@ function BuzzConnectFlow({
       <DialogTitle className="sr-only">{t("dialogTitle")}</DialogTitle>
       <DialogDescription className="sr-only">{t("subtitle")}</DialogDescription>
 
-      <div className="relative flex h-16 items-center px-6 sm:px-8">
-        {step !== "choose" ? (
-          <div className="absolute inset-x-0 top-0 flex h-[3px] gap-1">
-            {path.slice(1).map((pathStep, position) => (
-              <span
-                key={pathStep}
-                className="bg-border h-full flex-1 overflow-hidden"
-              >
-                <span
-                  className={cn(
-                    "bg-primary block size-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
-                    position < index ? "scale-x-100" : "scale-x-0",
-                  )}
-                />
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
+      <BuzzSurface className="px-6 pt-5 pb-4 sm:px-8">
+        <span className="flex h-7 items-center gap-2">
+          <BuzzMark className="w-8" />
+          <span className="text-lg font-bold tracking-[-0.03em]">Buzz</span>
+        </span>
+        <span className="mt-4 flex h-1">
+          {step !== "choose" ? (
+            <BuzzProgress total={path.length - 1} done={index} />
+          ) : null}
+        </span>
+      </BuzzSurface>
 
       <div className="app-scrollbar flex min-h-0 flex-col items-center overflow-y-auto overscroll-contain px-6 py-4 text-center sm:px-14">
         <div
@@ -220,7 +219,7 @@ function BuzzConnectFlow({
         >
           {step === "choose" && (
             <Stage
-              hero={<BuzzLogo className="size-20 rounded-2xl" />}
+              hero={null}
               title={t("title")}
               subtitle={t("subtitle")}
               headingRef={focusHeading}
@@ -250,12 +249,21 @@ function BuzzConnectFlow({
 
           {step === "new-get" && (
             <Stage
-              hero={<StepIcon icon={<Download />} />}
+              hero={
+                <BuzzIconTile>
+                  <Download />
+                </BuzzIconTile>
+              }
               title={t("get.title")}
               subtitle={t("get.subtitle")}
               headingRef={focusHeading}
             >
-              <Button asChild variant="outline" size="lg" className="h-11">
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="h-11 rounded-full"
+              >
                 <a href={BUZZ_DOWNLOAD_URL} target="_blank" rel="noreferrer">
                   <BuzzLogo className="size-5 rounded-sm" />
                   {t("get.download")}
@@ -269,7 +277,11 @@ function BuzzConnectFlow({
 
           {step === "new-key" && (
             <Stage
-              hero={<StepIcon icon={<KeyRound />} done={keySaved} />}
+              hero={
+                <BuzzIconTile>
+                  {keySaved ? <Check strokeWidth={2.5} /> : <KeyRound />}
+                </BuzzIconTile>
+              }
               title={t("key.title")}
               subtitle={t("key.subtitle")}
               headingRef={focusHeading}
@@ -277,7 +289,7 @@ function BuzzConnectFlow({
               <Button
                 variant="outline"
                 size="lg"
-                className="h-11"
+                className="h-11 rounded-full"
                 loading={savingKey}
                 onClick={saveKeyFile}
               >
@@ -296,7 +308,11 @@ function BuzzConnectFlow({
 
           {step === "new-signin" && (
             <Stage
-              hero={<StepIcon icon={<LogIn />} />}
+              hero={
+                <BuzzIconTile>
+                  <LogIn />
+                </BuzzIconTile>
+              }
               title={t("signin.title")}
               subtitle={t("signin.subtitle")}
               headingRef={focusHeading}
@@ -321,7 +337,11 @@ function BuzzConnectFlow({
 
           {step === "new-hello" && (
             <Stage
-              hero={<StepIcon icon={<MessageCircle />} />}
+              hero={
+                <BuzzIconTile>
+                  <MessageCircle />
+                </BuzzIconTile>
+              }
               title={t("hello.title")}
               subtitle={t("hello.subtitle")}
               headingRef={focusHeading}
@@ -332,7 +352,11 @@ function BuzzConnectFlow({
 
           {step === "have-key" && (
             <Stage
-              hero={<StepIcon icon={<KeyRound />} />}
+              hero={
+                <BuzzIconTile>
+                  <KeyRound />
+                </BuzzIconTile>
+              }
               title={t("have.title")}
               subtitle={t.rich("have.subtitle", { b: label })}
               headingRef={focusHeading}
@@ -379,7 +403,11 @@ function BuzzConnectFlow({
 
           {step === "have-join" && (
             <Stage
-              hero={<StepIcon icon={<Link2 />} />}
+              hero={
+                <BuzzIconTile>
+                  <Link2 />
+                </BuzzIconTile>
+              }
               title={t("join.title")}
               subtitle={t.rich("join.subtitle", { b: label })}
               headingRef={focusHeading}
@@ -391,7 +419,7 @@ function BuzzConnectFlow({
                     asChild
                     variant="outline"
                     size="lg"
-                    className="h-11"
+                    className="h-11 rounded-full"
                   >
                     <a href={invite.joinUrl}>
                       <BuzzLogo className="size-5 rounded-sm" />
@@ -415,12 +443,9 @@ function BuzzConnectFlow({
           {step === "done" && (
             <Stage
               hero={
-                <span className="relative inline-flex">
-                  <BuzzLogo className="size-20 rounded-2xl" />
-                  <span className="bg-primary text-primary-foreground ring-background absolute -right-2 -bottom-2 flex size-8 items-center justify-center rounded-full ring-4">
-                    <Check className="size-4" strokeWidth={3} />
-                  </span>
-                </span>
+                <BuzzIconTile>
+                  <Check strokeWidth={2.5} />
+                </BuzzIconTile>
               }
               title={via === "app" ? t("done.appTitle") : t("done.title")}
               subtitle={
@@ -459,7 +484,8 @@ function BuzzConnectFlow({
           <Button
             variant="primary"
             size="lg"
-            className="h-11 px-6"
+            style={BUZZ_ACTION_STYLE}
+            className="rounded-full h-11 px-6"
             onClick={next}
           >
             {t("get.next")}
@@ -470,7 +496,8 @@ function BuzzConnectFlow({
           <Button
             variant="primary"
             size="lg"
-            className="h-11 px-6"
+            style={BUZZ_ACTION_STYLE}
+            className="rounded-full h-11 px-6"
             onClick={next}
             disabled={!keySaved}
           >
@@ -482,7 +509,8 @@ function BuzzConnectFlow({
           <Button
             variant="primary"
             size="lg"
-            className="h-11 px-6"
+            style={BUZZ_ACTION_STYLE}
+            className="rounded-full h-11 px-6"
             onClick={next}
           >
             {t("signin.next")}
@@ -495,7 +523,8 @@ function BuzzConnectFlow({
             form="buzz-connect-key"
             variant="primary"
             size="lg"
-            className="h-11 px-6"
+            style={BUZZ_ACTION_STYLE}
+            className="rounded-full h-11 px-6"
             loading={linking}
             disabled={!publicKey.trim()}
           >
@@ -512,7 +541,8 @@ function BuzzConnectFlow({
           <Button
             variant="primary"
             size="lg"
-            className="h-11 w-full px-6"
+            style={BUZZ_ACTION_STYLE}
+            className="rounded-full h-11 w-full px-6"
             onClick={finish}
           >
             {t("done.close")}
@@ -530,7 +560,7 @@ function Stage({
   headingRef,
   children,
 }: {
-  hero: ReactNode;
+  hero: ReactNode | null;
   title: string;
   subtitle: ReactNode;
   headingRef: (node: HTMLHeadingElement | null) => void;
@@ -538,11 +568,13 @@ function Stage({
 }) {
   return (
     <div>
-      <div className="flex min-h-20 items-center justify-center">{hero}</div>
+      {hero ? (
+        <div className="flex min-h-16 items-center justify-center">{hero}</div>
+      ) : null}
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="mt-5 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance outline-none"
+        className="mt-5 text-3xl leading-[1.1] font-bold tracking-[-0.03em] text-balance outline-none"
       >
         {title}
       </h2>
@@ -551,21 +583,6 @@ function Stage({
       </p>
       {children ? <div className="mt-6">{children}</div> : null}
     </div>
-  );
-}
-
-function StepIcon({ icon, done }: { icon: ReactNode; done?: boolean }) {
-  return (
-    <span
-      className={cn(
-        "flex size-16 items-center justify-center rounded-2xl border transition-colors duration-200 [&>svg]:size-7",
-        done
-          ? "bg-primary text-primary-foreground border-transparent"
-          : "bg-muted",
-      )}
-    >
-      {done ? <Check strokeWidth={2.5} /> : icon}
-    </span>
   );
 }
 
@@ -643,8 +660,8 @@ function Waiting({ label }: { label: string }) {
       aria-live="polite"
     >
       <span className="relative flex size-2">
-        <span className="bg-primary absolute inline-flex size-full animate-ping rounded-full motion-reduce:animate-none" />
-        <span className="bg-primary relative inline-flex size-2 rounded-full" />
+        <span className="bg-foreground absolute inline-flex size-full animate-ping rounded-full motion-reduce:animate-none" />
+        <span className="bg-foreground relative inline-flex size-2 rounded-full" />
       </span>
       {label}
     </p>

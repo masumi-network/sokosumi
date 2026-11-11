@@ -52,15 +52,15 @@ export function BuzzSurface({
     >
       <span aria-hidden>
         <BuzzBee
-          className="absolute top-3 right-10 w-4 rotate-[18deg]"
+          className="absolute top-3 right-24 w-4 rotate-[18deg]"
           color={PALE_BEE}
         />
         <BuzzBee
-          className="absolute top-9 right-4 w-3 -rotate-12"
+          className="absolute top-10 right-16 w-3 -rotate-12"
           color={PALE_BEE}
         />
         <BuzzBee
-          className="absolute top-14 right-14 w-3 rotate-[40deg]"
+          className="absolute top-4 right-36 w-3 rotate-[40deg]"
           color={PALE_BEE}
         />
       </span>
@@ -79,6 +79,42 @@ export function BuzzPill({ children }: { children: ReactNode }) {
   return (
     <span
       className="inline-flex h-7 items-center rounded-full px-3 text-xs font-semibold"
+      style={{ backgroundColor: INK, color: YELLOW }}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Inline colors for a Buzz action on our Button: ink with yellow text, a
+ * pill. Put `rounded-full` on the button; the colors come from here.
+ */
+export const BUZZ_ACTION_STYLE = {
+  backgroundColor: INK,
+  color: YELLOW,
+} as const;
+
+/** Steps done, drawn in ink on Buzz yellow. */
+export function BuzzProgress({ total, done }: { total: number; done: number }) {
+  return (
+    <span className="flex w-full gap-1" aria-hidden>
+      {Array.from({ length: total }).map((_, index) => (
+        <span
+          key={index}
+          className="h-1 flex-1 rounded-full transition-colors duration-200"
+          style={{ backgroundColor: index < done ? INK : `${INK}26` }}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** A step's icon: the symbol in Buzz yellow on an ink tile. */
+export function BuzzIconTile({ children }: { children: ReactNode }) {
+  return (
+    <span
+      className="flex size-16 items-center justify-center rounded-2xl [&>svg]:size-7"
       style={{ backgroundColor: INK, color: YELLOW }}
     >
       {children}

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { BUZZ_ACTION_STYLE } from "@/components/buzz/buzz-brand";
 import { BuzzConnectDialog } from "@/components/buzz/buzz-connect-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,6 +99,9 @@ export function BuzzConnectButton({
         type="button"
         variant={variant}
         size="sm"
+        className="rounded-full px-4"
+        // The first connect is Buzz's own action: an ink pill.
+        style={variant === "primary" ? BUZZ_ACTION_STYLE : undefined}
         onClick={() => setOpen(true)}
       >
         {label}
