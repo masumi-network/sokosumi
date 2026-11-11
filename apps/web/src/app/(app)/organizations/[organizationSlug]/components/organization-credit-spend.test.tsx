@@ -81,6 +81,50 @@ describe("OrganizationCreditSpendCard", () => {
     expect(within(rows[1]).getByText("formerMember")).toBeInTheDocument();
   });
 
+  it("charts this month against last month on one scale, skipping people with no spend", async () => {
+    getOrganizationCreditSpendMock.mockResolvedValue({
+      data: {
+        month: "2026-11",
+        previousMonth: "2026-10",
+        rows: [
+          {
+            ...row,
+            userId: "u1",
+            name: "Ada",
+            credits: 50,
+            previousCredits: 100,
+          },
+          {
+            ...row,
+            userId: "u2",
+            name: "Gus",
+            credits: 0.2,
+            previousCredits: 0,
+          },
+          { ...row, userId: "u3", name: "Ida", credits: 0 },
+        ],
+      },
+    });
+
+    const { container } = render(
+      await OrganizationCreditSpendCard({ organizationId: "org_1" }),
+    );
+
+    const chart = container.querySelector("figure");
+    expect(chart).toHaveAttribute("aria-hidden", "true");
+    expect(chart).toHaveTextContent("November 2026");
+    expect(chart).toHaveTextContent("October 2026");
+    const bars = [...(chart?.querySelectorAll("li") ?? [])].map((item) => [
+      item.querySelector("p")?.textContent,
+      ...[...item.querySelectorAll("div")].map((bar) => bar.style.width),
+    ]);
+    expect(bars).toEqual([
+      ["Ada", "50%", "100%"],
+      ["Gus", "1%", "0%"],
+    ]);
+    expect(screen.getAllByRole("row")).toHaveLength(4);
+  });
+
   it("says so when nothing was spent", async () => {
     getOrganizationCreditSpendMock.mockResolvedValue({
       data: {
@@ -94,6 +138,7 @@ describe("OrganizationCreditSpendCard", () => {
 
     expect(screen.getByText("empty")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(document.querySelector("figure")).toBeNull();
   });
 
   it("offers a retry when Core refuses or fails", async () => {

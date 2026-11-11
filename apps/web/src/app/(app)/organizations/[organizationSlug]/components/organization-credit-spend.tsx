@@ -55,9 +55,16 @@ export async function OrganizationCreditSpendCard({
     });
   const credits = (value: number) =>
     format.number(value, { maximumFractionDigits: 2 });
-  const hasSpend = spend.rows.some(
+  const name = (row: (typeof spend.rows)[number]) =>
+    row.userId === null ? t("noPerson") : (row.name ?? t("unknownPerson"));
+  const spenders = spend.rows.filter(
     (row) => row.credits > 0 || row.previousCredits > 0,
   );
+  const peak = Math.max(
+    ...spenders.flatMap((row) => [row.credits, row.previousCredits]),
+  );
+  const bar = (value: number) =>
+    value > 0 ? `${Math.max((value / peak) * 100, 1)}%` : "0%";
 
   return (
     <Card>
@@ -66,42 +73,72 @@ export async function OrganizationCreditSpendCard({
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        {hasSpend ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("person")}</TableHead>
-                <TableHead className="text-right">
+        {spenders.length > 0 ? (
+          <div className="space-y-6">
+            {/* Visual comparison only; the table below carries the same figures for assistive tech. */}
+            <figure aria-hidden="true" className="space-y-3">
+              <figcaption className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="bg-chart-1 size-2.5 rounded-sm" />
                   {monthLabel(spend.month)}
-                </TableHead>
-                <TableHead className="text-right">
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="bg-chart-2 size-2.5 rounded-sm" />
                   {monthLabel(spend.previousMonth)}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {spend.rows.map((row) => (
-                <TableRow key={row.userId ?? "none"}>
-                  <TableCell>
-                    <span className="flex flex-wrap items-center gap-2">
-                      {row.userId === null
-                        ? t("noPerson")
-                        : (row.name ?? t("unknownPerson"))}
-                      {row.userId !== null && !row.isMember ? (
-                        <Badge variant="secondary">{t("formerMember")}</Badge>
-                      ) : null}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {credits(row.credits)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-right tabular-nums">
-                    {credits(row.previousCredits)}
-                  </TableCell>
+                </span>
+              </figcaption>
+              <ul className="space-y-3">
+                {spenders.map((row) => (
+                  <li key={row.userId ?? "none"} className="min-w-0 space-y-1">
+                    <p className="truncate text-sm">{name(row)}</p>
+                    <div
+                      className="bg-chart-1 h-2 rounded-sm"
+                      style={{ width: bar(row.credits) }}
+                      title={credits(row.credits)}
+                    />
+                    <div
+                      className="bg-chart-2 h-2 rounded-sm"
+                      style={{ width: bar(row.previousCredits) }}
+                      title={credits(row.previousCredits)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </figure>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("person")}</TableHead>
+                  <TableHead className="text-right">
+                    {monthLabel(spend.month)}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {monthLabel(spend.previousMonth)}
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {spend.rows.map((row) => (
+                  <TableRow key={row.userId ?? "none"}>
+                    <TableCell>
+                      <span className="flex flex-wrap items-center gap-2">
+                        {name(row)}
+                        {row.userId !== null && !row.isMember ? (
+                          <Badge variant="secondary">{t("formerMember")}</Badge>
+                        ) : null}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {credits(row.credits)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {credits(row.previousCredits)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         )}
