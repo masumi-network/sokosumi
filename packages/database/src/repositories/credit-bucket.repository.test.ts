@@ -541,3 +541,69 @@ describe("creditBucketRepository with Project credits", () => {
     assert.ok(!JSON.stringify(calls[0]).includes("projectId"));
   });
 });
+
+describe("creditBucketRepository.writeOffProjectCredits", () => {
+  function writeOffTx(rows: unknown[]) {
+    const queries: unknown[][] = [];
+    const created: unknown[] = [];
+    const tx = {
+      $queryRaw: async (...rawArgs: unknown[]) => {
+        queries.push(rawArgs);
+        return rows;
+      },
+      transaction: {
+        create: async (args: unknown) => {
+          created.push(args);
+          return {};
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+    return { tx, queries, created };
+  }
+
+  it("spends each of the Project's buckets for exactly its remaining amount", async () => {
+    const { tx, queries, created } = writeOffTx([
+      { id: "bucket-1", organizationId: "org-1", userId: null, remaining: 7n },
+      { id: "bucket-2", organizationId: "org-1", userId: null, remaining: 3n },
+    ]);
+
+    await creditBucketRepository.writeOffProjectCredits("project-1", tx);
+
+    const [strings, ...values] = queries[0] as [
+      TemplateStringsArray,
+      ...unknown[],
+    ];
+    const text = strings.join("?").replace(/\s+/g, " ");
+    // Only this Project's buckets: the pool (projectId null) and other
+    // Projects never match the equality.
+    assert.match(text, /WHERE cb\."projectId" = \?::uuid/);
+    assert.ok(!text.includes('"projectId" IS NULL'));
+    assert.deepEqual(values.slice(0, 1), ["project-1"]);
+    assert.deepEqual(created, [
+      {
+        data: {
+          amount: -7n,
+          organizationId: "org-1",
+          userId: null,
+          creditConsumptions: { create: { amount: 7n, bucketId: "bucket-1" } },
+        },
+      },
+      {
+        data: {
+          amount: -3n,
+          organizationId: "org-1",
+          userId: null,
+          creditConsumptions: { create: { amount: 3n, bucketId: "bucket-2" } },
+        },
+      },
+    ]);
+  });
+
+  it("writes nothing when the Project has no credits left", async () => {
+    const { tx, created } = writeOffTx([]);
+
+    await creditBucketRepository.writeOffProjectCredits("project-1", tx);
+
+    assert.deepEqual(created, []);
+  });
+});

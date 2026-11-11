@@ -145,6 +145,12 @@ vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: jevEvaluate,
 }));
+const writeOffProjectCreditsMock = vi.hoisted(() => vi.fn());
+vi.mock("@sokosumi/database/repositories", () => ({
+  creditBucketRepository: {
+    writeOffProjectCredits: writeOffProjectCreditsMock,
+  },
+}));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
@@ -3300,6 +3306,39 @@ describe("SokoBotControlPlane lifecycle", () => {
       ).rejects.toMatchObject({ status: 403 });
       await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
       expect(botUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("writes off the Project's credits when it archives his Cuso", async () => {
+      botFindFirstMock.mockResolvedValue(
+        sharedBot({
+          projectId: "project_1",
+          versionId: CMO_SOKO_BOT_VERSION_ID,
+        }),
+      );
+
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(writeOffProjectCreditsMock).toHaveBeenCalledExactlyOnceWith(
+        "project_1",
+        expect.any(Object),
+      );
+    });
+
+    it("writes nothing off for another bot of the Project or an archived Cuso", async () => {
+      botFindFirstMock.mockResolvedValueOnce(
+        sharedBot({ projectId: "project_1" }),
+      );
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+      botFindFirstMock.mockResolvedValueOnce(
+        sharedBot({
+          projectId: "project_1",
+          versionId: CMO_SOKO_BOT_VERSION_ID,
+          archivedAt: new Date(),
+        }),
+      );
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(writeOffProjectCreditsMock).not.toHaveBeenCalled();
     });
 
     it.each(["owner_1", "admin_1"])(
