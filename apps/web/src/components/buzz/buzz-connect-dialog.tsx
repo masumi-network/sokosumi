@@ -7,15 +7,12 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronRight,
   Copy,
   Download,
   KeyRound,
   Link2,
   LogIn,
   MessageCircle,
-  Sparkles,
-  UserRound,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useState } from "react";
@@ -200,7 +197,7 @@ function BuzzConnectFlow({
       <DialogTitle className="sr-only">{t("dialogTitle")}</DialogTitle>
       <DialogDescription className="sr-only">{t("subtitle")}</DialogDescription>
 
-      <BuzzSurface className="px-6 pt-5 pb-4 sm:px-8">
+      <BuzzSurface clearCorner className="px-6 pt-5 pb-4 sm:px-8">
         <span className="flex h-7 items-center gap-2">
           <BuzzMark className="w-8" />
           <span className="text-lg font-bold tracking-[-0.03em]">Buzz</span>
@@ -224,9 +221,9 @@ function BuzzConnectFlow({
               subtitle={t("subtitle")}
               headingRef={focusHeading}
             >
-              <div className="bg-card mx-auto w-full max-w-sm divide-y overflow-hidden rounded-xl border text-left">
+              <div className="mx-auto grid w-full max-w-md gap-3 text-left sm:grid-cols-2">
                 <Choice
-                  icon={<Sparkles className="size-5" />}
+                  brand
                   title={t("choose.newTitle")}
                   description={t("choose.newDescription")}
                   onSelect={() => {
@@ -235,7 +232,6 @@ function BuzzConnectFlow({
                   }}
                 />
                 <Choice
-                  icon={<UserRound className="size-5" />}
                   title={t("choose.haveTitle")}
                   description={t("choose.haveDescription")}
                   onSelect={() => {
@@ -586,33 +582,53 @@ function Stage({
   );
 }
 
+/**
+ * One way in, as a card: the main path in Buzz's own colors, the other
+ * white with a hairline. Pressed, not hovered.
+ */
 function Choice({
-  icon,
+  brand = false,
   title,
   description,
   onSelect,
 }: {
-  icon: ReactNode;
+  brand?: boolean;
   title: string;
   description: string;
   onSelect: () => void;
 }) {
+  const body = (
+    <span className="flex min-h-28 flex-col p-4 sm:min-h-36">
+      <span className="block text-base leading-tight font-bold tracking-[-0.02em]">
+        {title}
+      </span>
+      <span
+        className={cn(
+          "mt-1 block text-sm leading-snug",
+          !brand && "text-muted-foreground",
+        )}
+      >
+        {description}
+      </span>
+      <ArrowRight className="mt-auto size-5 self-end" />
+    </span>
+  );
   return (
     <button
       type="button"
       onClick={onSelect}
-      className="press hover:bg-quinary focus-visible:ring-ring flex w-full items-center gap-4 px-4 py-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-hidden focus-visible:ring-inset"
+      className={cn(
+        "press focus-visible:ring-ring block w-full overflow-hidden rounded-2xl text-left focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden",
+        !brand && "bg-card border",
+      )}
     >
-      <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{title}</span>
-        <span className="text-muted-foreground block text-sm">
-          {description}
-        </span>
-      </span>
-      <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+      {brand ? (
+        <BuzzSurface bees={false} className="h-full rounded-2xl">
+          {body}
+        </BuzzSurface>
+      ) : (
+        body
+      )}
     </button>
   );
 }

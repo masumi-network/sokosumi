@@ -36,9 +36,15 @@ export function BuzzLogo({ className }: { className?: string }) {
 export function BuzzSurface({
   className,
   children,
+  bees = true,
+  clearCorner = false,
 }: {
   className?: string;
   children: ReactNode;
+  /** The scattered bees; off where text fills the surface. */
+  bees?: boolean;
+  /** Keep the bees clear of a close button in the top corner. */
+  clearCorner?: boolean;
 }) {
   return (
     <div
@@ -50,20 +56,31 @@ export function BuzzSurface({
         backgroundSize: "14px 14px",
       }}
     >
-      <span aria-hidden>
-        <BuzzBee
-          className="absolute top-3 right-24 w-4 rotate-[18deg]"
-          color={PALE_BEE}
-        />
-        <BuzzBee
-          className="absolute top-10 right-16 w-3 -rotate-12"
-          color={PALE_BEE}
-        />
-        <BuzzBee
-          className="absolute top-4 right-36 w-3 rotate-[40deg]"
-          color={PALE_BEE}
-        />
-      </span>
+      {bees ? (
+        <span aria-hidden>
+          <BuzzBee
+            className={cn(
+              "absolute top-3 w-4 rotate-[18deg]",
+              clearCorner ? "right-24" : "right-10",
+            )}
+            color={PALE_BEE}
+          />
+          <BuzzBee
+            className={cn(
+              "absolute w-3 -rotate-12",
+              clearCorner ? "top-10 right-16" : "top-9 right-4",
+            )}
+            color={PALE_BEE}
+          />
+          <BuzzBee
+            className={cn(
+              "absolute w-3 rotate-[40deg]",
+              clearCorner ? "top-4 right-36" : "top-14 right-14",
+            )}
+            color={PALE_BEE}
+          />
+        </span>
+      ) : null}
       <div className="relative">{children}</div>
     </div>
   );
