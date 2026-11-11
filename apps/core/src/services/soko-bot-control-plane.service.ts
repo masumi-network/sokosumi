@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/database";
 import {
   applyVersionCapabilities,
+  CMO_SOKO_BOT_VERSION_IDS,
   capabilitiesForClassification,
   composeSokoBotVersionNotice,
   createEmptySokoBotMemory,
@@ -3409,12 +3410,17 @@ export class SokoBotControlPlane {
         "Cuso runs CMO's own version, which cannot be changed here",
       );
     }
-    const updated = await prisma.sokoBot.updateMany({
-      where: { id: bot.id, archivedAt: null },
-      data: { versionId },
-    });
-    if (updated.count === 0)
-      throw new SokoBotNotFoundError("Soko Bot not found");
+    await serializableTransaction(async (tx) => {
+      if (!CMO_SOKO_BOT_VERSION_IDS.includes(versionId)) {
+        await forfeitCusoProjectCredits(bot.id, tx);
+      }
+      const updated = await tx.sokoBot.updateMany({
+        where: { id: bot.id, archivedAt: null },
+        data: { versionId },
+      });
+      if (updated.count === 0)
+        throw new SokoBotNotFoundError("Soko Bot not found");
+    }, "Soko Bot version changed concurrently");
   }
 
   /**
@@ -4143,6 +4149,10 @@ export class SokoBotControlPlane {
           });
           if (!current || current.archivedAt) {
             throw new SokoBotNotFoundError("Soko Bot not found");
+          }
+          // Leaving CMO ends Cuso, so his Project credits end too (ADR 0067).
+          if (!CMO_SOKO_BOT_VERSION_IDS.includes(versionId)) {
+            await forfeitCusoProjectCredits(bot.id, tx);
           }
           const updated = await tx.sokoBot.update({
             where: { id: bot.id },

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   isSokoBotNewsletterCapability,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
@@ -4774,6 +4775,34 @@ describe("updateVersion", () => {
       ),
     ).rejects.toThrow("CMO's own version");
   });
+
+  it("writes off Cuso's Project credits when the admin lab moves him off CMO", async () => {
+    vi.clearAllMocks();
+    botFindFirstMock.mockResolvedValueOnce(
+      adminBot({
+        userId: null,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        workspace: { organizationId: "org_1" },
+      }),
+    );
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await new SokoBotControlPlane().updateVersion(
+      "admin_1",
+      "workspace_1",
+      "v19",
+      { allowUnpromoted: true },
+      { kind: "id", sokoBotId: BOT_ID },
+    );
+
+    expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      expect.objectContaining({ sokoBot: expect.any(Object) }),
+    );
+    expect(forfeitMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
 });
 
 describe("SET_VERSION and fleet migration", () => {
@@ -4823,6 +4852,57 @@ describe("SET_VERSION and fleet migration", () => {
     expect(audit).toMatchObject({ status: "SUCCEEDED", targetId: "v16" });
     expect(audit.before).toMatchObject({ versionId: "v14" });
     expect(audit.after).toMatchObject({ versionId: "v16" });
+  });
+
+  it("writes off Cuso's Project credits when he moves to a version outside CMO", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: "v16",
+      reason: "Move Cuso to the assistant",
+      operationId: "cuso-off-cmo",
+    });
+
+    // In the version change's transaction, before the write: the helper
+    // still reads him as a live Cuso.
+    expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      expect.objectContaining({ sokoBot: expect.any(Object) }),
+    );
+    expect(forfeitMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botUpdateMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("keeps the Project credits when the move stays on a CMO version", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: CMO_SOKO_BOT_VERSION_IDS.at(-1) as string,
+      reason: "Next CMO version",
+      operationId: "cuso-cmo-to-cmo",
+    });
+
+    expect(botUpdateMock).toHaveBeenCalled();
+    expect(forfeitMock).not.toHaveBeenCalled();
   });
 
   it("refuses an unknown version before it writes an intent", async () => {
