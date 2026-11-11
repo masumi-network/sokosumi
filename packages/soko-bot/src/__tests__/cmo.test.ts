@@ -53,6 +53,13 @@ describe("CMO version", () => {
     expect(v2).toMatch(/skip or move that channel's extra entries/);
     expect(v2).toMatch(/never by changing the mix/);
     expect(v1).not.toMatch(/still hold every piece|never by changing the mix/);
+    // A new audience reaches every part that names the old one; titles make
+    // their own point; a holiday needs a real reason.
+    expect(v2).toMatch(/A change to the audience or focus rewrites every part/);
+    expect(v2).toMatch(/Every title makes its own point/);
+    expect(v2).toMatch(
+      /only when the business has a real reason for that date/,
+    );
     // Only the strategy skill differs.
     const one = getSokoBotVersion("cmo-v1");
     const two = getSokoBotVersion("cmo-v2");

@@ -313,4 +313,55 @@ describe("fitCmoMarketingContext", () => {
       "later",
     ]);
   });
+
+  it("keeps every later piece as a short line before it drops any, so a change can reach weeks three and four", () => {
+    const month = {
+      brandBrain: { summary: "A shop", profile: {} },
+      strategy: {
+        summary: "Plan",
+        calendar: Array.from({ length: 28 }, (_, day) => ({
+          ...entry(`e${day}`, `2026-11-${String(day + 2).padStart(2, "0")}`),
+          pillar: "Team booking",
+          campaignId: "trial",
+          why: "z".repeat(120),
+        })),
+      },
+    };
+    const fitted = fitCmoMarketingContext(month, now, 6_600) as {
+      strategy: { calendar: Record<string, unknown>[] };
+    };
+    expect(fitted.strategy.calendar).toHaveLength(28);
+    const far = fitted.strategy.calendar.at(-1);
+    expect(Object.keys(far ?? {}).sort()).toEqual(
+      ["channel", "date", "format", "id", "status", "title"].sort(),
+    );
+  });
+
+  it("sheds the Brand Brain's open questions and profile answers before any calendar entry", () => {
+    // marketingToday stays: the plan's before/after rows are written from it.
+    const month = {
+      brandBrain: {
+        summary: "A shop",
+        questions: ["q".repeat(1_500)],
+        marketingToday: { summary: "m".repeat(300) },
+        profile: { buyers: { headline: "Teams", answer: "a".repeat(3_000) } },
+      },
+      strategy: {
+        summary: "Plan",
+        calendar: Array.from({ length: 28 }, (_, day) =>
+          entry(`e${day}`, `2026-11-${String(day + 2).padStart(2, "0")}`),
+        ),
+      },
+    };
+    const fitted = fitCmoMarketingContext(month, now, 7_000) as {
+      brandBrain: Record<string, unknown> & {
+        profile: Record<string, Record<string, unknown>>;
+      };
+      strategy: { calendar: unknown[] };
+    };
+    expect(fitted.strategy.calendar).toHaveLength(28);
+    expect(fitted.brandBrain.questions).toBeUndefined();
+    expect(fitted.brandBrain.marketingToday).toBeDefined();
+    expect(fitted.brandBrain.profile.buyers).toEqual({ headline: "Teams" });
+  });
 });
