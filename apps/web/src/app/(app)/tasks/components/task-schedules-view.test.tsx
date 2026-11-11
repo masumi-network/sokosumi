@@ -25,7 +25,10 @@ const {
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}(${Object.values(values).join(", ")})` : key,
-  useFormatter: () => ({ dateTime: () => "Mon, 9:00" }),
+  useFormatter: () => ({
+    dateTime: () => "Mon, 9:00",
+    list: (items: string[]) => items.join(" & "),
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -125,16 +128,19 @@ function renderView(
     nextCursor = null,
     projectId = null,
     state = null,
+    otherStateCounts,
   }: {
     nextCursor?: string | null;
     projectId?: string | null;
     state?: TaskScheduleState | null;
+    otherStateCounts?: { state: TaskScheduleState; count: number }[];
   } = {},
 ) {
   return render(
     <TaskSchedulesView
       schedules={schedules}
       nextCursor={nextCursor}
+      otherStateCounts={otherStateCounts}
       coworkerOptions={[ELENA]}
       assigneeDisplayOptions={[ELENA, MEMBER]}
       projectOptions={[]}
@@ -252,6 +258,42 @@ describe("TaskSchedulesView", () => {
     expect(
       screen.getByRole("dialog", { name: "schedule dialog" }),
     ).toBeInTheDocument();
+  });
+
+  it("says why a state filter is empty and offers every schedule", async () => {
+    const user = userEvent.setup();
+    searchParamsRef.current = new URLSearchParams("scheduleState=ENDED");
+    renderView([], {
+      state: "ENDED",
+      otherStateCounts: [
+        { state: "ACTIVE", count: 17 },
+        { state: "PAUSED", count: 0 },
+      ],
+    });
+
+    expect(screen.getByText("emptyFiltered.ENDED")).toBeInTheDocument();
+    expect(
+      screen.getByText("emptyFilteredOthers(stateCount.ACTIVE(17))"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("empty")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "showAll" }));
+
+    expect(replaceMock).toHaveBeenCalledWith("/schedules");
+  });
+
+  it("keeps the first-use text when no state holds a schedule", () => {
+    renderView([], {
+      state: "PAUSED",
+      otherStateCounts: [
+        { state: "ACTIVE", count: 0 },
+        { state: "ENDED", count: 0 },
+      ],
+    });
+
+    expect(screen.getByText("empty")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "showAll" }),
+    ).not.toBeInTheDocument();
   });
 
   it("loads more of the same project and state", async () => {

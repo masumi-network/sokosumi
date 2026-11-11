@@ -3,7 +3,7 @@
 import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
@@ -40,6 +40,8 @@ interface TaskSchedulesViewProps {
   defaultViewMode?: SchedulesViewMode;
   schedules: TaskSchedule[];
   nextCursor: string | null;
+  /** What the other state tabs hold, sent only when the shown filter is empty. */
+  otherStateCounts?: { state: TaskScheduleState; count: number }[];
   coworkerOptions: CoworkerOption[];
   assigneeDisplayOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
@@ -59,6 +61,7 @@ export function TaskSchedulesView({
   schedules,
   defaultViewMode = "list",
   nextCursor,
+  otherStateCounts = [],
   coworkerOptions,
   assigneeDisplayOptions,
   projectOptions,
@@ -69,6 +72,7 @@ export function TaskSchedulesView({
   canDeleteUnowned = false,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
+  const formatter = useFormatter();
   const [viewMode, setViewMode] = useState(defaultViewMode);
   const router = useRouter();
   const pathname = usePathname();
@@ -143,6 +147,10 @@ export function TaskSchedulesView({
   ];
 
   const shownValue = shownState ?? ALL_STATES;
+  // The first-use text stays for a workspace with no schedules at all.
+  const otherStates = otherStateCounts.filter(({ count }) => count > 0);
+  const isFilteredEmpty =
+    rows.length === 0 && selectedState !== null && otherStates.length > 0;
 
   useLoadWhenVisible(boundaryRef, {
     armed:
@@ -209,7 +217,35 @@ export function TaskSchedulesView({
         className={cn(HOLDER_CLASS, "flex flex-col gap-4")}
         value={shownValue}
       >
-        {rows.length === 0 ? (
+        {isFilteredEmpty ? (
+          <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center gap-2 px-4 py-16 text-center duration-200 ease-out">
+            <CalendarSync
+              className="text-muted-foreground size-6"
+              aria-hidden
+            />
+            <p className="text-sm font-medium">
+              {t(`emptyFiltered.${selectedState}`)}
+            </p>
+            <p className="text-muted-foreground max-w-sm text-sm text-pretty">
+              {t("emptyFilteredOthers", {
+                states: formatter.list(
+                  otherStates.map(({ state, count }) =>
+                    t(`stateCount.${state}`, { count }),
+                  ),
+                  { type: "conjunction" },
+                ),
+              })}
+            </p>
+            <Button
+              className="mt-2"
+              onClick={() => handleStateChange(ALL_STATES)}
+              size="sm"
+              variant="outline"
+            >
+              {t("showAll")}
+            </Button>
+          </div>
+        ) : rows.length === 0 ? (
           <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center gap-2 px-4 py-16 text-center duration-200 ease-out">
             <CalendarSync
               className="text-muted-foreground size-6"

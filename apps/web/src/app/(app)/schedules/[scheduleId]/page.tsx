@@ -26,8 +26,10 @@ import { taskHref } from "@/app/tasks/utils/task-href";
 import { loadTaskScheduleAssigneeOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
 import {
   formatTaskScheduleRule,
+  formatTaskScheduleTime,
   TASK_SCHEDULES_PATH,
   taskScheduleAssigneeLabel,
+  taskScheduleZoneName,
 } from "@/app/tasks/utils/task-schedule-view";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { Badge } from "@/components/ui/badge";
@@ -145,6 +147,11 @@ async function TaskScheduleDetailContent({
   const upcomingRuns = runs
     .filter((run) => run.state !== "CANCELED")
     .slice(0, UPCOMING_RUNS_LIMIT);
+  // Run times read on the schedule's own clock, as its rule does.
+  const timeZone = schedule.rule.timezone;
+  const nextRun = schedule.nextRunAt
+    ? formatTaskScheduleTime(schedule.nextRunAt, timeZone, formatter)
+    : null;
 
   return (
     <div className="min-h-full w-full">
@@ -205,6 +212,11 @@ async function TaskScheduleDetailContent({
                       run.originalScheduledAt !== null &&
                       run.originalScheduledAt.getTime() !==
                         run.effectiveScheduledAt.getTime();
+                    const runTime = formatTaskScheduleTime(
+                      run.effectiveScheduledAt,
+                      timeZone,
+                      formatter,
+                    );
                     return (
                       <li
                         key={run.id}
@@ -213,17 +225,21 @@ async function TaskScheduleDetailContent({
                           "flex items-center justify-between gap-3 px-4 py-2.5 text-sm",
                         )}
                       >
-                        <span
-                          className={
-                            run.state === "SKIPPED"
-                              ? "text-muted-foreground tabular-nums line-through"
-                              : "tabular-nums"
-                          }
-                        >
-                          {formatter.dateTime(
-                            run.effectiveScheduledAt,
-                            "dateTimeMedium",
-                          )}
+                        <span className="flex min-w-0 flex-col tabular-nums">
+                          <span
+                            className={
+                              run.state === "SKIPPED"
+                                ? "text-muted-foreground line-through"
+                                : undefined
+                            }
+                          >
+                            {runTime.schedule}
+                          </span>
+                          {runTime.local ? (
+                            <span className="text-muted-foreground text-xs">
+                              {t("localTime", { datetime: runTime.local })}
+                            </span>
+                          ) : null}
                         </span>
                         {run.state === "SKIPPED" ? (
                           <Badge variant="outline" className="rounded-sm">
@@ -300,18 +316,27 @@ async function TaskScheduleDetailContent({
                 </Property>
                 <Property label={t("Detail.rule")}>
                   {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
-                </Property>
-                <Property label={t("Detail.timezone")}>
-                  {schedule.rule.timezone}
+                  <span className="text-muted-foreground block text-xs">
+                    {t("zoneTime", { zone: taskScheduleZoneName(timeZone) })}
+                  </span>
                 </Property>
                 <Property label={t("Detail.nextRun")}>
-                  {schedule.nextRunAt
-                    ? formatter.dateTime(schedule.nextRunAt, "dateTimeMedium")
-                    : t("noNextRun")}
+                  {nextRun ? (
+                    <span className="tabular-nums">
+                      {nextRun.schedule}
+                      {nextRun.local ? (
+                        <span className="text-muted-foreground block text-xs">
+                          {t("localTime", { datetime: nextRun.local })}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : (
+                    t("noNextRun")
+                  )}
                 </Property>
                 <Property label={t("Detail.ends")}>
                   {formatEnds(schedule, t, (date) =>
-                    formatter.dateTime(date, { dateStyle: "medium" }),
+                    formatter.dateTime(date, { dateStyle: "medium", timeZone }),
                   )}
                 </Property>
                 <Property label={t("Detail.assignee")}>
