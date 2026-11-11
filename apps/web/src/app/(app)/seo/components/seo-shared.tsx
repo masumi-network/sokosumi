@@ -55,12 +55,12 @@ export function seoMarketName(
     .join(" · ");
 }
 
-/** The lists of the Rankings tab; a phone shows one at a time. */
+/** The lists of the Rankings tab; one shows at a time. */
 export type SeoRankingsSection = "keywords" | "ideas" | "competitors";
 
-/** Hides a section on a phone while another one is chosen; a wide screen shows every section. */
-export function seoPhoneSectionClass(shown: boolean) {
-  return shown ? undefined : "max-sm:hidden";
+/** Hides a list of the Rankings tab while another one is chosen. */
+export function seoSectionClass(shown: boolean) {
+  return shown ? undefined : "hidden";
 }
 
 /** A search box helps only in a list longer than about one screen. */

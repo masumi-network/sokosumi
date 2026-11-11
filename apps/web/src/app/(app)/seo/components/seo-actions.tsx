@@ -38,7 +38,7 @@ export function SeoActionCard({
 }) {
   const t = useTranslations("App.Seo");
   const card = useRef<HTMLElement>(null);
-  // "See the fix" on the Health tab and "Open" on an Agent row lead here: the card scrolls into view and takes the focus once.
+  // "See the fix" on the Health tab and on an Agent row lead here: the card scrolls into view and takes the focus once.
   const shown = model.shownAction === seoActionKey(action);
   const { setShownAction } = model;
   // The card stays marked until the focus leaves the card, so the reader sees which of the cards the row meant.

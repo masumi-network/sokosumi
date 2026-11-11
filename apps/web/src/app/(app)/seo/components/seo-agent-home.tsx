@@ -316,7 +316,7 @@ function ActionStepRow({
         "content-rise flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5",
       )}
     >
-      <div id={titleId} className="min-w-0 flex-1 basis-48">
+      <div id={titleId} className="min-w-0 flex-1 basis-48 max-sm:basis-full">
         <p className="text-sm font-medium break-words">{action.title}</p>
         {model.data.scope.pageIds.length > 1 ? (
           <SeoPageLink url={action.pageUrl} />
@@ -331,9 +331,11 @@ function ActionStepRow({
         size="sm"
         variant="outline"
         aria-describedby={titleId}
+        // On a phone the text has the full width; the mark and the button share the line under it.
+        className="max-sm:ml-auto"
         onClick={() => model.showAction(action)}
       >
-        {t("agent.openStep")}
+        {t(action.kind === "fix" ? "overview.seeFix" : "agent.seeSuggestion")}
       </Button>
     </li>
   );
@@ -412,9 +414,7 @@ function SeoAgentPanel({
                 : step.kind !== "action" || (canEdit && !step.action.taskId),
         );
   const periodId = useId();
-  // "0 of 16" in a tile is a number; the sentence says what it means.
   const numbers = seoSummary(model.data);
-  const keywordsRead = numbers.keywords;
   // The headline carries the severities, so the Agent tab needs no issues tile.
   const severitySplit = numbers.issues
     ? `: ${format.list(
@@ -426,8 +426,49 @@ function SeoAgentPanel({
         ),
       )}`
     : "";
-  const noneFound = keywordsRead?.found === 0 ? keywordsRead.read : 0;
   const { actionSeverity } = seoOverviewModel(model.data);
+  // The actions lead the steps. The steps after them get their own list and label.
+  const firstOther = shown.findIndex((step) => step.kind !== "action");
+  const split = firstOther === -1 ? shown.length : firstOther;
+  const moreActions =
+    brief.fixes +
+    brief.opportunities -
+    steps.filter((step) => step.kind === "action").length;
+  const actionKind = brief.opportunities ? "action" : "fix";
+  const stepItem = (step: SeoAgentStep, index: number) =>
+    step.kind === "action" ? (
+      index === primary ? (
+        <li
+          className="content-rise"
+          key={`${step.action.observationId}:${step.action.id}`}
+        >
+          <SeoActionCard
+            action={step.action}
+            model={model}
+            severity={actionSeverity(step.action)}
+            primary
+          />
+        </li>
+      ) : (
+        <ActionStepRow
+          key={`${step.action.observationId}:${step.action.id}`}
+          action={step.action}
+          severity={actionSeverity(step.action)}
+          model={model}
+        />
+      )
+    ) : (
+      <StepRow
+        key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
+        step={step}
+        model={model}
+        first={index === primary}
+        refresh={() => {
+          void autopilot.refresh();
+        }}
+        refreshing={autopilot.state === "refreshing"}
+      />
+    );
   const trafficLine = traffic
     ? t("agent.traffic", {
         impressions: traffic.impressions,
@@ -520,20 +561,6 @@ function SeoAgentPanel({
               {t("agent.lastCheckPages", { pages: brief.lastCheck.pages })}
             </p>
           ) : null}
-          {noneFound ? (
-            <p
-              className="max-w-prose text-sm"
-              data-testid="seo-agent-none-found"
-            >
-              {keywordsRead?.depth
-                ? // Every read looked at least this deep, so the number holds for each keyword.
-                  t("agent.noneFoundDepth", {
-                    count: noneFound,
-                    depth: keywordsRead.depth.min,
-                  })
-                : t("agent.noneFound", { count: noneFound })}
-            </p>
-          ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
           {/* The keyword results as numbers. The issue count is in the headline; its tiles lead the Health tab. */}
           <SeoSummaryTiles
@@ -607,43 +634,51 @@ function SeoAgentPanel({
             {t(setup ? "setup.more" : "agent.nextTitle")}
           </h3>
           {steps.length ? (
-            <ul role="list" className="space-y-2">
-              {shown.map((step, index) =>
-                step.kind === "action" ? (
-                  index === primary ? (
+            <>
+              {split ? (
+                <ul role="list" className="space-y-2">
+                  {shown.slice(0, split).map(stepItem)}
+                  {moreActions ? (
+                    // The Agent tab shows the first actions only: the rest must not look absent.
                     <li
-                      className="content-rise"
-                      key={`${step.action.observationId}:${step.action.id}`}
+                      className={cn(
+                        HOLDER_ITEM_CLASS,
+                        "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2.5",
+                      )}
                     >
-                      <SeoActionCard
-                        action={step.action}
-                        model={model}
-                        severity={actionSeverity(step.action)}
-                        primary
-                      />
+                      <p className="text-sm">
+                        {t("agent.moreActions", {
+                          count: moreActions,
+                          kind: actionKind,
+                        })}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void model.setFilters({ tab: "actions" });
+                        }}
+                      >
+                        {t("agent.allActions", { kind: actionKind })}
+                      </Button>
                     </li>
-                  ) : (
-                    <ActionStepRow
-                      key={`${step.action.observationId}:${step.action.id}`}
-                      action={step.action}
-                      severity={actionSeverity(step.action)}
-                      model={model}
-                    />
-                  )
-                ) : (
-                  <StepRow
-                    key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
-                    step={step}
-                    model={model}
-                    first={index === primary}
-                    refresh={() => {
-                      void autopilot.refresh();
-                    }}
-                    refreshing={autopilot.state === "refreshing"}
-                  />
-                ),
-              )}
-            </ul>
+                  ) : null}
+                </ul>
+              ) : null}
+              {split && split < shown.length ? (
+                // The steps after the actions are no issues of the check: the headline does not count them.
+                <h4 className="text-muted-foreground px-2 pt-1 text-xs font-medium">
+                  {t("agent.otherSteps")}
+                </h4>
+              ) : null}
+              {split < shown.length ? (
+                <ul role="list" className="space-y-2">
+                  {shown
+                    .slice(split)
+                    .map((step, index) => stepItem(step, index + split))}
+                </ul>
+              ) : null}
+            </>
           ) : (
             <p className="text-muted-foreground max-w-prose px-2 text-sm">
               {t("agent.nothingNext")}

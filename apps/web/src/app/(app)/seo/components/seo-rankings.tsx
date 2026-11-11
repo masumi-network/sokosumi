@@ -10,19 +10,22 @@ import { SeoKeywords } from "./seo-keywords";
 import {
   SEO_CHOSEN_CLASS,
   type SeoRankingsSection,
-  seoPhoneSectionClass,
+  seoSectionClass,
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /**
- * The Rankings tab. A wide screen shows keywords, ideas and competitors one
- * under the other. On a phone the three lists are one long page of cards, so a
- * switch shows one list at a time.
+ * The Rankings tab. Keywords, ideas and competitors one under the other are
+ * three screens of rows, so a switch shows one list at a time.
  */
 export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
-  const [chosen, setSection] = useState<SeoRankingsSection>("keywords");
-  const ideas = keywordGroups(model.data.keywords).ideas.length;
+  const groups = keywordGroups(model.data.keywords);
+  const ideas = groups.ideas.length;
+  // With ideas and no checked keyword, the Keywords list is empty: the tab opens on the ideas.
+  const [chosen, setSection] = useState<SeoRankingsSection>(() =>
+    ideas && !groups.checked.length ? "ideas" : "keywords",
+  );
   const sections: { id: SeoRankingsSection; label: string }[] = [
     { id: "keywords", label: t("keywords.title") },
     ...(ideas
@@ -36,7 +39,7 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
     : "keywords";
   return (
     <div className="space-y-6">
-      <fieldset className="flex gap-1 sm:hidden">
+      <fieldset className="flex gap-1">
         <legend className="sr-only">{t("tabs.rankings")}</legend>
         {sections.map(({ id, label }) => (
           <Button
@@ -46,7 +49,7 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
             size="sm"
             aria-pressed={section === id}
             className={cn(
-              "min-h-10 min-w-0 flex-1",
+              "min-h-10 min-w-0 flex-1 sm:flex-none sm:px-4",
               section === id && SEO_CHOSEN_CLASS,
             )}
             onClick={() => setSection(id)}
@@ -55,8 +58,8 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           </Button>
         ))}
       </fieldset>
-      <SeoKeywords model={model} phoneSection={section} />
-      <div className={seoPhoneSectionClass(section === "competitors")}>
+      <SeoKeywords model={model} section={section} />
+      <div className={seoSectionClass(section === "competitors")}>
         <SeoCompetitors model={model} />
       </div>
     </div>

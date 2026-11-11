@@ -167,6 +167,16 @@ export function SeoSummaryTiles({
                 {t("keywords.firstPage", { count: keywords.firstPage })}
               </span>
             ) : null}
+            {/* "0 of 16" is no "not in Google": the count holds for the results the check read. A depth exists only with a keyword that was not found. */}
+            {keywords.depth ? (
+              <span>
+                {t("summary.depth", {
+                  ...keywords.depth,
+                  same:
+                    keywords.depth.min === keywords.depth.max ? "yes" : "no",
+                })}
+              </span>
+            ) : null}
             {onOpenRankings ? (
               <button
                 type="button"

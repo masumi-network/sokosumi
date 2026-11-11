@@ -11043,7 +11043,7 @@
         "language": "Language code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Track a keyword to keep it on this list and to have the next rank check start with it. With Search Console connected, each sync saves its position. Tracking is free.",
+        "help": "Track a keyword to keep it on this list. The next rank check starts with it. Tracking is free.",
         "dialogHelp": "Tracking a keyword is free. It does not start paid rank checks.",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
@@ -11069,7 +11069,8 @@
           "short": "Ideas"
         },
         "intentMissing": "{count, plural, one {The keyword data gives no intent for # keyword.} other {The keyword data gives no intent for # keywords.}}",
-        "readOn": "Positions read on"
+        "readOn": "Positions read on",
+        "addButton": "Add a keyword"
       },
       "competitors": {
         "title": "Competitors",
@@ -11523,9 +11524,10 @@
         "draftFix": "Draft a fix",
         "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
         "lastCheckPages": "{pages, plural, one {# page} other {# pages}}",
-        "noneFound": "{count, plural, one {None of your pages is in Google's results for the # checked keyword.} other {None of your pages is in Google's results for the # checked keywords.}}",
-        "noneFoundDepth": "{count, plural, one {None of your pages is in Google's first {depth} results for the # checked keyword.} other {None of your pages is in Google's first {depth} results for the # checked keywords.}}",
-        "openStep": "Open"
+        "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
+        "allActions": "{kind, select, fix {See all fixes} other {See all actions}}",
+        "otherSteps": "Other steps (not counted as issues)",
+        "seeSuggestion": "See the suggestion"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
@@ -11656,7 +11658,8 @@
         "tests": "Tests completed",
         "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
         "testsAll": "Every test gave a result",
-        "aMonth": "a month"
+        "aMonth": "a month",
+        "depth": "{same, select, yes {In the first {max} results} other {In the first {min} to {max} results}}"
       }
     }
   },

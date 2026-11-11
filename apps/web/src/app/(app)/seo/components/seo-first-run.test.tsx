@@ -498,12 +498,18 @@ describe("SEO audit first run", () => {
     [false, copy.keywords.emptyBodyOff, copy.competitors.emptyBodyOff],
   ])(
     "names a check in the empty rankings only where a check can run: %s",
-    (can, keywords, competitors) => {
+    async (can, keywords, competitors) => {
       const workspace = seoTestWorkspace();
       workspace.availableActions.canRequestAnalysis = can;
       network(workspace);
       renderWorkspace(workspace, "?tab=rankings");
       expect(screen.getByText(keywords)).toBeVisible();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Competitors" }),
+      );
+      expect(
+        screen.getByRole("button", { name: "Competitors" }),
+      ).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByText(competitors)).toBeVisible();
     },
   );

@@ -50,7 +50,7 @@ import {
   SeoSource,
   SeoState,
   seoMarketName,
-  seoPhoneSectionClass,
+  seoSectionClass,
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
 import { SeoKeywordDemand, SeoStrategyCard } from "./seo-strategy";
@@ -85,11 +85,11 @@ export function SeoQueryFilter({
 
 export function SeoKeywords({
   model,
-  phoneSection = "keywords",
+  section = "keywords",
 }: {
   model: SeoWorkspaceModel;
-  /** The list a phone shows; a wide screen shows keywords and ideas. */
-  phoneSection?: SeoRankingsSection;
+  /** The list of the Rankings tab that shows. */
+  section?: SeoRankingsSection;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -160,13 +160,12 @@ export function SeoKeywords({
   );
   const noIntent = rows.filter((group) => group.intent === null).length;
   const groupOf = seoStrategyGroupOf(model.data.strategy);
+  // One search box filters keywords and ideas: while it holds text, both lists show their matches.
+  const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
   return (
     <div className="space-y-5">
       <div
-        className={cn(
-          "space-y-5",
-          seoPhoneSectionClass(phoneSection !== "competitors"),
-        )}
+        className={cn("space-y-5", seoSectionClass(section !== "competitors"))}
       >
         <SeoStrategyCard model={model} />
         {/* The lists show a keyword once, so the search counts keywords, not device rows. */}
@@ -175,14 +174,14 @@ export function SeoKeywords({
           rows={all.checked.length + all.ideas.length}
         />
       </div>
-      <div className={seoPhoneSectionClass(phoneSection === "keywords")}>
+      <div className={seoSectionClass(bothLists || section === "keywords")}>
         <SeoSection
           title={t("keywords.title")}
           actions={
             model.data.availableActions.canEdit ? (
               <Button size="sm" onClick={() => model.setDialog("keyword")}>
                 <Plus className="size-4" />
-                {t("keywords.add")}
+                {t("keywords.addButton")}
               </Button>
             ) : null
           }
@@ -223,16 +222,16 @@ export function SeoKeywords({
                     observationId={summary.newest.observationId}
                   />
                 ) : null}
+                {summary.depth ? (
+                  <span>
+                    {t("keywords.depth", {
+                      ...summary.depth,
+                      same:
+                        summary.depth.min === summary.depth.max ? "yes" : "no",
+                    })}
+                  </span>
+                ) : null}
               </p>
-              {summary.depth ? (
-                <p className="text-muted-foreground text-sm">
-                  {t("keywords.depth", {
-                    ...summary.depth,
-                    same:
-                      summary.depth.min === summary.depth.max ? "yes" : "no",
-                  })}
-                </p>
-              ) : null}
             </div>
           ) : null}
           {paidOff ||
@@ -535,10 +534,10 @@ export function SeoKeywords({
           ) : suggestions.length ? (
             <SeoKeywordSuggestions model={model} rows={suggestions} />
           ) : model.keywordSearch ? (
-            // The search hides every row of this list; the ideas below may still match.
+            // The search hides every row of this list; the ideas under it may still match.
             <SeoEmpty title={t("keywords.noMatch")} />
           ) : ideas.length ? null : (
-            // With ideas listed below, "run a check to find keywords" would be wrong.
+            // With ideas in the Ideas list, "run a check to find keywords" would be wrong.
             <SeoEmpty
               title={t("keywords.empty")}
               // No call to run a check where no check can run.
@@ -558,7 +557,7 @@ export function SeoKeywords({
           ) : null}
         </SeoSection>
       </div>
-      <div className={seoPhoneSectionClass(phoneSection === "ideas")}>
+      <div className={seoSectionClass(bothLists || section === "ideas")}>
         <SeoKeywordIdeas model={model} ideas={ideas} />
       </div>
     </div>

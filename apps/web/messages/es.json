@@ -11043,7 +11043,7 @@
         "language": "Código de idioma",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "Sigue una palabra clave para que se quede en esta lista y para que la próxima comprobación de posición empiece con ella. Con Search Console conectado, cada sincronización guarda su posición. El seguimiento es gratis.",
+        "help": "Sigue una palabra clave para que se quede en esta lista. La próxima comprobación de posición empieza con ella. El seguimiento es gratis.",
         "dialogHelp": "Seguir una palabra clave es gratis. No inicia comprobaciones de posición de pago.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
@@ -11069,7 +11069,8 @@
           "short": "Ideas"
         },
         "intentMissing": "{count, plural, one {Los datos no indican la intención de # palabra clave.} other {Los datos no indican la intención de # palabras clave.}}",
-        "readOn": "Posiciones leídas el"
+        "readOn": "Posiciones leídas el",
+        "addButton": "Añadir una palabra clave"
       },
       "competitors": {
         "title": "Competidores",
@@ -11523,9 +11524,10 @@
         "draftFix": "Preparar una corrección",
         "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
         "lastCheckPages": "{pages, plural, one {# página} other {# páginas}}",
-        "noneFound": "{count, plural, one {Ninguna de tus páginas está en los resultados de Google para la # palabra clave comprobada.} other {Ninguna de tus páginas está en los resultados de Google para las # palabras clave comprobadas.}}",
-        "noneFoundDepth": "{count, plural, one {Ninguna de tus páginas está en los primeros {depth} resultados de Google para la # palabra clave comprobada.} other {Ninguna de tus páginas está en los primeros {depth} resultados de Google para las # palabras clave comprobadas.}}",
-        "openStep": "Abrir"
+        "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
+        "allActions": "{kind, select, fix {Ver todas las correcciones} other {Ver todas las acciones}}",
+        "otherSteps": "Otros pasos (no cuentan como problemas)",
+        "seeSuggestion": "Ver la sugerencia"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
@@ -11656,7 +11658,8 @@
         "tests": "Pruebas completadas",
         "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
         "testsAll": "Todas las pruebas tienen resultado",
-        "aMonth": "al mes"
+        "aMonth": "al mes",
+        "depth": "{same, select, yes {En los primeros {max} resultados} other {En los primeros {min} a {max} resultados}}"
       }
     }
   },

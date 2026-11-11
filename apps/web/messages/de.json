@@ -11043,7 +11043,7 @@
         "language": "Sprachcode",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
-        "help": "Verfolge ein Keyword, damit es in dieser Liste bleibt und die nächste Rangprüfung damit beginnt. Mit verbundener Search Console speichert jede Synchronisierung seine Position. Das Verfolgen ist kostenlos.",
+        "help": "Verfolge ein Keyword, damit es in dieser Liste bleibt. Die nächste Rangprüfung beginnt damit. Das Verfolgen ist kostenlos.",
         "dialogHelp": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Rangprüfungen.",
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
@@ -11069,7 +11069,8 @@
           "short": "Ideen"
         },
         "intentMissing": "{count, plural, one {Die Keyword-Daten nennen für # Keyword keine Suchabsicht.} other {Die Keyword-Daten nennen für # Keywords keine Suchabsicht.}}",
-        "readOn": "Positionen gelesen am"
+        "readOn": "Positionen gelesen am",
+        "addButton": "Keyword hinzufügen"
       },
       "competitors": {
         "title": "Mitbewerber",
@@ -11523,9 +11524,10 @@
         "draftFix": "Korrektur entwerfen",
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
         "lastCheckPages": "{pages, plural, one {# Seite} other {# Seiten}}",
-        "noneFound": "{count, plural, one {Keine deiner Seiten ist in den Google-Ergebnissen für das # geprüfte Keyword.} other {Keine deiner Seiten ist in den Google-Ergebnissen für die # geprüften Keywords.}}",
-        "noneFoundDepth": "{count, plural, one {Keine deiner Seiten ist in den ersten {depth} Google-Ergebnissen für das # geprüfte Keyword.} other {Keine deiner Seiten ist in den ersten {depth} Google-Ergebnissen für die # geprüften Keywords.}}",
-        "openStep": "Öffnen"
+        "moreActions": "{kind, select, fix {{count, plural, one {# weitere Korrektur} other {# weitere Korrekturen}}} other {{count, plural, one {# weitere Aktion} other {# weitere Aktionen}}}}",
+        "allActions": "{kind, select, fix {Alle Korrekturen ansehen} other {Alle Aktionen ansehen}}",
+        "otherSteps": "Andere Schritte (zählen nicht als Probleme)",
+        "seeSuggestion": "Zum Vorschlag"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
@@ -11656,7 +11658,8 @@
         "tests": "Abgeschlossene Tests",
         "testsNoResult": "{count, plural, one {# Test ohne Ergebnis} other {# Tests ohne Ergebnis}}",
         "testsAll": "Jeder Test hat ein Ergebnis",
-        "aMonth": "pro Monat"
+        "aMonth": "pro Monat",
+        "depth": "{same, select, yes {In den ersten {max} Ergebnissen} other {In den ersten {min} bis {max} Ergebnissen}}"
       }
     }
   },
