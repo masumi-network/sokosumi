@@ -1072,6 +1072,15 @@
     },
     "ConnectLink": {
       "error": "Die Verbindung konnte nicht gestartet werden."
+    },
+    "TeamView": {
+      "loading": "Team wird geladen",
+      "failed": "Diese Team-Datei kann nicht angezeigt werden. Prüfe, ob sie eine gültige Team-Datei ist.",
+      "advisors": "Berater",
+      "linkedin": "LinkedIn-Profil",
+      "highlights": "Highlights",
+      "experience": "Berufserfahrung",
+      "education": "Ausbildung"
     }
   },
   "Join": {

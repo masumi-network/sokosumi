@@ -1072,6 +1072,15 @@
     },
     "ConnectLink": {
       "error": "Could not start the connection."
+    },
+    "TeamView": {
+      "loading": "Loading team",
+      "failed": "This team file can't be shown. Check that it is a valid team file.",
+      "advisors": "Advisors",
+      "linkedin": "LinkedIn profile",
+      "highlights": "Highlights",
+      "experience": "Experience",
+      "education": "Education"
     }
   },
   "Join": {

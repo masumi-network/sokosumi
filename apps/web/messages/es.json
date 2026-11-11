@@ -1072,6 +1072,15 @@
     },
     "ConnectLink": {
       "error": "No se pudo iniciar la conexión."
+    },
+    "TeamView": {
+      "loading": "Cargando equipo",
+      "failed": "No se puede mostrar este archivo de equipo. Comprueba que sea un archivo de equipo válido.",
+      "advisors": "Asesores",
+      "linkedin": "Perfil de LinkedIn",
+      "highlights": "Logros",
+      "experience": "Experiencia",
+      "education": "Formación"
     }
   },
   "Join": {
