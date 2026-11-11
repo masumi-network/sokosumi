@@ -63,7 +63,7 @@ export function BuzzConnectCard() {
           <div className="bg-sidebar px-2 pb-2">
             <BuzzSurface
               bees={false}
-              className="press pointer-events-auto rounded-lg p-3 shadow-xl"
+              className="press pointer-events-auto rounded-lg p-3 shadow-lg"
             >
               <BuzzMark className="w-7" />
               <button
