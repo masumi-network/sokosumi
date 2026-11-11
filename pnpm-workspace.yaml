@@ -86,7 +86,7 @@ overrides:
   # before anything launches with webDriverBiDi, and when puppeteer moves past
   # 25.12.
   "chromium-bidi@17.0.2>zod": "4.6.7"
-  # katex GHSA-238p (low) patched in 0.18.2. 2026-11-11: micromark-extension-math
+  # katex GHSA-238p-pmpm-9mq7 (low) patched in 0.18.2. 2026-11-11: micromark-extension-math
   # 3.1.0 (latest, via remark-math 6.0.0, @m2d/math and @lobehub/ui) still asks
   # for katex ^0.16.0. remark-math only parses here; katex runs only in the
   # extension's HTML renderer (`lib/html.js`, `katex.renderToString`), which no
