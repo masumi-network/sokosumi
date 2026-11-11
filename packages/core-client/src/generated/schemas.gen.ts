@@ -1839,6 +1839,10 @@ export const SokoBotDeletionResultSchema = {
                 jobs: {
                     type: 'integer',
                     minimum: 0
+                },
+                socialPosts: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1848,7 +1852,8 @@ export const SokoBotDeletionResultSchema = {
                 'chatMessages',
                 'uploadedTaskFiles',
                 'taskSchedules',
-                'jobs'
+                'jobs',
+                'socialPosts'
             ]
         }
     },

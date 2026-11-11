@@ -445,6 +445,7 @@ export type SokoBotDeletionResult = {
         uploadedTaskFiles: number;
         taskSchedules: number;
         jobs: number;
+        socialPosts: number;
     };
 };
 
