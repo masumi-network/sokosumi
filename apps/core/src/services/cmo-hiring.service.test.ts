@@ -392,10 +392,11 @@ describe("startCmoOnboarding", () => {
     funding.requireMemberFunding.mockReset();
   });
 
-  it("gives every hire's organization starter credits, once per Project", async () => {
+  it("gives every hire's Project its starter credits, once per Project", async () => {
     await startCmoOnboarding(input);
     expect(grantFreeCredits).toHaveBeenCalledWith({
       target: { targetType: "organization", targetId: "org-1" },
+      projectId: "project-1",
       credits: 10_000,
       ttlDays: null,
       referenceNote: "CMO.xyz starter credits (project project-1)",
@@ -408,15 +409,23 @@ describe("startCmoOnboarding", () => {
     expect(grantFreeCredits).toHaveBeenCalledWith(
       expect.objectContaining({
         target: { targetType: "organization", targetId: "org-team" },
+        projectId: "project-2",
         referenceNote: "CMO.xyz starter credits (project project-2)",
       }),
     );
 
-    // The same Project's grant does not repeat.
+    // The same Project's grant, found by its reference note, does not repeat.
     grantFreeCredits.mockClear();
     creditBucketFindFirst.mockResolvedValue({ id: "bucket-1" });
     await startCmoOnboarding(input);
     expect(grantFreeCredits).not.toHaveBeenCalled();
+    expect(creditBucketFindFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          referenceNote: "CMO.xyz starter credits (project project-2)",
+        }),
+      }),
+    );
   });
 
   it("hires Cuso into a new organization named after the website", async () => {

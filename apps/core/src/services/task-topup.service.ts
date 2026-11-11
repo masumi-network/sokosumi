@@ -20,12 +20,19 @@ import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
  */
 export async function markOutOfCreditsTasksAsToppedUp(params: {
   organizationId: string | null;
+  /** Project credits resume only that Project's Tasks (ADR 0067). */
+  projectId?: string;
   tx: Prisma.TransactionClient;
   userId: string | null;
 }): Promise<void> {
-  let taskWhere: { organizationId: string } | { ownerId: string };
+  let taskWhere:
+    | { organizationId: string; projectId?: string }
+    | { ownerId: string };
   if (params.organizationId) {
-    taskWhere = { organizationId: params.organizationId };
+    taskWhere = {
+      organizationId: params.organizationId,
+      projectId: params.projectId,
+    };
   } else {
     if (params.userId === null) {
       throw new Error("Personal credit top-up requires a user id");

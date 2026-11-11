@@ -18,6 +18,8 @@ interface GrantFreeCreditsParams {
   expiresAt: Date | null;
   grantId: string;
   organizationId: string | null;
+  /** Makes them Project credits of the organization (ADR 0067). */
+  projectId?: string | null;
   referenceNote: string | null;
   targetId: string;
   targetType: "user" | "organization";
@@ -49,6 +51,12 @@ export async function grantFreeCredits(
   if (params.targetType === "organization" && params.organizationId === null) {
     throw new GrantFreeCreditsError(
       "Organization free credits require an organization id",
+    );
+  }
+
+  if (params.targetType === "user" && params.projectId) {
+    throw new GrantFreeCreditsError(
+      "User free credits cannot be scoped to a Project",
     );
   }
 
@@ -85,6 +93,7 @@ export async function grantFreeCredits(
           amount,
           expiresAt: params.expiresAt,
           organizationId: params.organizationId,
+          projectId: params.projectId,
           referenceId,
           referenceNote: params.referenceNote,
           referenceType: CreditBucketReferenceType.FREE,

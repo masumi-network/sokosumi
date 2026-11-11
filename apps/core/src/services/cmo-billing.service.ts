@@ -31,12 +31,9 @@ function starterCreditsNote(projectId: string): string {
 }
 
 /**
- * Gives the organization of a hire its starter credits, wherever the hire
- * landed (ADR 0065), once per Project.
- *
- * shortcut: the credits go to the organization pool and never expire, so a
- * member can hire, start over and hire again for another 10,000 each time
- * (ADR 0065 Consequences). Scope them to the Cuso's Project to narrow it.
+ * Gives a hire's Project its starter credits, wherever the hire landed
+ * (ADR 0065), once per Project. They are Project credits that never expire
+ * and end with the Cuso (ADR 0067).
  */
 export async function grantCmoStarterCredits(input: {
   projectId: string;
@@ -53,6 +50,7 @@ export async function grantCmoStarterCredits(input: {
   );
   await freeCreditAdminService.grantFreeCredits({
     target: { targetType: "organization", targetId: input.organizationId },
+    projectId: input.projectId,
     credits: CMO_STARTER_CREDITS,
     ttlDays: null,
     referenceNote,

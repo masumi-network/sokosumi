@@ -78,6 +78,8 @@ async function resolveTarget(
 export const freeCreditAdminService = {
   async grantFreeCredits(params: {
     target: FreeCreditTarget;
+    /** Makes them Project credits of the organization (ADR 0067). */
+    projectId?: string;
     credits: number;
     ttlDays: number | null;
     referenceNote: string | null;
@@ -119,6 +121,7 @@ export const freeCreditAdminService = {
             expiresAt,
             grantId,
             organizationId,
+            projectId: params.projectId,
             referenceNote,
             targetId: target.id,
             targetType: params.target.targetType,
@@ -135,6 +138,7 @@ export const freeCreditAdminService = {
 
       await markOutOfCreditsTasksAsToppedUp({
         organizationId,
+        projectId: params.projectId,
         tx,
         userId: target.transactionUserId,
       });
