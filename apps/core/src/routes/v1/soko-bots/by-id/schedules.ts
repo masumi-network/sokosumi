@@ -46,6 +46,7 @@ const createScheduleRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -68,6 +69,7 @@ const updateScheduleRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -86,6 +88,7 @@ const deleteScheduleRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
   },
 });
 

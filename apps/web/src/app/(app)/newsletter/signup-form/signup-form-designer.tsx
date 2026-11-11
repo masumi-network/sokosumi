@@ -28,9 +28,11 @@ import { cn } from "@/lib/utils";
 export function NewsletterSignupDesigner({
   newsletter,
   projectId,
+  readOnly = false,
 }: {
   newsletter: Newsletter;
   projectId: string;
+  readOnly?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.SignupForm");
   const validationT = useTranslations("App.Projects.Newsletter.Validation");
@@ -105,9 +107,11 @@ export function NewsletterSignupDesigner({
           </CardContent>
         </Card>
       </aside>
-      <div className="min-w-0 xl:col-start-1">
-        <NewsletterDesignPanel form={form} projectId={projectId} signupForm />
-      </div>
+      {readOnly ? null : (
+        <div className="min-w-0 xl:col-start-1">
+          <NewsletterDesignPanel form={form} projectId={projectId} signupForm />
+        </div>
+      )}
     </div>
   );
 }

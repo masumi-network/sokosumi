@@ -1081,6 +1081,13 @@
       "highlights": "Highlights",
       "experience": "Berufserfahrung",
       "education": "Ausbildung"
+    },
+    "CmoProject": {
+      "badge": "CMO",
+      "title": "Von CMO verwaltet",
+      "description": "CMO führt dieses Projekt, deshalb änderst du es in CMO. Hier kannst du es lesen.",
+      "open": "In CMO öffnen",
+      "newTab": "(öffnet in einem neuen Tab)"
     }
   },
   "Join": {

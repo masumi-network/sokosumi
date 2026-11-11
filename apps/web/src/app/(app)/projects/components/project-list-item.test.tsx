@@ -47,6 +47,7 @@ const labels = {
   pinned: "Pinned",
   created: "Created",
   closed: "Closed",
+  cmo: "CMO",
   actions: {
     moreActions: "More actions",
     close: "Close",
@@ -96,6 +97,7 @@ const project = {
   taskCount: 2,
   jobCount: 1,
   projectRevision: 0,
+  cmo: false,
 } as ProjectListItemType;
 
 describe("ProjectListItem", () => {
@@ -304,6 +306,37 @@ describe("ProjectListItem Pin", () => {
       "pointer-fine:opacity-0",
       "pointer-fine:group-hover/card:opacity-100",
     );
+  });
+});
+
+describe("ProjectListItem for a CMO Project", () => {
+  it("marks the card with a CMO badge, inside the link", () => {
+    render(
+      <ProjectListItem project={{ ...project, cmo: true }} labels={labels} />,
+    );
+
+    const badge = screen.getByTestId("project-cmo-badge");
+    expect(badge).toHaveTextContent("CMO");
+    expect(screen.getByRole("link").contains(badge)).toBe(true);
+  });
+
+  it("shows no badge on an ordinary Project", () => {
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    expect(screen.queryByTestId("project-cmo-badge")).toBeNull();
+  });
+
+  it("keeps Pin and Hide in its menu but not Close", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectListItem project={{ ...project, cmo: true }} labels={labels} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["Pin", "Hide"]);
   });
 });
 
