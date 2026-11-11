@@ -155,12 +155,28 @@ describe("GET /notifications/counts", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
-        id: { in: ["n_grant"] },
+        id: { in: ["n_task", "n_grant"] },
       },
     });
-    // A Task's ask is not counted: Needs you lists the waiting Tasks
-    // themselves, counted from the Task summary.
-    expect(taskFindManyMock).not.toHaveBeenCalled();
+    // Needs you lists the active workspace's waiting Tasks from the Task
+    // summary, so only their asks leave the count. The ask still counted
+    // here is from another workspace, which that list does not cover.
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["task_waiting"] },
+        status: "INPUT_REQUIRED",
+        projectId: undefined,
+        NOT: {
+          archivedAt: null,
+          workspace: { organizationId: "org_123" },
+          OR: [
+            { visibility: "PUBLIC" },
+            { visibility: "PRIVATE", ownerId: "user_123" },
+          ],
+        },
+      },
+      select: { id: true },
+    });
     // The Mentions tab counts what is still unread under it.
     expect(notificationCountMock).toHaveBeenCalledWith({
       where: {

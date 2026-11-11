@@ -20,7 +20,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/counts",
     description:
-      "Counts over the interactive session user's in-app notification-center feed: rows still unread, rows other than a Task's ask whose request still waits on the reader (the Needs you view lists waiting Tasks from the Task summary instead), and unread mentions (the Mentions view). CHAT kind is excluded except for room messages.",
+      "Counts over the interactive session user's in-app notification-center feed: rows still unread, rows whose request still waits on the reader (the Needs you view), except a Task's ask for a Task the active workspace's Task summary already counts, and unread mentions (the Mentions view). CHAT kind is excluded except for room messages.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(notificationCountsSchema, "Counts retrieved", {
@@ -43,13 +43,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const [feedWhere, needsActionIds] = await Promise.all([
       resolvedNotificationFeedWhere(userContext.userId),
       findNeedsActionNotificationIds(userContext.userId, undefined, {
-        includeTasks: false,
+        exceptTasksIn: {
+          userId: userContext.userId,
+          organizationId: userContext.organizationId ?? null,
+        },
       }),
     ]);
 
     // The same feed clause the list applies, so the needs-action number is
-    // the number of rows the Needs you view shows and nothing else (it shows
-    // waiting Tasks from the Task summary, not their notification rows), and the
+    // the number of rows the Needs you view shows and nothing else (it lists
+    // the active workspace's waiting Tasks from the Task summary instead of
+    // their asks; an ask from another workspace stays a row), and the
     // mentions number is the unread rows under the Mentions view.
     const [unread, needsAction, mentions] = await Promise.all([
       prisma.notification.count({ where: { ...feedWhere, isRead: false } }),

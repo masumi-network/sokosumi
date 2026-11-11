@@ -1,7 +1,9 @@
 "use client";
 
 import { type TaskListItem, TaskStatus } from "@sokosumi/core-client";
-import { useQuery } from "@tanstack/react-query";
+import { makeUserTasksChannelName } from "@sokosumi/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useChannel } from "ably/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
@@ -9,10 +11,14 @@ import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusMarker } from "@/components/ui/status-marker";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
-import { needsYouTasksQueryOptions } from "@/queries/needs-you-tasks";
+import {
+  NEEDS_YOU_TASKS_QUERY_KEY,
+  needsYouTasksQueryOptions,
+} from "@/queries/needs-you-tasks";
 
 /** The Tasks waiting on the reader, shared by the tab count and the rows. */
 export function useNeedsYouTasks() {
@@ -24,6 +30,28 @@ export function useNeedsYouTasks() {
       session?.session.activeOrganizationId ?? null,
     ),
   );
+}
+
+/**
+ * Reads the waiting Tasks again whenever one of the reader's Tasks changes:
+ * an answer given on the Task's page, an agent asking again, a Task done.
+ * Core publishes each to the reader's Task channel. Mounted under the
+ * Notification Center's realtime island, so a list that stays open, and the
+ * tab's number, follow along without a reload.
+ */
+export function NeedsYouTasksRealtimeRefresh({ userId }: { userId: string }) {
+  const queryClient = useQueryClient();
+
+  useChannel(
+    makeUserTasksChannelName(userId, getRealtimeChannelEnvironment()),
+    () => {
+      void queryClient.invalidateQueries({
+        queryKey: NEEDS_YOU_TASKS_QUERY_KEY,
+      });
+    },
+  );
+
+  return null;
 }
 
 /** The agent working the Task, who is the one asking. People are not named. */

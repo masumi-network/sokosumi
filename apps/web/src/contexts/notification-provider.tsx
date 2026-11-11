@@ -4,7 +4,10 @@ import type {
   GetNotificationsData,
   NotificationItem,
 } from "@sokosumi/core-client";
-import { isNeedsActionNotification } from "@sokosumi/utils";
+import {
+  isNeedsActionNotification,
+  makeUserTasksChannelName,
+} from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
   createContext,
@@ -18,8 +21,10 @@ import {
 import { toast } from "sonner";
 import { NotificationToastListener } from "@/app/components/notification-toast-listener";
 import { NotificationUrlTargetOpener } from "@/app/components/notification-url-target-opener";
+import { NeedsYouTasksRealtimeRefresh } from "@/components/notifications/notification-waiting-tasks";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationFrontPresence } from "@/lib/ably/use-notification-front-presence";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
@@ -661,6 +666,14 @@ export function NotificationProvider({
             onSubscribed={handleRealtimeSubscribed}
           />
           <NotificationToastListener userId={userId} markRead={markRead} />
+        </ChannelProvider>
+        <ChannelProvider
+          channelName={makeUserTasksChannelName(
+            userId,
+            getRealtimeChannelEnvironment(),
+          )}
+        >
+          <NeedsYouTasksRealtimeRefresh userId={userId} />
         </ChannelProvider>
       </LazyAblyProvider>
     </NotificationContext>

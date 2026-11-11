@@ -1,4 +1,5 @@
 import type { NotificationItem } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   cleanup,
@@ -141,8 +142,14 @@ vi.mock("@/lib/ably/use-notification-realtime", () => ({
 vi.mock("@/lib/ably/push-self-heal.client", () => ({
   healPushSubscription: async () => false,
 }));
+// The reader's Task channel, so a test can say "one of your Tasks changed".
+let deliverTaskEvent: () => void = () => {};
 vi.mock("ably/react", () => ({
   ChannelProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+  useChannel: (_channelName: string, onMessage: () => void) => {
+    deliverTaskEvent = onMessage;
+    return {};
+  },
 }));
 vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -1545,6 +1552,7 @@ describe("Notification Center Needs you view", () => {
             identifier: null,
             name: "Q4 launch brief",
             status: "INPUT_REQUIRED",
+            workspace: { id: "ws-active" },
             updatedAt: new Date("2026-06-18T09:00:00.000Z"),
             assignee: {
               type: "sokoBot",
@@ -1557,6 +1565,7 @@ describe("Notification Center Needs you view", () => {
             identifier: null,
             name: "Partner newsletter",
             status: "APPROVAL_REQUIRED",
+            workspace: { id: "ws-active" },
             updatedAt: new Date("2026-06-18T08:00:00.000Z"),
             assignee: null,
           },
@@ -1568,6 +1577,7 @@ describe("Notification Center Needs you view", () => {
         kind: "TASK",
         messageKey: "Notifications.Task.inputRequired",
         messageParams: { label: "task-ask" },
+        metadata: { workspaceId: "ws-active" },
         referenceId: "task-brief",
         isRead: false,
         readAt: null,
@@ -1616,6 +1626,192 @@ describe("Notification Center Needs you view", () => {
       expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
     },
   );
+
+  const SIGNED_IN = {
+    data: {
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    },
+  };
+
+  function waitingTask(id: string, workspaceId = "ws-active") {
+    return {
+      id,
+      identifier: null,
+      name: id,
+      status: "INPUT_REQUIRED",
+      updatedAt: new Date("2026-06-18T09:00:00.000Z"),
+      assignee: null,
+      workspace: { id: workspaceId },
+    };
+  }
+
+  function taskAsk(id: string, taskId: string, workspaceId: string) {
+    return row(id, {
+      kind: "TASK",
+      messageKey: "Notifications.Task.inputRequired",
+      messageParams: { label: id },
+      metadata: { workspaceId },
+      referenceId: taskId,
+      isRead: false,
+      readAt: null,
+    });
+  }
+
+  it.each(FRAMES)(
+    "keeps a Task's ask from another workspace as a row, in the %s",
+    async (_, mount) => {
+      sessionMock.mockReturnValue(SIGNED_IN);
+      // The active workspace has one waiting Task; another workspace has one
+      // too, which the Task list of this workspace cannot show.
+      getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 1 } });
+      getTasksMock.mockResolvedValue({ data: [waitingTask("here")] });
+      getNotificationsMock.mockResolvedValue(
+        page([
+          taskAsk("ask-here", "here", "ws-active"),
+          taskAsk("ask-elsewhere", "elsewhere", "ws-other"),
+        ]),
+      );
+      // Core leaves the active workspace's ask out of this number only.
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 1, mentions: 0 },
+      });
+
+      await mount();
+      await settle();
+      await userEvent
+        .setup()
+        .click(screen.getByRole("tab", { name: "filterNeedsYou 2" }));
+      await settle();
+
+      expect(screen.getByRole("link", { name: /^here/ })).toBeTruthy();
+      expect(screen.getByText("ask-elsewhere")).toBeTruthy();
+      expect(screen.queryByText("ask-here")).toBeNull();
+    },
+  );
+
+  it("keeps another workspace's ask when nothing waits in this one", async () => {
+    sessionMock.mockReturnValue(SIGNED_IN);
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 0 } });
+    getTasksMock.mockResolvedValue({ data: [] });
+    getNotificationsMock.mockResolvedValue(
+      page([taskAsk("ask-elsewhere", "elsewhere", "ws-other")]),
+    );
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1, mentions: 0 },
+    });
+
+    await renderPage();
+    await settle();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: "filterNeedsYou 1" }));
+    await settle();
+
+    expect(screen.getByText("ask-elsewhere")).toBeTruthy();
+    expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
+  });
+
+  it("drops the last waiting Task and its count once the Task is answered", async () => {
+    sessionMock.mockReturnValue(SIGNED_IN);
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 1 } });
+    getTasksMock.mockResolvedValue({ data: [waitingTask("last")] });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0, mentions: 0 },
+    });
+
+    await renderPage();
+    await settle();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "filterNeedsYou 1" }));
+    await settle();
+    expect(screen.getByRole("link", { name: /^last/ })).toBeTruthy();
+
+    // Answered on the Task's page: Core says so on the reader's Task channel.
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 0 } });
+    getTasksMock.mockResolvedValue({ data: [] });
+    await act(async () => {
+      deliverTaskEvent();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("link", { name: /^last/ })).toBeNull();
+    });
+    expect(screen.getByRole("tab", { name: "filterNeedsYou" })).toBeTruthy();
+    expect(screen.getByText("emptyNeedsYouState")).toBeTruthy();
+  });
+
+  it("reads the waiting Tasks again when the bell opens again", async () => {
+    sessionMock.mockReturnValue(SIGNED_IN);
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 1 } });
+    getTasksMock.mockResolvedValue({ data: [waitingTask("answered")] });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0, mentions: 0 },
+    });
+    window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, "needs-action");
+    // The app's own default: a minute of freshness for every query.
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+    });
+    renderComponent(
+      <QueryClientProvider client={client}>
+        <NotificationProvider userId="user-1">
+          <HeaderNotificationBell />
+        </NotificationProvider>
+      </QueryClientProvider>,
+    );
+    await settle();
+    const user = userEvent.setup();
+    const bell = screen.getByRole("button", { name: /^notifications$/ });
+    await user.click(bell);
+    await settle();
+    expect(screen.getByRole("link", { name: /^answered/ })).toBeTruthy();
+
+    await user.keyboard("{Escape}");
+    await settle();
+    // Answered elsewhere, with no realtime event to say so.
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 0 } });
+    getTasksMock.mockResolvedValue({ data: [] });
+    await user.click(bell);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("link", { name: /^answered/ })).toBeNull();
+    });
+    expect(screen.getByRole("tab", { name: "filterNeedsYou" })).toBeTruthy();
+  });
+
+  it("scrolls the waiting Tasks inside the bell's bounded list", async () => {
+    sessionMock.mockReturnValue(SIGNED_IN);
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 50 } });
+    getTasksMock.mockResolvedValue({
+      data: Array.from({ length: 50 }, (_, index) =>
+        waitingTask(`waiting-${index}`),
+      ),
+    });
+    getNotificationsMock.mockResolvedValue(page([asked("job-ask")]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1, mentions: 0 },
+    });
+    accountNoticeMock.mockReturnValue({ notice: { kind: "test" } });
+
+    await renderPanel();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: "filterNeedsYou 52" }));
+    await settle();
+
+    // One bounded scroller holds the requests, all 50 Tasks and the rows;
+    // the panel's footer stays outside it, so it is always on screen.
+    const scroller = screen
+      .getByRole("link", { name: /^waiting-49/ })
+      .closest(".overflow-y-auto");
+    expect(scroller?.className).toContain("max-h-96");
+    expect(scroller?.contains(screen.getByText("account notice"))).toBe(true);
+    expect(scroller?.contains(screen.getByText("job-ask"))).toBe(true);
+    expect(
+      scroller?.contains(screen.getByRole("link", { name: "viewAll" })),
+    ).toBe(false);
+  });
 
   it.each(FRAMES)(
     "lists what still waits on the reader, counted on its tab, in the %s",

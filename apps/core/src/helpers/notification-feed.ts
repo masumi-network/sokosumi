@@ -18,6 +18,7 @@ import {
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 
 const BROWSER_ONLY_KIND_FILTER = [
@@ -261,6 +262,31 @@ export async function resolvedNotificationFeedWhere(
   };
 }
 
+/** The workspace a reader is in: their organization's, or their own. */
+export interface ActiveWorkspace {
+  userId: string;
+  organizationId: string | null;
+}
+
+/**
+ * The Tasks `GET /tasks/summary` counts for this reader, as Web asks it: the
+ * organization's workspace (scope `workspace`), or the reader's own Tasks in
+ * their personal workspace (scope `owned`); not archived, and visible to the
+ * reader.
+ */
+function coveredTaskWhere({
+  userId,
+  organizationId,
+}: ActiveWorkspace): Prisma.TaskWhereInput {
+  return {
+    archivedAt: null,
+    ...(organizationId
+      ? { workspace: { organizationId } }
+      : { workspace: { userId }, ownerId: userId }),
+    ...buildHumanTaskVisibilityWhere(userId),
+  };
+}
+
 interface NeedsActionCandidate {
   id: string;
   messageKey: string;
@@ -285,14 +311,17 @@ function recordKey(messageKey: string, referenceId: string): string {
  * equal to the rows under it.
  *
  * With `projectId`, only tasks and jobs in that project wait: a vendor grant
- * or coworker access request belongs to no project. With `includeTasks`
- * false, a Task's ask is left out: the Notification Center's Needs you view
- * lists the waiting Tasks themselves, so its tab counts only the rest.
+ * or coworker access request belongs to no project.
+ *
+ * With `exceptTasksIn`, a Task's ask is left out when the Task sits in that
+ * workspace and is not archived: the Notification Center's Needs you view
+ * lists those Tasks themselves, from the Task summary Home counts. An ask
+ * from any other workspace stays, so a request is never in neither list.
  */
 export async function findNeedsActionNotificationIds(
   userId: string,
   projectId?: string,
-  { includeTasks = true }: { includeTasks?: boolean } = {},
+  { exceptTasksIn }: { exceptTasksIn?: ActiveWorkspace } = {},
 ): Promise<string[]> {
   const asked: NeedsActionCandidate[] = await prisma.notification.findMany({
     where: { userId, messageKey: { in: [...NEEDS_ACTION_MESSAGE_KEYS] } },
@@ -312,9 +341,7 @@ export async function findNeedsActionNotificationIds(
       .filter((candidate) => candidate.messageKey === messageKey)
       .map((candidate) => candidate.referenceId);
 
-  const taskIds = includeTasks
-    ? referenceIdsFor(TASK_INPUT_REQUIRED_MESSAGE_KEY)
-    : [];
+  const taskIds = referenceIdsFor(TASK_INPUT_REQUIRED_MESSAGE_KEY);
   const jobIds = referenceIdsFor(JOB_INPUT_REQUIRED_MESSAGE_KEY);
   const grantIds = projectId
     ? []
@@ -332,6 +359,9 @@ export async function findNeedsActionNotificationIds(
               id: { in: taskIds },
               status: TaskStatus.INPUT_REQUIRED,
               projectId,
+              ...(exceptTasksIn
+                ? { NOT: coveredTaskWhere(exceptTasksIn) }
+                : {}),
             },
             select: { id: true },
           }),

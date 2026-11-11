@@ -4,7 +4,6 @@ import type { NotificationItem } from "@sokosumi/core-client";
 import {
   isMentionNotification,
   isNeedsActionNotification,
-  TASK_INPUT_REQUIRED_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -27,6 +26,7 @@ import {
 } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
+import { isTaskAskListed } from "@/queries/needs-you-tasks";
 
 interface NotificationCenterListProps {
   /** Called as a row navigates away, so the header panel can close itself. */
@@ -99,8 +99,9 @@ export function NotificationCenterList({
   // Needs you holds rows that asked the reader something, Mentions rows
   // that named them. A realtime row that is neither lands in the shared
   // feed all the same, for the bell, and stays out of those views here.
-  // A Task's ask stays out of Needs you too: the view lists the waiting
+  // A Task's ask stays out of Needs you too when the view lists the waiting
   // Task itself above the rows, so the ask would be the same Task twice.
+  // An ask from another workspace is not in that list, so it stays.
   const visibleNotifications =
     view === "unread"
       ? notifications.filter(
@@ -111,7 +112,7 @@ export function NotificationCenterList({
         ? notifications.filter(
             (notification) =>
               isNeedsActionNotification(notification.messageKey) &&
-              notification.messageKey !== TASK_INPUT_REQUIRED_MESSAGE_KEY,
+              !isTaskAskListed(notification, waitingTasks),
           )
         : view === "mentions"
           ? notifications.filter((notification) =>

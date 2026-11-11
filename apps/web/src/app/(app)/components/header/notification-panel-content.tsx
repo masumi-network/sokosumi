@@ -57,12 +57,16 @@ export function NotificationPanelContent({
       {/* The strip carries the line under it, so it stands in for the
           separator between the header and the list. */}
       <NotificationCenterViewFilter>
-        <NotificationNeedsYouRequests variant="panel" onNavigate={onClose} />
         {/* The scroll container the boundary row watches: reaching the end
             of it is what asks for the page of older rows. It carries the
             line under it, so when the list has nothing to say under an
-            account notice, the box and its line leave together. */}
-        <div className="app-scrollbar max-h-96 overflow-y-auto border-b empty:hidden">
+            account notice, the box and its line leave together. The
+            requests scroll with the rows: up to 50 waiting Tasks sit above
+            them, and outside the box they pushed the footer off screen.
+            The box hides when nothing in it has content, since the
+            requests' own wrapper stays in the DOM, empty, between views. */}
+        <div className="app-scrollbar max-h-96 overflow-y-auto border-b [&:not(:has(:not(:empty)))]:hidden">
+          <NotificationNeedsYouRequests variant="panel" onNavigate={onClose} />
           <NotificationCenterList onNavigate={onClose} />
         </div>
       </NotificationCenterViewFilter>

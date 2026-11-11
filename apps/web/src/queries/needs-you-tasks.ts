@@ -1,7 +1,11 @@
-import type { TaskListItem } from "@sokosumi/core-client";
+import type { NotificationItem, TaskListItem } from "@sokosumi/core-client";
+import { TASK_INPUT_REQUIRED_MESSAGE_KEY } from "@sokosumi/utils";
 import { queryOptions } from "@tanstack/react-query";
 import { COLUMN_TASK_STATUSES } from "@/app/tasks/utils/task-column";
 import { coreClient } from "@/lib/clients/core.browser.client";
+
+/** Every reader's and workspace's waiting-Tasks query starts with this. */
+export const NEEDS_YOU_TASKS_QUERY_KEY = ["needs-you-tasks"] as const;
 
 /** Rows the Needs you view lists before it sends the reader to Tasks. */
 export const NEEDS_YOU_TASKS_LIMIT = 50;
@@ -30,7 +34,7 @@ export function needsYouTasksQueryOptions(
   const scope = organizationId ? "workspace" : "owned";
 
   return queryOptions({
-    queryKey: ["needs-you-tasks", userId ?? null, organizationId],
+    queryKey: [...NEEDS_YOU_TASKS_QUERY_KEY, userId ?? null, organizationId],
     queryFn: async (): Promise<NeedsYouTasks> => {
       const [summary, list] = await Promise.all([
         coreClient.getTasksSummary({ scope }),
@@ -46,5 +50,34 @@ export function needsYouTasksQueryOptions(
     },
     // Without a session both reads are a guaranteed 401.
     enabled: Boolean(userId),
+    // A Task is answered on its own page, and the Needs you view that asked
+    // for it opens again a moment later. The app-wide minute of freshness
+    // would show it as still waiting, so every new reader of the list reads
+    // it again; realtime Task events refresh it while it stays open.
+    staleTime: 0,
   });
+}
+
+/**
+ * Whether a Task's ask is one the list above already shows, so Needs you
+ * leaves the row out. Only asks from the workspace the list reads are: an
+ * ask from another workspace stays a row and keeps its way there. Core's
+ * Needs you count leaves out the same asks.
+ */
+export function isTaskAskListed(
+  notification: Pick<
+    NotificationItem,
+    "messageKey" | "referenceId" | "metadata"
+  >,
+  waiting: NeedsYouTasks | undefined,
+): boolean {
+  if (notification.messageKey !== TASK_INPUT_REQUIRED_MESSAGE_KEY || !waiting) {
+    return false;
+  }
+  const workspaceId = waiting.tasks[0]?.workspace.id;
+  return (
+    (workspaceId !== undefined &&
+      notification.metadata?.workspaceId === workspaceId) ||
+    waiting.tasks.some((task) => task.id === notification.referenceId)
+  );
 }
