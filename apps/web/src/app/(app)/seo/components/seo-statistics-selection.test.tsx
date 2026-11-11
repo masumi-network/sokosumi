@@ -273,6 +273,17 @@ describe("statistics source and property recovery", () => {
     expect(
       within(generic).getByTestId("seo-statistics-reads"),
     ).toHaveTextContent("Reads the last 90 days of Google search data.");
+    // A change of source in the dialog takes that source's own last sync: its property and its traffic.
+    await user.click(within(generic).getByRole("combobox", { name: "Source" }));
+    await user.click(screen.getByRole("option", { name: "Google Analytics" }));
+    await waitFor(() =>
+      expect(
+        within(generic).getByRole("combobox", { name: "Property" }),
+      ).toHaveTextContent("Saved Analytics property"),
+    );
+    expect(
+      within(generic).getByTestId("seo-statistics-reads"),
+    ).toHaveTextContent("Reads the last 90 days of all website traffic.");
     expect(mutate).not.toHaveBeenCalled();
   });
 

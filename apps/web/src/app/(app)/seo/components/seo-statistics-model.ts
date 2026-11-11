@@ -56,7 +56,21 @@ export function savedSeoStatistics(
   );
 }
 
-/** The preset whose dates these are, so its button shows as chosen. Null for other dates. */
+/** True when the text names this host as a whole: "staging.example.com" and "myexample.com" do not name example.com. */
+function namesHost(text: string, host: string) {
+  for (
+    let at = text.indexOf(host);
+    at !== -1;
+    at = text.indexOf(host, at + 1)
+  ) {
+    const before = text[at - 1] ?? "";
+    const after = text.slice(at + host.length, at + host.length + 2);
+    if (!/[a-z0-9.-]/.test(before) && !/^(?:[a-z0-9-]|\.[a-z0-9])/.test(after))
+      return true;
+  }
+  return false;
+}
+
 /**
  * The property that holds the audit's page, so the reader does not choose among several.
  * Search Console names a property by its domain or by an address prefix: the closest one wins.
@@ -78,7 +92,9 @@ export function seoMatchingProperty(
   const host = page.hostname.replace(/^www\./, "");
   const rank = (property: { id: string; name: string }) => {
     if (provider === "ga4")
-      return property.name.toLowerCase().includes(host) ? 1 : 0;
+      return namesHost(property.name.toLowerCase().replaceAll("www.", ""), host)
+        ? 1
+        : 0;
     if (property.id.startsWith(SEARCH_DOMAIN_PROPERTY)) {
       const domain = property.id
         .slice(SEARCH_DOMAIN_PROPERTY.length)

@@ -121,6 +121,17 @@ describe("SEO statistics presentation", () => {
     expect(choose([properties[0], { id: "properties/4", name: "App" }])).toBe(
       "",
     );
+    // A name with a longer host is another site, not this one.
+    for (const name of [
+      "staging.example.com",
+      "myexample.com",
+      "example.com.au",
+      "example.community",
+    ])
+      expect(choose([properties[0], { id: "properties/5", name }])).toBe("");
+    expect(
+      choose([properties[0], { id: "properties/6", name: "www.example.com." }]),
+    ).toBe("properties/6");
   });
 });
 

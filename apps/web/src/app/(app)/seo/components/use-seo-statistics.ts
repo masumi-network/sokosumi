@@ -61,12 +61,16 @@ export function useSeoStatistics(
         : "ga4",
     );
   const provider: SeoStatisticsProvider = chosenProvider ?? "ga4";
-  const [chosenPropertyId, setPropertyId] = useState(saved?.propertyId ?? "");
+  const [chosenPropertyId, setPropertyId] = useState("");
+  // The last sync of the source the dialog shows. A change of source in the dialog reads its own.
+  const savedHere = savedSeoStatistics(workspace.metrics, provider);
   // No choice for the reader: Search Console counts Google search only, and for Google Analytics
   // an SEO audit reads organic search. A source that is saved keeps its channel, so the new
   // numbers show in the same view.
   const channel: "all" | "organic" =
-    provider === "search_console" ? "organic" : (saved?.channel ?? "organic");
+    provider === "search_console"
+      ? "organic"
+      : (savedHere?.channel ?? "organic");
   const properties = useQuery<ProjectSeoStatisticsProperties>({
     queryKey: [
       "seo-properties",
@@ -110,10 +114,12 @@ export function useSeoStatistics(
   const availableProperties = properties.data?.properties ?? [];
   const propertiesUnavailable =
     properties.isError || properties.data?.status === "unavailable";
+  // The reader's choice, then the property of the last sync, then the one that names the site.
+  const wantedPropertyId = chosenPropertyId || (savedHere?.propertyId ?? "");
   const propertyId = availableProperties.some(
-    (item) => item.id === chosenPropertyId,
+    (item) => item.id === wantedPropertyId,
   )
-    ? chosenPropertyId
+    ? wantedPropertyId
     : seoMatchingProperty(
         provider,
         availableProperties,
