@@ -660,7 +660,10 @@ describe("the Cuso on screen", () => {
     async (_name, act, route, path = {}) => {
       await act();
       expect(forProject[route]).toHaveBeenCalledWith(
-        expect.objectContaining({ path: { projectId: "project-2", ...path } }),
+        expect.objectContaining({
+          headers: { authorization: "Bearer t" },
+          path: { projectId: "project-2", ...path },
+        }),
       );
     },
   );
