@@ -396,7 +396,8 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
       version: contact.version + 1,
     });
 
-    // A teammate saved in between: nothing of this touch is kept.
+    // The stale version fails after the interaction is inserted, so this
+    // also proves the insert rolls back.
     const stale = await call("POST", `/contacts/${contact.id}/interactions`, {
       occurredAt: "2026-11-11T09:00:00Z",
       channel: "MANUAL",
@@ -423,6 +424,42 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
       (await (await call("GET", `/contacts/${contact.id}`)).json()).data,
     ).toMatchObject({ nextStep: "Send pilot terms", interactionCount: 2 });
 
+    // A replayed sourceRef returns the recorded interaction and never
+    // touches the contact, whatever version or plan it carries.
+    const first = {
+      occurredAt: "2026-11-11T12:00:00Z",
+      channel: "MEETING",
+      direction: "BOTH",
+      summary: "Pilot kickoff",
+      sourceRef: "touch-1",
+      contact: { version: contact.version + 1, nextStep: "Draft the plan" },
+    };
+    const logged = await call(
+      "POST",
+      `/contacts/${contact.id}/interactions`,
+      first,
+    );
+    expect(logged.status).toBe(201);
+    const replay = await call(
+      "POST",
+      `/contacts/${contact.id}/interactions`,
+      first,
+    );
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).data.created).toBe(false);
+    const later = await call("POST", `/contacts/${contact.id}/interactions`, {
+      ...first,
+      contact: { version: contact.version + 2, nextStep: "Different plan" },
+    });
+    expect(later.status).toBe(200);
+    expect(
+      (await (await call("GET", `/contacts/${contact.id}`)).json()).data,
+    ).toMatchObject({
+      nextStep: "Draft the plan",
+      version: contact.version + 2,
+      interactionCount: 3,
+    });
+
     const stranger = await strangerCall(
       "POST",
       `/contacts/${contact.id}/interactions`,
@@ -430,13 +467,13 @@ describe.runIf(enabled)("contacts API on PostgreSQL", () => {
         occurredAt: "2026-11-11T11:00:00Z",
         channel: "MANUAL",
         summary: "Not mine",
-        contact: { version: contact.version + 1, nextStep: "Stolen" },
+        contact: { version: contact.version + 2, nextStep: "Stolen" },
       },
     );
     expect(stranger.status).toBe(404);
     expect(
       (await (await call("GET", `/contacts/${contact.id}`)).json()).data,
-    ).toMatchObject({ nextStep: "Send pilot terms", interactionCount: 2 });
+    ).toMatchObject({ nextStep: "Draft the plan", interactionCount: 3 });
   });
 
   it("hides one workspace's contacts and lists from another", async () => {

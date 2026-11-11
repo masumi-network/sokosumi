@@ -70,7 +70,7 @@ const logRoute = withCoworkerContextHeaderParameters(
     path: "/{id}/interactions",
     tags: ["Contacts"],
     description:
-      "Record an interaction the caller had with this contact. With a `sourceRef` (provider message or event id) the same one twice is recorded once. First contact, last contact and the count follow. `contact` sets the next step and follow-up in the same write; its `version` must be the one last read, otherwise 409 and nothing is saved.",
+      "Record an interaction the caller had with this contact. With a `sourceRef` (provider message or event id) the same one twice is recorded once. First contact, last contact and the count follow. `contact` sets the next step and follow-up in the same write, only when the interaction is new: a replayed `sourceRef` returns the recorded interaction and leaves the contact as it is. Its `version` must be the one last read, otherwise 409 and nothing is saved.",
     request: {
       params: z.object({ id: z.uuid() }),
       body: {
@@ -126,8 +126,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { contact, ...interaction } = c.req.valid("json");
     const result = contactInteractionResultSchema.parse(
       await inContactTransaction(async (tx) => {
-        if (contact) await updateContact(tx, actor, id, contact);
-        return logContactInteraction(tx, actor, id, interaction);
+        const logged = await logContactInteraction(tx, actor, id, interaction);
+        // A replay changes nothing; a stale version undoes the new interaction.
+        if (contact && logged.created)
+          await updateContact(tx, actor, id, contact);
+        return logged;
       }),
     );
     return result.created ? created(c, result) : ok(c, result);

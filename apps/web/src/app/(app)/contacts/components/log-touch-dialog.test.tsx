@@ -31,14 +31,27 @@ const contact = {
   followUpAt: "2026-11-12",
 } as ContactDetail;
 
+const client = new QueryClient();
+
 function renderDialog() {
   const onClose = vi.fn();
-  render(
-    <QueryClientProvider client={new QueryClient()}>
+  const view = render(
+    <QueryClientProvider client={client}>
       <LogTouchDialog contact={contact} onClose={onClose} />
     </QueryClientProvider>,
   );
-  return onClose;
+  // A teammate's save arriving through the contact query.
+  const refetch = (next: Partial<ContactDetail>) =>
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <LogTouchDialog contact={{ ...contact, ...next }} onClose={onClose} />
+      </QueryClientProvider>,
+    );
+  return Object.assign(onClose, { refetch });
+}
+
+function sentContact() {
+  return logInteraction.mock.calls.at(-1)?.[1]?.contact;
 }
 
 describe("LogTouchDialog", () => {
@@ -105,5 +118,64 @@ describe("LogTouchDialog", () => {
       "errors.versionConflict",
     );
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("takes a teammate's next step it was not changing, on the new version", () => {
+    const dialog = renderDialog();
+    fireEvent.change(screen.getByLabelText("logTouch.summary"), {
+      target: { value: "Call" },
+    });
+    fireEvent.change(screen.getByLabelText("columns.followUp"), {
+      target: { value: "2026-12-01" },
+    });
+    dialog.refetch({ version: 4, nextStep: "Wait for procurement" });
+    expect(screen.getByLabelText("panel.nextStep")).toHaveValue(
+      "Wait for procurement",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "logTouch.submit" }));
+    expect(sentContact()).toEqual({ version: 4, followUpAt: "2026-12-01" });
+  });
+
+  it("keeps the summary after a conflict and retries without undoing the teammate", async () => {
+    respond.current = () =>
+      Promise.reject({ kind: "contact_version_conflict", error: "Conflict" });
+    const dialog = renderDialog();
+    fireEvent.change(screen.getByLabelText("logTouch.summary"), {
+      target: { value: "Agreed on terms" },
+    });
+    fireEvent.change(screen.getByLabelText("columns.followUp"), {
+      target: { value: "2026-12-01" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "logTouch.submit" }));
+    await screen.findByRole("alert");
+    dialog.refetch({ version: 4, nextStep: "Wait for procurement" });
+    respond.current = () => Promise.resolve();
+    expect(screen.getByLabelText("logTouch.summary")).toHaveValue(
+      "Agreed on terms",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "logTouch.submit" }));
+    await waitFor(() => expect(dialog).toHaveBeenCalled());
+    expect(logInteraction.mock.calls.at(-1)?.[1]).toMatchObject({
+      summary: "Agreed on terms",
+    });
+    expect(sentContact()).toEqual({ version: 4, followUpAt: "2026-12-01" });
+  });
+
+  it("keeps the reader's own next step when a teammate changed it too, and says so", () => {
+    const dialog = renderDialog();
+    fireEvent.change(screen.getByLabelText("panel.nextStep"), {
+      target: { value: "Mine" },
+    });
+    dialog.refetch({ version: 4, nextStep: "Theirs" });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "logTouch.changedMeanwhile",
+    );
+    expect(screen.getByLabelText("panel.nextStep")).toHaveValue("Mine");
+    fireEvent.change(screen.getByLabelText("logTouch.summary"), {
+      target: { value: "Call" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "logTouch.submit" }));
+    expect(sentContact()).toEqual({ version: 4, nextStep: "Mine" });
   });
 });

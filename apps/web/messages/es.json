@@ -11141,7 +11141,8 @@
         "cancel": "Cancelar",
         "submit": "Registrar",
         "logged": "Contacto registrado",
-        "failed": "No se pudo registrar. Inténtalo de nuevo."
+        "failed": "No se pudo registrar. Inténtalo de nuevo.",
+        "changedMeanwhile": "Alguien del equipo cambió el siguiente paso o el seguimiento. Revísalos y guarda de nuevo."
       }
     }
   },

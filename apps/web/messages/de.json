@@ -11141,7 +11141,8 @@
         "cancel": "Abbrechen",
         "submit": "Festhalten",
         "logged": "Kontakt festgehalten",
-        "failed": "Konnte nicht gespeichert werden. Versuch es noch einmal."
+        "failed": "Konnte nicht gespeichert werden. Versuch es noch einmal.",
+        "changedMeanwhile": "Jemand im Team hat den nächsten Schritt oder das Follow-up inzwischen geändert. Prüfe beides und speichere noch einmal."
       }
     }
   },

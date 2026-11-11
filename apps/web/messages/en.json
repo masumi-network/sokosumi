@@ -11141,7 +11141,8 @@
         "cancel": "Cancel",
         "submit": "Log touch",
         "logged": "Touch logged",
-        "failed": "Could not log the touch. Try again."
+        "failed": "Could not log the touch. Try again.",
+        "changedMeanwhile": "A teammate changed the next step or follow-up meanwhile. Check them, then save again."
       }
     }
   },

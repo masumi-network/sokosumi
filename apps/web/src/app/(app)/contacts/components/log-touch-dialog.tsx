@@ -35,10 +35,21 @@ function day(date: Date) {
   return format(date, "yyyy-MM-dd");
 }
 
+/** The plan the draft is compared with, and the version it was read at. */
+function planOf(contact: ContactDetail) {
+  return {
+    version: contact.version,
+    nextStep: contact.nextStep ?? "",
+    followUpAt: contact.followUpAt ?? "",
+  };
+}
+
 /**
  * Logs a call, meeting or note on the contact's Timeline and sets what comes
  * next in the same write. Next step and follow-up start as they are and are
- * only sent when changed.
+ * only sent when changed. When a newer contact arrives (a refetch, or the
+ * reload after a version conflict), fields the reader left alone take the
+ * new values; a field both changed keeps the draft and says so.
  */
 export function LogTouchDialog({
   contact,
@@ -51,10 +62,23 @@ export function LogTouchDialog({
   const cache = useQueryClient();
   const [kind, setKind] = useState<Kind>("MANUAL");
   const [summary, setSummary] = useState("");
-  const [nextStep, setNextStep] = useState(contact.nextStep ?? "");
-  const [followUpAt, setFollowUpAt] = useState(contact.followUpAt ?? "");
+  const [base, setBase] = useState(() => planOf(contact));
+  const [nextStep, setNextStep] = useState(base.nextStep);
+  const [followUpAt, setFollowUpAt] = useState(base.followUpAt);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  if (contact.version !== base.version) {
+    const fresh = planOf(contact);
+    const clash = (draft: string, field: "nextStep" | "followUpAt") =>
+      draft !== base[field] &&
+      fresh[field] !== base[field] &&
+      draft !== fresh[field];
+    if (clash(nextStep.trim(), "nextStep") || clash(followUpAt, "followUpAt"))
+      setError(t("logTouch.changedMeanwhile"));
+    if (nextStep.trim() === base.nextStep) setNextStep(fresh.nextStep);
+    if (followUpAt === base.followUpAt) setFollowUpAt(fresh.followUpAt);
+    setBase(fresh);
+  }
   const presets = [
     { label: t("logTouch.inAWeek"), value: day(addWeeks(new Date(), 1)) },
     { label: t("logTouch.inAMonth"), value: day(addMonths(new Date(), 1)) },
@@ -68,10 +92,10 @@ export function LogTouchDialog({
       return;
     }
     const changes = {
-      ...(nextStep.trim() !== (contact.nextStep ?? "")
+      ...(nextStep.trim() !== base.nextStep
         ? { nextStep: nextStep.trim() || null }
         : {}),
-      ...(followUpAt !== (contact.followUpAt ?? "")
+      ...(followUpAt !== base.followUpAt
         ? { followUpAt: followUpAt || null }
         : {}),
     };
@@ -87,7 +111,7 @@ export function LogTouchDialog({
         direction,
         summary: summary.trim(),
         ...(Object.keys(changes).length
-          ? { contact: { version: contact.version, ...changes } }
+          ? { contact: { version: base.version, ...changes } }
           : {}),
       });
       await refreshContacts(cache, contact.id);
