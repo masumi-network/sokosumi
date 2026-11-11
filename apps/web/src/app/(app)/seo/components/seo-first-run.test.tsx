@@ -319,7 +319,7 @@ describe("SEO audit first run", () => {
     network(workspace);
     renderWorkspace(workspace, "?tab=traffic");
     expect(
-      await screen.findByText(copy.overview.trafficSetupBody),
+      await screen.findByText(copy.agent.steps.connect.search_console),
     ).toBeVisible();
     // The answer "not connected" is in, so the text below is not the text of a pending read.
     await waitFor(() =>
@@ -334,9 +334,13 @@ describe("SEO audit first run", () => {
     expect(screen.queryByText(copy.overview.trafficSyncBody)).toBeNull();
     // One card and one button ask for the account: no second empty card for Search Console.
     expect(screen.queryByText(copy.queries.notConnected)).toBeNull();
-    expect(
-      screen.getAllByRole("button", { name: copy.overview.manageConnections }),
-    ).toHaveLength(1);
+    const setUp = screen.getAllByRole("button", {
+      name: copy.overview.manageConnections,
+    });
+    expect(setUp).toHaveLength(1);
+    // A check can start and no action waits, so the header's run button is the filled one: the view keeps one.
+    expect(setUp[0]).not.toHaveClass("bg-primary");
+    expect(document.querySelectorAll("button.bg-primary")).toHaveLength(1);
   });
 
   it("puts a failed check on its own step, with the button that runs it again", () => {

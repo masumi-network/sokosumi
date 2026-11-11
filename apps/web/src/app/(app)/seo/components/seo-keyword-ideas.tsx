@@ -20,11 +20,10 @@ import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
   SeoBarNumber,
-  SeoPageLink,
+  SeoPageText,
   SeoSection,
   SeoShowMore,
   seoMarketName,
-  seoSiteUrl,
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -101,10 +100,7 @@ export function SeoKeywordIdeas({
                     </p>
                   ) : null}
                   {manyPages && lead.pageUrl ? (
-                    <SeoPageLink
-                      url={lead.pageUrl}
-                      site={seoSiteUrl(model.data)}
-                    />
+                    <SeoPageText url={lead.pageUrl} workspace={model.data} />
                   ) : null}
                 </TableCell>
                 {shown.volume ? (
@@ -128,7 +124,9 @@ export function SeoKeywordIdeas({
                 ) : null}
                 {shown.intent ? (
                   // No intent in the keyword data: the cell stays empty and the line under the table counts them.
-                  <TableCell>{intent}</TableCell>
+                  // A phone row has one line of values: the searches and where the idea comes from.
+                  // The important mark: the phone rule that lays a value out as a line is more specific than a plain utility.
+                  <TableCell className="max-sm:hidden!">{intent}</TableCell>
                 ) : null}
                 <TableCell className="whitespace-normal">
                   {format.list(
@@ -158,7 +156,7 @@ export function SeoKeywordIdeas({
           </TableBody>
         </Table>
         {shown.intent && noIntent ? (
-          <p className="text-muted-foreground border-t px-4 py-2 text-xs">
+          <p className="text-muted-foreground border-t px-4 py-2 text-xs max-sm:hidden">
             {t("keywords.intentMissing", { count: noIntent })}
           </p>
         ) : null}

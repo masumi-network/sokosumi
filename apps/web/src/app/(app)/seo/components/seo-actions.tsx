@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_ITEM_CLASS,
@@ -32,6 +32,45 @@ import {
 import { SeoStrategyActions } from "./seo-strategy";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
+/** The title row of an action card: a button that opens and closes the card, or plain text where the card stays open. */
+function SeoActionCardHead({
+  bodyId,
+  open,
+  onToggle,
+  children,
+}: {
+  bodyId: string;
+  open: boolean;
+  /** Absent where the card stays open. */
+  onToggle: (() => void) | undefined;
+  children: ReactNode;
+}) {
+  if (!onToggle)
+    return (
+      <span className="flex items-center gap-3 px-4 py-3">{children}</span>
+    );
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-controls={open ? bodyId : undefined}
+      onClick={onToggle}
+      className={cn(
+        HOLDER_ITEM_HOVER_CLASS,
+        "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-start outline-none focus-visible:ring-2",
+      )}
+    >
+      {children}
+      <ChevronDown
+        className={cn(
+          "text-muted-foreground size-4 shrink-0 transition-transform duration-150 ease-out motion-reduce:transition-none",
+          open && "rotate-180",
+        )}
+      />
+    </button>
+  );
+}
+
 /**
  * One card for an action (the Actions tab, and the top proposal on the Agent tab). Closed, it is one row:
  * the title, the page and how bad the issue is. Open, it adds what the check found and the button; the
@@ -42,6 +81,7 @@ export function SeoActionCard({
   model,
   severity,
   primary = false,
+  fixed = false,
 }: {
   action: ProjectSeoAction;
   model: SeoWorkspaceModel;
@@ -49,6 +89,8 @@ export function SeoActionCard({
   severity: SeoIssueSeverity | null;
   /** The page's one filled button. */
   primary?: boolean;
+  /** The card is the one proposal of its place (the Agent tab): it stays open and its title is no button. */
+  fixed?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const problem = seoOverviewModel(model.data).actionProblem(action);
@@ -59,7 +101,8 @@ export function SeoActionCard({
   // The card stays marked until the focus leaves the card, so the reader sees which of the cards the row meant.
   const [marked, setMarked] = useState(false);
   // A card that a row leads to is open on its first paint, so it scrolls into view at its full height.
-  const [open, setOpen] = useState(primary || shown);
+  const [opened, setOpen] = useState(primary || shown);
+  const open = fixed || opened;
   const bodyId = useId();
   // The filled button moves on once a Task exists for the card before: the card that gets it opens.
   useEffect(() => {
@@ -90,15 +133,10 @@ export function SeoActionCard({
     >
       <h3>
         {/* The closed card is one row: the title, its page and how bad the issue is. A press opens what the check found and the button. */}
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={open ? bodyId : undefined}
-          onClick={() => setOpen((value) => !value)}
-          className={cn(
-            HOLDER_ITEM_HOVER_CLASS,
-            "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-start outline-none focus-visible:ring-2",
-          )}
+        <SeoActionCardHead
+          bodyId={bodyId}
+          open={open}
+          onToggle={fixed ? undefined : () => setOpen((value) => !value)}
         >
           <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
             {/* The open card has the link to the page; the closed row names the page. */}
@@ -120,13 +158,7 @@ export function SeoActionCard({
               ) : null}
             </span>
           </span>
-          <ChevronDown
-            className={cn(
-              "text-muted-foreground size-4 shrink-0 transition-transform duration-150 ease-out motion-reduce:transition-none",
-              open && "rotate-180",
-            )}
-          />
-        </button>
+        </SeoActionCardHead>
       </h3>
       {open ? (
         <div id={bodyId} className="space-y-2 px-4 pb-4">

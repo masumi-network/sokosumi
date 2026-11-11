@@ -525,7 +525,14 @@ describe("SEO workspace integration", () => {
       /^\/guides\/a$/,
     );
     await user.click(screen.getByRole("tab", { name: "Health" }));
-    expect(screen.getByText("Mobile · /guides/a")).toBeVisible();
+    // One device says something; the page is its own part, so the open row can leave it to the link.
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "SPAN" &&
+          element.textContent === "Mobile · /guides/a",
+      ),
+    ).toBeVisible();
   });
 
   it("splits page details into measurements and notes and folds their references", async () => {
@@ -1093,19 +1100,61 @@ describe("SEO workspace integration", () => {
     ).toBeTruthy();
   });
 
-  it("leaves the Primary page badge off a lone page", () => {
+  it("puts a badge only on a page that is not the primary page", () => {
     const workspace = seoTestWorkspace();
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/blogs",
+      label: "Blog",
+      relationship: "related",
+      relatedToPageId: workspace.pages[0].id,
+    });
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=health");
     const pages = screen
-      .getByRole("heading", { name: "Pages" })
+      .getByRole("heading", { name: "Pages", level: 2 })
       .closest("section");
     if (!pages) throw new Error("Pages card missing");
-    expect(within(pages).getByText("https://example.com/")).toBeVisible();
-    expect(screen.queryByText("Primary page")).toBeNull();
+    const rows = within(pages).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText("https://example.com/")).toBeVisible();
+    expect(within(rows[0]).queryByText(/page$/)).toBeNull();
+    expect(within(rows[1]).getByText("Related page")).toBeVisible();
+    // One primary page: the badge says what the page is related to.
+    expect(within(rows[1]).queryByText(/^Related to/)).toBeNull();
+  });
+
+  it("names the parent of a related page when it is not the primary page", () => {
+    const workspace = seoTestWorkspace();
+    const blog = {
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/blogs",
+      label: "Blog",
+      relationship: "related" as const,
+      relatedToPageId: workspace.pages[0].id,
+    };
+    workspace.pages.push(blog, {
+      ...blog,
+      id: crypto.randomUUID(),
+      url: "https://example.com/blogs/post",
+      label: "Post",
+      relatedToPageId: blog.id,
+    });
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    const row = screen.getByRole("heading", { name: "Post" }).closest("li");
+    if (!row) throw new Error("Page row missing");
+    expect(within(row).getByText("Related to: Blog")).toBeVisible();
   });
 
   it("shows the saved selections card only once a selection exists", () => {
@@ -1318,9 +1367,10 @@ describe("SEO workspace integration", () => {
       expect(screen.queryByRole("heading", { name: "Timeline" }) !== null).toBe(
         shown,
       );
-      // The link to the results is on the Timeline row, or on the page cards when the row is hidden.
+      // The link to the results is on the Timeline row, or the date of a page row when the Timeline is hidden.
       expect(
-        screen.getAllByRole("link", { name: "View results" }).length,
+        screen.getAllByRole("link", { name: /^(View results$|Last check )/ })
+          .length,
       ).toBeGreaterThan(0);
     },
   );
@@ -1377,6 +1427,13 @@ describe("SEO workspace integration", () => {
         label: "Blog",
         relationship: "related",
         relatedToPageId: workspace.pages[0].id,
+      });
+      // With one primary page the badge "Related page" says it all; a second one makes the parent a fact.
+      workspace.pages.push({
+        ...workspace.pages[0],
+        id: crypto.randomUUID(),
+        url: "https://example.com/shop",
+        label: "Shop",
       });
       workspace.scope.pageIds = workspace.pages.map((page) => page.id);
       vi.stubGlobal(
@@ -1446,7 +1503,10 @@ describe("SEO workspace integration", () => {
       .getByRole("heading", { name: "Pages" })
       .closest("section");
     if (!onlyPage) throw new Error("Pages card missing");
-    expect(within(onlyPage).queryByText("Last check")).toBeNull();
+    expect(
+      within(onlyPage).queryByText(messages.App.Seo.pages.notChecked),
+    ).toBeNull();
+    expect(within(onlyPage).queryByText(/^Last check/)).toBeNull();
     expect(screen.queryByText("Search clicks")).toBeNull();
     single.unmount();
 
@@ -3107,7 +3167,9 @@ describe("SEO workspace integration", () => {
     });
     expect(within(panel).getByLabelText("Your question")).toBeVisible();
     expect(
-      await within(panel).findByText("What would you like to improve?"),
+      await within(panel).findByRole("button", {
+        name: "What should I do first?",
+      }),
     ).toBeVisible();
     expect(ensureRoom).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
@@ -3413,7 +3475,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "tab=actions");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const sheet = await screen.findByRole("dialog");
-    await within(sheet).findByText(messages.App.Seo.chat.empty);
+    await within(sheet).findByText(messages.App.Seo.agent.prompts.first);
     await user.type(
       within(sheet).getByLabelText("Your question"),
       "Sheet question",
@@ -3761,7 +3823,7 @@ describe("SEO workspace integration", () => {
     // Every row is tracked, paid columns can never fill, and no Analytics data exists.
     expect(screen.queryByText("Tracked")).toBeNull();
     expect(screen.queryByText(/Search volume/)).toBeNull();
-    expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
+    expect(screen.queryByText(/^Tracking is free/)).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();
     // A competitor without numbers says why, instead of a bare URL.
     await userEvent.click(screen.getByRole("button", { name: "Competitors" }));
@@ -4162,6 +4224,10 @@ describe("SEO workspace integration", () => {
       await screen.findAllByRole("button", { name: "Create draft task" }),
     ).toHaveLength(1);
     expect(screen.getAllByText("Why, and the evidence")).toHaveLength(1);
+    // The one proposal of the Agent tab stays open: its title is no button that could close it.
+    expect(
+      screen.queryByRole("button", { name: /^Fix the page title/ }),
+    ).toBeNull();
     const row = screen.getByText("Write a description").closest("li");
     expect(row).not.toBeNull();
     // One page: the row needs no page.
@@ -4660,18 +4726,18 @@ describe("SEO workspace integration", () => {
     // One list shows at a time.
     const part = (name: string | RegExp) =>
       screen.getByRole("heading", { name }).closest("section")?.parentElement;
-    expect(part("Keywords")).not.toHaveClass("hidden");
+    expect(part(/^In Google's top results for/)).not.toHaveClass("hidden");
     expect(part(/^Keyword ideas/)).toHaveClass("hidden");
-    expect(part("Competitors")).toHaveClass("hidden");
+    expect(part(/^Sites in Google's results/)).toHaveClass("hidden");
     const competitors = screen.getByRole("button", { name: "Competitors" });
     expect(competitors).toHaveAttribute("aria-pressed", "false");
     await user.click(competitors);
     expect(competitors).toHaveAttribute("aria-pressed", "true");
-    expect(part("Competitors")).not.toHaveClass("hidden");
-    expect(part("Keywords")).toHaveClass("hidden");
+    expect(part(/^Sites in Google's results/)).not.toHaveClass("hidden");
+    expect(part(/^In Google's top results for/)).toHaveClass("hidden");
     await user.click(screen.getByRole("button", { name: "Ideas" }));
     expect(part(/^Keyword ideas/)).not.toHaveClass("hidden");
-    expect(part("Competitors")).toHaveClass("hidden");
+    expect(part(/^Sites in Google's results/)).toHaveClass("hidden");
     // The last idea leaves the list (the reader tracked it): the keywords show, not an empty tab.
     const client = clients.at(-1);
     const queries =
@@ -4690,7 +4756,7 @@ describe("SEO workspace integration", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Ideas" })).toBeNull(),
     );
-    expect(part("Keywords")).not.toHaveClass("hidden");
+    expect(part(/^In Google's top results for/)).not.toHaveClass("hidden");
     expect(screen.getByRole("button", { name: "Keywords" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -4779,10 +4845,10 @@ describe("SEO workspace integration", () => {
     const search = screen.getByPlaceholderText("Filter keywords");
     await user.type(search, "widget");
     expect(part(/^Keyword ideas/)).not.toHaveClass("hidden");
-    expect(part("Keywords")).not.toHaveClass("hidden");
+    expect(part(/^In Google's top results for/)).not.toHaveClass("hidden");
     await user.click(screen.getByRole("button", { name: "Competitors" }));
     expect(part(/^Keyword ideas/)).toHaveClass("hidden");
-    expect(part("Keywords")).toHaveClass("hidden");
+    expect(part(/^In Google's top results for/)).toHaveClass("hidden");
     await user.click(screen.getByRole("button", { name: "Keywords" }));
     await user.clear(search);
     expect(part(/^Keyword ideas/)).toHaveClass("hidden");

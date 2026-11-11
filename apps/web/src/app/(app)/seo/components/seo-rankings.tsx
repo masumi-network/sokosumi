@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SeoCompetitors } from "./seo-competitors";
 import { keywordGroups } from "./seo-keyword-rows-model";
-import { SeoKeywords } from "./seo-keywords";
+import { SeoKeywords, SeoQueryFilter } from "./seo-keywords";
 import {
   SEO_CHOSEN_CLASS,
   type SeoRankingsSection,
@@ -39,25 +39,40 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
     : "keywords";
   return (
     <div className="space-y-6">
-      <fieldset className="flex gap-1">
-        <legend className="sr-only">{t("tabs.rankings")}</legend>
-        {sections.map(({ id, label }) => (
-          <Button
-            key={id}
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-pressed={section === id}
-            className={cn(
-              "min-h-10 min-w-0 flex-1 sm:flex-none sm:px-4",
-              section === id && SEO_CHOSEN_CLASS,
-            )}
-            onClick={() => setSection(id)}
-          >
-            {label}
-          </Button>
-        ))}
-      </fieldset>
+      {/* The switch and the filter of its list share one line; on a phone the filter is the line under it. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <fieldset className="flex gap-1 max-sm:w-full">
+          <legend className="sr-only">{t("tabs.rankings")}</legend>
+          {sections.map(({ id, label }) => (
+            <Button
+              key={id}
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-pressed={section === id}
+              className={cn(
+                "min-h-10 min-w-0 flex-1 sm:flex-none sm:px-4",
+                section === id && SEO_CHOSEN_CLASS,
+              )}
+              onClick={() => setSection(id)}
+            >
+              {label}
+            </Button>
+          ))}
+        </fieldset>
+        {/* One filter for keywords and ideas: the lists show a keyword once, so it counts keywords, not device rows. */}
+        <div
+          className={cn(
+            "w-full empty:hidden sm:ms-auto sm:w-72",
+            seoSectionClass(section !== "competitors"),
+          )}
+        >
+          <SeoQueryFilter
+            model={model}
+            rows={groups.checked.length + groups.ideas.length}
+          />
+        </div>
+      </div>
       <SeoKeywords model={model} section={section} />
       <div className={seoSectionClass(section === "competitors")}>
         <SeoCompetitors model={model} />

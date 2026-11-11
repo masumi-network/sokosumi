@@ -153,9 +153,7 @@ describe("SEO competitor baselines", () => {
       const own = ownLink.closest("dl");
       expect(own).not.toBeNull();
       expect(within(own!).getByText("Your page")).toBeVisible();
-      expect(
-        within(own!).getByText("Backlinks: 10 · Sites linking to this page: 4"),
-      ).toBeVisible();
+      expect(within(own!).getByText("4 linking sites")).toBeVisible();
       expect(within(own!).queryByRole("button")).toBeNull();
       expect(screen.getAllByText("From the search results")).toHaveLength(1);
       // One menu per competitor row holds its actions.
@@ -204,9 +202,7 @@ describe("SEO competitor baselines", () => {
     const own = screen
       .getByRole("link", { name: page.url })
       .closest("dd") as HTMLElement;
-    expect(
-      within(own).getByText("Sites linking to this page: 4"),
-    ).toBeVisible();
+    expect(within(own).getByText("4 linking sites")).toBeVisible();
     expect(own).not.toHaveTextContent("Backlinks");
     // Position and linking sites are measured; a competitor row never has a backlink count.
     expect(screen.queryByText(/^Not measured for these rows yet/)).toBeNull();
@@ -563,10 +559,9 @@ describe("SEO competitor baselines", () => {
     expect(
       within(own).getByRole("link", { name: "View results" }),
     ).toHaveAttribute("href", "/tasks/links-task");
+    // The date of the competitors' check is the link to its results.
     expect(
-      screen
-        .getAllByRole("link", { name: "View results" })
-        .map((link) => link.getAttribute("href")),
-    ).toEqual(["/tasks/links-task", "/tasks/check-task"]);
+      screen.getByRole("link", { name: /^Last position check / }),
+    ).toHaveAttribute("href", "/tasks/check-task");
   });
 });

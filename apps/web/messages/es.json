@@ -10913,7 +10913,6 @@
       "noPagesBody": "Las páginas definen qué abarcan las comprobaciones y las estadísticas.",
       "all": "Todas",
       "related": "Página relacionada",
-      "primary": "Página principal",
       "url": "URL de la página",
       "label": "Nombre de la página",
       "relatedTo": "Relacionada con",
@@ -10952,7 +10951,6 @@
         "measurementDetails": "Sobre estos datos",
         "timeZone": "Zona horaria del informe: {timeZone}",
         "trafficSetup": "Consulta el rendimiento de estas páginas",
-        "trafficSetupBody": "Conecta Google Analytics para ver visitas y páginas vistas, o Search Console para ver clics de búsqueda, impresiones y posiciones.",
         "trafficSyncBody": "Search Console está conectado. Sincroniza las estadísticas para ver clics de búsqueda, impresiones y posiciones. Google Analytics añade visitas y páginas vistas.",
         "recentChecks": "Comprobaciones recientes",
         "noMeasuredReports": "No hay informes medidos en estas fechas de actividad",
@@ -11042,7 +11040,7 @@
         "language": "Código de idioma",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "Sigue una palabra clave para que se quede en esta lista: la próxima comprobación de posiciones la incluye. El seguimiento es gratis.",
+        "help": "El seguimiento es gratis: cada comprobación de posiciones lee las palabras clave seguidas.",
         "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
@@ -11059,7 +11057,7 @@
         "more": "{count, plural, one {Mostrar # palabra clave más} other {Mostrar # palabras clave más}}",
         "ideas": {
           "title": "Ideas de palabras clave ({count})",
-          "help": "Búsquedas que la última comprobación encontró para estas páginas. Aún no se ha leído su posición. Sigue una para vigilarla.",
+          "help": "Búsquedas que la última comprobación encontró para estas páginas. Sigue una: la próxima comprobación de posiciones la lee.",
           "why": "Por qué aparece",
           "source": {
             "gap": "La competencia posiciona para ella",
@@ -11087,7 +11085,7 @@
         "domains": "Sitios que enlazan a esta página",
         "excluded": "No se puede confirmar este candidato.",
         "noMatch": "Ningún competidor coincide con esta búsqueda",
-        "help": "Sitios en los resultados de Google para tus palabras clave. La mejor posición es el mejor lugar que ocupa una página del sitio.",
+        "help": "Sitios en los resultados de Google para tus palabras clave",
         "rowActions": "Acciones para {url}",
         "yourPages": "{count, plural, one {Tu página} other {Tus páginas}}",
         "compare": "Comparar con mi página",
@@ -11101,7 +11099,9 @@
         "platforms": "Otros sitios en los resultados ({count})",
         "platformsHelp": "Sitios de vídeo, foros, tiendas y páginas de ayuda. Ocupan un lugar en los resultados, pero no son rivales de tu sitio.",
         "dialogHelp": "Añade un sitio con el que compites. Se queda en esta lista como tu competidor.",
-        "searchPlaceholder": "Filtrar sitios"
+        "searchPlaceholder": "Filtrar sitios",
+        "rankHint": "La mejor posición es el mejor lugar que ocupa una página del sitio.",
+        "domainsShort": "Sitios que enlazan"
       },
       "actions": {
         "title": "Acciones",
@@ -11375,9 +11375,7 @@
       },
       "chat": {
         "title": "Preguntar al agente SEO",
-        "description": "Pregunta sobre las páginas y los resultados de esta auditoría. El agente propone acciones; tú apruebas cada una.",
-        "empty": "¿Qué te gustaría mejorar?",
-        "emptyBody": "Pregunta sobre problemas de páginas, posiciones de palabras clave o tráfico.",
+        "description": "El agente propone acciones; tú apruebas cada una.",
         "question": "Tu pregunta",
         "send": "Enviar pregunta",
         "working": "Leyendo resultados de la auditoría",
@@ -11518,7 +11516,8 @@
           "first": "¿Qué debo hacer primero?",
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabes de mis competidores?",
-          "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar."
+          "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar.",
+          "track": "¿Qué palabras clave debo seguir?"
         },
         "researchCompetitors": "Investigar competidores",
         "verdict": {
@@ -11533,12 +11532,10 @@
         "lastCheckOn": "Última comprobación",
         "askHow": "Preparar un plan",
         "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
-        "askShort": "Preguntar",
         "openTraffic": "Abrir tráfico",
         "openRankings": "Abrir posiciones",
         "draftFix": "Pedir una corrección al agente",
         "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
-        "lastCheckPages": "{pages, plural, one {# página} other {# páginas}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
         "statisticsMissing": "Las estadísticas no están configuradas",
         "demand": {

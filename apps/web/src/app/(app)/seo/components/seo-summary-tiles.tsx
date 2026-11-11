@@ -45,7 +45,7 @@ function Tile({
   testId: string;
 }) {
   return (
-    <div className="min-w-0 space-y-1 rounded-md border p-2.5 sm:space-y-1.5 sm:p-3">
+    <div className="bg-background min-w-0 space-y-1 rounded-lg border p-2.5 sm:space-y-1.5 sm:p-3">
       <dt className="text-muted-foreground text-xs">{label}</dt>
       <dd className="flex flex-col gap-1.5" data-testid={testId}>
         <p className="text-xl leading-tight font-semibold tabular-nums sm:text-2xl">
@@ -137,21 +137,24 @@ export function SeoSummaryTiles({
           value={format.number(keywords.found)}
           rest={t("summary.of", { total: format.number(keywords.read) })}
           testId="seo-summary-keywords"
+          // No keyword found: an all-grey bar reads as a bar that still loads.
           bar={
-            <Bar
-              parts={[
-                {
-                  key: "found",
-                  count: keywords.found,
-                  className: "bg-foreground",
-                },
-                {
-                  key: "rest",
-                  count: keywords.read - keywords.found,
-                  className: REST_MARK_CLASS,
-                },
-              ]}
-            />
+            keywords.found ? (
+              <Bar
+                parts={[
+                  {
+                    key: "found",
+                    count: keywords.found,
+                    className: "bg-foreground",
+                  },
+                  {
+                    key: "rest",
+                    count: keywords.read - keywords.found,
+                    className: REST_MARK_CLASS,
+                  },
+                ]}
+              />
+            ) : undefined
           }
         >
           <span className="flex flex-wrap gap-x-3">

@@ -31,11 +31,11 @@ export function SeoAskButton({ model }: { model: SeoWorkspaceModel }) {
       aria-label={t("agent.ask")}
       onClick={() => model.openChat()}
       // On a phone with a home indicator the button stays over it.
-      className="bg-foreground text-background hover:bg-secondary-hover focus-visible:ring-ring focus-visible:ring-offset-background fixed end-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-medium shadow-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:end-6 sm:bottom-6"
+      // A raised neutral surface: the filled button of the tab stays the one fill of the screen.
+      className="bg-popover text-popover-foreground hover:bg-accent focus-visible:ring-ring focus-visible:ring-offset-background fixed end-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex size-12 items-center justify-center gap-2 rounded-full border text-sm font-medium shadow-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:end-6 sm:bottom-6 sm:h-11 sm:w-auto sm:px-4"
     >
-      <Bot className="size-4" />
-      {/* The phone has less room over the rows: the short word, with the full name as the label. */}
-      <span className="sm:hidden">{t("agent.askShort")}</span>
+      <Bot className="size-5 sm:size-4" />
+      {/* The phone has less room over the rows: the icon alone, with the name as the label. */}
       <span className="max-sm:hidden">{t("agent.ask")}</span>
     </button>
   );

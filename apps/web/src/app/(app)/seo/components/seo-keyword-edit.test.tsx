@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import enMessages from "../../../../../messages/en.json";
 import { SeoEditDialog } from "./seo-edit-dialog";
-import { SeoKeywords } from "./seo-keywords";
+import { SeoRankings } from "./seo-rankings";
 import { SeoSearchQueries } from "./seo-search-queries";
 import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
@@ -71,7 +71,7 @@ function KeywordWorkspace({ workspace }: { workspace: ProjectSeoWorkspace }) {
   return (
     <>
       <SeoSearchQueries model={model} />
-      <SeoKeywords model={model} />
+      <SeoRankings model={model} />
       {model.dialog === "edit_keyword" ? <SeoEditDialog model={model} /> : null}
     </>
   );
@@ -229,15 +229,13 @@ describe("Saved keyword edits", () => {
       },
     );
     renderWorkspace(workspace);
-    // The link keeps the whole address as its name and its target.
-    const page = (url: string) => screen.getByRole("link", { name: url });
-    expect(page(pricingPage.url).textContent).toBe("/pricing");
-    expect(page(pricingPage.url)).toHaveAttribute("href", pricingPage.url);
-    expect(page(workspace.pages[0].url).textContent).toBe("Home page");
+    // The page is text under the keyword: the path after the site, and the home page by name.
+    expect(screen.getByText("/pricing")).toBeVisible();
+    expect(screen.getByText("Home page")).toBeVisible();
     // A page of another site keeps its site.
-    expect(page("https://other.example/x").textContent).toBe(
-      "https://other.example/x",
-    );
+    expect(screen.getByText("https://other.example/x")).toBeVisible();
+    // No link per keyword: the Health tab holds the page links.
+    expect(screen.queryByRole("link", { name: pricingPage.url })).toBeNull();
   });
 
   it("names a tracked keyword's market in words", () => {
@@ -537,12 +535,12 @@ describe("Keywords after a check", () => {
     expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
     expect(
       // The same words as the keyword tile of the Agent tab.
-      screen.getByText("Results read per keyword: 16 to 17"),
+      screen.getByText(/Results read per keyword: 16 to 17$/),
     ).toBeVisible();
     // What a click on "Track" gives stands once, between the result and the rows with the buttons.
-    expect(screen.getAllByText(/^Track a keyword to keep it/)).toHaveLength(1);
+    expect(screen.getAllByText(/^Tracking is free/)).toHaveLength(1);
     // The market shows once, in the result line, not once per row.
-    expect(screen.getAllByText("United States · English")).toHaveLength(1);
+    expect(screen.getAllByText(/^United States · English/)).toHaveLength(1);
     expect(
       screen.getByRole("heading", { name: "Keyword ideas (12)" }),
     ).toBeVisible();
@@ -884,7 +882,7 @@ describe("Search Console queries", () => {
     workspace.keywords = [];
     renderWorkspace(workspace);
     expect(screen.getByRole("heading", { name: "Keywords" })).toBeVisible();
-    expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
+    expect(screen.queryByText(/^Tracking is free/)).toBeNull();
     cleanup();
     // It names the next position check too: it has no place where no position check can run.
     workspace.keywords = [
@@ -896,7 +894,7 @@ describe("Search Console queries", () => {
     };
     renderWorkspace(workspace);
     expect(screen.getByText("battery app")).toBeVisible();
-    expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
+    expect(screen.queryByText(/^Tracking is free/)).toBeNull();
     cleanup();
     // A reader who cannot edit has no Track button, so no sentence about it.
     workspace.availableActions = {
@@ -906,6 +904,6 @@ describe("Search Console queries", () => {
     };
     renderWorkspace(workspace);
     expect(screen.getByText("battery app")).toBeVisible();
-    expect(screen.queryByText(/^Track a keyword to keep it/)).toBeNull();
+    expect(screen.queryByText(/^Tracking is free/)).toBeNull();
   });
 });

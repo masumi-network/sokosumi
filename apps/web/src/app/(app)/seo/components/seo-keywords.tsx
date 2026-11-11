@@ -1,6 +1,5 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,10 +38,12 @@ import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
   SEO_SEARCH_MIN_ROWS,
+  SeoAddButton,
   SeoBarNumber,
   SeoDate,
   SeoEmpty,
-  SeoPageLink,
+  SeoMetaLine,
+  SeoPageText,
   SeoPeriod,
   type SeoRankingsSection,
   SeoSection,
@@ -51,7 +52,6 @@ import {
   SeoState,
   seoMarketName,
   seoSectionClass,
-  seoSiteUrl,
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
 import { SeoKeywordDemand, SeoStrategyCard } from "./seo-strategy";
@@ -169,75 +169,83 @@ export function SeoKeywords({
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
   return (
     <div className="space-y-5">
+      {/* Without a strategy the holder is empty and takes no room. */}
       <div
-        className={cn("space-y-5", seoSectionClass(section !== "competitors"))}
+        className={cn(
+          "empty:hidden",
+          seoSectionClass(section !== "competitors"),
+        )}
       >
         <SeoStrategyCard model={model} />
-        {/* The lists show a keyword once, so the search counts keywords, not device rows. */}
-        <SeoQueryFilter
-          model={model}
-          rows={all.checked.length + all.ideas.length}
-        />
       </div>
       <div className={seoSectionClass(bothLists || section === "keywords")}>
         <SeoSection
-          title={t("keywords.title")}
+          // The switch above names the list, so the title is its result: one sentence.
+          title={
+            summary.read
+              ? t("keywords.summary", {
+                  found: summary.found,
+                  read: summary.read,
+                })
+              : t("keywords.title")
+          }
+          strong={summary.read > 0}
           actions={
             model.data.availableActions.canEdit ? (
-              <Button size="sm" onClick={() => model.setDialog("keyword")}>
-                <Plus className="size-4" />
-                {t("keywords.addButton")}
-              </Button>
+              <SeoAddButton
+                label={t("keywords.addButton")}
+                onClick={() => model.setDialog("keyword")}
+              />
             ) : null
           }
         >
           {summary.read ? (
-            // The result first: one sentence, then the market and the date the rows no longer repeat.
-            <div className="space-y-0.5 px-2 pb-1">
-              <p className="text-base font-semibold text-balance">
-                {t("keywords.summary", {
-                  found: summary.found,
-                  read: summary.read,
-                })}
-              </p>
-              <p className="text-muted-foreground flex flex-wrap gap-x-2 text-sm">
-                {summary.found ? (
-                  <span>
-                    {t("keywords.firstPage", { count: summary.firstPage })}
-                  </span>
-                ) : null}
-                {!shown.market && first ? (
-                  <span>
-                    {seoMarketName(
-                      locale,
-                      first.countryCode,
-                      first.languageCode,
-                    )}
-                  </span>
-                ) : null}
-                {summary.newest ? (
-                  <span>
-                    {t("keywords.readOn")}{" "}
-                    <SeoDate day value={summary.newest.observedAt} />
-                  </span>
-                ) : null}
-                {summary.newest?.observationId ? (
-                  <SeoSource
-                    workspace={model.data}
-                    observationId={summary.newest.observationId}
-                  />
-                ) : null}
-                {summary.depth ? (
-                  <span>
-                    {t("summary.depth", {
-                      ...summary.depth,
-                      same:
-                        summary.depth.min === summary.depth.max ? "yes" : "no",
-                    })}
-                  </span>
-                ) : null}
-              </p>
-            </div>
+            // Under the result: the market and the date the rows no longer repeat. The date opens the check's results.
+            <SeoMetaLine
+              className="px-2 pb-1 text-sm"
+              items={[
+                [
+                  "firstPage",
+                  summary.found
+                    ? t("keywords.firstPage", { count: summary.firstPage })
+                    : null,
+                ],
+                [
+                  "market",
+                  !shown.market && first
+                    ? seoMarketName(
+                        locale,
+                        first.countryCode,
+                        first.languageCode,
+                      )
+                    : null,
+                ],
+                [
+                  "check",
+                  summary.newest ? (
+                    <SeoSource
+                      workspace={model.data}
+                      observationId={summary.newest.observationId}
+                    >
+                      {t("keywords.readOn")}{" "}
+                      <SeoDate day value={summary.newest.observedAt} />
+                    </SeoSource>
+                  ) : null,
+                ],
+                [
+                  "depth",
+                  summary.depth
+                    ? t("summary.depth", {
+                        ...summary.depth,
+                        same:
+                          summary.depth.min === summary.depth.max
+                            ? "yes"
+                            : "no",
+                      })
+                    : null,
+                ],
+              ]}
+            />
           ) : null}
           {paidOff ||
           !rows.length ||
@@ -311,9 +319,10 @@ export function SeoKeywords({
                             {/* In a one-page scope the page link only repeats; "any page" still says something. */}
                             {row.pageUrl ? (
                               manyPages ? (
-                                <SeoPageLink
+                                // The page as text: a link under every keyword made the list a second list of links.
+                                <SeoPageText
                                   url={row.pageUrl}
-                                  site={seoSiteUrl(model.data)}
+                                  workspace={model.data}
                                 />
                               ) : null
                             ) : (

@@ -10913,7 +10913,6 @@
       "noPagesBody": "Seiten legen fest, worauf sich Prüfungen und Statistiken beziehen.",
       "all": "Alle",
       "related": "Verwandte Seite",
-      "primary": "Hauptseite",
       "url": "Seiten-URL",
       "label": "Seitenname",
       "relatedTo": "Verwandt mit",
@@ -10952,7 +10951,6 @@
         "measurementDetails": "Über diese Daten",
         "timeZone": "Zeitzone des Berichts: {timeZone}",
         "trafficSetup": "So entwickeln sich diese Seiten",
-        "trafficSetupBody": "Verbinde Google Analytics für Besuche und Seitenaufrufe oder Search Console für Suchklicks, Impressionen und Rankings.",
         "trafficSyncBody": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um Suchklicks, Impressionen und Rankings zu sehen. Google Analytics ergänzt Besuche und Seitenaufrufe.",
         "recentChecks": "Letzte Prüfungen",
         "noMeasuredReports": "Keine Berichte in diesem Aktivitätszeitraum gemessen",
@@ -11042,7 +11040,7 @@
         "language": "Sprachcode",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
-        "help": "Verfolge ein Keyword, damit es in dieser Liste bleibt: Die nächste Positionsprüfung prüft es mit. Das Verfolgen ist kostenlos.",
+        "help": "Das Verfolgen ist kostenlos: Jede Positionsprüfung liest die verfolgten Keywords.",
         "dialogHelp": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Positionsprüfungen.",
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
@@ -11059,7 +11057,7 @@
         "more": "{count, plural, one {# weiteres Keyword anzeigen} other {# weitere Keywords anzeigen}}",
         "ideas": {
           "title": "Keyword-Ideen ({count})",
-          "help": "Suchen, die die letzte Prüfung für diese Seiten gefunden hat. Für sie ist noch keine Position gelesen. Verfolge eine, um sie im Blick zu behalten.",
+          "help": "Suchen, die die letzte Prüfung für diese Seiten gefunden hat. Verfolge eine: Die nächste Positionsprüfung liest sie mit.",
           "why": "Warum es gelistet ist",
           "source": {
             "gap": "Wettbewerber ranken dafür",
@@ -11087,7 +11085,7 @@
         "domains": "Websites, die auf diese Seite verlinken",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
         "noMatch": "Kein Mitbewerber passt zu dieser Suche",
-        "help": "Websites in den Google-Ergebnissen für deine Keywords. Beste Position ist der beste Platz, den eine Seite der Website dort hat.",
+        "help": "Websites in den Google-Ergebnissen für deine Keywords",
         "rowActions": "Aktionen für {url}",
         "yourPages": "{count, plural, one {Deine Seite} other {Deine Seiten}}",
         "compare": "Mit meiner Seite vergleichen",
@@ -11101,7 +11099,9 @@
         "platforms": "Andere Websites in den Ergebnissen ({count})",
         "platformsHelp": "Videoseiten, Foren, Shops und Hilfeseiten. Sie haben einen Platz in den Ergebnissen, sind aber keine Rivalen deiner Website.",
         "dialogHelp": "Füge eine Website hinzu, mit der du konkurrierst. Sie bleibt als dein Mitbewerber in dieser Liste.",
-        "searchPlaceholder": "Websites filtern"
+        "searchPlaceholder": "Websites filtern",
+        "rankHint": "Beste Position ist der beste Platz, den eine Seite der Website in den Ergebnissen hat.",
+        "domainsShort": "Verlinkende Websites"
       },
       "actions": {
         "title": "Aktionen",
@@ -11375,9 +11375,7 @@
       },
       "chat": {
         "title": "SEO-Agent fragen",
-        "description": "Stell Fragen zu den Seiten und Ergebnissen dieses Audits. Der Agent schlägt Aktionen vor; du gibst jede einzeln frei.",
-        "empty": "Was möchtest du verbessern?",
-        "emptyBody": "Frag nach Seitenproblemen, Keyword-Positionen oder Zugriffen.",
+        "description": "Der Agent schlägt Aktionen vor; du gibst jede einzeln frei.",
         "question": "Deine Frage",
         "send": "Frage senden",
         "working": "Audit-Ergebnisse werden gelesen",
@@ -11518,7 +11516,8 @@
           "first": "Was soll ich zuerst tun?",
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was weißt du über meine Wettbewerber?",
-          "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann."
+          "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann.",
+          "track": "Welche Keywords soll ich verfolgen?"
         },
         "researchCompetitors": "Wettbewerber recherchieren",
         "verdict": {
@@ -11533,12 +11532,10 @@
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Plan entwerfen",
         "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
-        "askShort": "Agent fragen",
         "openTraffic": "Zugriffe öffnen",
         "openRankings": "Rankings öffnen",
         "draftFix": "Agent um Korrektur bitten",
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
-        "lastCheckPages": "{pages, plural, one {# Seite} other {# Seiten}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# weitere Korrektur} other {# weitere Korrekturen}}} other {{count, plural, one {# weitere Aktion} other {# weitere Aktionen}}}}",
         "statisticsMissing": "Statistiken sind nicht eingerichtet",
         "demand": {

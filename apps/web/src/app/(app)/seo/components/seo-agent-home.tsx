@@ -171,6 +171,7 @@ function SeoAgentPanel({
             model={model}
             severity={actionSeverity(step.action)}
             primary
+            fixed
           />
         </li>
       ) : (
@@ -230,10 +231,8 @@ function SeoAgentPanel({
       aria-labelledby="seo-agent-title"
       className={cn(HOLDER_CLASS, "min-w-0 space-y-3")}
     >
-      <h2
-        id="seo-agent-title"
-        className="text-muted-foreground px-2 pt-1 text-xs font-medium"
-      >
+      {/* The tab says "Agent": the name is for the landmark only. */}
+      <h2 id="seo-agent-title" className="sr-only">
         {t("agent.title")}
       </h2>
       {/* Present before a check starts, so its start and end are announced. */}
@@ -283,8 +282,6 @@ function SeoAgentPanel({
             <p className="text-muted-foreground text-sm">
               {t("agent.lastCheckOn")}{" "}
               <SeoDate day value={brief.lastCheck.at} />
-              {" · "}
-              {t("agent.lastCheckPages", { pages: brief.lastCheck.pages })}
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
@@ -339,9 +336,10 @@ function SeoAgentPanel({
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}
-      {/* The numbers and the pictures are one block, in one place on every width. No number and no picture: no card. */}
+      {/* The numbers and the pictures are one block, in one place on every width. On a wide screen the tiles stand
+          one over the other beside the picture, so the first step and its button stay in the first screen. */}
       {setup ? null : (
-        <div className={cn(HOLDER_ITEM_CLASS, "space-y-2 p-4 empty:hidden")}>
+        <div className="grid gap-2 empty:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-start lg:[&>*:only-child]:col-span-2 lg:[&>dl:not(:only-child)]:grid-cols-1">
           {tiles}
         </div>
       )}

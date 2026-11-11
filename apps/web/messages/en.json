@@ -10913,7 +10913,6 @@
       "noPagesBody": "Pages define what each check and statistic covers.",
       "all": "All",
       "related": "Related page",
-      "primary": "Primary page",
       "url": "Page URL",
       "label": "Page name",
       "relatedTo": "Related to",
@@ -10952,7 +10951,6 @@
         "measurementDetails": "About this data",
         "timeZone": "Reporting time zone: {timeZone}",
         "trafficSetup": "See how these pages perform",
-        "trafficSetupBody": "Connect Google Analytics for visits and page views, or Search Console for search clicks, impressions and rankings.",
         "trafficSyncBody": "Search Console is connected. Sync statistics to see search clicks, impressions and rankings. Google Analytics adds visits and page views.",
         "recentChecks": "Recent checks",
         "noMeasuredReports": "No reports measured in these activity dates",
@@ -11042,7 +11040,7 @@
         "language": "Language code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Track a keyword to keep it on this list: the next position check reads it. Tracking is free.",
+        "help": "Tracking is free: each position check reads the tracked keywords.",
         "dialogHelp": "Tracking a keyword is free. It does not start paid position checks.",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
@@ -11059,7 +11057,7 @@
         "more": "{count, plural, one {Show # more keyword} other {Show # more keywords}}",
         "ideas": {
           "title": "Keyword ideas ({count})",
-          "help": "Searches the last check found for these pages. No position is read for them yet. Track one to follow it.",
+          "help": "Searches the last check found for these pages. Track one: the next position check reads it.",
           "why": "Why it is listed",
           "source": {
             "gap": "Competitors rank for it",
@@ -11087,7 +11085,7 @@
         "domains": "Sites linking to this page",
         "excluded": "This candidate cannot be confirmed.",
         "noMatch": "No competitor matches this search",
-        "help": "Sites in Google's results for your keywords. Best position is the best place one page of the site holds.",
+        "help": "Sites in Google's results for your keywords",
         "rowActions": "Actions for {url}",
         "yourPages": "{count, plural, one {Your page} other {Your pages}}",
         "compare": "Compare with my page",
@@ -11101,7 +11099,9 @@
         "platforms": "Other sites in the results ({count})",
         "platformsHelp": "Video sites, forums, stores and help pages. They hold a place in the results, but they are not rivals of your site.",
         "dialogHelp": "Add a site you compete with. It stays on this list as your competitor.",
-        "searchPlaceholder": "Filter sites"
+        "searchPlaceholder": "Filter sites",
+        "rankHint": "Best position is the best place one page of the site holds.",
+        "domainsShort": "Linking sites"
       },
       "actions": {
         "title": "Actions",
@@ -11375,9 +11375,7 @@
       },
       "chat": {
         "title": "Ask the SEO agent",
-        "description": "Ask about this audit's pages and results. The agent suggests actions; you approve each one.",
-        "empty": "What would you like to improve?",
-        "emptyBody": "Ask about page issues, keyword positions or traffic.",
+        "description": "The agent suggests actions; you approve each one.",
         "question": "Your question",
         "send": "Send question",
         "working": "Reading audit results",
@@ -11518,7 +11516,8 @@
           "first": "What should I do first?",
           "queries": "Which searches bring people to these pages?",
           "competitors": "What do you know about my competitors?",
-          "measure": "The check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Draft a change and suggest it as an action I can approve."
+          "measure": "The check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Draft a change and suggest it as an action I can approve.",
+          "track": "Which keywords should I track?"
         },
         "researchCompetitors": "Research competitors",
         "verdict": {
@@ -11533,12 +11532,10 @@
         "lastCheckOn": "Last check",
         "askHow": "Draft a plan",
         "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
-        "askShort": "Ask",
         "openTraffic": "Open traffic",
         "openRankings": "Open rankings",
         "draftFix": "Ask the agent for a fix",
         "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
-        "lastCheckPages": "{pages, plural, one {# page} other {# pages}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
         "statisticsMissing": "Statistics are not set up",
         "demand": {

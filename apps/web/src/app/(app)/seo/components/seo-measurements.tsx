@@ -14,6 +14,7 @@ import {
   seoShownValue,
   seoWeekOverWeek,
 } from "./seo-performance-model";
+import { seoRunLeads } from "./seo-setup-model";
 import {
   SEO_CHOSEN_CLASS,
   SeoDate,
@@ -29,7 +30,7 @@ import {
   seoReportedPeriod,
 } from "./seo-statistics-model";
 import { SeoTrendChart } from "./seo-trend-chart";
-import { useSearchConsoleConnected } from "./use-seo-connection";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Measured traffic for the selected pages: totals, the newest 7 reported days against the 7 before, and the daily trend. */
@@ -56,7 +57,9 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   const reported = seoReportedPeriod(visible);
   const canSync = workspace.availableActions.canSyncMetrics;
   // Only the empty card asks: a connected account with nothing synced needs a sync, not a connection.
-  const connected = useSearchConsoleConnected(!active);
+  const connection = useSeoConnectionStatus("search_console", !active).status
+    .data?.status;
+  const connected = connection === "connected";
   function label(metric: ProjectSeoMetric) {
     return t.has(`metrics.${metric.key}`)
       ? t(`metrics.${metric.key}`)
@@ -445,12 +448,20 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
             {t(
               connected
                 ? "overview.trafficSyncBody"
-                : "overview.trafficSetupBody",
+                : "agent.steps.connect.search_console",
             )}
           </p>
           {canSync ? (
             <Button
-              variant="outline"
+              // The one waiting action of the tab is its filled button: only once the read says that an account
+              // is missing or must connect again, and only where the header's run button is not the filled one.
+              variant={
+                (connection === "not_connected" ||
+                  connection === "needs_reconnect") &&
+                !seoRunLeads(workspace)
+                  ? "primary"
+                  : "outline"
+              }
               size="sm"
               onClick={() =>
                 model.openStatistics(connected ? "search_console" : undefined)

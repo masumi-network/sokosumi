@@ -34,7 +34,7 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
     <div className="space-y-2" data-testid="seo-agent-graphics">
       {clicks ? (
         // The chart is a figure with its own name.
-        <div className="rounded-md border p-3">
+        <div className="bg-background rounded-lg border p-3">
           <SeoTrendChart
             key={clicks.id}
             label={t("metrics.clicks")}

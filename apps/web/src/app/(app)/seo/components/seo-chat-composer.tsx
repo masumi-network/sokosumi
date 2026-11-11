@@ -11,7 +11,24 @@ import { resolveComposerEnterAction } from "@/lib/utils/composer-wysiwyg-input-r
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { SEO_CHAT_QUESTION_LIMIT } from "./use-seo-chat";
 
-export const SEO_AGENT_PROMPTS = ["first", "queries", "competitors"] as const;
+const SEO_AGENT_PROMPTS = ["first", "queries", "track", "competitors"] as const;
+
+/** The example questions the saved data can answer: no search statistics, no question about searches. */
+export function seoAgentPrompts({
+  competitors,
+  searches,
+}: {
+  /** False where the Audit has no competitor. */
+  competitors: boolean;
+  /** False where no search statistics are synced: the question about keywords to track stands in. */
+  searches: boolean;
+}) {
+  return SEO_AGENT_PROMPTS.filter(
+    (prompt) =>
+      (competitors || prompt !== "competitors") &&
+      prompt !== (searches ? "track" : "queries"),
+  );
+}
 
 /** An IME reports this key code for the Enter that confirms a composition. */
 const IME_KEY_CODE = 229;
@@ -20,19 +37,20 @@ const IME_KEY_CODE = 229;
 export function SeoPromptChips({
   busy = false,
   competitors = true,
+  searches = true,
   onPick,
 }: {
   busy?: boolean;
   /** False where the Audit has no competitor: the question about them has no answer. */
   competitors?: boolean;
+  /** False where no search statistics are synced. */
+  searches?: boolean;
   onPick: (question: string) => void;
 }) {
   const t = useTranslations("App.Seo");
   return (
     <div className="flex flex-wrap gap-2">
-      {SEO_AGENT_PROMPTS.filter(
-        (prompt) => competitors || prompt !== "competitors",
-      ).map((prompt) => (
+      {seoAgentPrompts({ competitors, searches }).map((prompt) => (
         <button
           key={prompt}
           type="button"

@@ -17,9 +17,9 @@ import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { SEO_ASK_BUTTON_ID } from "./seo-ask-button";
 import {
-  SEO_AGENT_PROMPTS,
   SeoChatComposer,
   SeoPromptChips,
+  seoAgentPrompts,
 } from "./seo-chat-composer";
 import {
   SeoAgentOrb,
@@ -60,49 +60,43 @@ function SeoChatHeading({
   );
 }
 
-/** A first visit: a greeting and questions the reader can send with one click. */
+/** A first visit: questions the reader can send with one click. */
 function ChatWelcome({
   chat,
   inputId,
   competitors,
+  searches,
 }: {
   chat: Chat;
   inputId: string;
   competitors: boolean;
+  searches: boolean;
 }) {
   const t = useTranslations("App.Seo");
   return (
-    <div className="content-rise flex flex-col items-center gap-4 py-4 text-center">
-      <SeoAgentOrb live className="size-12" />
-      <div className="space-y-1">
-        <p className="text-sm font-semibold text-balance">{t("chat.empty")}</p>
-        <p className="text-muted-foreground text-sm">{t("chat.emptyBody")}</p>
-      </div>
-      <div className="flex w-full flex-col gap-2">
-        {SEO_AGENT_PROMPTS.filter(
-          (prompt) => competitors || prompt !== "competitors",
-        ).map((prompt) => (
-          <Button
-            key={prompt}
-            type="button"
-            variant="outline"
-            className="h-auto min-h-10 justify-between gap-3 py-2 text-start whitespace-normal"
-            onClick={() => {
-              // These buttons leave with the greeting: focus moves to the
-              // field, or to the thread where the field would open a keyboard.
-              document
-                .getElementById(
-                  devicePrefersHover() ? inputId : threadId(inputId),
-                )
-                ?.focus({ preventScroll: true });
-              void chat.send(t(`agent.prompts.${prompt}`));
-            }}
-          >
-            {t(`agent.prompts.${prompt}`)}
-            <ArrowUp className="text-muted-foreground" />
-          </Button>
-        ))}
-      </div>
+    // The sheet's header says what the agent does: the first visit shows the questions only.
+    <div className="content-rise flex w-full flex-col gap-2 py-4">
+      {seoAgentPrompts({ competitors, searches }).map((prompt) => (
+        <Button
+          key={prompt}
+          type="button"
+          variant="outline"
+          className="h-auto min-h-10 justify-between gap-3 py-2 text-start whitespace-normal"
+          onClick={() => {
+            // These buttons leave with the greeting: focus moves to the
+            // field, or to the thread where the field would open a keyboard.
+            document
+              .getElementById(
+                devicePrefersHover() ? inputId : threadId(inputId),
+              )
+              ?.focus({ preventScroll: true });
+            void chat.send(t(`agent.prompts.${prompt}`));
+          }}
+        >
+          {t(`agent.prompts.${prompt}`)}
+          <ArrowUp className="text-muted-foreground" />
+        </Button>
+      ))}
     </div>
   );
 }
@@ -193,6 +187,7 @@ function SeoChatThread({
             chat={chat}
             inputId={inputId}
             competitors={seoHasCompetitor(model.data)}
+            searches={Boolean(model.data.searchQueries?.rows.length)}
           />
         ) : null}
         {chat.turns.map((turn) => (
@@ -221,6 +216,7 @@ function SeoChatThread({
           <SeoPromptChips
             busy={chat.busy}
             competitors={seoHasCompetitor(model.data)}
+            searches={Boolean(model.data.searchQueries?.rows.length)}
             onPick={(question) => {
               void chat.send(question);
             }}

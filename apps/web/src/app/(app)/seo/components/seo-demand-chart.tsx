@@ -45,7 +45,7 @@ export function SeoDemandChart({
   );
   return (
     <figure
-      className="space-y-3 rounded-md border p-3"
+      className="bg-background space-y-3 rounded-lg border p-3"
       data-testid="seo-demand-chart"
     >
       <figcaption className="space-y-0.5">

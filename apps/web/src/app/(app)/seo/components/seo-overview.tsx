@@ -257,7 +257,6 @@ function PageDetail({
 /** Site health: what the checks found, page by page and over time. */
 export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
   const { data } = model;
   const overview = seoOverviewModel(data);
   const checkRunning = seoCheckRunning(data);
@@ -334,34 +333,34 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
               return (
                 <li key={finding.id}>
                   <details className="group text-sm">
-                    <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                    <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-start sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
                       <h3 className="font-medium break-words">
                         {t("overview.failedCheck", {
                           name: checkName(finding.title),
                         })}
                       </h3>
-                      <SeoSeverity severity={finding.severity} />
+                      {/* On a phone the impact label is the row's last line: beside the title it broke the title into three lines. */}
+                      <span className="flex max-sm:col-start-1 max-sm:row-start-3">
+                        <SeoSeverity severity={finding.severity} />
+                      </span>
                       <ChevronDown
                         aria-hidden
                         className="text-muted-foreground mt-0.5 size-4 shrink-0 group-open:rotate-180"
                       />
-                      <span className="text-muted-foreground col-span-3 text-xs [overflow-wrap:anywhere]">
-                        {[
-                          finding.devices.length
-                            ? format.list(
-                                finding.devices.map((device) =>
-                                  t(`analysis.${device}`),
-                                ),
-                              )
-                            : null,
-                          seoPageName(
+                      <span className="text-muted-foreground col-span-2 text-xs [overflow-wrap:anywhere] sm:col-span-3">
+                        {/* Both devices is the usual case and says nothing; one device does. */}
+                        {finding.devices.length === 1
+                          ? t(`analysis.${finding.devices[0]}`)
+                          : null}
+                        {/* The open row has the link to the page. */}
+                        <span className="group-open:hidden">
+                          {finding.devices.length === 1 ? " · " : null}
+                          {seoPageName(
                             finding.pageUrl,
                             seoSiteUrl(data),
                             t("pages.home"),
-                          ),
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
+                          )}
+                        </span>
                       </span>
                     </summary>
                     <div className="text-muted-foreground space-y-3 px-4 pb-3">

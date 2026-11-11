@@ -7,6 +7,7 @@ import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { seoPageSummaries } from "./seo-overview-model";
 import {
+  SeoAddButton,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -52,6 +53,9 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   // A lone primary page is the header's URL; the card would only repeat it.
   // "Add a page" stays in Manage SEO and the Agent's steps.
   const [only] = model.data.pages;
+  const primaryPages = model.data.pages.filter(
+    (page) => page.relationship === "primary",
+  ).length;
   if (
     model.data.pages.length === 1 &&
     // The header names the page only while it is the one in view.
@@ -80,16 +84,17 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                   {t("createScope")}
                 </Button>
               ) : null}
-              <Button size="sm" onClick={() => model.setDialog("page")}>
-                <Plus className="size-4" />
-                {t("addPage")}
-              </Button>
+              <SeoAddButton
+                label={t("addPage")}
+                onClick={() => model.setDialog("page")}
+              />
             </div>
           ) : null
         }
       >
         {model.data.pages.length ? (
-          <ul className="space-y-2">
+          // One list, one row per page, in the look of the issue rows.
+          <ul className={cn(HOLDER_ITEM_CLASS, "divide-y")}>
             {model.data.pages.map((page) => {
               const parent = model.data.pages.find(
                 (candidate) => candidate.id === page.relatedToPageId,
@@ -113,10 +118,7 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                     })
                   : [];
               return (
-                <li
-                  key={page.id}
-                  className={`${HOLDER_ITEM_CLASS} space-y-3 p-4`}
-                >
+                <li key={page.id} className="space-y-1 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
                       {page.label && page.label !== page.url ? (
@@ -126,19 +128,50 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                       ) : null}
                       <SeoPageLink url={page.url} />
                     </div>
-                    {/* A lone page is the primary page; the badge would say nothing. */}
-                    {model.data.pages.length > 1 ||
-                    page.relationship !== "primary" ? (
-                      <SeoState>{t(page.relationship)}</SeoState>
+                    {/* The badge marks the page that differs: a page added beside the primary page. */}
+                    {page.relationship !== "primary" ? (
+                      <SeoState>{t("related")}</SeoState>
                     ) : null}
                   </div>
-                  {page.relatedToPageId ? (
+                  {/* With one primary page the badge says what the page is related to, unless its parent is another page. */}
+                  {parent &&
+                  (primaryPages > 1 || parent.relationship !== "primary") ? (
                     <p className="text-muted-foreground text-sm">
-                      {t("relatedTo")}:{" "}
-                      {parent?.label || parent?.url || t("page")}
+                      {t("relatedTo")}: {parent.label || parent.url}
                     </p>
                   ) : null}
-                  {totals.length || summary ? (
+                  {summary ? (
+                    // The result of the page's last check; its date opens the results.
+                    <p className="text-muted-foreground text-sm">
+                      {summary.checkedAt ? (
+                        <>
+                          <SeoSource
+                            observationId={summary.checkId}
+                            workspace={model.data}
+                          >
+                            {t("pages.lastCheck")}{" "}
+                            <SeoDate day value={summary.checkedAt} />
+                          </SeoSource>
+                          {" · "}
+                          {/* Known issues stay visible; an incomplete check adds its note. */}
+                          {summary.incomplete && !summary.issues
+                            ? t("pages.checkIncomplete")
+                            : t("pages.issues", { count: summary.issues })}
+                          {summary.incomplete && summary.issues
+                            ? ` · ${t("pages.checkIncomplete")}`
+                            : null}
+                        </>
+                      ) : (
+                        // Checks outside the date filter are not in view.
+                        t(
+                          datesFiltered
+                            ? "pages.notCheckedInDates"
+                            : "pages.notChecked",
+                        )
+                      )}
+                    </p>
+                  ) : null}
+                  {totals.length ? (
                     // Two columns on a phone, like the query and keyword cards.
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5">
                       {totals.map(({ key, value }) => (
@@ -161,45 +194,6 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                           </dd>
                         </div>
                       ))}
-                      {summary ? (
-                        <div className="col-span-2">
-                          <dt className="text-muted-foreground text-xs">
-                            {t("pages.lastCheck")}
-                          </dt>
-                          <dd className="font-medium">
-                            {summary.checkedAt ? (
-                              <>
-                                <SeoDate day value={summary.checkedAt} /> ·{" "}
-                                {/* Known issues stay visible; an incomplete check adds its note. */}
-                                {summary.incomplete && !summary.issues
-                                  ? t("pages.checkIncomplete")
-                                  : t("pages.issues", {
-                                      count: summary.issues,
-                                    })}
-                                {summary.incomplete && summary.issues
-                                  ? ` · ${t("pages.checkIncomplete")}`
-                                  : null}
-                                {summary.checkId ? (
-                                  <>
-                                    {" · "}
-                                    <SeoSource
-                                      observationId={summary.checkId}
-                                      workspace={model.data}
-                                    />
-                                  </>
-                                ) : null}
-                              </>
-                            ) : (
-                              // Checks outside the date filter are not in view.
-                              t(
-                                datesFiltered
-                                  ? "pages.notCheckedInDates"
-                                  : "pages.notChecked",
-                              )
-                            )}
-                          </dd>
-                        </div>
-                      ) : null}
                     </dl>
                   ) : null}
                   {totals.length && totalsPeriod ? (

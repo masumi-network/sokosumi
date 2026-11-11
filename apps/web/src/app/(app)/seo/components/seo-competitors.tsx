@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
 import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
+  SeoAddButton,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -97,14 +98,14 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       .join(" · ");
   return (
     <SeoSection
-      title={t("competitors.title")}
-      description={t("competitors.help")}
+      // The switch above names the list, so the title says what the list holds.
+      title={t("competitors.help")}
       actions={
         model.data.availableActions.canEdit ? (
-          <Button size="sm" onClick={() => model.setDialog("competitor")}>
-            <Plus className="size-4" />
-            {t("competitors.add")}
-          </Button>
+          <SeoAddButton
+            label={t("competitors.add")}
+            onClick={() => model.setDialog("competitor")}
+          />
         ) : null
       }
     >
@@ -136,16 +137,12 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               <SeoPageLink url={row.url} />
               {row.backlinks !== null || row.referringDomains !== null ? (
                 <span className="text-muted-foreground tabular-nums">
-                  {[
-                    row.backlinks === null
-                      ? null
-                      : `${t("competitors.backlinks")}: ${number(row.backlinks)}`,
-                    row.referringDomains === null
-                      ? null
-                      : `${t("competitors.domains")}: ${number(row.referringDomains)}`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {/* One link number, in the words of the competitor rows: the sites that link. The link count shows only without it. */}
+                  {row.referringDomains === null
+                    ? `${t("competitors.backlinks")}: ${number(row.backlinks)}`
+                    : t("competitors.domainsOf", {
+                        count: row.referringDomains,
+                      })}
                 </span>
               ) : null}
               {row.observationId &&
@@ -160,16 +157,14 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         </dl>
       ) : null}
       {oneCheck ? (
-        <p className="text-muted-foreground flex flex-wrap gap-x-3 px-2 pb-2 text-xs">
-          <span>
+        // The date opens the results of the check.
+        <p className="text-muted-foreground px-2 pb-2 text-xs">
+          <SeoSource
+            workspace={model.data}
+            observationId={oneCheck.observationId}
+          >
             {t("keywords.readOn")} <SeoDate day value={oneCheck.observedAt} />
-          </span>
-          {oneCheck.observationId ? (
-            <SeoSource
-              workspace={model.data}
-              observationId={oneCheck.observationId}
-            />
-          ) : null}
+          </SeoSource>
         </p>
       ) : null}
       {rows.length ? (
@@ -276,7 +271,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     {shown.domains ? (
                       <TableCell
                         className="text-right tabular-nums"
-                        data-label={t("competitors.domains")}
+                        // A phone row has no column head: the short name keeps both values on one line.
+                        data-label={t("competitors.domainsShort")}
                       >
                         {/* A plain number: one site with many links made every other bar empty. */}
                         {number(row.referringDomains)}
@@ -340,6 +336,12 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               })}
             </TableBody>
           </Table>
+          {shown.rank ? (
+            // Under the rows, on every width: a hint on the column head reaches no phone and no keyboard.
+            <p className="text-muted-foreground border-t px-4 py-2 text-xs">
+              {t("competitors.rankHint")}
+            </p>
+          ) : null}
           {(paidOff && (!shown.rank || !shown.backlinks)) || hidden.length ? (
             // Missing numbers say why: paid data off, or not measured yet.
             <p className="text-muted-foreground border-t px-4 py-2 text-xs">

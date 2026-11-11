@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Plus } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Fragment, type ReactNode } from "react";
@@ -115,22 +115,29 @@ export function SeoSection({
   description,
   children,
   actions,
+  strong = false,
 }: {
   title: string;
   description?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
+  /** The title is the result of the list, not its name: it reads as the loudest line. */
+  strong?: boolean;
 }) {
   return (
     <section className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}>
       <div className="space-y-0.5 px-2 pt-1">
         {/* The button stands on the line of the title, on a phone too: a row of its own pushed the list down. */}
         <div className="flex flex-wrap items-start justify-between gap-2">
-          {/* Beside a button the title takes the button's height, so the two share a middle line; taller controls start at the title. */}
+          {/* Beside a button the title takes the room that is left and breaks inside it, so the button never drops to a
+              row of its own. Its first line has the button's height, so the two share a middle line. */}
           <h2
             className={cn(
-              "min-w-0 text-sm font-semibold",
-              actions && "leading-8",
+              "min-w-0 font-semibold",
+              strong ? "text-base text-balance" : "text-sm",
+              // The least width is the longest word: a narrower title would run under the buttons, so the buttons wrap then.
+              actions &&
+                (strong ? "min-w-min flex-1 py-1" : "min-w-min flex-1 py-1.5"),
             )}
           >
             {title}
@@ -344,9 +351,13 @@ export function SeoPeriod({ from, to }: { from: string; to: string }) {
 export function SeoSource({
   observationId,
   workspace,
+  children,
 }: {
-  observationId: string;
+  /** Null where the row comes from no check. */
+  observationId: string | null;
   workspace: ProjectSeoWorkspace;
+  /** The words of the link, for example the date of the check. Without a result to open they show as text. */
+  children?: ReactNode;
 }) {
   const t = useTranslations("App.Seo");
   const observation = workspace.observations.find(
@@ -355,11 +366,49 @@ export function SeoSource({
   return observation?.sourceTaskId ? (
     <Link
       href={`/tasks/${encodeURIComponent(observation.sourceTaskId)}`}
-      // A 40 px hit area on a phone; the negative margin keeps the line where it was.
-      className="-my-3 inline-block py-3 text-xs underline underline-offset-4"
+      className={cn(
+        "inline-block underline underline-offset-4",
+        // Alone, the link has a 40 px hit area on a phone; the negative margin keeps the line where it was.
+        // In a line of facts it grows only down: over it another link can stand.
+        children ? "-mb-3 pb-3" : "-my-3 py-3 text-xs",
+      )}
     >
-      {t("timeline.viewResults")}
+      {children ? (
+        <>
+          {children}
+          {/* A date alone does not say where the link leads. */}
+          <span className="sr-only">, {t("timeline.viewResults")}</span>
+        </>
+      ) : (
+        t("timeline.viewResults")
+      )}
     </Link>
+  ) : (
+    (children ?? null)
+  );
+}
+
+/** Facts of one list as one line of running text, with a dot between them: the line breaks where the text does. */
+export function SeoMetaLine({
+  items,
+  className,
+}: {
+  /** A name and its fact; an empty fact leaves the line. */
+  items: [string, ReactNode][];
+  className?: string;
+}) {
+  const shown = items.filter(
+    ([, fact]) => fact !== null && fact !== undefined && fact !== false,
+  );
+  return shown.length ? (
+    <p className={cn("text-muted-foreground", className)}>
+      {shown.map(([name, fact], index) => (
+        <Fragment key={name}>
+          {index ? " · " : null}
+          {fact}
+        </Fragment>
+      ))}
+    </p>
   ) : null;
 }
 
@@ -401,6 +450,45 @@ export function SeoBarNumber({
   );
 }
 
+/** A page of the Audit's site as text under a name: its path, or "Home page". The Health tab holds the links. */
+export function SeoPageText({
+  url,
+  workspace,
+}: {
+  url: string;
+  workspace: ProjectSeoWorkspace;
+}) {
+  const t = useTranslations("App.Seo");
+  return (
+    <bdi className="text-muted-foreground block text-xs [overflow-wrap:anywhere]">
+      {seoPageName(url, seoSiteUrl(workspace), t("pages.home"))}
+    </bdi>
+  );
+}
+
+/** The button that adds a row to a list. It is quiet, so the filled button of a tab stays the next step; a phone shows the plus alone. */
+export function SeoAddButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      aria-label={label}
+      // The plus alone keeps the 40 px width of an icon button.
+      className="max-sm:min-w-10"
+      onClick={onClick}
+    >
+      <Plus className="size-4" />
+      <span className="max-sm:hidden">{label}</span>
+    </Button>
+  );
+}
+
 /** The title of an action and, where two fixes can share a title, the page it is for: one piece for an Agent row and a closed action card. */
 export function SeoActionName({
   title,
@@ -415,7 +503,6 @@ export function SeoActionName({
   /** The title of a card; a row is one step lighter. */
   strong?: boolean;
 }) {
-  const t = useTranslations("App.Seo");
   return (
     <span className="block min-w-0 sm:flex-1">
       <span
@@ -427,9 +514,7 @@ export function SeoActionName({
         {title}
       </span>
       {pageUrl && workspace.scope.pageIds.length > 1 ? (
-        <bdi className="text-muted-foreground block text-xs [overflow-wrap:anywhere]">
-          {seoPageName(pageUrl, seoSiteUrl(workspace), t("pages.home"))}
-        </bdi>
+        <SeoPageText url={pageUrl} workspace={workspace} />
       ) : null}
     </span>
   );
@@ -442,13 +527,13 @@ export const SEO_ROW_BUTTON_CLASS = cn(
   "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2",
 );
 
-/** One fixed mark per severity, in every label and every tile; the text beside it carries the name. */
+/** Orange marks what hurts search most (critical and high), grey marks low; the text beside the mark carries the name. */
 export const SEO_SEVERITY_MARK_CLASS: Record<
   "critical" | "major" | "minor",
   string
 > = {
   critical: "bg-chart-2",
-  major: "bg-foreground",
+  major: "bg-chart-2",
   minor: "bg-chart-5",
 };
 
