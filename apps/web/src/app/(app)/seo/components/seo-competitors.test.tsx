@@ -84,11 +84,11 @@ describe("SEO competitor baselines", () => {
       .map((header) => header.textContent);
     expect(headers).toContain("Backlinks");
     expect(headers).not.toContain("Best position");
-    expect(headers).not.toContain("Referring domains");
+    expect(headers).not.toContain("Linking sites");
     expect(screen.getByRole("cell", { name: "12" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Not measured for these rows yet: Best position and Referring domains.",
+        "Not measured for these rows yet: Best position and Linking sites.",
       ),
     ).toBeInTheDocument();
   });
@@ -154,7 +154,7 @@ describe("SEO competitor baselines", () => {
       expect(own).not.toBeNull();
       expect(within(own!).getByText("Your page")).toBeVisible();
       expect(
-        within(own!).getByText("Backlinks: 10 · Referring domains: 4"),
+        within(own!).getByText("Backlinks: 10 · Linking sites: 4"),
       ).toBeVisible();
       expect(within(own!).queryByRole("button")).toBeNull();
       expect(screen.getAllByText("From the search results")).toHaveLength(1);
@@ -169,6 +169,77 @@ describe("SEO competitor baselines", () => {
       ).toBeVisible();
     },
   );
+
+  it("shows only the measured numbers of the reader's page, and no line for backlinks no check reads", () => {
+    const workspace = seoTestWorkspace();
+    const page = {
+      id: "page-baseline",
+      url: workspace.pages[0].url,
+      role: "page" as const,
+      confirmed: false,
+      source: "backlinks",
+      rank: null,
+      backlinks: null,
+      referringDomains: 4,
+      observedAt: new Date("2026-11-01T12:00:00Z"),
+      observationId: null,
+      version: 0,
+      canConfirm: false,
+      exclusionReason: null,
+    };
+    workspace.competitors = [
+      page,
+      {
+        ...page,
+        id: "search-competitor",
+        url: "https://competitor.example/",
+        role: "competitor",
+        source: "search",
+        rank: 3,
+        referringDomains: 8,
+        canConfirm: true,
+      },
+    ];
+    renderWorkspace(workspace);
+    const own = screen
+      .getByRole("link", { name: page.url })
+      .closest("dd") as HTMLElement;
+    expect(within(own).getByText("Linking sites: 4")).toBeVisible();
+    expect(own).not.toHaveTextContent("Backlinks");
+    // Position and linking sites are measured; a competitor row never has a backlink count.
+    expect(screen.queryByText(/^Not measured for these rows yet/)).toBeNull();
+  });
+
+  it("says that paid data is off where only the backlink column is missing", () => {
+    const workspace = seoTestWorkspace();
+    workspace.availableActions = {
+      ...workspace.availableActions,
+      canUsePaidSearchData: false,
+    };
+    workspace.competitors = [
+      {
+        id: "search-competitor",
+        url: "https://competitor.example/",
+        role: "competitor",
+        confirmed: false,
+        source: "search",
+        rank: 3,
+        backlinks: null,
+        referringDomains: 8,
+        observedAt: new Date("2026-11-01T12:00:00Z"),
+        observationId: null,
+        version: 0,
+        canConfirm: true,
+        exclusionReason: null,
+      },
+    ];
+    renderWorkspace(workspace);
+    expect(
+      screen.getByText(
+        "Rank and backlink numbers need paid search data, which is off in this workspace.",
+      ),
+    ).toBeVisible();
+  });
 
   it("shows the first ten pages of a long list and the rest on request", async () => {
     const user = userEvent.setup();
@@ -312,9 +383,7 @@ describe("SEO competitor baselines", () => {
     ).toBeVisible();
     // The other page of the site is one click away, with its own numbers.
     const more = within(rows[0]).getByText("1 more page of this site");
-    const second = within(rows[0]).getByText(
-      "Position 5 · 37 referring domains",
-    );
+    const second = within(rows[0]).getByText("Position 5 · 37 linking sites");
     expect(second).not.toBeVisible();
     await user.click(more);
     expect(second).toBeVisible();
@@ -334,9 +403,7 @@ describe("SEO competitor baselines", () => {
     expect(platform).not.toBeVisible();
     await user.click(screen.getByText("Other sites in the results (1)"));
     expect(platform).toBeVisible();
-    expect(
-      screen.getByText("Position 1 · 900 referring domains"),
-    ).toBeVisible();
+    expect(screen.getByText("Position 1 · 900 linking sites")).toBeVisible();
   });
 
   it("marks a found site only in a list that also holds a chosen one", () => {

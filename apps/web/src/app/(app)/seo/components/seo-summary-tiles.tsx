@@ -40,6 +40,7 @@ function Tile({
   value,
   rest,
   bar,
+  note,
   children,
   testId,
 }: {
@@ -48,14 +49,16 @@ function Tile({
   /** The total the value is a part of, or its unit. */
   rest?: string;
   bar?: ReactNode;
+  /** A line every width shows. The bar and the parts show from the `sm` width up. */
+  note?: ReactNode;
   children?: ReactNode;
   testId: string;
 }) {
   return (
-    <div className="min-w-0 space-y-1.5 rounded-md border p-3">
+    <div className="min-w-0 space-y-1 rounded-md border p-2.5 sm:space-y-1.5 sm:p-3">
       <dt className="text-muted-foreground text-xs">{label}</dt>
-      <dd className="space-y-1.5" data-testid={testId}>
-        <p className="text-2xl leading-tight font-semibold tabular-nums">
+      <dd className="flex flex-col gap-1.5" data-testid={testId}>
+        <p className="text-xl leading-tight font-semibold tabular-nums sm:text-2xl">
           {value}
           {rest ? (
             // The space is outside the unit: in a narrow tile the unit moves to the next line as one piece.
@@ -67,10 +70,14 @@ function Tile({
             </>
           ) : null}
         </p>
-        {bar}
+        {/* A phone shows the number alone: four tiles with bars and parts fill its first screen. */}
+        {bar ? <div className="hidden sm:block">{bar}</div> : null}
         {children ? (
-          <div className="text-muted-foreground text-xs">{children}</div>
+          <div className="text-muted-foreground hidden text-xs sm:block">
+            {children}
+          </div>
         ) : null}
+        {note ? <p className="text-muted-foreground text-xs">{note}</p> : null}
       </dd>
     </div>
   );
@@ -185,12 +192,24 @@ export function SeoSummaryTiles({
           value={format.number(searches.total)}
           rest={t("summary.aMonth")}
           testId="seo-summary-searches"
+          // A sum for a part of the keywords says so at every width.
+          note={
+            searches.keywords === searches.of
+              ? undefined
+              : t("summary.searchesFor", {
+                  keywords: searches.keywords,
+                  of: searches.of,
+                  same: "no",
+                })
+          }
         >
-          {t("summary.searchesFor", {
-            keywords: searches.keywords,
-            of: searches.of,
-            same: searches.keywords === searches.of ? "yes" : "no",
-          })}
+          {searches.keywords === searches.of
+            ? t("summary.searchesFor", {
+                keywords: searches.keywords,
+                of: searches.of,
+                same: "yes",
+              })
+            : null}
         </Tile>
       ) : null}
       {tests ? (
@@ -199,6 +218,14 @@ export function SeoSummaryTiles({
           value={format.number(tests.decided)}
           rest={t("summary.of", { total: format.number(tests.total) })}
           testId="seo-summary-tests"
+          note={
+            dated ? (
+              <>
+                {t("agent.lastCheckOn")}{" "}
+                <SeoDate day value={tests.observedAt} />
+              </>
+            ) : undefined
+          }
           bar={
             <Bar
               parts={[
@@ -231,11 +258,6 @@ export function SeoSummaryTiles({
             {tests.undecided + tests.unavailable ? null : (
               <span>{t("summary.testsAll")}</span>
             )}
-            {dated ? (
-              <span>
-                {t("agent.lastCheckOn")} <SeoDate value={tests.observedAt} />
-              </span>
-            ) : null}
           </span>
         </Tile>
       ) : null}

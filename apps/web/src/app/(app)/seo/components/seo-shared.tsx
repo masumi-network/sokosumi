@@ -232,9 +232,12 @@ export function SeoPageLink({
 export function SeoDate({
   value,
   timeZone,
+  day,
 }: {
   value: string | Date | null;
   timeZone?: string;
+  /** The day alone. Two reads of one check differ by minutes; a line that dates the check must not. */
+  day?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -242,11 +245,16 @@ export function SeoDate({
   const date = value instanceof Date ? value : new Date(value);
   return (
     <time dateTime={date.toISOString()}>
-      {format.dateTime(
-        date,
-        "dateTimeMedium",
-        timeZone ? { timeZone } : undefined,
-      )}
+      {day
+        ? format.dateTime(date, {
+            dateStyle: "medium",
+            ...(timeZone ? { timeZone } : {}),
+          })
+        : format.dateTime(
+            date,
+            "dateTimeMedium",
+            timeZone ? { timeZone } : undefined,
+          )}
     </time>
   );
 }

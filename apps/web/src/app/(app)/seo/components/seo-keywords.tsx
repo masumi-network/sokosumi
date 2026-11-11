@@ -214,8 +214,8 @@ export function SeoKeywords({
                 ) : null}
                 {summary.newest ? (
                   <span>
-                    {t("observed")}:{" "}
-                    <SeoDate value={summary.newest.observedAt} />
+                    {t("keywords.readOn")}{" "}
+                    <SeoDate day value={summary.newest.observedAt} />
                   </span>
                 ) : null}
                 {summary.newest?.observationId ? (

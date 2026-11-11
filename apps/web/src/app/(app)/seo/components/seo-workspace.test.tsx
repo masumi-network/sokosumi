@@ -284,7 +284,8 @@ describe("SEO workspace integration", () => {
       pageUrl: workspace.pages[0].url,
       device: "desktop",
       rowId: "meta-description",
-      title: "The page has no description",
+      // The row drops the source prefix, like the other lists of checks.
+      title: "Raw HTML: The page has no description",
       severity: "major",
       evidence: ["Raw HTML evidence: no meta description element."],
       sourceRef: "html:head",
@@ -295,7 +296,9 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=health");
-    expect(screen.getByText("The page has no description")).toBeVisible();
+    expect(
+      screen.getByText("Not passed: The page has no description"),
+    ).toBeVisible();
     // No action fixes this issue, so no link promises a fix.
     expect(screen.queryByRole("button", { name: "See the fix" })).toBeNull();
     const evidence = screen.getByText(
@@ -303,11 +306,13 @@ describe("SEO workspace integration", () => {
     );
     expect(evidence).not.toBeVisible();
     // The row is the switch: it opens the evidence of its issue.
-    await user.click(screen.getByText("The page has no description"));
+    await user.click(
+      screen.getByText("Not passed: The page has no description"),
+    );
     expect(evidence).toBeVisible();
   });
 
-  it("names an issue after its fix on Site health and leads to the fix", async () => {
+  it("names the check that did not pass on Site health and leads to its fix", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
@@ -344,22 +349,18 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=health");
-    expect(
-      screen.getByRole("heading", {
-        name: "Make the markup price match the page",
-      }),
-    ).toBeVisible();
-    // The test's own name stays in the details.
-    const check = screen.getByText(
-      "Check not passed: Markup matches the visible page",
+    // The row names the check, so the Actions tab is the one list of fix titles.
+    const row = screen.getByRole("heading", {
+      name: "Not passed: Markup matches the visible page",
+    });
+    expect(row).toBeVisible();
+    // The open row names the fix its button leads to.
+    const fixName = screen.getByText(
+      "Fix: Make the markup price match the page",
     );
-    expect(check).not.toBeVisible();
-    await user.click(
-      screen.getByRole("heading", {
-        name: "Make the markup price match the page",
-      }),
-    );
-    expect(check).toBeVisible();
+    expect(fixName).not.toBeVisible();
+    await user.click(row);
+    expect(fixName).toBeVisible();
     await user.click(screen.getByRole("button", { name: "See the fix" }));
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
@@ -2180,12 +2181,12 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace, "?tab=health");
-    expect(screen.getByText("Previous page finding")).toBeVisible();
+    expect(screen.getByText("Not passed: Previous page finding")).toBeVisible();
     await user.click(screen.getByRole("combobox", { name: "Pages" }));
     await user.click(screen.getByRole("option", { name: "Other page" }));
     await waitFor(() =>
       expect(
-        screen.queryByText("Previous page finding"),
+        screen.queryByText("Not passed: Previous page finding"),
       ).not.toBeInTheDocument(),
     );
     expect(screen.getByText("Loading SEO results")).toBeVisible();
@@ -4082,7 +4083,7 @@ describe("SEO workspace integration", () => {
     });
   });
 
-  it("says what a keyword result of zero means, and where to start", async () => {
+  it("says what a keyword result of zero means, with the depth the check read", async () => {
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observedAt = new Date("2026-01-03T12:00:00Z");
     const observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
@@ -4122,17 +4123,26 @@ describe("SEO workspace integration", () => {
       volume: 90,
       intent: null,
     });
+    // A second read looked deeper; the sentence names the depth every read reached.
+    workspace.keywords.push({
+      ...workspace.keywords[workspace.keywords.length - 1],
+      id: "missing-deep",
+      keyword: "charge limit",
+      checkedResults: 100,
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
     expect(await screen.findByTestId("seo-agent-none-found")).toHaveTextContent(
-      "Your pages are not in the results the check read for 1 keyword. Start with the steps below.",
+      "None of your pages is in Google's first 20 results for the 2 checked keywords.",
     );
+    // The line that dates the check shows the day: two reads of one check differ by minutes.
+    expect(screen.getAllByText("Jan 3, 2026").length).toBeGreaterThan(0);
   });
 
-  it("points to no steps where the agent offers none", async () => {
+  it("names no depth where a read has none, and splits the tests without a result", async () => {
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observedAt = new Date("2026-01-03T12:00:00Z");
     const observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
@@ -4171,7 +4181,8 @@ describe("SEO workspace integration", () => {
       version: 0,
       source: "focus",
       device: "mobile",
-      checkedResults: 20,
+      // This read has no depth, so the sentence names none.
+      checkedResults: null,
       observedAt,
       observationId,
       position: null,
@@ -4185,7 +4196,9 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     const line = await screen.findByTestId("seo-agent-none-found");
-    expect(line).toHaveTextContent(/for 1 keyword\.$/);
+    expect(line).toHaveTextContent(
+      "None of your pages is in Google's results for the 1 checked keyword.",
+    );
     // The tile splits the tests without a result the way the Timeline row of the check does.
     const tests = screen.getByTestId("seo-summary-tests");
     expect(within(tests).getByText("2 tests gave no result")).toBeVisible();

@@ -77,6 +77,7 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
           read: rankings.read,
           found: rankings.found,
           firstPage: rankings.firstPage,
+          depth: rankings.depth,
         }
       : null,
     // Monthly searches of the keywords with a position read; a keyword without a volume adds nothing.

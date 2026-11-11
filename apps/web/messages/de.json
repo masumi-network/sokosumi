@@ -10961,7 +10961,7 @@
         "clearActivityDates": "Aktivitätsdaten entfernen",
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
-        "failedCheck": "Prüfung nicht bestanden: {name}",
+        "failedCheck": "Nicht bestanden: {name}",
         "seeFix": "Zur Korrektur",
         "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
         "perDay": "{metric} pro Tag",
@@ -11007,7 +11007,8 @@
         "periodWorse": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt schlechter",
         "periodSame": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, unverändert",
         "changeMarker": "Erfasste Änderung am {day}: {changes}",
-        "points": "{value} Pp."
+        "points": "{value} Pp.",
+        "fixNamed": "Korrektur: {name}"
       },
       "keywords": {
         "title": "Keywords",
@@ -11067,7 +11068,8 @@
           "short": "Ideen"
         },
         "noneFound": "Kein Keyword zeigt deine Seiten.",
-        "intentMissing": "{count, plural, one {Die Keyword-Daten nennen für # Keyword keine Suchabsicht.} other {Die Keyword-Daten nennen für # Keywords keine Suchabsicht.}}"
+        "intentMissing": "{count, plural, one {Die Keyword-Daten nennen für # Keyword keine Suchabsicht.} other {Die Keyword-Daten nennen für # Keywords keine Suchabsicht.}}",
+        "readOn": "Positionen gelesen am"
       },
       "competitors": {
         "title": "Mitbewerber",
@@ -11080,7 +11082,7 @@
         "unconfirm": "Nicht mehr verfolgen",
         "rank": "Beste Position",
         "backlinks": "Backlinks",
-        "domains": "Verweisende Domains",
+        "domains": "Verlinkende Websites",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
         "noMatch": "Kein Mitbewerber passt zu dieser Suche",
         "help": "Websites in den Google-Ergebnissen für deine Fokus-Keywords. Die Position ist der beste Platz, den eine Seite der Website in diesen Ergebnissen hat. Eine bestätigte Website zählt als dein Mitbewerber.",
@@ -11093,7 +11095,7 @@
         "site": "Website",
         "morePages": "{count, plural, one {# weitere Seite dieser Website} other {# weitere Seiten dieser Website}}",
         "positionOf": "Position {rank}",
-        "domainsOf": "{count, plural, one {# verweisende Domain} other {# verweisende Domains}}",
+        "domainsOf": "{count, plural, one {# verlinkende Website} other {# verlinkende Websites}}",
         "platforms": "Andere Websites in den Ergebnissen ({count})",
         "platformsHelp": "Videoseiten, Foren, Shops und Hilfeseiten. Sie haben einen Platz in den Ergebnissen, sind aber keine Rivalen deiner Website.",
         "fromCheck": "Aus den Suchergebnissen der Prüfung vom"
@@ -11521,8 +11523,8 @@
         "draftFix": "Korrektur entwerfen",
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
         "lastCheckPages": "{pages, plural, one {# Seite} other {# Seiten}}",
-        "noneFound": "{count, plural, one {Deine Seiten sind nicht in den Ergebnissen, die die Prüfung für # Keyword gelesen hat.} other {Deine Seiten sind nicht in den Ergebnissen, die die Prüfung für # Keywords gelesen hat.}}",
-        "startBelow": "Beginne mit den Schritten unten."
+        "noneFound": "{count, plural, one {Keine deiner Seiten ist in den Google-Ergebnissen für das # geprüfte Keyword.} other {Keine deiner Seiten ist in den Google-Ergebnissen für die # geprüften Keywords.}}",
+        "noneFoundDepth": "{count, plural, one {Keine deiner Seiten ist in den ersten {depth} Google-Ergebnissen für das # geprüfte Keyword.} other {Keine deiner Seiten ist in den ersten {depth} Google-Ergebnissen für die # geprüften Keywords.}}"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",

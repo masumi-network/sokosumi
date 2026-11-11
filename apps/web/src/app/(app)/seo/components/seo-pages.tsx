@@ -168,7 +168,7 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                           <dd className="font-medium">
                             {summary.checkedAt ? (
                               <>
-                                <SeoDate value={summary.checkedAt} /> ·{" "}
+                                <SeoDate day value={summary.checkedAt} /> ·{" "}
                                 {/* Known issues stay visible; an incomplete check adds its note. */}
                                 {summary.incomplete && !summary.issues
                                   ? t("pages.checkIncomplete")

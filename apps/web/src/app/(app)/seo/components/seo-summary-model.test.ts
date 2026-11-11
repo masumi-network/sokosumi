@@ -154,7 +154,12 @@ describe("seoSummary", () => {
       }),
     ];
     const summary = seoSummary(workspace);
-    expect(summary.keywords).toEqual({ read: 5, found: 2, firstPage: 2 });
+    expect(summary.keywords).toEqual({
+      read: 5,
+      found: 2,
+      firstPage: 2,
+      depth: { min: 16, max: 16 },
+    });
     // The counts are the rows of the keywords tile; only the sum counts the repeated keyword once.
     expect(summary.searches).toEqual({ total: 810, keywords: 3, of: 5 });
   });

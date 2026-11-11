@@ -368,7 +368,7 @@ function SeoAgentPanel({
                 : step.kind !== "action" || (canEdit && !step.action.taskId),
         );
   const periodId = useId();
-  // "0 of 16" in a tile is a number; the sentence says what it means and where to start.
+  // "0 of 16" in a tile is a number; the sentence says what it means.
   const keywordsRead = seoSummary(model.data).keywords;
   const noneFound = keywordsRead?.found === 0 ? keywordsRead.read : 0;
   const { actionSeverity } = seoOverviewModel(model.data);
@@ -458,7 +458,8 @@ function SeoAgentPanel({
           </p>
           {brief.lastCheck ? (
             <p className="text-muted-foreground text-sm">
-              {t("agent.lastCheckOn")} <SeoDate value={brief.lastCheck.at} />
+              {t("agent.lastCheckOn")}{" "}
+              <SeoDate day value={brief.lastCheck.at} />
               {" · "}
               {t("agent.lastCheckPages", { pages: brief.lastCheck.pages })}
             </p>
@@ -468,8 +469,13 @@ function SeoAgentPanel({
               className="max-w-prose text-sm"
               data-testid="seo-agent-none-found"
             >
-              {t("agent.noneFound", { count: noneFound })}
-              {steps.length ? ` ${t("agent.startBelow")}` : null}
+              {keywordsRead?.depth
+                ? // Every read looked at least this deep, so the number holds for each keyword.
+                  t("agent.noneFoundDepth", {
+                    count: noneFound,
+                    depth: keywordsRead.depth.min,
+                  })
+                : t("agent.noneFound", { count: noneFound })}
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />

@@ -73,9 +73,9 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     domains: all.some((row) => row.referringDomains !== null),
     observed: !oneCheck && all.some((row) => row.observedAt !== null),
   };
+  // The check reads no backlink count for a competitor, so the line under the table does not name that column.
   const hidden = [
     shown.rank ? null : t("competitors.rank"),
-    shown.backlinks ? null : t("competitors.backlinks"),
     shown.domains ? null : t("competitors.domains"),
   ].filter((label): label is string => label !== null);
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
@@ -137,8 +137,16 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               <SeoPageLink url={row.url} />
               {row.backlinks !== null || row.referringDomains !== null ? (
                 <span className="text-muted-foreground tabular-nums">
-                  {t("competitors.backlinks")}: {number(row.backlinks)} ·{" "}
-                  {t("competitors.domains")}: {number(row.referringDomains)}
+                  {[
+                    row.backlinks === null
+                      ? null
+                      : `${t("competitors.backlinks")}: ${number(row.backlinks)}`,
+                    row.referringDomains === null
+                      ? null
+                      : `${t("competitors.domains")}: ${number(row.referringDomains)}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               ) : null}
               {row.observationId &&
@@ -155,7 +163,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       {oneCheck ? (
         <p className="text-muted-foreground flex flex-wrap gap-x-3 px-2 pb-2 text-xs">
           <span>
-            {t("competitors.fromCheck")} <SeoDate value={oneCheck.observedAt} />
+            {t("competitors.fromCheck")}{" "}
+            <SeoDate day value={oneCheck.observedAt} />
           </span>
           {oneCheck.observationId ? (
             <SeoSource
@@ -332,8 +341,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               })}
             </TableBody>
           </Table>
-          {hidden.length ? (
-            // Missing numbers always say why: paid data off, or not measured yet.
+          {(paidOff && (!shown.rank || !shown.backlinks)) || hidden.length ? (
+            // Missing numbers say why: paid data off, or not measured yet.
             <p className="text-muted-foreground border-t px-4 py-2 text-xs">
               {paidOff && (!shown.rank || !shown.backlinks)
                 ? t("competitors.paidOff")

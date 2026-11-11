@@ -329,14 +329,17 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           {/* One list, one row per issue: the row opens its evidence and the way to its fix. */}
           <ul className={cn(HOLDER_ITEM_CLASS, "divide-y")}>
             {overview.issues.map((finding) => {
-              // A test name reads like a pass; the fix names what is wrong.
+              // A test name alone reads like a pass, so the row says it did not pass.
+              // The title of the fix shows beside its button, and on the Actions tab.
               const fix = overview.issueFix(finding);
               return (
                 <li key={finding.id}>
                   <details className="group text-sm">
                     <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
                       <h3 className="font-medium break-words">
-                        {fix?.named ? fix.action.title : finding.title}
+                        {t("overview.failedCheck", {
+                          name: checkName(finding.title),
+                        })}
                       </h3>
                       <SeoSeverity severity={finding.severity}>
                         {t(`severity.${finding.severity}`)}
@@ -361,11 +364,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       </span>
                     </summary>
                     <div className="text-muted-foreground space-y-3 px-4 pb-3">
-                      {fix?.named ? (
-                        <p>
-                          {t("overview.failedCheck", { name: finding.title })}
-                        </p>
-                      ) : null}
                       <ul className="list-inside list-disc space-y-1">
                         {finding.evidence.map((evidence, index) => (
                           <li
@@ -385,13 +383,22 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         />
                       </div>
                       {fix ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => model.showAction(fix.action)}
-                        >
-                          {t("overview.seeFix")}
-                        </Button>
+                        <div className="space-y-2">
+                          {fix.named ? (
+                            <p className="text-foreground">
+                              {t("overview.fixNamed", {
+                                name: fix.action.title,
+                              })}
+                            </p>
+                          ) : null}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => model.showAction(fix.action)}
+                          >
+                            {t("overview.seeFix")}
+                          </Button>
+                        </div>
                       ) : null}
                     </div>
                   </details>
