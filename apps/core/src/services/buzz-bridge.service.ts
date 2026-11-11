@@ -692,7 +692,8 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
         }
       }
     }
-    const gone = await prisma.coworker.updateMany({
+    // An agent no longer found is archived and leaves its rooms on Buzz.
+    const gone = await prisma.coworker.findMany({
       where: {
         archivedAt: null,
         buzzIdentity: {
@@ -700,9 +701,16 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
           pubkey: { notIn: [...found.keys()] },
         },
       },
-      data: { archivedAt: new Date() },
+      select: { id: true },
     });
-    if (gone.count > 0) changed.push(`archived:${gone.count}`);
+    if (gone.length > 0) {
+      await prisma.coworker.updateMany({
+        where: { id: { in: gone.map((agent) => agent.id) } },
+        data: { archivedAt: new Date() },
+      });
+      await resyncRoomsWithCoworkers(gone.map((agent) => agent.id));
+      changed.push(`archived:${gone.length}`);
+    }
   }
   return changed;
 }

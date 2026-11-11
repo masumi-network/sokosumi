@@ -780,7 +780,7 @@ describe("a person's own Buzz agents", () => {
         coworkerId: data.coworkerId,
       }),
     );
-    db.coworker.updateMany.mockResolvedValue({ count: 0 });
+    db.coworker.findMany.mockResolvedValue([]);
     const record = (pubkey: string) =>
       finalizeEvent(
         {
@@ -873,7 +873,7 @@ describe("agents of a person signed in to Buzz with Sokosumi's key", () => {
     db.vendor.upsert.mockResolvedValue({ id: "vendor" });
     db.buzzIdentity.findUnique.mockResolvedValue(null);
     db.coworker.create.mockResolvedValue({ id: "coworker-sokosumi-owned" });
-    db.coworker.updateMany.mockResolvedValue({ count: 0 });
+    db.coworker.findMany.mockResolvedValue([]);
     relay.queryEvents
       .mockResolvedValueOnce([
         finalizeEvent(
