@@ -161,7 +161,7 @@ export function SeoWorkspace({
       model.filters.tab === "actions",
   );
   const { canRequestAnalysis } = model.data.availableActions;
-  // The one filled button of every tab. The setup card is on the Agent tab only; there its own check step leads.
+  // The filled button of every tab, until a result waits. The setup card is on the Agent tab only; there its own check step leads.
   const runAudit =
     model.filters.tab === "agent" && setup ? null : seoRunAction(model.data);
   // While the pages load or the dates are wrong, no dialog opens.
@@ -202,7 +202,7 @@ export function SeoWorkspace({
           {runAudit ? (
             <Button
               size="sm"
-              variant={runReady ? "primary" : "outline"}
+              variant={runReady && runAudit.leads ? "primary" : "outline"}
               // Not the disabled attribute: that drops focus. The button's own text says a check runs;
               // the notice under the header says checks are off.
               aria-disabled={!runReady || undefined}

@@ -78,8 +78,7 @@ function StepRow({
   // Several steps can carry the same button name; the step's text tells them apart.
   const bodyId = useId();
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
-  // Where a check can start, the header's run button is the one filled button of the page.
-  const variant = first && !seoRunLeads(model.data) ? "primary" : "outline";
+  const variant = first ? "primary" : "outline";
   // A connected account with nothing synced: the step asks for the sync, not for the account.
   // The account's own actions are in the sync dialog.
   const connectStep = step.kind === "connect";
@@ -332,17 +331,18 @@ function SeoAgentPanel({
   const [showAllSteps, setShowAllSteps] = useState(false);
   const shown = showAllSteps ? steps : steps.slice(0, SEO_AGENT_VISIBLE_STEPS);
   // The first proposal with its own button carries the one primary action,
-  // unless a setup step holds it. Action cards keep their own style.
+  // unless a setup step or the header's run button holds it.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
-  const primary = setup?.next
-    ? -1
-    : steps.findIndex((step) =>
-        step.kind === "keyword" || step.kind === "measure"
-          ? Boolean(model.data.auditId)
-          : step.kind === "competitors"
-            ? canEdit && (canRequestAnalysis || !step.available)
-            : step.kind !== "action",
-      );
+  const primary =
+    setup?.next || seoRunLeads(model.data)
+      ? -1
+      : steps.findIndex((step) =>
+          step.kind === "keyword" || step.kind === "measure"
+            ? Boolean(model.data.auditId)
+            : step.kind === "competitors"
+              ? canEdit && (canRequestAnalysis || !step.available)
+              : step.kind !== "action" || (canEdit && !step.action.taskId),
+        );
   const periodId = useId();
   const trafficLine = traffic
     ? t("agent.traffic", {
@@ -441,6 +441,31 @@ function SeoAgentPanel({
                 : null}
             </p>
           ) : null}
+          {brief.rankings.read ? (
+            <p
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
+              data-testid="seo-agent-rankings"
+            >
+              <span>
+                {t("keywords.summary", {
+                  found: brief.rankings.found,
+                  read: brief.rankings.read,
+                })}
+                {brief.rankings.found
+                  ? ` · ${t("keywords.firstPage", { count: brief.rankings.firstPage })}`
+                  : null}
+              </span>
+              <button
+                type="button"
+                className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+                onClick={() => {
+                  void model.setFilters({ tab: "rankings" });
+                }}
+              >
+                {t("agent.openRankings")}
+              </button>
+            </p>
+          ) : null}
           {traffic ? (
             // The link is its own item: when it wraps, no separator leads its line.
             <p
@@ -521,7 +546,8 @@ function SeoAgentPanel({
                     <SeoActionCard
                       action={step.action}
                       model={model}
-                      showKind
+                      step
+                      primary={index === primary}
                     />
                   </li>
                 ) : (

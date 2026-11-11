@@ -19,28 +19,22 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoActionCard({
   action,
   model,
-  showKind = false,
+  step = false,
+  primary = false,
 }: {
   action: ProjectSeoAction;
   model: SeoWorkspaceModel;
-  /** Outside the Actions tab's groups, the card itself says whether it is a fix or a suggestion. */
-  showKind?: boolean;
+  /**
+   * A next step on the Agent tab: the card says whether it is a fix or a suggestion,
+   * and shows the title, the page and the button. The reasons are in its details.
+   */
+  step?: boolean;
+  /** The page's one filled button. */
+  primary?: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  return (
-    <article className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold break-words">{action.title}</h3>
-        <div className="flex flex-wrap gap-1">
-          {showKind ? (
-            <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
-          ) : null}
-          {action.status !== "recommended" ? (
-            <SeoState>{t(`actions.${action.status}`)}</SeoState>
-          ) : null}
-        </div>
-      </div>
-      <SeoPageLink url={action.pageUrl} />
+  const reasons = (
+    <>
       <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
         {action.why}
       </p>
@@ -50,11 +44,29 @@ export function SeoActionCard({
           {action.expectedEffect}
         </dd>
       </dl>
+    </>
+  );
+  return (
+    <article className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="text-sm font-semibold break-words">{action.title}</h3>
+        <div className="flex flex-wrap gap-1">
+          {step ? (
+            <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
+          ) : null}
+          {action.status !== "recommended" ? (
+            <SeoState>{t(`actions.${action.status}`)}</SeoState>
+          ) : null}
+        </div>
+      </div>
+      <SeoPageLink url={action.pageUrl} />
+      {step ? null : reasons}
       <details className="text-sm">
         <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
-          {t("overview.checkDetails")}
+          {t(step ? "actions.whyDetails" : "overview.checkDetails")}
         </summary>
         <div className="space-y-3 pt-3">
+          {step ? reasons : null}
           <p className="text-muted-foreground text-xs">
             {t("actions.effort")}: {t(`priority.${action.effort}`)}
           </p>
@@ -103,7 +115,7 @@ export function SeoActionCard({
         ) : model.data.availableActions.canEdit ? (
           <Button
             size="sm"
-            variant="outline"
+            variant={primary ? "primary" : "outline"}
             loading={model.pending}
             onClick={() => {
               void model.createActionTask(action);

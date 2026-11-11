@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { keywordGroups, keywordSummary } from "./seo-keyword-rows-model";
 import {
   measuresOutsideToolRanges,
   seoOverviewModel,
@@ -119,6 +120,8 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
         }
       : null,
     issues: overview.issues.length,
+    // What the newest position reads say, next to the health result.
+    rankings: keywordSummary(keywordGroups(workspace.keywords).checked),
     // The last-check line counts only what that check found.
     suggestions: lastCheck
       ? suggestions.filter(

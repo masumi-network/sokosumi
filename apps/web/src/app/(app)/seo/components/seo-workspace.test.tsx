@@ -850,6 +850,46 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText("Primary page")).toBeNull();
   });
 
+  it("shows the saved selections card only once a selection exists", () => {
+    const workspace = seoTestWorkspace();
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: "a658c5bb-3084-4b26-81ee-b3208ee5ab61",
+      url: "https://example.com/pricing",
+    });
+    const saved = workspace.scopes;
+    workspace.scopes = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const { unmount } = renderWorkspace(workspace, "?tab=health");
+    expect(
+      screen.queryByRole("heading", { name: "Saved page selections" }),
+    ).toBeNull();
+    // The way to save the first selection sits in the Pages card.
+    const pages = screen
+      .getByRole("heading", { name: "Pages" })
+      .closest("section");
+    if (!pages) throw new Error("Pages card missing");
+    expect(
+      within(pages).getByRole("button", { name: "Save page selection" }),
+    ).toBeVisible();
+    unmount();
+    workspace.scopes = saved;
+    renderWorkspace(workspace, "?tab=health");
+    const card = screen
+      .getByRole("heading", { name: "Saved page selections" })
+      .closest("section");
+    if (!card) throw new Error("Selections card missing");
+    expect(
+      within(card).getByRole("button", { name: "Save page selection" }),
+    ).toBeVisible();
+    expect(
+      screen.getAllByRole("button", { name: "Save page selection" }),
+    ).toHaveLength(1);
+  });
+
   it("hides the page picker when the only page is the one selected", () => {
     const workspace = seoTestWorkspace();
     workspace.scopes = [];
@@ -3589,6 +3629,102 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("button", { name: "Send question" }));
     await waitFor(() => expect(requests).toHaveLength(2));
     expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
+  });
+
+  it("gives the filled button to the first step once a result waits, with the step's reasons in its details", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const observedAt = new Date("2026-01-03T12:00:00Z");
+    workspace.observations.push({
+      id: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt,
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile", "desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    workspace.actions.push({
+      id: "action-row",
+      observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      title: "Fix the page title",
+      why: "The title is missing",
+      effort: "low",
+      expectedEffect: "A descriptive search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    });
+    const read = {
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      volume: null,
+      intent: null,
+      device: "mobile",
+      checkedResults: 20,
+      observedAt,
+      observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+    } as const;
+    workspace.keywords.push(
+      {
+        ...read,
+        id: "found",
+        keyword: "battery app",
+        position: 4,
+        positionStatus: "ranked",
+      },
+      {
+        ...read,
+        id: "missing",
+        keyword: "charge timer",
+        position: null,
+        positionStatus: "not_in_range",
+      },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    const create = await screen.findByRole("button", {
+      name: "Create draft task",
+    });
+    expect(create).toHaveClass("bg-primary");
+    // The run button stays usable; it only gives up the filled style.
+    const run = screen.getByRole("button", { name: "Run full audit" });
+    expect(run).not.toHaveClass("bg-primary");
+    expect(run).not.toHaveAttribute("aria-disabled");
+    // The position result sits next to the health result.
+    expect(screen.getByTestId("seo-agent-rankings")).toHaveTextContent(
+      "Found in Google's results for 1 of 2 checked keywords · 1 on the first page",
+    );
+    expect(screen.getByText("The title is missing")).not.toBeVisible();
+    await user.click(screen.getByText("Why, and the evidence"));
+    expect(screen.getByText("The title is missing")).toBeVisible();
+    expect(screen.getByText("A descriptive search result")).toBeVisible();
+    // The Actions tab is the full list: the reasons show, and no card takes the filled style.
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    expect(await screen.findByText("The title is missing")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Create draft task" }),
+    ).not.toHaveClass("bg-primary");
   });
 
   it("creates one draft action Task with its source references and guards repeated clicks", async () => {

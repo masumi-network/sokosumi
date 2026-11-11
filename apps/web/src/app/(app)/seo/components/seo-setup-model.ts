@@ -1,5 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import type { SeoAnalysisKind } from "./seo-form-model";
+import { seoOverviewModel } from "./seo-overview-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
 export type SeoSetupStepKind = "page" | "connect" | "sync" | "check";
@@ -34,10 +35,22 @@ export function seoCheckRunning(workspace: ProjectSeoWorkspace) {
   );
 }
 
-/** A check can start now: the workspace allows one and none runs. Then the header's run button is the one filled button. */
-export function seoRunLeads(workspace: ProjectSeoWorkspace) {
+/** A check can start now: the workspace allows one and none runs. */
+function seoRunReady(workspace: ProjectSeoWorkspace) {
   return (
     workspace.availableActions.canRequestAnalysis && !seoCheckRunning(workspace)
+  );
+}
+
+/**
+ * The header's run button is filled: a check can start and no result waits for the reader.
+ * A recommended action from the last check comes first. On the Agent tab its own button is the
+ * filled one; on the other tabs the header stays the same, so no button is filled there.
+ */
+export function seoRunLeads(workspace: ProjectSeoWorkspace) {
+  return (
+    seoRunReady(workspace) &&
+    !seoOverviewModel(workspace).recommendedActions.length
   );
 }
 
@@ -64,7 +77,8 @@ export function seoRunAction(workspace: ProjectSeoWorkspace) {
         ? "runFullAudit"
         : "runPageCheck",
     running,
-    ready: seoRunLeads(workspace),
+    ready: seoRunReady(workspace),
+    leads: seoRunLeads(workspace),
   } as const satisfies { kind: SeoAnalysisKind; [key: string]: unknown };
 }
 
