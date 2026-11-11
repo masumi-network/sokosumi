@@ -29,6 +29,7 @@ import {
   saveInboundCursor,
   syncRoomChannel,
   unlinkedBuzzRooms,
+  verifyBuzzAppLinks,
 } from "@/services/buzz-bridge.service";
 
 const args = process.argv.slice(2);
@@ -371,6 +372,9 @@ async function run() {
     try {
       if (Date.now() - lastRoomSweep > 30_000) {
         lastRoomSweep = Date.now();
+        for (const identityId of await verifyBuzzAppLinks()) {
+          log(`app key linked for ${identityId.slice(0, 8)}`);
+        }
         for (const room of await unlinkedBuzzRooms()) {
           await syncRoomChannel(room.id);
           log(`out room ${room.id.slice(0, 8)} → channel`);

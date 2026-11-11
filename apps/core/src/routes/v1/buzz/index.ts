@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { forbidden, serviceUnavailable } from "@/helpers/error";
+import { badRequest, forbidden, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -10,10 +10,13 @@ import {
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
+  BuzzAppLinkError,
   buzzConfig,
   buzzConnectionFor,
   enableBuzzForOrganization,
   exportBuzzSecretKey,
+  startBuzzAppLink,
+  unlinkBuzzApp,
 } from "@/services/buzz-bridge.service";
 
 /**
@@ -35,6 +38,19 @@ const connectionSchema = z
       .openapi({
         description:
           "The caller's Buzz identity; null until one of their organizations is on Buzz.",
+      }),
+    app: z
+      .object({
+        npub: z.string(),
+        status: z.enum(["pending", "linked"]).openapi({
+          description:
+            "pending until the key joins a community with the invite Sokosumi issued for it.",
+        }),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "The caller's own Buzz app key, when they linked one instead of importing Sokosumi's.",
       }),
     canEnable: z
       .array(
@@ -113,6 +129,67 @@ const enableOrganization = createRoute({
   },
 });
 
+const appKeyInvitesSchema = z
+  .object({
+    invites: z.array(
+      z.object({
+        organizationName: z.string(),
+        relayUrl: z.string(),
+        joinUrl: z.string().openapi({
+          description: "Opens the Buzz app and joins with a single-use invite.",
+          example:
+            "buzz://join?relay=wss%3A%2F%2Facme.chat.sokosumi.com&code=v2.…",
+        }),
+        inviteUrl: z.string().openapi({
+          description: "The same invite as a web page, for another device.",
+        }),
+      }),
+    ),
+  })
+  .openapi("BuzzAppKeyInvites");
+
+const linkAppKey = createRoute({
+  method: "post",
+  path: "/app-key",
+  tags: ["Buzz"],
+  description:
+    "Link the caller's own Buzz app key. Returns single-use invites; the key is linked once it joins a community with one. Interactive sessions only.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            publicKey: z.string().openapi({
+              description: "The Buzz app's public key, npub1… or 64-char hex.",
+            }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(appKeyInvitesSchema, "Invites to open in Buzz"),
+    400: jsonErrorResponse("Not a usable key"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
+const unlinkAppKey = createRoute({
+  method: "delete",
+  path: "/app-key",
+  tags: ["Buzz"],
+  description:
+    "Forget the caller's own Buzz app key. Interactive sessions only.",
+  responses: {
+    200: jsonSuccessResponse(z.object({ unlinked: z.boolean() }), "Unlinked"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
 const app = new OpenAPIHonoWithAuth();
 
 app.openapi(getConnection, async (c) => {
@@ -123,7 +200,13 @@ app.openapi(getConnection, async (c) => {
     connectionSchema.parse(
       connection
         ? { available: true, ...connection }
-        : { available: false, identity: null, communities: [], canEnable: [] },
+        : {
+            available: false,
+            identity: null,
+            app: null,
+            communities: [],
+            canEnable: [],
+          },
     ),
   );
 });
@@ -132,6 +215,25 @@ app.openapi(exportSecretKey, async (c) => {
   const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
   if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
   return ok(c, { nsec: await exportBuzzSecretKey(userId) });
+});
+
+app.openapi(linkAppKey, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  const { publicKey } = c.req.valid("json");
+  try {
+    return ok(c, { invites: await startBuzzAppLink(userId, publicKey) });
+  } catch (error) {
+    if (error instanceof BuzzAppLinkError) throw badRequest(error.message);
+    throw error;
+  }
+});
+
+app.openapi(unlinkAppKey, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  await unlinkBuzzApp(userId);
+  return ok(c, { unlinked: true });
 });
 
 app.openapi(enableOrganization, async (c) => {

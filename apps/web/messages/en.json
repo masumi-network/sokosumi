@@ -8583,8 +8583,8 @@
       "Buzz": {
         "title": "Buzz",
         "description": "Chat in your organization's rooms from a Buzz app as well as here. Same rooms, same people, same messages.",
-        "identityTitle": "Your Buzz identity",
-        "identityDescription": "Buzz signs you in with a key, not a password. Import your secret key into the Buzz app once.",
+        "identityTitle": "Or sign in as Sokosumi's key",
+        "identityDescription": "No Buzz identity yet? Sokosumi keeps one for you. Import its secret key into the Buzz app once.",
         "publicKey": "Public key",
         "secretKey": "Secret key",
         "secretKeyHint": "Needed once, to sign in to the Buzz app.",
@@ -8599,7 +8599,21 @@
         "enableDescription": "Not on Buzz yet. Its rooms become Buzz channels within a minute.",
         "enable": "Put chats on Buzz",
         "enabled": "Chats are on Buzz",
-        "enableError": "Failed to put chats on Buzz"
+        "enableError": "Failed to put chats on Buzz",
+        "appTitle": "Your Buzz app",
+        "appDescription": "Already use Buzz? Paste the public key your Buzz app shows, then open the invite in Buzz. You keep your own identity.",
+        "appPublicKey": "Buzz public key",
+        "link": "Link",
+        "newInvite": "New invite",
+        "openInBuzz": "Open in Buzz",
+        "copyInvite": "Copy invite link",
+        "waiting": "Waiting for Buzz to join. This page updates when it has.",
+        "waitingNoInvite": "Waiting for this key to join. Its invite was shown once; get a new one if you need it.",
+        "appLinked": "Linked Buzz key",
+        "unlink": "Unlink",
+        "linkInvalid": "Enter a Buzz public key (npub1…).",
+        "linkError": "Failed to link the Buzz app",
+        "unlinkError": "Failed to unlink the Buzz app"
       }
     },
     "Channels": {

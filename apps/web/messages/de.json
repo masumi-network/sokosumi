@@ -8538,8 +8538,8 @@
       "Buzz": {
         "title": "Buzz",
         "description": "Chatte in den Räumen deiner Organisation auch aus einer Buzz-App. Gleiche Räume, gleiche Personen, gleiche Nachrichten.",
-        "identityTitle": "Deine Buzz-Identität",
-        "identityDescription": "Buzz meldet dich mit einem Schlüssel an, nicht mit einem Passwort. Importiere deinen geheimen Schlüssel einmal in die Buzz-App.",
+        "identityTitle": "Oder mit Sokosumis Schlüssel anmelden",
+        "identityDescription": "Noch keine Buzz-Identität? Sokosumi verwahrt eine für dich. Importiere ihren geheimen Schlüssel einmal in die Buzz-App.",
         "publicKey": "Öffentlicher Schlüssel",
         "secretKey": "Geheimer Schlüssel",
         "secretKeyHint": "Einmal nötig, um dich in der Buzz-App anzumelden.",
@@ -8554,7 +8554,21 @@
         "enableDescription": "Noch nicht auf Buzz. Ihre Räume werden innerhalb einer Minute zu Buzz-Kanälen.",
         "enable": "Chats auf Buzz bringen",
         "enabled": "Chats sind auf Buzz",
-        "enableError": "Chats konnten nicht auf Buzz gebracht werden"
+        "enableError": "Chats konnten nicht auf Buzz gebracht werden",
+        "appTitle": "Deine Buzz-App",
+        "appDescription": "Du nutzt Buzz schon? Füge den öffentlichen Schlüssel aus deiner Buzz-App ein und öffne die Einladung in Buzz. Du behältst deine eigene Identität.",
+        "appPublicKey": "Öffentlicher Buzz-Schlüssel",
+        "link": "Verknüpfen",
+        "newInvite": "Neue Einladung",
+        "openInBuzz": "In Buzz öffnen",
+        "copyInvite": "Einladungslink kopieren",
+        "waiting": "Warte, bis Buzz beigetreten ist. Diese Seite aktualisiert sich dann.",
+        "waitingNoInvite": "Warte, bis dieser Schlüssel beitritt. Die Einladung wurde nur einmal angezeigt; hol dir bei Bedarf eine neue.",
+        "appLinked": "Verknüpfter Buzz-Schlüssel",
+        "unlink": "Trennen",
+        "linkInvalid": "Gib einen öffentlichen Buzz-Schlüssel ein (npub1…).",
+        "linkError": "Buzz-App konnte nicht verknüpft werden",
+        "unlinkError": "Buzz-App konnte nicht getrennt werden"
       }
     },
     "Coworkers": {

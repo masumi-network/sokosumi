@@ -1,15 +1,19 @@
 "use server";
 
+import type { BuzzAppKeyInvites } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
-
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import { coreClientNoRedirect } from "@/lib/clients/core.client";
+
+import {
+  CoreApiRequestError,
+  coreClientNoRedirect,
+} from "@/lib/clients/core.client";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -51,5 +55,47 @@ export const enableBuzzForOrganization = withSession<
     return toActionResult(ok({ relayUrl: response.data.relayUrl }));
   } catch {
     return toActionResult(err({ message: t("enableError") }));
+  }
+});
+
+interface LinkBuzzAppParameters extends AuthenticatedRequest {
+  publicKey: string;
+}
+
+/** Starts linking the caller's own Buzz app: invites to open in Buzz. */
+export const linkBuzzApp = withSession<
+  LinkBuzzAppParameters,
+  ActionResultDto<BuzzAppKeyInvites, BuzzActionError>
+>(async ({ publicKey }) => {
+  const t = await getTranslations("App.Connections.Buzz");
+  if (!z.string().trim().min(1).safeParse(publicKey).success) {
+    return toActionResult(err({ message: t("linkInvalid") }));
+  }
+  try {
+    const response = await coreClientNoRedirect.postBuzzAppKey(publicKey);
+    revalidatePath("/connections");
+    return toActionResult(ok(response.data));
+  } catch (error) {
+    // Core says why a key cannot be linked (not a key, someone else's).
+    const message =
+      error instanceof CoreApiRequestError && error.status === 400
+        ? error.message
+        : t("linkError");
+    return toActionResult(err({ message }));
+  }
+});
+
+/** Forgets the caller's own Buzz app key. */
+export const unlinkBuzzApp = withSession<
+  AuthenticatedRequest,
+  ActionResultDto<{ unlinked: boolean }, BuzzActionError>
+>(async () => {
+  const t = await getTranslations("App.Connections.Buzz");
+  try {
+    const response = await coreClientNoRedirect.deleteBuzzAppKey();
+    revalidatePath("/connections");
+    return toActionResult(ok(response.data));
+  } catch {
+    return toActionResult(err({ message: t("unlinkError") }));
   }
 });

@@ -202,6 +202,7 @@ import {
   deleteAdminBadgeCampaign as coreDeleteAdminBadgeCampaign,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteAdminMatchedChannel as coreDeleteAdminMatchedChannel,
+  deleteBuzzAppKey as coreDeleteBuzzAppKey,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdCoworkersByCoworkerId as coreDeleteChatsRoomsByIdCoworkersByCoworkerId,
   deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
@@ -431,6 +432,7 @@ import {
   patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
+  postBuzzAppKey as corePostBuzzAppKey,
   postBuzzConnectionSecretKey as corePostBuzzConnectionSecretKey,
   postBuzzOrganizationsByOrganizationId as corePostBuzzOrganizationsByOrganizationId,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
@@ -1004,6 +1006,27 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         corePostBuzzConnectionSecretKey({ client, cache: "no-store" }),
       "Failed to reveal the Buzz key",
+    );
+  }
+
+  async function postBuzzAppKey(publicKey: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostBuzzAppKey({
+          client,
+          body: { publicKey },
+          cache: "no-store",
+        }),
+      "Failed to link the Buzz app",
+    );
+  }
+
+  async function deleteBuzzAppKey() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteBuzzAppKey({ client, cache: "no-store" }),
+      "Failed to unlink the Buzz app",
     );
   }
 
@@ -7263,6 +7286,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getNewsletterAvailability,
     getBuzzConnection,
     postBuzzConnectionSecretKey,
+    postBuzzAppKey,
+    deleteBuzzAppKey,
     postBuzzOrganization,
     getProjectsByIdNewsletterSendingDomain,
     putProjectsByIdNewsletterSendingDomain,

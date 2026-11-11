@@ -11053,6 +11053,30 @@ export const BuzzConnectionSchema = {
             ],
             description: 'The caller\'s Buzz identity; null until one of their organizations is on Buzz.'
         },
+        app: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                npub: {
+                    type: 'string'
+                },
+                status: {
+                    type: 'string',
+                    enum: [
+                        'pending',
+                        'linked'
+                    ],
+                    description: 'pending until the key joins a community with the invite Sokosumi issued for it.'
+                }
+            },
+            required: [
+                'npub',
+                'status'
+            ],
+            description: 'The caller\'s own Buzz app key, when they linked one instead of importing Sokosumi\'s.'
+        },
         canEnable: {
             type: 'array',
             items: {
@@ -11100,6 +11124,7 @@ export const BuzzConnectionSchema = {
     required: [
         'available',
         'identity',
+        'app',
         'canEnable',
         'communities'
     ]
@@ -11115,6 +11140,44 @@ export const BuzzSecretKeySchema = {
     },
     required: [
         'nsec'
+    ]
+} as const;
+
+export const BuzzAppKeyInvitesSchema = {
+    type: 'object',
+    properties: {
+        invites: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    organizationName: {
+                        type: 'string'
+                    },
+                    relayUrl: {
+                        type: 'string'
+                    },
+                    joinUrl: {
+                        type: 'string',
+                        description: 'Opens the Buzz app and joins with a single-use invite.',
+                        example: 'buzz://join?relay=wss%3A%2F%2Facme.chat.sokosumi.com&code=v2.…'
+                    },
+                    inviteUrl: {
+                        type: 'string',
+                        description: 'The same invite as a web page, for another device.'
+                    }
+                },
+                required: [
+                    'organizationName',
+                    'relayUrl',
+                    'joinUrl',
+                    'inviteUrl'
+                ]
+            }
+        }
+    },
+    required: [
+        'invites'
     ]
 } as const;
 

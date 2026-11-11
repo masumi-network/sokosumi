@@ -39,6 +39,13 @@ model BuzzIdentity {
   encryptedApiKey    String?
   /// Hash of the kind:0 profile last published, to republish only on change.
   profileHash        String?
+  /// The person's own Buzz app key (hex), linked once it joined a community
+  /// with an invite Sokosumi issued for it. What they write from Buzz with it
+  /// is theirs in Sokosumi; Sokosumi still signs with `pubkey`.
+  appPubkey          String?   @unique
+  /// A key the person asked to link, until it joins with that invite.
+  pendingAppPubkey   String?
+  pendingAppSince    DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -94,6 +101,9 @@ model BuzzMessageLink {
   /// A signed event decided but not yet accepted by the relay (the message,
   /// an edit or a deletion). Resent until it is, then cleared.
   pendingEvent Json?
+  /// Set when the event was signed by the person's own app key: Sokosumi
+  /// cannot edit or delete it on Buzz.
+  signerPubkey String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -112,6 +122,8 @@ model BuzzReactionLink {
   /// The kind:7 being added or the kind:5 taking it back, until the relay
   /// has it; the row goes once a kind:5 is delivered.
   pendingEvent Json?
+  /// Set when the person's own app key signed it: Sokosumi cannot take it back.
+  signerPubkey String?
   createdAt  DateTime     @default(now())
 
   @@unique([messageId, identityId, emoji])

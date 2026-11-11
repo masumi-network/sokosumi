@@ -8538,8 +8538,8 @@
       "Buzz": {
         "title": "Buzz",
         "description": "Chatea en las salas de tu organización también desde una app de Buzz. Mismas salas, mismas personas, mismos mensajes.",
-        "identityTitle": "Tu identidad de Buzz",
-        "identityDescription": "Buzz te identifica con una clave, no con una contraseña. Importa tu clave secreta en la app de Buzz una vez.",
+        "identityTitle": "O inicia sesión con la clave de Sokosumi",
+        "identityDescription": "¿Aún no tienes identidad en Buzz? Sokosumi guarda una para ti. Importa su clave secreta en la app de Buzz una vez.",
         "publicKey": "Clave pública",
         "secretKey": "Clave secreta",
         "secretKeyHint": "Necesaria una vez, para iniciar sesión en la app de Buzz.",
@@ -8554,7 +8554,21 @@
         "enableDescription": "Aún no está en Buzz. Sus salas serán canales de Buzz en menos de un minuto.",
         "enable": "Llevar los chats a Buzz",
         "enabled": "Los chats están en Buzz",
-        "enableError": "No se pudieron llevar los chats a Buzz"
+        "enableError": "No se pudieron llevar los chats a Buzz",
+        "appTitle": "Tu app de Buzz",
+        "appDescription": "¿Ya usas Buzz? Pega la clave pública que muestra tu app de Buzz y abre la invitación en Buzz. Conservas tu propia identidad.",
+        "appPublicKey": "Clave pública de Buzz",
+        "link": "Vincular",
+        "newInvite": "Nueva invitación",
+        "openInBuzz": "Abrir en Buzz",
+        "copyInvite": "Copiar enlace de invitación",
+        "waiting": "Esperando a que Buzz se una. Esta página se actualizará cuando lo haga.",
+        "waitingNoInvite": "Esperando a que esta clave se una. La invitación se mostró una sola vez; pide una nueva si la necesitas.",
+        "appLinked": "Clave de Buzz vinculada",
+        "unlink": "Desvincular",
+        "linkInvalid": "Introduce una clave pública de Buzz (npub1…).",
+        "linkError": "No se pudo vincular la app de Buzz",
+        "unlinkError": "No se pudo desvincular la app de Buzz"
       }
     },
     "Coworkers": {

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { type BuzzIdentity, Prisma as PrismaNull } from "@sokosumi/database";
-import { npubEncode, nsecEncode } from "nostr-tools/nip19";
+import { decode, npubEncode, nsecEncode } from "nostr-tools/nip19";
 import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
 
@@ -28,8 +28,10 @@ import {
 } from "@/lib/buzz/events";
 import {
   BuzzRelayRejectedError,
+  nip98Header,
   publishSignedEvent,
   queryEvents,
+  relayHttpOrigin,
   signEvent,
 } from "@/lib/buzz/relay-client";
 import { openSecret, sealSecret } from "@/lib/buzz/secret-box";
@@ -132,6 +134,16 @@ export async function ensureIdentity(
   }
 }
 
+/** Every key that speaks for this identity on Buzz: Sokosumi's, then their own app's. */
+export function keysOf(identity: {
+  pubkey: string;
+  appPubkey: string | null;
+}): string[] {
+  return identity.appPubkey
+    ? [identity.pubkey, identity.appPubkey]
+    : [identity.pubkey];
+}
+
 export function identitySecretKey(identity: BuzzIdentity): Uint8Array {
   return Uint8Array.from(
     Buffer.from(
@@ -141,10 +153,12 @@ export function identitySecretKey(identity: BuzzIdentity): Uint8Array {
   );
 }
 
-/** What a person needs to sign in to their organizations from a Buzz client. */
-export async function buzzConnectionFor(userId: string) {
-  const config = buzzConfig();
-  if (!config) return null;
+/**
+ * The communities a person belongs to on Buzz: their organizations', plus
+ * communities reached only through a room (a guest in another organization's
+ * external channel is admitted there too).
+ */
+async function communitiesOf(userId: string) {
   const memberships = await prisma.member.findMany({
     where: { userId },
     select: {
@@ -190,7 +204,14 @@ export async function buzzConnectionFor(userId: string) {
       relayUrl: community.relayUrl,
     });
   }
-  const communities = [...byOrganization.values()];
+  return { memberships, communities: [...byOrganization.values()] };
+}
+
+/** What a person needs to sign in to their organizations from a Buzz client. */
+export async function buzzConnectionFor(userId: string) {
+  const config = buzzConfig();
+  if (!config) return null;
+  const { memberships, communities } = await communitiesOf(userId);
   // Owners and admins can put an organization that is not on Buzz yet on it.
   const canEnable = memberships.flatMap(({ role, organization }) =>
     !organization.buzzCommunity && (role === "owner" || role === "admin")
@@ -203,14 +224,210 @@ export async function buzzConnectionFor(userId: string) {
       : [],
   );
   if (communities.length === 0) {
-    return { identity: null, communities, canEnable };
+    return { identity: null, app: null, communities, canEnable };
   }
-  const identity = await ensureIdentity({ userId });
+  let identity = await ensureIdentity({ userId });
+  if (identity.pendingAppPubkey) {
+    // Linking finishes here too, so the page shows it without waiting for the worker.
+    await verifyBuzzAppLinks({ identityId: identity.id }).catch((error) =>
+      console.error("Buzz app link check failed", error),
+    );
+    identity = await prisma.buzzIdentity.findUniqueOrThrow({
+      where: { id: identity.id },
+    });
+  }
+  const appKey = identity.appPubkey ?? identity.pendingAppPubkey;
   return {
     identity: { pubkey: identity.pubkey, npub: npubEncode(identity.pubkey) },
+    app: appKey
+      ? {
+          npub: npubEncode(appKey),
+          status: identity.appPubkey
+            ? ("linked" as const)
+            : ("pending" as const),
+        }
+      : null,
     communities,
     canEnable,
   };
+}
+
+// ---------------------------------------------------------------- app keys
+
+export class BuzzAppLinkError extends Error {}
+
+function parsePublicKey(input: string): string {
+  const value = input.trim();
+  if (/^[0-9a-f]{64}$/i.test(value)) return value.toLowerCase();
+  try {
+    const decoded = decode(value);
+    if (decoded.type === "npub") return decoded.data;
+  } catch {}
+  throw new BuzzAppLinkError("Enter a Buzz public key (npub1…).");
+}
+
+/** A single-use invite to one community, issued by the relay owner. */
+async function mintInvite(relayUrl: string) {
+  const url = `${relayHttpOrigin(relayUrl)}/api/invites`;
+  const body = JSON.stringify({ max_uses: 1, ttl_secs: 24 * 60 * 60 });
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: nip98Header({
+        secretKey: requireConfig().operatorSecretKey,
+        url,
+        method: "POST",
+        body,
+      }),
+    },
+    body,
+  });
+  if (!response.ok) {
+    throw new Error(`Buzz relay refused an invite: ${response.status}`);
+  }
+  const { code } = (await response.json()) as { code: string };
+  return code;
+}
+
+/**
+ * Starts linking the person's own Buzz app key. It is linked once that key
+ * joins one of their communities with an invite issued here
+ * ({@link verifyBuzzAppLinks}): joining is signed by the key, so whoever
+ * joins holds it.
+ */
+export async function startBuzzAppLink(userId: string, publicKey: string) {
+  const pubkey = parsePublicKey(publicKey);
+  const { communities } = await communitiesOf(userId);
+  if (communities.length === 0) {
+    throw new BuzzAppLinkError("None of your organizations is on Buzz yet.");
+  }
+  const identity = await ensureIdentity({ userId });
+  if (pubkey === identity.pubkey) {
+    throw new BuzzAppLinkError(
+      "That is the key Sokosumi keeps for you; enter the one your Buzz app shows.",
+    );
+  }
+  const taken = await prisma.buzzIdentity.findFirst({
+    where: {
+      id: { not: identity.id },
+      OR: [{ pubkey }, { appPubkey: pubkey }],
+    },
+  });
+  if (taken) {
+    throw new BuzzAppLinkError("That Buzz key belongs to another account.");
+  }
+  if (identity.appPubkey !== pubkey) {
+    await prisma.buzzIdentity.update({
+      where: { id: identity.id },
+      data: { pendingAppPubkey: pubkey, pendingAppSince: new Date() },
+    });
+  }
+  return Promise.all(
+    communities.map(async (community) => {
+      const code = await mintInvite(community.relayUrl);
+      return {
+        organizationName: community.organizationName,
+        relayUrl: community.relayUrl,
+        joinUrl: `buzz://join?relay=${encodeURIComponent(community.relayUrl)}&code=${encodeURIComponent(code)}`,
+        inviteUrl: `${relayHttpOrigin(community.relayUrl)}/invite/${code}`,
+      };
+    }),
+  );
+}
+
+/** Rooms the person is in that are on Buzz get their members pushed again. */
+async function resyncRoomsOf(userId: string) {
+  const channels = await prisma.buzzChannel.findMany({
+    where: { room: { userMembers: { some: { userId } } } },
+    select: { id: true, roomId: true },
+  });
+  await prisma.buzzChannel.updateMany({
+    where: { id: { in: channels.map((c) => c.id) } },
+    data: { membersHash: null },
+  });
+  if (channels.length > 0) {
+    await prisma.buzzOutbox.createMany({
+      data: channels.map((c) => ({ roomId: c.roomId, messageId: null })),
+    });
+  }
+}
+
+/**
+ * Links each pending app key that has joined one of its person's communities
+ * since the link was asked for. Two people asking for the same key link
+ * neither: the relay does not say which invite a key used.
+ */
+export async function verifyBuzzAppLinks(scope: { identityId?: string } = {}) {
+  const config = requireConfig();
+  const pending = await prisma.buzzIdentity.findMany({
+    where: {
+      pendingAppPubkey: { not: null },
+      userId: { not: null },
+      ...(scope.identityId ? { id: scope.identityId } : {}),
+    },
+  });
+  const linked: string[] = [];
+  for (const identity of pending) {
+    const pubkey = identity.pendingAppPubkey as string;
+    const since = Math.floor(
+      (identity.pendingAppSince ?? new Date(0)).getTime() / 1000,
+    );
+    const claimants = await prisma.buzzIdentity.count({
+      where: {
+        OR: [{ pubkey }, { appPubkey: pubkey }, { pendingAppPubkey: pubkey }],
+      },
+    });
+    if (claimants > 1) continue;
+    const { communities } = await communitiesOf(identity.userId as string);
+    let joined = false;
+    for (const community of communities) {
+      const added = await queryEvents({
+        relayUrl: community.relayUrl,
+        secretKey: config.operatorSecretKey,
+        filters: [{ kinds: [BUZZ_KIND.memberAdded], "#p": [pubkey], since }],
+      });
+      if (added.some((event) => event.created_at >= since)) {
+        joined = true;
+        break;
+      }
+    }
+    if (!joined) continue;
+    await prisma.$transaction([
+      prisma.buzzIdentity.update({
+        where: { id: identity.id },
+        data: {
+          appPubkey: pubkey,
+          pendingAppPubkey: null,
+          pendingAppSince: null,
+          profileHash: null,
+        },
+      }),
+      // Re-admit both keys to every community the person is in.
+      prisma.buzzCommunityMember.deleteMany({
+        where: { identityId: identity.id },
+      }),
+    ]);
+    await resyncRoomsOf(identity.userId as string);
+    linked.push(identity.id);
+  }
+  return linked;
+}
+
+/** Forgets the person's own app key; their channels drop it within a minute. */
+export async function unlinkBuzzApp(userId: string) {
+  const identity = await prisma.buzzIdentity.findUnique({ where: { userId } });
+  if (!identity) return;
+  await prisma.buzzIdentity.update({
+    where: { id: identity.id },
+    data: {
+      appPubkey: null,
+      pendingAppPubkey: null,
+      pendingAppSince: null,
+      profileHash: null,
+    },
+  });
+  await resyncRoomsOf(userId);
 }
 
 /** The secret key, for importing into a Buzz client. */
@@ -324,14 +541,16 @@ async function ensureCommunityMember(
     },
   });
   if (known) return;
-  try {
-    await publish(
-      relayUrl,
-      requireConfig().operatorSecretKey,
-      communityMemberDraft(identity.pubkey),
-    );
-  } catch (error) {
-    if (!isAlreadyDone(error)) throw error;
+  for (const pubkey of keysOf(identity)) {
+    try {
+      await publish(
+        relayUrl,
+        requireConfig().operatorSecretKey,
+        communityMemberDraft(pubkey),
+      );
+    } catch (error) {
+      if (!isAlreadyDone(error)) throw error;
+    }
   }
   await prisma.buzzCommunityMember.upsert({
     where: {
@@ -394,7 +613,10 @@ export async function syncRoomChannel(roomId: string) {
     const identity = await ensureIdentity({ userId: member.userId });
     await ensureCommunityMember(community.id, relayUrl, identity);
     await ensureProfile(relayUrl, identity, {
-      name: member.user.name,
+      // Their own app key carries their Buzz profile; this one is Sokosumi's.
+      name: identity.appPubkey
+        ? `${member.user.name} (via Sokosumi)`
+        : member.user.name,
       picture: member.user.image,
     });
     members.push({ identity, role: "member" });
@@ -469,7 +691,9 @@ export async function syncRoomChannel(roomId: string) {
   if (channel.membersHash === "direct") return { channel, relayUrl };
 
   const wanted = new Map(
-    members.map((member) => [member.identity.pubkey, member.role]),
+    members.flatMap((member) =>
+      keysOf(member.identity).map((pubkey) => [pubkey, member.role] as const),
+    ),
   );
   const membersHash = contentHash(
     [...wanted.entries()]
@@ -746,6 +970,17 @@ export async function reconcileMessage(
       });
       result = "published";
     }
+  } else if (
+    link.signerPubkey &&
+    (message.deletedAt ? !link.deleted : link.contentHash !== hash)
+  ) {
+    // Written with the person's own app key: only they can change it on Buzz.
+    link = await prisma.buzzMessageLink.update({
+      where: { messageId: message.id },
+      data: { contentHash: hash, deleted: Boolean(message.deletedAt) },
+    });
+    if (message.deletedAt) return "deleted";
+    result = "edited";
   } else if (message.deletedAt && !link.deleted) {
     await decideAndDeliver(
       signEvent(
@@ -776,7 +1011,7 @@ export async function reconcileMessage(
     await reconcileReactions({
       messageId: message.id,
       eventId: link.eventId,
-      authorPubkey: authorIdentity.pubkey,
+      authorPubkey: link.signerPubkey ?? authorIdentity.pubkey,
       channelId: channel.channelId,
       relayUrl,
       reactions: message.reactions,
@@ -801,7 +1036,7 @@ async function mentionPubkeysOf(message: {
   ];
   const pubkeys: string[] = [];
   for (const owner of owners) {
-    pubkeys.push((await ensureIdentity(owner)).pubkey);
+    pubkeys.push(...keysOf(await ensureIdentity(owner)));
   }
   return pubkeys;
 }
@@ -901,6 +1136,11 @@ async function reconcileReactions(input: {
 
   for (const link of links) {
     if (wanted.has(key(link.identity.userId, link.emoji))) continue;
+    // Their own app key's reaction: only they can take it back on Buzz.
+    if (link.signerPubkey) {
+      await prisma.buzzReactionLink.delete({ where: { id: link.id } });
+      continue;
+    }
     const event = signEvent(
       deletionDraft({ channelId: input.channelId, eventId: link.eventId }),
       identitySecretKey(link.identity),
@@ -1083,9 +1323,10 @@ export async function applyInboundEvent(
   ]);
   if (messageEcho || reactionEcho) return "echo";
 
-  const author = await prisma.buzzIdentity.findUnique({
-    where: { pubkey: event.pubkey },
+  const author = await prisma.buzzIdentity.findFirst({
+    where: { OR: [{ pubkey: event.pubkey }, { appPubkey: event.pubkey }] },
   });
+  const signerPubkey = event.pubkey === author?.pubkey ? null : event.pubkey;
   // Bots and coworkers speak only through Sokosumi; strangers are not members.
   if (!author?.userId) return "ignored";
 
@@ -1110,9 +1351,15 @@ export async function applyInboundEvent(
           : undefined;
       }
       const mentioned = await prisma.buzzIdentity.findMany({
-        where: { pubkey: { in: change.mentionPubkeys } },
+        where: {
+          OR: [
+            { pubkey: { in: change.mentionPubkeys } },
+            { appPubkey: { in: change.mentionPubkeys } },
+          ],
+        },
         select: {
           pubkey: true,
+          appPubkey: true,
           userId: true,
           sokoBotId: true,
           coworkerId: true,
@@ -1122,13 +1369,14 @@ export async function applyInboundEvent(
         },
       });
       const names = new Map(
-        mentioned.map((identity) => [
-          identity.pubkey,
-          identity.user?.name ??
+        mentioned.flatMap((identity) => {
+          const name =
+            identity.user?.name ??
             (identity.sokoBot ? sokoBotDisplayName(identity.sokoBot) : null) ??
             identity.coworker?.name ??
-            undefined,
-        ]),
+            undefined;
+          return keysOf(identity).map((pubkey) => [pubkey, name] as const);
+        }),
       );
       const content = readableContent(change.content, (pubkey) =>
         names.get(pubkey),
@@ -1172,6 +1420,7 @@ export async function applyInboundEvent(
             messageId,
             eventId: event.id,
             contentHash: contentHash(content),
+            signerPubkey,
           },
           update: {},
         });
@@ -1304,6 +1553,7 @@ export async function applyInboundEvent(
             identityId: author.id,
             emoji: change.emoji,
             eventId: event.id,
+            signerPubkey,
           },
         });
       } catch (error) {

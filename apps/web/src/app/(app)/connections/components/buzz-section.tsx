@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { buzzService } from "@/lib/services/buzz.service";
 
 import {
+  BuzzAppLink,
   BuzzCopyField,
   BuzzSecretKey,
   EnableBuzzButton,
@@ -36,6 +37,17 @@ export async function BuzzSection() {
         <p className="text-muted-foreground text-sm">{t("description")}</p>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
+        {connection.identity && (
+          <Card className="space-y-4 p-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold">{t("appTitle")}</h3>
+              <p className="text-muted-foreground text-xs">
+                {t("appDescription")}
+              </p>
+            </div>
+            <BuzzAppLink app={connection.app} />
+          </Card>
+        )}
         {connection.identity && (
           <Card className="space-y-4 p-4">
             <div className="space-y-1">
