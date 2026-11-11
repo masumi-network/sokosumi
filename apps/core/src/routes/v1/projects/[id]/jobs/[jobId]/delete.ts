@@ -74,6 +74,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project or job link not found");
     }
 
-    return ok(c, mapProjectForApi(project));
+    return ok(
+      c,
+      mapProjectForApi(project, {
+        // cmoProjectLock refused this write on a CMO Project.
+        cmo: false,
+      }),
+    );
   });
 }

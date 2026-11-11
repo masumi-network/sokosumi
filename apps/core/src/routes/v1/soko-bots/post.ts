@@ -6,6 +6,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { sokoBotSchema } from "@/schemas/soko-bot.schema";
 import { createScopedSokoBotRequestSchema } from "@/schemas/soko-bot-scope.schema";
+import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 import {
   SokoBotNotFoundError,
   sokoBotControlPlane,
@@ -63,6 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const auth = requireUserAuthContext(c.var.authContext);
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { scope, projectId, timezone, ...body } = c.req.valid("json");
+    if (scope === "project" && projectId) await requireNotCmoProject(projectId);
     try {
       const sokoBotId =
         scope === "personal"

@@ -1,6 +1,8 @@
+import { z } from "@hono/zod-openapi";
 import { MemberRole, type Prisma } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
-import type { CoreApiErrorKind } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, type CoreApiErrorKind } from "@sokosumi/utils";
+import { conflict } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccessForUser } from "@/lib/image-studio/access";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
@@ -73,6 +75,58 @@ const LIVE_CUSO_WHERE = {
   deletedAt: null,
   archivedAt: null,
 } satisfies Prisma.SokoBotWhereInput;
+
+/** True while the Project has a live Cuso: a CMO Project (ADR 0066). */
+export async function isCmoProject(projectId: string): Promise<boolean> {
+  const bot = await prisma.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId },
+    select: { id: true },
+  });
+  return bot !== null;
+}
+
+/** Which of these Projects are CMO Projects, in one query for a list. */
+export async function cmoProjectIds(
+  projectIds: readonly string[],
+): Promise<Set<string>> {
+  if (projectIds.length === 0) return new Set();
+  const bots = await prisma.sokoBot.findMany({
+    where: { ...LIVE_CUSO_WHERE, projectId: { in: [...projectIds] } },
+    select: { projectId: true },
+  });
+  return new Set(bots.flatMap(({ projectId }) => projectId ?? []));
+}
+
+/**
+ * Refuses a write to a CMO Project from anywhere but `/v1/cmo/**` (ADR
+ * 0066). Core's own CMO services write through Prisma and never call it.
+ */
+export async function requireNotCmoProject(projectId: string): Promise<void> {
+  // Not a uuid, so no Project: the route itself answers 404 or 422.
+  if (!z.uuid().safeParse(projectId).success) return;
+  if (await isCmoProject(projectId)) {
+    throw conflict("This Project is managed by CMO. Change it in CMO.", {
+      kind: CORE_API_ERROR_KINDS.CMO_PROJECT_READ_ONLY,
+    });
+  }
+}
+
+/**
+ * Refuses a change to Cuso through the Soko Bot routes (ADR 0066), archived
+ * or not: reactivating him from Sokosumi would bring a Project back under
+ * CMO without CMO.
+ */
+export async function requireNotCuso(sokoBotId: string): Promise<void> {
+  const bot = await prisma.sokoBot.findFirst({
+    where: { id: sokoBotId, ...CUSO_BOT_WHERE },
+    select: { id: true },
+  });
+  if (bot) {
+    throw conflict("Cuso is managed by CMO. Change him in CMO.", {
+      kind: CORE_API_ERROR_KINDS.CMO_PROJECT_READ_ONLY,
+    });
+  }
+}
 
 /** What a Cuso read selects, for `cusoView`. */
 const CUSO_SELECT = {

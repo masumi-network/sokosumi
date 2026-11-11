@@ -7166,6 +7166,10 @@ export type Project = {
      */
     projectRevision?: number;
     /**
+     * A CMO Project: it has a live Cuso, so it is read-only outside CMO (ADR 0066).
+     */
+    cmo: boolean;
+    /**
      * Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.
      */
     scheduledSocialPostCount?: number;

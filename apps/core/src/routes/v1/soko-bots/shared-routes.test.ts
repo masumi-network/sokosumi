@@ -34,6 +34,7 @@ const USER_ID = "user_1";
 const WORKSPACE_ID = "01960001-0001-7001-8001-000000000010";
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
 const PROJECT_ID = "01960001-0001-7001-8001-000000000077";
+const CMO_PROJECT_ID = "01960001-0001-7001-8001-0000000000c0";
 const TURN_ID = "01960001-0001-7001-8001-000000000055";
 const DECISION_ID = "01960001-0001-7001-8001-000000000066";
 
@@ -103,6 +104,11 @@ vi.mock("@/services/soko-bot-state.service", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findFirst: turnFindFirstMock },
+    // Cuso lives in the CMO Project only.
+    sokoBot: {
+      findFirst: async ({ where }: { where: { projectId?: string } }) =>
+        where.projectId === CMO_PROJECT_ID ? { id: "cuso" } : null,
+    },
     sokoBotPendingDecision: { findFirst: decisionFindFirstMock },
   },
 }));
@@ -359,6 +365,20 @@ describe("shared Soko Bot routes", () => {
       expect(createSharedMock).toHaveBeenCalledWith(
         expect.objectContaining({ projectId: PROJECT_ID }),
       );
+    });
+
+    it("refuses a project bot in a CMO Project", async () => {
+      const response = await post("/", {
+        scope: "project",
+        projectId: CMO_PROJECT_ID,
+        name: "Launch",
+      });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        kind: "cmo_project_read_only",
+      });
+      expect(createSharedMock).not.toHaveBeenCalled();
     });
 
     it.each([
