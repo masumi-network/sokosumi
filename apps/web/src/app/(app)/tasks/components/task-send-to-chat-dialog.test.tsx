@@ -1,7 +1,7 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
@@ -84,6 +84,42 @@ describe("TaskSendToChatDialog", () => {
     sendMock.mockReset();
     vi.mocked(toast.success).mockReset();
     vi.mocked(toast.error).mockReset();
+  });
+
+  it("hands focus back on Escape, after it unmounts", async () => {
+    const user = userEvent.setup();
+    // As the Task actions use it: opened from a menu, so it has no trigger,
+    // and closing unmounts it.
+    function Host() {
+      const [open, setOpen] = useState(true);
+      const opener = useRef<HTMLButtonElement>(null);
+      return (
+        <>
+          <button ref={opener} type="button">
+            Actions
+          </button>
+          {open ? (
+            <TaskSendToChatDialog
+              taskId="task-1"
+              rooms={rooms}
+              currentUserId="user-1"
+              onClose={() => setOpen(false)}
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                opener.current?.focus();
+              }}
+            />
+          ) : null}
+        </>
+      );
+    }
+    render(<Host />);
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Actions" })).toHaveFocus(),
+    );
   });
 
   it("sends the Task id, room and note, then offers the chat", async () => {

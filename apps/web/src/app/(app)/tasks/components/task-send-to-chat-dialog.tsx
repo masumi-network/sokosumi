@@ -43,6 +43,8 @@ interface TaskSendToChatDialogProps {
   rooms: ChatRoom[];
   currentUserId: string;
   onClose: () => void;
+  /** Where focus goes on close; the dialog has no trigger of its own. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /**
@@ -58,6 +60,7 @@ export function TaskSendToChatDialog({
   rooms,
   currentUserId,
   onClose,
+  onCloseAutoFocus,
 }: TaskSendToChatDialogProps) {
   const t = useTranslations("App.Tasks.Detail.actions.sendToChat");
   const router = useRouter();
@@ -107,7 +110,7 @@ export function TaskSendToChatDialog({
         if (!open && !isSending) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>

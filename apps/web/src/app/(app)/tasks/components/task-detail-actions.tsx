@@ -44,7 +44,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
@@ -214,6 +214,7 @@ export function TaskDetailActions({
   const [isRemoveRelatedPending, startRemoveRelatedTransition] =
     useTransition();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
   const [isMarkAsSectionOpen, setIsMarkAsSectionOpen] = useState(false);
@@ -638,6 +639,7 @@ export function TaskDetailActions({
         >
           <DropdownMenuTrigger asChild>
             <Button
+              ref={menuTriggerRef}
               type="button"
               variant="outline"
               size="icon"
@@ -1076,6 +1078,12 @@ export function TaskDetailActions({
           rooms={chatRooms}
           currentUserId={sendToChat.currentUserId}
           onClose={() => setChatRooms(null)}
+          // The dialog opens from a menu item, which is gone by then; return
+          // to the Actions button the user opened it from.
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            menuTriggerRef.current?.focus();
+          }}
         />
       ) : null}
 

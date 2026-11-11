@@ -2313,6 +2313,29 @@ describe("TaskDetailActions", () => {
       );
     });
 
+    it("returns focus to the Actions button when the dialog closes", async () => {
+      const user = userEvent.setup();
+      listChatRoomsMock.mockResolvedValue({
+        ok: true,
+        value: { rooms: [chatRoom("same-org", "org-1")], nextCursor: null },
+      });
+      renderActions({ sendToChat, currentOrganizationId: "org-1" });
+      const trigger = screen.getByRole("button", { name: actionsMenuLabel });
+
+      await user.click(trigger);
+      await user.click(
+        screen.getByRole("menuitem", { name: "sendToChat.menuItem" }),
+      );
+      await screen.findByRole("dialog", { name: "send to chat dialog" });
+      trigger.blur();
+      const { onCloseAutoFocus } = sendToChatDialogPropsMock.mock.lastCall![0];
+      const event = new Event("focusout", { cancelable: true });
+      onCloseAutoFocus(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(trigger).toHaveFocus();
+    });
+
     it("says so when the rooms cannot be loaded", async () => {
       const user = userEvent.setup();
       listChatRoomsMock.mockResolvedValue({
