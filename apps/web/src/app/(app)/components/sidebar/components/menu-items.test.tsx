@@ -147,7 +147,7 @@ describe("MenuItems", () => {
 
     expect(screen.getByRole("link", { name: "calendar" })).toHaveAttribute(
       "href",
-      "/calendar",
+      "/calendar?view=agenda",
     );
   });
 
@@ -565,6 +565,21 @@ describe("MenuItems project scope", () => {
     ]) {
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
     }
+  });
+
+  it("opens Calendar on the agenda list from a phone, in a project too", () => {
+    searchRef.current = "projectId=p-1";
+    renderMenu();
+
+    expect(screen.getByRole("link", { name: "calendar" })).toHaveAttribute(
+      "href",
+      "/calendar?projectId=p-1&view=agenda",
+    );
+    // No other row names a view.
+    expect(screen.getByRole("link", { name: /taskManager/i })).toHaveAttribute(
+      "href",
+      "/tasks?projectId=p-1",
+    );
   });
 
   it("carries the selected project to scoped destinations", () => {

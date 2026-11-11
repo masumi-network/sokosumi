@@ -443,6 +443,35 @@ describe("WorkspaceCalendar", () => {
     expect(event.options.shallow).toBe(true);
   });
 
+  it("asks the server for nothing more when a phone opens on the agenda list", async () => {
+    const onUrlUpdate = vi.fn();
+    vi.stubGlobal("innerWidth", 767);
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      ...new Intl.DateTimeFormat().resolvedOptions(),
+      timeZone: "UTC",
+    });
+
+    render(
+      <NuqsTestingAdapter onUrlUpdate={onUrlUpdate} searchParams="?view=agenda">
+        <WorkspaceCalendar
+          items={ITEMS}
+          initialDate="2026-08-18"
+          renderedTimezone="UTC"
+          sources={SOURCES}
+          workspaceId="workspace-1"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+    for (const [event] of onUrlUpdate.mock.calls) {
+      expect(event.options.shallow).toBe(true);
+    }
+    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("view")).toBe(
+      "agenda",
+    );
+  });
+
   it("uses the task-style scope filter", async () => {
     const onUrlUpdate = vi.fn();
 

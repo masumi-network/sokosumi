@@ -71,6 +71,8 @@ interface MenuItemConfig {
   feature?: AnnouncedFeature;
   /** Current only on `href` itself, not on the pages under it. */
   exact?: true | undefined;
+  /** A query the link carries on a phone, where the page opens differently. */
+  phoneQuery?: string;
 }
 
 /** The headings the nav's destinations sit under, in the order they show. */
@@ -189,6 +191,10 @@ function ScopedMenuItems({
       label: t("calendar"),
       Icon: CalendarDays,
       group: "work",
+      // A phone's Calendar opens on the agenda list. Named in the link, the
+      // first server render is that list; left out, it is the week grid, and
+      // the Calendar then asks the server for the list.
+      phoneQuery: "view=agenda",
     },
     // Workspace-wide like Files, so it is not scoped to the reader's project.
     {
@@ -259,15 +265,21 @@ function ScopedMenuItems({
     tile,
     feature,
     exact,
+    phoneQuery,
   }: MenuItemConfig) {
     const isActive = exact ? pathname === href : isPathActive(pathname, href);
+    const scopedHref = hrefFor(href);
 
     return (
       <SidebarMenuItem key={key}>
         <SidebarMenuButton asChild isActive={isActive}>
           <SheetClose asChild>
             <Link
-              href={hrefFor(href)}
+              href={
+                isMobile && phoneQuery
+                  ? `${scopedHref}${scopedHref.includes("?") ? "&" : "?"}${phoneQuery}`
+                  : scopedHref
+              }
               onClick={() => feature && markFeatureSeen(feature)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
