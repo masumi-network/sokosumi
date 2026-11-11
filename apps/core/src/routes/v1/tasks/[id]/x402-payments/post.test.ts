@@ -210,6 +210,8 @@ interface TxMock {
   };
 }
 
+const PROJECT_ID = "project_1";
+
 function createTask(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: TASK_ID,
@@ -217,6 +219,7 @@ function createTask(overrides: Partial<Record<string, unknown>> = {}) {
     assigneeId: COWORKER_ID,
     ownerId: USER_ID,
     organizationId: null,
+    projectId: PROJECT_ID,
     ...overrides,
   };
 }
@@ -1348,6 +1351,7 @@ describe("POST /{id}/x402-payments", () => {
             amount: CENTS_FOR_DEMAND * -1n,
             userId: USER_ID,
             organizationId: null,
+            creditConsumptions: [],
           },
         });
 
@@ -1962,10 +1966,12 @@ describe("POST /{id}/x402-payments", () => {
         payTo: PAY_TO,
       });
 
-      // Charge: the exact floored CAIP-19 conversion, from the task owner.
+      // Charge: the exact floored CAIP-19 conversion, from the task owner,
+      // with the Task's Project.
       expect(createTaskEventTransactionMock).toHaveBeenCalledWith({
         userId: USER_ID,
         organizationId: null,
+        projectId: PROJECT_ID,
         cents: CENTS_FOR_DEMAND,
         tx,
       });
@@ -2382,6 +2388,7 @@ describe("POST /{id}/x402-payments", () => {
             amount: CENTS_FOR_DEMAND * -1n,
             userId: USER_ID,
             organizationId: null,
+            creditConsumptions: [],
           },
         });
     });

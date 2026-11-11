@@ -457,6 +457,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         "org_1",
         BigInt(5),
         expect.anything(),
+        { projectId: null },
       );
       const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
       expect(data.transaction.create.user).toEqual({
@@ -512,6 +513,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "org_1",
       BigInt(5),
       expect.anything(),
+      { projectId: null },
     );
   });
 
@@ -635,6 +637,76 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     });
   });
 
+  describe("which Project a paid Job charges with", () => {
+    const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+
+    beforeEach(() => {
+      agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+      getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+      createAgentClientMock.mockReturnValue({
+        startPaidAgentJob: sellerResponding(paidV1JobResponse),
+      });
+    });
+
+    function expectCreditProject(projectId: string | null) {
+      // Preflight, then the re-check inside the creation transaction.
+      expect(getBalanceMock).toHaveBeenCalledTimes(2);
+      for (const call of getBalanceMock.mock.calls) {
+        expect(call).toEqual([
+          "user_1",
+          "org_1",
+          expect.anything(),
+          { projectId },
+        ]);
+      }
+      expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+        "user_1",
+        "org_1",
+        BigInt(5),
+        expect.anything(),
+        { projectId },
+      );
+    }
+
+    it("checks and charges with the Job's Project", async () => {
+      await createAgentJobForUser(
+        createInput({
+          agentInput: { ...createInput().agentInput, projectId: PROJECT_ID },
+        }),
+      ).catch(() => undefined);
+
+      expectCreditProject(PROJECT_ID);
+    });
+
+    it("checks and charges with an explicit credit Project over the Job's", async () => {
+      await createAgentJobForUser(
+        createInput({
+          agentInput: { ...createInput().agentInput, projectId: PROJECT_ID },
+          creditProjectId: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
+        }),
+      ).catch(() => undefined);
+
+      expectCreditProject("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
+    });
+
+    it("sees only the pool when the credit Project is explicitly none", async () => {
+      await createAgentJobForUser(
+        createInput({
+          agentInput: { ...createInput().agentInput, projectId: PROJECT_ID },
+          creditProjectId: null,
+        }),
+      ).catch(() => undefined);
+
+      expectCreditProject(null);
+    });
+
+    it("sees only the pool for a Job with no Project", async () => {
+      await createAgentJobForUser(createInput()).catch(() => undefined);
+
+      expectCreditProject(null);
+    });
+  });
+
   it("throws not found when projectId does not belong to the workspace", async () => {
     projectFindFirstMock.mockResolvedValue(null);
 
@@ -734,6 +806,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "org_1",
       BigInt(2),
       expect.any(Object),
+      { projectId: null },
     );
   });
 
@@ -926,6 +999,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "org_1",
       BigInt(100),
       expect.any(Object),
+      { projectId: null },
     );
   });
 

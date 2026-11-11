@@ -69,13 +69,16 @@ export interface JobContext {
 }
 
 /**
- * Validates that user or organization has sufficient credit balance
+ * Validates that user or organization has sufficient credit balance.
+ * `creditProjectId` is the Project the charge will carry: its Project credits
+ * count, then the pool. Null sees only the pool (ADR 0067).
  */
 async function validateCreditBalance(
   userId: string | null,
   organizationId: string | null,
   costCents: bigint,
   tx: Prisma.TransactionClient,
+  creditProjectId: string | null = null,
 ): Promise<void> {
   if (costCents <= 0) {
     return;
@@ -85,11 +88,22 @@ async function validateCreditBalance(
     userId,
     organizationId,
     tx,
+    { projectId: creditProjectId },
   );
 
   if (centsBalance < costCents) {
     throw badRequest("Insufficient balance");
   }
+}
+
+/** The Project a Job charges with: the explicit one, else the Job's own. */
+function resolveCreditProjectId(input: {
+  projectId?: string | null;
+  creditProjectId?: string | null;
+}): string | null {
+  return input.creditProjectId === undefined
+    ? (input.projectId ?? null)
+    : input.creditProjectId;
 }
 
 /** The Job's Creator (ADR 0057). */
@@ -120,6 +134,8 @@ async function createPaidJob(
     inputSchema: InputSchemaSchemaType;
     name: string | null;
     projectId?: string | null;
+    /** See `CreateAgentJobInput.creditProjectId`. */
+    creditProjectId?: string | null;
     taskId?: string | null;
   },
   cost: AgentCost,
@@ -140,6 +156,7 @@ async function createPaidJob(
     input.organizationId,
     cost.cents,
     tx,
+    { projectId: resolveCreditProjectId(input) },
   );
 
   const job = await tx.job.create({
@@ -310,6 +327,11 @@ interface CreateAgentJobInput {
   taskContext?: {
     taskId: string;
   };
+  /**
+   * The Project whose credits pay for the Job, ahead of the pool (ADR 0067).
+   * Undefined charges with the Job's own `projectId`; null sees only the pool.
+   */
+  creditProjectId?: string | null;
   /**
    * Runs after all local pricing, Agent, project, and buyer-cap validation but
    * immediately before the seller-side start request. Callers use this
@@ -594,8 +616,10 @@ export async function createAgentJobForUser(
     inputData: agentInput.inputData,
     inputSchema: agentInput.inputSchema,
     projectId: agentInput.projectId,
+    creditProjectId: input.creditProjectId,
     taskId: taskContext?.taskId,
   };
+  const creditProjectId = resolveCreditProjectId(jobInput);
 
   // Complete fallible local preflight before seller dispatch. Final balance
   // validation still runs in Job creation transaction to close spend races.
@@ -608,6 +632,7 @@ export async function createAgentJobForUser(
           owner.organizationId,
           cost.cents,
           tx,
+          creditProjectId,
         ),
       "Balance preflight conflicted with a concurrent credit update. Please retry.",
     );
@@ -873,6 +898,7 @@ export async function createAgentJobForUser(
       owner.organizationId,
       cost.cents,
       tx,
+      creditProjectId,
     );
 
     let createdJob: JobWithListSummaryRelations;

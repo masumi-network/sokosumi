@@ -14,6 +14,7 @@ describe("refundJob", () => {
             amount: -500n,
             organizationId: "org-1",
             userId: "user-1",
+            creditConsumptions: [{ bucket: { projectId: "project-1" } }],
           },
         }),
         update: async (args: unknown) => {
@@ -86,6 +87,10 @@ describe("refundJob", () => {
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
         .expiresAt,
     ).toBeNull();
+    // Back to the Project the charge spent its Project credits from.
+    expect(
+      updateCall.data.refundedTransaction.create.sourceCreditBucket.create,
+    ).toMatchObject({ projectId: "project-1" });
   });
 
   it("stamps a personal refund bucket with the actor", async () => {
@@ -98,6 +103,7 @@ describe("refundJob", () => {
             amount: -500n,
             organizationId: null,
             userId: "user-1",
+            creditConsumptions: [{ bucket: { projectId: null } }],
           },
         }),
         update: async (args: unknown) => {
@@ -150,6 +156,7 @@ describe("refundJob", () => {
             amount: -500n,
             organizationId: null,
             userId: "user-1",
+            creditConsumptions: [{ bucket: { projectId: null } }],
           },
         }),
         update: async () => {

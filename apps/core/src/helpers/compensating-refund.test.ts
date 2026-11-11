@@ -10,6 +10,7 @@ describe("buildCompensatingRefundTransactionCreate", () => {
       actorUserId: "user-1",
       organizationId: "org-1",
       referenceId: "job-1",
+      consumptions: [{ bucket: { projectId: null } }],
     });
 
     expect(create).toEqual({
@@ -24,6 +25,7 @@ describe("buildCompensatingRefundTransactionCreate", () => {
           expiresAt: null,
           userId: null,
           organizationId: "org-1",
+          projectId: null,
         },
       },
     });
@@ -35,6 +37,7 @@ describe("buildCompensatingRefundTransactionCreate", () => {
       actorUserId: "user-1",
       organizationId: null,
       referenceId: "task-payment:claim-1",
+      consumptions: [],
     });
 
     expect(create).toEqual({
@@ -49,8 +52,28 @@ describe("buildCompensatingRefundTransactionCreate", () => {
           expiresAt: null,
           userId: "user-1",
           organizationId: null,
+          projectId: null,
         },
       },
+    });
+  });
+
+  it("returns Project credits to the Project they were spent from", () => {
+    const create = buildCompensatingRefundTransactionCreate({
+      amount: 500n,
+      actorUserId: "user-1",
+      organizationId: "org-1",
+      referenceId: "job-1",
+      // A charge carries one Project: its Project credits, then the pool.
+      consumptions: [
+        { bucket: { projectId: "project-1" } },
+        { bucket: { projectId: null } },
+      ],
+    });
+
+    expect(create.sourceCreditBucket?.create).toMatchObject({
+      organizationId: "org-1",
+      projectId: "project-1",
     });
   });
 });
