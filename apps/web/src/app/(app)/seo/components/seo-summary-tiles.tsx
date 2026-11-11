@@ -58,10 +58,13 @@ function Tile({
         <p className="text-2xl leading-tight font-semibold tabular-nums">
           {value}
           {rest ? (
-            <span className="text-muted-foreground text-sm font-normal">
+            // The space is outside the unit: in a narrow tile the unit moves to the next line as one piece.
+            <>
               {" "}
-              {rest}
-            </span>
+              <span className="text-muted-foreground text-sm font-normal whitespace-nowrap">
+                {rest}
+              </span>
+            </>
           ) : null}
         </p>
         {bar}
