@@ -2296,6 +2296,14 @@
           "finance": "Finanzas",
           "qa": "Revisión y QA"
         }
+      },
+      "Contacts": {
+        "title": "Contactos",
+        "tag": "Etiquetar contacto",
+        "search": "Buscar contactos…",
+        "loading": "Cargando contactos…",
+        "empty": "No se encontraron contactos.",
+        "remove": "Quitar a {name}"
       }
     },
     "Projects": {
@@ -10960,9 +10968,7 @@
         "connectedVia": "Conectado por",
         "tasks": {
           "title": "Tasks",
-          "empty": "Todavía no hay Tasks para {name}.",
-          "new": "Nuevo Task",
-          "prompt": "Para {name}: ",
+          "empty": "Etiqueta a {name} en un Task para verlo aquí.",
           "showMore": "Mostrar más",
           "error": "No se pudieron cargar los Tasks. Inténtalo más tarde."
         }

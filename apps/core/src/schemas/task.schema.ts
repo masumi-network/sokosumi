@@ -105,6 +105,20 @@ export const taskParticipantSchema = z
   })
   .openapi("TaskParticipant");
 
+/** Contacts tagged on a Task; a write replaces the whole set. */
+export const taskContactIdsSchema = z
+  .array(z.uuid())
+  .max(50)
+  .openapi({
+    description:
+      "Live contacts in the Task's workspace to tag on it. Each one lists the Task (`GET /v1/tasks?contactId=`).",
+    example: ["01960001-0001-7001-8001-000000000077"],
+  });
+
+export const taskContactSchema = z
+  .object({ id: z.uuid(), name: z.string() })
+  .openapi("TaskContact");
+
 const taskEventActorSchema = z
   .discriminatedUnion("type", [
     taskEventActorUserSchema,

@@ -132,7 +132,7 @@ const contactIdQuerySchema = z
   .optional()
   .openapi({
     param: { name: "contactId", in: "query" },
-    description: "Only the Tasks linked to this contact",
+    description: "Only the Tasks this contact is tagged on",
     example: "01960001-0001-7001-8001-000000000077",
   });
 
@@ -255,7 +255,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
     const scheduleFilter = scheduleId ? { scheduleId } : {};
-    const contactFilter = contactId ? { contactId } : {};
+    const contactFilter = contactId
+      ? { contacts: { some: { contactId } } }
+      : {};
     const dueFilter = dueOnTo
       ? { dueOn: { lte: new Date(`${dueOnTo}T00:00:00.000Z`) } }
       : {};

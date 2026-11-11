@@ -1102,9 +1102,9 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       });
     }
   });
-  describe("Tasks linked to a contact", () => {
+  describe("Tasks tagged with contacts", () => {
     function createLinkedTask(
-      contactId: string,
+      contactIds: string[],
       name: string,
       tx: Parameters<typeof createTaskForActor>[1],
     ) {
@@ -1116,7 +1116,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
           workspaceId,
           name,
           status: "DRAFT",
-          contactId,
+          contactIds,
         },
         tx,
       );
@@ -1142,6 +1142,11 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       return { opened, open };
     }
 
+    async function tagsOf(taskId: string) {
+      const tags = await prisma.taskContact.findMany({ where: { taskId } });
+      return tags.map((tag) => tag.contactId);
+    }
+
     async function pair(name: string) {
       const winner = await create(asAlice, { name });
       const loser = await create(asAlice, { name: `${name} (old)` });
@@ -1151,7 +1156,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     it("leaves the contact behind when the Task moves workspace", async () => {
       const { winnerId, loserId } = await pair("Tara Moss");
       const task = await prisma.$transaction((tx) =>
-        createLinkedTask(loserId, "Send Tara the brief", tx),
+        createLinkedTask([loserId], "Send Tara the brief", tx),
       );
       const app = new OpenAPIHonoWithAuth();
       app.use("*", async (c, next) => {
@@ -1183,10 +1188,28 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
 
       await expect(
         prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
-      ).resolves.toMatchObject({
-        workspaceId: alicePersonalWorkspaceId,
-        contactId: null,
-      });
+      ).resolves.toMatchObject({ workspaceId: alicePersonalWorkspaceId });
+      await expect(tagsOf(task.id)).resolves.toEqual([]);
+    });
+
+    it("keeps one tag when a Task tags both merged contacts", async () => {
+      const { winnerId, loserId } = await pair("Noor Haddad");
+      const other = await create(asAlice, { name: "Pia Lund" });
+      const task = await prisma.$transaction((tx) =>
+        createLinkedTask(
+          [winnerId, loserId, other.contact.id],
+          "Intro Noor to Pia",
+          tx,
+        ),
+      );
+
+      await inContactTransaction((tx) =>
+        mergeContacts(tx, asAlice, winnerId, [loserId]),
+      );
+
+      await expect(tagsOf(task.id).then((ids) => ids.sort())).resolves.toEqual(
+        [winnerId, other.contact.id].sort(),
+      );
     });
 
     it("moves a Task made during a merge to the contact that stays", async () => {
@@ -1194,7 +1217,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       const created = gate();
       const commit = gate();
       const creating = prisma.$transaction(async (tx) => {
-        const task = await createLinkedTask(loserId, "Call Ivo", tx);
+        const task = await createLinkedTask([loserId], "Call Ivo", tx);
         created.open();
         await commit.opened;
         return task;
@@ -1209,9 +1232,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       const task = await creating;
       await merging;
 
-      await expect(
-        prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
-      ).resolves.toMatchObject({ contactId: winnerId });
+      await expect(tagsOf(task.id)).resolves.toEqual([winnerId]);
     });
 
     it("refuses a Task for a contact a concurrent merge archived", async () => {
@@ -1227,7 +1248,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       await merged.opened;
 
       const creating = prisma.$transaction((tx) =>
-        createLinkedTask(loserId, "Email Lena", tx),
+        createLinkedTask([loserId], "Email Lena", tx),
       );
       await untilALockWaits();
       commit.open();

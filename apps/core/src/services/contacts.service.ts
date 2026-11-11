@@ -1039,9 +1039,19 @@ export async function mergeContacts(
     where: { contactId: { in: loserIdList } },
     data: { contactId: winnerId },
   });
-  await tx.task.updateMany({
+  const taskTags = await tx.taskContact.findMany({
     where: { contactId: { in: loserIdList } },
-    data: { contactId: winnerId },
+  });
+  await tx.taskContact.createMany({
+    data: taskTags.map((tag) => ({
+      taskId: tag.taskId,
+      contactId: winnerId,
+      createdAt: tag.createdAt,
+    })),
+    skipDuplicates: true,
+  });
+  await tx.taskContact.deleteMany({
+    where: { contactId: { in: loserIdList } },
   });
   await tx.contact.updateMany({
     where: { mergedIntoId: { in: loserIdList } },

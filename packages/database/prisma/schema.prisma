@@ -3400,10 +3400,8 @@ model Task {
   /// timezone; overdue is judged against the reader's own today.
   dueOn DateTime? @db.Date
 
-  /// The contact this Task is for, set when it is made from that contact.
-  /// Merging the contact moves the link to the merged-into contact.
-  contactId String?  @db.Uuid
-  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  /// Contacts tagged on this Task.
+  contacts TaskContact[]
 
   @@unique([projectId, number])
   @@index([organizationId])
@@ -3421,7 +3419,6 @@ model Task {
   @@index([creatorSokoBotId])
   @@index([workspaceId, visibility])
   @@index([scheduleId])
-  @@index([contactId])
   @@index([status, runAt])
   @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
   @@map("task")

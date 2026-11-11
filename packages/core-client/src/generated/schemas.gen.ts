@@ -49887,6 +49887,23 @@ export const TaskScheduleMovedErrorSchema = {
     ]
 } as const;
 
+export const TaskContactSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
 export const UserWritableTaskLinkRelationSchema = {
     type: 'string',
     enum: [

@@ -56,8 +56,6 @@ interface CreateTaskModalContextType {
   promptOverride: string | null;
   runAtOverride: RunAtPrefill | null;
   copyOverride: NewTaskCopyPrefill | null;
-  /** Every Task made in this modal is for this contact. */
-  contactId: string | null;
   formInstanceKey: number;
   handleOpen: () => void;
   /** Open the modal with an assignee preselected (and optionally a prefilled
@@ -80,7 +78,6 @@ const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   promptOverride: null,
   runAtOverride: null,
   copyOverride: null,
-  contactId: null,
   formInstanceKey: 0,
   handleOpen: () => {},
   handleOpenWith: () => {},
@@ -102,7 +99,6 @@ interface CreateTaskModalProviderProps {
   initialProjectId?: string | null;
   initialPrompt?: string | null;
   initialCopy?: NewTaskCopyPrefill | null;
-  contactId?: string | null;
   onTaskCreated?: (taskId: string) => void;
 }
 
@@ -114,7 +110,6 @@ export function CreateTaskModalProvider({
   initialProjectId = null,
   initialPrompt = null,
   initialCopy = null,
-  contactId = null,
   onTaskCreated,
 }: CreateTaskModalProviderProps) {
   const [open, setOpen] = useState(initialOpen);
@@ -199,7 +194,6 @@ export function CreateTaskModalProvider({
         promptOverride,
         runAtOverride,
         copyOverride,
-        contactId,
         formInstanceKey,
         handleOpen,
         handleOpenWith,
@@ -266,7 +260,6 @@ export function CreateTaskModal({
     promptOverride,
     runAtOverride,
     copyOverride,
-    contactId,
     formInstanceKey,
     clearPromptOverride,
     onTaskCreated,
@@ -465,7 +458,6 @@ export function CreateTaskModal({
                   assigneeUserId: copyOverride.assigneeUserId,
                 }
               : {}),
-            ...(contactId ? { contactId } : {}),
             projectId: selectedProjectId,
             runAt: runAtPrefillToIso(runAtOverride),
           }}

@@ -226,31 +226,6 @@ describe("CreateTaskModal", () => {
     expect(next.initialValues).not.toHaveProperty("status");
   });
 
-  it("links every Task made from a contact, also after Create another", () => {
-    render(
-      <CreateTaskModalProvider
-        initialOpen
-        initialPrompt="For Maya: "
-        contactId="contact-1"
-      >
-        <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
-      </CreateTaskModalProvider>,
-    );
-
-    const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
-      initialValues: Record<string, unknown>;
-      onCreateAnother: () => void;
-    };
-    expect(props.initialValues).toMatchObject({ contactId: "contact-1" });
-
-    act(() => props.onCreateAnother());
-
-    const next = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
-      initialValues: Record<string, unknown>;
-    };
-    expect(next.initialValues).toMatchObject({ contactId: "contact-1" });
-  });
-
   describe("dismiss", () => {
     afterEach(() => {
       window.history.replaceState({}, "", "/");

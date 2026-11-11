@@ -85,8 +85,8 @@ export interface CreateTaskDomainInput {
     | typeof TaskStatus.READY;
   /** Set together with QUEUED: the one time the Task moves to Ready. */
   runAt?: Date | null;
-  /** A live contact in the same workspace that this Task is for. */
-  contactId?: string | null;
+  /** Live contacts in the same workspace to tag on this Task. */
+  contactIds?: string[];
   channel?: Channel;
   /** Server-reserved effect identity, committed with this operation. */
   effectEventId?: string;
@@ -181,25 +181,27 @@ async function requireProjectInWorkspace(
   if (!project) throw notFound("Project not found");
 }
 
-async function requireLiveContactInWorkspace(
-  contactId: string | null | undefined,
+/**
+ * Fails unless every contact is live in the workspace. A real (no-op) row
+ * write, not a read or `FOR UPDATE`: a concurrent merge archives the contact
+ * after moving its tags, inside a Serializable transaction. Writing the row
+ * makes that merge wait for this Task and then retry (a new row version is a
+ * serialization failure, a lock alone is not), so it moves the new tag too. A
+ * merge that commits first leaves the contact archived and this update
+ * matches nothing.
+ */
+export async function requireLiveContactsInWorkspace(
+  contactIds: readonly string[],
   workspaceId: string,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
-  if (contactId === null || contactId === undefined) return;
-
-  // A real (no-op) row write, not a read or `FOR UPDATE`: a concurrent merge
-  // archives the contact after moving its Tasks, inside a Serializable
-  // transaction. Writing the row makes that merge wait for this Task and then
-  // retry (a new row version is a serialization failure, a lock alone is
-  // not), so it moves the new Task too. A merge that commits first leaves the
-  // contact archived and this update matches nothing.
+  if (contactIds.length === 0) return;
   const touched = await tx.$executeRaw`
     UPDATE "contact" SET "archivedAt" = NULL
-    WHERE "id" = ${contactId}::uuid
+    WHERE "id" = ANY(${contactIds}::uuid[])
       AND "workspaceId" = ${workspaceId}::uuid
       AND "archivedAt" IS NULL`;
-  if (touched === 0) throw notFound("Contact not found");
+  if (touched !== contactIds.length) throw notFound("Contact not found");
 }
 
 /** Only a user or a Soko Bot acting for itself carries tasking authority. */
@@ -360,7 +362,8 @@ export async function createTaskForActor(
     },
     tx,
   );
-  await requireLiveContactInWorkspace(input.contactId, input.workspaceId, tx);
+  const contactIds = [...new Set(input.contactIds ?? [])];
+  await requireLiveContactsInWorkspace(contactIds, input.workspaceId, tx);
   const pendingGrant = await resolvePendingGrant(input, tx);
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
   // GRANT_PENDING is agent-only. A delegated create that parks for a vendor
@@ -405,7 +408,7 @@ export async function createTaskForActor(
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       runAt: input.runAt ?? null,
-      contactId: input.contactId ?? null,
+      contacts: { create: contactIds.map((contactId) => ({ contactId })) },
       events: {
         create: taskCreationEvents({
           status,

@@ -783,38 +783,52 @@ describe("POST /tasks", () => {
     );
   });
 
-  it("links a live contact in the workspace", async () => {
-    const contactId = "01960001-0001-7001-8001-000000000077";
-    contactTouchMock.mockResolvedValue(1);
-
-    const response = await createApp().request("http://localhost/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Send the proposal", contactId }),
-    });
-
-    expect(response.status).toBe(201);
-    expect(contactTouchMock).toHaveBeenCalledWith(
-      expect.anything(),
-      contactId,
-      "11111111-1111-7111-8111-111111111111",
-    );
-    expect(taskCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ contactId }),
-      }),
-    );
-  });
-
-  it("rejects a contact outside the workspace or archived", async () => {
-    contactTouchMock.mockResolvedValue(0);
+  it("tags live contacts in the workspace", async () => {
+    const contactIds = [
+      "01960001-0001-7001-8001-000000000077",
+      "01960001-0001-7001-8001-000000000078",
+    ];
+    contactTouchMock.mockResolvedValue(2);
 
     const response = await createApp().request("http://localhost/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: "Send the proposal",
-        contactId: "01960001-0001-7001-8001-000000000077",
+        // A repeated contact is tagged once.
+        contactIds: [...contactIds, contactIds[0]],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(contactTouchMock).toHaveBeenCalledWith(
+      expect.anything(),
+      contactIds,
+      "11111111-1111-7111-8111-111111111111",
+    );
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          contacts: {
+            create: contactIds.map((contactId) => ({ contactId })),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("rejects when any contact is outside the workspace or archived", async () => {
+    contactTouchMock.mockResolvedValue(1);
+
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Send the proposal",
+        contactIds: [
+          "01960001-0001-7001-8001-000000000077",
+          "01960001-0001-7001-8001-000000000078",
+        ],
       }),
     });
 

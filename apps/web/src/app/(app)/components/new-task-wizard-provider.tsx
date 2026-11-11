@@ -38,8 +38,6 @@ export interface NewTaskWizardOptions {
   assigneeId?: string | null;
   /** Further prefill for a copy of an existing Task ("Duplicate"). */
   copy?: NewTaskCopyPrefill;
-  /** The contact the new Task is for ("New Task" on a contact). */
-  contactId?: string;
   onTaskCreated?: (taskId: string) => void;
 }
 
@@ -100,7 +98,6 @@ export function NewTaskWizardProvider({
           initialPrompt={options.prompt ?? null}
           initialAssigneeId={options.assigneeId ?? null}
           initialCopy={options.copy ?? null}
-          contactId={options.contactId ?? null}
           onTaskCreated={options.onTaskCreated}
           onClose={closeNewTaskWizard}
         />

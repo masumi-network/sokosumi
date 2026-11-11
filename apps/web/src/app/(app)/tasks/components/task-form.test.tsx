@@ -117,6 +117,47 @@ vi.mock("next-intl", () => ({
   }),
 }));
 
+vi.mock("@/app/contacts/components/use-contacts-data", () => ({
+  useContactRows: () => ({
+    isPending: false,
+    data: {
+      pages: [
+        {
+          contacts: [
+            {
+              id: "contact-1",
+              name: "Maya Stone",
+              role: "Head of Sales",
+              organization: "Stone Ventures",
+              location: "Zurich",
+              kind: "PERSON",
+              avatarUrl: null,
+              channels: [
+                {
+                  id: "channel-1",
+                  type: "EMAIL",
+                  value: "maya@example.com",
+                  isPrimary: true,
+                },
+              ],
+            },
+            {
+              id: "contact-2",
+              name: "Ivo Brandt",
+              role: null,
+              organization: null,
+              location: null,
+              kind: "PERSON",
+              avatarUrl: null,
+              channels: [],
+            },
+          ],
+        },
+      ],
+    },
+  }),
+}));
+
 vi.mock("./markdown-editor", () => ({
   MarkdownEditor: forwardRef(function MockMarkdownEditor(
     {
@@ -705,28 +746,89 @@ describe("TaskForm", () => {
     expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("name");
   });
 
-  it("links the Task to the contact it was started from", async () => {
-    const user = userEvent.setup();
-    const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "My task"));
+  describe("contact tags", () => {
+    function renderEdit(contacts: { id: string; name: string }[]) {
+      render(
+        <TaskForm
+          mode="edit"
+          showCancel={false}
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          taskId="task-1"
+          initialValues={{
+            name: "Task name",
+            description: "Initial description",
+            assigneeId: "coworker-1",
+            status: TaskStatus.DRAFT,
+            contacts,
+          }}
+          onSuccess={vi.fn()}
+        />,
+      );
+    }
 
-    render(
-      <TaskForm
-        mode="create"
-        showCancel={false}
-        labels={baseLabels}
-        coworkerOptions={coworkerOptions}
-        initialValues={{ assigneeUserId: "user-1", contactId: "contact-1" }}
-        onSuccess={vi.fn()}
-      />,
-    );
+    it("tags contacts and puts their details in the brief", async () => {
+      const user = userEvent.setup();
+      const createTaskMock = vi.mocked(createTask);
+      createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "My task"));
 
-    await user.type(screen.getByTestId("markdown-editor"), "Send the deck");
-    await user.click(screen.getByRole("button", { name: "Create Task" }));
+      render(
+        <TaskForm
+          mode="create"
+          showCancel={false}
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          initialValues={{ assigneeUserId: "user-1" }}
+          onSuccess={vi.fn()}
+        />,
+      );
 
-    expect(createTaskMock).toHaveBeenCalledWith(
-      expect.objectContaining({ contactId: "contact-1" }),
-    );
+      await user.type(screen.getByTestId("markdown-editor"), "Send the deck");
+      await user.click(screen.getByRole("combobox", { name: "tag" }));
+      // The picker stays open, so several contacts are tagged in one go.
+      await user.click(await screen.findByRole("option", { name: /Maya/ }));
+      await user.click(screen.getByRole("option", { name: /Ivo/ }));
+      await user.keyboard("{Escape}");
+
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "Send the deck\n\n**Maya Stone** · Head of Sales, Stone Ventures · Zurich · maya@example.com\n\n**Ivo Brandt**",
+      );
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      expect(createTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({ contactIds: ["contact-1", "contact-2"] }),
+      );
+    });
+
+    it("untags a contact on edit without touching the brief", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      renderEdit([{ id: "contact-1", name: "Maya Stone" }]);
+
+      await user.click(screen.getByRole("button", { name: "remove" }));
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: "Initial description",
+          contactIds: [],
+        }),
+      );
+    });
+
+    it("keeps the tags when an edit leaves them alone", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      renderEdit([{ id: "contact-1", name: "Maya Stone" }]);
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock.mock.calls[0]?.[0]).not.toHaveProperty(
+        "contactIds",
+      );
+    });
   });
 
   describe("copy of a Task", () => {

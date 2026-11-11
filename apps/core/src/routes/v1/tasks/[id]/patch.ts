@@ -52,8 +52,15 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
-import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
-import { requireNoHumanAssigneeOnPrivateTask } from "@/services/task-domain.service";
+import {
+  createTaskContextSchema,
+  taskContactIdsSchema,
+  taskSchema,
+} from "@/schemas/task.schema";
+import {
+  requireLiveContactsInWorkspace,
+  requireNoHumanAssigneeOnPrivateTask,
+} from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer, taskEventApiInclude } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -103,6 +110,7 @@ export const patchTaskRequestSchema = z
         "The day the Task should be done by (YYYY-MM-DD); null clears it. A request that changes only dueOn also works outside draft, queued and ready, except on a Task parked in GRANT_PENDING.",
       example: "2026-11-20",
     }),
+    contactIds: taskContactIdsSchema.optional(),
   })
   .superRefine((data, ctx) => {
     refineAssigneeXorConflict(data, ctx);
@@ -118,12 +126,13 @@ export const patchTaskRequestSchema = z
       data.assigneeUserId === undefined &&
       data.priority === undefined &&
       data.runAt === undefined &&
-      data.dueOn === undefined
+      data.dueOn === undefined &&
+      data.contactIds === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, or dueOn is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, dueOn, or contactIds is required",
         path: ["name"],
       });
     }
@@ -183,6 +192,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       priority,
       runAt,
       dueOn,
+      contactIds,
     } = c.req.valid("json");
     // A due date belongs to the work, not the brief, so it may change while
     // the Task runs or after it ends.
@@ -196,7 +206,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeSokoBotId === undefined &&
       assigneeUserId === undefined &&
       priority === undefined &&
-      runAt === undefined;
+      runAt === undefined &&
+      contactIds === undefined;
 
     const result = await prisma.$transaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskWriteAccess(
@@ -358,6 +369,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      const nextContactIds =
+        contactIds === undefined ? undefined : [...new Set(contactIds)];
+      if (nextContactIds) {
+        await requireLiveContactsInWorkspace(
+          nextContactIds,
+          task.workspaceId,
+          tx,
+        );
+      }
+
       let updatedTask = await tx.task.update({
         where: {
           id,
@@ -384,6 +405,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 ? null
                 : new Date(`${dueOn}T00:00:00.000Z`),
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),
+          ...(nextContactIds
+            ? {
+                contacts: {
+                  deleteMany: { contactId: { notIn: nextContactIds } },
+                  createMany: {
+                    data: nextContactIds.map((contactId) => ({ contactId })),
+                    skipDuplicates: true,
+                  },
+                },
+              }
+            : {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });

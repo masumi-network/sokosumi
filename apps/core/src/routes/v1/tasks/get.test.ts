@@ -748,7 +748,7 @@ describe("GET /tasks", () => {
   describe("contactId", () => {
     const CONTACT_ID = "01960001-0001-7001-8001-000000000077";
 
-    it("lists the Tasks linked to a contact behind the visibility rules", async () => {
+    it("lists the Tasks a contact is tagged on behind the visibility rules", async () => {
       const response = await createApp().request(
         `http://localhost/?scope=workspace&contactId=${CONTACT_ID}`,
       );
@@ -760,7 +760,7 @@ describe("GET /tasks", () => {
             archivedAt: null,
             workspaceId: "11111111-1111-7111-8111-111111111111",
             AND: [...HUMAN_TASK_VISIBILITY_AND],
-            contactId: CONTACT_ID,
+            contacts: { some: { contactId: CONTACT_ID } },
           },
         }),
       );
@@ -776,7 +776,9 @@ describe("GET /tasks", () => {
 
       expect(taskFindManyMock).toHaveBeenCalledTimes(2);
       for (const [args] of taskFindManyMock.mock.calls) {
-        expect(args.where).toMatchObject({ contactId: CONTACT_ID });
+        expect(args.where).toMatchObject({
+          contacts: { some: { contactId: CONTACT_ID } },
+        });
       }
     });
 

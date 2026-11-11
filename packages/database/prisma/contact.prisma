@@ -137,7 +137,7 @@ model Contact {
   newsletterSubscribers NewsletterSubscriber[]
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
-  tasks                 Task[]
+  tasks                 TaskContact[]
 
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
@@ -454,4 +454,19 @@ model ContactCompany {
   @@unique([workspaceId, key])
   @@index([workspaceId, enrichedAt])
   @@map("contact_company")
+}
+
+/// A contact tagged on a Task. Tagging puts the contact's details in the
+/// brief; the contact lists every Task it is tagged on. Merging the contact
+/// moves its tags to the merged-into contact.
+model TaskContact {
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  contactId String   @db.Uuid
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([taskId, contactId])
+  @@index([contactId])
+  @@map("task_contact")
 }

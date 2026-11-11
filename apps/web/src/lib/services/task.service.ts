@@ -6,6 +6,7 @@ import type {
   GetWorkspacesCalendarSourcesData,
   Task,
   TaskActivitySummary,
+  TaskContact,
   TaskEvent,
   TaskEventsPaginationMetadata,
   TaskLink,
@@ -51,8 +52,8 @@ interface CreateTaskInput {
   /** Start at this future time: Core creates the Task Queued. */
   runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
-  /** The contact this Task is for. */
-  contactId?: string;
+  /** Contacts to tag on the Task. */
+  contactIds?: string[];
 }
 
 interface PatchTaskInput {
@@ -68,6 +69,8 @@ interface PatchTaskInput {
   priority?: TaskPriority;
   /** `YYYY-MM-DD`; null clears the due date. */
   dueOn?: string | null;
+  /** Replaces the contacts tagged on the Task. */
+  contactIds?: string[];
 }
 
 interface CreateTaskEventInput {
@@ -379,6 +382,15 @@ export const taskService = (() => {
     return result.data;
   }
 
+  /** The contacts tagged on a Task; none when the reader may not see them. */
+  async function listTaskContacts(taskId: string): Promise<TaskContact[]> {
+    try {
+      return (await coreClient.getTaskContacts(taskId)).data;
+    } catch {
+      return [];
+    }
+  }
+
   async function listTaskLinks(taskId: string): Promise<TaskLink[]> {
     const result = await coreClient.getTaskLinks(taskId);
     return result.data;
@@ -487,6 +499,7 @@ export const taskService = (() => {
     subscribeTaskParticipant,
     moveTaskToWorkspace,
     patchTask,
+    listTaskContacts,
     listTaskLinks,
     deleteTask,
   };

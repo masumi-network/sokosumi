@@ -42,6 +42,7 @@ const {
   requireTaskWriteAccessMock,
   resolveEffectiveDesignMdMock,
   taskUpdateMock,
+  contactTouchMock,
 } = vi.hoisted(() => ({
   deliverCalendarInvalidationsNowMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -56,6 +57,7 @@ const {
   requireTaskWriteAccessMock: vi.fn(),
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   taskUpdateMock: vi.fn(),
+  contactTouchMock: vi.fn(),
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -362,6 +364,7 @@ describe("PATCH /tasks/{id}", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        $executeRaw: contactTouchMock,
         project: {
           findFirst: projectFindFirstMock,
         },
@@ -370,6 +373,68 @@ describe("PATCH /tasks/{id}", () => {
         },
       });
     });
+  });
+
+  it("replaces the contacts tagged on the Task", async () => {
+    const contactIds = [
+      "01960001-0001-7001-8001-000000000077",
+      "01960001-0001-7001-8001-000000000078",
+    ];
+    contactTouchMock.mockResolvedValue(2);
+
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactIds }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(contactTouchMock).toHaveBeenCalledWith(
+      expect.anything(),
+      contactIds,
+      WORKSPACE_ID,
+    );
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          contacts: {
+            deleteMany: { contactId: { notIn: contactIds } },
+            createMany: {
+              data: contactIds.map((contactId) => ({ contactId })),
+              skipDuplicates: true,
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it("refuses a contact outside the Task's workspace", async () => {
+    contactTouchMock.mockResolvedValue(0);
+
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contactIds: ["01960001-0001-7001-8001-000000000077"],
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves tags alone when contactIds is absent", async () => {
+    await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Renamed" }),
+    });
+
+    expect(contactTouchMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock.mock.calls[0]?.[0].data).not.toHaveProperty(
+      "contacts",
+    );
   });
 
   it("keeps the path UUID-only: an identifier is looked up as a raw id", async () => {

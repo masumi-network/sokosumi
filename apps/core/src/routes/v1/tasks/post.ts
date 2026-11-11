@@ -46,6 +46,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import {
   createTaskContextSchema,
+  taskContactIdsSchema,
   taskEventChannelField,
   taskEventDeprecatedOriginField,
   taskSchema,
@@ -103,11 +104,7 @@ export const createTaskRequestSchema = z
         "Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.",
       example: "2026-06-24T09:00:00.000Z",
     }),
-    contactId: z.uuid().nullish().openapi({
-      description:
-        "A live contact in the active workspace that this Task is for. List them with `GET /v1/tasks?contactId=`.",
-      example: "01960001-0001-7001-8001-000000000077",
-    }),
+    contactIds: taskContactIdsSchema.optional(),
     channel: taskEventChannelField.optional(),
     origin: taskEventDeprecatedOriginField.optional(),
     context: createTaskContextSchema.optional().openapi({
@@ -294,7 +291,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeUserId: body.assigneeUserId,
           status: runAt ? TaskStatus.QUEUED : body.status,
           runAt,
-          contactId: body.contactId,
+          contactIds: body.contactIds,
           channel: body.channel,
           visibility: body.visibility,
           priority: body.priority,

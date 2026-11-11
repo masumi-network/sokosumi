@@ -52,8 +52,8 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   /** ISO time to start the Task at; Core then creates it Queued. */
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
-  /** The contact this Task is for. */
-  contactId?: string;
+  /** Contacts to tag on the Task. */
+  contactIds?: string[];
 }
 
 export interface TaskContextSelectionInput {
@@ -78,6 +78,8 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   desiredStatus: TaskStatus;
   /** New ISO Run at, or null to clear it before changing assignee. */
   runAt?: string | null;
+  /** Replaces the contacts tagged on the Task; omit to keep them. */
+  contactIds?: string[];
 }
 
 interface TaskMutationError {
@@ -393,7 +395,7 @@ async function createTaskFromDescription(input: {
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
-  contactId?: string;
+  contactIds?: string[];
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
@@ -428,7 +430,7 @@ async function createTaskFromDescription(input: {
       ? { runAt: new Date(input.runAt) }
       : { status: resolveCreateStatus(input.status) }),
     ...(input.visibility ? { visibility: input.visibility } : {}),
-    ...(input.contactId ? { contactId: input.contactId } : {}),
+    ...(input.contactIds?.length ? { contactIds: input.contactIds } : {}),
     ...(trimmedName ? { name: trimmedName } : {}),
   });
 }
@@ -563,7 +565,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     status,
     runAt,
     visibility,
-    contactId,
+    contactIds,
   }) => {
     try {
       const task = await createTaskFromDescription({
@@ -580,7 +582,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         status,
         runAt,
         visibility,
-        contactId,
+        contactIds,
       });
 
       revalidatePath("/tasks");
@@ -616,6 +618,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     context,
     desiredStatus,
     runAt,
+    contactIds,
     session,
   }) => {
     const trimmedDescription = description.trim();
@@ -650,6 +653,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         ...(runAt !== undefined
           ? { runAt: runAt === null ? null : new Date(runAt) }
           : {}),
+        ...(contactIds ? { contactIds } : {}),
       });
 
       if (desiredStatus !== patchedTask.status) {

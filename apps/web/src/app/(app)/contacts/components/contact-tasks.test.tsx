@@ -1,13 +1,10 @@
 import type { TaskListItem } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ContactTasks } from "./contact-tasks";
 
-const { tasksMock, openNewTaskWizardMock } = vi.hoisted(() => ({
-  tasksMock: vi.fn(),
-  openNewTaskWizardMock: vi.fn(),
-}));
+const { tasksMock } = vi.hoisted(() => ({ tasksMock: vi.fn() }));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
@@ -16,12 +13,6 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/lib/services/contacts.client", () => ({
   contactsService: { tasks: tasksMock },
-}));
-
-vi.mock("@/app/components/new-task-wizard-provider", () => ({
-  useOptionalNewTaskWizard: () => ({
-    openNewTaskWizard: openNewTaskWizardMock,
-  }),
 }));
 
 vi.mock("@/app/tasks/components/task-due-badge", () => ({
@@ -49,7 +40,6 @@ function renderTasks() {
       <ContactTasks contact={contact} />
     </QueryClientProvider>,
   );
-  return client;
 }
 
 describe("ContactTasks", () => {
@@ -57,7 +47,7 @@ describe("ContactTasks", () => {
     vi.clearAllMocks();
   });
 
-  it("lists the contact's Tasks, linking each one", async () => {
+  it("lists the Tasks the contact is tagged on, linking each one", async () => {
     tasksMock.mockResolvedValue({
       items: [task("task-1", "Send Maya the deck")],
       nextCursor: null,
@@ -100,22 +90,6 @@ describe("ContactTasks", () => {
       await screen.findByRole("link", { name: /Second/ }),
     ).toBeInTheDocument();
     expect(tasksMock).toHaveBeenLastCalledWith("contact-1", "task-1");
-  });
-
-  it("starts a new Task linked to the contact and refreshes the list", async () => {
-    tasksMock.mockResolvedValue({ items: [], nextCursor: null, total: 0 });
-    renderTasks();
-
-    fireEvent.click(await screen.findByRole("button", { name: "new" }));
-
-    expect(openNewTaskWizardMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contactId: "contact-1",
-        prompt: "prompt:Maya Stone",
-      }),
-    );
-    openNewTaskWizardMock.mock.calls[0]?.[0].onTaskCreated("task-9");
-    await waitFor(() => expect(tasksMock).toHaveBeenCalledTimes(2));
   });
 
   it("says so when the list cannot load", async () => {

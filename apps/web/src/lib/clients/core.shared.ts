@@ -358,6 +358,7 @@ import {
   getTaskScheduleAssignees as coreGetTaskScheduleAssignees,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
+  getTasksByIdContacts as coreGetTasksByIdContacts,
   getTasksByIdEvents as coreGetTasksByIdEvents,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
@@ -5654,6 +5655,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getTaskContacts(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdContacts({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch task contacts",
+    );
+  }
+
   async function getTaskLinks(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7198,6 +7212,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     requestJobRefund,
     revokeMyOauthConsent,
     getTaskById,
+    getTaskContacts,
     getTaskEvents,
     getTaskLinks,
     getTaskWorkspace,

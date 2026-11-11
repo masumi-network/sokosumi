@@ -26,6 +26,7 @@ interface TaskEditModalProps {
     status: TaskStatus;
     selectableStatuses: readonly TaskStatus[];
     runAt?: string | null;
+    contacts?: { id: string; name: string }[];
   };
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
