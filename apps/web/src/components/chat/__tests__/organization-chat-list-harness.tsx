@@ -26,6 +26,7 @@ const { harnessPathname, harnessSelection } = vi.hoisted(() => ({
 
 const {
   acceptInvitationMock,
+  declineInvitationMock,
   listRoomsMock,
   listArchivedMock,
   listElsewhereMock,
@@ -36,6 +37,7 @@ const {
   harnessRowProps,
 } = vi.hoisted(() => ({
   acceptInvitationMock: vi.fn(),
+  declineInvitationMock: vi.fn(),
   listRoomsMock: vi.fn(),
   listArchivedMock: vi.fn(),
   listElsewhereMock: vi.fn(),
@@ -50,6 +52,7 @@ const {
 
 export {
   acceptInvitationMock,
+  declineInvitationMock,
   harnessPathname,
   harnessRealCatchUp,
   harnessRowProps,
@@ -99,7 +102,9 @@ vi.mock("@/app/chat/actions", () => ({
   acceptChatRoomInvitationAction: (
     ...args: Parameters<typeof acceptInvitationMock>
   ) => acceptInvitationMock(...args),
-  declineChatRoomInvitationAction: vi.fn(),
+  declineChatRoomInvitationAction: (
+    ...args: Parameters<typeof declineInvitationMock>
+  ) => declineInvitationMock(...args),
   deleteRoomAction: vi.fn(),
   markAllChatUnreadReadAction: (...args: Parameters<typeof markAllReadMock>) =>
     markAllReadMock(...args),
@@ -458,6 +463,7 @@ export function resetOrganizationChatListMocks() {
   markAllReadMock.mockReset();
   markAllReadMock.mockResolvedValue({ ok: true, value: null });
   acceptInvitationMock.mockReset();
+  declineInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();
   listPendingMock.mockReset();
