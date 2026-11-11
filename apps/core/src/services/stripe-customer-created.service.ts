@@ -16,8 +16,10 @@ function warnMissingStripeCustomerOwner(params: {
 }
 
 /**
- * Writes the Stripe customer id back to the user/organization and seeds the
- * initial local free subscription period.
+ * Writes the Stripe customer id back to the user/organization. For an
+ * organization it also seeds the initial local free subscription period, as a
+ * fallback to the seed at organization creation. A user's free plan starts with
+ * their personal workspace (createPersonalWorkspace), never here.
  *
  * Missing owners (P2025) are soft-acked: org/user deletion after Stripe
  * customer creation is irreversible, so rethrowing would only cause Stripe
@@ -37,9 +39,8 @@ export async function handleCustomerCreatedEvent(
         break;
       }
 
-      let user: { createdAt: Date };
       try {
-        user = await prisma.user.update({
+        await prisma.user.update({
           where: { id: userId },
           data: { stripeCustomerId: customer.id },
         });
@@ -54,18 +55,6 @@ export async function handleCustomerCreatedEvent(
         }
         throw error;
       }
-
-      await prisma.$transaction(async (tx) => {
-        await ensureInitialLocalFreeSubscriptionPeriod(
-          {
-            createdAt: user.createdAt,
-            kind: "user",
-            stripeCustomerId: customer.id,
-            userId,
-          },
-          tx,
-        );
-      });
       break;
     }
     case "organization": {

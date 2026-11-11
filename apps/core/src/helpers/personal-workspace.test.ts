@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   captureExceptionMock,
+  ensureInitialLocalFreeSubscriptionPeriodMock,
   grantSignupBonusCreditsMock,
   markOutOfCreditsTasksAsToppedUpMock,
   tx,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
+  ensureInitialLocalFreeSubscriptionPeriodMock: vi.fn(),
   grantSignupBonusCreditsMock: vi.fn(),
   markOutOfCreditsTasksAsToppedUpMock: vi.fn(),
   tx: {
-    user: { update: vi.fn() },
+    subscription: { findFirst: vi.fn() },
+    user: { findUnique: vi.fn(), update: vi.fn() },
     workspace: { create: vi.fn(), findUnique: vi.fn() },
   },
 }));
@@ -22,6 +25,10 @@ vi.mock("@/config/env", () => ({
 }));
 
 vi.mock("@sokosumi/database/helpers", () => ({
+  ACTIVE_SUBSCRIPTION_STATUSES: ["active", "trialing"],
+  ensureInitialLocalFreeSubscriptionPeriod:
+    ensureInitialLocalFreeSubscriptionPeriodMock,
+  FREE_SUBSCRIPTION_PLAN: "free",
   getCreditExpiryDate: (from: Date) => from,
   grantSignupBonusCredits: grantSignupBonusCreditsMock,
 }));
@@ -45,20 +52,40 @@ vi.mock("@/lib/db/prisma", () => ({
 
 import { createPersonalWorkspace } from "./personal-workspace";
 
+const workspaceCreatedAt = new Date("2026-11-11T12:00:00.000Z");
+
 describe("createPersonalWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     tx.workspace.findUnique.mockResolvedValue(null);
-    tx.workspace.create.mockResolvedValue({ id: "ws_1", userId: "user_1" });
+    tx.workspace.create.mockResolvedValue({
+      createdAt: workspaceCreatedAt,
+      id: "ws_1",
+      userId: "user_1",
+    });
+    tx.subscription.findFirst.mockResolvedValue(null);
+    tx.user.findUnique.mockResolvedValue({ stripeCustomerId: "cus_1" });
+    ensureInitialLocalFreeSubscriptionPeriodMock.mockResolvedValue({
+      grantsCreated: 1,
+    });
     grantSignupBonusCreditsMock.mockResolvedValue({
       bucketId: "bucket_1",
       created: true,
     });
   });
 
-  it("grants the signup bonus to the user with the personal workspace", async () => {
+  it("starts the free plan and grants the signup bonus with the workspace", async () => {
     await createPersonalWorkspace("user_1");
 
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        createdAt: workspaceCreatedAt,
+        kind: "user",
+        stripeCustomerId: "cus_1",
+        userId: "user_1",
+      },
+      tx,
+    );
     expect(grantSignupBonusCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({ credits: 3000, userId: "user_1" }),
       tx,
@@ -70,7 +97,17 @@ describe("createPersonalWorkspace", () => {
     });
   });
 
-  it("does not top up tasks when the bonus was already granted", async () => {
+  it("keeps an existing active free plan instead of starting a second one", async () => {
+    tx.subscription.findFirst.mockResolvedValueOnce({ id: "sub_1" });
+
+    await createPersonalWorkspace("user_1");
+
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+    expect(grantSignupBonusCreditsMock).toHaveBeenCalled();
+  });
+
+  it("does not top up tasks when nothing new was granted", async () => {
+    tx.subscription.findFirst.mockResolvedValueOnce({ id: "sub_1" });
     grantSignupBonusCreditsMock.mockResolvedValueOnce({
       bucketId: "bucket_1",
       created: false,
@@ -81,14 +118,13 @@ describe("createPersonalWorkspace", () => {
     expect(markOutOfCreditsTasksAsToppedUpMock).not.toHaveBeenCalled();
   });
 
-  it("still returns the workspace when the bonus grant fails", async () => {
+  it("still returns the workspace when the grant fails", async () => {
     grantSignupBonusCreditsMock.mockRejectedValueOnce(
       new Error("bonus failed"),
     );
 
-    await expect(createPersonalWorkspace("user_1")).resolves.toEqual({
+    await expect(createPersonalWorkspace("user_1")).resolves.toMatchObject({
       id: "ws_1",
-      userId: "user_1",
     });
     expect(captureExceptionMock).toHaveBeenCalled();
   });
@@ -99,6 +135,7 @@ describe("createPersonalWorkspace", () => {
     await expect(createPersonalWorkspace("user_1")).rejects.toThrow(
       "Personal workspace already exists",
     );
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
     expect(grantSignupBonusCreditsMock).not.toHaveBeenCalled();
   });
 });

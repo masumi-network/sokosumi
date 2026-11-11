@@ -1,6 +1,9 @@
 import * as Sentry from "@sentry/node";
 import type { Workspace } from "@sokosumi/database";
 import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
+  ensureInitialLocalFreeSubscriptionPeriod,
+  FREE_SUBSCRIPTION_PLAN,
   getCreditExpiryDate,
   grantSignupBonusCredits,
 } from "@sokosumi/database/helpers";
@@ -20,16 +23,49 @@ import { isLastWorkspace } from "@/helpers/workspace-access";
 import prisma from "@/lib/db/prisma";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
-// Best effort: a failed grant must not undo the workspace. Idempotent per
-// user, so deleting and recreating the workspace grants nothing new.
-async function grantSignupBonus(userId: string): Promise<void> {
+// Personal credits (free plan and signup bonus) belong to the personal
+// workspace, so they start with it. Best effort: a failed grant must not undo
+// the workspace. Deleting and recreating the workspace grants nothing new.
+async function grantPersonalWorkspaceCredits(
+  userId: string,
+  workspaceCreatedAt: Date,
+): Promise<void> {
   const { SIGNUP_BONUS_CREDITS, SIGNUP_BONUS_TTL_DAYS } = getEnv();
   const grantedAt = new Date();
   const expiresAt = getCreditExpiryDate(grantedAt, SIGNUP_BONUS_TTL_DAYS);
 
   try {
     await prisma.$transaction(async (tx) => {
-      const { created } = await grantSignupBonusCredits(
+      // Users from before this change already have a renewing free plan.
+      const activeFreePlan = await tx.subscription.findFirst({
+        where: {
+          plan: FREE_SUBSCRIPTION_PLAN,
+          referenceId: userId,
+          status: { in: [...ACTIVE_SUBSCRIPTION_STATUSES] },
+        },
+        select: { id: true },
+      });
+
+      let freePlanGranted = false;
+      if (!activeFreePlan) {
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { stripeCustomerId: true },
+        });
+        const { grantsCreated } =
+          await ensureInitialLocalFreeSubscriptionPeriod(
+            {
+              createdAt: workspaceCreatedAt,
+              kind: "user",
+              stripeCustomerId: user?.stripeCustomerId ?? null,
+              userId,
+            },
+            tx,
+          );
+        freePlanGranted = grantsCreated > 0;
+      }
+
+      const { created: bonusGranted } = await grantSignupBonusCredits(
         {
           credits: SIGNUP_BONUS_CREDITS,
           expiresAt,
@@ -38,7 +74,7 @@ async function grantSignupBonus(userId: string): Promise<void> {
         tx,
       );
 
-      if (created) {
+      if (freePlanGranted || bonusGranted) {
         await markOutOfCreditsTasksAsToppedUp({
           organizationId: null,
           tx,
@@ -49,7 +85,7 @@ async function grantSignupBonus(userId: string): Promise<void> {
   } catch (error) {
     Sentry.captureException(error, {
       tags: {
-        context: "signup_bonus_grant",
+        context: "personal_workspace_credits",
       },
       extra: {
         userId,
@@ -61,7 +97,7 @@ async function grantSignupBonus(userId: string): Promise<void> {
 /**
  * Creates the user's one personal workspace and makes it preferred by
  * clearing preferredOrganizationId. Conflicts when one already exists.
- * Grants the signup bonus, which lives in the personal workspace.
+ * Grants the personal credits: the free plan and the signup bonus.
  */
 export async function createPersonalWorkspace(
   userId: string,
@@ -107,7 +143,7 @@ export async function createPersonalWorkspace(
     return createdWorkspace;
   });
 
-  await grantSignupBonus(userId);
+  await grantPersonalWorkspaceCredits(userId, workspace.createdAt);
 
   return workspace;
 }
