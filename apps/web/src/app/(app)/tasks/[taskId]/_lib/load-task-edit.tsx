@@ -52,7 +52,8 @@ interface TaskEditReady {
     status: TaskStatus;
     selectableStatuses: readonly TaskStatus[];
     runAt: string | null;
-    contacts: { id: string; name: string }[];
+    /** Null when they could not be read: the form then leaves tags alone. */
+    contacts: { id: string; name: string }[] | null;
   };
 }
 

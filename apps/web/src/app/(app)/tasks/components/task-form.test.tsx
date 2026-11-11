@@ -117,46 +117,56 @@ vi.mock("next-intl", () => ({
   }),
 }));
 
-vi.mock("@/app/contacts/components/use-contacts-data", () => ({
-  useContactRows: () => ({
-    isPending: false,
-    data: {
-      pages: [
-        {
-          contacts: [
-            {
-              id: "contact-1",
-              name: "Maya Stone",
-              role: "Head of Sales",
-              organization: "Stone Ventures",
-              location: "Zurich",
-              kind: "PERSON",
-              avatarUrl: null,
-              channels: [
-                {
-                  id: "channel-1",
-                  type: "EMAIL",
-                  value: "maya@example.com",
-                  isPrimary: true,
-                },
-              ],
-            },
-            {
-              id: "contact-2",
-              name: "Ivo Brandt",
-              role: null,
-              organization: null,
-              location: null,
-              kind: "PERSON",
-              avatarUrl: null,
-              channels: [],
-            },
-          ],
-        },
-      ],
+vi.mock("@/app/contacts/components/use-contacts-data", async () => {
+  const { useState } = await import("react");
+  const contact = (
+    id: string,
+    name: string,
+    more: Record<string, unknown> = {},
+  ) => ({
+    id,
+    name,
+    role: null,
+    organization: null,
+    location: null,
+    kind: "PERSON",
+    avatarUrl: null,
+    channels: [],
+    ...more,
+  });
+  const firstPage = {
+    contacts: [
+      contact("contact-1", "Maya Stone", {
+        role: "Head of Sales",
+        organization: "Stone Ventures",
+        location: "Zurich",
+        channels: [
+          {
+            id: "channel-1",
+            type: "EMAIL",
+            value: "maya@example.com",
+            isPrimary: true,
+          },
+        ],
+      }),
+      contact("contact-2", "Ivo Brandt"),
+    ],
+  };
+  const secondPage = { contacts: [contact("contact-3", "Pia Lund")] };
+  return {
+    // Two pages, the second one only after "more", like Core's 50 per page.
+    useContactRows: () => {
+      const [pages, setPages] = useState([firstPage]);
+      return {
+        isPending: false,
+        isFetchingNextPage: false,
+        hasNextPage: pages.length === 1,
+        fetchNextPage: async () => setPages([firstPage, secondPage]),
+        data: { pages },
+      };
     },
-  }),
-}));
+  };
+});
 
 vi.mock("./markdown-editor", () => ({
   MarkdownEditor: forwardRef(function MockMarkdownEditor(
@@ -747,7 +757,7 @@ describe("TaskForm", () => {
   });
 
   describe("contact tags", () => {
-    function renderEdit(contacts: { id: string; name: string }[]) {
+    function renderEdit(contacts: { id: string; name: string }[] | null) {
       render(
         <TaskForm
           mode="edit"
@@ -788,6 +798,14 @@ describe("TaskForm", () => {
       // The picker stays open, so several contacts are tagged in one go.
       await user.click(await screen.findByRole("option", { name: /Maya/ }));
       await user.click(screen.getByRole("option", { name: /Ivo/ }));
+      // Tagged is stated to assistive tech, not just shown as a check.
+      expect(screen.getByRole("option", { name: /Maya/ })).toHaveAttribute(
+        "aria-checked",
+        "true",
+      );
+      expect(screen.getByRole("option", { name: /Maya/ })).toHaveTextContent(
+        "tagged",
+      );
       await user.keyboard("{Escape}");
 
       expect(screen.getByTestId("markdown-editor")).toHaveValue(
@@ -797,6 +815,54 @@ describe("TaskForm", () => {
 
       expect(createTaskMock).toHaveBeenCalledWith(
         expect.objectContaining({ contactIds: ["contact-1", "contact-2"] }),
+      );
+    });
+
+    it("reaches contacts past the first page", async () => {
+      const user = userEvent.setup();
+      const createTaskMock = vi.mocked(createTask);
+      createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "My task"));
+      render(
+        <TaskForm
+          mode="create"
+          showCancel={false}
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          initialValues={{ assigneeUserId: "user-1" }}
+          onSuccess={vi.fn()}
+        />,
+      );
+
+      await user.type(screen.getByTestId("markdown-editor"), "Plan");
+      await user.click(screen.getByRole("combobox", { name: "tag" }));
+      expect(
+        screen.queryByRole("option", { name: /Pia/ }),
+      ).not.toBeInTheDocument();
+      await user.click(screen.getByRole("option", { name: "more" }));
+      await user.click(await screen.findByRole("option", { name: /Pia/ }));
+      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      expect(createTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({ contactIds: ["contact-3"] }),
+      );
+    });
+
+    it("leaves tags alone when they could not be read", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // The Task tags A and B, but reading them failed: the form must not
+      // offer tagging, or adding C would save [C] and drop A and B.
+      renderEdit(null);
+
+      expect(
+        screen.queryByRole("combobox", { name: "tag" }),
+      ).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock.mock.calls[0]?.[0]).not.toHaveProperty(
+        "contactIds",
       );
     });
 

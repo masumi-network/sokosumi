@@ -382,12 +382,14 @@ export const taskService = (() => {
     return result.data;
   }
 
-  /** The contacts tagged on a Task; none when the reader may not see them. */
-  async function listTaskContacts(taskId: string): Promise<TaskContact[]> {
+  /** The contacts tagged on a Task; null when they could not be read. */
+  async function listTaskContacts(
+    taskId: string,
+  ): Promise<TaskContact[] | null> {
     try {
       return (await coreClient.getTaskContacts(taskId)).data;
     } catch {
-      return [];
+      return null;
     }
   }
 

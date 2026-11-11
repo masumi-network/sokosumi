@@ -2303,7 +2303,9 @@
         "search": "Buscar contactos…",
         "loading": "Cargando contactos…",
         "empty": "No se encontraron contactos.",
-        "remove": "Quitar a {name}"
+        "remove": "Quitar a {name}",
+        "tagged": "Etiquetado",
+        "more": "Mostrar más contactos"
       }
     },
     "Projects": {

@@ -179,8 +179,9 @@ interface TaskFormInitialValues {
   visibility?: "PUBLIC" | "PRIVATE";
   /** Create only: this form makes a copy of that Task ("Duplicate"). */
   copyOfTaskId?: string;
-  /** Contacts tagged on the Task. */
-  contacts?: TaskContactTag[];
+  /** Contacts tagged on the Task; null when they could not be read, which
+   * hides tagging so a save cannot replace tags the form never saw. */
+  contacts?: TaskContactTag[] | null;
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
@@ -307,6 +308,7 @@ export function TaskForm({
     mode === "create" ? initialValues?.copyOfTaskId : undefined;
   const isCopy = copyOfTaskId !== undefined;
   const initialContacts = initialValues?.contacts;
+  const canTagContacts = initialContacts !== null;
   const [contacts, setContacts] = useState(initialContacts ?? []);
   const contactIds = useMemo(
     () => contacts.map((contact) => contact.id),
@@ -829,8 +831,9 @@ export function TaskForm({
         ...(hasProjectSelection ? { projectId } : {}),
         context,
         desiredStatus: status,
-        ...(contactIds.join() !==
-        (initialContacts ?? []).map((contact) => contact.id).join()
+        ...(canTagContacts &&
+        contactIds.join() !==
+          (initialContacts ?? []).map((contact) => contact.id).join()
           ? { contactIds }
           : {}),
         ...(runAt !== initialRunAt &&
@@ -860,6 +863,7 @@ export function TaskForm({
     copyOfTaskId,
     contactIds,
     initialContacts,
+    canTagContacts,
     isCopy,
     description,
     isSaveDisabled,
@@ -1341,17 +1345,19 @@ export function TaskForm({
                   data-testid="task-compose-meta-row"
                   className="flex flex-wrap items-center gap-2"
                 >
-                  <TaskContactsSelect
-                    value={contacts}
-                    onChange={setContacts}
-                    onTag={(contact) =>
-                      setDescription((current) =>
-                        current.trim()
-                          ? `${current.trimEnd()}\n\n${contactBrief(contact)}`
-                          : contactBrief(contact),
-                      )
-                    }
-                  />
+                  {canTagContacts ? (
+                    <TaskContactsSelect
+                      value={contacts}
+                      onChange={setContacts}
+                      onTag={(contact) =>
+                        setDescription((current) =>
+                          current.trim()
+                            ? `${current.trimEnd()}\n\n${contactBrief(contact)}`
+                            : contactBrief(contact),
+                        )
+                      }
+                    />
+                  ) : null}
                   {shouldShowProjectSelect ? (
                     <TaskProjectSelect
                       ref={projectSelectRef}

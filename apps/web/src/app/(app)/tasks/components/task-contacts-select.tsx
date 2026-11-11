@@ -41,7 +41,6 @@ export function TaskContactsSection({
   contacts: TaskContactTag[];
 }) {
   const t = useTranslations("App.Tasks.Contacts");
-  if (contacts.length === 0) return null;
   return (
     <section className="space-y-2">
       <h2 className="text-muted-foreground text-xs font-medium">
@@ -110,7 +109,7 @@ export function TaskContactsSelect({
           <button
             type="button"
             aria-label={t("remove", { name: contact.name })}
-            className="hover:bg-accent focus-visible:ring-ring rounded-full p-0.5 outline-none focus-visible:ring-2"
+            className="hit-area hover:bg-accent focus-visible:ring-ring rounded-full p-0.5 outline-none focus-visible:ring-2"
             onClick={() =>
               onChange(value.filter((tag) => tag.id !== contact.id))
             }
@@ -188,6 +187,8 @@ function ContactOptions({
           <CommandItem
             key={contact.id}
             value={contact.id}
+            // cmdk's aria-selected follows the active row; this is the tag.
+            aria-checked={tagged.has(contact.id)}
             onSelect={() => onToggle(contact)}
           >
             <ContactAvatar
@@ -204,6 +205,9 @@ function ContactOptions({
                   {contact.organization}
                 </span>
               ) : null}
+              {tagged.has(contact.id) ? (
+                <span className="sr-only">{t("tagged")}</span>
+              ) : null}
             </span>
             <Check
               className={cn(
@@ -214,6 +218,16 @@ function ContactOptions({
             />
           </CommandItem>
         ))}
+        {rows.hasNextPage ? (
+          <CommandItem
+            value="__more_contacts__"
+            disabled={rows.isFetchingNextPage}
+            onSelect={() => void rows.fetchNextPage()}
+            className="text-muted-foreground justify-center"
+          >
+            {rows.isFetchingNextPage ? t("loading") : t("more")}
+          </CommandItem>
+        ) : null}
       </CommandList>
     </Command>
   );

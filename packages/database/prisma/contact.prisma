@@ -138,6 +138,8 @@ model Contact {
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
   tasks                 TaskContact[]
+  /// @deprecated See `Task.contactId`.
+  legacyTasks           Task[]                 @relation("TaskLegacyContact")
 
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])

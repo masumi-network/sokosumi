@@ -576,7 +576,7 @@ async function TaskMetadataSection({
         }}
       />
       <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
-      <TaskContactsSection contacts={contacts} />
+      {contacts?.length ? <TaskContactsSection contacts={contacts} /> : null}
     </div>
   );
 }

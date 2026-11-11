@@ -393,7 +393,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
         ownerId: bob,
         organizationId,
         workspaceId,
-        contactId: loser.contact.id,
+        contacts: { create: [{ contactId: loser.contact.id }] },
       },
     });
     await inContactTransaction((tx) =>
@@ -438,8 +438,11 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     });
     expect(tombstone.archivedAt).not.toBeNull();
     await expect(
-      prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
-    ).resolves.toMatchObject({ contactId: winner.contact.id });
+      prisma.taskContact.findMany({
+        where: { taskId: task.id },
+        select: { contactId: true },
+      }),
+    ).resolves.toEqual([{ contactId: winner.contact.id }]);
     await expect(
       inContactTransaction((tx) =>
         mergeContacts(tx, asAlice, winner.contact.id, [loser.contact.id]),
@@ -1189,6 +1192,33 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       await expect(
         prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
       ).resolves.toMatchObject({ workspaceId: alicePersonalWorkspaceId });
+      await expect(tagsOf(task.id)).resolves.toEqual([]);
+    });
+
+    it("mirrors the previous release's single-contact writes into tags", async () => {
+      const { winnerId, loserId } = await pair("Ada Brook");
+      // What the release before tags still does while it serves.
+      const task = await prisma.task.create({
+        data: {
+          name: "Old release Task",
+          ownerId: alice,
+          organizationId,
+          workspaceId,
+          contactId: loserId,
+        },
+      });
+      await expect(tagsOf(task.id)).resolves.toEqual([loserId]);
+
+      // Its merge relinks the Task; its workspace move clears the link.
+      await prisma.task.update({
+        where: { id: task.id },
+        data: { contactId: winnerId },
+      });
+      await expect(tagsOf(task.id)).resolves.toEqual([winnerId]);
+      await prisma.task.update({
+        where: { id: task.id },
+        data: { contactId: null },
+      });
       await expect(tagsOf(task.id)).resolves.toEqual([]);
     });
 
