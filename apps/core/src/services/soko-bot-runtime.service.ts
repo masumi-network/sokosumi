@@ -137,6 +137,7 @@ import {
   type TableOperationCompletion,
 } from "@/helpers/data-table";
 import { moveDriveFile } from "@/helpers/drive-file-move";
+import { badRequest } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -181,6 +182,7 @@ import {
   publicDriveUrl,
   transferBetweenStores,
 } from "@/lib/drive-blob";
+import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import {
   evalCoworkerRefusal,
   globalCoworkersFor,
@@ -360,6 +362,7 @@ import {
   cmoPlanDrift,
   cmoPlanProblems,
   cmoReplySafety,
+  cmoTitleRepeats,
 } from "@/services/cmo-plan-review.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
 import {
@@ -451,6 +454,7 @@ import {
   createSocialPost,
   getSocialPost,
   listSocialPosts,
+  ownMessageProblem,
   requireMonthPostPicture,
   scheduleSocialPost,
   updateSocialPost,
@@ -5709,6 +5713,18 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
+  /** What a check's model call cost, charged to the turn like its steps. */
+  private async chargeCheck(
+    input: ExecuteSokoBotToolInput,
+    modelId: string,
+    costUsd: number,
+  ): Promise<void> {
+    if (costUsd <= 0) return;
+    await new RuntimeEventLog(input.turnId, input.sessionId).append(
+      runtimeEvent("step.completed", { modelId, usage: { costUsd } }),
+    );
+  }
+
   /** Cuso's Brand Brain, strategy and reports, written to his Project. */
   /**
    * The plan's review while it waits for approval: the strategy skill's hard
@@ -5752,7 +5768,9 @@ export class SokoBotRuntimeService {
         })
       : saves - 1;
     if (reviewed >= CMO_PLAN_REVIEWS_PER_TURN) return null;
-    const problems = cmoPlanProblems(strategy);
+    const titles = await cmoTitleRepeats(strategy.calendar);
+    await this.chargeCheck(input, EMBEDDING_MODEL, titles.costUsd);
+    const problems = [...cmoPlanProblems(strategy), ...titles.problems];
     const bot = plan.planSent
       ? await prisma.sokoBot.findUnique({
           where: { id: authorized.turn.sokoBotId },
@@ -5767,14 +5785,7 @@ export class SokoBotRuntimeService {
       const drift = await cmoPlanDrift({ strategy, brain });
       mainOffer = drift.verdict;
       if (drift.problem) problems.push(drift.problem);
-      if (drift.costUsd > 0) {
-        await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
-          runtimeEvent("step.completed", {
-            modelId: SOKO_BOT_JEV_MODEL,
-            usage: { costUsd: drift.costUsd },
-          }),
-        );
-      }
+      await this.chargeCheck(input, SOKO_BOT_JEV_MODEL, drift.costUsd);
     }
     const review = {
       save: saves,
@@ -5916,15 +5927,17 @@ export class SokoBotRuntimeService {
           });
           // Once the plan runs, the drafts are checked against the copy rules,
           // a filed piece's words as sent (the calendar holds only its file).
-          const draftProblems = approved
-            ? cmoDraftProblems([
+          const drafts = approved
+            ? await cmoDraftProblems([
                 ...calendar,
                 ...(sent.calendar ?? []).filter(
                   (entry) =>
                     isMarketingFilePiece(entry) && Boolean(entry.draft),
                 ),
               ])
-            : [];
+            : { problems: [], costUsd: 0 };
+          await this.chargeCheck(input, EMBEDDING_MODEL, drafts.costUsd);
+          const draftProblems = drafts.problems;
           const written = (entry: (typeof calendar)[number]) =>
             Boolean(entry.draft || entry.fileId);
           // Says which pieces still have no draft.
@@ -7551,6 +7564,20 @@ export class SokoBotRuntimeService {
                 ),
               )
             : { media: undefined, threadParts: undefined };
+        if (input.capability === "update_social_post") {
+          const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
+            input.input,
+          );
+          if (params.text) {
+            const own = await ownMessageProblem({
+              postId: params.postId,
+              workspaceId,
+              text: params.text,
+            });
+            await this.chargeCheck(input, EMBEDDING_MODEL, own.costUsd);
+            if (own.problem) throw badRequest(own.problem);
+          }
+        }
         return serializableTransaction(async (tx) => {
           await this.requireMutationAuthority(
             tx,

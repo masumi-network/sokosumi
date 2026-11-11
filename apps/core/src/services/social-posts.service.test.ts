@@ -2643,46 +2643,93 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
-  it("refuses a Soko Bot's post that says what another post of its month says", async () => {
-    socialPostFindFirstMock.mockResolvedValue({
-      ...draftPost,
-      marketingStrategyId: "version-1",
+  describe("ownMessageProblem", () => {
+    /** Fees and minting share a dimension: they are one message. */
+    const embed = async (values: readonly string[]) => ({
+      costUsd: 0.000_02,
+      embeddings: values.map((value) => [
+        /fee|minting|costs/i.test(value) ? 1 : 0,
+        /governance|vote/i.test(value) ? 1 : 0,
+        0.1,
+      ]),
     });
-    socialPostFindManyMock.mockResolvedValue([
-      {
-        id: "fee",
-        text: "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
-        media: [],
-        planning: { title: "Fees" },
-      },
-      // An idea still showing its plan's title is not a written post.
-      {
-        id: "idea",
-        text: "No monthly fee on a Studio account",
-        media: [],
-        planning: { title: "No monthly fee on a Studio account" },
-      },
-    ]);
-    const { updateSocialPost } = await loadService();
 
-    await expect(
-      updateSocialPost({
-        projectId: PROJECT_ID,
-        workspaceId: WORKSPACE_ID,
-        organizationId: null,
-        userId: USER_ID,
-        sokoBotId: "55555555-5555-4555-8555-555555555555",
-        postId: POST_ID,
-        revision: 0,
-        text: "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
-      }),
-    ).rejects.toMatchObject({
-      status: 400,
-      message: expect.stringContaining(
-        'it says nearly what the post "The Studio account has no monthly fee.',
-      ),
+    beforeEach(() => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          text: "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token.",
+          planning: { title: "Fees" },
+        },
+        // An idea still showing its plan's title is not a written post.
+        {
+          text: "No monthly fee on a Studio account",
+          planning: { title: "No monthly fee on a Studio account" },
+        },
+        {
+          text: "Holders vote on governance proposals from the wallet.",
+          planning: { title: "Governance" },
+        },
+      ]);
     });
-    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+
+    it("names the month's post a Soko Bot's text says again", async () => {
+      const { ownMessageProblem } = await loadService();
+
+      const result = await ownMessageProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "No monthly fee on a Studio account; each token costs 3%.",
+        },
+        embed,
+      );
+
+      expect(result).toEqual({
+        problem:
+          'Rewrite the post: it says nearly what the post "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per..." says. Give it its own message from its pillar: another claim, number, customer or step.',
+        costUsd: 0.000_02,
+      });
+      expect(socialPostFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            marketingStrategyId: "version-1",
+            id: { not: POST_ID },
+            status: { not: "CANCELED" },
+          },
+        }),
+      );
+    });
+
+    it("lets a post with its own message through", async () => {
+      const { ownMessageProblem } = await loadService();
+
+      const result = await ownMessageProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "Stake from the wallet in two taps.",
+        },
+        embed,
+      );
+
+      expect(result.problem).toBeNull();
+    });
+
+    it("checks nothing for a post outside a marketing month", async () => {
+      socialPostFindFirstMock.mockResolvedValue({ marketingStrategyId: null });
+      const { ownMessageProblem } = await loadService();
+
+      const result = await ownMessageProblem(
+        { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Fees again" },
+        embed,
+      );
+
+      expect(result).toEqual({ problem: null, costUsd: 0 });
+      expect(socialPostFindManyMock).not.toHaveBeenCalled();
+    });
   });
 
   it("leaves a person's own formatting alone", async () => {

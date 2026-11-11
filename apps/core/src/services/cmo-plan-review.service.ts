@@ -1,10 +1,9 @@
 import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
-import {
-  bannedCopyProblems,
-  nearDuplicatePost,
-} from "@/lib/social-post-writing";
+import type { EmbedTexts } from "@/lib/embeddings";
+import { findRepeats } from "@/lib/repeats";
+import { bannedCopyProblems } from "@/lib/social-post-writing";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
 /** What the evaluator said about the main offer; "skipped" when it was not asked. */
@@ -251,12 +250,14 @@ function opening(draft: string): string {
 
 /**
  * The made month's drafts against the production skill's copy rules: no two
- * open the same way, and none uses a banned line. Cuso rewrites what it
- * names; a handful at a time, so one save never floods him.
+ * open the same way, none says what another says, and none uses a banned
+ * line. Cuso rewrites what it names; a handful at a time, so one save never
+ * floods him.
  */
-export function cmoDraftProblems(
+export async function cmoDraftProblems(
   calendar: MarketingStrategyPlan["calendar"],
-): string[] {
+  embed?: EmbedTexts,
+): Promise<{ problems: string[]; costUsd: number }> {
   const drafted = calendar.filter(
     (entry) => entry.draft && entry.status !== "skipped",
   );
@@ -282,24 +283,49 @@ export function cmoDraftProblems(
   problems.push(
     ...repeatedPhrases(drafted, (entry) => entry.draft ?? "", 5, "drafts"),
   );
-  problems.push(...nearDuplicates(drafted));
-  return problems.slice(0, MAX_DRAFT_PROBLEMS);
+  const { repeats, costUsd } = await findRepeats(
+    drafted.map((entry) => entry.draft ?? ""),
+    "post",
+    embed,
+  );
+  repeats.forEach((earlier, index) => {
+    const repeated = earlier === null ? undefined : drafted[earlier];
+    if (repeated)
+      problems.push(
+        `${drafted[index]?.id} says nearly what ${repeated.id} says; give it its own message from its pillar.`,
+      );
+  });
+  return { problems: problems.slice(0, MAX_DRAFT_PROBLEMS), costUsd };
 }
 
-/** Drafts that say nearly what an earlier draft of the month says. */
-function nearDuplicates(drafted: MarketingStrategyPlan["calendar"]): string[] {
-  const written = drafted.map((entry) => ({
-    id: entry.id,
-    text: entry.draft ?? "",
-  }));
-  return written.flatMap((entry, index) => {
-    const repeated = nearDuplicatePost(entry.text, written.slice(0, index));
-    return repeated
+/** Title repeats one review names, so one save is not flooded. */
+const MAX_TITLE_REPEATS = 4;
+
+/**
+ * Calendar entries whose title says what an earlier title says in other
+ * words ("Pick a CRM by the team that uses it", "Start your CRM choice with
+ * your team"): one piece twice.
+ */
+export async function cmoTitleRepeats(
+  calendar: MarketingStrategyPlan["calendar"],
+  embed?: EmbedTexts,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const planned = calendar.filter((entry) => entry.status !== "skipped");
+  const { repeats, costUsd } = await findRepeats(
+    planned.map((entry) => entry.title),
+    "title",
+    embed,
+  );
+  const problems = repeats.flatMap((earlier, index) => {
+    const entry = planned[index];
+    const repeated = earlier === null ? undefined : planned[earlier];
+    return entry && repeated
       ? [
-          `${entry.id} says nearly what ${repeated.id} says; give it its own message from its pillar.`,
+          `${entry.id} ("${entry.title}") says what ${repeated.id} ("${repeated.title}") says; give it its own message from its pillar.`,
         ]
       : [];
   });
+  return { problems: problems.slice(0, MAX_TITLE_REPEATS), costUsd };
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */
