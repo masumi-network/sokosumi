@@ -164,11 +164,20 @@ describe("mobile-app-chrome", () => {
     it("returns null outside the main hub tree", () => {
       expect(resolveMobileAppBackTarget("/chat")).toBeNull();
       expect(resolveMobileAppBackTarget("/chat/rooms/r1")).toBeNull();
-      expect(resolveMobileAppBackTarget("/account")).toBeNull();
       expect(resolveMobileAppBackTarget("/developer/docs")).toBeNull();
-      expect(resolveMobileAppBackTarget("/billing")).toBeNull();
+      expect(resolveMobileAppBackTarget("/accounts")).toBeNull();
       expect(resolveMobileAppBackTarget(null)).toBeNull();
     });
+
+    it.each(["/account", "/account/notifications", "/billing", "/connections"])(
+      "sends You page row %s back to You",
+      (pathname) => {
+        expect(resolveMobileAppBackTarget(pathname)).toEqual({
+          href: "/you",
+          labelKey: "back",
+        });
+      },
+    );
   });
 
   describe("shouldShowMobileBottomNav", () => {

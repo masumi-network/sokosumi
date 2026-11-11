@@ -1,4 +1,12 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { StudioLogoPosition } from "@sokosumi/core-client";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
@@ -19,6 +27,12 @@ import { isActive, type StudioAsset, type StudioJob } from "./types";
 const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
+  listBatchAssets: vi.fn(),
+  saveHeadline: vi.fn(),
+  loadBrandKit: vi.fn().mockResolvedValue({ approvedLines: [] }),
+  createArchive: vi.fn(),
+  saveDownload: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -36,9 +50,43 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
+  listStudioBatchAssets: mocks.listBatchAssets,
+  saveStudioAdHeadline: mocks.saveHeadline,
   requestImageJobCancel: mocks.cancel,
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/image-studio/brand-kit", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/actions/image-studio/brand-kit")
+  >()),
+  getStudioBrandKit: mocks.loadBrandKit,
+}));
+
+vi.mock("./studio-headline-image", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./studio-headline-image")>()),
+  useStudioHeadlineImage: (
+    _asset: StudioAsset,
+    _ratio: string,
+    _logo: StudioLogoPosition | undefined,
+    headline: string | undefined,
+  ) => ({
+    result: headline
+      ? { status: "ready", blob: new Blob([headline]), url: "blob:studio-ad" }
+      : null,
+    retry: vi.fn(),
+  }),
+}));
+
+vi.mock("./studio-ad-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./studio-ad-download")>()),
+  createStudioAdArchive: mocks.createArchive,
+  saveStudioDownload: mocks.saveDownload,
+}));
+
+vi.mock("eve/react", () => ({
+  useEveAgent: () => ({ status: "idle", messages: [] }),
 }));
 
 vi.mock("./use-studio-state", () => ({
@@ -65,7 +113,7 @@ vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
     failed: [],
     queued: [],
-    enqueue: vi.fn(),
+    enqueue: mocks.enqueue,
     waitingForSlot: false,
   }),
 }));
@@ -87,7 +135,12 @@ const ASSET = {
   contentPath: "/a",
 } as unknown as StudioAsset;
 
-function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
+function mount(
+  assets: StudioAsset[] = [],
+  jobs: StudioJob[] = [],
+  projectLogo?: string,
+  studioLogoPosition?: StudioLogoPosition,
+) {
   return render(
     <ImageStudio
       catalog={TEST_CATALOG}
@@ -95,6 +148,8 @@ function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
       initialState={{ assets, jobs, sessions: [] } as never}
       labels={TEST_LABELS}
       projectId="p"
+      projectLogo={projectLogo}
+      studioLogoPosition={studioLogoPosition}
     />,
   );
 }
@@ -102,6 +157,12 @@ function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+  mocks.loadBrandKit.mockResolvedValue({ approvedLines: [] });
+  let revision = 0;
+  mocks.saveHeadline.mockImplementation(async ({ text }) => ({
+    text,
+    revision: ++revision,
+  }));
   mocks.cancel.mockResolvedValue({ accepted: true });
 });
 
@@ -185,6 +246,308 @@ function settledJob(
 }
 
 describe("a gallery with work in it", () => {
+  it("downloads the whole batch from one ad, including results outside the loaded gallery", async () => {
+    const open = { ...ASSET, projectId: "p", batchId: "batch-a" };
+    const older = { ...open, id: "older-ad" };
+    mocks.listBatchAssets.mockResolvedValueOnce([open, older]);
+    mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+    mount([open]);
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    expect(screen.queryByLabelText("logoOnBatch")).not.toBeInTheDocument();
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "downloadBatchZip",
+      }),
+    );
+    await waitFor(() => expect(mocks.saveDownload).toHaveBeenCalled());
+    expect(mocks.listBatchAssets).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      batchId: "batch-a",
+    });
+    expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+      [open, older],
+      undefined,
+    );
+    expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Blob),
+      "studio-ad-batch.zip",
+    );
+  });
+
+  it("uses the logo corner from the ad preview on all ready ads in the batch", async () => {
+    const open = { ...ASSET, projectId: "p", batchId: "batch-a" };
+    const older = { ...open, id: "older-ad" };
+    mocks.listBatchAssets.mockResolvedValueOnce([open, older]);
+    mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+    mount([open], [], "https://example.com/approved-logo.png");
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    const batchLogo = screen.getByLabelText("logoOnBatch");
+    expect(batchLogo).toHaveValue("");
+    fireEvent.change(batchLogo, {
+      target: { value: StudioLogoPosition.BOTTOM_LEFT },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
+    const previewLogo = preview.getByLabelText("logoOnCreative");
+    expect(previewLogo).toHaveValue(StudioLogoPosition.BOTTOM_LEFT);
+    fireEvent.change(previewLogo, {
+      target: { value: StudioLogoPosition.TOP_LEFT },
+    });
+    fireEvent.click(preview.getByRole("button", { name: "close" }));
+    expect(batchLogo).toHaveValue(StudioLogoPosition.TOP_LEFT);
+
+    fireEvent.click(screen.getByRole("button", { name: "downloadBatchZip" }));
+    await waitFor(() => expect(mocks.saveDownload).toHaveBeenCalled());
+    expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+      [open, older],
+      StudioLogoPosition.TOP_LEFT,
+    );
+    expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Blob),
+      "studio-branded-ad-batch.zip",
+    );
+  });
+
+  it.each([
+    { override: false, expected: StudioLogoPosition.BOTTOM_LEFT },
+    { override: true, expected: undefined },
+  ])(
+    "uses the project default unless this batch overrides it ($override)",
+    async ({ override, expected }) => {
+      const open = { ...ASSET, projectId: "p", batchId: "batch-a" };
+      mocks.listBatchAssets.mockResolvedValueOnce([open]);
+      mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+      mount(
+        [open],
+        [],
+        "https://example.com/logo.png",
+        StudioLogoPosition.BOTTOM_LEFT,
+      );
+      fireEvent.click(screen.getByRole("img").closest("button")!);
+      const batchLogo = screen.getByLabelText("logoOnBatch");
+      expect(batchLogo).toHaveValue(StudioLogoPosition.BOTTOM_LEFT);
+      if (override) fireEvent.change(batchLogo, { target: { value: "" } });
+
+      fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+      const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
+      expect(preview.getByLabelText("logoOnCreative")).toHaveValue(
+        expected ?? "",
+      );
+      fireEvent.click(preview.getByRole("button", { name: "close" }));
+      fireEvent.click(screen.getByRole("button", { name: "downloadBatchZip" }));
+      await waitFor(() =>
+        expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+          [open],
+          expected,
+        ),
+      );
+    },
+  );
+
+  it("downloads only approved headline copy and blocks a line removed during review", async () => {
+    const active = "Made with reclaimed clay.";
+    const removed = "Save 50% this weekend.";
+    mocks.loadBrandKit
+      .mockResolvedValueOnce({ approvedLines: [active, removed] })
+      .mockResolvedValue({ approvedLines: [active] });
+
+    mount([{ ...ASSET, projectId: "p" }]);
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+
+    const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
+    const select = await preview.findByLabelText("approvedHeadline");
+    const download = preview.getByRole("button", {
+      name: /^downloadPlacementPng/,
+    });
+
+    fireEvent.change(select, { target: { value: removed } });
+    await waitFor(() => {
+      expect(select).toHaveValue(removed);
+      expect(download).toBeEnabled();
+    });
+    fireEvent.click(download);
+    await waitFor(() =>
+      expect(
+        preview.queryByRole("option", { name: removed }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(mocks.saveDownload).not.toHaveBeenCalled();
+
+    fireEvent.change(select, { target: { value: active } });
+    await waitFor(() => {
+      expect(select).toHaveValue(active);
+      expect(download).toBeEnabled();
+    });
+    fireEvent.click(download);
+    await waitFor(() =>
+      expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
+        expect.any(Blob),
+        "ad-v1-1x1-headline.png",
+      ),
+    );
+  });
+
+  it("reviews different approved headlines for all ready batch ads, including an unloaded result", async () => {
+    const open = {
+      ...ASSET,
+      projectId: "p",
+      batchId: "batch-a",
+      product: { id: "a", name: "Mug" },
+    };
+    const older = {
+      ...open,
+      id: "older-ad",
+      product: { id: "b", name: "Kettle" },
+    };
+    const first = "A slower morning.";
+    const second = "Pour with precision.";
+    mocks.listBatchAssets.mockResolvedValue([open, older]);
+    mocks.loadBrandKit.mockResolvedValue({ approvedLines: [first, second] });
+    mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+    mount([open]);
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(
+      screen.getByRole("button", { name: "reviewBatchHeadlines" }),
+    );
+    const review = within(
+      screen.getByRole("dialog", { name: "reviewBatchHeadlines" }),
+    );
+    const pickers = await review.findAllByLabelText("approvedHeadline");
+    expect(pickers).toHaveLength(2);
+    expect(review.getByText("Kettle")).toBeVisible();
+    fireEvent.change(pickers[0], { target: { value: first } });
+    await waitFor(() => {
+      expect(pickers[0]).toHaveValue(first);
+      expect(pickers[1]).toBeEnabled();
+    });
+    fireEvent.change(pickers[1], { target: { value: second } });
+    const download = review.getByRole("button", { name: "downloadBatchZip" });
+    await waitFor(() => {
+      expect(pickers[1]).toHaveValue(second);
+      expect(download).toBeEnabled();
+    });
+    mocks.loadBrandKit.mockResolvedValueOnce({ approvedLines: [first] });
+    fireEvent.click(download);
+    await waitFor(() => expect(mocks.loadBrandKit).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(download).toBeEnabled());
+    expect(mocks.createArchive).not.toHaveBeenCalled();
+
+    fireEvent.click(download);
+    await waitFor(() =>
+      expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+        [open, older],
+        undefined,
+        { [open.id]: first, [older.id]: second },
+      ),
+    );
+  });
+
+  it("refreshes batch review before exporting a newly finished revision", async () => {
+    const original = { ...ASSET, projectId: "p", batchId: "batch-a" };
+    const revised = { ...original, id: "revised-ad", version: 2 };
+    mocks.listBatchAssets
+      .mockResolvedValueOnce([original])
+      .mockResolvedValue([revised]);
+    mocks.loadBrandKit.mockResolvedValue({ approvedLines: [] });
+    mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+    mount([original]);
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(
+      screen.getByRole("button", { name: "reviewBatchHeadlines" }),
+    );
+    const review = within(
+      screen.getByRole("dialog", { name: "reviewBatchHeadlines" }),
+    );
+    await review.findByLabelText("approvedHeadline");
+    const download = review.getByRole("button", { name: "downloadBatchZip" });
+    fireEvent.click(download);
+    await review.findByText("batchReviewChanged");
+    await review.findByText(/^Version 2 · /i);
+    expect(mocks.createArchive).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(download).toBeEnabled());
+    fireEvent.click(download);
+    await waitFor(() =>
+      expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+        [revised],
+        undefined,
+      ),
+    );
+  });
+
+  it("hands the selected ad to the assistant and keeps the generation draft", () => {
+    const product = { id: "mug", name: "Stoneware mug" };
+    mount([{ ...ASSET, projectId: "p", product }]);
+    const draft = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(draft, { target: { value: "An unrelated draft" } });
+
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Assistant.edit" }),
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const panel = screen.getByRole("complementary", {
+      name: "Assistant.title",
+    });
+    expect(
+      within(panel).getByText(/editingProduct.*Stoneware mug/),
+    ).toBeVisible();
+    fireEvent.click(within(panel).getByRole("button", { name: "close" }));
+    expect(
+      screen.queryByRole("complementary", { name: "Assistant.title" }),
+    ).not.toBeInTheDocument();
+    expect(draft).toHaveValue("An unrelated draft");
+  });
+
+  it("groups ads across days by product and project, and can return to date grouping", () => {
+    const product = { id: "mug", name: "Stoneware mug" };
+    const assets = [
+      { ...ASSET, id: "new", projectId: "p", projectName: "Launch", product },
+      {
+        ...ASSET,
+        id: "other",
+        projectId: "other",
+        projectName: "Summer",
+        product,
+      },
+      {
+        ...ASSET,
+        id: "old",
+        projectId: "p",
+        projectName: "Launch",
+        createdAt: new Date("2026-09-24T00:00:00Z"),
+        product: { ...product, name: "Clay mug" },
+      },
+      { ...ASSET, id: "no-product" },
+    ];
+    mount(assets);
+
+    const launch = screen.getByRole("heading", {
+      name: "Stoneware mug · Launch",
+    }).parentElement;
+    expect(launch?.querySelectorAll("figure[data-asset-id]")).toHaveLength(2);
+    expect(
+      screen.getByRole("heading", { name: "Stoneware mug · Summer" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "today" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "groupByProduct" }));
+
+    expect(
+      screen.queryByRole("heading", { name: /Stoneware mug/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "today" })).toHaveLength(2);
+  });
+
   it("renders a bare wall of pictures, each with its selection box drawn", () => {
     mount(manyAssets(14));
 
@@ -270,6 +633,30 @@ describe("a gallery with work in it", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("provider_error");
     expect(screen.queryByText("failedDetails")).toBeNull();
+  });
+
+  it("retries a cutout refinement through its parent instead of submitting the product file as a reference", () => {
+    mount(
+      [],
+      [
+        {
+          ...job("cutout-refinement", "FAILED"),
+          parentAssetId: "source-ad",
+          referenceAssetIds: ["source-ad"],
+          referenceFileIds: ["private-photo"],
+          useProductCutout: true,
+        },
+      ],
+    );
+    fireEvent.click(screen.getByRole("button", { name: TEST_LABELS.tryAgain }));
+    expect(mocks.enqueue).toHaveBeenCalledOnce();
+    const [request] = mocks.enqueue.mock.calls[0][0];
+    expect(request).toMatchObject({
+      parentAssetId: "source-ad",
+      referenceAssetIds: ["source-ad"],
+    });
+    expect(request).not.toHaveProperty("referenceFileIds");
+    expect(request).not.toHaveProperty("useProductCutout");
   });
 
   /**

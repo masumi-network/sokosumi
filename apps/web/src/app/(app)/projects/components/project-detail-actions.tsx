@@ -70,6 +70,8 @@ interface ProjectDetailActionsProps {
   isHidden?: boolean;
   /** The reader's own Pin, for the Pin or Unpin item. */
   isPinned?: boolean;
+  /** A CMO Project: CMO edits and closes it, so only Pin and Hide stay. */
+  readOnly?: boolean;
   labels: ProjectDetailActionsLabels;
   /** Restyles the "More actions" button, as the project card does. */
   triggerClassName?: string;
@@ -86,6 +88,7 @@ export function ProjectDetailActions({
   isClosingOrClosed = false,
   isHidden = false,
   isPinned = false,
+  readOnly = false,
   labels,
   triggerClassName,
 }: ProjectDetailActionsProps) {
@@ -172,7 +175,7 @@ export function ProjectDetailActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {labels.edit ? (
+          {labels.edit && !readOnly ? (
             <DropdownMenuItem asChild>
               <Link href={`/projects/${projectId}/edit`}>
                 <Pencil className="size-4" aria-hidden />
@@ -210,7 +213,7 @@ export function ProjectDetailActions({
               {labels.hide.hide}
             </DropdownMenuItem>
           )}
-          {!isClosingOrClosed && projectRevision !== undefined ? (
+          {!readOnly && !isClosingOrClosed && projectRevision !== undefined ? (
             <DropdownMenuItem
               variant="destructive"
               onSelect={(event) => {

@@ -1,7 +1,23 @@
 import {
+  attachStudioProductPhoto as coreAttachStudioProductPhoto,
+  findStudioWebsiteLogo as coreFindStudioWebsiteLogo,
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
+  getStudioBrandKit as coreGetStudioBrandKit,
+  getStudioProductCatalog as coreGetStudioProductCatalog,
+  getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
+  importStudioProductCatalog as coreImportStudioProductCatalog,
+  listStudioBatchAssets as coreListStudioBatchAssets,
+  replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
+  researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
+  saveStudioAdHeadline as coreSaveStudioAdHeadline,
+  saveStudioBrandCopy as coreSaveStudioBrandCopy,
+  saveStudioBrandLook as coreSaveStudioBrandLook,
   suggestTaskTags as coreSuggestTaskTags,
+  uploadStudioProjectLogo as coreUploadStudioProjectLogo,
+  type SaveStudioBrandCopy,
+  type SaveStudioBrandLook,
+  type StudioProductCatalog,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 
@@ -44,6 +60,7 @@ import type {
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
   GetChatsSavedMessagesData,
+  GetChatsSignalsDecisionsData,
   GetChatsSignalsRoomsByIdDecisionsData,
   GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
@@ -241,7 +258,6 @@ import {
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
   getChatsInvitationsById as coreGetChatsInvitationsById,
-  getChatsRecent as coreGetChatsRecent,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
@@ -257,6 +273,8 @@ import {
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
   getChatsSavedMessages as coreGetChatsSavedMessages,
+  getChatsSignalsDecisions as coreGetChatsSignalsDecisions,
+  getChatsSignalsImportant as coreGetChatsSignalsImportant,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
@@ -1771,6 +1789,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChatDecisions(
+    query?: GetChatsSignalsDecisionsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsDecisions({ client, query, cache: "no-store" }),
+      "Failed to fetch decisions",
+    );
+  }
+
   async function getChatRoomDecisions(
     id: string,
     query?: GetChatsSignalsRoomsByIdDecisionsData["query"],
@@ -1915,11 +1944,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getChatRecentSokoBotMessages() {
+  async function getChatImportantMessages() {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetChatsRecent({ client, cache: "no-store" }),
-      "Failed to fetch recent Soko Bot chats",
+      (client) => coreGetChatsSignalsImportant({ client, cache: "no-store" }),
+      "Failed to fetch important chat messages",
     );
   }
 
@@ -4160,6 +4189,145 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Project image studio",
+    );
+  }
+
+  async function attachStudioProductPhoto(
+    id: string,
+    body: { name: string; imageUrl: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreAttachStudioProductPhoto({ client, path: { id }, body }),
+      "Failed to attach a Studio product photo",
+    );
+  }
+
+  async function getStudioBrandKit(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioBrandKit({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch the Studio brand kit",
+    );
+  }
+
+  async function saveStudioBrandCopy(id: string, body: SaveStudioBrandCopy) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSaveStudioBrandCopy({ client, path: { id }, body }),
+      "Failed to save Studio brand copy",
+    );
+  }
+
+  async function saveStudioBrandLook(id: string, body: SaveStudioBrandLook) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSaveStudioBrandLook({ client, path: { id }, body }),
+      "Failed to save the Studio brand look",
+    );
+  }
+
+  async function getStudioWebsiteCopy(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioWebsiteCopy({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch website copy for Studio",
+    );
+  }
+
+  async function prepareStudioWebsiteDraft(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreResearchStudioWebsiteDraft({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to prepare website suggestions for Studio",
+    );
+  }
+
+  async function saveStudioAdHeadline(
+    id: string,
+    assetId: string,
+    text: string | null,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSaveStudioAdHeadline({
+          client,
+          path: { id, assetId },
+          body: { text },
+        }),
+      "Failed to save the Studio ad headline",
+    );
+  }
+
+  async function listStudioBatchAssets(id: string, batchId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListStudioBatchAssets({
+          client,
+          path: { id, batchId },
+          cache: "no-store",
+        }),
+      "Failed to fetch ads from the Studio batch",
+    );
+  }
+
+  async function uploadStudioProjectLogo(id: string, file: File) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreUploadStudioProjectLogo({ client, path: { id }, body: { file } }),
+      "Failed to upload the Studio project logo",
+    );
+  }
+
+  async function findStudioWebsiteLogo(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreFindStudioWebsiteLogo({ client, path: { id } }),
+      "Failed to find a logo on the Studio project website",
+    );
+  }
+
+  async function getStudioProductCatalog(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioProductCatalog({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio products",
+    );
+  }
+
+  async function replaceStudioProductCatalog(
+    id: string,
+    body: StudioProductCatalog,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreReplaceStudioProductCatalog({ client, path: { id }, body }),
+      "Failed to save Studio products",
+    );
+  }
+
+  async function importStudioProductCatalog(id: string, body: { url: string }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreImportStudioProductCatalog({ client, path: { id }, body }),
+      "Failed to import Studio products",
     );
   }
 
@@ -6770,7 +6938,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreadMessages,
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
-    getChatRecentSokoBotMessages,
+    getChatImportantMessages,
     getChatUnreadThreads,
     getChatEarlierThreads,
     getChatRooms,
@@ -6791,6 +6959,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unsaveChatMessage,
     getChatCatchUpSummary,
     getChatRoomCatchUp,
+    getChatDecisions,
     getChatRoomDecisions,
     correctChatMessageSignal,
     setChatMessageSignalLoop,
@@ -6996,6 +7165,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
     getImageStudioState,
+    attachStudioProductPhoto,
+    getStudioProductCatalog,
+    getStudioBrandKit,
+    getStudioWebsiteCopy,
+    prepareStudioWebsiteDraft,
+    listStudioBatchAssets,
+    saveStudioAdHeadline,
+    saveStudioBrandCopy,
+    saveStudioBrandLook,
+    uploadStudioProjectLogo,
+    findStudioWebsiteLogo,
+    replaceStudioProductCatalog,
+    importStudioProductCatalog,
     getProjectsByIdImageStudio,
     getProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
     postProjectsByIdImageStudioAssetsByAssetIdCaption,

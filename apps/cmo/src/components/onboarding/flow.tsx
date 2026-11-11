@@ -3,16 +3,15 @@
 import "./onboarding.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ChevronDown, LogOut } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { SkippedStep } from "../../lib/skipped-steps";
+import { AccountMenu } from "../account-menu";
 import { adsReturnError } from "../ads";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
-import { ThemeToggle } from "../theme-toggle";
 import { type AnswerInput, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
 import { LaunchStep } from "./launch-step";
@@ -33,66 +32,6 @@ const HIDDEN_POLL_MS = 20_000;
 /** The change request after a no, once a plan exists. */
 const BRAND_CORRECTED =
   "I said no to some of your Brand Brain questions. Fit the plan to the corrected Brand Brain.";
-
-interface AccountMenuProps {
-  overview: CmoOverview;
-  startOver: () => Promise<string | null>;
-  signOut: () => Promise<void>;
-}
-
-/** Who is signed in, with the way out; closes on a click outside or Escape. */
-function AccountMenu({ overview, startOver, signOut }: AccountMenuProps) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
-      if (
-        event instanceof MouseEvent &&
-        root.current?.contains(event.target as Node)
-      ) {
-        return;
-      }
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
-
-  return (
-    <div className="ob-who" ref={root}>
-      <button
-        type="button"
-        className="ob-who-button"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="dot live" aria-hidden="true" />
-        <span className="ob-who-name">{hostOf(overview.websiteUrl)}</span>
-        <ChevronDown size={14} aria-hidden="true" />
-      </button>
-      {open ? (
-        <div className="ob-who-menu" role="menu">
-          <ThemeToggle className="ob-who-item" role="menuitem" withLabel />
-          <StartOver className="ob-who-item" startOver={startOver} />
-          <form action={signOut}>
-            <button type="submit" role="menuitem" className="ob-who-item">
-              <LogOut size={14} aria-hidden="true" />
-              Sign out
-            </button>
-          </form>
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 interface OnboardingFlowProps {
   overview: CmoOverview;
@@ -258,7 +197,7 @@ export function OnboardingFlow({
           }}
         />
         <AccountMenu
-          overview={overview}
+          label={hostOf(overview.websiteUrl)}
           startOver={actions.startOver}
           signOut={actions.signOut}
         />

@@ -56,6 +56,7 @@ import {
 import { removeProjectDesignMd } from "@/lib/actions/project/action";
 
 interface ProjectBrandProviderProps {
+  autoStart?: boolean;
   children: ReactNode;
   initialDesignMd: ProjectDesignMd | null;
   projectId: string;
@@ -71,6 +72,8 @@ interface ProjectBrandDashboardValue {
 interface ProjectBrandCardProps {
   projectId: string;
   websiteUrl?: string | null;
+  /** A CMO Project: CMO writes its DESIGN.md, so the card only opens it. */
+  readOnly?: boolean;
 }
 
 const ProjectBrandDashboardContext =
@@ -85,6 +88,7 @@ function useProjectBrandDashboard(): ProjectBrandDashboardValue {
 }
 
 export function ProjectBrandProvider({
+  autoStart = true,
   children,
   initialDesignMd,
   projectId,
@@ -149,13 +153,13 @@ export function ProjectBrandProvider({
       resume(pending);
       return;
     }
-    if (!websiteUrl) return;
+    if (!autoStart || !websiteUrl) return;
     if (backgroundGenerationAttempted.current) return;
     if (hasProjectBrandAutoStartAttempted(projectId)) return;
     backgroundGenerationAttempted.current = true;
     markProjectBrandAutoStartAttempted(projectId);
     void generate({ url: websiteUrl });
-  }, [designMd, generate, isRunning, projectId, resume, websiteUrl]);
+  }, [autoStart, designMd, generate, isRunning, projectId, resume, websiteUrl]);
 
   const value = useMemo(
     () => ({ designMd, generation, setDesignMd }),
@@ -172,6 +176,7 @@ export function ProjectBrandProvider({
 export function ProjectBrandCard({
   projectId,
   websiteUrl,
+  readOnly = false,
 }: ProjectBrandCardProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.Detail");
@@ -236,22 +241,24 @@ export function ProjectBrandCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  disabled={!hasWebsite || menuBusy}
-                  onSelect={() => {
-                    handleGenerate();
-                  }}
-                >
-                  {generation.isRunning ? (
-                    <Loader2
-                      className="size-4 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : (
-                    <RefreshCw className="size-4" aria-hidden />
-                  )}
-                  {t("brandCard.generate")}
-                </DropdownMenuItem>
+                {readOnly ? null : (
+                  <DropdownMenuItem
+                    disabled={!hasWebsite || menuBusy}
+                    onSelect={() => {
+                      handleGenerate();
+                    }}
+                  >
+                    {generation.isRunning ? (
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
+                    ) : (
+                      <RefreshCw className="size-4" aria-hidden />
+                    )}
+                    {t("brandCard.generate")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild>
                   <a
                     href={designMd.url}
@@ -262,23 +269,27 @@ export function ProjectBrandCard({
                     {t("brandCard.open")}
                   </a>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/projects/${projectId}/design-md/edit`}>
-                    <FileText className="size-4" aria-hidden />
-                    {t("brandCard.edit")}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={menuBusy}
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setIsRemoveDialogOpen(true);
-                  }}
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                  {t("brandCard.remove")}
-                </DropdownMenuItem>
+                {readOnly ? null : (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/projects/${projectId}/design-md/edit`}>
+                        <FileText className="size-4" aria-hidden />
+                        {t("brandCard.edit")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={menuBusy}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setIsRemoveDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                      {t("brandCard.remove")}
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
@@ -313,7 +324,7 @@ export function ProjectBrandCard({
           </Badge>
         </div>
 
-        {!hasWebsite ? (
+        {!hasWebsite && !readOnly ? (
           <p className="text-muted-foreground text-xs">
             {t("brandCard.missingWebsite")}
           </p>
@@ -324,7 +335,10 @@ export function ProjectBrandCard({
           </p>
         ) : null}
 
-        {!designMd && !generation.isRunning && (hasWebsite || !showUpload) ? (
+        {!readOnly &&
+        !designMd &&
+        !generation.isRunning &&
+        (hasWebsite || !showUpload) ? (
           <div className="flex flex-wrap gap-2">
             {hasWebsite ? (
               <Button
@@ -353,7 +367,7 @@ export function ProjectBrandCard({
           </div>
         ) : null}
 
-        {!designMd && showUpload ? (
+        {!readOnly && !designMd && showUpload ? (
           <DesignMdUploadTrigger
             owner={owner}
             variant="compact"

@@ -31,6 +31,8 @@ export interface SsrfSafeFetchInit {
   /** Called before buffering each response chunk, including redirect/error bodies.
    * Throw to abort the response, for example when a shared byte budget expires. */
   onResponseBytes?: (bytes: number) => void;
+  /** The final guarded URL, for callers that resolve relative links. */
+  onFinalUrl?: (url: string) => void;
   /**
    * Reject with {@link SsrfError} if `Content-Length` exceeds this or if the
    * streamed body grows past it (closes chunked oversize DoS). Required so a
@@ -250,6 +252,7 @@ export async function ssrfSafeFetch(
       location !== null;
 
     if (!isRedirect) {
+      init.onFinalUrl?.(url.href);
       return response;
     }
 

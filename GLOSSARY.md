@@ -102,6 +102,10 @@ _Avoid_: Sokosumi marketing module, second Web app, CMO account
 CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that markets one Business from one Project of an organization, for every member of it. A Project has at most one, an organization may hold several, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
 _Avoid_: CMO bot, marketing assistant, the CMO (that is the product), CMO hire (what he knows and plans belongs to the Project)
 
+**CMO Project**:
+A Project with a live Cuso. Sokosumi shows it read-only and sends every change to CMO; after Start over it is an ordinary Project again.
+_Avoid_: Cuso Project, managed Project, locked Project
+
 **Business**:
 The company one Cuso markets, known by his website and named after its host. It belongs to his Project, not to the organization; one organization may market several.
 _Avoid_: Organization (when meaning this), brand, client
@@ -147,6 +151,10 @@ _Avoid_: Schedule, scheduled task (for a single Task), once mode
 **Due date**:
 The day a Task should be done by: a calendar day with no time, set on the Task page in any status except Grant pending (Web only for now; the CLI and Apple apps do not show it). Past that day, by the reader's own time zone, an unfinished Task reads **Overdue**; a Completed or Canceled one never does. It does not start, remind or move the Task, and a duplicate does not copy it. Distinct from Run at, which is when the Task starts.
 _Avoid_: Deadline (in UI copy), due time
+
+**Archived Task**:
+A Task taken off the board with Archive. Its record stays; the Tasks page's Archived view lists the archived Tasks of the active workspace the reader can see, latest first, and Restore puts one back (same access as Archive). A Task that was Queued, Ready or Grant pending comes back as a Draft without its Run at, so restoring never starts work; Draft, Completed, Failed and Canceled keep their status. Notifications read at archive stay read.
+_Avoid_: Deleted task, trash
 
 **Task Schedule**:
 A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
@@ -565,6 +573,10 @@ _Avoid_: Announcement (a use of this), pinned room, thread pin
 **Saved message**:
 A room message one reader saved for later, on their private Saved list (Catch up's Saved tab). Any message they can read, in a Channel, Direct or Thread. Nobody else sees it. The list reads each message live, so a deleted message or a room they left drops out. Distinct from a Pinned message, which is shared, and from Send to yourself, which copies the message.
 _Avoid_: Bookmark, starred message
+
+**Decisions list**:
+Catch up's Decisions tab: every message Jev read as a decision made (chat signals, readers' corrections applied) in the rooms the reader's sidebar lists, newest first. Read or unread, muted rooms and Thread replies included, because muting silences alerts, not access. A deleted message or a room they left drops out. Distinct from a room's decision log (one room, in its header) and from the Catch up overview, which covers unread decisions only. A detected decision, not a formal approval.
+_Avoid_: Decision register, approvals
 
 ### Chat reactions
 

@@ -125,6 +125,7 @@ function queuedJob(overrides: Record<string, unknown> = {}) {
     settings: {},
     parentAssetId: null,
     referenceAssetIds: [],
+    referenceFileIds: [],
     status: "QUEUED",
     falRequestId: "fal-1",
     submitAttempts: 1,
@@ -410,6 +411,7 @@ describe("a reservation whose process died before it claimed submission", () => 
       projectId: "project-1",
       workspaceId: "workspace-1",
       userId: "user-1",
+      organizationId: null,
     });
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
     jobFindUniqueOrThrowMock.mockResolvedValue(
@@ -430,6 +432,7 @@ describe("a reservation whose process died before it claimed submission", () => 
         }),
       }),
     );
+    expect(submitToQueueMock).toHaveBeenCalledOnce();
     expect(result.submitted).toBe(1);
   });
 

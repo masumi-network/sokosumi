@@ -22,24 +22,27 @@ export async function isCmoSubscribed(
   return true;
 }
 
-/** What a person's first Cuso starts with, so he can research and plan. */
+/** What every hire brings his organization, so he can research and plan. */
 export const CMO_STARTER_CREDITS = 10_000;
 
-/** Names the grant after the person, so they get it once. */
-function starterCreditsNote(userId: string): string {
-  return `CMO.xyz starter credits (${userId})`;
+/** Names the grant after the hire's Project, so each hire gets it once. */
+function starterCreditsNote(projectId: string): string {
+  return `CMO.xyz starter credits (project ${projectId})`;
 }
 
 /**
- * Gives the organization of a person's first Cuso its starter credits. Every
- * hire, Start over included, makes a new organization, so the grant goes
- * once per person, not once per organization.
+ * Gives the organization of a hire its starter credits, wherever the hire
+ * landed (ADR 0065), once per Project.
+ *
+ * shortcut: the credits go to the organization pool and never expire, so a
+ * member can hire, start over and hire again for another 10,000 each time
+ * (ADR 0065 Consequences). Scope them to the Cuso's Project to narrow it.
  */
 export async function grantCmoStarterCredits(input: {
-  userId: string;
+  projectId: string;
   organizationId: string;
 }): Promise<void> {
-  const referenceNote = starterCreditsNote(input.userId);
+  const referenceNote = starterCreditsNote(input.projectId);
   const granted = await prisma.creditBucket.findFirst({
     where: { referenceType: CreditBucketReferenceType.FREE, referenceNote },
     select: { id: true },

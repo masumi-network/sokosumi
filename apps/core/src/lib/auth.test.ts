@@ -37,7 +37,6 @@ const {
   oAuthProxyPluginMock,
   openAPIPluginMock,
   emailOTPPluginMock,
-  markOutOfCreditsTasksAsToppedUpMock,
   getMemberByUserIdAndOrganizationIdMock,
   resolveActiveSubscriptionByReferenceIdMock,
   passkeyPluginMock,
@@ -144,7 +143,6 @@ const {
     oAuthProxyPluginMock: vi.fn(),
     openAPIPluginMock: vi.fn(),
     emailOTPPluginMock: vi.fn(),
-    markOutOfCreditsTasksAsToppedUpMock: vi.fn(),
     getMemberByUserIdAndOrganizationIdMock: vi.fn(),
     resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
     passkeyPluginMock: vi.fn(),
@@ -354,11 +352,6 @@ vi.mock("@/services/subscription-catalog.service", () => ({
     getBetterAuthSubscriptionPlansMock(...args),
 }));
 
-vi.mock("@/services/task-topup.service", () => ({
-  markOutOfCreditsTasksAsToppedUp: (...args: unknown[]) =>
-    markOutOfCreditsTasksAsToppedUpMock(...args),
-}));
-
 vi.mock("@/services/stripe-backed-subscription.service", () => ({
   handleSubscriptionDeletedEvent: (...args: unknown[]) =>
     handleSubscriptionDeletedEventMock(...args),
@@ -491,7 +484,6 @@ describe("core auth config", () => {
     prepareStripeEmailSyncForUserUpdateMock.mockResolvedValue(undefined);
     handleUserUpdateStripeEmailSyncMock.mockResolvedValue(undefined);
     syncUserEmailWithStripeMock.mockResolvedValue(undefined);
-    grantSignupBonusCreditsMock.mockResolvedValue({ created: true });
     waitUntilCapturedPromises.length = 0;
     waitUntilMock.mockClear();
   });
@@ -1963,24 +1955,11 @@ describe("core auth config", () => {
     await config.databaseHooks.user.create.after(normalizedCreate.data);
 
     expect(workspaceUpsertMock).not.toHaveBeenCalled();
-    expect(waitUntilMock).toHaveBeenCalledTimes(3);
+    expect(waitUntilMock).toHaveBeenCalledTimes(2);
     await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: " magic@example.com ",
       name: "",
-      userId: "user_123",
-    });
-    expect(prismaTransactionMock).toHaveBeenCalled();
-    expect(grantSignupBonusCreditsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        credits: 3000,
-        userId: "user_123",
-      }),
-      expect.anything(),
-    );
-    expect(markOutOfCreditsTasksAsToppedUpMock).toHaveBeenCalledWith({
-      organizationId: null,
-      tx: expect.anything(),
       userId: "user_123",
     });
   });
@@ -2055,20 +2034,15 @@ describe("core auth config", () => {
     });
 
     expect(workspaceUpsertMock).not.toHaveBeenCalled();
-    expect(waitUntilMock).toHaveBeenCalledTimes(3);
+    expect(waitUntilMock).toHaveBeenCalledTimes(2);
     await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: "andreas@example.com",
       name: "Andreas",
       userId: "user_123",
     });
-    expect(grantSignupBonusCreditsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        credits: 3000,
-        userId: "user_123",
-      }),
-      expect.anything(),
-    );
+    // The bonus waits for the personal workspace (createPersonalWorkspace).
+    expect(grantSignupBonusCreditsMock).not.toHaveBeenCalled();
   });
 
   it("records a social sign-up before the provider callback answers", async () => {
@@ -2144,14 +2118,11 @@ describe("core auth config", () => {
   });
 
   it("registers signup side effects with waitUntil without awaiting them in the after hook", async () => {
-    let releaseTransaction!: () => void;
-    const transactionGate = new Promise<void>((resolve) => {
-      releaseTransaction = resolve;
+    let releaseStripe!: () => void;
+    const stripeGate = new Promise<void>((resolve) => {
+      releaseStripe = resolve;
     });
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      await transactionGate;
-      return callback({});
-    });
+    stripeCreateUserCustomerMock.mockImplementationOnce(() => stripeGate);
 
     await import("./auth");
 
@@ -2179,103 +2150,16 @@ describe("core auth config", () => {
       name: "Andreas",
     });
 
-    expect(waitUntilMock).toHaveBeenCalledTimes(3);
-    expect(grantSignupBonusCreditsMock).not.toHaveBeenCalled();
+    expect(waitUntilMock).toHaveBeenCalledTimes(2);
 
-    releaseTransaction();
+    releaseStripe();
     await flushWaitUntil();
 
-    expect(grantSignupBonusCreditsMock).toHaveBeenCalled();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalled();
     expect(webhookCallUserWebhookMock).toHaveBeenCalledWith(
       "userCreated",
       expect.anything(),
     );
-  });
-
-  it("does not mark tasks as topped up when the signup bonus already exists", async () => {
-    grantSignupBonusCreditsMock.mockResolvedValueOnce({
-      bucketId: "bucket-existing",
-      created: false,
-    });
-
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          databaseHooks: {
-            user: {
-              create: {
-                after: (user: {
-                  email: string;
-                  id: string;
-                  name: string;
-                }) => Promise<void>;
-              };
-            };
-          };
-        },
-      ]
-    >;
-
-    await config.databaseHooks.user.create.after({
-      email: "andreas@example.com",
-      id: "user_123",
-      name: "Andreas",
-    });
-
-    await flushWaitUntil();
-    expect(grantSignupBonusCreditsMock).toHaveBeenCalled();
-    expect(markOutOfCreditsTasksAsToppedUpMock).not.toHaveBeenCalled();
-  });
-
-  it("reports signup bonus grant failures to Sentry without blocking user creation", async () => {
-    grantSignupBonusCreditsMock.mockRejectedValueOnce(
-      new Error("bonus failed"),
-    );
-
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          databaseHooks: {
-            user: {
-              create: {
-                after: (user: {
-                  email: string;
-                  id: string;
-                  name: string;
-                }) => Promise<void>;
-              };
-            };
-          };
-        },
-      ]
-    >;
-
-    await config.databaseHooks.user.create.after({
-      email: "andreas@example.com",
-      id: "user_123",
-      name: "Andreas",
-    });
-
-    expect(waitUntilMock).toHaveBeenCalledTimes(3);
-    await flushWaitUntil();
-    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
-      email: "andreas@example.com",
-      name: "Andreas",
-      userId: "user_123",
-    });
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        userId: "user_123",
-      },
-      tags: {
-        context: "signup_bonus_grant",
-      },
-    });
   });
 
   it("does not create a personal workspace on user create", async () => {

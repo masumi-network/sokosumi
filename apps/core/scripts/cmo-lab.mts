@@ -22,7 +22,8 @@ import { writeFile } from "node:fs/promises";
 import type { SokoBotTurnStatus } from "@sokosumi/database";
 import prisma from "@/lib/db/prisma";
 import {
-  findCusoForUser,
+  findCusoForProject,
+  listCusosForUser,
   startCmoProductionForProject,
 } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
@@ -93,7 +94,8 @@ async function settle(turnId: string): Promise<string> {
 
 async function run(email: string, brand: Brand) {
   const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  const current = await findCusoForUser(user.id);
+  // The lab account's newest Cuso.
+  const [current] = await listCusosForUser(user.id);
   if (!current) throw new Error(`${email} works with no Cuso`);
   // The website and the brand's look are the Project's.
   await prisma.project.update({
@@ -109,7 +111,10 @@ async function run(email: string, brand: Brand) {
     where: { projectId: current.projectId },
   });
   // Read again: his website and business name are the Project's new ones.
-  const cuso = await findCusoForUser(user.id);
+  const cuso = await findCusoForProject({
+    userId: user.id,
+    projectId: current.projectId,
+  });
   if (!cuso) throw new Error(`${email} works with no Cuso`);
   // Hiring progress is read from the data; CMO's screen choices live in its cookie.
   await prisma.marketingStrategy.deleteMany({

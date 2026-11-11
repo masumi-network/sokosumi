@@ -4,9 +4,9 @@ import type {
   AcceptChatRoomGuestInviteLink,
   AddChatRoomMembersRequest,
   ChannelSlugAvailability,
+  ChatCatchUpItem,
   ChatEarlierThread,
   ChatPerson,
-  ChatRecentSokoBotMessage,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -591,11 +591,9 @@ export const chatRoomService = (() => {
   );
 
   /** One page of the reader's unread Threads across rooms (SOK-1159). */
-  /** The reader's newest own message per Soko Bot room, last 24 hours. */
-  async function listRecentSokoBotMessages(): Promise<
-    ChatRecentSokoBotMessage[]
-  > {
-    return (await coreClient.getChatRecentSokoBotMessages()).data;
+  /** The reader's important unread messages, one per room, last 24 hours. */
+  async function listImportantMessages(): Promise<ChatCatchUpItem[]> {
+    return (await coreClient.getChatImportantMessages()).data;
   }
 
   async function listUnreadThreads(options?: {
@@ -777,7 +775,7 @@ export const chatRoomService = (() => {
     listRooms,
     listThreads,
     listUnreadThreadReplyCounts,
-    listRecentSokoBotMessages,
+    listImportantMessages,
     listUnreadThreads,
     listEarlierThreads,
     markAllUnreadRead,
