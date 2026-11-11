@@ -165,3 +165,15 @@ describe("eval cases", () => {
     ).toEqual([]);
   });
 });
+
+describe("CMO chat setup", () => {
+  it("seeds the change request's plan and the comment case's post", () => {
+    const prepared = (id: string) => {
+      const found = EVAL_CASES.find((evalCase) => evalCase.id === id);
+      return found?.kind === "scenario" ? found.prepare : undefined;
+    };
+    expect(prepared("cmo-change-request")).toBe("cmo-plan");
+    expect(prepared("cmo-comment-replies")).toBe("cmo-comments");
+    expect(prepared("cmo-brand-fit")).toBeUndefined();
+  });
+});

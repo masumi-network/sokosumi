@@ -11056,6 +11056,73 @@ describe("CMO record saves", () => {
     expect(tx.marketingStrategy.create).not.toHaveBeenCalled();
   });
 
+  it("reviews the first four saves that landed, so refusals never use the reviews up", async () => {
+    const service = new SokoBotRuntimeService();
+    const review = (
+      landedBefore: number,
+      calendarSent = false,
+      calendarsBefore = 0,
+    ) => {
+      toolCallCountMock.mockResolvedValueOnce(landedBefore);
+      if (calendarSent)
+        toolCallCountMock.mockResolvedValueOnce(calendarsBefore);
+      return service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "save-9",
+        } as never,
+        {
+          approved: false,
+          strategy: {
+            month: "2026-11",
+            summary: "Grow.",
+            goals: ["More demo requests"],
+            mix: [],
+            funnel: [],
+            pillars: [],
+            channels: [],
+            calendar: [],
+            questions: [],
+          } as never,
+          planSent: false,
+          calendarSent,
+        },
+      );
+    };
+
+    await expect(review(3)).resolves.toMatchObject({ save: 4 });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+      },
+    });
+    await expect(review(4)).resolves.toBeNull();
+    // A plan saved in parts lands its calendar last: its calendar saves are
+    // reviewed however many plan and patch saves came before them.
+    await expect(review(6, true, 0)).resolves.toMatchObject({
+      save: 7,
+      calendar: true,
+    });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+        result: { path: ["review", "calendar"], equals: true },
+      },
+    });
+    // Calendar saves have their own four reviews, so a fixed calendar is
+    // checked again.
+    await expect(review(6, true, 3)).resolves.toMatchObject({ save: 7 });
+    await expect(review(6, true, 4)).resolves.toBeNull();
+  });
+
   it("saves the Brand Brain to Cuso's Project", async () => {
     const PROJECT = "01960001-0001-7001-8001-0000000000c2";
     const tx = {

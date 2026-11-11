@@ -32,6 +32,7 @@ import {
 } from "./eval-cmo-cases";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
+import monthPlans from "./fixtures/cmo-month-plans.json";
 
 /** Research reads a whole site; a plan is one long turn. */
 const CMO_TURN_TIMEOUT_MS = 45 * 60_000;
@@ -116,6 +117,12 @@ async function cusoIsBusy(lane: EvalLaneRecord) {
   );
 }
 
+function brand(name: string) {
+  const found = CMO_EVAL_BRANDS.find((candidate) => candidate.name === name);
+  if (!found) throw new Error(`No CMO eval brand ${name}`);
+  return found;
+}
+
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
 async function pointCusoAt(
   lane: EvalLaneRecord,
@@ -142,6 +149,168 @@ async function pointCusoAt(
   return cuso;
 }
 
+/** `count` slots, each item in its share of them, spread evenly. */
+function spread<T extends { share: number }>(items: T[], count: number): T[] {
+  const slots = items.flatMap((item) => {
+    const times = (item.share / 100) * count;
+    return Array.from({ length: Math.round(times) }, (_, n) => ({
+      item,
+      at: (n + 0.5) / times,
+    }));
+  });
+  return slots.sort((a, b) => a.at - b.at).map((slot) => slot.item);
+}
+
+/** One title per piece, none repeating a message, one SEO comparison page. */
+const CHANGE_REQUEST_TITLES = [
+  "One booking link for the whole team",
+  "Cal.com vs Calendly for team booking",
+  "Round-robin without spreadsheets",
+  "Embed a booking widget in five lines",
+  "Why reps stop chasing meeting times",
+  "This week's team scheduling tip",
+  "Fix the title of the team booking page",
+  "How routing forms pick the right rep",
+  "Booking pages that sales teams share",
+  "Collective events for panel interviews",
+  "Webhooks after every new booking",
+  "A Teams trial checklist for week one",
+  "Monthly recap of booking flows",
+  "Clearer headings on the pricing page",
+  "Buffer times that protect focus hours",
+  "Routing inbound demos by company size",
+  "Group availability across time zones",
+  "Booking API rate limits explained",
+  "Managed event types for large teams",
+  "Five settings admins change first",
+  "A meta description for the routing page",
+  "Reminders that cut no-shows",
+  "Open source scheduling for regulated teams",
+  "Handing a lead to the next rep",
+  "Self-hosting Cal.com on your own server",
+  "Insights that show booking volume",
+  "What changed in team booking this month",
+  "A shorter intro on the enterprise page",
+];
+
+/** A week of the change request's month: LinkedIn three times, four other formats. */
+const CHANGE_REQUEST_WEEK = [
+  { channel: "linkedin", format: "post" },
+  { channel: "seo", format: "article" },
+  { channel: "linkedin", format: "image" },
+  { channel: "x", format: "post" },
+  { channel: "linkedin", format: "post" },
+  { channel: "newsletter", format: "issue" },
+  { channel: "seo", format: "page_fix" },
+] as const;
+
+const CHANGE_REQUEST_CHANNELS = [
+  {
+    channel: "linkedin",
+    cadence: "3 posts a week",
+    why: "Reach operators with concrete team scheduling examples.",
+  },
+  {
+    channel: "seo",
+    cadence: "2 pieces a week",
+    why: "Answer practical scheduling searches over time.",
+  },
+  {
+    channel: "x",
+    cadence: "1 post a week",
+    why: "Show developers the booking API in short examples.",
+  },
+  {
+    channel: "newsletter",
+    cadence: "1 issue a week",
+    why: "Keep trial teams moving towards a working team flow.",
+  },
+];
+
+/**
+ * cal.com's month with LinkedIn three times a week from tomorrow, so the
+ * change request always has pieces to cut, whatever an earlier case left.
+ * Cutting LinkedIn to one a week still leaves the 16 pieces a save needs.
+ */
+export function changeRequestPlan(now: Date): MarketingStrategyPlan {
+  const frozen = (monthPlans as Record<string, unknown>)[
+    CMO_COMMENT_BRAND
+  ] as MarketingStrategyPlan;
+  const [template] = frozen.calendar;
+  if (!template) throw new Error("cal.com's plan lost its pieces");
+  const slots = [0, 1, 2, 3].flatMap((week) =>
+    CHANGE_REQUEST_WEEK.map((piece, day) => ({ week, day: day + 1, piece })),
+  );
+  const approaches = spread(frozen.mix, slots.length);
+  const pillars = spread(frozen.pillars, slots.length);
+  const named = new Set(CHANGE_REQUEST_CHANNELS.map((c) => c.channel));
+  return {
+    ...frozen,
+    channels: CHANGE_REQUEST_CHANNELS,
+    funnel: frozen.funnel.map((stage, index) => ({
+      ...stage,
+      plays: [
+        ...stage.plays.filter((play) => named.has(play.channel)),
+        ...(index === 0
+          ? [
+              {
+                channel: "x",
+                what: "Short booking API examples",
+                cadence: "1 post a week",
+              },
+              {
+                channel: "newsletter",
+                what: "A weekly team scheduling tip",
+                cadence: "1 issue a week",
+              },
+            ]
+          : []),
+      ],
+    })),
+    campaigns: frozen.campaigns?.map((campaign) => ({
+      ...campaign,
+      channels: campaign.channels?.filter((channel) => named.has(channel)),
+    })),
+    beforeAfter: frozen.beforeAfter
+      ?.filter((row) => named.has(row.channel))
+      .map((row) =>
+        row.channel === "linkedin" ? { ...row, after: "3 posts weekly" } : row,
+      ),
+    // Week one in full, weeks two to four as titles, like a first plan; only
+    // LinkedIn pieces carry the template's story.
+    calendar: slots.map(({ week, day, piece }, index) => ({
+      time: template.time,
+      status: "idea" as const,
+      campaignId: template.campaignId,
+      ...(week === 0 ? { brief: template.brief, why: template.why } : {}),
+      ...(piece.channel === "linkedin" && template.story
+        ? { story: template.story }
+        : {}),
+      ...piece,
+      id: `${piece.channel}-w${week + 1}-${day}`,
+      date: new Date(now.getTime() + (week * 7 + day) * DAY_MS)
+        .toISOString()
+        .slice(0, 10),
+      title: CHANGE_REQUEST_TITLES[index] ?? template.title,
+      approach: approaches[index]?.approach ?? template.approach,
+      pillar: pillars[index]?.name ?? template.pillar,
+    })),
+  };
+}
+
+/** The lane's Cuso on cal.com with the change request's month, waiting for approval. */
+export async function prepareCmoPlan(lane: EvalLaneRecord): Promise<void> {
+  const brain = (brandBrains as Record<string, unknown>)[CMO_COMMENT_BRAND];
+  await pointCusoAt(lane, brand(CMO_COMMENT_BRAND), brain ?? null);
+  await prisma.marketingStrategy.create({
+    data: {
+      projectId: lane.cusoProjectId,
+      plan: changeRequestPlan(new Date()) as object,
+      authorSokoBotId: lane.cusoBotId,
+    },
+  });
+}
+
 /**
  * A published Instagram post with the eval comments under it, on the lane's
  * Cuso Project pointed at the comment brand. The post has no external id,
@@ -151,10 +320,8 @@ async function pointCusoAt(
 export async function prepareCmoComments(
   lane: EvalLaneRecord,
 ): Promise<Record<string, string>> {
-  const brand = CMO_EVAL_BRANDS.find((b) => b.name === CMO_COMMENT_BRAND);
-  if (!brand) throw new Error(`No CMO eval brand ${CMO_COMMENT_BRAND}`);
   const brain = (brandBrains as Record<string, unknown>)[CMO_COMMENT_BRAND];
-  await pointCusoAt(lane, brand, brain ?? null);
+  await pointCusoAt(lane, brand(CMO_COMMENT_BRAND), brain ?? null);
   await prisma.socialComment.deleteMany({
     where: { projectId: lane.cusoProjectId },
   });

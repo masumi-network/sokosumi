@@ -217,6 +217,11 @@ describe("requestCmoStrategy", () => {
       "list the dates between 2026-11-09 and 2026-12-06",
     );
     expect(message).toContain("Never invent a discount");
+    // A "short" save once read as a short calendar: 20 pieces for a pace of 60.
+    expect(message).not.toContain("short calls");
+    expect(message).toContain(
+      "The calendar holds every piece the pace and each channel's cadence call for",
+    );
   });
 
   it("asks for no correction once every no is in the Brand Brain", async () => {

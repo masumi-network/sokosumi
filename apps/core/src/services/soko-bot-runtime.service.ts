@@ -5724,14 +5724,34 @@ export class SokoBotRuntimeService {
       approved: boolean;
       strategy: MarketingStrategyPlan | null;
       planSent: boolean;
+      /** This save is part calendar. */
+      calendarSent: boolean;
     },
   ): Promise<CmoPlanReview | null> {
     const { strategy } = plan;
     if (!strategy || plan.approved) return null;
-    const saves = await prisma.sokoBotToolCall.count({
-      where: { turnId: authorized.turn.id, capability: "save_strategy" },
-    });
-    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
+    // Only saves that landed count: a refused save saved nothing to review.
+    const landedBefore = {
+      turnId: authorized.turn.id,
+      capability: "save_strategy",
+      status: "COMPLETED" as const,
+      NOT: { toolCallId: input.toolCallId },
+    };
+    const saves =
+      (await prisma.sokoBotToolCall.count({ where: landedBefore })) + 1;
+    // A plan saved in parts lands its calendar last, so calendar saves have
+    // their own reviews, however many plan and patch saves came before.
+    const reviewed = plan.calendarSent
+      ? await prisma.sokoBotToolCall.count({
+          // The review, not the input: a calendar's input is too long to
+          // keep whole, so its part is not stored.
+          where: {
+            ...landedBefore,
+            result: { path: ["review", "calendar"], equals: true },
+          },
+        })
+      : saves - 1;
+    if (reviewed >= CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
     const bot = plan.planSent
       ? await prisma.sokoBot.findUnique({
@@ -5756,7 +5776,12 @@ export class SokoBotRuntimeService {
         );
       }
     }
-    const review = { save: saves, mainOffer, problems };
+    const review = {
+      save: saves,
+      calendar: plan.calendarSent,
+      mainOffer,
+      problems,
+    };
     tryUseLogger()?.set({
       cmoPlanReview: {
         sokoBotId: authorized.turn.sokoBotId,
@@ -5887,6 +5912,7 @@ export class SokoBotRuntimeService {
             approved,
             strategy: stored,
             planSent: sent.summary !== undefined,
+            calendarSent: part === "calendar",
           });
           // Once the plan runs, the drafts are checked against the copy rules,
           // a filed piece's words as sent (the calendar holds only its file).

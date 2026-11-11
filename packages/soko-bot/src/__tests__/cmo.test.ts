@@ -45,6 +45,14 @@ describe("CMO version", () => {
     expect(v2).toMatch(/weeks two to four are titles/);
     expect(v2).toMatch(/with part patch/);
     expect(v2).toMatch(/refuses a save that breaks a hard rule/);
+    // Titles-only weeks are still the whole month, and a new cadence moves
+    // the calendar, not just its label.
+    expect(v2).toMatch(
+      /still hold every piece the pace and each channel's cadence call for/,
+    );
+    expect(v2).toMatch(/skip or move that channel's extra entries/);
+    expect(v2).toMatch(/never by changing the mix/);
+    expect(v1).not.toMatch(/still hold every piece|never by changing the mix/);
     // Only the strategy skill differs.
     const one = getSokoBotVersion("cmo-v1");
     const two = getSokoBotVersion("cmo-v2");
@@ -346,6 +354,14 @@ describe("CMO strategy and rhythms", () => {
     });
     expect(Object.keys(patch).sort()).toEqual(["calendar", "pace"]);
     expect(patch.calendar).toHaveLength(1);
+  });
+
+  it("drops a patch field sent without a value, so it never wipes the plan's", () => {
+    const patch = parseCmoStrategySave({
+      part: "patch",
+      strategy: { summary: "Grow.", channels: undefined, calendar: undefined },
+    });
+    expect(Object.keys(patch)).toEqual(["summary"]);
   });
 
   it("proposes only channels Cuso runs that the plan leaves out", () => {

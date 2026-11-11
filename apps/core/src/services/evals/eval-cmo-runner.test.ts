@@ -3,7 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
-import { commentChecks, monthPlanFromTomorrow } from "./eval-cmo-runner";
+import {
+  cmoPlanProblems,
+  cmoPlanRuleProblems,
+} from "@/services/cmo-plan-review.service";
+import {
+  changeRequestPlan,
+  commentChecks,
+  monthPlanFromTomorrow,
+} from "./eval-cmo-runner";
 
 describe("commentChecks", () => {
   const ids = {
@@ -108,5 +116,28 @@ describe("monthPlanFromTomorrow", () => {
       },
     ]);
     expect(moved.summary).toBe("Plan");
+  });
+});
+
+describe("changeRequestPlan", () => {
+  it("gives the change request a month with LinkedIn three times a week that keeps every hard rule", () => {
+    const plan = changeRequestPlan(new Date("2026-11-09T04:00:00Z"));
+    const linkedin = plan.calendar.filter(
+      (entry) => entry.channel === "linkedin",
+    );
+    expect(linkedin).toHaveLength(12);
+    // Cutting LinkedIn to one a week still leaves the 16 pieces a save needs,
+    // and the review finds nothing the case did not ask about.
+    expect(plan.calendar.length - 8).toBeGreaterThanOrEqual(16);
+    expect(
+      new Set(plan.calendar.map((e) => `${e.channel}/${e.format}`)).size,
+    ).toBeGreaterThanOrEqual(6);
+    expect(cmoPlanProblems(plan)).toEqual([]);
+    expect(plan.channels.find((c) => c.channel === "linkedin")?.cadence).toBe(
+      "3 posts a week",
+    );
+    expect(plan.calendar[0]?.date).toBe("2026-11-10");
+    expect(plan.calendar.at(-1)?.date).toBe("2026-12-07");
+    expect(cmoPlanRuleProblems(plan)).toEqual([]);
   });
 });
