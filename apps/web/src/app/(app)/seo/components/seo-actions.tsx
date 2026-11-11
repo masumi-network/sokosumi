@@ -106,7 +106,10 @@ export function SeoActionCard({
           {/* What the level means, in words: a hint on the label alone does not reach a phone or a screen reader. */}
           {severity ? (
             <p className="text-muted-foreground text-sm">
-              {t(`severity.${severity}`)}: {t(`severityHint.${severity}`)}
+              {t("actions.impactLine", {
+                level: t(`severity.${severity}`),
+                hint: t(`severityHint.${severity}`),
+              })}
             </p>
           ) : null}
           <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">

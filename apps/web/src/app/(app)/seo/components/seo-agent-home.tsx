@@ -41,7 +41,7 @@ export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
   const brief = seoAgentBrief(model.data, now);
   // Upkeep lives outside the keyed panel, so a session that finishes loading does not restart it.
   const autopilot = useSeoAutopilot(model, brief);
-  // Keyed by viewer and Audit, so a changed account never sees another's unsent question.
+  // Keyed by viewer and Audit, so a changed account starts with its own view state.
   const identity = useSeoChatIdentity(model);
   return (
     <SeoAgentPanel

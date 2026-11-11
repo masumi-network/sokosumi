@@ -14,7 +14,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 const SEO_CHAT_POLL_MS = 2_000;
 export const SEO_CHAT_QUESTION_LIMIT = 4_000;
 
-/** One record per viewer and Audit: the chat sheet and the Agent tab read the same one. */
+/** One record per viewer and Audit. */
 const seoChatKey = (
   organizationId: string | null | undefined,
   userId: string | undefined,
@@ -28,7 +28,7 @@ const seoChatPoll = (history: SeoAuditChatHistory | undefined) =>
     ? SEO_CHAT_POLL_MS
     : false;
 
-/** One read of the conversation, for both readers of the record. */
+/** One read of the conversation. */
 async function readSeoChat(
   auditId: string | null | undefined,
   userId: string | undefined,
@@ -93,7 +93,7 @@ export function useSeoChat(model: SeoWorkspaceModel) {
       return data;
     },
     enabled: model.chatOpen && !!auditId && !!session?.user.id,
-    // The Agent tab reads the same record: the sheet still reads it new each time it opens.
+    // The sheet reads the record new each time it opens.
     staleTime: 0,
     refetchOnWindowFocus: false,
     refetchInterval: (query) => seoChatPoll(query.state.data),

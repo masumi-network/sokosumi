@@ -4171,6 +4171,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText("Describe the images")).toBeNull();
     expect(screen.getByText("1 more fix")).toBeVisible();
     // The whole row is the control: no second button repeats it.
+    expect(within(row!).getAllByRole("button")).toHaveLength(1);
     await user.click(
       within(row!).getByRole("button", { name: /^Write a description/ }),
     );
@@ -4220,6 +4221,7 @@ describe("SEO workspace integration", () => {
     workspace.actions = [workspace.actions[0], workspace.actions[3]];
     renderWorkspace(workspace, "?tab=agent");
     const suggestion = (await screen.findByText("Write a guide")).closest("li");
+    expect(within(suggestion!).getAllByRole("button")).toHaveLength(1);
     expect(
       within(suggestion!).getByRole("button", { name: /^Write a guide/ }),
     ).toBeVisible();

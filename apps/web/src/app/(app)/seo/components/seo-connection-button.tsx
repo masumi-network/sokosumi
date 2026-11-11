@@ -75,10 +75,7 @@ function SeoConnectionControl({
   const { error } = model;
   // The view shows an error next to a button that can try again. A control
   // without that button, and a control that left the view, report none.
-  const reported =
-    data?.status === "unavailable" || (model.status.isError && !data)
-      ? null
-      : error;
+  const reported = data?.status === "unavailable" ? null : error;
   useEffect(() => {
     onError?.(reported);
     return () => onError?.(null);

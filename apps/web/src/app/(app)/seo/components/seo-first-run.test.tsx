@@ -586,6 +586,13 @@ describe("SEO agent chat", () => {
       ).getByLabelText("Your question"),
     ).toBeVisible();
     await waitFor(() => expect(reads).toHaveBeenCalled());
+    // The sheet has no trigger of its own: the button gets the focus back when it closes.
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: copy.agent.ask }),
+      ).toHaveFocus(),
+    );
   });
 
   it("shows HTML tag names in a reply as text, and loads no image from it", async () => {

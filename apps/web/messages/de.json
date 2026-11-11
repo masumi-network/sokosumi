@@ -11136,7 +11136,8 @@
           "fix": "Bestätigtes Problem",
           "opportunity": "Vorschlag"
         },
-        "problem": "{check}. Gefunden: {found}"
+        "problem": "{check}. Gefunden: {found}",
+        "impactLine": "{level}: {hint}"
       },
       "pages": {
         "title": "Seiten",

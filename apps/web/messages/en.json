@@ -11136,7 +11136,8 @@
           "fix": "Confirmed issue",
           "opportunity": "Suggestion"
         },
-        "problem": "{check}. Found: {found}"
+        "problem": "{check}. Found: {found}",
+        "impactLine": "{level}: {hint}"
       },
       "pages": {
         "title": "Pages",

@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
+import { SEO_ASK_BUTTON_ID } from "./seo-ask-button";
 import {
   SEO_AGENT_PROMPTS,
   SeoChatComposer,
@@ -290,6 +291,11 @@ function SeoChatSheet({ model }: { model: SeoWorkspaceModel }) {
                 : threadId(SEO_CHAT_SHEET_INPUT_ID),
             )
             ?.focus();
+        }}
+        // The sheet has no trigger of its own: without this the focus falls to the page start.
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          document.getElementById(SEO_ASK_BUTTON_ID)?.focus();
         }}
       >
         <SheetHeader className="shrink-0 border-b pe-12">

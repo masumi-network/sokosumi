@@ -390,7 +390,7 @@ export function SeoBarNumber({
           className="bg-tertiary block h-1 w-16 rounded-full max-sm:hidden"
         >
           <span
-            className="bg-chart-5 block h-1 rounded-full"
+            className="bg-foreground block h-1 rounded-full"
             style={{
               width: `${value > 0 ? Math.max(SEO_BAR_MIN_PERCENT, Math.round((value / max) * 100)) : 0}%`,
             }}
