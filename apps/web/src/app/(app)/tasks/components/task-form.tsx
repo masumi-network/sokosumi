@@ -809,32 +809,47 @@ export function TaskForm({
           initialDescription,
           new Set(initialIds),
         );
-        const ids = [
-          ...new Set([
-            ...initialIds.filter((id) => !mentionedAtLoad.includes(id)),
-            ...mentionedContactIds(
-              trimmedDescription,
-              new Set(seenContacts.keys()),
-            ),
-          ]),
-        ];
-        if (ids.length > 0 || initialIds.length > 0) {
+        const mentioned = mentionedContactIds(
+          trimmedDescription,
+          new Set(seenContacts.keys()),
+        );
+        const needed = new Set([...initialIds, ...mentioned]);
+        const read = [...new Set([...needed, ...mentionedAtLoad])];
+        if (read.length > 0) {
           // Read now, with the reader's own access, so the Task gets current
           // details only for contacts they may see. A merged contact stands
           // for its survivor; an archived one is no longer tagged.
           const live = new Map(
             await Promise.all(
-              ids.map(async (id) => [id, await liveContact(id)] as const),
+              read.map(async (id) => {
+                // A removed mention only decides which tags it accounted
+                // for, so failing to read it never blocks the save.
+                const contact = needed.has(id)
+                  ? await liveContact(id)
+                  : await liveContact(id).catch(() => null);
+                return [id, contact] as const;
+              }),
             ),
           );
+          // A tag no mention accounted for at load was set elsewhere and is
+          // kept. Compared as live contacts: after a merge the tag is the
+          // survivor while the brief still links the merged contact.
+          const accounted = new Set(
+            mentionedAtLoad.flatMap((id) => [id, live.get(id)?.id ?? id]),
+          );
+          const ids = [
+            ...initialIds.filter((id) => !accounted.has(id)),
+            ...mentioned,
+          ];
+          const tagged = new Map(ids.map((id) => [id, live.get(id) ?? null]));
           trimmedDescription = expandContactMentions(
             trimmedDescription,
-            live,
+            tagged,
             tContacts("title"),
           );
           contactIds = [
             ...new Set(
-              [...live.values()].flatMap((contact) =>
+              [...tagged.values()].flatMap((contact) =>
                 contact ? [contact.id] : [],
               ),
             ),

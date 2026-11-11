@@ -996,6 +996,28 @@ describe("TaskForm", () => {
       );
     });
 
+    it("untags a merged contact's survivor when its old mention is removed", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // contact-3 was merged into Maya: Core reports Maya's tag while the
+      // brief still links contact-3, the only mention of her.
+      renderEdit(
+        [{ id: "contact-1", name: "Maya Stone" }],
+        "Call [Maya S.](/contacts?contact=contact-3)\n\n<!-- sokosumi:contacts -->\n\n**title**\n\n- **Maya S.**\n\n<!-- /sokosumi:contacts -->",
+      );
+
+      const editor = screen.getByTestId("markdown-editor");
+      expect(editor).toHaveValue("Call [Maya S.](/contacts?contact=contact-3)");
+      await user.clear(editor);
+      await user.type(editor, "Call nobody");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({ contactIds: [], description: "Call nobody" }),
+      );
+    });
+
     it("leaves tags and the brief alone when tags could not be read", async () => {
       const user = userEvent.setup();
       const updateTaskMock = vi.mocked(updateTask);
