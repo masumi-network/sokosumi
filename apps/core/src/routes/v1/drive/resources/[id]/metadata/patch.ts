@@ -90,7 +90,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ...(body.confirmProjectIds ?? []),
       ...(body.removeProjectIds ?? []),
     ]) {
-      await requireNotCmoProject(projectId);
+      await requireNotCmoProject(projectId, context.workspaceId);
     }
 
     const outcome = await updateFileMetadata({

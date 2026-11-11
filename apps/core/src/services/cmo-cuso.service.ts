@@ -100,11 +100,20 @@ export async function cmoProjectIds(
 /**
  * Refuses a write to a CMO Project from anywhere but `/v1/cmo/**` (ADR
  * 0066). Core's own CMO services write through Prisma and never call it.
+ * Only a Project in the caller's workspace counts: for any other the route
+ * answers its own 404, so the refusal never tells a stranger it is CMO's.
  */
-export async function requireNotCmoProject(projectId: string): Promise<void> {
+export async function requireNotCmoProject(
+  projectId: string,
+  workspaceId: string,
+): Promise<void> {
   // Not a uuid, so no Project: the route itself answers 404 or 422.
   if (!z.uuid().safeParse(projectId).success) return;
-  if (await isCmoProject(projectId)) {
+  const cuso = await prisma.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId, project: { workspaceId } },
+    select: { id: true },
+  });
+  if (cuso) {
     throw conflict("This Project is managed by CMO. Change it in CMO.", {
       kind: CORE_API_ERROR_KINDS.CMO_PROJECT_READ_ONLY,
     });
@@ -114,11 +123,15 @@ export async function requireNotCmoProject(projectId: string): Promise<void> {
 /**
  * Refuses a change to Cuso through the Soko Bot routes (ADR 0066), archived
  * or not: reactivating him from Sokosumi would bring a Project back under
- * CMO without CMO.
+ * CMO without CMO. Like `requireNotCmoProject`, only in the caller's
+ * workspace; elsewhere the route answers its own 404.
  */
-export async function requireNotCuso(sokoBotId: string): Promise<void> {
+export async function requireNotCuso(
+  sokoBotId: string,
+  workspaceId: string,
+): Promise<void> {
   const bot = await prisma.sokoBot.findFirst({
-    where: { id: sokoBotId, ...CUSO_BOT_WHERE },
+    where: { id: sokoBotId, workspaceId, ...CUSO_BOT_WHERE },
     select: { id: true },
   });
   if (bot) {

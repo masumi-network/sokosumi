@@ -226,10 +226,17 @@ describe("CMO Projects (ADR 0066)", () => {
   const ORDINARY = "aaaaaaaa-aaaa-4aaa-8aaa-000000000003";
   /** Cuso rows; Start over archived the second one. */
   const bots = [
-    { id: "cuso-live", projectId: LIVE, archivedAt: null, deletedAt: null },
+    {
+      id: "cuso-live",
+      projectId: LIVE,
+      workspaceId: "ws-1",
+      archivedAt: null,
+      deletedAt: null,
+    },
     {
       id: "cuso-archived",
       projectId: STARTED_OVER,
+      workspaceId: "ws-1",
       archivedAt: new Date("2026-11-01T00:00:00Z"),
       deletedAt: null,
     },
@@ -240,12 +247,17 @@ describe("CMO Projects (ADR 0066)", () => {
     archivedAt?: null;
     deletedAt?: null;
     versionId?: { in: string[] };
+    workspaceId?: string;
+    project?: { workspaceId: string };
   }
   /** Filters the rows as Postgres would for the wheres these helpers send. */
   function matching({ where }: { where: BotWhere }) {
     return bots.filter((bot) => {
       const { projectId } = where;
       if (where.id !== undefined && where.id !== bot.id) return false;
+      const workspaceId = where.workspaceId ?? where.project?.workspaceId;
+      if (workspaceId !== undefined && workspaceId !== bot.workspaceId)
+        return false;
       if (typeof projectId === "string" && projectId !== bot.projectId)
         return false;
       if (
@@ -288,25 +300,38 @@ describe("CMO Projects (ADR 0066)", () => {
   });
 
   it("refuses a write to a CMO Project with cmo_project_read_only", async () => {
-    await expect(requireNotCmoProject(LIVE)).rejects.toMatchObject({
+    await expect(requireNotCmoProject(LIVE, "ws-1")).rejects.toMatchObject({
       status: 409,
       cause: { kind: "cmo_project_read_only" },
     });
-    await expect(requireNotCmoProject(ORDINARY)).resolves.toBeUndefined();
-    await expect(requireNotCmoProject(STARTED_OVER)).resolves.toBeUndefined();
+    await expect(
+      requireNotCmoProject(ORDINARY, "ws-1"),
+    ).resolves.toBeUndefined();
+    await expect(
+      requireNotCmoProject(STARTED_OVER, "ws-1"),
+    ).resolves.toBeUndefined();
+    // Another workspace's Project: the route's own 404, never a hint it is CMO's.
+    await expect(requireNotCmoProject(LIVE, "ws-2")).resolves.toBeUndefined();
     // No uuid, no Project: the route answers for itself.
-    await expect(requireNotCmoProject("not-a-uuid")).resolves.toBeUndefined();
+    await expect(
+      requireNotCmoProject("not-a-uuid", "ws-1"),
+    ).resolves.toBeUndefined();
   });
 
   it("refuses a change to Cuso, archived or not", async () => {
-    await expect(requireNotCuso("cuso-live")).rejects.toMatchObject({
+    await expect(requireNotCuso("cuso-live", "ws-1")).rejects.toMatchObject({
       status: 409,
       cause: { kind: "cmo_project_read_only" },
     });
-    await expect(requireNotCuso("cuso-archived")).rejects.toMatchObject({
-      status: 409,
-      cause: { kind: "cmo_project_read_only" },
-    });
-    await expect(requireNotCuso("assistant-1")).resolves.toBeUndefined();
+    await expect(requireNotCuso("cuso-archived", "ws-1")).rejects.toMatchObject(
+      {
+        status: 409,
+        cause: { kind: "cmo_project_read_only" },
+      },
+    );
+    await expect(
+      requireNotCuso("assistant-1", "ws-1"),
+    ).resolves.toBeUndefined();
+    await expect(requireNotCuso("cuso-live", "ws-2")).resolves.toBeUndefined();
   });
 });

@@ -1,5 +1,6 @@
 import { createMiddleware } from "hono/factory";
 
+import type { WorkspaceVariables } from "@/middleware/workspace";
 import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -40,8 +41,14 @@ export function cmoLockedProjectId(
  * `cmo_project_read_only` on a CMO Project (ADR 0066); CMO changes it
  * through `/v1/cmo/**`. Mounted before the routes, after authentication.
  */
-export const cmoProjectLock = createMiddleware(async (c, next) => {
+export const cmoProjectLock = createMiddleware<{
+  Variables: Pick<WorkspaceVariables, "workspaceContext">;
+}>(async (c, next) => {
   const projectId = cmoLockedProjectId(c.req.method, c.req.path);
-  if (projectId) await requireNotCmoProject(projectId);
+  // Without a workspace the route refuses the caller itself.
+  const workspaceId = c.var.workspaceContext?.workspaceId;
+  if (projectId && workspaceId) {
+    await requireNotCmoProject(projectId, workspaceId);
+  }
   await next();
 });

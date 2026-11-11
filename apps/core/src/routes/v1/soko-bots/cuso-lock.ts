@@ -1,5 +1,6 @@
 import { createMiddleware } from "hono/factory";
 
+import type { WorkspaceVariables } from "@/middleware/workspace";
 import { requireNotCuso } from "@/services/cmo-cuso.service";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -34,8 +35,12 @@ export function cusoLockedBotId(method: string, path: string): string | null {
 }
 
 /** 409 `cmo_project_read_only` for those writes on Cuso (ADR 0066). */
-export const cusoLock = createMiddleware(async (c, next) => {
+export const cusoLock = createMiddleware<{
+  Variables: Pick<WorkspaceVariables, "workspaceContext">;
+}>(async (c, next) => {
   const sokoBotId = cusoLockedBotId(c.req.method, c.req.path);
-  if (sokoBotId) await requireNotCuso(sokoBotId);
+  // Without a workspace the route refuses the caller itself.
+  const workspaceId = c.var.workspaceContext?.workspaceId;
+  if (sokoBotId && workspaceId) await requireNotCuso(sokoBotId, workspaceId);
   await next();
 });

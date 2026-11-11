@@ -64,7 +64,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const auth = requireUserAuthContext(c.var.authContext);
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { scope, projectId, timezone, ...body } = c.req.valid("json");
-    if (scope === "project" && projectId) await requireNotCmoProject(projectId);
+    if (scope === "project" && projectId)
+      await requireNotCmoProject(projectId, workspace.workspaceId);
     try {
       const sokoBotId =
         scope === "personal"

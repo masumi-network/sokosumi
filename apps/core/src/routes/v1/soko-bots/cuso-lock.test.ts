@@ -2,16 +2,25 @@ import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 import { cusoLock, cusoLockedBotId } from "./cuso-lock";
 
 const CUSO = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000c0";
 const ASSISTANT = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000a0";
 
+const CUSO_WORKSPACE = "ws-cuso";
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBot: {
-      findFirst: async ({ where }: { where: { id: string } }) =>
-        where.id === CUSO ? { id: CUSO } : null,
+      findFirst: async ({
+        where,
+      }: {
+        where: { id: string; workspaceId: string };
+      }) =>
+        where.id === CUSO && where.workspaceId === CUSO_WORKSPACE
+          ? { id: CUSO }
+          : null,
     },
   },
 }));
@@ -64,8 +73,16 @@ describe("cusoLockedBotId on the Soko Bots router", () => {
 });
 
 describe("cusoLock", () => {
-  function app() {
-    const hono = new Hono();
+  function app(workspaceId = CUSO_WORKSPACE) {
+    const hono = new Hono<{ Variables: WorkspaceVariables }>();
+    hono.use("*", async (c, next) => {
+      c.set("workspaceContext", {
+        workspaceId,
+        userId: "user-1",
+        organizationId: "org-1",
+      });
+      await next();
+    });
     hono.use("*", cusoLock);
     hono.all("*", (c) => c.text("route reached"));
     hono.onError(errorHandler);
@@ -85,6 +102,14 @@ describe("cusoLock", () => {
       method: "PUT",
     });
     expect(assistant.status).toBe(200);
+  });
+
+  it("leaves a stranger's request to the route's own 404", async () => {
+    const response = await app("ws-other").request(
+      `/v1/soko-bots/${CUSO}/name`,
+      { method: "PUT" },
+    );
+    expect(response.status).toBe(200);
   });
 
   it("keeps CMO's measurement connection open", async () => {

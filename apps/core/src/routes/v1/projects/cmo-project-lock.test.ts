@@ -2,19 +2,48 @@ import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { WorkspaceVariables } from "@/middleware/workspace";
+import mountPatchProject from "./[id]/patch";
 import { cmoLockedProjectId, cmoProjectLock } from "./cmo-project-lock";
 
 const CMO_PROJECT = "aaaaaaaa-aaaa-4aaa-8aaa-000000000001";
 const ORDINARY_PROJECT = "aaaaaaaa-aaaa-4aaa-8aaa-000000000002";
+/** The CMO Project's workspace; anyone else's context is another one. */
+const CMO_WORKSPACE = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000w1";
+const OTHER_WORKSPACE = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000w2";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBot: {
-      findFirst: async ({ where }: { where: { projectId: string } }) =>
-        where.projectId === CMO_PROJECT ? { id: "cuso" } : null,
+      findFirst: async ({
+        where,
+      }: {
+        where: { projectId: string; project: { workspaceId: string } };
+      }) =>
+        where.projectId === CMO_PROJECT &&
+        where.project.workspaceId === CMO_WORKSPACE
+          ? { id: "cuso" }
+          : null,
     },
+    // No Project is found from another workspace, as the routes look it up.
+    project: { findFirst: async () => null },
   },
 }));
+
+function workspaceContext(
+  workspaceId: string,
+): NonNullable<WorkspaceVariables["workspaceContext"]> {
+  return { workspaceId, userId: "user-1", organizationId: "org-1" };
+}
 
 const projectsRouter = (await import("./index")).default;
 
@@ -84,7 +113,11 @@ describe("cmoLockedProjectId on the projects router", () => {
 
 describe("cmoProjectLock", () => {
   function app() {
-    const hono = new Hono();
+    const hono = new Hono<{ Variables: WorkspaceVariables }>();
+    hono.use("*", async (c, next) => {
+      c.set("workspaceContext", workspaceContext(CMO_WORKSPACE));
+      await next();
+    });
     hono.use("*", cmoProjectLock);
     hono.all("*", (c) => c.text("route reached"));
     hono.onError(errorHandler);
@@ -123,5 +156,48 @@ describe("cmoProjectLock", () => {
       method,
     });
     expect(response.status).toBe(200);
+  });
+});
+
+describe("cmoProjectLock before a real route", () => {
+  function patchProjectAs(workspaceId: string) {
+    const app = new OpenAPIHonoWithAuth();
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user-1",
+        organizationId: "org-1",
+        role: "user",
+      });
+      c.set("workspaceContext", workspaceContext(workspaceId));
+      await next();
+    });
+    app.use("*", cmoProjectLock);
+    mountPatchProject(app);
+    const root = new Hono();
+    root.route("/projects", app);
+    root.onError(errorHandler);
+    return root.request(`/projects/${CMO_PROJECT}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Renamed" }),
+    });
+  }
+
+  it("answers a member of the CMO Project's workspace with 409", async () => {
+    const response = await patchProjectAs(CMO_WORKSPACE);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: "cmo_project_read_only",
+    });
+  });
+
+  it("gives anyone else the route's own 404, not a hint it is CMO's", async () => {
+    const response = await patchProjectAs(OTHER_WORKSPACE);
+    expect(response.status).toBe(404);
+    expect(await response.json()).not.toMatchObject({
+      kind: "cmo_project_read_only",
+    });
   });
 });
