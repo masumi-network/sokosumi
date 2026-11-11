@@ -36,7 +36,7 @@ export function SeoDemandChart({
           key={tick}
           className={cn(
             "absolute inset-y-0 border-l",
-            tick ? "border-border/70" : "border-foreground/30",
+            tick ? "border-border" : "border-tertiary",
           )}
           style={{ left: `${percent(tick)}%` }}
         />

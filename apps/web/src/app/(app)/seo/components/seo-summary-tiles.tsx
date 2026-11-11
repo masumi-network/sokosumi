@@ -15,7 +15,7 @@ const SEVERITY_MARK_CLASS: Record<SeoIssueSeverity, string> = {
   minor: "bg-chart-5",
 };
 /** The part of a bar that is not the counted thing. */
-const REST_MARK_CLASS = "bg-muted-foreground/25";
+const REST_MARK_CLASS = "bg-quaternary";
 
 type Part = { key: string; count: number; className: string };
 

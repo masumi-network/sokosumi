@@ -387,7 +387,7 @@ export function SeoBarNumber({
       {max > 0 ? (
         <span
           aria-hidden
-          className="bg-muted-foreground/25 block h-1 w-16 rounded-full max-sm:hidden"
+          className="bg-quaternary block h-1 w-16 rounded-full max-sm:hidden"
         >
           <span
             className="bg-chart-5 block h-1 rounded-full"
@@ -432,7 +432,7 @@ export function SeoSeverity({
         aria-hidden
         className={cn(
           "size-1.5 rounded-full",
-          severity === "minor" ? "bg-muted-foreground/40" : "bg-chart-2",
+          severity === "minor" ? "bg-tertiary" : "bg-chart-2",
         )}
       />
       {t(`severity.${severity}`)}
