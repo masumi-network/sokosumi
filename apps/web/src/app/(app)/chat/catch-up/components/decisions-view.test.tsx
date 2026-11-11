@@ -177,4 +177,90 @@ describe("DecisionsView", () => {
       screen.queryByRole("link", { name: /Blue, not orange/ }),
     ).not.toBeInTheDocument();
   });
+  it("drops a decision when its room leaves the live sidebar after render", () => {
+    liveRooms.current = [design, marketing];
+    const page = {
+      messages: [
+        decision("m-1", "We launch Monday"),
+        decision("m-2", "Blue, not orange", { roomId: "room-marketing" }),
+      ],
+      nextCursor: null,
+    };
+    const { rerender } = render(view(page));
+    expect(
+      screen.getByRole("link", { name: /Blue, not orange/ }),
+    ).toBeInTheDocument();
+
+    liveRooms.current = [design];
+    rerender(view(page));
+    expect(
+      screen.queryByRole("link", { name: /Blue, not orange/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /We launch Monday/ }),
+    ).toBeInTheDocument();
+
+    // A workspace switch drops the live rooms: nothing of the old scope stays,
+    // and the page's own first rooms do not come back.
+    liveRooms.current = null;
+    rerender(view(page));
+    expect(
+      screen.queryByRole("link", { name: /We launch Monday/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignores an older page that lands after the first page was replaced", async () => {
+    const user = userEvent.setup();
+    let resolveOld: (value: unknown) => void = () => {};
+    listMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOld = resolve;
+      }),
+    );
+    const { rerender } = render(
+      view({
+        messages: [decision("m-1", "We launch Monday")],
+        nextCursor: "c-old",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Load older" }));
+
+    // The server sends a new first page (workspace switch, refresh).
+    rerender(
+      view({
+        messages: [decision("m-9", "New scope decision")],
+        nextCursor: "c-new",
+      }),
+    );
+    expect(
+      screen.queryByRole("link", { name: /We launch Monday/ }),
+    ).not.toBeInTheDocument();
+
+    resolveOld({
+      ok: true,
+      value: {
+        messages: [decision("m-2", "Old scope older")],
+        nextCursor: null,
+      },
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Load older" }),
+      ).not.toBeDisabled();
+    });
+    expect(
+      screen.queryByRole("link", { name: /Old scope older/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /New scope decision/ }),
+    ).toBeInTheDocument();
+
+    // The next Load older uses the new page's cursor, not the old one.
+    listMock.mockResolvedValueOnce({
+      ok: true,
+      value: { messages: [], nextCursor: null },
+    });
+    await user.click(screen.getByRole("button", { name: "Load older" }));
+    expect(listMock).toHaveBeenLastCalledWith("c-new");
+  });
 });
