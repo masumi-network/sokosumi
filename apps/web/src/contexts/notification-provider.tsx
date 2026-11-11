@@ -75,7 +75,11 @@ function buildListQuery(
     limit: NOTIFICATION_PAGE_SIZE,
     ...(cursor === undefined ? {} : { cursor }),
     ...(view === "unread" ? { isRead: "false" as const } : {}),
-    ...(view === "needs-action" ? { needsAction: "true" as const } : {}),
+    // Needs you lists the active workspace's waiting Tasks itself, so Core
+    // leaves their asks out of the rows, as it does out of the count.
+    ...(view === "needs-action"
+      ? { needsAction: "true" as const, exceptWorkspaceTasks: "true" as const }
+      : {}),
     ...(view === "mentions" ? { mentions: "true" as const } : {}),
   };
 }
@@ -193,6 +197,12 @@ export function NotificationFallbackProvider({
 }
 
 interface NotificationProviderProps {
+  /**
+   * The active organization, null in the personal workspace. The Needs you
+   * rows and count depend on it, and a workspace switch keeps this provider
+   * mounted, so a change reads them again.
+   */
+  organizationId?: string | null;
   sessionId?: string;
   sessionCreatedAt?: number;
   userId: string;
@@ -233,6 +243,7 @@ function NotificationRealtimeBridge({
  */
 export function NotificationProvider({
   userId,
+  organizationId = null,
   sessionId,
   sessionCreatedAt,
   children,
@@ -626,9 +637,12 @@ export function NotificationProvider({
     void fetchNotifications();
   }, [fetchNotifications]);
 
+  // Again on a workspace switch: Core's Needs you rows and count leave out
+  // the Tasks the new workspace lists. A response for the old workspace that
+  // lands later is an older generation, so it is dropped.
   useEffect(() => {
     void fetchNotifications();
-  }, [fetchNotifications]);
+  }, [fetchNotifications, organizationId]);
 
   const value: NotificationContextValue = {
     notifications: state.notifications,

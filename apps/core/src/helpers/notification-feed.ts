@@ -268,6 +268,17 @@ export interface ActiveWorkspace {
   organizationId: string | null;
 }
 
+/** The session's active workspace, as the Task summary reads it. */
+export function activeWorkspaceOf(context: {
+  userId: string;
+  organizationId?: string | null;
+}): ActiveWorkspace {
+  return {
+    userId: context.userId,
+    organizationId: context.organizationId ?? null,
+  };
+}
+
 /**
  * The Tasks `GET /tasks/summary` counts for this reader, as Web asks it: the
  * organization's workspace (scope `workspace`), or the reader's own Tasks in

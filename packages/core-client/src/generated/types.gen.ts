@@ -72647,6 +72647,10 @@ export type GetNotificationsData = {
          */
         mentions?: 'true' | 'false';
         /**
+         * With needsAction=true, leave out a Task's ask when the active workspace's GET /tasks/summary counts that Task, judged by where the Task is now: the Notification Center lists those Tasks themselves. The same rows GET /notifications/counts leaves out of needsAction. Rejected without needsAction=true.
+         */
+        exceptWorkspaceTasks?: 'true' | 'false';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;

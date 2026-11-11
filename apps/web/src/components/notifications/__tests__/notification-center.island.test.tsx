@@ -1712,6 +1712,160 @@ describe("Notification Center Needs you view", () => {
     expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
   });
 
+  it("keeps the ask of a Task moved out of this workspace since it asked", async () => {
+    sessionMock.mockReturnValue(SIGNED_IN);
+    // U still waits here; T asked here, then moved to another workspace.
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 1 } });
+    getTasksMock.mockResolvedValue({ data: [waitingTask("stayed")] });
+    // Core judges T by where it is now, so its ask is a row and counted,
+    // although the ask still says the workspace it was written in.
+    getNotificationsMock.mockResolvedValue(
+      page([taskAsk("ask-moved", "moved", "ws-active")]),
+    );
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1, mentions: 0 },
+    });
+
+    await renderPage();
+    await settle();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: "filterNeedsYou 2" }));
+    await settle();
+
+    expect(screen.getByRole("link", { name: /^stayed/ })).toBeTruthy();
+    expect(screen.getByText("ask-moved")).toBeTruthy();
+  });
+
+  it("reads Needs you again on each workspace switch, A to B to A", async () => {
+    // T waits in A. In A, Core leaves T's ask out of the rows and the count
+    // and the Task list shows T; in B, the ask is the only way to T.
+    const inWorkspace = (organizationId: string) => ({
+      data: {
+        user: { id: "user-1" },
+        session: { activeOrganizationId: organizationId },
+      },
+    });
+    let active = "org-a";
+    sessionMock.mockImplementation(() => inWorkspace(active));
+    getTasksSummaryMock.mockImplementation(async () => ({
+      data: { awaitingInput: active === "org-a" ? 1 : 0 },
+    }));
+    getTasksMock.mockImplementation(async () => ({
+      data: active === "org-a" ? [waitingTask("t-in-a", "ws-a")] : [],
+    }));
+    getNotificationsMock.mockImplementation(async () =>
+      page(active === "org-a" ? [] : [taskAsk("ask-t", "t-in-a", "ws-a")]),
+    );
+    getNotificationsCountsMock.mockImplementation(async () => ({
+      data: { unread: 1, needsAction: active === "org-a" ? 0 : 1, mentions: 0 },
+    }));
+    window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, "needs-action");
+
+    const frame = (organizationId: string) => (
+      <NotificationProvider userId="user-1" organizationId={organizationId}>
+        <NotificationsPageContent />
+      </NotificationProvider>
+    );
+    const { rerender } = render(frame("org-a"));
+    const expectA = async () => {
+      await waitFor(() => {
+        expect(
+          screen.getByRole("tab", { name: "filterNeedsYou 1" }),
+        ).toBeTruthy();
+        expect(screen.getByRole("link", { name: /^t-in-a/ })).toBeTruthy();
+      });
+      expect(screen.queryByText("ask-t")).toBeNull();
+    };
+    await expectA();
+
+    // No tab change, reload or unrelated event: only the switch.
+    active = "org-b";
+    rerender(frame("org-b"));
+    await waitFor(() => {
+      expect(screen.getByText("ask-t")).toBeTruthy();
+      expect(
+        screen.getByRole("tab", { name: "filterNeedsYou 1" }),
+      ).toBeTruthy();
+    });
+    expect(screen.queryByRole("link", { name: /^t-in-a/ })).toBeNull();
+
+    active = "org-a";
+    rerender(frame("org-a"));
+    await expectA();
+  });
+
+  it("drops a slow answer for the workspace the reader just left", async () => {
+    sessionMock.mockReturnValue(SIGNED_IN);
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 0 } });
+    getTasksMock.mockResolvedValue({ data: [] });
+    window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, "needs-action");
+    let answerA: (value: unknown) => void = () => {};
+    getNotificationsMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answerA = resolve;
+        }),
+    );
+    getNotificationsMock.mockResolvedValue(page([asked("ask-in-b")]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1, mentions: 0 },
+    });
+    const frame = (organizationId: string) => (
+      <NotificationProvider userId="user-1" organizationId={organizationId}>
+        <NotificationsPageContent />
+      </NotificationProvider>
+    );
+
+    const { rerender } = render(frame("org-a"));
+    await settle();
+    rerender(frame("org-b"));
+    await waitFor(() => expect(screen.getByText("ask-in-b")).toBeTruthy());
+
+    // A's read lands last, and is an older generation than B's.
+    await act(async () => {
+      answerA(page([asked("ask-in-a")]));
+    });
+    await settle();
+
+    expect(screen.getByText("ask-in-b")).toBeTruthy();
+    expect(screen.queryByText("ask-in-a")).toBeNull();
+  });
+
+  it("drops a teammate's answered Task while Needs you stays open", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      sessionMock.mockReturnValue(SIGNED_IN);
+      // Alice owns the Task; the reader is someone else, so no Task event
+      // reaches the reader when Alice answers it.
+      getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 1 } });
+      getTasksMock.mockResolvedValue({ data: [waitingTask("alices-task")] });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 0, needsAction: 0, mentions: 0 },
+      });
+
+      await renderPage();
+      await settle();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.click(screen.getByRole("tab", { name: "filterNeedsYou 1" }));
+      await settle();
+      expect(screen.getByRole("link", { name: /^alices-task/ })).toBeTruthy();
+
+      getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 0 } });
+      getTasksMock.mockResolvedValue({ data: [] });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole("link", { name: /^alices-task/ })).toBeNull();
+      });
+      expect(screen.getByRole("tab", { name: "filterNeedsYou" })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("drops the last waiting Task and its count once the Task is answered", async () => {
     sessionMock.mockReturnValue(SIGNED_IN);
     getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 1 } });
@@ -1850,6 +2004,7 @@ describe("Notification Center Needs you view", () => {
       expect(getNotificationsMock).toHaveBeenLastCalledWith({
         limit: 20,
         needsAction: "true",
+        exceptWorkspaceTasks: "true",
       });
       expect(needsYou.getAttribute("aria-selected")).toBe("true");
       expect(screen.getByText("waiting")).toBeTruthy();
@@ -2204,6 +2359,7 @@ describe("Notification Center remembered view", () => {
       expect(getNotificationsMock).toHaveBeenCalledWith({
         limit: 20,
         needsAction: "true",
+        exceptWorkspaceTasks: "true",
       });
       // The count is Core's, and it is the count of the whole view, so a
       // restored view shows the same number a switched-to one would.
@@ -2335,6 +2491,7 @@ describe("Notification Center remembered view", () => {
       limit: 20,
       cursor: "oldest-loaded",
       needsAction: "true",
+      exceptWorkspaceTasks: "true",
     });
     expect(screen.getByText("older")).toBeTruthy();
   });

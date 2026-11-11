@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { MENTION_MESSAGE_KEYS } from "@sokosumi/utils";
 
 import {
+  activeWorkspaceOf,
   findNeedsActionNotificationIds,
   resolvedNotificationFeedWhere,
 } from "@/helpers/notification-feed";
@@ -43,10 +44,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const [feedWhere, needsActionIds] = await Promise.all([
       resolvedNotificationFeedWhere(userContext.userId),
       findNeedsActionNotificationIds(userContext.userId, undefined, {
-        exceptTasksIn: {
-          userId: userContext.userId,
-          organizationId: userContext.organizationId ?? null,
-        },
+        exceptTasksIn: activeWorkspaceOf(userContext),
       }),
     ]);
 
