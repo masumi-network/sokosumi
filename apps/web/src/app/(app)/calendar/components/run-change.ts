@@ -38,6 +38,14 @@ export function isChangeableRun(
   );
 }
 
+/** A moved Run is planned at a time other than the rule's. */
+export function isMovedRun(item: WorkspaceCalendarItem): boolean {
+  return (
+    item.originalScheduledAt !== null &&
+    item.originalScheduledAt.getTime() !== item.scheduledAt.getTime()
+  );
+}
+
 /** Sends one Run change with the schedule revision the Calendar read. */
 export function changeRun(item: ChangeableRun, change: RunChange) {
   return changeTaskScheduleRun({

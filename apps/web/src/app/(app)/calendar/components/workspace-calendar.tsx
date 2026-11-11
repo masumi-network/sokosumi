@@ -122,6 +122,7 @@ import {
   type ChangeableRun,
   changeRun,
   isChangeableRun,
+  isMovedRun,
   isTaskEntry,
   useReportRunChangeFailure,
 } from "./run-change";
@@ -346,14 +347,6 @@ function isShowingToday(
 
 function isDraggableCalendarEntry(item: WorkspaceCalendarEntry) {
   return isChangeableRun(item) || isChangeableSocialPost(item);
-}
-
-/** A moved Run is planned at a time other than the rule's. */
-function isMovedRun(item: WorkspaceCalendarItem): boolean {
-  return (
-    item.originalScheduledAt !== null &&
-    item.originalScheduledAt.getTime() !== item.scheduledAt.getTime()
-  );
 }
 
 interface RunHandlers {
