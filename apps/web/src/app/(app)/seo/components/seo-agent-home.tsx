@@ -33,8 +33,8 @@ import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** Next steps past this count fold behind a "show more" button. */
-const SEO_AGENT_VISIBLE_STEPS = 6;
+/** Next steps past this count fold behind a "show more" button: three choices are enough to start. */
+const SEO_AGENT_VISIBLE_STEPS = 3;
 
 /** The SEO agent is the first thing on an Audit: what it knows, what it proposes, and a field to ask it. */
 export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {

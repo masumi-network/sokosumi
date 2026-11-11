@@ -4353,14 +4353,16 @@ describe("SEO workspace integration", () => {
     expect(row).not.toBeNull();
     // One page: the row needs no page.
     expect(within(row!).queryByRole("link")).toBeNull();
-    // The Agent tab shows three of the four fixes: a row counts the rest, and the other steps have their own label.
+    // The Agent tab shows three of the four fixes, and a row counts the rest.
     expect(screen.queryByText("Describe the images")).toBeNull();
     expect(screen.getByText("1 more fix")).toBeVisible();
-    expect(
-      screen.getByRole("heading", {
-        name: "Other steps (not counted as issues)",
-      }),
-    ).toBeVisible();
+    // Three choices are enough to start: the other steps wait behind one button, under their own label.
+    const others = { name: "Other steps (not counted as issues)" };
+    expect(screen.queryByRole("heading", others)).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: /^Show \d+ more steps?$/ }),
+    );
+    expect(screen.getByRole("heading", others)).toBeVisible();
     await user.click(within(row!).getByRole("button", { name: "See the fix" }));
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
