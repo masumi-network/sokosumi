@@ -338,8 +338,13 @@ export async function startBuzzAppLink(userId: string, publicKey: string) {
 
 /** Rooms the person is in that are on Buzz get their members pushed again. */
 async function resyncRoomsOf(userId: string) {
+  // A DM's people are fixed when it opens ("direct" marks it), so only
+  // channels take the new key.
   const channels = await prisma.buzzChannel.findMany({
-    where: { room: { userMembers: { some: { userId } } } },
+    where: {
+      room: { userMembers: { some: { userId } } },
+      NOT: { membersHash: "direct" },
+    },
     select: { id: true, roomId: true },
   });
   await prisma.buzzChannel.updateMany({
@@ -644,16 +649,19 @@ export async function syncRoomChannel(roomId: string) {
 
   // A Direct of up to nine is a Buzz DM, so Buzz lists it with the DMs. Its
   // people are fixed: the participant set is what identifies a Buzz DM.
+  const directKeys = members.flatMap((member) => keysOf(member.identity));
   const asDirectMessage =
     room.kind === "direct" &&
     members.length >= 2 &&
-    members.length <= MAX_DIRECT_MESSAGE_PEOPLE;
+    directKeys.length <= MAX_DIRECT_MESSAGE_PEOPLE;
 
   let channel = room.buzzChannel;
   if (!channel && asDirectMessage) {
-    const [opener, ...others] = members;
+    const [opener] = members;
     const event = signEvent(
-      openDirectMessageDraft(others.map((member) => member.identity.pubkey)),
+      openDirectMessageDraft(
+        directKeys.filter((pubkey) => pubkey !== opener.identity.pubkey),
+      ),
       identitySecretKey(opener.identity),
     );
     const { message } = await publishSignedEvent({
@@ -1201,6 +1209,23 @@ export async function drainBuzzOutbox(
     latest.set(key, entry);
   }
 
+  // A busy message can have newer rows beyond this page: settle on its newest.
+  const newest = await prisma.buzzOutbox.groupBy({
+    by: ["messageId"],
+    where: {
+      messageId: {
+        in: [...latest.keys()].filter((key) => !key.startsWith("room:")),
+      },
+    },
+    _max: { createdAt: true },
+  });
+  for (const row of newest) {
+    const entry = row.messageId ? latest.get(row.messageId) : undefined;
+    if (entry && row._max.createdAt && row._max.createdAt > entry.createdAt) {
+      entry.createdAt = row._max.createdAt;
+    }
+  }
+
   const outcomes: { key: string; result: string }[] = [];
   for (const [key, entry] of latest) {
     if (now.getTime() - entry.createdAt.getTime() < OUTBOX_SETTLE_MS) continue;
@@ -1273,6 +1298,24 @@ export type InboundResult =
   | "echo"
   | "ignored";
 
+/** Core refused a replayed change; a client error will not change on retry. */
+export class CoreRejectedError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+
+  get terminal(): boolean {
+    return (
+      this.status >= 400 &&
+      this.status < 500 &&
+      ![401, 403, 408, 429].includes(this.status)
+    );
+  }
+}
+
 async function sendAs(
   core: CoreRequest,
   identity: BuzzIdentity,
@@ -1282,8 +1325,10 @@ async function sendAs(
     ...request,
     apiKey: await bridgeApiKeyFor(identity),
   });
-  if (response.status >= 400 && response.status !== 409) {
-    throw new Error(
+  // A 409 on a message means its clientMessageId is someone else's.
+  if (response.status >= 400) {
+    throw new CoreRejectedError(
+      response.status,
       `Core ${request.method} ${request.path} → ${response.status}: ${JSON.stringify(response.body).slice(0, 300)}`,
     );
   }
@@ -1409,7 +1454,11 @@ export async function applyInboundEvent(
           ? created
           : (
               await prisma.chatRoomMessage.findFirst({
-                where: { roomId: channel.roomId, clientMessageId },
+                where: {
+                  roomId: channel.roomId,
+                  clientMessageId,
+                  senderUserId: author.userId,
+                },
                 select: { id: true },
               })
             )?.id;

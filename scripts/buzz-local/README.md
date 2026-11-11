@@ -28,8 +28,10 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   saved cursor (paged) after the worker was away. Edits settle newest-wins,
   ties to the lower event id.
 - **Identity**: Sokosumi keeps one Nostr key per person, Soko Bot and Coworker
-  (AES-GCM at rest). People export theirs on **Connections → Buzz** to sign in
-  to the Buzz app as the same identity.
+  (AES-GCM at rest). On **Connections → Buzz** a person either links the Buzz
+  app they already use (paste its `npub`, click **Open in Buzz** to join with a
+  single-use invite; the key is linked once it has joined) or exports
+  Sokosumi's key to sign in to Buzz with it.
 - **Rooms**: a Channel is a private Buzz channel whose members follow the room;
   a Direct of up to nine people is a Buzz DM (kind 41010) in a community all its
   people share.
@@ -85,3 +87,14 @@ local relay has one community. The worker must run somewhere long-lived
   does not start the Coworker's reply: Sokosumi clients reach that reply
   through the room's `/stream` endpoint, which the bridge does not call yet.
 - Run one worker; two would each send their own copy of an inbound change.
+- A linked app key: what it writes is the person's in Sokosumi, but what they
+  write in Sokosumi reaches Buzz from Sokosumi's key, named "<name> (via
+  Sokosumi)", since Sokosumi never holds their own key. Sokosumi cannot edit or
+  delete on Buzz what the app key wrote. Directs opened before the link stay
+  without the app key (a Buzz DM's people are fixed).
+- Linking proves the key joined with an invite issued after the request, not
+  which invite: someone could paste another person's `npub` and forward them
+  the invite, and their Buzz messages would then count as the requester's. Two
+  requests for one key link neither. The fix is a signature from the key bound
+  to the account, such as Buzz's owner attestation (Settings → Security →
+  Authorize external identity) for Sokosumi's key.

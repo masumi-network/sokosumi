@@ -21,6 +21,7 @@ import {
   BuzzTargetPendingError,
   buzzConfig,
   buzzSubscriptions,
+  CoreRejectedError,
   type CoreRequest,
   drainBuzzOutbox,
   enableBuzzForOrganization,
@@ -122,7 +123,9 @@ async function backlog(input: {
   const PAGE = 500;
   const found = new Map<string, Event>();
   let until = Math.floor(Date.now() / 1000);
-  for (let page = 0; page < 200; page++) {
+  // `until` only moves back, so this ends; no page cap, which would skip
+  // the oldest of a long outage.
+  for (;;) {
     const events = await queryEvents({
       relayUrl: input.relayUrl,
       secretKey: input.secretKey,
@@ -212,6 +215,16 @@ async function run() {
         finish(communityId, event);
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
+        // Core said no for good (the message is gone, the reaction too
+        // long): retrying would hold the cursor forever.
+        if (error instanceof CoreRejectedError && error.terminal) {
+          log(
+            `in  kind ${event.kind} ${event.id.slice(0, 8)} → rejected`,
+            reason,
+          );
+          finish(communityId, event);
+          return;
+        }
         const waiting = error instanceof BuzzTargetPendingError;
         const targetInFlight =
           waiting &&

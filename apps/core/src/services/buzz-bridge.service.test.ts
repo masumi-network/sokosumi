@@ -24,6 +24,7 @@ const db = vi.hoisted(() => {
     deleteMany: vi.fn(),
     count: vi.fn(),
     createMany: vi.fn(),
+    groupBy: vi.fn(async (): Promise<unknown[]> => []),
   });
   return {
     chatRoom: model(),
@@ -51,6 +52,7 @@ import { sealSecret } from "@/lib/buzz/secret-box";
 import {
   applyInboundEvent,
   BuzzTargetPendingError,
+  CoreRejectedError,
   type CoreRequest,
   drainBuzzOutbox,
   enqueueBuzzSync,
@@ -440,6 +442,27 @@ describe("drainBuzzOutbox", () => {
     expect(db.buzzOutbox.deleteMany).not.toHaveBeenCalled();
   });
 
+  it("waits on a message's newest change even when it lies beyond the page read", async () => {
+    const now = new Date("2026-11-11T00:00:10Z");
+    db.buzzOutbox.findMany.mockResolvedValue([
+      {
+        id: "1",
+        roomId: "room",
+        messageId: "streaming",
+        attempts: 0,
+        createdAt: new Date(now.getTime() - 60_000),
+      },
+    ]);
+    db.buzzOutbox.groupBy.mockResolvedValueOnce([
+      {
+        messageId: "streaming",
+        _max: { createdAt: new Date(now.getTime() - 100) },
+      },
+    ]);
+    await expect(drainBuzzOutbox({ now })).resolves.toEqual([]);
+    expect(db.chatRoomMessage.findUnique).not.toHaveBeenCalled();
+  });
+
   it("keeps a failed message for later instead of dropping it", async () => {
     const now = new Date("2026-11-11T00:00:10Z");
     db.buzzOutbox.findMany.mockResolvedValue([
@@ -522,6 +545,25 @@ describe("own Buzz app key", () => {
         }),
       }),
     );
+  });
+
+  it("drops a Buzz post whose client id Core says belongs to someone else", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    core.mockResolvedValueOnce({ status: 409, body: { error: "Conflict" } });
+    const rejected = applyInboundEvent(
+      nostrEvent({ content: "x" }, APP_KEY),
+      core,
+    );
+    await expect(rejected).rejects.toBeInstanceOf(CoreRejectedError);
+    await expect(rejected).rejects.toMatchObject({ terminal: true });
+    expect(db.buzzMessageLink.upsert).not.toHaveBeenCalled();
   });
 
   it("refuses to link the key Sokosumi already keeps for the person", async () => {
