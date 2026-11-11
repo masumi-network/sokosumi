@@ -3900,6 +3900,26 @@ describe("SokoBotRuntimeService hire decisions", () => {
     );
   });
 
+  it("charges a personal bot's hire with the Job's own Project", async () => {
+    // Only a bot's own Project overrides the Job's (SOKD-179, SOKD-180).
+    const JOB_PROJECT_ID = "01960001-0001-7001-8001-0000000000b1";
+    decisionFindFirstMock.mockResolvedValue({
+      ...hireDecision(),
+      proposal: { ...hireDecision().proposal, projectId: JOB_PROJECT_ID },
+    });
+
+    await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    const input = createAgentJobForUserMock.mock.calls[0]?.[0];
+    expect(input?.agentInput.projectId).toBe(JOB_PROJECT_ID);
+    // undefined, not null: null would charge the pool only.
+    expect(input?.creditProjectId).toBeUndefined();
+  });
+
   it("never returns a hire to PENDING after seller-side execution starts", async () => {
     decisionUpdateMock.mockRejectedValueOnce(
       new Error("database connection lost after Job creation"),
