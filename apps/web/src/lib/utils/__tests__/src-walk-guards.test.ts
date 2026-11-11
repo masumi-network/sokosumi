@@ -172,7 +172,7 @@ const LITERAL_ALLOWLIST = new Set([
   // Brand marks belong to the providers, not to us.
   "components/social-icons.tsx",
   "components/soko-bot/provider-logos.tsx",
-  "components/buzz/buzz-logo.tsx",
+  "components/buzz/buzz-brand.tsx",
   // The user picks the value; these are the swatches and the empty state.
   "components/ui/color-picker.tsx",
   "components/job-input/inputs/color-input.tsx",

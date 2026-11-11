@@ -1,6 +1,6 @@
 import type { BuzzConnection } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
-import { BuzzLogo } from "@/components/buzz/buzz-logo";
+import { BuzzLogo } from "@/components/buzz/buzz-brand";
 import { Card } from "@/components/ui/card";
 import { buzzService } from "@/lib/services/buzz.service";
 

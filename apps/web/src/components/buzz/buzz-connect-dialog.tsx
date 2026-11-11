@@ -20,7 +20,7 @@ import {
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useState } from "react";
 
-import { BuzzLogo } from "@/components/buzz/buzz-logo";
+import { BuzzLogo } from "@/components/buzz/buzz-brand";
 import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import { Button } from "@/components/ui/button";
 import {
