@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
 import {
+  type CreditBucketProjectOption,
   GrantFreeCreditsError,
   getCreditExpiryDate,
   grantFreeCredits as grantFreeCreditsInDatabase,
@@ -76,14 +77,15 @@ async function resolveTarget(
 }
 
 export const freeCreditAdminService = {
-  async grantFreeCredits(params: {
-    target: FreeCreditTarget;
-    /** Makes them Project credits of the organization (ADR 0067). */
-    projectId?: string;
-    credits: number;
-    ttlDays: number | null;
-    referenceNote: string | null;
-  }): Promise<FreeCreditGrant> {
+  /** A `projectId` makes them Project credits of the organization (ADR 0067). */
+  async grantFreeCredits(
+    params: CreditBucketProjectOption & {
+      target: FreeCreditTarget;
+      credits: number;
+      ttlDays: number | null;
+      referenceNote: string | null;
+    },
+  ): Promise<FreeCreditGrant> {
     if (!isPositiveIntegerCredits(params.credits)) {
       throw new FreeCreditValidationError("Credits must be a positive integer");
     }

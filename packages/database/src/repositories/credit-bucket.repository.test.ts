@@ -437,21 +437,6 @@ describe("creditBucketRepository.listProjectBucketsWithBalances", () => {
     assert.ok(query.includes('p.name AS "projectName"'));
     assert.ok(query.includes('LEFT JOIN project p ON p.id = cb."projectId"'));
   });
-
-  it("lists none in a personal workspace", async () => {
-    const queryRaw = vi.fn();
-    const tx = { $queryRaw: queryRaw } as unknown as Prisma.TransactionClient;
-
-    assert.deepEqual(
-      await creditBucketRepository.listProjectBucketsWithBalances(
-        "user-1",
-        null,
-        tx,
-      ),
-      [],
-    );
-    assert.equal(queryRaw.mock.calls.length, 0);
-  });
 });
 
 describe("creditBucketRepository.prepareConsumption (organization scope SQL)", () => {

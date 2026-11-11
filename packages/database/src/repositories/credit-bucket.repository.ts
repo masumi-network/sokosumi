@@ -32,8 +32,8 @@ interface CreditBucketBalanceRow {
   remainingCents: bigint;
   expiresAt: Date | null;
   /** Set on Project credits (ADR 0067); null for the pool. */
-  projectId?: string | null;
-  projectName?: string | null;
+  projectId: string | null;
+  projectName: string | null;
 }
 
 /** Unexpired, active non-subscription buckets with remaining > 0. */
@@ -153,10 +153,9 @@ export const creditBucketRepository = {
    */
   async listProjectBucketsWithBalances(
     userId: string | null,
-    organizationId: string | null,
+    organizationId: string,
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucketBalanceRow[]> {
-    if (!organizationId) return [];
     const now = new Date();
     const scopeContext = await resolveCreditBucketScopeContext(
       userId,
@@ -245,7 +244,12 @@ export const creditBucketRepository = {
     userId: string | null,
     organizationId: string,
     tx: Prisma.TransactionClient,
-  ): Promise<CreditBucketBalanceRow[]> {
+  ): Promise<
+    Pick<
+      CreditBucketBalanceRow,
+      "totalCents" | "remainingCents" | "expiresAt"
+    >[]
+  > {
     const now = new Date();
     const scopeContext = await resolveCreditBucketScopeContext(
       userId,

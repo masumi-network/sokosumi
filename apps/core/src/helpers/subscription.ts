@@ -389,7 +389,7 @@ export async function buildCreditsPayload(params: {
     remaining: convertCentsToCredits(row.remainingCents),
     expiresAt: row.expiresAt,
     ...(row.projectId && {
-      project: { id: row.projectId, name: row.projectName ?? null },
+      project: { id: row.projectId, name: row.projectName },
     }),
   }));
 

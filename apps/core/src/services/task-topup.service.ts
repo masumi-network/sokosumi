@@ -4,6 +4,7 @@ import {
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
+import type { CreditBucketProjectOption } from "@sokosumi/database/helpers";
 import { waitUntil } from "@vercel/functions";
 
 import {
@@ -18,20 +19,21 @@ import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
  * concurrently (P2025) are skipped so the surrounding grant transaction is
  * never rolled back by a task race.
  */
-export async function markOutOfCreditsTasksAsToppedUp(params: {
-  organizationId: string | null;
-  /** Project credits resume only that Project's Tasks (ADR 0067). */
-  projectId?: string;
-  tx: Prisma.TransactionClient;
-  userId: string | null;
-}): Promise<void> {
+/** With a `projectId`, Project credits resume only that Project's Tasks (ADR 0067). */
+export async function markOutOfCreditsTasksAsToppedUp(
+  params: CreditBucketProjectOption & {
+    organizationId: string | null;
+    tx: Prisma.TransactionClient;
+    userId: string | null;
+  },
+): Promise<void> {
   let taskWhere:
     | { organizationId: string; projectId?: string }
     | { ownerId: string };
   if (params.organizationId) {
     taskWhere = {
       organizationId: params.organizationId,
-      projectId: params.projectId,
+      ...(params.projectId && { projectId: params.projectId }),
     };
   } else {
     if (params.userId === null) {

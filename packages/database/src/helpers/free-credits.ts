@@ -5,6 +5,7 @@ import {
   type Prisma,
 } from "../generated/prisma/client.js";
 import { buildFreeCreditReferenceId } from "./credit.js";
+import type { CreditBucketProjectOption } from "./credit-bucket-scope.js";
 
 export class GrantFreeCreditsError extends Error {
   constructor(message: string) {
@@ -13,13 +14,12 @@ export class GrantFreeCreditsError extends Error {
   }
 }
 
-interface GrantFreeCreditsParams {
+/** A `projectId` makes them Project credits of the organization (ADR 0067). */
+interface GrantFreeCreditsParams extends CreditBucketProjectOption {
   credits: number;
   expiresAt: Date | null;
   grantId: string;
   organizationId: string | null;
-  /** Makes them Project credits of the organization (ADR 0067). */
-  projectId?: string | null;
   referenceNote: string | null;
   targetId: string;
   targetType: "user" | "organization";
