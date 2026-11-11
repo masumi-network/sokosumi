@@ -219,12 +219,14 @@ describe("applyInboundEvent", () => {
     });
   });
 
-  it("marks an edit as known before replaying it, so its echo is not sent back", async () => {
+  it("records an edit only after Core has it, so a crash in between replays it", async () => {
     db.buzzMessageLink.findUnique
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         messageId: "m1",
         contentHash: "old",
+        lastEditAt: 0,
+        lastEditEventId: null,
         message: { roomId: "room" },
       });
     await expect(
@@ -242,7 +244,7 @@ describe("applyInboundEvent", () => {
     ).resolves.toBe("edited");
     const linkUpdate = db.buzzMessageLink.update.mock.invocationCallOrder[0];
     const patch = core.mock.invocationCallOrder[0];
-    expect(linkUpdate).toBeLessThan(patch);
+    expect(patch).toBeLessThan(linkUpdate);
     expect(core).toHaveBeenCalledWith(
       expect.objectContaining({
         method: "PATCH",
@@ -286,6 +288,7 @@ describe("applyInboundEvent edits", () => {
         messageId: "m1",
         contentHash: "newer",
         lastEditAt: 200,
+        lastEditEventId: "f".repeat(64),
         message: { roomId: "room" },
       });
     await expect(applyInboundEvent(editOf(100, "older"), core)).resolves.toBe(
@@ -294,23 +297,38 @@ describe("applyInboundEvent edits", () => {
     expect(core).not.toHaveBeenCalled();
   });
 
-  it("forgets the edit when Core refuses it, so a retry applies it", async () => {
+  it("records nothing when Core refuses the edit, so a retry applies it", async () => {
     db.buzzMessageLink.findUnique
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         messageId: "m1",
         contentHash: "old",
         lastEditAt: 0,
+        lastEditEventId: null,
         message: { roomId: "room" },
       });
     core.mockResolvedValueOnce({ status: 503, body: {} });
     await expect(
       applyInboundEvent(editOf(300, "fixed"), core),
     ).rejects.toThrow();
-    expect(db.buzzMessageLink.update).toHaveBeenLastCalledWith({
-      where: { messageId: "m1" },
-      data: { contentHash: "old", lastEditAt: 0 },
-    });
+    expect(db.buzzMessageLink.update).not.toHaveBeenCalled();
+  });
+
+  it("settles two edits in the same second on the lower id, whichever arrives first", async () => {
+    const a = editOf(300, "first");
+    const b = editOf(300, "second");
+    const [lower, higher] = a.id < b.id ? [a, b] : [b, a];
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: contentHash(lower.content),
+        lastEditAt: 300,
+        lastEditEventId: lower.id,
+        message: { roomId: "room" },
+      });
+    await expect(applyInboundEvent(higher, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
   });
 });
 
@@ -358,6 +376,7 @@ describe("applyInboundEvent ordering", () => {
         messageId: "m1",
         contentHash: contentHash("same"),
         lastEditAt: 100,
+        lastEditEventId: null,
         message: { roomId: "room" },
       });
     const edit = finalizeEvent(
@@ -373,9 +392,14 @@ describe("applyInboundEvent ordering", () => {
       BOB_KEY,
     );
     await expect(applyInboundEvent(edit, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
     expect(db.buzzMessageLink.update).toHaveBeenCalledWith({
       where: { messageId: "m1" },
-      data: { lastEditAt: 200 },
+      data: {
+        contentHash: contentHash("same"),
+        lastEditAt: 200,
+        lastEditEventId: edit.id,
+      },
     });
   });
 });

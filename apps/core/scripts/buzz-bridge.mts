@@ -10,7 +10,11 @@
 import type { Event } from "nostr-tools/pure";
 import { getEnv } from "@/config/env";
 import { INBOUND_KINDS } from "@/lib/buzz/events";
-import { type RelaySubscription, subscribe } from "@/lib/buzz/relay-client";
+import {
+  queryEvents,
+  type RelaySubscription,
+  subscribe,
+} from "@/lib/buzz/relay-client";
 import prisma from "@/lib/db/prisma";
 import {
   applyInboundEvent,
@@ -21,6 +25,7 @@ import {
   drainBuzzOutbox,
   enableBuzzForOrganization,
   linkedBuzzRooms,
+  readerSecretKey,
   saveInboundCursor,
   syncRoomChannel,
   unlinkedBuzzRooms,
@@ -96,6 +101,53 @@ function coreRequester(baseUrl: string): CoreRequest {
   };
 }
 
+/** Older events first, the order Sokosumi should see them in. */
+function chronological(events: Event[]): Event[] {
+  return events.toSorted(
+    (a, b) => a.created_at - b.created_at || a.id.localeCompare(b.id),
+  );
+}
+
+/**
+ * Every stored event from `since` on, paged backwards (the relay answers
+ * newest-first and caps a page), so a long outage loses nothing.
+ */
+async function backlog(input: {
+  relayUrl: string;
+  secretKey: Uint8Array;
+  channelIds: string[];
+  since: number;
+}): Promise<Event[]> {
+  const PAGE = 500;
+  const found = new Map<string, Event>();
+  let until = Math.floor(Date.now() / 1000);
+  for (let page = 0; page < 200; page++) {
+    const events = await queryEvents({
+      relayUrl: input.relayUrl,
+      secretKey: input.secretKey,
+      filters: [
+        {
+          kinds: INBOUND_KINDS,
+          "#h": input.channelIds,
+          since: input.since,
+          until,
+          limit: PAGE,
+        },
+      ],
+    });
+    let added = 0;
+    for (const event of events) {
+      if (!found.has(event.id)) added++;
+      found.set(event.id, event);
+    }
+    if (events.length < PAGE || added === 0) break;
+    // Inclusive, so events sharing the oldest second are not skipped.
+    const oldest = Math.min(...events.map((event) => event.created_at));
+    until = oldest < until ? oldest : until - 1;
+  }
+  return chronological([...found.values()]);
+}
+
 async function run() {
   const maybeConfig = buzzConfig();
   if (!maybeConfig) {
@@ -109,17 +161,12 @@ async function run() {
   );
   log(`running as operator ${config.operatorPubkey.slice(0, 8)}…`);
 
-  // One subscription per community, reopened when its channel set changes.
-  const live = new Map<
-    string,
-    { key: string; subscription: RelaySubscription }
-  >();
-  // Inbound events are applied one at a time, in arrival order. One that
-  // fails (Core down, rate limited, or it answers a message not linked yet) is
-  // retried with backoff; on the last try it is applied as well as it can be.
+  // Inbound events are applied one at a time, in order. One whose target is
+  // not linked yet waits (up to 6 tries, then is applied as well as it can
+  // be); one that fails because Core is unreachable is retried until it works.
   let inbound = Promise.resolve();
   const seen = new Set<string>();
-  const MAX_ATTEMPTS = 6;
+  const TARGET_ATTEMPTS = 6;
   // Per community: events not finished yet, and the newest one finished. The
   // saved cursor never passes an unfinished event.
   const unfinished = new Map<string, Map<string, number>>();
@@ -135,7 +182,7 @@ async function run() {
 
   const apply = (communityId: string, event: Event, attempt: number) => {
     inbound = inbound.then(async () => {
-      const finalAttempt = attempt + 1 >= MAX_ATTEMPTS;
+      const finalAttempt = attempt + 1 >= TARGET_ATTEMPTS;
       try {
         const result = await applyInboundEvent(event, core, { finalAttempt });
         if (result !== "echo" && result !== "ignored") {
@@ -144,13 +191,9 @@ async function run() {
         finish(communityId, event);
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        if (finalAttempt) {
-          log(`in  kind ${event.kind} ${event.id.slice(0, 8)} gave up`, reason);
-          finish(communityId, event);
-          return;
-        }
-        const delay = 2_000 * 2 ** attempt;
-        if (!(error instanceof BuzzTargetPendingError)) {
+        const waiting = error instanceof BuzzTargetPendingError;
+        const delay = Math.min(2_000 * 2 ** attempt, 5 * 60_000);
+        if (!waiting) {
           log(
             `in  kind ${event.kind} ${event.id.slice(0, 8)} failed, retry in ${delay / 1000}s`,
             reason,
@@ -161,10 +204,10 @@ async function run() {
     });
   };
 
-  const onEventFor = (communityId: string) => (event: Event) => {
+  const accept = (communityId: string, event: Event) => {
     if (seen.has(event.id)) return;
     seen.add(event.id);
-    if (seen.size > 50_000) seen.clear();
+    if (seen.size > 100_000) seen.clear();
     const open = unfinished.get(communityId) ?? new Map<string, number>();
     open.set(event.id, event.created_at);
     unfinished.set(communityId, open);
@@ -179,61 +222,95 @@ async function run() {
     }
   }
 
+  // One live subscription per (community, reader), reopened when its channel
+  // set changes or it drops. Each (re)open first replays the backlog since
+  // the saved cursor, oldest first, then follows live.
+  const live = new Map<
+    string,
+    { key: string; subscription: RelaySubscription }
+  >();
   const reconnect = new Map<string, { failures: number; at: number }>();
+  const opening = new Set<string>();
+
+  async function open(
+    community: Awaited<ReturnType<typeof buzzSubscriptions>>[number],
+    reader: { readerId: string; channelIds: string[] },
+    slot: string,
+    key: string,
+  ) {
+    const secretKey = await readerSecretKey(reader.readerId);
+    const since =
+      community.inboundCursor > 0
+        ? community.inboundCursor - 10 * 60
+        : Math.floor(Date.now() / 1000) - 24 * 60 * 60;
+    const caughtUpTo = Math.floor(Date.now() / 1000);
+    const missed = await backlog({
+      relayUrl: community.relayUrl,
+      secretKey,
+      channelIds: reader.channelIds,
+      since,
+    });
+    for (const event of missed) accept(community.communityId, event);
+    const subscription = subscribe({
+      relayUrl: community.relayUrl,
+      secretKey,
+      filters: [
+        {
+          kinds: INBOUND_KINDS,
+          "#h": reader.channelIds,
+          since: caughtUpTo - 5,
+        },
+      ],
+      onEvent: (event) => accept(community.communityId, event),
+      onClose: (reason) => {
+        if (live.get(slot)?.subscription !== subscription) return;
+        live.delete(slot);
+        const failures = (reconnect.get(slot)?.failures ?? 0) + 1;
+        const wait = Math.min(1_000 * 2 ** (failures - 1), 30_000);
+        reconnect.set(slot, { failures, at: Date.now() + wait });
+        log(
+          `subscription ${slot.slice(0, 20)} closed: ${reason}; retry in ${wait / 1000}s`,
+        );
+      },
+    });
+    live.set(slot, { key, subscription });
+    subscription.ready.then(
+      () => {
+        reconnect.delete(slot);
+        log(
+          `listening on ${community.relayUrl} as ${reader.readerId === "operator" ? "operator" : "a DM member"} (${reader.channelIds.length} channels, ${missed.length} caught up)`,
+        );
+      },
+      () => {},
+    );
+  }
 
   async function refreshSubscriptions() {
     for (const community of await buzzSubscriptions()) {
-      const key = community.channelIds.toSorted().join(",");
-      const current = live.get(community.communityId);
-      if (current?.key === key) continue;
-      // After a drop, wait before reconnecting: 1 s doubling, at most 30 s.
-      const retry = reconnect.get(community.communityId);
-      if (!current && retry && Date.now() < retry.at) continue;
-      current?.subscription.close();
-      live.delete(community.communityId);
-      if (community.channelIds.length === 0) continue;
-      const subscription = subscribe({
-        relayUrl: community.relayUrl,
-        secretKey: config.operatorSecretKey,
-        filters: [
-          {
-            kinds: INBOUND_KINDS,
-            "#h": community.channelIds,
-            // Catch up from where the last run finished (overlap: echoes and
-            // repeats are recognised), or a day back the first time.
-            since:
-              community.inboundCursor > 0
-                ? community.inboundCursor - 10 * 60
-                : Math.floor(Date.now() / 1000) - 24 * 60 * 60,
-          },
-        ],
-        onEvent: onEventFor(community.communityId),
-        onClose: (reason) => {
-          if (live.get(community.communityId)?.subscription === subscription) {
-            live.delete(community.communityId);
-            const failures =
-              (reconnect.get(community.communityId)?.failures ?? 0) + 1;
-            const wait = Math.min(1_000 * 2 ** (failures - 1), 30_000);
-            reconnect.set(community.communityId, {
-              failures,
-              at: Date.now() + wait,
-            });
-            log(
-              `subscription to ${community.relayUrl} closed: ${reason}; retry in ${wait / 1000}s`,
-            );
-          }
-        },
-      });
-      live.set(community.communityId, { key, subscription });
-      subscription.ready.then(
-        () => {
-          reconnect.delete(community.communityId);
+      for (const reader of community.readers) {
+        const slot = `${community.communityId}:${reader.readerId}`;
+        const key = reader.channelIds.toSorted().join(",");
+        const current = live.get(slot);
+        if (current?.key === key || opening.has(slot)) continue;
+        const retry = reconnect.get(slot);
+        if (!current && retry && Date.now() < retry.at) continue;
+        current?.subscription.close();
+        live.delete(slot);
+        opening.add(slot);
+        try {
+          await open(community, reader, slot, key);
+        } catch (error) {
+          const failures = (reconnect.get(slot)?.failures ?? 0) + 1;
+          const wait = Math.min(1_000 * 2 ** (failures - 1), 30_000);
+          reconnect.set(slot, { failures, at: Date.now() + wait });
           log(
-            `listening on ${community.relayUrl} (${community.channelIds.length} channels)`,
+            `catch-up ${slot.slice(0, 20)} failed; retry in ${wait / 1000}s`,
+            error instanceof Error ? error.message : error,
           );
-        },
-        () => {},
-      );
+        } finally {
+          opening.delete(slot);
+        }
+      }
     }
   }
 

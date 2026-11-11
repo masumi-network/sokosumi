@@ -55,6 +55,7 @@ CREATE TABLE "buzz_message_link" (
     "contentHash" TEXT NOT NULL,
     "deleted" BOOLEAN NOT NULL DEFAULT false,
     "lastEditAt" INTEGER NOT NULL DEFAULT 0,
+    "lastEditEventId" TEXT,
     "pendingEvent" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

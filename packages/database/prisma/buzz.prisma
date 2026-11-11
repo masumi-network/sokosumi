@@ -89,6 +89,8 @@ model BuzzMessageLink {
   /// `created_at` (unix seconds) of the newest edit applied, either way; an
   /// older edit replayed later is ignored.
   lastEditAt  Int             @default(0)
+  /// Id of that edit: two in the same second go to the lower id.
+  lastEditEventId String?
   /// A signed event decided but not yet accepted by the relay (the message,
   /// an edit or a deletion). Resent until it is, then cleared.
   pendingEvent Json?

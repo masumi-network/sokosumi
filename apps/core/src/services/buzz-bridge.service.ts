@@ -102,24 +102,6 @@ async function publish(
   return event;
 }
 
-/**
- * Records a change as known (so its echo is recognised), then does it; if it
- * fails, the record is undone so the next attempt does it again.
- */
-async function markThenDo<T>(
-  mark: () => Promise<unknown>,
-  work: () => Promise<T>,
-  unmark: () => Promise<unknown>,
-): Promise<T> {
-  await mark();
-  try {
-    return await work();
-  } catch (error) {
-    await unmark();
-    throw error;
-  }
-}
-
 // ---------------------------------------------------------------- identities
 
 type IdentityOwner =
@@ -599,19 +581,37 @@ function asPending(value: unknown): PendingEvent | null {
  * it, so a crash or outage between "decided" and "delivered" is resent, not
  * lost. Sending the same event twice is harmless: same id, the relay keeps one.
  */
-async function deliver(relayUrl: string, event: PendingEvent) {
+async function deliver(
+  relayUrl: string,
+  event: PendingEvent,
+  /** Records a re-signed event's new id before it is sent, so its echo is known. */
+  recordResigned: (fresh: PendingEvent) => Promise<unknown> = async () => {},
+): Promise<PendingEvent> {
   const signer = await prisma.buzzIdentity.findUnique({
     where: { pubkey: event.pubkey },
   });
   if (!signer) throw new Error(`No key for ${event.pubkey.slice(0, 8)}`);
+  const secretKey = identitySecretKey(signer);
   try {
-    await publishSignedEvent({
-      relayUrl,
-      event,
-      secretKey: identitySecretKey(signer),
-    });
+    await publishSignedEvent({ relayUrl, event, secretKey });
+    return event;
   } catch (error) {
-    if (!isAlreadyDone(error)) throw error;
+    if (isAlreadyDone(error)) return event;
+    // Held through a long outage, it is now too old for the relay: sign it
+    // again with the current time (a new id; the caller records it).
+    if (
+      error instanceof BuzzRelayRejectedError &&
+      /timestamp/i.test(error.reason)
+    ) {
+      const fresh = signEvent(
+        { kind: event.kind, tags: event.tags, content: event.content },
+        secretKey,
+      );
+      await recordResigned(fresh);
+      await publishSignedEvent({ relayUrl, event: fresh, secretKey });
+      return fresh;
+    }
+    throw error;
   }
 }
 
@@ -641,10 +641,21 @@ export async function reconcileMessage(
   // Finish what an earlier attempt decided but could not deliver.
   const unfinished = asPending(link?.pendingEvent);
   if (link && unfinished) {
-    await deliver(relayUrl, unfinished);
+    const messageLinkId = message.id;
+    const sent = await deliver(relayUrl, unfinished, (fresh) =>
+      fresh.kind === BUZZ_KIND.message
+        ? prisma.buzzMessageLink.update({
+            where: { messageId: messageLinkId },
+            data: { eventId: fresh.id },
+          })
+        : Promise.resolve(),
+    );
     link = await prisma.buzzMessageLink.update({
       where: { messageId: message.id },
-      data: { pendingEvent: PrismaNull.DbNull },
+      data: {
+        pendingEvent: PrismaNull.DbNull,
+        ...(sent.kind === BUZZ_KIND.message ? { eventId: sent.id } : {}),
+      },
     });
     result = "delivered";
   }
@@ -652,7 +663,12 @@ export async function reconcileMessage(
   /** Records the change with its event, then delivers it. */
   const decideAndDeliver = async (
     event: PendingEvent,
-    data: { contentHash?: string; lastEditAt?: number; deleted?: boolean },
+    data: {
+      contentHash?: string;
+      lastEditAt?: number;
+      lastEditEventId?: string;
+      deleted?: boolean;
+    },
   ) => {
     link = await prisma.buzzMessageLink.update({
       where: { messageId: message.id },
@@ -712,10 +728,15 @@ export async function reconcileMessage(
           pendingEvent: event as unknown as object,
         },
       });
-      await deliver(relayUrl, event);
+      const sent = await deliver(relayUrl, event, (fresh) =>
+        prisma.buzzMessageLink.update({
+          where: { messageId: message.id },
+          data: { eventId: fresh.id },
+        }),
+      );
       link = await prisma.buzzMessageLink.update({
         where: { messageId: message.id },
-        data: { pendingEvent: PrismaNull.DbNull },
+        data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
       });
       result = "published";
     }
@@ -739,7 +760,8 @@ export async function reconcileMessage(
     );
     await decideAndDeliver(event, {
       contentHash: hash,
-      lastEditAt: Math.max(link.lastEditAt, event.created_at),
+      lastEditAt: event.created_at,
+      lastEditEventId: event.id,
     });
     result = "edited";
   }
@@ -803,13 +825,20 @@ async function reconcileReactions(input: {
   for (const link of links) {
     const pending = asPending(link.pendingEvent);
     if (!pending) continue;
-    await deliver(input.relayUrl, pending);
+    const sent = await deliver(input.relayUrl, pending, (fresh) =>
+      fresh.kind === BUZZ_KIND.reaction
+        ? prisma.buzzReactionLink.update({
+            where: { id: link.id },
+            data: { eventId: fresh.id },
+          })
+        : Promise.resolve(),
+    );
     if (pending.kind === BUZZ_KIND.deletion) {
       await prisma.buzzReactionLink.delete({ where: { id: link.id } });
     } else {
       await prisma.buzzReactionLink.update({
         where: { id: link.id },
-        data: { pendingEvent: PrismaNull.DbNull },
+        data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
       });
     }
   }
@@ -851,10 +880,15 @@ async function reconcileReactions(input: {
       if (isPrismaUniqueViolation(error)) continue;
       throw error;
     }
-    await deliver(input.relayUrl, event);
+    const sent = await deliver(input.relayUrl, event, (fresh) =>
+      prisma.buzzReactionLink.update({
+        where: { id: linkId },
+        data: { eventId: fresh.id },
+      }),
+    );
     await prisma.buzzReactionLink.update({
       where: { id: linkId },
-      data: { pendingEvent: PrismaNull.DbNull },
+      data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
     });
   }
 
@@ -1132,6 +1166,9 @@ export async function applyInboundEvent(
       }
       return "posted";
     }
+    // Each change goes to Core first and is recorded after: a worker that
+    // stops in between replays the event and does it again (Core takes the
+    // same edit, delete or reaction twice harmlessly), never drops it.
     case "edit": {
       const link = await prisma.buzzMessageLink.findUnique({
         where: { eventId: change.targetEventId },
@@ -1139,6 +1176,7 @@ export async function applyInboundEvent(
           messageId: true,
           contentHash: true,
           lastEditAt: true,
+          lastEditEventId: true,
           message: { select: { roomId: true } },
         },
       });
@@ -1146,40 +1184,30 @@ export async function applyInboundEvent(
         if (options.finalAttempt) return "ignored";
         throw new BuzzTargetPendingError(change.targetEventId);
       }
-      // A replayed or late edit must not undo a newer one.
-      if (event.created_at <= link.lastEditAt) return "echo";
+      // The newest edit wins; on a tie the lower id, as Nostr orders
+      // replaceable events. A replayed or late edit never undoes a newer one.
+      const newer =
+        event.created_at > link.lastEditAt ||
+        (event.created_at === link.lastEditAt &&
+          (link.lastEditEventId === null || event.id < link.lastEditEventId));
+      if (!newer) return "echo";
       const hash = contentHash(change.content);
-      if (link.contentHash === hash) {
-        // Already the text, but still the newest edit: remember its time so
-        // an older one arriving later loses.
-        await prisma.buzzMessageLink.update({
-          where: { messageId: link.messageId },
-          data: { lastEditAt: event.created_at },
+      if (link.contentHash !== hash) {
+        await sendAs(core, author, {
+          method: "PATCH",
+          path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}`,
+          body: { content: change.content },
         });
-        return "echo";
       }
-      await markThenDo(
-        () =>
-          prisma.buzzMessageLink.update({
-            where: { messageId: link.messageId },
-            data: { contentHash: hash, lastEditAt: event.created_at },
-          }),
-        () =>
-          sendAs(core, author, {
-            method: "PATCH",
-            path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}`,
-            body: { content: change.content },
-          }),
-        () =>
-          prisma.buzzMessageLink.update({
-            where: { messageId: link.messageId },
-            data: {
-              contentHash: link.contentHash,
-              lastEditAt: link.lastEditAt,
-            },
-          }),
-      );
-      return "edited";
+      await prisma.buzzMessageLink.update({
+        where: { messageId: link.messageId },
+        data: {
+          contentHash: hash,
+          lastEditAt: event.created_at,
+          lastEditEventId: event.id,
+        },
+      });
+      return link.contentHash === hash ? "echo" : "edited";
     }
     case "delete": {
       let result: InboundResult = "ignored";
@@ -1194,23 +1222,14 @@ export async function applyInboundEvent(
         });
         if (messageLink) {
           if (messageLink.deleted) continue;
-          await markThenDo(
-            () =>
-              prisma.buzzMessageLink.update({
-                where: { messageId: messageLink.messageId },
-                data: { deleted: true },
-              }),
-            () =>
-              sendAs(core, author, {
-                method: "DELETE",
-                path: `/v1/chats/rooms/${messageLink.message.roomId}/messages/${messageLink.messageId}`,
-              }),
-            () =>
-              prisma.buzzMessageLink.update({
-                where: { messageId: messageLink.messageId },
-                data: { deleted: false },
-              }),
-          );
+          await sendAs(core, author, {
+            method: "DELETE",
+            path: `/v1/chats/rooms/${messageLink.message.roomId}/messages/${messageLink.messageId}`,
+          });
+          await prisma.buzzMessageLink.update({
+            where: { messageId: messageLink.messageId },
+            data: { deleted: true },
+          });
           result = "deleted";
           continue;
         }
@@ -1230,31 +1249,15 @@ export async function applyInboundEvent(
           where: { id: reactionLink.messageId },
           select: { roomId: true },
         });
-        if (!message) {
-          await prisma.buzzReactionLink.delete({
-            where: { id: reactionLink.id },
+        if (message) {
+          await sendAs(core, author, {
+            method: "DELETE",
+            path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
           });
-          continue;
         }
-        await markThenDo(
-          () =>
-            prisma.buzzReactionLink.delete({ where: { id: reactionLink.id } }),
-          () =>
-            sendAs(core, author, {
-              method: "DELETE",
-              path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
-            }),
-          () =>
-            prisma.buzzReactionLink.create({
-              data: {
-                id: reactionLink.id,
-                messageId: reactionLink.messageId,
-                identityId: reactionLink.identityId,
-                emoji: reactionLink.emoji,
-                eventId: reactionLink.eventId,
-              },
-            }),
-        );
+        await prisma.buzzReactionLink.deleteMany({
+          where: { id: reactionLink.id },
+        });
         result = "unreacted";
       }
       return result;
@@ -1268,52 +1271,94 @@ export async function applyInboundEvent(
         if (options.finalAttempt) return "ignored";
         throw new BuzzTargetPendingError(change.targetEventId);
       }
-      let reactionLinkId: string;
+      const existing = await prisma.buzzReactionLink.findUnique({
+        where: {
+          messageId_identityId_emoji: {
+            messageId: link.messageId,
+            identityId: author.id,
+            emoji: change.emoji,
+          },
+        },
+      });
+      if (existing) return "echo";
+      await sendAs(core, author, {
+        method: "PUT",
+        path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,
+      });
       try {
-        reactionLinkId = (
-          await prisma.buzzReactionLink.create({
-            data: {
-              messageId: link.messageId,
-              identityId: author.id,
-              emoji: change.emoji,
-              eventId: event.id,
-            },
-          })
-        ).id;
+        await prisma.buzzReactionLink.create({
+          data: {
+            messageId: link.messageId,
+            identityId: author.id,
+            emoji: change.emoji,
+            eventId: event.id,
+          },
+        });
       } catch (error) {
-        if (isPrismaUniqueViolation(error)) return "echo";
-        throw error;
+        if (!isPrismaUniqueViolation(error)) throw error;
       }
-      await markThenDo(
-        async () => {},
-        () =>
-          sendAs(core, author, {
-            method: "PUT",
-            path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,
-          }),
-        () => prisma.buzzReactionLink.delete({ where: { id: reactionLinkId } }),
-      );
       return "reacted";
     }
   }
 }
 
-/** Every linked channel of every community, for the worker's subscriptions. */
+/**
+ * What the worker reads, per community: one reader per key. The operator owns
+ * every channel; a DM holds only its people, so one of them reads it.
+ */
 export async function buzzSubscriptions() {
   const communities = await prisma.buzzCommunity.findMany({
     select: {
       id: true,
       relayUrl: true,
       inboundCursor: true,
-      channels: { select: { channelId: true } },
+      channels: {
+        select: {
+          channelId: true,
+          membersHash: true,
+          room: {
+            select: {
+              userMembers: {
+                select: { user: { select: { buzzIdentity: true } } },
+                orderBy: { createdAt: "asc" },
+              },
+            },
+          },
+        },
+      },
     },
   });
-  return communities.map((community) => ({
-    communityId: community.id,
-    relayUrl: community.relayUrl,
-    inboundCursor: community.inboundCursor,
-    channelIds: community.channels.map((channel) => channel.channelId),
-  }));
+  return communities.map((community) => {
+    const readers = new Map<
+      string,
+      { readerId: string; channelIds: string[] }
+    >();
+    for (const channel of community.channels) {
+      const readerId =
+        channel.membersHash === "direct"
+          ? (channel.room.userMembers.find((m) => m.user.buzzIdentity)?.user
+              .buzzIdentity?.id ?? null)
+          : "operator";
+      if (!readerId) continue;
+      const reader = readers.get(readerId) ?? { readerId, channelIds: [] };
+      reader.channelIds.push(channel.channelId);
+      readers.set(readerId, reader);
+    }
+    return {
+      communityId: community.id,
+      relayUrl: community.relayUrl,
+      inboundCursor: community.inboundCursor,
+      readers: [...readers.values()],
+    };
+  });
+}
+
+/** The key a reader subscribes with: the operator's, or a DM member's. */
+export async function readerSecretKey(readerId: string): Promise<Uint8Array> {
+  if (readerId === "operator") return requireConfig().operatorSecretKey;
+  return identitySecretKey(
+    await prisma.buzzIdentity.findUniqueOrThrow({ where: { id: readerId } }),
+  );
 }
 
 /** Everything up to `cursor` (unix seconds) has been applied; never moves back. */
