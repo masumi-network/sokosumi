@@ -7,7 +7,10 @@ import {
   type SocialPostStatus,
   type SocialQueueSlot,
 } from "@sokosumi/core-client";
-import { isValidTimezone } from "@sokosumi/utils";
+import {
+  isValidTimezone,
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+} from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -69,6 +72,7 @@ import {
 } from "@/components/ui/tabs";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import {
   type ActionError,
   toActionRejectionError,
@@ -109,6 +113,7 @@ import {
   sectionOf,
   sortSection,
   upsertPost,
+  withoutActions,
 } from "./social-post-list";
 import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
@@ -174,20 +179,6 @@ interface ProjectSocialPostsProps {
   requestedPostId?: string;
   /** The named post request failed, so do not pretend the link is gone. */
   selectedPostFailed?: boolean;
-}
-
-/** A post with nothing it can do, as every post of a CMO Project shows. */
-function withoutActions(post: SocialPost): SocialPost {
-  return {
-    ...post,
-    canEdit: false,
-    canSchedule: false,
-    canCancel: false,
-    canPublishNow: false,
-    canApprove: false,
-    canReject: false,
-    canDuplicate: false,
-  };
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
@@ -316,9 +307,12 @@ export function ProjectSocialPosts({
   const [, setDate] = useQueryState("date", parseAsString);
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
+  // Posts shown ahead of a write that has not answered. A fresh server list
+  // arrives with every answer and does not know them yet.
+  const [unanswered, setUnanswered] = useState<readonly SocialPost[]>([]);
   if (syncedPosts !== initialPosts) {
     setSyncedPosts(initialPosts);
-    setPosts(initialPosts);
+    setPosts(unanswered.reduce(upsertPost, initialPosts));
     setCursors(nextCursors ?? {});
     setLoadMoreError(null);
   }
@@ -341,7 +335,6 @@ export function ProjectSocialPosts({
           } satisfies SocialPostComposerMode)
         : null));
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
-  const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
   const [actionPendingPostId, setActionPendingPostId] = useState<string | null>(
@@ -569,9 +562,56 @@ export function ProjectSocialPosts({
     }
   }
 
-  function handleSaved(post: SocialPost): void {
+  function showPost(post: SocialPost): void {
     setPreviewTarget((current) => (current?.id === post.id ? post : current));
     setPosts((current) => upsertPost(current, post));
+  }
+
+  /**
+   * Shows `shown` the way a saved post shows, before Core answers. A failed
+   * write puts `post` and the tab back, and reports the error.
+   */
+  async function saveShowing(
+    post: SocialPost,
+    shown: SocialPost,
+    write: () => Promise<ActionResultDto<SocialPost, ActionError>>,
+  ): Promise<SocialPost | null> {
+    const tabBefore = tabParam;
+    shown = withoutActions(shown);
+    handleSaved(shown);
+    setUnanswered((current) => [...current, shown]);
+    function putBack(): void {
+      showPost(post);
+      void setTabParam(tabBefore);
+    }
+    try {
+      const result = await write();
+      if (!result.ok) {
+        putBack();
+        // The reader has moved on by now: a conflict here must not close a
+        // composer or dialog they opened since.
+        if (isRevisionConflict(result.error)) {
+          toast.error(t("toasts.conflict"));
+          router.refresh();
+        } else handleActionError(result.error);
+        return null;
+      }
+      // Core decides the status. Where it differs from the one shown, the
+      // post may belong on another tab.
+      if (result.value.status === shown.status) showPost(result.value);
+      else handleSaved(result.value);
+      return result.value;
+    } catch (error) {
+      putBack();
+      handleActionError(toActionRejectionError(error), error);
+      return null;
+    } finally {
+      setUnanswered((current) => current.filter((held) => held !== shown));
+    }
+  }
+
+  function handleSaved(post: SocialPost): void {
+    showPost(post);
     // Follow the post to the list that still shows it. A failed or missed
     // post that just left that list should not yank the page to the calendar
     // while other posts still need attention.
@@ -632,32 +672,26 @@ export function ProjectSocialPosts({
 
   async function handleConfirmCancel(): Promise<void> {
     const target = cancelTarget;
-    if (!target || cancelPending) return;
-    setCancelPending(true);
-    try {
-      const result = await cancelProjectSocialPost({
-        projectId,
-        postId: target.id,
-        revision: target.revision,
-      });
-      if (!result.ok) {
-        handleActionError(result.error);
-        return;
-      }
-      toast.success(
-        t(
-          RETRY_STATUSES.includes(target.status)
-            ? "toasts.dismissed"
-            : "toasts.canceled",
-        ),
-      );
-      handleSaved(result.value);
-    } catch (error) {
-      handleActionError(toActionRejectionError(error), error);
-    } finally {
-      setCancelPending(false);
-      setCancelTarget(null);
-    }
+    if (!target) return;
+    setCancelTarget(null);
+    const canceled = await saveShowing(
+      target,
+      { ...target, status: "CANCELED" },
+      () =>
+        cancelProjectSocialPost({
+          projectId,
+          postId: target.id,
+          revision: target.revision,
+        }),
+    );
+    if (!canceled) return;
+    toast.success(
+      t(
+        RETRY_STATUSES.includes(target.status)
+          ? "toasts.dismissed"
+          : "toasts.canceled",
+      ),
+    );
   }
 
   async function handleConfirmPublish(
@@ -801,25 +835,23 @@ export function ProjectSocialPosts({
   }
 
   async function handleApprove(post: SocialPost): Promise<void> {
-    if (actionPendingPostId) return;
-    setActionPendingPostId(post.id);
-    try {
-      const result = await approveProjectSocialPost({
-        projectId,
-        postId: post.id,
-        revision: post.revision,
-      });
-      if (!result.ok) {
-        handleActionError(result.error);
-        return;
-      }
-      handleSaved(result.value);
-      toast.success(t("toasts.approved"));
-    } catch (error) {
-      handleActionError(toActionRejectionError(error), error);
-    } finally {
-      setActionPendingPostId(null);
-    }
+    // Core schedules an approved post whose time is still far enough ahead,
+    // and keeps any other as a draft.
+    const schedules =
+      post.scheduledAt != null &&
+      new Date(post.scheduledAt).getTime() >=
+        Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+    const approved = await saveShowing(
+      post,
+      { ...post, status: schedules ? "SCHEDULED" : "DRAFT" },
+      () =>
+        approveProjectSocialPost({
+          projectId,
+          postId: post.id,
+          revision: post.revision,
+        }),
+    );
+    if (approved) toast.success(t("toasts.approved"));
   }
 
   async function handleResume(post: SocialPost): Promise<void> {
@@ -846,25 +878,24 @@ export function ProjectSocialPosts({
   }
 
   async function handleRemoveQuote(post: SocialPost): Promise<void> {
-    setActionPendingPostId(post.id);
-    try {
-      const result = await updateProjectSocialPost({
-        projectId,
-        postId: post.id,
+    const updated = await saveShowing(
+      post,
+      {
+        ...post,
         quotedPostId: null,
-        revision: post.revision,
-      });
-      if (!result.ok) {
-        handleActionError(result.error);
-        return;
-      }
-      handleSaved(result.value);
-      toast.success(t("toasts.updated"));
-    } catch (error) {
-      handleActionError(toActionRejectionError(error), error);
-    } finally {
-      setActionPendingPostId(null);
-    }
+        quotedPost: null,
+        needsAttentionReason: null,
+        lastError: null,
+      },
+      () =>
+        updateProjectSocialPost({
+          projectId,
+          postId: post.id,
+          quotedPostId: null,
+          revision: post.revision,
+        }),
+    );
+    if (updated) toast.success(t("toasts.updated"));
   }
 
   function renderPostActions(target: SocialPost, preview = false) {
@@ -909,7 +940,6 @@ export function ProjectSocialPosts({
               variant="outline"
               className="min-h-11 md:min-h-10"
               disabled={Boolean(actionPendingPostId)}
-              loading={actionPendingPostId === post.id}
               onClick={() => void handleRemoveQuote(post)}
             >
               {t("quote.remove")}
@@ -938,7 +968,6 @@ export function ProjectSocialPosts({
             variant="primary"
             className="min-h-11 md:min-h-10"
             disabled={Boolean(actionPendingPostId)}
-            loading={actionPendingPostId === post.id}
             onClick={() => void handleApprove(post)}
           >
             {t("actions.approve")}
@@ -1711,7 +1740,7 @@ export function ProjectSocialPosts({
       <AlertDialog
         open={cancelTarget !== null}
         onOpenChange={(open) => {
-          if (!open && !cancelPending) setCancelTarget(null);
+          if (!open) setCancelTarget(null);
         }}
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
@@ -1722,11 +1751,8 @@ export function ProjectSocialPosts({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelPending}>
-              {t("composer.close")}
-            </AlertDialogCancel>
+            <AlertDialogCancel>{t("composer.close")}</AlertDialogCancel>
             <AlertDialogAction
-              loading={cancelPending}
               onClick={(event) => {
                 event.preventDefault();
                 void handleConfirmCancel();

@@ -72,3 +72,20 @@ export function upsertPost(
   if (index === -1) return [next, ...posts];
   return posts.map((post) => (post.id === next.id ? next : post));
 }
+
+/**
+ * A post with nothing it can do. A post whose write is still running offers
+ * no action until Core answers, and every post of a CMO Project shows so.
+ */
+export function withoutActions(post: SocialPost): SocialPost {
+  return {
+    ...post,
+    canEdit: false,
+    canSchedule: false,
+    canCancel: false,
+    canPublishNow: false,
+    canDuplicate: false,
+    canApprove: false,
+    canReject: false,
+  };
+}
