@@ -101,21 +101,21 @@ describe("HeaderLeadingControl", () => {
     );
   });
 
-  it("shows back to chats on account (not sidebar trigger)", () => {
+  it("shows back to You on account (not sidebar trigger)", () => {
     mockPathname = "/account";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat");
+    const back = screen.getByRole("link", { name: "back" });
+    expect(back).toHaveAttribute("href", "/you");
     expect(
       screen.queryByRole("button", { name: "sidebar-trigger" }),
     ).toBeNull();
   });
 
-  it("shows back to chats on billing", () => {
+  it("shows back to You on billing", () => {
     mockPathname = "/billing";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat");
+    const back = screen.getByRole("link", { name: "back" });
+    expect(back).toHaveAttribute("href", "/you");
   });
 
   it("shows back to chats on developer", () => {

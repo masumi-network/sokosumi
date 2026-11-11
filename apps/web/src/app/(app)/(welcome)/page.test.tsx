@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const getMine = vi.fn();
 const listRooms = vi.fn();
 const listMessages = vi.fn();
-const listRecentSokoBotMessages = vi.fn();
+const listImportantMessages = vi.fn();
 const sokoBotHome = vi.fn();
 const needsYouPanel = vi.fn();
 const chatLanding = vi.fn();
@@ -52,7 +52,7 @@ vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     listRooms: (...args: unknown[]) => listRooms(...args),
     listMessages: (...args: unknown[]) => listMessages(...args),
-    listRecentSokoBotMessages: () => listRecentSokoBotMessages(),
+    listImportantMessages: () => listImportantMessages(),
   },
 }));
 vi.mock("@/lib/services/coworker.service", () => ({
@@ -135,13 +135,20 @@ describe("WelcomePage", () => {
         },
       ],
     });
-    listRecentSokoBotMessages.mockResolvedValue([
+    listImportantMessages.mockResolvedValue([
       {
         roomId: "room-1",
         messageId: "reply-1",
         parentMessageId: "parent-1",
-        content: "Plan my week",
+        roomName: "Joseph",
+        roomKind: "direct",
+        senderName: "Joseph",
+        senderImageUrl: null,
+        excerpt: "Can you confirm Friday?",
+        bucket: "needsYou",
         createdAt: new Date(),
+        dueAt: null,
+        inReplyTo: null,
       },
     ]);
     listMessages.mockResolvedValue({
@@ -224,7 +231,8 @@ describe("WelcomePage", () => {
           expect.objectContaining({
             roomId: "room-1",
             messageId: "reply-1",
-            title: "Plan my week",
+            title: "Can you confirm Friday?",
+            from: "Joseph",
           }),
         ],
         summary: { awaitingInput: 2 },
