@@ -155,34 +155,54 @@ afterEach(() => {
 });
 
 describe("SEO audit first run", () => {
-  it("names one next action, and keeps it out of the list under the card", async () => {
+  it("has two steps, and the first audit is the one filled button", async () => {
     const workspace = seoTestWorkspace();
     network(workspace);
     renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
-    // The account's state is not read yet: the card names no next step and no state.
-    expect(within(setup).queryByText(/^Next:/)).toBeNull();
+    const steps = within(setup).getAllByRole("listitem");
+    expect(steps).toHaveLength(2);
     expect(
-      within(setup).getByRole("heading", { name: "Google account" }),
+      within(steps[1]).getByRole("heading", { name: copy.setup.audit }),
     ).toBeVisible();
-    await within(setup).findByRole("button", { name: "Connect Google" });
-    // Still so with the status read: the account is not connected.
-    expect(within(setup).getByText("Next: Connect Google")).toBeVisible();
-    expect(primaryButtons(setup)).toEqual(["Connect Google"]);
-    // One Google step: Analytics is a choice in it, not a second button.
+    expect(steps[1]).toHaveAttribute("aria-current", "step");
+    expect(primaryButtons(setup)).toEqual(["Run full audit"]);
+    // Google is no setup step, and nothing under the card competes with the first audit.
     expect(
-      within(setup).queryByRole("button", { name: "Connect Google Analytics" }),
+      within(setup).queryByRole("button", { name: /Google|Sync/ }),
     ).toBeNull();
-    // The card offers the connections, so no row under it repeats them.
+    expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
     expect(
-      screen.queryByText(copy.agent.steps.connect.search_console),
+      screen.queryByRole("heading", { name: copy.agent.nextTitle }),
     ).toBeNull();
-    expect(screen.queryByText(copy.agent.steps.connect.ga4)).toBeNull();
   });
 
-  it("offers the sync as the next action once the Google account is connected", async () => {
-    const user = userEvent.setup();
+  it("names the page check where the workspace has no paid search data", () => {
     const workspace = seoTestWorkspace();
+    workspace.availableActions.canUsePaidSearchData = false;
+    network(workspace);
+    renderWorkspace(workspace);
+    const setup = screen.getByTestId("seo-setup");
+    expect(
+      within(setup).getByRole("heading", { name: copy.setup.check }),
+    ).toBeVisible();
+    expect(within(setup).getByText(copy.setup.checkBody)).toBeVisible();
+    expect(primaryButtons(setup)).toEqual(["Run page check"]);
+  });
+
+  it("offers the statistics under the card once the first check runs", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      {
+        id: "a1",
+        kind: "page_check",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date("2026-01-02T12:00:00Z"),
+      },
+    ];
     network(workspace, {
       connection: (provider) => ({
         provider,
@@ -192,86 +212,14 @@ describe("SEO audit first run", () => {
       }),
     });
     renderWorkspace(workspace);
+    // The check needs no more input, so the wait is the time for the statistics.
+    const banner = await screen.findByTestId("seo-statistics-banner");
+    expect(
+      await within(banner).findByRole("button", { name: "Sync statistics" }),
+    ).toBeVisible();
     const setup = screen.getByTestId("seo-setup");
-    await within(setup).findByText("Search Console connected");
-    expect(primaryButtons(setup)).toEqual(["Sync statistics"]);
-    expect(within(setup).getByText("Next: Sync statistics")).toBeVisible();
-    expect(within(setup).getByText("2 of 4 done")).toBeVisible();
-    const [, connect, sync] = within(setup).getAllByRole("listitem");
-    // The account step is done and quiet: one line per account, no account action in the row.
-    expect(
-      within(connect).getByRole("heading", { name: "Google connected (done)" }),
-    ).toBeVisible();
-    expect(
-      within(connect)
-        .getAllByRole("button")
-        .map((button) => button.textContent),
-    ).toEqual(["Search Console connected", "Connect Google Analytics"]);
-    // The sync has its own step, and that step is the current one.
-    expect(sync).toHaveAttribute("aria-current", "step");
-    expect(
-      within(sync).getByRole("heading", { name: "Sync statistics" }),
-    ).toBeVisible();
-    expect(within(sync).getByText(copy.setup.syncBody)).toBeVisible();
-    await user.click(
-      within(sync).getByRole("button", { name: "Sync statistics" }),
-    );
-    const dialog = await screen.findByRole("dialog");
-    expect(dialog).toBeVisible();
-    // The dates in the fields are the 28-day preset, and its button says so.
-    expect(
-      within(dialog)
-        .getAllByRole("button", { pressed: true })
-        .map((button) => button.textContent),
-    ).toEqual(["Last 28 days"]);
-    await user.click(
-      within(dialog).getByRole("button", { name: "Last 7 days" }),
-    );
-    expect(
-      within(dialog)
-        .getAllByRole("button", { pressed: true })
-        .map((button) => button.textContent),
-    ).toEqual(["Last 7 days"]);
-  });
-
-  it("does not ask for the account in a step that saved statistics have proved", async () => {
-    const workspace = seoTestWorkspace();
-    workspace.metrics = [
-      {
-        id: "search-clicks",
-        key: "clicks",
-        label: "Clicks",
-        unit: "count",
-        source: "search_console",
-        propertyId: "sc-domain:example.com",
-        value: 100,
-        from: "2026-09-01",
-        to: "2026-09-28",
-        timeZone: "UTC",
-        channel: "organic",
-        observedAt: new Date("2026-10-01T10:00:00Z"),
-        coverage: "complete",
-        points: [],
-        notes: [],
-      },
-    ];
-    // The connection is per reader: this one has no account, or removed it after the sync.
-    network(workspace);
-    renderWorkspace(workspace);
-    const setup = screen.getByTestId("seo-setup");
-    const [, connect, sync] = within(setup).getAllByRole("listitem");
-    await within(connect).findByRole("button", { name: "Connect Google" });
-    expect(
-      within(connect).getByRole("heading", { name: "Google account (done)" }),
-    ).toBeVisible();
-    expect(within(connect).queryByText(copy.setup.connectBody)).toBeNull();
-    expect(
-      within(sync).getByRole("heading", { name: "Statistics synced (done)" }),
-    ).toBeVisible();
-    expect(
-      within(sync).getByRole("button", { name: copy.agent.openTraffic }),
-    ).toBeVisible();
-    expect(primaryButtons(setup)).toEqual(["Run a check"]);
+    expect(within(setup).getByText(copy.setup.checkRunning)).toBeVisible();
+    expect(primaryButtons(setup)).toEqual([]);
   });
 
   it("asks for the sync, not the account, on the Traffic tab once the account is connected", async () => {
@@ -391,7 +339,7 @@ describe("SEO audit first run", () => {
     ).toHaveLength(1);
   });
 
-  it("puts a failed check on its own step, with the button that runs it again", async () => {
+  it("puts a failed check on its own step, with the button that runs it again", () => {
     const workspace = seoTestWorkspace();
     workspace.analyses = [
       {
@@ -408,104 +356,52 @@ describe("SEO audit first run", () => {
     renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
     const steps = within(setup).getAllByRole("listitem");
-    expect(within(steps[3]).getByText(copy.setup.checkFailed)).toBeVisible();
-    await within(setup).findByRole("button", { name: "Connect Google" });
-    expect(primaryButtons(setup)).toEqual(["Run a check"]);
-    expect(steps[3]).toHaveAttribute("aria-current", "step");
+    expect(within(steps[1]).getByText(copy.setup.checkFailed)).toBeVisible();
+    expect(primaryButtons(setup)).toEqual(["Run full audit"]);
+    expect(steps[1]).toHaveAttribute("aria-current", "step");
   });
 
-  it("keeps the sync in reach when a failed check holds the primary button", async () => {
-    const workspace = seoTestWorkspace();
-    workspace.analyses = [
-      {
-        id: "a1",
-        kind: "page_check",
-        status: "failed",
-        taskId: null,
-        pageIds: workspace.scope.pageIds,
-        scopeVersion: 2,
-        createdAt: new Date("2026-01-02T12:00:00Z"),
-      },
-    ];
-    network(workspace, {
-      connection: (provider) => ({
-        provider,
-        name: provider,
-        status: "connected",
-        source: "native",
-      }),
-    });
-    renderWorkspace(workspace);
-    const setup = screen.getByTestId("seo-setup");
-    await within(setup).findByText("Google Analytics connected");
-    // One sync, on its own step: the dialog has the choice of the source.
-    expect(
-      within(within(setup).getAllByRole("listitem")[2]).getByRole("button", {
-        name: "Sync statistics",
-      }),
-    ).toBeEnabled();
-    expect(
-      within(setup).getAllByRole("button", { name: "Sync statistics" }),
-    ).toHaveLength(1);
-    expect(primaryButtons(setup)).toEqual(["Run a check"]);
-  });
-
-  it("moves the next action to the check when the workspace cannot connect Google", async () => {
-    const workspace = seoTestWorkspace();
-    network(workspace, {
-      connection: (provider) => ({
-        provider,
-        name: provider,
-        status: "unavailable",
-        source: "none",
-      }),
-    });
-    renderWorkspace(workspace);
-    const setup = screen.getByTestId("seo-setup");
-    expect(
-      await within(setup).findByText("Next: Run the first check"),
-    ).toBeVisible();
-    expect(
-      within(setup).getByText(copy.setup.connectUnavailable),
-    ).toBeVisible();
-    expect(within(setup).getByText(copy.setup.syncUnavailable)).toBeVisible();
-    expect(within(setup).getByText("1 of 2 done")).toBeVisible();
-    expect(primaryButtons(setup)).toEqual(["Run a check"]);
-  });
-
-  it("keeps keyboard focus on the check button when the check starts to run", () => {
+  it("keeps keyboard focus on the check button when the check starts to run, and says when it started", () => {
     const workspace = seoTestWorkspace();
     network(workspace);
     const client = page(setupCard(workspace));
     const view = render(client);
-    const button = screen.getByRole("button", { name: "Run a check" });
+    const button = screen.getByRole("button", { name: "Run full audit" });
     button.focus();
     const running = seoTestWorkspace();
-    running.analyses = [
-      {
-        id: "a1",
-        kind: "page_check",
-        status: "running",
-        taskId: null,
-        pageIds: running.scope.pageIds,
-        scopeVersion: 2,
-        createdAt: new Date("2026-01-02T12:00:00Z"),
-      },
-    ];
+    const check = {
+      id: "a1",
+      kind: "audit_full" as const,
+      status: "running" as const,
+      taskId: null,
+      pageIds: running.scope.pageIds,
+      scopeVersion: 2,
+      createdAt: new Date(),
+    };
+    running.analyses = [check];
     view.rerender(page(setupCard(running)));
     expect(document.activeElement).toBe(button);
     expect(button).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("Check running")).toBeVisible();
+    // Core gives a start time and no progress: the card says the first, and invents no share or time left.
+    expect(screen.getByText(copy.setup.checkStartedNow)).toBeVisible();
+    const earlier = seoTestWorkspace();
+    earlier.analyses = [
+      { ...check, createdAt: new Date(Date.now() - 12 * 60_000) },
+    ];
+    view.rerender(page(setupCard(earlier)));
+    expect(screen.getByText("Started 12 minutes ago.")).toBeVisible();
+    expect(screen.queryByText(/%|remaining|left/)).toBeNull();
   });
 
-  it("says why checks are off: on the check step during setup, in a notice elsewhere", async () => {
+  it("says why checks are off in the notice, with no setup card that promises a check", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
     network(workspace);
     renderWorkspace(workspace);
-    expect(screen.getByText(copy.setup.checkUnavailable)).toBeVisible();
-    expect(screen.queryByText(copy.dispatchPaused)).toBeNull();
+    expect(screen.queryByTestId("seo-setup")).toBeNull();
+    expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Traffic" }));
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
   });

@@ -62,11 +62,10 @@ import {
   seoScopeControls,
   useSeoDateFields,
 } from "./seo-scope-bar";
-import { seoRunAction } from "./seo-setup-model";
+import { seoRunAction, seoSetup } from "./seo-setup-model";
 import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoTraffic } from "./seo-traffic";
-import { useSeoSetup } from "./use-seo-setup";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 /** A load faster than this shows no skeleton at all. */
@@ -83,7 +82,7 @@ export function SeoWorkspace({
 }) {
   const t = useTranslations("App.Seo");
   const model = useSeoWorkspace(workspace);
-  const setup = useSeoSetup(model);
+  const setup = seoSetup(model.data, model.filters);
   // Phones show the agent first; pages and filters open on demand (always open from md up).
   // With only the date filter left, its own button is enough and needs no fold.
   const controls = seoScopeControls(model);

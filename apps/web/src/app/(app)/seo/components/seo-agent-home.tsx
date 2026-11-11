@@ -3,7 +3,6 @@
 import { ChevronDown, Play } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
-import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -24,15 +23,14 @@ import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
-import { SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning, seoRunLeads } from "./seo-setup-model";
+import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
+import { seoCheckRunning, seoRunLeads, seoSetup } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { seoSummary } from "./seo-summary-model";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { useSeoAutopilot } from "./use-seo-autopilot";
-import { useSeoSetup } from "./use-seo-setup";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Next steps past this count fold behind a "show more" button. */
@@ -75,7 +73,7 @@ function SeoAgentPanel({
     traffic && seoRarelyShown(traffic.impressions, traffic.period),
   );
   // Before the first check the setup card leads; a filtered view has its own empty state.
-  const setup = useSeoSetup(model);
+  const setup = seoSetup(model.data, model.filters);
   const checkRunning = seoCheckRunning(model.data);
   // A check that ran during this visit: its end is news for a screen reader.
   const [checkSeen, setCheckSeen] = useState(checkRunning);
@@ -88,16 +86,12 @@ function SeoAgentPanel({
       verdict.current?.focus();
   }, [checkSeen, checkRunning]);
   // Missing search statistics are a banner under the result, not one of the steps.
-  const statisticsStep = setup
-    ? undefined
-    : brief.steps.find(
-        (step) => step.kind === "connect" && step.provider === "search_console",
-      );
-  // The setup card already offers the connections and the page step.
+  const statisticsStep = brief.steps.find(
+    (step) => step.kind === "connect" && step.provider === "search_console",
+  );
+  // Until the first check has a result, the setup card is the one thing to do: no step shows with it.
   const steps = setup
-    ? brief.steps.filter(
-        (step) => step.kind !== "connect" && step.kind !== "pages",
-      )
+    ? []
     : brief.steps.filter((step) => step !== statisticsStep);
   const [showAllSteps, setShowAllSteps] = useState(false);
   const shown = showAllSteps ? steps : steps.slice(0, SEO_AGENT_VISIBLE_STEPS);
@@ -153,8 +147,11 @@ function SeoAgentPanel({
       <SeoAgentGraphics model={model} />
     </>
   );
+  // During setup the banner waits until the first check runs: then the statistics are the next useful thing.
   const banner =
-    statisticsStep && statisticsStep.kind !== "action" ? (
+    statisticsStep &&
+    statisticsStep.kind !== "action" &&
+    (!setup || setup.check === "running") ? (
       <SeoStepRow
         banner={t("agent.statisticsMissing")}
         step={statisticsStep}
@@ -336,14 +333,7 @@ function SeoAgentPanel({
               {t("runAnalysis")}
             </Button>
           ) : null}
-          {checkRunning ? (
-            // The status line above announces it; this badge is its picture.
-            <span aria-hidden className="block">
-              <StatusBadge tone="working" live>
-                {t("setup.checkRunningBadge")}
-              </StatusBadge>
-            </span>
-          ) : null}
+          <SeoCheckRunning workspace={model.data} />
           {upkeep}
           {/* The question field is part of the result: read it, then ask. The chat itself opens in the sheet, on every tab. */}
           {model.data.auditId ? <SeoAskBar model={model} /> : null}
@@ -365,11 +355,9 @@ function SeoAgentPanel({
       {(setup || banner) && !steps.length ? null : (
         <div className="space-y-2">
           <div className="space-y-0.5 px-2">
-            <h3 className="text-sm font-semibold">
-              {t(setup ? "setup.more" : "agent.nextTitle")}
-            </h3>
+            <h3 className="text-sm font-semibold">{t("agent.nextTitle")}</h3>
             {/* Which control does what: a step has its button, all other work goes to the question field. */}
-            {!setup && steps.length && model.data.auditId ? (
+            {steps.length && model.data.auditId ? (
               <p className="text-muted-foreground text-sm">
                 {t("agent.nextRule")}
               </p>

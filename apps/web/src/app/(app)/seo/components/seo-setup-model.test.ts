@@ -1,28 +1,6 @@
-import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoRunAction, seoSetup } from "./seo-setup-model";
+import { seoRunAction, seoRunningCheck, seoSetup } from "./seo-setup-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
-
-const SEARCH_METRIC: ProjectSeoMetric = {
-  id: "search-clicks",
-  key: "clicks",
-  label: "Clicks",
-  unit: "count",
-  source: "search_console",
-  propertyId: "sc-domain:example.com",
-  value: 100,
-  from: "2026-09-01",
-  to: "2026-09-28",
-  timeZone: "UTC",
-  channel: "organic",
-  observedAt: new Date("2026-10-01T10:00:00Z"),
-  coverage: "complete",
-  points: [],
-  notes: [],
-};
-
-const states = (workspace = seoTestWorkspace()) =>
-  seoSetup(workspace)?.steps.map((step) => `${step.kind}:${step.state}`);
 
 describe("SEO header run action", () => {
   it("opens on a full audit only where Core accepts one: paid data and pages on one host", () => {
@@ -79,107 +57,41 @@ describe("SEO header run action", () => {
 });
 
 describe("SEO first-run setup", () => {
-  it("gives the primary button to the first step that is not done", () => {
-    expect(states()).toEqual([
-      "page:done",
-      "connect:next",
-      "sync:waiting",
-      "check:open",
-    ]);
-    expect(seoSetup(seoTestWorkspace())).toMatchObject({ done: 1, total: 4 });
-  });
-
-  it("gives the sync its own step once the account is connected", () => {
-    const setup = seoSetup(seoTestWorkspace(), undefined, "connected");
-    expect(setup?.steps.map((step) => `${step.kind}:${step.state}`)).toEqual([
-      "page:done",
-      "connect:done",
-      "sync:next",
-      "check:open",
-    ]);
-    expect(setup).toMatchObject({ done: 2, total: 4, next: "sync" });
-  });
-
-  it("does not call the account connected or missing before its state is read", () => {
+  it("has two steps: the page, then the first check as the next thing to do", () => {
     const workspace = seoTestWorkspace();
-    expect(seoSetup(workspace, undefined, "checking")).toMatchObject({
-      checking: true,
-      next: "connect",
+    expect(seoSetup(workspace)).toEqual({
+      page: "done",
+      check: "next",
+      next: "check",
+      failed: false,
     });
-    expect(seoSetup(workspace, undefined, "not_connected")?.checking).toBe(
-      false,
-    );
-    // Saved statistics already prove the account.
-    workspace.metrics = [SEARCH_METRIC];
-    expect(seoSetup(workspace, undefined, "checking")?.checking).toBe(false);
-  });
-
-  it("waits for a page before the other steps, without calling them unavailable", () => {
-    const workspace = seoTestWorkspace();
     workspace.scope.pageIds = [];
-    // Core reports no sync and no check right for an empty scope.
+    // Core reports no check right for an empty selection: the check waits, it is not gone.
     workspace.availableActions.canRequestAnalysis = false;
-    workspace.availableActions.canSyncMetrics = false;
-    expect(states(workspace)).toEqual([
-      "page:next",
-      "connect:waiting",
-      "sync:waiting",
-      "check:waiting",
-    ]);
-    expect(seoSetup(workspace)).toMatchObject({ done: 0, total: 4 });
-  });
-
-  it("leaves a step this workspace cannot do out of the progress count", () => {
-    const workspace = seoTestWorkspace();
-    workspace.availableActions.canSyncMetrics = false;
-    expect(states(workspace)).toEqual([
-      "page:done",
-      "connect:unavailable",
-      "sync:unavailable",
-      "check:next",
-    ]);
-    expect(seoSetup(workspace)).toMatchObject({
-      done: 1,
-      total: 2,
-      next: "check",
+    expect(seoSetup(workspace)).toEqual({
+      page: "next",
+      check: "waiting",
+      next: "page",
+      failed: false,
     });
   });
 
-  it("skips the connect and sync steps in a workspace that cannot connect Google", () => {
-    const workspace = seoTestWorkspace();
-    expect(seoSetup(workspace, undefined, "unavailable")).toMatchObject({
-      done: 1,
-      total: 2,
-      next: "check",
-    });
-    // Nothing is left to do, so the card ends and the notice explains.
-    workspace.availableActions.canRequestAnalysis = false;
-    expect(seoSetup(workspace, undefined, "unavailable")).toBeNull();
-  });
-
-  it("ends when no step is left that the reader can do", () => {
+  it("ends when the reader cannot run the check, unless one is under way", () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
-    workspace.availableActions.canSyncMetrics = false;
     expect(seoSetup(workspace)).toBeNull();
-  });
-
-  it("counts Search Console as connected once its statistics are saved", () => {
-    const workspace = seoTestWorkspace();
-    workspace.metrics = [
+    workspace.analyses = [
       {
-        ...SEARCH_METRIC,
-        source: "ga4",
+        id: "a1",
+        kind: "page_check",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date("2026-01-02T12:00:00Z"),
       },
     ];
-    expect(states(workspace)?.[1]).toBe("connect:next");
-    workspace.metrics = [SEARCH_METRIC];
-    expect(states(workspace)).toEqual([
-      "page:done",
-      "connect:done",
-      "sync:done",
-      "check:next",
-    ]);
+    expect(seoSetup(workspace)).toMatchObject({ check: "running", next: null });
   });
 
   it("speaks for the whole Audit, so a page, date or channel filter ends it", () => {
@@ -213,45 +125,37 @@ describe("SEO first-run setup", () => {
       createdAt: new Date(date),
     });
     workspace.analyses = [analysis];
-    expect(states(workspace)?.[3]).toBe("check:running");
-    expect(seoSetup(workspace)?.failed).toBe(false);
+    expect(seoSetup(workspace)).toMatchObject({
+      check: "running",
+      next: null,
+      failed: false,
+    });
     // A check that Core accepted and has not started is in flight too.
     workspace.analyses = [{ ...analysis, status: "requested" }];
-    expect(states(workspace)?.[3]).toBe("check:running");
+    expect(seoSetup(workspace)?.check).toBe("running");
+    // The newest check in flight is the one the card dates.
+    workspace.analyses = [
+      analysis,
+      { ...analysis, id: "a3", createdAt: new Date("2026-01-04T12:00:00Z") },
+    ];
+    expect(seoRunningCheck(workspace)?.id).toBe("a3");
     // A newer failed check is no news while another check runs.
     workspace.analyses = [failedAt("2026-01-03T12:00:00Z"), analysis];
     expect(seoSetup(workspace)).toMatchObject({
+      check: "running",
       failed: false,
-      next: "connect",
     });
-    // The newest check decides, in whatever order Core lists them. The failed
-    // check takes the primary button from the connect step before it.
+    // The newest check decides, in whatever order Core lists them.
     workspace.analyses = [
       failedAt("2026-01-03T12:00:00Z"),
       { ...analysis, status: "completed" },
     ];
-    expect(states(workspace)).toEqual([
-      "page:done",
-      "connect:open",
-      "sync:waiting",
-      "check:next",
-    ]);
-    expect(seoSetup(workspace)?.failed).toBe(true);
+    expect(seoSetup(workspace)).toMatchObject({ check: "next", failed: true });
     workspace.analyses = [
       failedAt("2026-01-01T12:00:00Z"),
       { ...analysis, status: "completed" },
     ];
-    expect(seoSetup(workspace)).toMatchObject({
-      failed: false,
-      next: "connect",
-    });
-    // A failed check the reader cannot run again is not shown as a task.
-    workspace.analyses = [failedAt("2026-01-03T12:00:00Z")];
-    workspace.availableActions.canRequestAnalysis = false;
-    expect(seoSetup(workspace)).toMatchObject({
-      failed: false,
-      next: "connect",
-    });
+    expect(seoSetup(workspace)).toMatchObject({ check: "next", failed: false });
   });
 
   it("ends once a check saved a result, and for a reader who cannot edit", () => {

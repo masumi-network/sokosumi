@@ -2546,8 +2546,13 @@ describe("SEO workspace integration", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    await user.click(screen.getByRole("button", { name: "Run full audit" }));
     const dialog = screen.getByRole("dialog");
+    // The dialog opens on the full audit; the page check is one choice away.
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Check type" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Page check" }));
     expect(within(dialog).queryByLabelText("Maximum data requests")).toBeNull();
     expect(
       within(dialog).queryByRole("combobox", { name: /coworker/i }),
@@ -2587,7 +2592,7 @@ describe("SEO workspace integration", () => {
       );
       mutate.mockResolvedValue({ ok: true, value: null });
       renderWorkspace(workspace);
-      await user.click(screen.getByRole("button", { name: "Run a check" }));
+      await user.click(screen.getByRole("button", { name: "Run page check" }));
       const dialog = screen.getByRole("dialog");
       await user.click(
         within(dialog).getByRole("combobox", { name: "Check type" }),
@@ -2632,7 +2637,7 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    await user.click(screen.getByRole("button", { name: "Run full audit" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
@@ -2665,12 +2670,12 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
-    // The check step says it once; the page banner does not repeat it.
+    // No check can run: no card promises one, the header's button is off, and the notice says why.
+    expect(screen.queryByTestId("seo-setup")).toBeNull();
     expect(
-      screen.getByText(messages.App.Seo.setup.checkUnavailable),
-    ).toBeVisible();
-    expect(screen.queryByText(messages.App.Seo.dispatchPaused)).toBeNull();
+      screen.getByRole("button", { name: "Run full audit" }),
+    ).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(messages.App.Seo.dispatchPaused)).toBeVisible();
     // "All audits" goes back to the Audit's Project scope.
     expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
       "href",
@@ -2688,26 +2693,15 @@ describe("SEO workspace integration", () => {
     expect(
       within(addPage).getByRole("combobox", { name: "Related to" }),
     ).toHaveTextContent(workspace.pages[0].label || workspace.pages[0].url);
-    // With no pages, the later steps wait as titles, and none is called unavailable.
+    // With no pages the card is back: the page step has the one button, and the check waits as a title.
     cleanup();
     workspace.scope.pageIds = [];
-    // Core reports no sync right for an empty scope either: the later steps wait.
-    workspace.availableActions.canSyncMetrics = false;
     renderWorkspace(workspace);
     expect(
       within(screen.getByTestId("seo-setup"))
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["Add a page"]);
-    expect(
-      screen.queryByText(messages.App.Seo.setup.syncUnavailable),
-    ).toBeNull();
-    expect(
-      screen.queryByText(messages.App.Seo.setup.checkUnavailable),
-    ).toBeNull();
-    expect(
-      screen.queryByText(messages.App.Seo.setup.connectUnavailable),
-    ).toBeNull();
   });
 
   it("leads a new audit with its setup steps and shows a check in flight", async () => {
@@ -2719,26 +2713,26 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     const setup = screen.getByRole("region", { name: "Set up this audit" });
-    expect(within(setup).getByText("1 of 4 done")).toBeVisible();
     const steps = within(
       within(setup).getByRole("list", { name: "Setup steps" }),
     ).getAllByRole("listitem");
-    // The page is saved, so connecting Google is the current step once its state is read.
-    await waitFor(() =>
-      expect(steps.map((step) => step.getAttribute("aria-current"))).toEqual([
-        null,
-        "step",
-        null,
-        null,
-      ]),
-    );
+    // The page is saved, so the first audit is the current step.
+    expect(steps.map((step) => step.getAttribute("aria-current"))).toEqual([
+      null,
+      "step",
+    ]);
     // The schedule offer and the old verdict wait until a check exists.
     expect(screen.queryByTestId("seo-automation")).toBeNull();
     expect(screen.queryByTestId("seo-agent-verdict")).toBeNull();
     await user.click(
-      within(steps[3]).getByRole("button", { name: "Run a check" }),
+      within(steps[1]).getByRole("button", { name: "Run full audit" }),
     );
-    expect(screen.getByRole("dialog")).toBeVisible();
+    // The step's button opens the dialog on the check it names.
+    expect(
+      within(screen.getByRole("dialog")).getByRole("combobox", {
+        name: "Check type",
+      }),
+    ).toHaveTextContent("Full audit");
     cleanup();
     workspace.analyses = [
       {
@@ -2762,7 +2756,7 @@ describe("SEO workspace integration", () => {
         .some((status) => status.textContent === "Check running"),
     ).toBe(true);
     // The button stays for keyboard focus, but starts no second check.
-    const again = screen.getByRole("button", { name: "Run a check" });
+    const again = screen.getByRole("button", { name: "Run full audit" });
     expect(again).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(again);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -2857,7 +2851,9 @@ describe("SEO workspace integration", () => {
         vi.fn(async () => Response.json(workspace)),
       );
       const view = renderWorkspace(workspace);
-      expect(screen.getByRole("button", { name: "Run a check" })).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: "Run full audit" }),
+      ).toBeVisible();
       expect(
         screen.queryByRole("button", { name: "Schedule checks" }),
       ).toBeNull();
@@ -3408,8 +3404,15 @@ describe("SEO workspace integration", () => {
       });
     // The setup card is on the Agent tab only: there its check step leads, on the other tabs the header does.
     renderWorkspace(workspace);
-    expect(await screen.findByTestId("seo-setup")).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
+    // One run button there: the card's. The header adds no second one.
+    expect(
+      within(await screen.findByTestId("seo-setup")).getByRole("button", {
+        name: "Run full audit",
+      }),
+    ).toHaveClass("bg-primary");
+    expect(
+      screen.getAllByRole("button", { name: "Run full audit" }),
+    ).toHaveLength(1);
     await user.click(screen.getByRole("tab", { name: "Rankings" }));
     expect(
       await screen.findByRole("button", { name: "Run full audit" }),
