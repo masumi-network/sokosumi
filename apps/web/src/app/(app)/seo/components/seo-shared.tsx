@@ -401,6 +401,40 @@ export function SeoBarNumber({
   );
 }
 
+/** The title of an action and, where two fixes can share a title, the page it is for: one piece for an Agent row and a closed action card. */
+export function SeoActionName({
+  title,
+  pageUrl,
+  workspace,
+  strong = false,
+}: {
+  title: string;
+  /** Null where the page already shows beside the name. */
+  pageUrl: string | null;
+  workspace: ProjectSeoWorkspace;
+  /** The title of a card; a row is one step lighter. */
+  strong?: boolean;
+}) {
+  const t = useTranslations("App.Seo");
+  return (
+    <span className="block min-w-0 sm:flex-1">
+      <span
+        className={cn(
+          "block text-sm break-words",
+          strong ? "font-semibold" : "font-medium",
+        )}
+      >
+        {title}
+      </span>
+      {pageUrl && workspace.scope.pageIds.length > 1 ? (
+        <bdi className="text-muted-foreground block text-xs [overflow-wrap:anywhere]">
+          {seoPageName(pageUrl, seoSiteUrl(workspace), t("pages.home"))}
+        </bdi>
+      ) : null}
+    </span>
+  );
+}
+
 /** A row that is one button: the whole row opens its target, and an arrow at its end says so. */
 export const SEO_ROW_BUTTON_CLASS = cn(
   HOLDER_ITEM_CLASS,

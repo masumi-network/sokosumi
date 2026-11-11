@@ -1,15 +1,26 @@
 "use client";
 
 import type { ProjectSeoAction } from "@sokosumi/core-client";
-import { ArrowUpRight, ClipboardPlus, Play, Plug, Plus } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ClipboardPlus,
+  Play,
+  Plug,
+  Plus,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import {
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
+  SeoActionName,
   SeoEmpty,
   SeoPageLink,
   SeoSection,
@@ -22,8 +33,9 @@ import { SeoStrategyActions } from "./seo-strategy";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /**
- * One card for an action (the Actions tab, and the top proposal on the Agent tab): how bad the issue is,
- * the title, the page and the button. The reasons and the evidence are in its details.
+ * One card for an action (the Actions tab, and the top proposal on the Agent tab). Closed, it is one row:
+ * the title, the page and how bad the issue is. Open, it adds what the check found and the button; the
+ * reasons and the evidence are in its details. The card with the page's filled button starts open.
  */
 export function SeoActionCard({
   action,
@@ -46,8 +58,16 @@ export function SeoActionCard({
   const { setShownAction } = model;
   // The card stays marked until the focus leaves the card, so the reader sees which of the cards the row meant.
   const [marked, setMarked] = useState(false);
+  // A card that a row leads to is open on its first paint, so it scrolls into view at its full height.
+  const [open, setOpen] = useState(primary || shown);
+  const bodyId = useId();
+  // The filled button moves on once a Task exists for the card before: the card that gets it opens.
+  useEffect(() => {
+    if (primary) setOpen(true);
+  }, [primary]);
   useEffect(() => {
     if (!shown) return;
+    setOpen(true);
     card.current?.scrollIntoView({ block: "center" });
     card.current?.focus();
     setMarked(true);
@@ -65,121 +85,149 @@ export function SeoActionCard({
       }}
       className={cn(
         HOLDER_ITEM_CLASS,
-        "group focus-visible:outline-ring aria-[current=true]:ring-ring min-w-0 space-y-2 p-4 focus-visible:outline-2 aria-[current=true]:ring-2",
+        "group focus-visible:outline-ring aria-[current=true]:ring-ring min-w-0 focus-visible:outline-2 aria-[current=true]:ring-2",
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold break-words">{action.title}</h3>
-        <div className="flex flex-wrap gap-1">
-          {/* The severity of the issue it fixes; a suggestion from search data has none. */}
-          {severity ? (
-            <SeoSeverity severity={severity} />
-          ) : (
-            <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
+      <h3>
+        {/* The closed card is one row: the title, its page and how bad the issue is. A press opens what the check found and the button. */}
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={open ? bodyId : undefined}
+          onClick={() => setOpen((value) => !value)}
+          className={cn(
+            HOLDER_ITEM_HOVER_CLASS,
+            "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-start outline-none focus-visible:ring-2",
           )}
-          {action.status !== "recommended" ? (
-            <SeoState>{t(`actions.${action.status}`)}</SeoState>
-          ) : null}
-        </div>
-      </div>
-      {/* In view: what the check found, where an issue is behind the action; the effect of the fix reads like a spec and waits in the details. Two lines, four on a phone; the open details show all of it. */}
-      <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
-        {problem
-          ? t("actions.problem", {
-              check: t("overview.failedCheck", { name: problem.check }),
-              found: problem.found,
-            })
-          : action.expectedEffect}
-        {problem?.footnote ? (
-          <span className="hidden group-has-[details[open]]:inline">
-            {" "}
-            {problem.footnote}
+        >
+          <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
+            {/* The open card has the link to the page; the closed row names the page. */}
+            <SeoActionName
+              title={action.title}
+              pageUrl={open ? null : action.pageUrl}
+              workspace={model.data}
+              strong
+            />
+            <span className="flex flex-wrap items-center gap-1 max-sm:mt-1">
+              {/* The severity of the issue it fixes; a suggestion from search data has none. */}
+              {severity ? (
+                <SeoSeverity severity={severity} />
+              ) : (
+                <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
+              )}
+              {action.status !== "recommended" ? (
+                <SeoState>{t(`actions.${action.status}`)}</SeoState>
+              ) : null}
+            </span>
           </span>
-        ) : null}
-      </p>
-      <SeoPageLink url={action.pageUrl} site={seoSiteUrl(model.data)} />
-      <details className="text-sm">
-        <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
-          {t("actions.whyDetails")}
-        </summary>
-        <div className="space-y-3 pt-3">
-          {/* What the level means, in words: a hint on the label alone does not reach a phone or a screen reader. */}
-          {severity ? (
-            <p className="text-muted-foreground text-sm">
-              {t("actions.impactLine", {
-                level: t(`severity.${severity}`),
-                hint: t(`severityHint.${severity}`),
-              })}
-            </p>
-          ) : null}
-          <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
-            {action.why}
-          </p>
-          {problem ? (
-            <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
-              {t("actions.effect")}: {action.expectedEffect}
-            </p>
-          ) : null}
-          <p className="text-muted-foreground text-xs">
-            {t("actions.effort")}: {t(`priority.${action.effort}`)}
-          </p>
-          {action.evidence.length ? (
-            <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs">
-              {action.evidence.map((line, index) => (
-                <li key={`${index}:${line}`} className="break-words">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <SeoSource
-            observationId={action.observationId}
-            workspace={model.data}
+          <ChevronDown
+            className={cn(
+              "text-muted-foreground size-4 shrink-0 transition-transform duration-150 ease-out motion-reduce:transition-none",
+              open && "rotate-180",
+            )}
           />
-          {action.edit ? (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div>
-                <p className="text-muted-foreground mb-1 text-xs">
-                  {t("actions.before")}
+        </button>
+      </h3>
+      {open ? (
+        <div id={bodyId} className="space-y-2 px-4 pb-4">
+          {/* What the check found, where an issue is behind the action; the effect of the fix reads like a spec and waits in the details. Two lines, four on a phone; the open details show all of it. */}
+          <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
+            {problem
+              ? t("actions.problem", {
+                  check: t("overview.failedCheck", { name: problem.check }),
+                  found: problem.found,
+                })
+              : action.expectedEffect}
+            {problem?.footnote ? (
+              <span className="hidden group-has-[details[open]]:inline">
+                {" "}
+                {problem.footnote}
+              </span>
+            ) : null}
+          </p>
+          <SeoPageLink url={action.pageUrl} site={seoSiteUrl(model.data)} />
+          <details className="text-sm">
+            <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
+              {t("actions.whyDetails")}
+            </summary>
+            <div className="space-y-3 pt-3">
+              {/* What the level means, in words: a hint on the label alone does not reach a phone or a screen reader. */}
+              {severity ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("actions.impactLine", {
+                    level: t(`severity.${severity}`),
+                    hint: t(`severityHint.${severity}`),
+                  })}
                 </p>
-                <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                  {action.edit.before ?? t("actions.noBefore")}
-                </pre>
-              </div>
-              <div>
-                <p className="text-muted-foreground mb-1 text-xs">
-                  {t("actions.after")}
+              ) : null}
+              <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
+                {action.why}
+              </p>
+              {problem ? (
+                <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
+                  {t("actions.effect")}: {action.expectedEffect}
                 </p>
-                <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                  {action.edit.after}
-                </pre>
-              </div>
+              ) : null}
+              <p className="text-muted-foreground text-xs">
+                {t("actions.effort")}: {t(`priority.${action.effort}`)}
+              </p>
+              {action.evidence.length ? (
+                <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs">
+                  {action.evidence.map((line, index) => (
+                    <li key={`${index}:${line}`} className="break-words">
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <SeoSource
+                observationId={action.observationId}
+                workspace={model.data}
+              />
+              {action.edit ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-muted-foreground mb-1 text-xs">
+                      {t("actions.before")}
+                    </p>
+                    <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
+                      {action.edit.before ?? t("actions.noBefore")}
+                    </pre>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1 text-xs">
+                      {t("actions.after")}
+                    </p>
+                    <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
+                      {action.edit.after}
+                    </pre>
+                  </div>
+                </div>
+              ) : null}
             </div>
+          </details>
+          {action.taskId ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
+                <ArrowUpRight />
+                {t("openTask")}
+              </Link>
+            </Button>
+          ) : model.data.availableActions.canEdit ? (
+            <Button
+              size="sm"
+              variant={primary ? "primary" : "outline"}
+              loading={model.pending}
+              onClick={() => {
+                void model.createActionTask(action);
+              }}
+            >
+              <ClipboardPlus />
+              {t("actions.createTask")}
+            </Button>
           ) : null}
         </div>
-      </details>
-      <div className="flex flex-wrap items-center gap-3">
-        {action.taskId ? (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
-              <ArrowUpRight />
-              {t("openTask")}
-            </Link>
-          </Button>
-        ) : model.data.availableActions.canEdit ? (
-          <Button
-            size="sm"
-            variant={primary ? "primary" : "outline"}
-            loading={model.pending}
-            onClick={() => {
-              void model.createActionTask(action);
-            }}
-          >
-            <ClipboardPlus />
-            {t("actions.createTask")}
-          </Button>
-        ) : null}
-      </div>
+      ) : null}
     </article>
   );
 }
@@ -191,22 +239,30 @@ function ActionGroup({
   model,
   severity,
   primary,
+  named,
 }: {
   title: string;
-  help: string;
+  /** What the group is; absent where the section title says enough. */
+  help: string | undefined;
   actions: ProjectSeoAction[];
   model: SeoWorkspaceModel;
   severity: (action: ProjectSeoAction) => SeoIssueSeverity | null;
   /** The action that carries the tab's one filled button. */
   primary: ProjectSeoAction | undefined;
+  /** The other group has actions too: only then a group needs its name. */
+  named: boolean;
 }) {
   if (!actions.length) return null;
   return (
     <div className="space-y-2">
-      <div className="px-2">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <p className="text-muted-foreground text-sm">{help}</p>
-      </div>
+      {named || help ? (
+        <div className="px-2">
+          {named ? <h3 className="text-sm font-semibold">{title}</h3> : null}
+          {help ? (
+            <p className="text-muted-foreground text-sm">{help}</p>
+          ) : null}
+        </div>
+      ) : null}
       {actions.map((action) => (
         <SeoActionCard
           key={seoActionKey(action)}
@@ -231,6 +287,8 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const primary = [...fixes, ...opportunities].find(
     (action) => action.status === "recommended",
   );
+  // Two groups on the tab: each one names itself.
+  const grouped = fixes.length > 0 && opportunities.length > 0;
   const searchLoaded = model.data.searchQueries !== null;
   // The recheck rule matters only once a Task exists for an action.
   const tracked = overview.actions.some(
@@ -250,11 +308,13 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
           <div className="space-y-5">
             <ActionGroup
               title={t("actions.fixesTitle")}
-              help={t("actions.fixesHelp")}
+              // Alone under "Actions", a list of fixes needs no line; suggestions keep theirs: it says they promise no traffic.
+              help={grouped ? t("actions.fixesHelp") : undefined}
               actions={fixes}
               model={model}
               severity={overview.actionSeverity}
               primary={primary}
+              named={grouped}
             />
             <ActionGroup
               title={t("actions.opportunitiesTitle")}
@@ -263,6 +323,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               model={model}
               severity={overview.actionSeverity}
               primary={primary}
+              named={grouped}
             />
           </div>
         ) : (

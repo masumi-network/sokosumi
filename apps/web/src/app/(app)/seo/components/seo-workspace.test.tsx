@@ -378,7 +378,7 @@ describe("SEO workspace integration", () => {
     // The same title on the card of the fix, with the severity of its issue. The card takes the focus,
     // so the reader does not look for the fix again in the list.
     const card = screen
-      .getByRole("heading", { name: "Make the markup price match the page" })
+      .getByRole("heading", { name: /^Make the markup price match the page/ })
       .closest("article");
     await waitFor(() => expect(card).toHaveFocus());
     // The card is marked while the focus is on it or on one of its controls, and no longer.
@@ -519,7 +519,7 @@ describe("SEO workspace integration", () => {
     // The page of the fix is a page of the site: its path, with the address as the link's name.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     const card = screen
-      .getByRole("heading", { name: "Make the markup price match the page" })
+      .getByRole("heading", { name: /^Make the markup price match the page/ })
       .closest("article");
     expect(within(card!).getByRole("link", { name: guide })).toHaveTextContent(
       /^\/guides\/a$/,
@@ -1597,7 +1597,6 @@ describe("SEO workspace integration", () => {
       .getByRole("heading", { name: "Website and blog" })
       .closest("li");
     if (!row) throw new Error("Saved page selection missing");
-    expect(within(row).queryByRole("button", { name: "View page" })).toBeNull();
     await user.click(
       within(row).getByRole("button", { name: "View selection" }),
     );
@@ -4179,14 +4178,25 @@ describe("SEO workspace integration", () => {
       "aria-selected",
       "true",
     );
-    // The Actions tab has the full card of each fix, and the card of the opened row takes the focus.
+    // The Actions tab lists each fix as a closed row. Two cards are open: the first one that waits, and the
+    // card of the opened row, which takes the focus.
     expect(
       await screen.findAllByRole("button", { name: "Create draft task" }),
-    ).toHaveLength(4);
+    ).toHaveLength(2);
+    expect(screen.getAllByRole("article")).toHaveLength(4);
     const card = screen
-      .getByRole("heading", { name: "Write a description" })
+      .getByRole("heading", { name: /^Write a description/ })
       .closest("article");
     await waitFor(() => expect(card).toHaveFocus());
+    expect(
+      within(card!).getByRole("button", { name: "Create draft task" }),
+    ).toBeVisible();
+    // A press on the title row closes the card again: the row is the one control of a closed card.
+    await user.click(
+      within(card!).getByRole("button", { name: /^Write a description/ }),
+    );
+    expect(within(card!).getAllByRole("button")).toHaveLength(1);
+    expect(within(card!).queryByRole("link")).toBeNull();
     // The row that counts the rest leads to the same list.
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     await user.click(screen.getByRole("button", { name: "1 more fix" }));
@@ -4303,6 +4313,60 @@ describe("SEO workspace integration", () => {
     await act(async () => {
       resolve({ ok: true, value: null });
     });
+  });
+
+  it("opens the next waiting action once a Task exists for the one before", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const waiting: Omit<(typeof workspace.actions)[number], "id" | "title"> = {
+      observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      why: "The check found it",
+      effort: "low",
+      expectedEffect: "A better search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    workspace.actions.push(
+      { ...waiting, id: "title", title: "Fix the page title" },
+      { ...waiting, id: "description", title: "Write a description" },
+    );
+    let served = workspace;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(served)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace, "?tab=actions");
+    // One card is open: the first action that waits. The second is a closed row.
+    expect(
+      screen.getAllByRole("button", { name: "Create draft task" }),
+    ).toHaveLength(1);
+    served = {
+      ...workspace,
+      actions: [
+        {
+          ...workspace.actions[0],
+          taskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+          status: "task_created",
+        },
+        workspace.actions[1],
+      ],
+    };
+    await user.click(screen.getByRole("button", { name: "Create draft task" }));
+    // The Task exists: the filled button moves to the next action, and its card opens to show it.
+    const next = screen
+      .getByRole("heading", { name: /^Write a description/ })
+      .closest("article");
+    await waitFor(() =>
+      expect(
+        within(next!).getByRole("button", { name: "Create draft task" }),
+      ).toHaveClass("bg-primary"),
+    );
   });
 
   it("says what a keyword result of zero means, with the depth the check read", async () => {

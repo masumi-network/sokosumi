@@ -20,12 +20,7 @@ import type { SeoAgentStep } from "./seo-agent-model";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import type { SeoIssueSeverity } from "./seo-overview-model";
-import {
-  SEO_ROW_BUTTON_CLASS,
-  SeoSeverity,
-  seoPageName,
-  seoSiteUrl,
-} from "./seo-shared";
+import { SEO_ROW_BUTTON_CLASS, SeoActionName, SeoSeverity } from "./seo-shared";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -231,7 +226,6 @@ export function SeoActionStepRow({
   severity: SeoIssueSeverity | null;
   model: SeoWorkspaceModel;
 }) {
-  const t = useTranslations("App.Seo");
   return (
     <li className="content-rise">
       <button
@@ -239,22 +233,19 @@ export function SeoActionStepRow({
         className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5")}
         onClick={() => model.showAction(action)}
       >
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium break-words">
-            {action.title}
-          </span>
-          {/* With several pages two fixes can have one title: the row names its page. */}
-          {model.data.scope.pageIds.length > 1 ? (
-            <bdi className="text-muted-foreground block text-xs [overflow-wrap:anywhere]">
-              {seoPageName(
-                action.pageUrl,
-                seoSiteUrl(model.data),
-                t("pages.home"),
-              )}
-            </bdi>
+        {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
+        <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
+          <SeoActionName
+            title={action.title}
+            pageUrl={action.pageUrl}
+            workspace={model.data}
+          />
+          {severity ? (
+            <span className="flex max-sm:mt-1">
+              <SeoSeverity severity={severity} />
+            </span>
           ) : null}
         </span>
-        {severity ? <SeoSeverity severity={severity} /> : null}
         <ChevronRight className="text-muted-foreground size-4 shrink-0" />
       </button>
     </li>
