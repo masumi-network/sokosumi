@@ -25,6 +25,9 @@ export const SEO_ANALYSIS_KINDS = [
   "audit_lite",
   "audit_full",
 ] as const satisfies RequestProjectSeoAnalysisRequest["kind"][];
+export type SeoAnalysisKind = (typeof SEO_ANALYSIS_KINDS)[number];
+/** Core accepts one optional target keyword for a full audit. */
+export const SEO_FULL_AUDIT_KEYWORDS = 1;
 export const SEO_ANALYSIS_MODULES = [
   "page.inspect",
   "keyword.refresh",
@@ -238,7 +241,8 @@ export function analysisSeoBody(
     workspace.scope.pageIds.length > SEO_MAX_PAGES ||
     keywords.length > SEO_MAX_KEYWORDS ||
     keywords.some((word) => word.length > SEO_MAX_KEYWORD_LENGTH) ||
-    (kind === "audit_full" && (keywords.length > 1 || devices.length !== 2))
+    (kind === "audit_full" &&
+      (keywords.length > SEO_FULL_AUDIT_KEYWORDS || devices.length !== 2))
   )
     throw new Error("Invalid SEO analysis selection");
   const competitorUrls = wantsCompetitors

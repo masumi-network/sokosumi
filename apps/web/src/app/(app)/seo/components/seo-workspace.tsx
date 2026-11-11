@@ -7,9 +7,11 @@ import {
   Eye,
   Info,
   ListPlus,
+  Loader2,
   MessageSquare,
   MoreHorizontal,
   PencilLine,
+  Play,
   Plus,
   RotateCw,
   Settings2,
@@ -61,6 +63,7 @@ import {
   seoScopeControls,
   useSeoDateFields,
 } from "./seo-scope-bar";
+import { seoRunAction } from "./seo-setup-model";
 import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoTraffic } from "./seo-traffic";
@@ -70,6 +73,9 @@ import { useSeoWorkspace } from "./use-seo-workspace";
 /** A load faster than this shows no skeleton at all. */
 const SKELETON_DELAY_MS = 150;
 const SKELETON_ROWS = ["first", "second"] as const;
+
+/** The notice that says checks are off; the header's run button points to it. */
+const SEO_DISPATCH_PAUSED_ID = "seo-dispatch-paused";
 
 export function SeoWorkspace({
   workspace,
@@ -154,6 +160,12 @@ export function SeoWorkspace({
       model.data.actions.length > 0 ||
       model.filters.tab === "actions",
   );
+  const { canRequestAnalysis } = model.data.availableActions;
+  // The one filled button of every tab. The setup card is on the Agent tab only; there its own check step leads.
+  const runAudit =
+    model.filters.tab === "agent" && setup ? null : seoRunAction(model.data);
+  // While the pages load or the dates are wrong, no dialog opens.
+  const runReady = Boolean(runAudit?.ready) && !unavailable;
   const scopePage =
     model.data.scope.pageIds.length === 1
       ? model.data.pages.find((page) => page.id === model.data.scope.pageIds[0])
@@ -187,16 +199,49 @@ export function SeoWorkspace({
           </div>
         </div>
         <div className="flex flex-wrap gap-2 max-sm:col-start-2 max-sm:row-start-2 max-sm:flex-nowrap">
+          {runAudit ? (
+            <Button
+              size="sm"
+              variant={runReady ? "primary" : "outline"}
+              // Not the disabled attribute: that drops focus. The button's own text says a check runs;
+              // the notice under the header says checks are off.
+              aria-disabled={!runReady || undefined}
+              aria-describedby={
+                canRequestAnalysis || unavailable
+                  ? undefined
+                  : SEO_DISPATCH_PAUSED_ID
+              }
+              aria-label={t(runAudit.label)}
+              className="aria-disabled:pointer-events-none aria-disabled:opacity-50 max-sm:min-w-10"
+              onClick={() => {
+                if (runReady) model.openAnalysis(runAudit.kind);
+              }}
+            >
+              {runAudit.running ? (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+              ) : (
+                <Play className="size-4" />
+              )}
+              {/* On the phone a running check shows its spinner only; the label names it. */}
+              {runAudit.running ? null : (
+                <span className="sm:hidden">{t("runShort")}</span>
+              )}
+              <span className="max-sm:hidden">{t(runAudit.label)}</span>
+            </Button>
+          ) : null}
           {model.data.auditId && model.filters.tab !== "agent" ? (
             <Button
               variant="outline"
               size="sm"
               onClick={() => model.openChat()}
               aria-label={t("agent.ask")}
+              className={runAudit ? "max-sm:min-w-10" : undefined}
             >
               <MessageSquare className="size-4" />
-              {/* A short label on the phone keeps the three header buttons on one row. */}
-              <span className="sm:hidden">{t("agent.askShort")}</span>
+              {/* On the phone the run button keeps its word, so this one shows its icon only beside it. */}
+              <span className={runAudit ? "sr-only sm:hidden" : "sm:hidden"}>
+                {t("agent.askShort")}
+              </span>
               <span className="max-sm:hidden">{t("agent.ask")}</span>
             </Button>
           ) : null}
@@ -273,7 +318,10 @@ export function SeoWorkspace({
         model.data.scope.pageIds.length > 0 &&
         !model.data.availableActions.canRequestAnalysis &&
         !(model.filters.tab === "agent" && setup) ? (
-          <p className="text-muted-foreground flex items-start gap-2 text-sm">
+          <p
+            id={SEO_DISPATCH_PAUSED_ID}
+            className="text-muted-foreground flex items-start gap-2 text-sm"
+          >
             <Info className="mt-0.5 size-4 shrink-0" />
             {t("dispatchPaused")}
           </p>
@@ -433,11 +481,11 @@ export function SeoWorkspace({
             <TabsContent value="traffic">
               <SeoTraffic model={model} />
             </TabsContent>
-            <TabsContent value="rankings" className="space-y-8">
+            <TabsContent value="rankings" className="space-y-6">
               <SeoKeywords model={model} />
               <SeoCompetitors model={model} />
             </TabsContent>
-            <TabsContent value="health" className="space-y-8">
+            <TabsContent value="health" className="space-y-6">
               <SeoIndexStatus model={model} />
               <SeoHealth model={model} />
             </TabsContent>

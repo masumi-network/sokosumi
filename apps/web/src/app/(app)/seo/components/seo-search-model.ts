@@ -211,6 +211,23 @@ export function nextQuerySort(
   return { key, ascending: key === "averagePosition" };
 }
 
+/** The most searches the empty tracked list offers; the Traffic tab lists every search. */
+export const SEO_KEYWORD_SUGGESTION_LIMIT = 5;
+
+/**
+ * Search Console searches to track first, most shown first. A search that
+ * shows several pages is offered once, for its page with the most impressions.
+ */
+export function keywordSuggestions<Row extends QueryRow>(rows: Row[]) {
+  const best = new Map<string, Row>();
+  for (const row of rows) {
+    const key = normalizeQuery(row.query);
+    const current = best.get(key);
+    if (!current || row.impressions > current.impressions) best.set(key, row);
+  }
+  return sortQueryRows([...best.values()], SEO_DEFAULT_QUERY_SORT);
+}
+
 export function sortQueryRows<Row extends QueryRow>(
   rows: Row[],
   { key, ascending }: SeoQuerySort,

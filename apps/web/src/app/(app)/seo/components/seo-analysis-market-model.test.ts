@@ -40,6 +40,28 @@ const KEYWORDS = [
 ];
 
 describe("SEO analysis keyword market drafts", () => {
+  it("cuts the saved keywords to what the check type takes, and leaves typed text alone", () => {
+    const us = changeSeoAnalysisMarket(initialSeoAnalysisMarket(KEYWORDS), {
+      countryCode: "US",
+      languageCode: "en",
+    });
+    const saved = [
+      ...KEYWORDS,
+      {
+        keyword: "battery wear",
+        countryCode: "US",
+        languageCode: "en",
+        saved: true,
+      },
+    ];
+    expect(seoAnalysisKeywordDraft(us, saved)).toBe(
+      "battery health\nbattery wear",
+    );
+    expect(seoAnalysisKeywordDraft(us, saved, 1)).toBe("battery health");
+    const typed = editSeoAnalysisKeywords(us, "one\ntwo");
+    expect(seoAnalysisKeywordDraft(typed, saved, 1)).toBe("one\ntwo");
+  });
+
   it("prefills only exact saved market identities and deduplicates observed device rows", () => {
     const initial = initialSeoAnalysisMarket(KEYWORDS);
     expect(seoAnalysisKeywordDraft(initial, KEYWORDS)).toBe("Akku Zustand");

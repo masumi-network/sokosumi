@@ -1,6 +1,6 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoSetup } from "./seo-setup-model";
+import { seoRunAction, seoSetup } from "./seo-setup-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 
 const SEARCH_METRIC: ProjectSeoMetric = {
@@ -23,6 +23,32 @@ const SEARCH_METRIC: ProjectSeoMetric = {
 
 const states = (workspace = seoTestWorkspace()) =>
   seoSetup(workspace)?.steps.map((step) => `${step.kind}:${step.state}`);
+
+describe("SEO header run action", () => {
+  it("opens on a full audit only where Core accepts one: paid data and pages on one host", () => {
+    const workspace = seoTestWorkspace();
+    expect(seoRunAction(workspace)).toMatchObject({
+      kind: "audit_full",
+      label: "runFullAudit",
+      ready: true,
+    });
+    const other = "0c9c0f5e-2f0b-4d0e-9a57-3a4b1f6d2c11";
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: other,
+      url: "https://shop.example.com/",
+    });
+    // A page outside the selection does not count.
+    expect(seoRunAction(workspace)?.kind).toBe("audit_full");
+    workspace.scope.pageIds.push(other);
+    expect(seoRunAction(workspace)).toMatchObject({
+      kind: "page_check",
+      label: "runPageCheck",
+    });
+    workspace.scope.pageIds = [];
+    expect(seoRunAction(workspace)).toBeNull();
+  });
+});
 
 describe("SEO first-run setup", () => {
   it("gives the primary button to the first step that is not done", () => {

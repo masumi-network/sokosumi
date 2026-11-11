@@ -10906,6 +10906,9 @@
       "createScope": "Save page selection",
       "editScope": "Edit page selection",
       "runAnalysis": "Run a check",
+      "runFullAudit": "Run full audit",
+      "runPageCheck": "Run page check",
+      "runShort": "Run",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
       "noPagesBody": "Pages define what each check and statistic covers.",
@@ -11010,7 +11013,13 @@
         "edit": "Edit keyword",
         "empty": "No tracked keywords yet",
         "emptyBody": "Track a search in the Traffic tab, or run a check to find keywords.",
-        "emptyBodyOff": "Track a search in the Traffic tab to list it here.",
+        "emptyBodyOff": "Track a keyword to save its Search Console position at each sync.",
+        "suggest": {
+          "title": "{count, plural, one {Google already shows you for # search} other {Google already shows you for # searches}}",
+          "body": "Track one to save its Search Console position at each sync.",
+          "position": "Average position {position}",
+          "more": "{count, plural, one {See # more search in Traffic} other {See # more searches in Traffic}}"
+        },
         "add": "Track a keyword",
         "keyword": "Keyword",
         "market": "Market",
@@ -11046,7 +11055,7 @@
         "title": "Competitors",
         "empty": "No competitors yet",
         "emptyBody": "Run a check for suggested search competitors, or add a competitor to your list.",
-        "emptyBodyOff": "Add a competitor to your list.",
+        "emptyBodyOff": "A competitor you add is saved here. Its ranks and backlinks need paid search data, which is off in this workspace.",
         "add": "Add a competitor",
         "suggested": "Suggested competing page",
         "confirm": "Confirm competitor",
@@ -11126,6 +11135,8 @@
         },
         "empty": "No checks or changes for these pages yet",
         "emptyBody": "Checks, page selections, tasks and failed syncs will appear here.",
+        "emptyOff": "Nothing recorded for these pages",
+        "emptyBodyOff": "Page selections, tasks and failed syncs appear here.",
         "details": "Work details",
         "graphLabel": "SEO activity, newest first",
         "auditRun": "Audit results",
@@ -11449,8 +11460,7 @@
           },
           "competitors": {
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
-            "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know.",
-            "unavailableOff": "No competitor yet. Add the competitors you know."
+            "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
           "keyword": "Search Console lists no searches for “{keyword}” on {pages, plural, one {your page} other {your pages}} yet. The agent can draft a plan to rank for it.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches.",
@@ -11510,7 +11520,7 @@
       "index": {
         "title": "Google index",
         "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
-        "checked": "checked",
+        "checked": "status read",
         "state": {
           "indexed": "Indexed",
           "warnings": "Indexed, with warnings",

@@ -20,6 +20,7 @@ import {
   SEO_ANALYSIS_MODULES,
   SEO_COUNTRIES,
   SEO_DEFAULT_FULL_AUDIT_USD,
+  SEO_FULL_AUDIT_KEYWORDS,
   SEO_MAX_MONITOR_RUNS,
   SEO_MAX_PAGES,
   SEO_MAX_PROVIDER_CALLS,
@@ -40,7 +41,10 @@ export function SeoAnalysisDialog({
   const full = form.kind === "audit_full";
   const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
   const noService = !form.serviceAvailable;
-  const market = useSeoAnalysisMarket(form.workspace.keywords);
+  const market = useSeoAnalysisMarket(
+    form.workspace.keywords,
+    full ? SEO_FULL_AUDIT_KEYWORDS : undefined,
+  );
   return (
     <Dialog
       open

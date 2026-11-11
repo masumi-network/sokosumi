@@ -283,7 +283,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                     metric.unit === "position" ? positionHintId : undefined
                   }
                   className={cn(
-                    "h-auto min-w-0 flex-col items-start gap-1 px-3 py-3 text-start whitespace-normal",
+                    "h-auto min-w-0 flex-col items-start justify-start gap-1 px-3 py-3 text-start whitespace-normal",
                     active.id === metric.id && SEO_CHOSEN_CLASS,
                   )}
                   onClick={() => setMetric(metric.id)}

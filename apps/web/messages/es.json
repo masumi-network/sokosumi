@@ -10906,6 +10906,9 @@
       "createScope": "Guardar selección de páginas",
       "editScope": "Editar selección de páginas",
       "runAnalysis": "Iniciar comprobación",
+      "runFullAudit": "Iniciar auditoría completa",
+      "runPageCheck": "Iniciar comprobación de página",
+      "runShort": "Iniciar",
       "syncStatistics": "Sincronizar estadísticas",
       "noPages": "Añade una página para empezar",
       "noPagesBody": "Las páginas definen qué abarcan las comprobaciones y las estadísticas.",
@@ -11010,7 +11013,13 @@
         "edit": "Editar palabra clave",
         "empty": "Todavía no hay palabras clave seguidas",
         "emptyBody": "Sigue una búsqueda en la pestaña Tráfico o ejecuta una comprobación para encontrar palabras clave.",
-        "emptyBodyOff": "Sigue una búsqueda en la pestaña Tráfico para verla aquí.",
+        "emptyBodyOff": "Sigue una palabra clave para guardar su posición de Search Console en cada sincronización.",
+        "suggest": {
+          "title": "{count, plural, one {Google ya te muestra para # búsqueda} other {Google ya te muestra para # búsquedas}}",
+          "body": "Sigue una para guardar su posición de Search Console en cada sincronización.",
+          "position": "Posición media {position}",
+          "more": "{count, plural, one {Ver # búsqueda más en Tráfico} other {Ver # búsquedas más en Tráfico}}"
+        },
         "add": "Seguir una palabra clave",
         "keyword": "Palabra clave",
         "market": "Mercado",
@@ -11046,7 +11055,7 @@
         "title": "Competidores",
         "empty": "Todavía no hay competidores",
         "emptyBody": "Ejecuta una comprobación para ver sugerencias o añade un competidor a tu lista.",
-        "emptyBodyOff": "Añade un competidor a tu lista.",
+        "emptyBodyOff": "El competidor que añadas se guarda aquí. Sus posiciones y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",
         "add": "Añadir un competidor",
         "suggested": "Página competidora sugerida",
         "confirm": "Confirmar competidor",
@@ -11126,6 +11135,8 @@
         },
         "empty": "Aún no hay comprobaciones ni cambios para estas páginas",
         "emptyBody": "Aquí aparecerán las comprobaciones, selecciones de páginas, tareas y sincronizaciones fallidas.",
+        "emptyOff": "No hay nada registrado para estas páginas",
+        "emptyBodyOff": "Aquí aparecen las selecciones de páginas, las tareas y las sincronizaciones fallidas.",
         "details": "Detalles del trabajo",
         "graphLabel": "Actividad SEO, lo más reciente primero",
         "auditRun": "Resultados de la auditoría",
@@ -11449,8 +11460,7 @@
           },
           "competitors": {
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
-            "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas.",
-            "unavailableOff": "Aún no hay competidores. Añade los competidores que conozcas."
+            "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
           "keyword": "Search Console aún no muestra búsquedas de «{keyword}» para {pages, plural, one {tu página} other {tus páginas}}. El agente puede preparar un plan para que aparezcas en esa búsqueda.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas.",
@@ -11510,7 +11520,7 @@
       "index": {
         "title": "Índice de Google",
         "help": "Si Google mantiene cada página en su índice de búsqueda, según la inspección de URL de Search Console.",
-        "checked": "comprobado",
+        "checked": "estado leído",
         "state": {
           "indexed": "Indexada",
           "warnings": "Indexada, con advertencias",

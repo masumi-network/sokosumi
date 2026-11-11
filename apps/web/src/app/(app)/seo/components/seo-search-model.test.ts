@@ -2,6 +2,7 @@ import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   hiddenImpressions,
+  keywordSuggestions,
   keywordTrend,
   nextQuerySort,
   normalizeQuery,
@@ -246,6 +247,21 @@ describe("query sort", () => {
       { key: "clicks", ascending: false },
     );
     expect(sorted.map((item) => item.query)).toEqual(["c", "a", "b"]);
+  });
+});
+
+describe("keyword suggestions", () => {
+  it("offers each search once, for its most shown page, most shown first", () => {
+    const offered = keywordSuggestions([
+      row("solar battery", "https://example.com/a", 0, 3, 8),
+      row("Solar  Battery", "https://example.com/b", 1, 9, 4),
+      row("solar battery", "https://example.com/c", 0, 5, 6),
+      row("inverter", "https://example.com/a", 0, 20, 12),
+    ]);
+    expect(offered.map((item) => [item.query, item.pageUrl])).toEqual([
+      ["inverter", "https://example.com/a"],
+      ["Solar  Battery", "https://example.com/b"],
+    ]);
   });
 });
 

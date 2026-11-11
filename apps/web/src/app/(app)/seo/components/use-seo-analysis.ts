@@ -39,7 +39,9 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         : previous.filter((value) => value !== module),
     );
   }
-  const [chosenKind, setKind] = useState("page_check");
+  const [chosenKind, setKind] = useState<string>(
+    () => model.analysisKind ?? "page_check",
+  );
   const kind = kinds.find((value) => value === chosenKind) ?? "page_check";
   const serviceAvailable = monitor
     ? model.data.availableActions.canCreateMonitor === true

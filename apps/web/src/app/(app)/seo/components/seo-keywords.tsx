@@ -15,11 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoKeywordSuggestions } from "./seo-keyword-suggestions";
 import {
   SeoKeywordTrendChart,
   SeoKeywordTrendToggle,
 } from "./seo-keyword-trend";
 import {
+  keywordSuggestions,
   keywordTrend,
   normalizeQuery,
   searchConsoleIndex,
@@ -72,6 +74,11 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   const rows = model.filteredKeywords;
   const queries = model.data.searchQueries;
   const averages = queries ? searchConsoleIndex(queries.rows) : null;
+  // An empty list starts from the searches Google already reports; a search that matched nothing does not.
+  const suggestions =
+    model.data.keywords.length === 0 && model.data.availableActions.canEdit
+      ? keywordSuggestions(model.filteredQueries)
+      : [];
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     volume: rows.some((row) => row.volume !== null),
@@ -392,6 +399,8 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
               </p>
             ) : null}
           </div>
+        ) : suggestions.length ? (
+          <SeoKeywordSuggestions model={model} rows={suggestions} />
         ) : (
           <SeoEmpty
             title={t("keywords.empty")}

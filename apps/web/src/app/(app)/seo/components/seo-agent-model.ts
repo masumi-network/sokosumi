@@ -101,10 +101,11 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
     (row) => row.role === "competitor",
   );
   // Without paid data the only step is adding known competitors; once one is saved, it is done.
+  // With checks off too, a saved competitor can show nothing, so the step would lead nowhere.
   if (
     paidSearch
       ? !competitors.some((row) => row.observationId)
-      : !competitors.length
+      : workspace.availableActions.canRequestAnalysis && !competitors.length
   )
     steps.push({ kind: "competitors", available: paidSearch });
   if (canSync && !needsSearch && !analytics.length)

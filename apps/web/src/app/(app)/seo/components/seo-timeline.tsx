@@ -175,7 +175,19 @@ export function SeoTimeline({
   return (
     <SeoSection title={t("timeline.title")} actions={actions}>
       {nodes.length === 0 ? (
-        <SeoEmpty title={t("timeline.empty")} body={t("timeline.emptyBody")} />
+        <SeoEmpty
+          // No promise of a check where no check can run.
+          title={t(
+            workspace.availableActions.canRequestAnalysis
+              ? "timeline.empty"
+              : "timeline.emptyOff",
+          )}
+          body={t(
+            workspace.availableActions.canRequestAnalysis
+              ? "timeline.emptyBody"
+              : "timeline.emptyBodyOff",
+          )}
+        />
       ) : (
         <div className={cn(HOLDER_ITEM_CLASS, "p-2")}>
           <ol aria-label={t("timeline.graphLabel")} className="divide-y">

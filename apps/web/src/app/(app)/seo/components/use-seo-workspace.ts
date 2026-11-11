@@ -32,6 +32,7 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
+import type { SeoAnalysisKind } from "./seo-form-model";
 import {
   SEO_DEFAULT_STATISTICS_DAYS,
   type SeoStatisticsProvider,
@@ -158,10 +159,19 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     keyword: string;
     pageId: string | null;
   } | null>(null);
+  const [analysisKind, setAnalysisKind] = useState<SeoAnalysisKind | null>(
+    null,
+  );
   function setDialog(value: SeoDialog) {
     setStatisticsSource(undefined);
     setKeywordDraft(null);
+    setAnalysisKind(null);
     setDialogState(value);
+  }
+  /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
+  function openAnalysis(kind: SeoAnalysisKind) {
+    setAnalysisKind(kind);
+    setDialogState("analysis");
   }
   function openStatistics(source?: SeoStatisticsProvider) {
     setStatisticsSource(source);
@@ -364,6 +374,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     filteredQueries,
     trackQuery,
     keywordDraft,
+    analysisKind,
+    openAnalysis,
     refreshSearchStatistics,
     filteredCompetitors,
     toggleKeyword,

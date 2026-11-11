@@ -10906,6 +10906,9 @@
       "createScope": "Seitenauswahl speichern",
       "editScope": "Seitenauswahl bearbeiten",
       "runAnalysis": "Prüfung starten",
+      "runFullAudit": "Vollständiges Audit starten",
+      "runPageCheck": "Seitenprüfung starten",
+      "runShort": "Starten",
       "syncStatistics": "Statistiken synchronisieren",
       "noPages": "Füge zuerst eine Seite hinzu",
       "noPagesBody": "Seiten legen fest, worauf sich Prüfungen und Statistiken beziehen.",
@@ -11010,7 +11013,13 @@
         "edit": "Keyword bearbeiten",
         "empty": "Noch keine verfolgten Keywords",
         "emptyBody": "Verfolge eine Suchanfrage im Tab „Zugriffe“ oder starte eine Prüfung, um Keywords zu finden.",
-        "emptyBodyOff": "Verfolge eine Suchanfrage im Tab „Zugriffe“, dann steht sie hier.",
+        "emptyBodyOff": "Verfolge ein Keyword, dann wird seine Search-Console-Position bei jeder Synchronisierung gespeichert.",
+        "suggest": {
+          "title": "{count, plural, one {Google zeigt dich bereits für # Suchanfrage} other {Google zeigt dich bereits für # Suchanfragen}}",
+          "body": "Verfolge eine davon, dann wird ihre Search-Console-Position bei jeder Synchronisierung gespeichert.",
+          "position": "Durchschnittliche Position {position}",
+          "more": "{count, plural, one {# weitere Suchanfrage unter „Zugriffe“ ansehen} other {# weitere Suchanfragen unter „Zugriffe“ ansehen}}"
+        },
         "add": "Keyword verfolgen",
         "keyword": "Keyword",
         "market": "Markt",
@@ -11046,7 +11055,7 @@
         "title": "Mitbewerber",
         "empty": "Noch keine Wettbewerber",
         "emptyBody": "Starte eine Prüfung für Vorschläge oder füge einen Mitbewerber hinzu.",
-        "emptyBodyOff": "Füge einen Mitbewerber zu deiner Liste hinzu.",
+        "emptyBodyOff": "Ein Mitbewerber, den du hinzufügst, wird hier gespeichert. Seine Rankings und Backlinks brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind.",
         "add": "Mitbewerber hinzufügen",
         "suggested": "Vorgeschlagene konkurrierende Seite",
         "confirm": "Mitbewerber bestätigen",
@@ -11126,6 +11135,8 @@
         },
         "empty": "Noch keine Prüfungen oder Änderungen für diese Seiten",
         "emptyBody": "Prüfungen, Seitenauswahl, Aufgaben und fehlgeschlagene Synchronisierungen erscheinen hier.",
+        "emptyOff": "Für diese Seiten ist nichts aufgezeichnet",
+        "emptyBodyOff": "Seitenauswahl, Aufgaben und fehlgeschlagene Synchronisierungen erscheinen hier.",
         "details": "Arbeitsdetails",
         "graphLabel": "SEO-Aktivität, neueste zuerst",
         "auditRun": "Audit-Ergebnisse",
@@ -11449,8 +11460,7 @@
           },
           "competitors": {
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
-            "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu.",
-            "unavailableOff": "Noch kein Wettbewerber. Füge die Wettbewerber hinzu, die du kennst."
+            "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
           "keyword": "Search Console listet noch keine Suchen nach „{keyword}“ für {pages, plural, one {deine Seite} other {deine Seiten}}. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden.",
@@ -11510,7 +11520,7 @@
       "index": {
         "title": "Google-Index",
         "help": "Ob Google jede Seite im Suchindex führt, laut URL-Prüfung in der Search Console.",
-        "checked": "geprüft",
+        "checked": "Status gelesen",
         "state": {
           "indexed": "Indexiert",
           "warnings": "Indexiert, mit Warnungen",

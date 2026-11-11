@@ -36,7 +36,7 @@ import { SeoGoogleConnection } from "./seo-google-connection";
 import { SeoAutomation } from "./seo-monitors";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning } from "./seo-setup-model";
+import { seoCheckRunning, seoRunLeads } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
@@ -78,7 +78,8 @@ function StepRow({
   // Several steps can carry the same button name; the step's text tells them apart.
   const bodyId = useId();
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
-  const variant = first ? "primary" : "outline";
+  // Where a check can start, the header's run button is the one filled button of the page.
+  const variant = first && !seoRunLeads(model.data) ? "primary" : "outline";
   // A connected account with nothing synced: the step asks for the sync, not for the account.
   // The account's own actions are in the sync dialog.
   const connectStep = step.kind === "connect";
@@ -221,10 +222,7 @@ function StepRow({
                   t(
                     step.available
                       ? "agent.steps.competitors.available"
-                      : // With all checks off, the notice above the tabs gives the reason.
-                        canRequestAnalysis
-                        ? "agent.steps.competitors.unavailable"
-                        : "agent.steps.competitors.unavailableOff",
+                      : "agent.steps.competitors.unavailable",
                   ),
                   canEdit && (canRequestAnalysis || !step.available) ? (
                     <Button
@@ -404,7 +402,7 @@ function SeoAgentPanel({
           <p
             ref={verdict}
             tabIndex={-1}
-            className="focus-visible:outline-ring rounded-sm text-lg font-semibold focus-visible:outline-2"
+            className="focus-visible:outline-ring rounded-sm text-lg font-semibold text-balance focus-visible:outline-2"
             data-testid="seo-agent-verdict"
             // The search numbers alone name no period; the line under them does.
             aria-describedby={trafficLead ? periodId : undefined}

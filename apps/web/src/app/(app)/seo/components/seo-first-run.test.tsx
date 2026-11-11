@@ -503,6 +503,51 @@ describe("SEO audit first run", () => {
     },
   );
 
+  it("offers the Search Console searches where no keyword is tracked", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.searchQueries = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      timeZone: "UTC",
+      observedAt: new Date("2026-10-29T00:00:00Z"),
+      rowLimit: 250,
+      truncated: false,
+      rows: [
+        {
+          id: "solar",
+          query: "solar battery",
+          pageUrl: workspace.pages[0].url,
+          clicks: 0,
+          impressions: 1,
+          ctr: 0,
+          averagePosition: 3,
+        },
+      ],
+    };
+    network(workspace);
+    renderWorkspace(workspace, "?tab=rankings");
+    const offered = screen.getByTestId("seo-keyword-suggestions");
+    expect(
+      within(offered).getByText("Google already shows you for 1 search"),
+    ).toBeVisible();
+    expect(within(offered).getByText("Average position 3.0")).toBeVisible();
+    // The offer replaces the empty text; it does not sit under it.
+    expect(screen.queryByText(copy.keywords.empty)).toBeNull();
+    await user.click(
+      within(offered).getByRole("button", {
+        name: "Track solar battery as a keyword",
+      }),
+    );
+    expect(
+      within(await screen.findByRole("dialog")).getByDisplayValue(
+        "solar battery",
+      ),
+    ).toBeVisible();
+  });
+
   it("leads with the search numbers and says once that checks are off", () => {
     const workspace = seoTestWorkspace();
     Object.assign(workspace.availableActions, {

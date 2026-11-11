@@ -165,6 +165,20 @@ describe("SEO agent brief", () => {
     ).toContain("competitors");
   });
 
+  it("offers no competitor step where a saved competitor can show nothing", () => {
+    const workspace = seoTestWorkspace();
+    Object.assign(workspace.availableActions, {
+      canUsePaidSearchData: false,
+      canRequestAnalysis: false,
+    });
+    const kinds = () =>
+      seoAgentBrief(workspace, synced).steps.map((step) => step.kind);
+    expect(kinds()).not.toContain("competitors");
+    // A check can still use a saved competitor, so the step returns with checks.
+    workspace.availableActions.canRequestAnalysis = true;
+    expect(kinds()).toContain("competitors");
+  });
+
   it("proposes a tracked keyword Google did not list before account upkeep", () => {
     const workspace = connected();
     workspace.keywords = [

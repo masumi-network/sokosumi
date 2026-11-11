@@ -736,6 +736,36 @@ describe("SEO workspace integration", () => {
     const empty = renderWorkspace(workspace, "?tab=rankings");
     expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
     empty.unmount();
+    // Statistics syncs alone give Site health nothing a date can narrow.
+    workspace.timeline = [
+      {
+        id: "sync",
+        kind: "metrics",
+        title: "Search Console statistics synced",
+        status: "complete",
+        detail: "",
+        at: new Date("2026-01-02T00:00:00Z"),
+        pageIds: workspace.scope.pageIds,
+        taskId: null,
+        observationId: null,
+      },
+    ];
+    const health = renderWorkspace(workspace, "?tab=health");
+    expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
+    health.unmount();
+    // Any other event is history a date can narrow.
+    workspace.timeline.push({
+      ...workspace.timeline[0],
+      id: "pages",
+      kind: "scope",
+      title: "Page selection changed",
+    });
+    const history = renderWorkspace(workspace, "?tab=health");
+    expect(
+      screen.getByRole("button", { name: "Filter by date" }),
+    ).toBeVisible();
+    history.unmount();
+    workspace.timeline = [];
     // Rankings change over time, so their tab offers the dates once it has a row.
     workspace.competitors.push({
       id: "rival",
@@ -2894,12 +2924,15 @@ describe("SEO workspace integration", () => {
           ),
       ),
     ).toBeVisible();
-    // The step with page evidence carries the one primary button.
+    // Where a check can run, the header's run button is the one filled button.
     const draft = screen.getByRole("button", {
       name: "Draft a fix",
       description: /^Suggestion: Meta description length is 163 characters/,
     });
-    expect(draft).toHaveClass("bg-primary");
+    expect(draft).not.toHaveClass("bg-primary");
+    expect(screen.getByRole("button", { name: "Run full audit" })).toHaveClass(
+      "bg-primary",
+    );
     await user.click(draft);
     // The step asks in the chat sheet, where the answer shows.
     expect(
@@ -2911,19 +2944,153 @@ describe("SEO workspace integration", () => {
       ]),
     );
     cleanup();
-    // Without the agent chat the step has no button, so the next step keeps the primary one.
+    // With checks off, the agent's first step with a button is the filled one.
+    // Without the agent chat the fix step has no button, so the next step has it.
+    workspace.availableActions.canRequestAnalysis = false;
+    workspace.availableActions.canUsePaidSearchData = false;
     renderWorkspace({ ...workspace, auditId: null });
     expect(
       await screen.findByText(/^Suggestion: Meta description length is 163/),
     ).toBeVisible();
     expect(screen.queryByRole("button", { name: "Draft a fix" })).toBeNull();
     const pagesStep = screen
-      .getByText(/^This audit checks 1 page/)
+      .getByText(/^This audit covers 1 page/)
       .closest("li");
     if (!pagesStep) throw new Error("Pages step missing");
     expect(
       within(pagesStep).getByRole("button", { name: "Add a page" }),
     ).toHaveClass("bg-primary");
+    expect(
+      screen.getByRole("button", { name: "Run page check" }),
+    ).not.toHaveClass("bg-primary");
+  });
+
+  it("runs the widest check the workspace allows from the header", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/chat")
+          ? Response.json({ sharing: "personal", turns: [] })
+          : Response.json(workspace),
+      ),
+    );
+    const checkType = () =>
+      within(screen.getByRole("dialog")).getByRole("combobox", {
+        name: "Check type",
+      });
+    // The setup card is on the Agent tab only: there its check step leads, on the other tabs the header does.
+    renderWorkspace(workspace);
+    expect(await screen.findByTestId("seo-setup")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
+    await user.click(screen.getByRole("tab", { name: "Rankings" }));
+    expect(
+      await screen.findByRole("button", { name: "Run full audit" }),
+    ).toHaveClass("bg-primary");
+    cleanup();
+    workspace.observations.push({
+      id: "first-check",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    for (const keyword of ["stablecoins", "stablecoin wallet"])
+      workspace.keywords.push({
+        id: keyword,
+        keyword,
+        countryCode: "DE",
+        languageCode: "de",
+        pageUrl: workspace.pages[0].url,
+        targetPageId: workspace.pages[0].id,
+        saved: true,
+        priority: "medium",
+        version: 1,
+        source: "saved",
+        volume: null,
+        intent: null,
+        device: null,
+        position: null,
+        positionStatus: "unavailable",
+        checkedResults: null,
+        observedAt: null,
+        observationId: null,
+      });
+    renderWorkspace(workspace, "?tab=health");
+    await user.click(
+      await screen.findByRole("button", { name: "Run full audit" }),
+    );
+    expect(checkType()).toHaveTextContent("Full audit");
+    // A full audit takes one keyword, so the form does not open on a list it would refuse.
+    const keywords = () => screen.getByLabelText("Keywords, one per line");
+    expect(keywords()).toHaveValue("stablecoins");
+    // Another check type takes the whole saved list again.
+    await user.click(checkType());
+    await user.click(screen.getByRole("option", { name: "Keyword positions" }));
+    expect(keywords()).toHaveValue("stablecoins\nstablecoin wallet");
+    await user.click(checkType());
+    await user.click(screen.getByRole("option", { name: "Full audit" }));
+    expect(keywords()).toHaveValue("stablecoins");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // The header's choice does not stay for the tab's own button.
+    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    expect(checkType()).toHaveTextContent("Page check");
+    cleanup();
+    // Without paid search data a full audit cannot run: the button names the page check.
+    workspace.availableActions.canUsePaidSearchData = false;
+    renderWorkspace(workspace, "?tab=traffic");
+    await user.click(
+      await screen.findByRole("button", { name: "Run page check" }),
+    );
+    expect(checkType()).toHaveTextContent("Page check");
+    cleanup();
+    // While a check runs the button says so, keeps its place and opens nothing.
+    workspace.analyses = [
+      {
+        id: "8a0f4a39-7a55-4f0c-9a43-6c1a4f1f2b11",
+        kind: "page_check",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date("2026-01-04T12:00:00Z"),
+      },
+    ];
+    renderWorkspace(workspace, "?tab=rankings");
+    const waiting = await screen.findByRole("button", {
+      name: "Check running",
+    });
+    expect(waiting).toHaveAttribute("aria-disabled", "true");
+    expect(waiting).not.toHaveClass("bg-primary");
+    expect(screen.queryByRole("button", { name: "Run page check" })).toBeNull();
+    await user.click(waiting);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    cleanup();
+    // With checks off the button points to the notice that says why.
+    workspace.analyses = [];
+    workspace.availableActions.canRequestAnalysis = false;
+    renderWorkspace(workspace, "?tab=rankings");
+    const off = await screen.findByRole("button", { name: "Run page check" });
+    expect(off).toHaveAccessibleDescription(messages.App.Seo.dispatchPaused);
+    await user.click(off);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    cleanup();
+    // A reader who cannot edit has no run button, and no notice for it to point to.
+    workspace.availableActions.canEdit = false;
+    renderWorkspace(workspace, "?tab=rankings");
+    expect(await screen.findByRole("tab", { name: "Rankings" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Run page check" })).toBeNull();
   });
 
   it("sends a question asked before the session loads once the session is there", async () => {

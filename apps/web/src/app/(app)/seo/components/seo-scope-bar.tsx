@@ -25,7 +25,8 @@ const DATED_TABS: Partial<
 > = {
   traffic: (data) => data.metrics.length > 0,
   rankings: (data) => data.keywords.length > 0 || data.competitors.length > 0,
-  health: (data) => data.timeline.length > 0,
+  // Statistics syncs alone give the filter nothing worth a control: a routine one is no timeline row, and failures fold into one.
+  health: (data) => data.timeline.some((event) => event.kind !== "metrics"),
 };
 
 /**
@@ -166,7 +167,7 @@ export function SeoScopeBar({
         />
       ) : controls.dates ? (
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           aria-expanded={false}
           onClick={() => {

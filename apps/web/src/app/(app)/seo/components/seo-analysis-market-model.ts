@@ -28,10 +28,14 @@ export function initialSeoAnalysisMarket(
   };
 }
 
-/** Same identity as Core's analysis validation. Keep the first saved display text. */
+/**
+ * Same identity as Core's analysis validation. Keep the first saved display text.
+ * A check type that takes fewer keywords gets the first saved ones; the reader's own text stays as typed.
+ */
 export function seoAnalysisKeywordDraft(
   state: SeoAnalysisMarketState,
   keywords: readonly SeoAnalysisSavedKeyword[],
+  limit = Number.POSITIVE_INFINITY,
 ): string {
   const draft = state.drafts.get(marketKey(state));
   if (draft !== undefined) return draft;
@@ -56,6 +60,7 @@ export function seoAnalysisKeywordDraft(
       seen.add(identity);
       return true;
     })
+    .slice(0, limit)
     .join("\n");
 }
 

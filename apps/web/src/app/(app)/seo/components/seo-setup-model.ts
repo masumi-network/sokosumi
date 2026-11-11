@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import type { SeoAnalysisKind } from "./seo-form-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
 export type SeoSetupStepKind = "page" | "connect" | "sync" | "check";
@@ -31,6 +32,40 @@ export function seoCheckRunning(workspace: ProjectSeoWorkspace) {
     (analysis) =>
       analysis.status === "requested" || analysis.status === "running",
   );
+}
+
+/** A check can start now: the workspace allows one and none runs. Then the header's run button is the one filled button. */
+export function seoRunLeads(workspace: ProjectSeoWorkspace) {
+  return (
+    workspace.availableActions.canRequestAnalysis && !seoCheckRunning(workspace)
+  );
+}
+
+/**
+ * The header's run button: the widest check this workspace can run on its pages.
+ * A full audit needs paid search data and pages on one host. Null where the reader can run no check at all.
+ */
+export function seoRunAction(workspace: ProjectSeoWorkspace) {
+  const { canEdit, canUsePaidSearchData } = workspace.availableActions;
+  const pageIds = new Set(workspace.scope.pageIds);
+  if (!canEdit || !pageIds.size) return null;
+  const hosts = new Set(
+    workspace.pages
+      .filter((page) => pageIds.has(page.id))
+      .map((page) => new URL(page.url).host),
+  );
+  const full = canUsePaidSearchData === true && hosts.size === 1;
+  const running = seoCheckRunning(workspace);
+  return {
+    kind: full ? "audit_full" : "page_check",
+    label: running
+      ? "setup.checkRunningBadge"
+      : full
+        ? "runFullAudit"
+        : "runPageCheck",
+    running,
+    ready: seoRunLeads(workspace),
+  } as const satisfies { kind: SeoAnalysisKind; [key: string]: unknown };
 }
 
 /** The filters that narrow the page or the period. Setup speaks for the whole Audit. */
