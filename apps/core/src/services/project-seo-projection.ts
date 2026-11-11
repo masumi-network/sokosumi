@@ -298,11 +298,16 @@ export function projectSeoProjection(
       ],
       rulebookVersion: data.rulebookVersion,
       artifactHash: row.artifactHash,
-      issues: data.findings.filter(
-        (item) =>
-          SEO_ISSUE_SEVERITIES.has(item.severity) &&
-          selectedUrls.has(normalizeSeoUrl(item.pageUrl)),
-      ).length,
+      // One rule that fails on mobile and on desktop is one issue on that page.
+      issues: new Set(
+        data.findings
+          .filter(
+            (item) =>
+              SEO_ISSUE_SEVERITIES.has(item.severity) &&
+              selectedUrls.has(normalizeSeoUrl(item.pageUrl)),
+          )
+          .map((item) => key(item.rowId, normalizeSeoUrl(item.pageUrl))),
+      ).size,
       coverage,
     });
     for (const check of data.checks) {

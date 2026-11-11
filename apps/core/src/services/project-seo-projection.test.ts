@@ -221,6 +221,12 @@ describe("stored SEO workspace projections", () => {
     payload.findings.push(
       { ...issue, id: "other-page", pageUrl: "https://other.example/" },
       { ...issue, id: "note", severity: "note" },
+      // The same rule fails on the other device: still one issue on the page.
+      {
+        ...issue,
+        id: "other-device",
+        device: issue.device === "mobile" ? "desktop" : "mobile",
+      },
     );
     const clean = parsePublicSeoArtifact(focusedReport());
     input.observations = [
