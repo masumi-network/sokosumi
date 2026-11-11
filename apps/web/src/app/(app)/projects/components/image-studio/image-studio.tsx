@@ -157,6 +157,7 @@ export function ImageStudio({
   studioLogoPosition: initialLogoPosition,
   projectScopePrompt,
   websiteUrl,
+  readOnly = false,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -179,6 +180,11 @@ export function ImageStudio({
   studioLogoPosition?: StudioLogoPosition | null;
   projectScopePrompt?: React.ReactNode;
   websiteUrl?: string | null;
+  /**
+   * A CMO Project: CMO makes its images, so the studio shows them without a
+   * composer, brand tools or draw actions (ADR 0066).
+   */
+  readOnly?: boolean;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -812,6 +818,7 @@ export function ImageStudio({
     openProjectScope({
       required: true,
       reason: t("pickForGeneration"),
+      excludeCmo: true,
       onSelect: (picked) => {
         setPickedProjectId(picked);
         sendTo(picked, requests);
@@ -1127,11 +1134,11 @@ export function ImageStudio({
           "relative isolate overflow-y-auto max-md:overflow-y-auto",
       )}
     >
-      {showsNothing ? (
+      {showsNothing && !readOnly ? (
         <StudioTemplateCanvas labels={labels} onApplyTemplate={applyTemplate} />
       ) : null}
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
-      {activeProjectId ? (
+      {activeProjectId && !readOnly ? (
         <div
           className={cn(
             "flex flex-wrap justify-end gap-2 pt-2",
@@ -1202,10 +1209,12 @@ export function ImageStudio({
               </p>
               <div className="pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2">
                 {projectScopePrompt}
-                <StudioCreativeStart
-                  onApplyBrief={applyTemplate}
-                  onFocusPrompt={() => promptRef.current?.focus()}
-                />
+                {readOnly ? null : (
+                  <StudioCreativeStart
+                    onApplyBrief={applyTemplate}
+                    onFocusPrompt={() => promptRef.current?.focus()}
+                  />
+                )}
               </div>
             </div>
           ) : (
@@ -1215,14 +1224,18 @@ export function ImageStudio({
               cancelRequestedJobIds={cancelRequestedJobIds}
               catalog={catalog}
               labels={labels}
-              onCancelJob={handleCancelJob}
+              onCancelJob={readOnly ? undefined : handleCancelJob}
               onOpen={(assetId) => {
                 selectAsset(assetId);
                 setViewing({ mode: "single" });
               }}
-              onReroll={(asset) => repeat(asset, "asset", true)}
-              onReusePrompt={reusePrompt}
-              onVariation={(asset) => repeat(asset, "asset")}
+              onReroll={
+                readOnly ? undefined : (asset) => repeat(asset, "asset", true)
+              }
+              onReusePrompt={readOnly ? undefined : reusePrompt}
+              onVariation={
+                readOnly ? undefined : (asset) => repeat(asset, "asset")
+              }
               onToggleSelect={(assetId) => {
                 setTemplateUndo(null);
                 setParentAssetId(undefined);
@@ -1393,7 +1406,7 @@ export function ImageStudio({
           )}
           ref={dock.dockRef}
         >
-          {composer}
+          {readOnly ? null : composer}
         </div>
       </div>
 
@@ -1411,18 +1424,22 @@ export function ImageStudio({
               : undefined
           }
           onAnimate={
-            videoModelsFor(catalog, "image").length > 0 ? animate : undefined
+            !readOnly && videoModelsFor(catalog, "image").length > 0
+              ? animate
+              : undefined
           }
           onClose={() => setViewing(null)}
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
           headlineForAsset={headlineForAsset}
           savingHeadline={savingHeadline}
-          onHeadlineChange={changeHeadline}
-          onEditWithAssistant={activeProjectId ? openAssistant : undefined}
+          onHeadlineChange={readOnly ? undefined : changeHeadline}
+          onEditWithAssistant={
+            activeProjectId && !readOnly ? openAssistant : undefined
+          }
           editWithAssistantLabel={t("Assistant.edit")}
           onRegenerate={(asset) => repeat(asset, "asset")}
-          onSchedule={scheduleAsset}
+          onSchedule={readOnly ? undefined : scheduleAsset}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
             setBatchProducts([]);

@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
+import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
 
@@ -80,6 +81,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
         account={account}
         projectId={project.id}
         range={query.range}
+        readOnly={project.cmo}
       />
     </Suspense>
   ) : null;
@@ -89,6 +91,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
       accounts={accounts}
       projectId={project.id}
       range={query.range}
+      readOnly={project.cmo}
     />
   ) : null;
 
@@ -102,11 +105,15 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
 
   return (
     <WorkspacePageShell title={t("title")}>
+      {project.cmo ? (
+        <CmoProjectBanner className="mb-4" projectId={project.id} />
+      ) : null}
       <AdsTabs
         accounts={accounts}
         campaigns={campaigns}
         market={market}
         projectId={project.id}
+        readOnly={project.cmo}
         toolbar={toolbar}
       />
     </WorkspacePageShell>

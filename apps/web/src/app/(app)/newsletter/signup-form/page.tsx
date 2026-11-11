@@ -36,6 +36,8 @@ export default async function NewsletterSignupFormPage({
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);
   if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
+  // CMO designs a CMO Project's signup form.
+  if (project.cmo) redirect(newsletterHref("/newsletter/issues", project.id));
 
   const [page, t] = await Promise.all([
     getTranslations("App.Newsletter"),
@@ -44,8 +46,9 @@ export default async function NewsletterSignupFormPage({
 
   return (
     <NewsletterPageShell
+      cmoProjectId={project.cmo ? project.id : undefined}
       navigationLabel={t("navigation")}
-      tabs={getNewsletterTabs(project.id, true, t)}
+      tabs={getNewsletterTabs(project.id, true, t, project.cmo)}
       title={page("title")}
     >
       <ClientMessageBoundary
