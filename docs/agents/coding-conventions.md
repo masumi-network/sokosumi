@@ -67,6 +67,12 @@ function handler(_req, res) {
 }
 ```
 
+## Data and Concurrency
+
+- **Migrations run under the previous release.** Core's build applies migrations while the previous deployment still serves. A migration that is only correct under the PR's new code belongs in a later PR or a `data-migration:<name>` script; see Migrations in [`packages/database/AGENTS.md`](../../packages/database/AGENTS.md).
+- **Lock what you checked.** A write that depends on another row's state (a grant only while a Soko Bot is live, a refund only while its Project has one) checks and writes in one transaction that locks that row first. Name the writers it races (archive, delete, version change) and show both orderings: the check wins, or the other writer wins and the write sees it. When the other writer is `serializableTransaction`, write the row (a no-op `UPDATE … SET "updatedAt" = "updatedAt"`) rather than only `SELECT … FOR UPDATE`, so a writer holding an older snapshot fails and retries.
+- **Prove money races on PostgreSQL.** For a credit or billing race, add a `*.postgres.test.ts` in `apps/core` beside the mocked route test, running both orderings on separate connections; Test Core runs these against a real PostgreSQL. PGlite takes one connection and cannot run the race.
+
 ## Testing Guidelines
 
 - **Framework**: Vitest with Testing Library and workspace-specific environments (for example `happy-dom` in `apps/web` and Node in packages and `apps/core`)
