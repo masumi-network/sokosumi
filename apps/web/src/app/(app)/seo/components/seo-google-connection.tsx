@@ -18,6 +18,8 @@ type GoogleConnectionProps = {
    * and the notes are in the views that have a column for them.
    */
   inRow?: boolean;
+  /** The view shows a failed Search Console action itself. See SeoConnectionButton. */
+  onError?: (message: string | null) => void;
 };
 
 /**
@@ -30,6 +32,7 @@ export function SeoGoogleConnection({
   variant = "outline",
   onConnected,
   inRow,
+  onError,
 }: GoogleConnectionProps) {
   const t = useTranslations("App.Seo");
   const search = useSeoConnectionStatus("search_console").status.data?.status;
@@ -48,6 +51,7 @@ export function SeoGoogleConnection({
       }
       onConnected={() => onConnected("search_console")}
       inRow={inRow}
+      onError={onError}
     />
   );
   const analyticsButton = (

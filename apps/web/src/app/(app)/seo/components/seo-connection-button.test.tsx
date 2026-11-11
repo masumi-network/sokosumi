@@ -9,8 +9,11 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComposioOAuthPopupFlow } from "@/lib/composio/use-composio-oauth-popup";
 import messages from "../../../../../messages/en.json";
+import { SeoStepRow } from "./seo-agent-steps";
 import { SeoConnectionButton } from "./seo-connection-button";
+import { seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoConnectionStatus } from "./use-seo-connection";
+import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const m = vi.hoisted(() => ({
   initiate: vi.fn(),
@@ -214,6 +217,45 @@ describe("native SEO connection consent", () => {
       ),
     );
     expect(m.initiate).not.toHaveBeenCalled();
+  });
+
+  it("shows a blocked popup in the place of the banner text, so nothing in the banner moves", async () => {
+    m.popup.mockResolvedValue({ kind: "popup_blocked" });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    const model = { data: seoTestWorkspace(), openStatistics: vi.fn() };
+    render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <SeoStepRow
+            banner="Statistics are not set up"
+            step={{ kind: "connect", provider: "search_console" }}
+            model={model as unknown as SeoWorkspaceModel}
+            refresh={vi.fn()}
+            refreshing={false}
+            first
+          />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    const button = await screen.findByRole("button", {
+      name: "Connect Google",
+    });
+    await userEvent.click(button);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Allow popups to connect Search Console, then try again.",
+    );
+    // The text and the message share one cell: the text keeps its space and is hidden.
+    const text = screen.getByText(
+      messages.App.Seo.agent.steps.connect.search_console,
+    );
+    expect(alert.parentElement).toBe(text.parentElement);
+    expect(text).toHaveClass("invisible");
+    // The button gets no line under it: a line there puts the button on a row of its own.
+    expect(button.parentElement?.querySelector("p")).toBeNull();
   });
 
   it("disconnects through an explicit action and refreshes native status", async () => {

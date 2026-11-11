@@ -85,7 +85,7 @@ function SeoAgentPanel({
     if (checkSeen && !checkRunning && document.activeElement === document.body)
       verdict.current?.focus();
   }, [checkSeen, checkRunning]);
-  // Missing search statistics are a banner under the result, not one of the steps.
+  // Missing search statistics are a banner over the result, not one of the steps.
   const statisticsStep = brief.steps.find(
     (step) => step.kind === "connect" && step.provider === "search_console",
   );
@@ -245,6 +245,8 @@ function SeoAgentPanel({
             ? t("setup.checkEnded")
             : ""}
       </p>
+      {/* First on the tab, in one place on every width: a move would remount the control and drop an approval in flight. */}
+      {banner}
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
       ) : (
@@ -337,8 +339,6 @@ function SeoAgentPanel({
       )}
       {/* The setup card has no line for upkeep, so it sits under the card. */}
       {setup && upkeep ? <div className="px-2">{upkeep}</div> : null}
-      {/* One place on every width: a move would remount the control and drop an approval in flight. */}
-      {banner}
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}

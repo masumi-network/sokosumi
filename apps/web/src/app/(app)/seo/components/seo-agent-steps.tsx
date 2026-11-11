@@ -12,7 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -62,6 +62,8 @@ export function SeoStepRow({
   const bodyId = useId();
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const variant = first ? "primary" : "outline";
+  // A connection that failed says so in the place of the step's text: nothing in the row moves.
+  const [connectError, setConnectError] = useState<string | null>(null);
   // A connected account with nothing synced: the step asks for the sync, not for the account.
   // The account's own actions are in the sync dialog.
   const connectStep = step.kind === "connect";
@@ -124,6 +126,7 @@ export function SeoStepRow({
                   key="connect"
                   variant={variant}
                   onConnected={model.openStatistics}
+                  onError={setConnectError}
                   inRow
                 />
               ) : (
@@ -132,6 +135,7 @@ export function SeoStepRow({
                   provider={step.provider}
                   variant={variant}
                   onConnected={() => model.openStatistics(step.provider)}
+                  onError={setConnectError}
                 />
               ),
             ]
@@ -166,6 +170,8 @@ export function SeoStepRow({
       className={cn(
         HOLDER_ITEM_CLASS,
         "content-rise flex items-start gap-3 p-4",
+        // The one coloured surface of the tab: statistics are missing, and one button sets them up.
+        banner && "bg-chart-3-quinary",
       )}
       data-testid={banner ? "seo-statistics-banner" : undefined}
     >
@@ -174,7 +180,7 @@ export function SeoStepRow({
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full",
           banner
-            ? "bg-chart-5/15 text-chart-5"
+            ? "bg-chart-3 text-semantic-warning-foreground"
             : "bg-quinary text-muted-foreground",
         )}
       >
@@ -185,15 +191,27 @@ export function SeoStepRow({
       <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
         <div className="max-w-prose min-w-0 flex-1 basis-48 space-y-0.5">
           {banner ? <h3 className="text-sm font-semibold">{banner}</h3> : null}
-          <p
-            id={bodyId}
-            className={cn(
-              "text-sm break-words",
-              banner && "text-muted-foreground",
-            )}
-          >
-            {body}
-          </p>
+          {/* The text and the error share one cell, so the row keeps the height of the taller one. */}
+          <div className="grid">
+            <p
+              id={bodyId}
+              className={cn(
+                "col-start-1 row-start-1 text-sm break-words",
+                banner && "text-muted-foreground",
+                connectError && "invisible",
+              )}
+            >
+              {body}
+            </p>
+            {connectError ? (
+              <p
+                role="alert"
+                className="text-destructive col-start-1 row-start-1 text-sm break-words"
+              >
+                {connectError}
+              </p>
+            ) : null}
+          </div>
         </div>
         {control ? (
           <div className="max-w-full min-w-0 has-[p]:basis-full">{control}</div>

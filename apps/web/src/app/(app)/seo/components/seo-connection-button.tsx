@@ -2,6 +2,7 @@
 
 import { Plug, RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth/auth.client";
@@ -26,6 +27,11 @@ type ConnectionButtonProps = {
   connectLabel?: string;
   /** The control sits in a row of other buttons, not in a column of its own. */
   inRow?: boolean;
+  /**
+   * The view shows a failed action itself, in a place that does not move the
+   * layout. The control then adds no line of its own. Pass a stable function.
+   */
+  onError?: (message: string | null) => void;
 };
 
 export function SeoConnectionButton({
@@ -34,6 +40,7 @@ export function SeoConnectionButton({
   variant = "outline",
   connectLabel,
   inRow,
+  onError,
 }: ConnectionButtonProps) {
   const { data: session } = useSession();
   const identity = JSON.stringify([
@@ -49,6 +56,7 @@ export function SeoConnectionButton({
       variant={variant}
       connectLabel={connectLabel}
       inRow={inRow}
+      onError={onError}
     />
   );
 }
@@ -59,10 +67,17 @@ function SeoConnectionControl({
   variant,
   connectLabel,
   inRow,
+  onError,
 }: ConnectionButtonProps) {
   const t = useTranslations("App.Seo");
   const model = useSeoConnection(provider, onConnected);
   const { data } = model.status;
+  const { error } = model;
+  useEffect(() => {
+    onError?.(error);
+  }, [onError, error]);
+  // The view that takes the error shows it; here it would add a line and move the layout.
+  const ownError = onError ? null : error;
   const name = t(`statistics.${provider}`);
   // Only the pressed button loads; the others wait.
   const state = (action: SeoConnectionAction) => ({
@@ -102,9 +117,9 @@ function SeoConnectionControl({
     return (
       <div className={STACK_CLASS}>
         <SeoConnectedAccount name={name} model={model} inRow={inRow} />
-        {model.error ? (
+        {ownError ? (
           <p role="alert" className="text-destructive text-sm">
-            {model.error}
+            {ownError}
           </p>
         ) : null}
       </div>
@@ -153,9 +168,9 @@ function SeoConnectionControl({
           {t("connections.needsReconnect", { provider: name })}
         </p>
       ) : null}
-      {model.error ? (
+      {ownError ? (
         <p role="alert" className="text-destructive text-sm">
-          {model.error}
+          {ownError}
         </p>
       ) : null}
     </div>

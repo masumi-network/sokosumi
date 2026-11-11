@@ -289,6 +289,11 @@ describe("SEO audit first run", () => {
     expect(
       within(row).getByRole("heading", { name: copy.agent.statisticsMissing }),
     ).toBeVisible();
+    // The banner is the first thing on the tab: it stands over the result.
+    expect(
+      row.compareDocumentPosition(screen.getByTestId("seo-agent-verdict")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(
       within(row)
         .getAllByRole("button")
