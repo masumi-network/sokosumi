@@ -36,9 +36,10 @@ export function SeoKeywordSuggestions({
             key={row.id}
             className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2"
           >
-            <bdi className="min-w-0 flex-1 basis-40 break-words">
-              {row.query}
-            </bdi>
+            {/* The search keeps its own direction inside a row that starts where the page starts. */}
+            <p className="min-w-0 flex-1 basis-40 font-medium break-words">
+              <bdi>{row.query}</bdi>
+            </p>
             <span className="text-muted-foreground text-sm tabular-nums">
               {t("keywords.suggest.position", {
                 position: format.number(row.averagePosition, {
