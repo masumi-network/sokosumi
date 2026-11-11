@@ -11135,43 +11135,6 @@ export const ChatPersonSchema = {
     ]
 } as const;
 
-export const ChatRecentSokoBotMessageSchema = {
-    type: 'object',
-    properties: {
-        roomId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        messageId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        parentMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'The Thread\'s parent when the message is a reply.'
-        },
-        content: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'roomId',
-        'messageId',
-        'parentMessageId',
-        'content',
-        'createdAt'
-    ]
-} as const;
-
 export const ChatRoomSchema = {
     type: 'object',
     properties: {
@@ -13937,6 +13900,119 @@ export const ChatSignalListItemSchema = {
     ]
 } as const;
 
+export const ChatCatchUpItemSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        roomKind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ]
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        senderName: {
+            type: 'string'
+        },
+        senderImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        excerpt: {
+            type: 'string'
+        },
+        bucket: {
+            $ref: '#/components/schemas/ChatCatchUpBucket'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        inReplyTo: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                senderName: {
+                    type: 'string'
+                },
+                excerpt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'senderName',
+                'excerpt'
+            ],
+            description: 'For a decision: the earlier message it answers, so a bare reply reads on its own.'
+        }
+    },
+    required: [
+        'messageId',
+        'roomId',
+        'roomName',
+        'roomKind',
+        'parentMessageId',
+        'senderName',
+        'senderImageUrl',
+        'excerpt',
+        'bucket',
+        'createdAt',
+        'dueAt',
+        'inReplyTo'
+    ]
+} as const;
+
+export const ChatCatchUpBucketSchema = {
+    type: 'string',
+    enum: [
+        'needsYou',
+        'escalation',
+        'urgent',
+        'blocker',
+        'bug',
+        'decisionMade',
+        'announcement',
+        'needsDecision',
+        'commitment',
+        'workRequest',
+        'review',
+        'question',
+        'fyi',
+        'chitChat'
+    ],
+    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
+} as const;
+
 export const ChatCatchUpSummarySchema = {
     type: 'object',
     properties: {
@@ -14117,27 +14193,6 @@ export const ChatCatchUpSummarySchema = {
     ]
 } as const;
 
-export const ChatCatchUpBucketSchema = {
-    type: 'string',
-    enum: [
-        'needsYou',
-        'escalation',
-        'urgent',
-        'blocker',
-        'bug',
-        'decisionMade',
-        'announcement',
-        'needsDecision',
-        'commitment',
-        'workRequest',
-        'review',
-        'question',
-        'fyi',
-        'chitChat'
-    ],
-    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
-} as const;
-
 export const ChatCatchUpTopicSchema = {
     type: 'object',
     properties: {
@@ -14220,98 +14275,6 @@ export const ChatCatchUpTopicSchema = {
         'people',
         'latestAt',
         'messages'
-    ]
-} as const;
-
-export const ChatCatchUpItemSchema = {
-    type: 'object',
-    properties: {
-        messageId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        roomId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        roomName: {
-            type: 'string'
-        },
-        roomKind: {
-            type: 'string',
-            enum: [
-                'channel',
-                'direct'
-            ]
-        },
-        parentMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        senderName: {
-            type: 'string'
-        },
-        senderImageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        excerpt: {
-            type: 'string'
-        },
-        bucket: {
-            $ref: '#/components/schemas/ChatCatchUpBucket'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        dueAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        inReplyTo: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                senderName: {
-                    type: 'string'
-                },
-                excerpt: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'senderName',
-                'excerpt'
-            ],
-            description: 'For a decision: the earlier message it answers, so a bare reply reads on its own.'
-        }
-    },
-    required: [
-        'messageId',
-        'roomId',
-        'roomName',
-        'roomKind',
-        'parentMessageId',
-        'senderName',
-        'senderImageUrl',
-        'excerpt',
-        'bucket',
-        'createdAt',
-        'dueAt',
-        'inReplyTo'
     ]
 } as const;
 
@@ -24687,6 +24650,11 @@ export const ProjectSchema = {
             description: 'Revision used for optimistic Project mutations',
             example: 0
         },
+        cmo: {
+            type: 'boolean',
+            description: 'A CMO Project: it has a live Cuso, so it is read-only outside CMO (ADR 0066).',
+            example: false
+        },
         scheduledSocialPostCount: {
             type: 'integer',
             minimum: 0,
@@ -24741,6 +24709,7 @@ export const ProjectSchema = {
         'memoryModel',
         'contextMd',
         'contextMdUpdating',
+        'cmo',
         'createdAt',
         'updatedAt'
     ]
@@ -40658,7 +40627,7 @@ export const NotificationCountsSchema = {
         needsAction: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of feed notifications whose request still waits on the reader',
+            description: 'Number of feed notifications whose request still waits on the reader, not counting a Task\'s ask for a Task the active workspace\'s GET /tasks/summary already counts',
             example: 2
         },
         mentions: {
@@ -46720,6 +46689,9 @@ export const SharedSokoBotSummarySchema = {
         },
         viewerCanManage: {
             type: 'boolean'
+        },
+        cuso: {
+            type: 'boolean'
         }
     },
     required: [
@@ -46732,7 +46704,8 @@ export const SharedSokoBotSummarySchema = {
         'status',
         'archivedAt',
         'sharedRoomId',
-        'viewerCanManage'
+        'viewerCanManage',
+        'cuso'
     ]
 } as const;
 

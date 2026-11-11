@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { ImageStudio } from "@/app/projects/components/image-studio/image-studio";
 import { buildStudioLabels } from "@/app/projects/components/image-studio/studio-labels";
 import { ProjectBrandProvider } from "@/app/projects/components/project-brand-card";
+import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import { projectService } from "@/lib/services/project.service";
 
@@ -84,6 +85,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         key={scopeId ?? "workspace"}
         labels={buildStudioLabels(t)}
         projectId={scopeId}
+        readOnly={project?.cmo}
         projectLogo={project?.logo}
         studioLogoPosition={project?.studioLogoPosition}
         websiteUrl={project?.websiteUrl}
@@ -100,6 +102,9 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   );
   return (
     <StudioPageShell title={t("title")}>
+      {project?.cmo ? (
+        <CmoProjectBanner className="mb-4" projectId={project.id} />
+      ) : null}
       {project ? (
         <ProjectBrandProvider
           autoStart={false}

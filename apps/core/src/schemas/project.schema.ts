@@ -237,6 +237,11 @@ export const projectSchema = z
       description: "Revision used for optimistic Project mutations",
       example: 0,
     }),
+    cmo: z.boolean().openapi({
+      description:
+        "A CMO Project: it has a live Cuso, so it is read-only outside CMO (ADR 0066).",
+      example: false,
+    }),
     scheduledSocialPostCount: z
       .number()
       .int()
@@ -580,8 +585,11 @@ export function mapProjectContextMdForApi(
 
 export function mapProjectForApi(
   project: DatabaseProject,
-  now: Date = new Date(),
-  scheduledSocialPostCount = 0,
+  {
+    cmo,
+    now = new Date(),
+    scheduledSocialPostCount = 0,
+  }: { cmo: boolean; now?: Date; scheduledSocialPostCount?: number },
 ): Project {
   const env = getEnv();
   const updatingSinceMs = project.contextMdUpdatingSince?.getTime();
@@ -637,6 +645,7 @@ export function mapProjectForApi(
       updatingSinceMs !== undefined &&
       now.getTime() - updatingSinceMs < PROJECT_MEMORY_UPDATING_WINDOW_MS,
     projectRevision: project.projectRevision ?? 0,
+    cmo,
     scheduledSocialPostCount,
     closingAt: project.closingAt ?? null,
     closedAt: project.closedAt ?? null,

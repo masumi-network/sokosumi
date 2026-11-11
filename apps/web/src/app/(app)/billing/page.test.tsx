@@ -163,12 +163,12 @@ vi.mock("@/components/billing/billing-tabs", () => ({
   },
 }));
 
-vi.mock("@/components/billing/coupon-section", () => ({
+vi.mock("@/components/credits/coupon-form", () => ({
   __esModule: true,
   default: () => <div data-testid="coupon-section" />,
 }));
 
-vi.mock("@/components/billing/credits-section", () => ({
+vi.mock("@/components/credits/credits-form", () => ({
   __esModule: true,
   default: (props: unknown) => {
     creditsSectionMock(props);

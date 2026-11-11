@@ -63,6 +63,7 @@ type Page = ReactElement<{
   cusos?: { projectId: string }[];
   mayHire?: boolean;
   inviteOnly?: boolean;
+  cusoPicker?: boolean;
   overview?: { projectId: string };
 }>;
 
@@ -229,6 +230,16 @@ describe("CMO home page", () => {
 
     expect(page.type).toBe(Onboarding);
     expect(loadOverview).not.toHaveBeenCalled();
+    // "Your Cusos" in the account menu leads back to the remaining ones.
+    expect(page.props.cusoPicker).toBe(true);
+  });
+
+  it("leaves Your Cusos off the hire form for a person with no Cuso", async () => {
+    const page = await render();
+
+    expect(page.type).toBe(Onboarding);
+    // The picker would only reload this hire form.
+    expect(page.props.cusoPicker).toBe(false);
   });
 
   describe("for a person not on the hire allowlist", () => {

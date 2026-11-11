@@ -1,11 +1,8 @@
 import type {
-  ChatRecentSokoBotMessage,
+  ChatCatchUpItem,
   ChatRoom,
   TaskListItem,
 } from "@sokosumi/core-client";
-import { buildChatMessagePreview } from "@sokosumi/utils";
-
-import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 
 type TeamTask = Pick<
   TaskListItem,
@@ -72,51 +69,34 @@ export function toTeamDay(
     }));
 }
 
-/** A chat with a Soko Bot the reader took part in during the last day. */
+/**
+ * An important chat message from someone else that the reader has not read,
+ * from the last day: a request, a decision, a blocker and the like.
+ */
 export interface SokoBotHomeChat {
   roomId: string;
-  /** The reader's newest message there, a Thread reply included; the row
-   * opens at it. */
+  /** The row opens at it, a Thread reply included. */
   messageId: string;
-  /** That message as plain text: what the chat was about, in their words. */
+  /** The message as plain text, mentions named. */
   title: string;
-  /** Last activity: the room's, or the reader's reply when that is newer
-   * (a reply leaves the room's timestamp alone). */
+  /** Who wrote it: a person, a Coworker or a Soko Bot. */
+  from: string;
   at: Date;
 }
 
 /**
- * Core's per-room newest reader messages as Home rows. Core already picked
- * the reader's own messages in this workspace's Soko Bot rooms, Thread
- * replies included, newest first and capped; the room list supplies the
- * names a mention token carries. A room missing from that list is left
- * out. `allLabel` is what the room-wide mention reads as; `untitled` names
- * a message with no text.
+ * Core's important messages as Home rows, in Core's order: newest first,
+ * one per room. `untitled` names a message with no text.
  */
-export function toSokoBotChats(
-  recent: readonly ChatRecentSokoBotMessage[],
-  rooms: readonly ChatRoom[],
-  allLabel: string,
+export function toImportantChats(
+  items: readonly ChatCatchUpItem[],
   untitled: string,
 ): SokoBotHomeChat[] {
-  const byId = new Map(rooms.map((room) => [room.id, room]));
-  return recent.flatMap((message) => {
-    const room = byId.get(message.roomId);
-    if (!room) return [];
-    return [
-      {
-        roomId: room.id,
-        messageId: message.messageId,
-        title:
-          buildChatMessagePreview(
-            message.content,
-            roomMentionNames(room, allLabel),
-          ) || untitled,
-        at:
-          message.createdAt > room.updatedAt
-            ? message.createdAt
-            : room.updatedAt,
-      },
-    ];
-  });
+  return items.map((item) => ({
+    roomId: item.roomId,
+    messageId: item.messageId,
+    title: item.excerpt || untitled,
+    from: item.senderName,
+    at: item.createdAt,
+  }));
 }
