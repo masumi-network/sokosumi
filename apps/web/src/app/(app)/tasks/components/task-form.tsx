@@ -1,6 +1,6 @@
 "use client";
 
-import type { Project } from "@sokosumi/core-client";
+import type { Contact, Project } from "@sokosumi/core-client";
 import { TaskStatus } from "@sokosumi/core-client";
 import {
   formatTaskAttachmentMarkdown,
@@ -28,6 +28,8 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "use-debounce";
+import { useContactRows } from "@/app/contacts/components/use-contacts-data";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
@@ -57,6 +59,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -65,6 +68,7 @@ import {
   updateTask,
 } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
+import { contactsService } from "@/lib/services/contacts.client";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
@@ -81,10 +85,13 @@ import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { TaskAssigneePicker } from "./task-assignee-picker";
 import {
-  contactBrief,
-  TaskContactsSelect,
+  ContactMentionItem,
+  expandContactMentions,
+  MentionInitialItem,
+  mentionedContactIds,
+  stripContactDetails,
   type TaskContactTag,
-} from "./task-contacts-select";
+} from "./task-contacts";
 import {
   getDefaultTaskContextSelection,
   getTaskContextSelectionFromDescription,
@@ -297,6 +304,7 @@ export function TaskForm({
   const { data: session } = useSession();
   const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
   const tRunAt = useTranslations("App.Tasks.RunAt");
+  const tContacts = useTranslations("App.Tasks.Contacts");
   const formatter = useFormatter();
   const hasProjectSelection = projectOptions !== undefined;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
@@ -309,11 +317,6 @@ export function TaskForm({
   const isCopy = copyOfTaskId !== undefined;
   const initialContacts = initialValues?.contacts;
   const canTagContacts = initialContacts !== null;
-  const [contacts, setContacts] = useState(initialContacts ?? []);
-  const contactIds = useMemo(
-    () => contacts.map((contact) => contact.id),
-    [contacts],
-  );
   const [name, setName] = useState(initialValues?.name ?? "");
   const [isPrivate, setIsPrivate] = useState(
     initialValues?.visibility === "PRIVATE",
@@ -363,8 +366,12 @@ export function TaskForm({
         initialContext?.selection ??
         getDefaultTaskContextSelection(initialProject),
     );
-  const initialDescription =
+  const savedDescription =
     initialContext?.body ?? initialValues?.description ?? "";
+  // Contact details are added on save, never shown while writing.
+  const initialDescription = canTagContacts
+    ? stripContactDetails(savedDescription)
+    : savedDescription;
   const [description, setDescription] = useState(initialDescription);
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
@@ -499,9 +506,51 @@ export function TaskForm({
     () => extractTaskAttachmentUrls(description),
     [description],
   );
+  // Typing @ also offers the workspace's contacts. Each one seen stays known,
+  // so a picked contact keeps its name in the brief after the menu closes.
+  const [contactQuery, setContactQuery] = useState<string | null>(null);
+  const [debouncedContactQuery] = useDebounce(
+    contactQuery?.trim() ?? "",
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
+  const contactRows = useContactRows(
+    {
+      search: debouncedContactQuery || undefined,
+      sort: "name",
+      direction: "asc",
+    },
+    canTagContacts && contactQuery !== null,
+  );
+  const [seenContacts, setSeenContacts] = useState(
+    () => new Map<string, Contact>(),
+  );
+  const contactResults = useMemo(
+    // ponytail: first 8 matches only; typing more of the name narrows it.
+    () => contactRows.data?.pages[0]?.contacts.slice(0, 8) ?? [],
+    [contactRows.data],
+  );
+  useEffect(() => {
+    setSeenContacts((current) => {
+      if (
+        contactResults.every((contact) => current.get(contact.id) === contact)
+      )
+        return current;
+      const next = new Map(current);
+      for (const contact of contactResults) next.set(contact.id, contact);
+      return next;
+    });
+  }, [contactResults]);
   const mentionOptions = useMemo(
-    () => convertAgentNamesToMentionOptions(agentNameById),
-    [agentNameById],
+    () => ({
+      ...Object.fromEntries(
+        [...seenContacts.values()].map((contact) => [
+          contact.id,
+          { value: contact.name, data: contact },
+        ]),
+      ),
+      ...convertAgentNamesToMentionOptions(agentNameById),
+    }),
+    [agentNameById, seenContacts],
   );
   const isSubmittingAny = isSubmitting;
   useEffect(() => {
@@ -735,8 +784,40 @@ export function TaskForm({
     }
     setIsSubmitting(true);
     try {
-      const trimmedDescription = description.trim();
       const trimmedName = name.trim();
+      // Tags follow the contacts mentioned in the brief. A tag with no
+      // mention in the saved brief (set elsewhere) is kept.
+      let trimmedDescription = description.trim();
+      let contactIds: string[] | undefined;
+      if (canTagContacts) {
+        const initialIds = (initialContacts ?? []).map((contact) => contact.id);
+        const mentionedAtLoad = mentionedContactIds(
+          initialDescription,
+          new Set(initialIds),
+        );
+        const ids = [
+          ...new Set([
+            ...initialIds.filter((id) => !mentionedAtLoad.includes(id)),
+            ...mentionedContactIds(
+              trimmedDescription,
+              new Set(seenContacts.keys()),
+            ),
+          ]),
+        ];
+        if (ids.length > 0 || initialIds.length > 0) {
+          // Read now, with the reader's own access, so the Task gets current
+          // details only for contacts they may see.
+          const tagged = await Promise.all(
+            ids.map((id) => contactsService.get(id)),
+          );
+          trimmedDescription = expandContactMentions(
+            trimmedDescription,
+            tagged,
+            tContacts("title"),
+          );
+          contactIds = ids;
+        }
+      }
       const context: TaskContextSelectionInput = {
         brand: {
           enabled: contextSelection.brand.enabled,
@@ -774,7 +855,7 @@ export function TaskForm({
             ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
             : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
-          ...(contactIds.length > 0 ? { contactIds } : {}),
+          ...(contactIds?.length ? { contactIds } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
           ...assigneeFields,
@@ -831,11 +912,7 @@ export function TaskForm({
         ...(hasProjectSelection ? { projectId } : {}),
         context,
         desiredStatus: status,
-        ...(canTagContacts &&
-        contactIds.join() !==
-          (initialContacts ?? []).map((contact) => contact.id).join()
-          ? { contactIds }
-          : {}),
+        ...(contactIds ? { contactIds } : {}),
         ...(runAt !== initialRunAt &&
         (runAt !== null ||
           status === TaskStatus.DRAFT ||
@@ -861,9 +938,11 @@ export function TaskForm({
   }, [
     draftTags.tagSuggestionReceipt,
     copyOfTaskId,
-    contactIds,
+    seenContacts,
     initialContacts,
+    initialDescription,
     canTagContacts,
+    tContacts,
     isCopy,
     description,
     isSaveDisabled,
@@ -1310,6 +1389,16 @@ export function TaskForm({
                         void handleSave();
                       }}
                       mentions={mentionOptions}
+                      onMentionQueryChange={setContactQuery}
+                      renderMentionItem={(mention) =>
+                        mention.data ? (
+                          <ContactMentionItem
+                            contact={mention.data as Contact}
+                          />
+                        ) : (
+                          <MentionInitialItem mention={mention} />
+                        )
+                      }
                     />
                     <FileUploadTrigger asChild>
                       <button
@@ -1340,101 +1429,92 @@ export function TaskForm({
 
               {mode === "create" ? <TaskDraftTags {...draftTags} /> : null}
 
-              <div className="space-y-1">
-                <div
-                  data-testid="task-compose-meta-row"
-                  className="flex flex-wrap items-center gap-2"
-                >
-                  {canTagContacts ? (
-                    <TaskContactsSelect
-                      value={contacts}
-                      onChange={setContacts}
-                      onTag={(contact) =>
-                        setDescription((current) =>
-                          current.trim()
-                            ? `${current.trimEnd()}\n\n${contactBrief(contact)}`
-                            : contactBrief(contact),
-                        )
-                      }
-                    />
-                  ) : null}
-                  {shouldShowProjectSelect ? (
-                    <TaskProjectSelect
-                      ref={projectSelectRef}
-                      variant="chip"
-                      projectOptions={localProjectOptions}
-                      value={projectId}
-                      onChange={handleProjectChange}
-                      projectLabel={labels.projectLabel}
-                      noneLabel={labels.projectNone}
-                      placeholder={labels.projectPlaceholder}
-                      searchPlaceholder={labels.projectSearchPlaceholder}
-                      emptyResults={labels.projectEmptyResults}
-                      projectCreate={labels.projectCreate}
-                      projectCreateNamed={labels.projectCreateNamed}
-                      onCreateProject={handleCreateProject}
-                      invalid={isProjectMissing}
-                      describedBy={
-                        isProjectMissing && labels.projectRequired
-                          ? projectErrorId
-                          : undefined
-                      }
-                    />
-                  ) : null}
-                  {showPrivateControl ? (
-                    <>
-                      {labels.privateDescription ? (
-                        <span id={privateDescriptionId} className="sr-only">
-                          {labels.privateDescription}
-                        </span>
-                      ) : null}
-                      <HoverCard openDelay={150}>
-                        <HoverCardTrigger asChild>
-                          <button
-                            type="button"
-                            id="task-private"
-                            aria-label={labels.privateLabel}
-                            aria-pressed={isPrivate}
-                            aria-describedby={
-                              labels.privateDescription
-                                ? privateDescriptionId
-                                : undefined
-                            }
-                            className={cn(
-                              "focus-visible:ring-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2",
-                              isPrivate
-                                ? "bg-secondary text-secondary-foreground border-transparent"
-                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                            )}
-                            onClick={() => setIsPrivate((current) => !current)}
-                          >
-                            <Lock className="size-3.5 shrink-0" aria-hidden />
-                            {labels.privateLabel}
-                          </button>
-                        </HoverCardTrigger>
+              {shouldShowProjectSelect || showPrivateControl ? (
+                <div className="space-y-1">
+                  <div
+                    data-testid="task-compose-meta-row"
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    {shouldShowProjectSelect ? (
+                      <TaskProjectSelect
+                        ref={projectSelectRef}
+                        variant="chip"
+                        projectOptions={localProjectOptions}
+                        value={projectId}
+                        onChange={handleProjectChange}
+                        projectLabel={labels.projectLabel}
+                        noneLabel={labels.projectNone}
+                        placeholder={labels.projectPlaceholder}
+                        searchPlaceholder={labels.projectSearchPlaceholder}
+                        emptyResults={labels.projectEmptyResults}
+                        projectCreate={labels.projectCreate}
+                        projectCreateNamed={labels.projectCreateNamed}
+                        onCreateProject={handleCreateProject}
+                        invalid={isProjectMissing}
+                        describedBy={
+                          isProjectMissing && labels.projectRequired
+                            ? projectErrorId
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                    {showPrivateControl ? (
+                      <>
                         {labels.privateDescription ? (
-                          <HoverCardContent
-                            side="top"
-                            align="start"
-                            className="w-72 text-sm"
-                          >
-                            <p className="text-muted-foreground">
-                              {labels.privateDescription}
-                            </p>
-                          </HoverCardContent>
+                          <span id={privateDescriptionId} className="sr-only">
+                            {labels.privateDescription}
+                          </span>
                         ) : null}
-                      </HoverCard>
-                    </>
+                        <HoverCard openDelay={150}>
+                          <HoverCardTrigger asChild>
+                            <button
+                              type="button"
+                              id="task-private"
+                              aria-label={labels.privateLabel}
+                              aria-pressed={isPrivate}
+                              aria-describedby={
+                                labels.privateDescription
+                                  ? privateDescriptionId
+                                  : undefined
+                              }
+                              className={cn(
+                                "focus-visible:ring-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2",
+                                isPrivate
+                                  ? "bg-secondary text-secondary-foreground border-transparent"
+                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                              )}
+                              onClick={() =>
+                                setIsPrivate((current) => !current)
+                              }
+                            >
+                              <Lock className="size-3.5 shrink-0" aria-hidden />
+                              {labels.privateLabel}
+                            </button>
+                          </HoverCardTrigger>
+                          {labels.privateDescription ? (
+                            <HoverCardContent
+                              side="top"
+                              align="start"
+                              className="w-72 text-sm"
+                            >
+                              <p className="text-muted-foreground">
+                                {labels.privateDescription}
+                              </p>
+                            </HoverCardContent>
+                          ) : null}
+                        </HoverCard>
+                      </>
+                    ) : null}
+                  </div>
+                  {shouldShowProjectSelect &&
+                  isProjectMissing &&
+                  labels.projectRequired ? (
+                    <p id={projectErrorId} className="text-destructive text-xs">
+                      {labels.projectRequired}
+                    </p>
                   ) : null}
                 </div>
-                {shouldShowProjectSelect &&
-                isProjectMissing &&
-                labels.projectRequired ? (
-                  <p id={projectErrorId} className="text-destructive text-xs">
-                    {labels.projectRequired}
-                  </p>
-                ) : null}
-              </div>
+              ) : null}
               <TaskContextAttachmentsField
                 layout="inline"
                 defaultBrand={initialDesignMdAttachment ?? null}

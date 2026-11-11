@@ -2312,13 +2312,7 @@
       },
       "Contacts": {
         "title": "Contactos",
-        "tag": "Etiquetar contacto",
-        "search": "Buscar contactos…",
-        "loading": "Cargando contactos…",
-        "empty": "No se encontraron contactos.",
-        "remove": "Quitar a {name}",
-        "tagged": "Etiquetado",
-        "more": "Mostrar más contactos"
+        "label": "Contacto"
       }
     },
     "Projects": {

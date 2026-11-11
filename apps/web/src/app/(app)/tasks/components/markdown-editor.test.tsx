@@ -680,6 +680,32 @@ describe("MarkdownEditor", () => {
     });
   });
 
+  it("reports the @ query so callers can load mentions, even with none yet", async () => {
+    const onMentionQueryChange = vi.fn();
+    render(
+      <MarkdownEditor
+        value=""
+        onChange={vi.fn()}
+        onMentionQueryChange={onMentionQueryChange}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "Call @Ma";
+    setCaretToEnd(editor);
+    fireEvent.input(editor);
+    await waitFor(() =>
+      expect(onMentionQueryChange).toHaveBeenLastCalledWith("Ma"),
+    );
+
+    editor.innerHTML = "Call @Ma ";
+    setCaretToEnd(editor);
+    fireEvent.input(editor);
+    await waitFor(() =>
+      expect(onMentionQueryChange).toHaveBeenLastCalledWith(null),
+    );
+  });
+
   it("inserts newline with one Enter when mention dropdown is not visible", async () => {
     const onChange = vi.fn();
 

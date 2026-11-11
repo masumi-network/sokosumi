@@ -9,6 +9,16 @@ import {
 } from "@/lib/utils/composer-markdown-dom";
 
 describe("markdownToHtml", () => {
+  it("round-trips a saved contact link as a link, not a mention", () => {
+    const source = "Call [Maya Stone](/contacts?contact=c-1) today";
+    const root = document.createElement("div");
+    root.innerHTML = sanitizeComposerHtml(
+      markdownToHtml(source, () => ({ displayName: "x", isKnown: false })),
+    );
+    expect(root.querySelector("[data-mention-key]")).toBeNull();
+    expect(htmlToMarkdown(root).trim()).toBe(source);
+  });
+
   it("preserves ID-only human tokens through rich editing and sanitization", () => {
     const source = "Hello @user-1, and @user-1:old-name";
     const root = document.createElement("div");

@@ -17,7 +17,7 @@ import {
   type MentionableUser,
   TaskActivitySection,
 } from "@/app/tasks/components/task-activity";
-import { TaskContactsSection } from "@/app/tasks/components/task-contacts-select";
+import { TaskContactsSection } from "@/app/tasks/components/task-contacts";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";

@@ -2312,13 +2312,7 @@
       },
       "Contacts": {
         "title": "Kontakte",
-        "tag": "Kontakt taggen",
-        "search": "Kontakte suchen…",
-        "loading": "Kontakte werden geladen…",
-        "empty": "Keine Kontakte gefunden.",
-        "remove": "{name} entfernen",
-        "tagged": "Getaggt",
-        "more": "Mehr Kontakte anzeigen"
+        "label": "Kontakt"
       }
     },
     "Projects": {

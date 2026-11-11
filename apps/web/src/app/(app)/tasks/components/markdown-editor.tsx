@@ -75,6 +75,9 @@ interface MarkdownEditorProps {
     mention: NormalizedMention,
     isActive: boolean,
   ) => ReactNode;
+  /** The text typed after @ while the menu is open, null once it closes;
+   * lets the caller load more mentions (contacts) for it. */
+  onMentionQueryChange?: (query: string | null) => void;
 }
 
 interface MarkdownFormatToolsProps {
@@ -252,6 +255,7 @@ export const MarkdownEditor = forwardRef<
     isAttachmentUploading = false,
     mentions = {},
     renderMentionItem,
+    onMentionQueryChange,
   }: MarkdownEditorProps,
   ref,
 ) {
@@ -324,6 +328,10 @@ export const MarkdownEditor = forwardRef<
     },
     [keyToValue, slugToValue],
   );
+
+  useEffect(() => {
+    onMentionQueryChange?.(query);
+  }, [onMentionQueryChange, query]);
 
   const filteredMentions = useMemo(() => {
     if (query === null) return normalizedMentions;
@@ -437,7 +445,7 @@ export const MarkdownEditor = forwardRef<
       isInternalChange.current = true;
       const { text, caret } = syncFromEditor();
 
-      if (normalizedMentions.length === 0) {
+      if (normalizedMentions.length === 0 && !onMentionQueryChange) {
         closeSuggestions();
         return;
       }
@@ -462,6 +470,7 @@ export const MarkdownEditor = forwardRef<
   }, [
     closeSuggestions,
     normalizedMentions.length,
+    onMentionQueryChange,
     openSuggestions,
     syncFromEditor,
   ]);
