@@ -44,6 +44,8 @@ export const SEO_COMPACT_ROWS_CLASS = [
   // A row of one cell (a chart under a keyword) keeps the full width.
   "max-sm:[&_td:only-child]:basis-full",
   "max-sm:[&_td:first-child:not(:last-child)]:order-1 max-sm:[&_td:first-child:not(:last-child)]:flex-1 max-sm:[&_td:first-child:not(:last-child)]:basis-0",
+  // A name of one line stands at the middle of its button, not over an empty line.
+  "max-sm:[&_td:first-child:not(:last-child)]:self-center",
   "max-sm:[&_td:last-child:not(:first-child)]:order-2 max-sm:[&_td:last-child:not(:first-child)]:shrink-0",
   // An empty item of full width ends the first line, so the values start a line of their own.
   // The item is a line too, so the row gap counts twice between the name and the values.
@@ -304,7 +306,7 @@ export function SeoPageLink({
       <bdi
         className={cn(
           "min-w-0 [overflow-wrap:anywhere]",
-          clamp && "max-sm:truncate",
+          clamp && "max-sm:line-clamp-1 max-sm:break-all max-sm:[&>wbr]:hidden",
         )}
       >
         {label || (path === "/" ? t("pages.home") : seoUrlBreaks(path ?? url))}
