@@ -140,6 +140,7 @@ import {
 import { SocialPostMoveDialog } from "./social-post-move-dialog";
 import { SocialStatusSummary } from "./social-status-summary";
 import { SourceMarker } from "./source-marker";
+import { useRunChanges } from "./use-run-changes";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
@@ -1056,6 +1057,7 @@ export function WorkspaceCalendar({
         }
       : queryState;
   const [loadedItems, setLoadedItems] = useState(items);
+  const [shownItems, changeShownRun] = useRunChanges(loadedItems);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [isLoadingRuns, setIsLoadingRuns] = useState(false);
@@ -1238,7 +1240,7 @@ export function WorkspaceCalendar({
     );
   }
 
-  const visibleItems = loadedItems
+  const visibleItems = shownItems
     .filter((item) => isVisible(item))
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
@@ -1253,7 +1255,7 @@ export function WorkspaceCalendar({
     number
   >();
   if (socialOnly) {
-    for (const item of loadedItems) {
+    for (const item of shownItems) {
       if (
         item.kind === "socialPost" &&
         isSocialPostStatus(item.status) &&
@@ -1337,27 +1339,10 @@ export function WorkspaceCalendar({
     openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
   }
 
-  const reportRunChangeFailure = useReportRunChangeFailure();
-
-  async function handleRunChange(
-    item: ChangeableRun,
-    change: { action: "skip" | "restore" },
-  ) {
-    try {
-      const result = await changeRun(item, change);
-      if (!result.ok) {
-        reportRunChangeFailure(result.error.kind);
-        return;
-      }
-    } catch {
-      reportRunChangeFailure("failed");
-    }
-  }
-
   const runHandlers: RunHandlers = {
     onMoveRun: setMovingRun,
-    onRestoreRun: (item) => void handleRunChange(item, { action: "restore" }),
-    onSkipRun: (item) => void handleRunChange(item, { action: "skip" }),
+    onRestoreRun: (item) => changeShownRun(item, "restore"),
+    onSkipRun: (item) => changeShownRun(item, "skip"),
     onOpen: (path) => router.push(path),
   };
 
