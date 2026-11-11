@@ -56,15 +56,16 @@ export function NotificationPanelContent({
       </div>
       {/* The strip carries the line under it, so it stands in for the
           separator between the header and the list. */}
-      <NotificationCenterViewFilter />
-      <NotificationNeedsYouRequests variant="panel" onNavigate={onClose} />
-      {/* The scroll container the boundary row watches: reaching the end of
-          it is what asks for the page of older rows. It carries the line
-          under it, so when the list has nothing to say under an account
-          notice, the box and its line leave together. */}
-      <div className="app-scrollbar max-h-96 overflow-y-auto border-b empty:hidden">
-        <NotificationCenterList onNavigate={onClose} />
-      </div>
+      <NotificationCenterViewFilter>
+        <NotificationNeedsYouRequests variant="panel" onNavigate={onClose} />
+        {/* The scroll container the boundary row watches: reaching the end
+            of it is what asks for the page of older rows. It carries the
+            line under it, so when the list has nothing to say under an
+            account notice, the box and its line leave together. */}
+        <div className="app-scrollbar max-h-96 overflow-y-auto border-b empty:hidden">
+          <NotificationCenterList onNavigate={onClose} />
+        </div>
+      </NotificationCenterViewFilter>
       <div className="p-2">
         <Button
           asChild

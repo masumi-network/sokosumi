@@ -292,6 +292,32 @@ describe("Notification Center, both frames", () => {
     },
   );
 
+  // Each tab named a panel by id and no element carried it, so a screen
+  // reader had no list to move to and axe failed the page as critical.
+  it.each(FRAMES)(
+    "puts the rows in the panel the selected tab controls in the %s",
+    async (_, mount) => {
+      getNotificationsMock.mockResolvedValue(page([row("only")]));
+
+      await mount();
+
+      const tab = screen.getByRole("tab", { selected: true });
+      const panel = document.getElementById(
+        tab.getAttribute("aria-controls") ?? "",
+      );
+      expect(panel?.getAttribute("role")).toBe("tabpanel");
+      expect(within(panel as HTMLElement).getByText("only")).toBeTruthy();
+    },
+  );
+
+  it("names the panel the bell opens", async () => {
+    getNotificationsMock.mockResolvedValue(page([]));
+
+    await renderPanel();
+
+    expect(screen.getByRole("dialog", { name: "title" })).toBeTruthy();
+  });
+
   it.each(FRAMES)(
     "offers no way to remove a row in the %s",
     async (_, mount) => {
