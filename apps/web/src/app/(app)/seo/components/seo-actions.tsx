@@ -103,6 +103,12 @@ export function SeoActionCard({
           {t("actions.whyDetails")}
         </summary>
         <div className="space-y-3 pt-3">
+          {/* What the level means, in words: a hint on the label alone does not reach a phone or a screen reader. */}
+          {severity ? (
+            <p className="text-muted-foreground text-sm">
+              {t(`severity.${severity}`)}: {t(`severityHint.${severity}`)}
+            </p>
+          ) : null}
           <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
             {action.why}
           </p>

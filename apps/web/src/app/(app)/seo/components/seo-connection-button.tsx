@@ -73,9 +73,16 @@ function SeoConnectionControl({
   const model = useSeoConnection(provider, onConnected);
   const { data } = model.status;
   const { error } = model;
+  // The view shows an error next to a button that can try again. A control
+  // without that button, and a control that left the view, report none.
+  const reported =
+    data?.status === "unavailable" || (model.status.isError && !data)
+      ? null
+      : error;
   useEffect(() => {
-    onError?.(error);
-  }, [onError, error]);
+    onError?.(reported);
+    return () => onError?.(null);
+  }, [onError, reported]);
   // The view that takes the error shows it; here it would add a line and move the layout.
   const ownError = onError ? null : error;
   const name = t(`statistics.${provider}`);

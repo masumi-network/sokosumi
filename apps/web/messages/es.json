@@ -11156,8 +11156,7 @@
         "notChecked": "Aún sin comprobar",
         "notCheckedInDates": "Sin comprobación en estas fechas",
         "checkIncomplete": "comprobación incompleta",
-        "home": "Página de inicio",
-        "homeInText": "la página de inicio"
+        "home": "Página de inicio"
       },
       "timeline": {
         "title": "Cronología",

@@ -180,7 +180,7 @@ export function SeoStepRow({
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full",
           banner
-            ? "bg-chart-3 text-semantic-warning-foreground"
+            ? "bg-semantic-warning text-semantic-warning-foreground"
             : "bg-quinary text-muted-foreground",
         )}
       >
@@ -255,10 +255,7 @@ export function SeoActionStepRow({
           ) : null}
         </span>
         {severity ? <SeoSeverity severity={severity} /> : null}
-        <ChevronRight
-          aria-hidden
-          className="text-muted-foreground size-4 shrink-0"
-        />
+        <ChevronRight className="text-muted-foreground size-4 shrink-0" />
       </button>
     </li>
   );

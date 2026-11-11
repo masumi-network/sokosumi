@@ -4,16 +4,9 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import type { SeoIssueSeverity } from "./seo-overview-model";
-import { SeoDate } from "./seo-shared";
+import { SEO_SEVERITY_MARK_CLASS, SeoDate } from "./seo-shared";
 import { seoSummary } from "./seo-summary-model";
 
-/** One fixed mark per severity; the label beside it carries the name. */
-const SEVERITY_MARK_CLASS: Record<SeoIssueSeverity, string> = {
-  critical: "bg-chart-2",
-  major: "bg-foreground",
-  minor: "bg-chart-5",
-};
 /** The part of a bar that is not the counted thing. */
 const REST_MARK_CLASS = "bg-quaternary";
 
@@ -110,7 +103,7 @@ export function SeoSummaryTiles({
               parts={issues.parts.map((part) => ({
                 key: part.severity,
                 count: part.count,
-                className: SEVERITY_MARK_CLASS[part.severity],
+                className: SEO_SEVERITY_MARK_CLASS[part.severity],
               }))}
             />
           }
@@ -126,7 +119,7 @@ export function SeoSummaryTiles({
                     aria-hidden
                     className={cn(
                       "size-2 rounded-full",
-                      SEVERITY_MARK_CLASS[part.severity],
+                      SEO_SEVERITY_MARK_CLASS[part.severity],
                     )}
                   />
                   {t("summary.severityCount", part)}

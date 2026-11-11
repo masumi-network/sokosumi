@@ -303,7 +303,9 @@ describe("SEO workspace integration", () => {
       screen.getByText("Not passed: The page has no description"),
     ).toBeVisible();
     // No action fixes this issue, so no link promises a fix.
-    expect(screen.queryByRole("button", { name: /^Fix: / })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Fix: |^See the fix$/ }),
+    ).toBeNull();
     const evidence = screen.getByText(
       "Raw HTML evidence: no meta description element.",
     );
@@ -4169,7 +4171,9 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText("Describe the images")).toBeNull();
     expect(screen.getByText("1 more fix")).toBeVisible();
     // The whole row is the control: no second button repeats it.
-    await user.click(within(row!).getByRole("button"));
+    await user.click(
+      within(row!).getByRole("button", { name: /^Write a description/ }),
+    );
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -4216,7 +4220,9 @@ describe("SEO workspace integration", () => {
     workspace.actions = [workspace.actions[0], workspace.actions[3]];
     renderWorkspace(workspace, "?tab=agent");
     const suggestion = (await screen.findByText("Write a guide")).closest("li");
-    expect(within(suggestion!).getByRole("button")).toBeVisible();
+    expect(
+      within(suggestion!).getByRole("button", { name: /^Write a guide/ }),
+    ).toBeVisible();
     expect(screen.queryByText(/more (fix|action)/)).toBeNull();
     cleanup();
     // Without an action the steps are one list: no label splits them.

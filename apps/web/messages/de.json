@@ -11156,8 +11156,7 @@
         "notChecked": "Noch nicht geprüft",
         "notCheckedInDates": "Keine Prüfung in diesem Zeitraum",
         "checkIncomplete": "Prüfung unvollständig",
-        "home": "Startseite",
-        "homeInText": "der Startseite"
+        "home": "Startseite"
       },
       "timeline": {
         "title": "Verlauf",

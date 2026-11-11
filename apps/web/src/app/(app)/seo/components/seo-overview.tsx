@@ -402,10 +402,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                                 })
                               : t("overview.seeFix")}
                           </span>
-                          <ChevronRight
-                            aria-hidden
-                            className="text-muted-foreground size-4 shrink-0"
-                          />
+                          <ChevronRight className="text-muted-foreground size-4 shrink-0" />
                         </button>
                       ) : null}
                     </div>

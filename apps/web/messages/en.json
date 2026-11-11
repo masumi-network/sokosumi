@@ -11156,8 +11156,7 @@
         "notChecked": "Not checked yet",
         "notCheckedInDates": "No check in these dates",
         "checkIncomplete": "check incomplete",
-        "home": "Home page",
-        "homeInText": "the home page"
+        "home": "Home page"
       },
       "timeline": {
         "title": "Timeline",

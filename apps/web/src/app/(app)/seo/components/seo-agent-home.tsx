@@ -370,7 +370,7 @@ function SeoAgentPanel({
                         kind: actionKind,
                       })}
                     </span>
-                    <ChevronRight aria-hidden className="size-4 shrink-0" />
+                    <ChevronRight className="size-4 shrink-0" />
                   </button>
                 </li>
               ) : null}

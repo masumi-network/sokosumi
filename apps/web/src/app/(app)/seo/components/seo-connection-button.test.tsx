@@ -207,6 +207,33 @@ describe("native SEO connection consent", () => {
     ).toBeEnabled();
   });
 
+  it("gives its error to the view that shows it, and takes it back when it leaves", async () => {
+    m.popup.mockResolvedValue({ kind: "popup_blocked" });
+    const onError = vi.fn();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    const { unmount } = render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <SeoConnectionButton provider="search_console" onError={onError} />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(await connectButton());
+    await waitFor(() =>
+      expect(onError).toHaveBeenLastCalledWith(
+        "Allow popups to connect Search Console, then try again.",
+      ),
+    );
+    // The view has the one copy of the message.
+    expect(screen.queryByRole("alert")).toBeNull();
+    // A control that is gone can clear nothing later: it clears on its way out.
+    unmount();
+    expect(onError).toHaveBeenLastCalledWith(null);
+  });
+
   it("reports blocked popups without creating an authorization attempt", async () => {
     m.popup.mockResolvedValue({ kind: "popup_blocked" });
     show();

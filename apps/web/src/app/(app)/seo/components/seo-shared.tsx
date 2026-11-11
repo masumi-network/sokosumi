@@ -387,7 +387,7 @@ export function SeoBarNumber({
       {max > 0 ? (
         <span
           aria-hidden
-          className="bg-quaternary block h-1 w-16 rounded-full max-sm:hidden"
+          className="bg-tertiary block h-1 w-16 rounded-full max-sm:hidden"
         >
           <span
             className="bg-chart-5 block h-1 rounded-full"
@@ -407,6 +407,16 @@ export const SEO_ROW_BUTTON_CLASS = cn(
   HOLDER_ITEM_HOVER_CLASS,
   "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2",
 );
+
+/** One fixed mark per severity, in every label and every tile; the text beside it carries the name. */
+export const SEO_SEVERITY_MARK_CLASS: Record<
+  "critical" | "major" | "minor",
+  string
+> = {
+  critical: "bg-chart-2",
+  major: "bg-foreground",
+  minor: "bg-chart-5",
+};
 
 /**
  * How much an issue affects search: a dot and a quiet line of text. The title
@@ -432,7 +442,7 @@ export function SeoSeverity({
         aria-hidden
         className={cn(
           "size-1.5 rounded-full",
-          severity === "minor" ? "bg-tertiary" : "bg-chart-2",
+          SEO_SEVERITY_MARK_CLASS[severity],
         )}
       />
       {t(`severity.${severity}`)}
