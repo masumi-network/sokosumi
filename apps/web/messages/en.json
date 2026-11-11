@@ -8142,6 +8142,17 @@
           },
           "seatsCheckoutLabel": "Seats to purchase"
         },
+        "CreditSpend": {
+          "title": "Credits spent by person",
+          "description": "Credits billed to each person this month and last month, before refunds. Months follow UTC. Top ups are not counted.",
+          "person": "Person",
+          "noPerson": "Organization charges (no person)",
+          "unknownPerson": "Unknown person",
+          "formerMember": "Former member",
+          "empty": "No credits spent this month or last month.",
+          "loadError": "Could not load credit spend. Try again.",
+          "retry": "Try again"
+        },
         "Seats": {
           "title": "Seats overview",
           "description": "Purchased seats are your paid plan capacity. Members with a paid seat receive subscription credits. Members without a paid seat receive free monthly credits.",

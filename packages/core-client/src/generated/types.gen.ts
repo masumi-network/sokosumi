@@ -6873,6 +6873,46 @@ export type OrganizationSeatSummary = {
     unusedSeats: number;
 };
 
+export type OrganizationCreditSpend = {
+    /**
+     * Current UTC calendar month, as YYYY-MM
+     */
+    month: string;
+    /**
+     * Previous UTC calendar month, as YYYY-MM
+     */
+    previousMonth: string;
+    /**
+     * One row per current member (zero when they spent nothing), plus former members and the no-person row when they spent in either month. Highest spend this month first.
+     */
+    rows: Array<{
+        /**
+         * User the credits were billed to. Null for organization charges billed to no person.
+         */
+        userId: string | null;
+        /**
+         * Display name of the billed user
+         */
+        name: string | null;
+        /**
+         * Avatar of the billed user
+         */
+        image: string | null;
+        /**
+         * Whether the billed user is a member of the organization today. False for former members and for the no-person row.
+         */
+        isMember: boolean;
+        /**
+         * Credits spent this month, before refunds. Top ups are not spend.
+         */
+        credits: number;
+        /**
+         * Credits spent last month, before refunds
+         */
+        previousCredits: number;
+    }>;
+};
+
 export type OrganizationBillingPlan = {
     /**
      * Billing mode: active enterprise contract or self-serve subscription
@@ -52649,6 +52689,99 @@ export type GetOrganizationsByIdSeatSummaryResponses = {
 };
 
 export type GetOrganizationsByIdSeatSummaryResponse = GetOrganizationsByIdSeatSummaryResponses[keyof GetOrganizationsByIdSeatSummaryResponses];
+
+export type GetOrganizationsByIdCreditSpendData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/credit-spend';
+};
+
+export type GetOrganizationsByIdCreditSpendErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not an owner or admin of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdCreditSpendError = GetOrganizationsByIdCreditSpendErrors[keyof GetOrganizationsByIdCreditSpendErrors];
+
+export type GetOrganizationsByIdCreditSpendResponses = {
+    /**
+     * Credit spend per billed user
+     */
+    200: {
+        data: OrganizationCreditSpend;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdCreditSpendResponse = GetOrganizationsByIdCreditSpendResponses[keyof GetOrganizationsByIdCreditSpendResponses];
 
 export type GetOrganizationsByIdBillingPlanData = {
     body?: never;

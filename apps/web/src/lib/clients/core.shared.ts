@@ -305,6 +305,7 @@ import {
   getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdCoworkerAccess as coreGetOrganizationsByIdCoworkerAccess,
+  getOrganizationsByIdCreditSpend as coreGetOrganizationsByIdCreditSpend,
   getOrganizationsByIdDeletion as coreGetOrganizationsByIdDeletion,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
@@ -3648,6 +3649,23 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization seat summary",
+    );
+  }
+
+  /**
+   * Credits an organization spent this UTC month and last, per billed user.
+   * Core allows owners and admins only.
+   */
+  async function getOrganizationCreditSpend(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdCreditSpend({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization credit spend",
     );
   }
 
@@ -7101,6 +7119,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listCoworkerAssignments,
     assignCoworkerDeveloper,
     unassignCoworkerDeveloper,
+    getOrganizationCreditSpend,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
