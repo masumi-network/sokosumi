@@ -129,7 +129,7 @@ export function LogTouchDialog({
   }
 
   return (
-    <DialogContent className="sm:max-w-md">
+    <DialogContent className="app-scrollbar max-h-[90dvh] overflow-y-auto sm:max-w-md">
       <form onSubmit={handleSubmit} className="grid gap-5">
         <DialogHeader>
           <DialogTitle>
