@@ -8,6 +8,7 @@ import {
   BuzzAppLink,
   BuzzCopyField,
   BuzzSecretKey,
+  BuzzSignIn,
   EnableBuzzButton,
 } from "./buzz-controls";
 
@@ -40,27 +41,56 @@ export async function BuzzSection() {
         {connection.identity && (
           <Card className="space-y-4 p-4">
             <div className="space-y-1">
+              <h3 className="text-sm font-semibold">{t("signInTitle")}</h3>
+              <p className="text-muted-foreground text-xs">
+                {t("signInDescription")}
+              </p>
+            </div>
+            <BuzzSignIn
+              relayUrls={[
+                ...new Set(connection.communities.map((c) => c.relayUrl)),
+              ]}
+            />
+            <div className="space-y-1 border-t pt-3">
+              <p className="text-muted-foreground text-xs font-medium">
+                {t("agentsTitle")}
+              </p>
+              {connection.agents.length > 0 && (
+                <ul className="space-y-1 text-sm">
+                  {connection.agents.map((agent) => (
+                    <li key={agent.npub}>{agent.name}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-muted-foreground text-xs">
+                {connection.agents.length > 0
+                  ? t("agentsHint")
+                  : t("agentsEmpty")}
+              </p>
+            </div>
+          </Card>
+        )}
+        {connection.identity && (
+          <Card className="space-y-4 p-4">
+            <div className="space-y-1">
               <h3 className="text-sm font-semibold">{t("appTitle")}</h3>
               <p className="text-muted-foreground text-xs">
                 {t("appDescription")}
               </p>
             </div>
             <BuzzAppLink app={connection.app} />
-          </Card>
-        )}
-        {connection.identity && (
-          <Card className="space-y-4 p-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold">{t("identityTitle")}</h3>
-              <p className="text-muted-foreground text-xs">
-                {t("identityDescription")}
-              </p>
-            </div>
-            <BuzzCopyField
-              label={t("publicKey")}
-              value={connection.identity.npub}
-            />
-            <BuzzSecretKey />
+            <details className="text-xs">
+              <summary className="text-muted-foreground cursor-pointer">
+                {t("keyDetails")}
+              </summary>
+              <div className="space-y-3 pt-3">
+                <BuzzCopyField
+                  label={t("publicKey")}
+                  value={connection.identity.npub}
+                />
+                <BuzzSecretKey />
+              </div>
+            </details>
           </Card>
         )}
         {connection.communities.map((community) => (

@@ -241,7 +241,7 @@ export async function buzzConnectionFor(userId: string) {
       : [],
   );
   if (communities.length === 0) {
-    return { identity: null, app: null, communities, canEnable };
+    return { identity: null, app: null, agents: [], communities, canEnable };
   }
   let identity = await ensureIdentity({ userId });
   if (identity.pendingAppPubkey) {
@@ -254,7 +254,7 @@ export async function buzzConnectionFor(userId: string) {
     });
   }
   const appKey = identity.appPubkey ?? identity.pendingAppPubkey;
-  const agents = identity.appPubkey ? await agentsOf(identity.id) : [];
+  const agents = await agentsOf(identity.id);
   return {
     identity: { pubkey: identity.pubkey, npub: npubEncode(identity.pubkey) },
     app: appKey
@@ -263,9 +263,9 @@ export async function buzzConnectionFor(userId: string) {
           status: identity.appPubkey
             ? ("linked" as const)
             : ("pending" as const),
-          agents,
         }
       : null,
+    agents,
     communities,
     canEnable,
   };
@@ -453,51 +453,51 @@ const HEX_64 = /^[0-9a-f]{64}$/;
 type FoundAgent = { name: string; picture: string | null; relayUrl: string };
 
 /**
- * The agents a person's linked Buzz key owns, per its kind 30177 records,
- * kept only when the agent's newest profile carries that key's owner
- * attestation: a record alone proves nothing.
+ * The agents these owner keys have on one relay, per the owners' kind 30177
+ * records, kept only when the agent's newest profile carries an owner
+ * attestation from that same key: a record alone proves nothing.
  */
-async function ownedAgents(appPubkey: string, relayUrls: string[]) {
+async function ownedAgents(relayUrl: string, ownerKeys: string[]) {
   const secretKey = requireConfig().operatorSecretKey;
-  const found = new Map<string, FoundAgent>();
-  for (const relayUrl of relayUrls) {
-    const records = await queryEvents({
-      relayUrl,
-      secretKey,
-      filters: [{ kinds: [BUZZ_KIND.agentRecord], authors: [appPubkey] }],
+  const found = new Map<string, FoundAgent & { ownerKey: string }>();
+  const records = await queryEvents({
+    relayUrl,
+    secretKey,
+    filters: [{ kinds: [BUZZ_KIND.agentRecord], authors: ownerKeys }],
+  });
+  const recorded = new Map<string, { ownerKey: string; name?: string }>();
+  for (const record of records) {
+    const pubkey = record.tags.find((tag) => tag[0] === "d")?.[1];
+    if (!pubkey || !HEX_64.test(pubkey)) continue;
+    recorded.set(pubkey, {
+      ownerKey: record.pubkey,
+      name: readJson(record.content).name,
     });
-    const recordNames = new Map<string, string>();
-    for (const record of records) {
-      const pubkey = record.tags.find((tag) => tag[0] === "d")?.[1];
-      if (!pubkey || !HEX_64.test(pubkey)) continue;
-      recordNames.set(pubkey, readJson(record.content).name ?? "Buzz agent");
+  }
+  if (recorded.size === 0) return found;
+  const profiles = await queryEvents({
+    relayUrl,
+    secretKey,
+    filters: [{ kinds: [BUZZ_KIND.profile], authors: [...recorded.keys()] }],
+  });
+  const newest = new Map<string, Event>();
+  for (const profile of profiles) {
+    const seen = newest.get(profile.pubkey);
+    if (!seen || profile.created_at > seen.created_at) {
+      newest.set(profile.pubkey, profile);
     }
-    if (recordNames.size === 0) continue;
-    const profiles = await queryEvents({
+  }
+  for (const [pubkey, profile] of newest) {
+    const record = recorded.get(pubkey);
+    if (!record || !verifyEvent(profile)) continue;
+    if (attestedOwner(profile) !== record.ownerKey) continue;
+    const content = readJson(profile.content);
+    found.set(pubkey, {
+      name: content.name ?? record.name ?? "Buzz agent",
+      picture: content.picture ?? null,
       relayUrl,
-      secretKey,
-      filters: [
-        { kinds: [BUZZ_KIND.profile], authors: [...recordNames.keys()] },
-      ],
+      ownerKey: record.ownerKey,
     });
-    const newest = new Map<string, Event>();
-    for (const profile of profiles) {
-      const seen = newest.get(profile.pubkey);
-      if (!seen || profile.created_at > seen.created_at) {
-        newest.set(profile.pubkey, profile);
-      }
-    }
-    for (const [pubkey, profile] of newest) {
-      if (!verifyEvent(profile) || attestedOwner(profile) !== appPubkey) {
-        continue;
-      }
-      const content = readJson(profile.content);
-      found.set(pubkey, {
-        name: content.name ?? recordNames.get(pubkey) ?? "Buzz agent",
-        picture: content.picture ?? null,
-        relayUrl,
-      });
-    }
   }
   return found;
 }
@@ -557,20 +557,46 @@ async function agentAccessOf(
  * agent that is gone is archived, and one that is back is restored.
  */
 export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
+  // An agent's owner is the key the person's Buzz app signs in with: the one
+  // Sokosumi keeps for them, or their own app key when they linked one.
   const owners = await prisma.buzzIdentity.findMany({
     where: {
-      appPubkey: { not: null },
       userId: { not: null },
       ...(scope.identityId ? { id: scope.identityId } : {}),
     },
     include: { user: { select: { name: true } } },
   });
+  const people = await Promise.all(
+    owners.map(async (owner) => ({
+      owner,
+      ...(await communitiesOf(owner.userId as string)),
+    })),
+  );
+  // One read per relay for everyone on it.
+  const keysByRelay = new Map<string, Set<string>>();
+  for (const { owner, communities } of people) {
+    for (const { relayUrl } of communities) {
+      const keys = keysByRelay.get(relayUrl) ?? new Set<string>();
+      for (const key of keysOf(owner)) keys.add(key);
+      keysByRelay.set(relayUrl, keys);
+    }
+  }
+  const agentsByOwnerKey = new Map<string, Map<string, FoundAgent>>();
+  for (const [relayUrl, keys] of keysByRelay) {
+    for (const [pubkey, agent] of await ownedAgents(relayUrl, [...keys])) {
+      const agents = agentsByOwnerKey.get(agent.ownerKey) ?? new Map();
+      agents.set(pubkey, agent);
+      agentsByOwnerKey.set(agent.ownerKey, agents);
+    }
+  }
   const changed: string[] = [];
-  for (const owner of owners) {
+  for (const { owner, memberships, communities } of people) {
     const userId = owner.userId as string;
-    const { memberships, communities } = await communitiesOf(userId);
-    const relayUrls = [...new Set(communities.map((c) => c.relayUrl))];
-    const found = await ownedAgents(owner.appPubkey as string, relayUrls);
+    const found = new Map<string, FoundAgent>(
+      keysOf(owner).flatMap((key) => [
+        ...(agentsByOwnerKey.get(key)?.entries() ?? []),
+      ]),
+    );
     const access = await agentAccessOf(userId, memberships, communities);
     const vendor = await prisma.vendor.upsert({
       where: { slug: AGENT_VENDOR_SLUG },

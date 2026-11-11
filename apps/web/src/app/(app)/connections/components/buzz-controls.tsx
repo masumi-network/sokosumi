@@ -52,7 +52,67 @@ export function BuzzCopyField({
   );
 }
 
-/** Reveals the secret key on request, to import into a Buzz client. */
+/**
+ * Signs the Buzz app in as this person: their key as a file Buzz imports,
+ * then each community opened in Buzz. The key Sokosumi already admitted
+ * needs no invite.
+ */
+export function BuzzSignIn({ relayUrls }: { relayUrls: string[] }) {
+  const t = useTranslations("App.Connections.Buzz");
+  const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  return (
+    <ol className="space-y-3 text-sm">
+      <li className="space-y-1">
+        <p className="font-medium">{t("stepKeyFile")}</p>
+        <p className="text-muted-foreground text-xs">{t("keyFileWarning")}</p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          loading={loading}
+          onClick={async () => {
+            setLoading(true);
+            const result = await revealBuzzSecretKey({});
+            setLoading(false);
+            if (!result.ok) {
+              toast.error(result.error.message);
+              return;
+            }
+            const file = new Blob([result.value.nsec], { type: "text/plain" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(file);
+            link.download = "sokosumi-buzz-key.txt";
+            link.click();
+            URL.revokeObjectURL(link.href);
+            setSaved(true);
+          }}
+        >
+          {saved ? t("keyFileSaved") : t("keyFile")}
+        </Button>
+      </li>
+      <li className="space-y-1">
+        <p className="font-medium">{t("stepOpen")}</p>
+        <p className="text-muted-foreground text-xs">{t("openHint")}</p>
+        <div className="flex flex-wrap gap-2">
+          {relayUrls.map((relayUrl) => (
+            <Button key={relayUrl} asChild size="sm">
+              <a href={`buzz://connect?relay=${encodeURIComponent(relayUrl)}`}>
+                {relayUrls.length > 1
+                  ? `${t("openInBuzz")} · ${new URL(relayUrl).host}`
+                  : t("openInBuzz")}
+              </a>
+            </Button>
+          ))}
+        </div>
+      </li>
+      <li className="text-muted-foreground text-xs">{t("signOutFirst")}</li>
+    </ol>
+  );
+}
+
+/** Reveals the secret key on request, to paste into Buzz instead of the file. */
 export function BuzzSecretKey() {
   const t = useTranslations("App.Connections.Buzz");
   const [nsec, setNsec] = useState<string | null>(null);
@@ -172,26 +232,6 @@ export function BuzzAppLink({ app }: { app: BuzzConnection["app"] }) {
     return (
       <div className="space-y-3">
         <BuzzCopyField label={t("appLinked")} value={app.npub} />
-        <div className="space-y-1">
-          <p className="text-muted-foreground text-xs font-medium">
-            {t("agentsTitle")}
-          </p>
-          {app.agents.length > 0 ? (
-            <ul className="space-y-1 text-sm">
-              {app.agents.map((agent) => (
-                <li key={agent.npub} className="flex items-center gap-2">
-                  <span>{agent.name}</span>
-                  <span className="text-muted-foreground truncate font-mono text-xs">
-                    {agent.npub.slice(0, 16)}…
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <p className="text-muted-foreground text-xs">
-            {app.agents.length > 0 ? t("agentsHint") : t("agentsEmpty")}
-          </p>
-        </div>
         <Button
           type="button"
           variant="ghost"

@@ -810,6 +810,71 @@ describe("a person's own Buzz agents", () => {
   });
 });
 
+describe("agents of a person signed in to Buzz with Sokosumi's key", () => {
+  it("finds an agent the Sokosumi key owns, with no app key linked", async () => {
+    const SOKOSUMI_KEY = generateSecretKey();
+    const SOKOSUMI_PUBKEY = getPublicKey(SOKOSUMI_KEY);
+    const AGENT_KEY = generateSecretKey();
+    const AGENT_PUBKEY = getPublicKey(AGENT_KEY);
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      {
+        id: "identity-bob",
+        userId: "user-bob",
+        pubkey: SOKOSUMI_PUBKEY,
+        appPubkey: null,
+        user: { name: "Bob" },
+      },
+    ]);
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "owner",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: { relayUrl: "wss://acme.example" },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([]);
+    db.vendor.upsert.mockResolvedValue({ id: "vendor" });
+    db.buzzIdentity.findUnique.mockResolvedValue(null);
+    db.coworker.create.mockResolvedValue({ id: "coworker-sokosumi-owned" });
+    db.coworker.updateMany.mockResolvedValue({ count: 0 });
+    relay.queryEvents
+      .mockResolvedValueOnce([
+        finalizeEvent(
+          {
+            kind: 30177,
+            created_at: 1,
+            tags: [["d", AGENT_PUBKEY]],
+            content: '{"name":"Claude Code"}',
+          },
+          SOKOSUMI_KEY,
+        ),
+      ])
+      .mockResolvedValueOnce([
+        finalizeEvent(
+          {
+            kind: 0,
+            created_at: 2,
+            tags: [ownerAuthTag(SOKOSUMI_KEY, AGENT_PUBKEY)],
+            content: '{"name":"Claude Code"}',
+          },
+          AGENT_KEY,
+        ),
+      ]);
+    await expect(syncBuzzAgents()).resolves.toEqual([
+      "coworker-sokosumi-owned",
+    ]);
+    expect(relay.queryEvents).toHaveBeenNthCalledWith(1, {
+      relayUrl: "wss://acme.example",
+      secretKey: expect.any(Uint8Array),
+      filters: [{ kinds: [30177], authors: [SOKOSUMI_PUBKEY] }],
+    });
+  });
+});
+
 describe("buzzContentOf", () => {
   it("turns Sokosumi mention tokens into Buzz mentions, and names whoever has no key", async () => {
     const agent = "01a1cbc4-a52c-70e5-a792-d2b71db65927";

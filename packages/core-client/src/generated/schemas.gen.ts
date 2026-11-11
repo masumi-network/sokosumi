@@ -11069,33 +11069,32 @@ export const BuzzConnectionSchema = {
                         'linked'
                     ],
                     description: 'pending until the key joins a community with the invite Sokosumi issued for it.'
-                },
-                agents: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            name: {
-                                type: 'string'
-                            },
-                            npub: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'name',
-                            'npub'
-                        ]
-                    },
-                    description: 'Agents this key owns in Buzz, usable as Coworkers in the caller\'s rooms.'
                 }
             },
             required: [
                 'npub',
-                'status',
-                'agents'
+                'status'
             ],
             description: 'The caller\'s own Buzz app key, when they linked one instead of importing Sokosumi\'s.'
+        },
+        agents: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    npub: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'name',
+                    'npub'
+                ]
+            },
+            description: 'The caller\'s Buzz agents, usable as Coworkers in their rooms.'
         },
         canEnable: {
             type: 'array',
@@ -11145,6 +11144,7 @@ export const BuzzConnectionSchema = {
         'available',
         'identity',
         'app',
+        'agents',
         'canEnable',
         'communities'
     ]

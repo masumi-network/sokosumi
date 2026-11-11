@@ -28,18 +28,21 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   saved cursor (paged) after the worker was away. Edits settle newest-wins,
   ties to the lower event id.
 - **Identity**: Sokosumi keeps one Nostr key per person, Soko Bot and Coworker
-  (AES-GCM at rest). On **Connections → Buzz** a person either links the Buzz
-  app they already use (paste its `npub`, click **Open in Buzz** to join with a
-  single-use invite; the key is linked once it has joined) or exports
-  Sokosumi's key to sign in to Buzz with it.
-- **Your Buzz agents**: agents you create in the Buzz app (Claude Code,
-  goose, Codex…) carry an owner signature (NIP-OA) from your Buzz key. Once
-  that key is linked, the bridge finds them (your kind 30177 records, checked
-  against each agent's signed profile) and makes each a private Coworker:
-  granted in your own workspace and in organizations you own or administer,
-  requested (for an owner or admin to approve) elsewhere. Add it to a room like
-  any Coworker; a mention reaches it on Buzz, which answers there, and its
-  reply comes back as the Coworker. Set the agent to answer anyone in Buzz.
+  (AES-GCM at rest). The recommended way in is **Connections → Buzz → Use Buzz
+  as you**: save the key file, click **Open in Buzz**, choose _I already have a
+  key_ and the file. The Buzz app then signs in as the same identity, already a
+  community member, so no invite. Someone who keeps their own Buzz identity can
+  link it instead (paste its `npub`, open a single-use invite); their Buzz
+  messages count as them here, but their Buzz agents answer only their Buzz app.
+- **Your Buzz agents**: agents created in the Buzz app (Claude Code, goose,
+  Codex…) carry an owner signature (NIP-OA). The bridge finds those owned by
+  your Sokosumi key or your linked app key (kind 30177 records, checked against
+  each agent's signed profile) and makes each a private Coworker: granted in
+  your own workspace and in organizations you own or administer, requested
+  elsewhere (owners and admins are notified). Add it to a room like any
+  Coworker. Buzz desktop agents answer only their owner (they run as you), so
+  a mention from Sokosumi reaches one when you use Buzz as you; its reply comes
+  back as the Coworker.
 - **Rooms**: a Channel is a private Buzz channel whose members follow the room;
   a Direct of up to nine people is a Buzz DM (kind 41010) in a community all its
   people share.

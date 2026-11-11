@@ -8583,8 +8583,6 @@
       "Buzz": {
         "title": "Buzz",
         "description": "Chat in your organization's rooms from a Buzz app as well as here. Same rooms, same people, same messages.",
-        "identityTitle": "Or sign in as Sokosumi's key",
-        "identityDescription": "No Buzz identity yet? Sokosumi keeps one for you. Import its secret key into the Buzz app once.",
         "publicKey": "Public key",
         "secretKey": "Secret key",
         "secretKeyHint": "Needed once, to sign in to the Buzz app.",
@@ -8600,8 +8598,8 @@
         "enable": "Put chats on Buzz",
         "enabled": "Chats are on Buzz",
         "enableError": "Failed to put chats on Buzz",
-        "appTitle": "Your Buzz app",
-        "appDescription": "Already use Buzz? Paste the public key your Buzz app shows, then open the invite in Buzz. You keep your own identity.",
+        "appTitle": "Keep your own Buzz identity",
+        "appDescription": "Already use Buzz as someone else? Link it: what you write in Buzz counts as you here. Its agents still answer only what you write in Buzz.",
         "appPublicKey": "Buzz public key",
         "link": "Link",
         "newInvite": "New invite",
@@ -8615,8 +8613,18 @@
         "linkError": "Failed to link the Buzz app",
         "unlinkError": "Failed to unlink the Buzz app",
         "agentsTitle": "Your Buzz agents",
-        "agentsEmpty": "Agents you create in the Buzz app appear here within a minute, ready to add to rooms like any Coworker.",
-        "agentsHint": "Add them to a room like any Coworker. In Buzz, let each answer anyone (not only you) so mentions from Sokosumi reach it."
+        "agentsEmpty": "Agents you create in the Buzz app appear here within a minute.",
+        "agentsHint": "Add them to rooms like any Coworker. Agents you create while signed in to Buzz as you answer what you write here too.",
+        "signInTitle": "Use Buzz as you",
+        "signInDescription": "Sign in to the Buzz app with your Sokosumi identity. You, your messages and the agents you create in Buzz are then the same on both sides.",
+        "stepKeyFile": "1. Save your key file",
+        "keyFile": "Save key file",
+        "keyFileSaved": "Save again",
+        "keyFileWarning": "It signs in as you: anyone with it can write as you. Import it into Buzz, then delete it.",
+        "stepOpen": "2. Open Buzz",
+        "openHint": "Choose I already have a key, pick the file, then Join. No invite needed.",
+        "signOutFirst": "Signed in to Buzz with another identity? In Buzz, remove it first: Settings → Identity → Remove from device. Agents of that identity stay with it.",
+        "keyDetails": "Your key as text"
       }
     },
     "Channels": {

@@ -8538,8 +8538,6 @@
       "Buzz": {
         "title": "Buzz",
         "description": "Chatea en las salas de tu organización también desde una app de Buzz. Mismas salas, mismas personas, mismos mensajes.",
-        "identityTitle": "O inicia sesión con la clave de Sokosumi",
-        "identityDescription": "¿Aún no tienes identidad en Buzz? Sokosumi guarda una para ti. Importa su clave secreta en la app de Buzz una vez.",
         "publicKey": "Clave pública",
         "secretKey": "Clave secreta",
         "secretKeyHint": "Necesaria una vez, para iniciar sesión en la app de Buzz.",
@@ -8555,8 +8553,8 @@
         "enable": "Llevar los chats a Buzz",
         "enabled": "Los chats están en Buzz",
         "enableError": "No se pudieron llevar los chats a Buzz",
-        "appTitle": "Tu app de Buzz",
-        "appDescription": "¿Ya usas Buzz? Pega la clave pública que muestra tu app de Buzz y abre la invitación en Buzz. Conservas tu propia identidad.",
+        "appTitle": "Conserva tu propia identidad de Buzz",
+        "appDescription": "¿Ya usas Buzz como otra persona? Vincúlalo: lo que escribes en Buzz cuenta como tú aquí. Sus agentes solo responden a lo que escribes en Buzz.",
         "appPublicKey": "Clave pública de Buzz",
         "link": "Vincular",
         "newInvite": "Nueva invitación",
@@ -8570,8 +8568,18 @@
         "linkError": "No se pudo vincular la app de Buzz",
         "unlinkError": "No se pudo desvincular la app de Buzz",
         "agentsTitle": "Tus agentes de Buzz",
-        "agentsEmpty": "Los agentes que crees en la app de Buzz aparecen aquí en un minuto, listos para añadir a salas como cualquier Coworker.",
-        "agentsHint": "Añádelos a una sala como cualquier Coworker. En Buzz, deja que respondan a cualquiera (no solo a ti) para que les lleguen las menciones desde Sokosumi."
+        "agentsEmpty": "Los agentes que crees en la app de Buzz aparecen aquí en un minuto.",
+        "agentsHint": "Añádelos a salas como cualquier Coworker. Los agentes que creas con la sesión de Buzz iniciada como tú también responden a lo que escribes aquí.",
+        "signInTitle": "Usa Buzz como tú",
+        "signInDescription": "Inicia sesión en la app de Buzz con tu identidad de Sokosumi. Tú, tus mensajes y los agentes que crees en Buzz sois los mismos en ambos lados.",
+        "stepKeyFile": "1. Guarda tu archivo de clave",
+        "keyFile": "Guardar archivo de clave",
+        "keyFileSaved": "Guardar de nuevo",
+        "keyFileWarning": "Inicia sesión como tú: quien lo tenga puede escribir como tú. Impórtalo en Buzz y luego bórralo.",
+        "stepOpen": "2. Abre Buzz",
+        "openHint": "Elige Ya tengo una clave, selecciona el archivo y luego Unirse. No hace falta invitación.",
+        "signOutFirst": "¿Has iniciado sesión en Buzz con otra identidad? Quítala primero en Buzz: Ajustes → Identidad → Quitar del dispositivo. Los agentes de esa identidad se quedan con ella.",
+        "keyDetails": "Tu clave como texto"
       }
     },
     "Coworkers": {

@@ -46,18 +46,16 @@ const connectionSchema = z
           description:
             "pending until the key joins a community with the invite Sokosumi issued for it.",
         }),
-        agents: z
-          .array(z.object({ name: z.string(), npub: z.string() }))
-          .openapi({
-            description:
-              "Agents this key owns in Buzz, usable as Coworkers in the caller's rooms.",
-          }),
       })
       .nullable()
       .openapi({
         description:
           "The caller's own Buzz app key, when they linked one instead of importing Sokosumi's.",
       }),
+    agents: z.array(z.object({ name: z.string(), npub: z.string() })).openapi({
+      description:
+        "The caller's Buzz agents, usable as Coworkers in their rooms.",
+    }),
     canEnable: z
       .array(
         z.object({ organizationId: z.string(), organizationName: z.string() }),
@@ -210,6 +208,7 @@ app.openapi(getConnection, async (c) => {
             available: false,
             identity: null,
             app: null,
+            agents: [],
             communities: [],
             canEnable: [],
           },

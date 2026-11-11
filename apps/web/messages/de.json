@@ -8538,8 +8538,6 @@
       "Buzz": {
         "title": "Buzz",
         "description": "Chatte in den Räumen deiner Organisation auch aus einer Buzz-App. Gleiche Räume, gleiche Personen, gleiche Nachrichten.",
-        "identityTitle": "Oder mit Sokosumis Schlüssel anmelden",
-        "identityDescription": "Noch keine Buzz-Identität? Sokosumi verwahrt eine für dich. Importiere ihren geheimen Schlüssel einmal in die Buzz-App.",
         "publicKey": "Öffentlicher Schlüssel",
         "secretKey": "Geheimer Schlüssel",
         "secretKeyHint": "Einmal nötig, um dich in der Buzz-App anzumelden.",
@@ -8555,8 +8553,8 @@
         "enable": "Chats auf Buzz bringen",
         "enabled": "Chats sind auf Buzz",
         "enableError": "Chats konnten nicht auf Buzz gebracht werden",
-        "appTitle": "Deine Buzz-App",
-        "appDescription": "Du nutzt Buzz schon? Füge den öffentlichen Schlüssel aus deiner Buzz-App ein und öffne die Einladung in Buzz. Du behältst deine eigene Identität.",
+        "appTitle": "Eigene Buzz-Identität behalten",
+        "appDescription": "Du nutzt Buzz schon als jemand anderes? Verknüpfe es: Was du in Buzz schreibst, zählt hier als du. Deren Agenten antworten aber nur auf das, was du in Buzz schreibst.",
         "appPublicKey": "Öffentlicher Buzz-Schlüssel",
         "link": "Verknüpfen",
         "newInvite": "Neue Einladung",
@@ -8570,8 +8568,18 @@
         "linkError": "Buzz-App konnte nicht verknüpft werden",
         "unlinkError": "Buzz-App konnte nicht getrennt werden",
         "agentsTitle": "Deine Buzz-Agenten",
-        "agentsEmpty": "Agenten, die du in der Buzz-App erstellst, erscheinen hier innerhalb einer Minute und lassen sich wie jeder Coworker zu Räumen hinzufügen.",
-        "agentsHint": "Füge sie wie jeden Coworker zu einem Raum hinzu. Lass sie in Buzz allen antworten (nicht nur dir), damit Erwähnungen aus Sokosumi ankommen."
+        "agentsEmpty": "Agenten, die du in der Buzz-App erstellst, erscheinen hier innerhalb einer Minute.",
+        "agentsHint": "Füge sie wie jeden Coworker zu Räumen hinzu. Agenten, die du erstellst, während du in Buzz als du angemeldet bist, antworten auch auf das, was du hier schreibst.",
+        "signInTitle": "Buzz als du nutzen",
+        "signInDescription": "Melde dich in der Buzz-App mit deiner Sokosumi-Identität an. Du, deine Nachrichten und die Agenten, die du in Buzz erstellst, sind dann auf beiden Seiten dieselben.",
+        "stepKeyFile": "1. Schlüsseldatei speichern",
+        "keyFile": "Schlüsseldatei speichern",
+        "keyFileSaved": "Erneut speichern",
+        "keyFileWarning": "Sie meldet dich an: Wer sie hat, kann als du schreiben. Importiere sie in Buzz und lösche sie danach.",
+        "stepOpen": "2. Buzz öffnen",
+        "openHint": "Wähle Ich habe bereits einen Schlüssel, wähle die Datei und dann Beitreten. Keine Einladung nötig.",
+        "signOutFirst": "In Buzz mit einer anderen Identität angemeldet? Entferne sie zuerst in Buzz: Einstellungen → Identität → Von diesem Gerät entfernen. Agenten dieser Identität bleiben bei ihr.",
+        "keyDetails": "Dein Schlüssel als Text"
       }
     },
     "Coworkers": {

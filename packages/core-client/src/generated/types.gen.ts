@@ -3004,14 +3004,14 @@ export type BuzzConnection = {
          * pending until the key joins a community with the invite Sokosumi issued for it.
          */
         status: 'pending' | 'linked';
-        /**
-         * Agents this key owns in Buzz, usable as Coworkers in the caller's rooms.
-         */
-        agents: Array<{
-            name: string;
-            npub: string;
-        }>;
     } | null;
+    /**
+     * The caller's Buzz agents, usable as Coworkers in their rooms.
+     */
+    agents: Array<{
+        name: string;
+        npub: string;
+    }>;
     /**
      * Organizations the caller owns or administers that are not on Buzz yet.
      */
