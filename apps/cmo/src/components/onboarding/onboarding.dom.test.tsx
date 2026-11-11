@@ -68,7 +68,11 @@ const noop = async () => {};
 it("opens the Cuso picker from the hire form account menu", async () => {
   await act(async () =>
     root.render(
-      <Onboarding signOut={noop} onboard={async (previous) => previous} />,
+      <Onboarding
+        signOut={noop}
+        cusoPicker
+        onboard={async (previous) => previous}
+      />,
     ),
   );
 
