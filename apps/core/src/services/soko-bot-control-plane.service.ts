@@ -4627,6 +4627,8 @@ export class SokoBotControlPlane {
           },
         });
       }
+      // Start over archives through here, so it forfeits too (ADR 0067).
+      await forfeitCusoProjectCredits(bot.id, tx);
       await tx.sokoBot.update({
         where: { id: bot.id },
         data: {
@@ -4635,8 +4637,6 @@ export class SokoBotControlPlane {
           eveSessionId: null,
         },
       });
-      // Start over archives through here, so it forfeits too (ADR 0067).
-      await forfeitCusoProjectCredits(bot, tx);
       const mentionMessageIds = await failOpenChatRoomMentions(
         {
           where: { sokoBotId: bot.id },

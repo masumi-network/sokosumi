@@ -1,4 +1,3 @@
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000001";
@@ -17,7 +16,7 @@ const {
   deleteManyCalls,
   revokeIntegrationsMock,
   txIntegrationsFindManyMock,
-  writeOffProjectCreditsMock,
+  forfeitMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
@@ -41,13 +40,11 @@ const {
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
   txIntegrationsFindManyMock: vi.fn(),
-  writeOffProjectCreditsMock: vi.fn(),
+  forfeitMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  creditBucketRepository: {
-    writeOffProjectCredits: writeOffProjectCreditsMock,
-  },
+vi.mock("@/helpers/cuso-project-credits", () => ({
+  forfeitCusoProjectCredits: forfeitMock,
 }));
 
 vi.mock("@/helpers/chat-room-mention-status", () => ({
@@ -332,50 +329,23 @@ describe("deleteSokoBot", () => {
     await expect(deleteSokoBot(BOT_ID)).rejects.toThrow();
   });
 
-  describe("Project credits", () => {
-    const PROJECT_ID = "22222222-2222-7222-8222-222222222222";
-    const cuso = (overrides: Record<string, unknown> = {}) => ({
-      id: BOT_ID,
-      sharedRoomId: null,
-      userId: null,
-      projectId: PROJECT_ID,
-      versionId: CMO_SOKO_BOT_VERSION_ID,
-      archivedAt: null,
-      ...overrides,
-    });
+  it.each([
+    ["deleted", 0],
+    ["tombstoned", 1],
+  ])(
+    "offers the bot to the Cuso write-off when it is %s",
+    async (outcome, tasks) => {
+      counts.task = tasks;
 
-    it.each([
-      ["deleted", 0],
-      ["tombstoned", 1],
-    ])(
-      "writes off a live Cuso's Project credits when he is %s",
-      async (outcome, tasks) => {
-        counts.task = tasks;
-        txBotFindFirstMock.mockResolvedValue(cuso());
+      const result = await deleteSokoBot(BOT_ID);
 
-        const result = await deleteSokoBot(BOT_ID);
-
-        expect(result.outcome).toBe(outcome);
-        expect(writeOffProjectCreditsMock).toHaveBeenCalledExactlyOnceWith(
-          PROJECT_ID,
-          expect.any(Object),
-        );
-      },
-    );
-
-    it("writes nothing off for an already archived Cuso or another bot", async () => {
-      txBotFindFirstMock.mockResolvedValueOnce(
-        cuso({ archivedAt: new Date() }),
+      expect(result.outcome).toBe(outcome);
+      expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+        BOT_ID,
+        expect.any(Object),
       );
-      await deleteSokoBot(BOT_ID);
-      txBotFindFirstMock.mockResolvedValueOnce(cuso({ versionId: "soko-v1" }));
-      await deleteSokoBot(BOT_ID);
-      // The default row: a bot with no Project.
-      await deleteSokoBot(BOT_ID);
-
-      expect(writeOffProjectCreditsMock).not.toHaveBeenCalled();
-    });
-  });
+    },
+  );
 
   it("keeps a tombstone when the assistant uploaded a task file", async () => {
     // The file outlives the bot on the Task and its uploader FK is

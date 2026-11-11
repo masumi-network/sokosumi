@@ -1,39 +1,59 @@
 import type { Prisma } from "@sokosumi/database";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
-import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
-
-interface SokoBotLiveness {
-  userId: string | null;
-  projectId: string | null;
-  versionId: string | null;
-  archivedAt?: Date | null;
-  deletedAt?: Date | null;
-}
-
-/** `LIVE_CUSO_WHERE` (cmo-cuso.service) read on a row already in hand. */
-function isLiveCuso(
-  bot: SokoBotLiveness,
-): bot is SokoBotLiveness & { projectId: string } {
-  return (
-    bot.userId === null &&
-    bot.projectId != null &&
-    bot.versionId !== null &&
-    CMO_SOKO_BOT_VERSION_IDS.includes(bot.versionId) &&
-    bot.archivedAt == null &&
-    bot.deletedAt == null
-  );
-}
+import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 
 /**
  * Project credits end with the live Cuso (ADR 0067). Call it in the
- * transaction that archives or deletes `bot`, with the row as it was before.
+ * transaction that archives or deletes the bot, before that write.
  * Any other bot leaves the Project's credits alone, so archiving another bot
  * of a CMO Project forfeits nothing.
+ *
+ * Writes off what is left: one spend per bucket for its remaining amount, the
+ * way a leftover member period is drained, so the bucket's history stays
+ * intact. Pool buckets and other Projects' buckets are untouched.
  */
 export async function forfeitCusoProjectCredits(
-  bot: SokoBotLiveness,
+  sokoBotId: string,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
-  if (!isLiveCuso(bot)) return;
-  await creditBucketRepository.writeOffProjectCredits(bot.projectId, tx);
+  const cuso = await tx.sokoBot.findFirst({
+    where: { id: sokoBotId, ...LIVE_CUSO_WHERE },
+    select: { projectId: true },
+  });
+  if (!cuso?.projectId) return;
+  const projectId = cuso.projectId;
+
+  const now = new Date();
+  const buckets = await tx.$queryRaw<
+    Array<{
+      id: string;
+      organizationId: string | null;
+      userId: string | null;
+      remaining: bigint;
+    }>
+  >`
+    SELECT
+      cb.id,
+      cb."organizationId",
+      cb."userId",
+      (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
+    FROM credit_bucket cb
+    LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+    WHERE cb."projectId" = ${projectId}::uuid
+      AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+    GROUP BY cb.id, cb."organizationId", cb."userId", cb.amount
+    HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+  `;
+  // No note/type column on Transaction: a write-off reads as a plain spend.
+  for (const bucket of buckets) {
+    await tx.transaction.create({
+      data: {
+        amount: bucket.remaining * -1n,
+        organizationId: bucket.organizationId,
+        userId: bucket.userId,
+        creditConsumptions: {
+          create: { amount: bucket.remaining, bucketId: bucket.id },
+        },
+      },
+    });
+  }
 }

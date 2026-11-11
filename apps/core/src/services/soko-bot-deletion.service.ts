@@ -89,14 +89,7 @@ export async function deleteSokoBot(
   const deleted = await serializableTransaction(async (tx) => {
     const bot = await tx.sokoBot.findFirst({
       where: { id: sokoBotId, deletedAt: null },
-      select: {
-        id: true,
-        sharedRoomId: true,
-        userId: true,
-        projectId: true,
-        versionId: true,
-        archivedAt: true,
-      },
+      select: { id: true, sharedRoomId: true },
     });
     if (!bot) throw notFound("Soko Bot not found");
     await tx.$queryRaw`
@@ -119,7 +112,7 @@ export async function deleteSokoBot(
 
     // Both outcomes end a live Cuso; a hard delete keeps his Project, and so
     // its credits, so they are written off here (ADR 0067).
-    await forfeitCusoProjectCredits(bot, tx);
+    await forfeitCusoProjectCredits(bot.id, tx);
 
     // Stop live work before erasing what it would write back into.
     await tx.sokoBotTurn.updateMany({

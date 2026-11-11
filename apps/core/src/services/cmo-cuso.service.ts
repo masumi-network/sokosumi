@@ -77,7 +77,7 @@ export const CUSO_BOT_WHERE = {
 } satisfies Prisma.SokoBotWhereInput;
 
 /** A Cuso nobody deleted or archived: the one people work with. */
-const LIVE_CUSO_WHERE = {
+export const LIVE_CUSO_WHERE = {
   ...CUSO_BOT_WHERE,
   deletedAt: null,
   archivedAt: null,

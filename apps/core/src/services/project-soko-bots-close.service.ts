@@ -18,10 +18,8 @@ export async function archiveProjectSokoBotsForClose(
   projectId: string,
 ): Promise<string[]> {
   // Same row lock as an archive or a deletion, so neither runs past the close.
-  const bots = await tx.$queryRaw<
-    Array<{ id: string; userId: string | null; versionId: string | null }>
-  >`
-    SELECT "id", "userId", "versionId"
+  const bots = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id"
     FROM "soko_bot"
     WHERE "projectId" = ${projectId}::uuid
       AND "archivedAt" IS NULL
@@ -40,13 +38,13 @@ export async function archiveProjectSokoBotsForClose(
     },
     data: { status: "CANCEL_REQUESTED", cancellationRequestedAt: archivedAt },
   });
+  for (const sokoBotId of sokoBotIds) {
+    await forfeitCusoProjectCredits(sokoBotId, tx);
+  }
   await tx.sokoBot.updateMany({
     where: { id: { in: sokoBotIds } },
     data: { archivedAt, status: "PAUSED", eveSessionId: null },
   });
-  for (const bot of bots) {
-    await forfeitCusoProjectCredits({ ...bot, projectId }, tx);
-  }
   const mentionMessageIds = await failOpenChatRoomMentions(
     {
       where: { sokoBotId: { in: sokoBotIds } },
