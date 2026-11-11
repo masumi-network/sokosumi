@@ -6,13 +6,18 @@ import { toast } from "sonner";
 import {
   allowedSeoAnalysisKinds,
   analysisSeoBody,
+  defaultFullAuditSeconds,
   formText,
   SEO_ANALYSIS_MODULES,
+  SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_DEFAULT_MONITOR_RUNS,
   SEO_DEFAULT_PROVIDER_CALLS,
+  SEO_DEVICES,
+  type SeoDevice,
   seoAnalysisRequirements,
   seoMonitorRunCount,
 } from "./seo-form-model";
+import { seoRunAction } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
@@ -39,9 +44,25 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         : previous.filter((value) => value !== module),
     );
   }
+  // Every opener gets the widest check these pages allow, unless it names one.
   const [chosenKind, setKind] = useState<string>(
-    () => model.analysisKind ?? "page_check",
+    () => model.analysisKind ?? seoRunAction(model.data)?.kind ?? "page_check",
   );
+  // The check starts on its defaults: the fields show when the reader asks, or when a value is refused.
+  // A schedule has more to decide, so its fields are open.
+  const [optionsOpen, setOptionsOpen] = useState(monitor);
+  const [devices, setDevices] = useState<readonly SeoDevice[]>(SEO_DEVICES);
+  const [usd, setUsd] = useState(String(SEO_DEFAULT_FULL_AUDIT_USD));
+  const [seconds, setSeconds] = useState(() =>
+    String(defaultFullAuditSeconds(model.data.scope.pageIds.length)),
+  );
+  function toggleDevice(device: SeoDevice, checked: boolean) {
+    setDevices((previous) =>
+      SEO_DEVICES.filter((value) =>
+        value === device ? checked : previous.includes(value),
+      ),
+    );
+  }
   const kind = kinds.find((value) => value === chosenKind) ?? "page_check";
   const serviceAvailable = monitor
     ? model.data.availableActions.canCreateMonitor === true
@@ -102,6 +123,8 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         t("analysis.queued"),
       );
     } catch (error) {
+      // The refused value is in a field: show the fields with the message.
+      setOptionsOpen(true);
       toast.error(
         t(
           error instanceof RangeError
@@ -129,6 +152,14 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     setProviderCalls,
     timeZone,
     setTimeZone,
+    optionsOpen,
+    setOptionsOpen,
+    devices,
+    toggleDevice,
+    usd,
+    setUsd,
+    seconds,
+    setSeconds,
     totalProviderCalls:
       Number(runCount) *
       (requirements.usesPaidData ? Number(providerCalls) : 0),

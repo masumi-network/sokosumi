@@ -11204,7 +11204,20 @@
       },
       "analysis": {
         "title": "Iniciar comprobación",
-        "description": "Elige el trabajo y sus límites. Los resultados existentes siguen disponibles mientras se ejecuta.",
+        "description": "El agente empieza con estos ajustes. Los resultados existentes siguen disponibles mientras se ejecuta.",
+        "options": "Cambiar opciones",
+        "summary": {
+          "check": "Comprobación",
+          "pages": "Páginas",
+          "market": "Mercado",
+          "keywords": "{count, plural, one {Palabra clave} other {Palabras clave}}",
+          "noKeyword": "Ninguna",
+          "keywordCount": "{count} palabras clave",
+          "limits": "Límites",
+          "fullLimits": "Hasta {usd} en datos y {minutes, plural, one {# minuto} other {# minutos}} de ejecución",
+          "requests": "{count, plural, one {Hasta # solicitud de datos} other {Hasta # solicitudes de datos}}",
+          "free": "Sin datos de búsqueda de pago ni llamadas al modelo"
+        },
         "kind": "Tipo de comprobación",
         "page_check": "Comprobación de página",
         "rankings": "Posiciones de palabras clave",

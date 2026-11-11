@@ -6,6 +6,7 @@ import {
   editSeoAnalysisKeywords,
   initialSeoAnalysisMarket,
   type SeoAnalysisSavedKeyword,
+  type SeoMarket,
   seoAnalysisKeywordDraft,
 } from "./seo-analysis-market-model";
 
@@ -13,8 +14,12 @@ export function useSeoAnalysisMarket(
   keywords: readonly SeoAnalysisSavedKeyword[],
   /** The most saved keywords the chosen check type takes. */
   limit?: number,
+  /** The market where no saved keyword names one. */
+  fallback?: SeoMarket,
 ) {
-  const [state, setState] = useState(() => initialSeoAnalysisMarket(keywords));
+  const [state, setState] = useState(() =>
+    initialSeoAnalysisMarket(keywords, fallback),
+  );
   return {
     countryCode: state.countryCode,
     languageCode: state.languageCode,

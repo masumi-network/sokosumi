@@ -1,5 +1,16 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+
+/** Shows the fields of the check dialog, which opens on a summary of its defaults. */
+export async function openCheckOptions(user: {
+  click: (element: Element) => Promise<void>;
+}) {
+  await user.click(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Change options",
+    }),
+  );
+}
 
 /** Opens the generic statistics setup from the header's Manage menu. */
 export async function openStatisticsSetup(user: {

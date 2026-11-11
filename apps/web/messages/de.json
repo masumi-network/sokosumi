@@ -11204,7 +11204,20 @@
       },
       "analysis": {
         "title": "Prüfung starten",
-        "description": "Wähle die Arbeit und ihre Grenzen. Vorhandene Ergebnisse bleiben währenddessen verfügbar.",
+        "description": "Der Agent startet mit diesen Einstellungen. Vorhandene Ergebnisse bleiben währenddessen verfügbar.",
+        "options": "Optionen ändern",
+        "summary": {
+          "check": "Prüfung",
+          "pages": "Seiten",
+          "market": "Markt",
+          "keywords": "{count, plural, one {Keyword} other {Keywords}}",
+          "noKeyword": "Keines",
+          "keywordCount": "{count} Keywords",
+          "limits": "Grenzen",
+          "fullLimits": "Bis zu {usd} für Daten und {minutes, plural, one {# Minute} other {# Minuten}} Laufzeit",
+          "requests": "{count, plural, one {Bis zu # Datenabfrage} other {Bis zu # Datenabfragen}}",
+          "free": "Keine bezahlten Suchdaten, keine Modellaufrufe"
+        },
         "kind": "Prüfungstyp",
         "page_check": "Seitenprüfung",
         "rankings": "Keyword-Positionen",

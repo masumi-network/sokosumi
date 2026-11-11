@@ -20,6 +20,7 @@ import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 import { SeoAutomation } from "./seo-monitors";
 import {
+  openCheckOptions,
   openStatisticsSetup,
   SEO_TEST_AUDIT,
   SEO_TEST_PROJECT,
@@ -2548,6 +2549,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     await user.click(screen.getByRole("button", { name: "Run full audit" }));
     const dialog = screen.getByRole("dialog");
+    await openCheckOptions(user);
     // The dialog opens on the full audit; the page check is one choice away.
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
@@ -2561,6 +2563,7 @@ describe("SEO workspace integration", () => {
       within(dialog).getByRole("combobox", { name: "Search country" }),
     );
     await user.click(screen.getByRole("option", { name: "DE" }));
+    await user.clear(within(dialog).getByLabelText("Search language"));
     await user.type(within(dialog).getByLabelText("Search language"), "de");
     await user.click(
       within(dialog).getByRole("button", { name: "Start check" }),
@@ -2594,6 +2597,7 @@ describe("SEO workspace integration", () => {
       renderWorkspace(workspace);
       await user.click(screen.getByRole("button", { name: "Run page check" }));
       const dialog = screen.getByRole("dialog");
+      await openCheckOptions(user);
       await user.click(
         within(dialog).getByRole("combobox", { name: "Check type" }),
       );
@@ -2613,6 +2617,7 @@ describe("SEO workspace integration", () => {
         within(dialog).getByRole("combobox", { name: "Search country" }),
       );
       await user.click(screen.getByRole("option", { name: "DE" }));
+      await user.clear(within(dialog).getByLabelText("Search language"));
       await user.type(within(dialog).getByLabelText("Search language"), "de");
       await user.click(
         within(dialog).getByRole("button", { name: "Start check" }),
@@ -2639,6 +2644,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     await user.click(screen.getByRole("button", { name: "Run full audit" }));
     const dialog = screen.getByRole("dialog");
+    await openCheckOptions(user);
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
@@ -2729,10 +2735,10 @@ describe("SEO workspace integration", () => {
     );
     // The step's button opens the dialog on the check it names.
     expect(
-      within(screen.getByRole("dialog")).getByRole("combobox", {
-        name: "Check type",
-      }),
-    ).toHaveTextContent("Full audit");
+      within(screen.getByTestId("seo-analysis-summary")).getByText(
+        "Full audit",
+      ),
+    ).toBeVisible();
     cleanup();
     workspace.analyses = [
       {
@@ -2794,6 +2800,7 @@ describe("SEO workspace integration", () => {
       within(dialog).getByRole("combobox", { name: "Search country" }),
     );
     await user.click(screen.getByRole("option", { name: "DE" }));
+    await user.clear(within(dialog).getByLabelText("Search language"));
     await user.type(within(dialog).getByLabelText("Search language"), "de");
     await user.type(
       within(dialog).getByLabelText("Keywords, one per line"),
@@ -2895,6 +2902,7 @@ describe("SEO workspace integration", () => {
       within(dialog).getByRole("combobox", { name: "Search country" }),
     );
     await user.click(screen.getByRole("option", { name: "DE" }));
+    await user.clear(within(dialog).getByLabelText("Search language"));
     await user.type(within(dialog).getByLabelText("Search language"), "de");
     await act(async () => {
       view.client.setQueryData(
@@ -3459,6 +3467,7 @@ describe("SEO workspace integration", () => {
     await user.click(
       await screen.findByRole("button", { name: "Run full audit" }),
     );
+    await openCheckOptions(user);
     expect(checkType()).toHaveTextContent("Full audit");
     // A full audit takes one keyword, so the form does not open on a list it would refuse.
     const keywords = () => screen.getByLabelText("Keywords, one per line");
@@ -3479,6 +3488,7 @@ describe("SEO workspace integration", () => {
     await user.click(
       await screen.findByRole("button", { name: "Run page check" }),
     );
+    await openCheckOptions(user);
     expect(checkType()).toHaveTextContent("Page check");
     cleanup();
     // While a check runs the button says so, keeps its place and opens nothing.

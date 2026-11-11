@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
-import { seoTestWorkspace } from "./seo-test-fixture";
+import { openCheckOptions, seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
@@ -113,10 +113,92 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("SEO check defaults", () => {
+  it("opens on a summary of its defaults and starts the full audit with the fields closed", async () => {
+    const user = userEvent.setup(),
+      dialog = showDialog(workspace());
+    const summary = within(dialog).getByTestId("seo-analysis-summary");
+    expect(within(summary).getByText("Full audit")).toBeVisible();
+    // The market of the saved keyword, by name, and the one keyword a full audit takes.
+    expect(
+      within(summary).getByText("Germany · German · Mobile and Desktop"),
+    ).toBeVisible();
+    expect(within(summary).getByText("Akku Zustand")).toBeVisible();
+    // No field asks for a choice until the reader wants one.
+    expect(
+      within(dialog).getByRole("button", { name: "Change options" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      within(dialog).queryByRole("combobox", { name: "Check type" }),
+    ).toBeNull();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      kind: "audit_full",
+      countryCode: "DE",
+      languageCode: "de",
+      keywords: ["Akku Zustand"],
+      devices: ["mobile", "desktop"],
+    });
+  });
+
+  it("keeps the summary true to a changed field, and shows the fields when a value is refused", async () => {
+    const data = workspace();
+    data.keywords = [];
+    const user = userEvent.setup(),
+      dialog = showDialog(data);
+    const summary = within(dialog).getByTestId("seo-analysis-summary");
+    // No saved keyword and a .com page: the market falls back to US English.
+    expect(
+      within(summary).getByText("United States · English · Mobile and Desktop"),
+    ).toBeVisible();
+    const options = within(dialog).getByRole("button", {
+      name: "Change options",
+    });
+    await user.click(options);
+    await user.click(within(dialog).getByLabelText("Mobile"));
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Check type" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Keyword positions" }));
+    await user.click(options);
+    expect(options).toHaveAttribute("aria-expanded", "false");
+    expect(within(summary).getByText("Keyword positions")).toBeVisible();
+    expect(
+      within(summary).getByText("United States · English · Desktop"),
+    ).toBeVisible();
+    expect(within(summary).getByText("Up to 20 data requests")).toBeVisible();
+    // Keyword positions need a keyword: the request is not sent, and the fields open on the message.
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    );
+    await waitFor(() =>
+      expect(options).toHaveAttribute("aria-expanded", "true"),
+    );
+    expect(mutate).not.toHaveBeenCalled();
+  });
+});
+
+describe("SEO check closed fields", () => {
+  it("shows the fields when the browser refuses a value in a closed field", () => {
+    const dialog = showDialog(workspace());
+    const options = within(dialog).getByRole("button", {
+      name: "Change options",
+    });
+    expect(options).toHaveAttribute("aria-expanded", "false");
+    // A closed field cannot take focus, so the browser could not show its message.
+    fireEvent.invalid(within(dialog).getByLabelText("Search language"));
+    expect(options).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
 describe("SEO check market selection", () => {
   it("submits only saved keywords for the selected market instead of mixing DE/de with US/en", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace());
+    await openCheckOptions(user);
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
@@ -139,6 +221,7 @@ describe("SEO check market selection", () => {
   it("restores edited and empty keyword drafts for each country and language", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace());
+    await openCheckOptions(user);
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );

@@ -4,6 +4,7 @@ import {
   editSeoAnalysisKeywords,
   initialSeoAnalysisMarket,
   seoAnalysisKeywordDraft,
+  seoDefaultMarket,
 } from "./seo-analysis-market-model";
 
 const KEYWORDS = [
@@ -119,5 +120,71 @@ describe("SEO analysis keyword market drafts", () => {
     expect(initial.countryCode).toBe("");
     expect(initial.languageCode).toBe("");
     expect(seoAnalysisKeywordDraft(initial, KEYWORDS)).toBe("");
+  });
+});
+
+describe("SEO check default market", () => {
+  const page = (id: string, url: string) => ({ id, url });
+  const workspace = (
+    pages: { id: string; url: string }[],
+    observations: object[] = [],
+  ) =>
+    ({
+      pages,
+      scope: { pageIds: pages.map((row) => row.id) },
+      observations,
+    }) as unknown as Parameters<typeof seoDefaultMarket>[0];
+
+  it("takes the newest check's market, then the country of the page's domain, then US English", () => {
+    expect(
+      seoDefaultMarket(workspace([page("a", "https://example.com/")])),
+    ).toEqual({ countryCode: "US", languageCode: "en" });
+    expect(
+      seoDefaultMarket(workspace([page("a", "https://www.beispiel.at/x")])),
+    ).toEqual({ countryCode: "AT", languageCode: "de" });
+    // The newest check decides, in whatever order Core lists them. A check without a language,
+    // or in a country the form cannot choose, does not.
+    const checks = [
+      {
+        observedAt: new Date("2026-02-01T00:00:00Z"),
+        countryCode: "FR",
+        languageCode: "fr",
+      },
+      {
+        observedAt: new Date("2026-03-01T00:00:00Z"),
+        countryCode: "DE",
+        languageCode: null,
+      },
+      {
+        observedAt: new Date("2026-04-01T00:00:00Z"),
+        countryCode: "JP",
+        languageCode: "ja",
+      },
+      {
+        observedAt: new Date("2026-01-01T00:00:00Z"),
+        countryCode: "ES",
+        languageCode: "es",
+      },
+    ];
+    expect(
+      seoDefaultMarket(workspace([page("a", "https://beispiel.de/")], checks)),
+    ).toEqual({ countryCode: "FR", languageCode: "fr" });
+  });
+
+  it("reads the domain of a selected page, not of a page outside the selection", () => {
+    const data = workspace([
+      page("a", "https://example.fr/"),
+      page("b", "https://example.it/"),
+    ]);
+    data.scope.pageIds = ["b"];
+    expect(seoDefaultMarket(data)).toEqual({
+      countryCode: "IT",
+      languageCode: "it",
+    });
+    // A page without a readable address names no country.
+    expect(seoDefaultMarket(workspace([page("a", "not a url")]))).toEqual({
+      countryCode: "US",
+      languageCode: "en",
+    });
   });
 });

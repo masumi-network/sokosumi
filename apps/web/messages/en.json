@@ -11204,7 +11204,20 @@
       },
       "analysis": {
         "title": "Run a check",
-        "description": "Choose the work and its limits. Existing results remain available while it runs.",
+        "description": "The agent starts with these settings. Existing results remain available while it runs.",
+        "options": "Change options",
+        "summary": {
+          "check": "Check",
+          "pages": "Pages",
+          "market": "Market",
+          "keywords": "{count, plural, one {Keyword} other {Keywords}}",
+          "noKeyword": "None",
+          "keywordCount": "{count} keywords",
+          "limits": "Limits",
+          "fullLimits": "Up to {usd} for data and {minutes, plural, one {# minute} other {# minutes}} of run time",
+          "requests": "{count, plural, one {Up to # data request} other {Up to # data requests}}",
+          "free": "No paid search data, no model calls"
+        },
         "kind": "Check type",
         "page_check": "Page check",
         "rankings": "Keyword positions",
