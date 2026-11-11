@@ -41,6 +41,7 @@ export default async function ProjectBotsPage({
     <ProjectWorkspaceShell
       actions={
         <ProjectHeaderActions
+          cmo={project.cmo}
           closedAt={project.closedAt}
           closingAt={project.closingAt}
           projectId={project.id}
@@ -48,6 +49,7 @@ export default async function ProjectBotsPage({
           scheduledSocialPostCount={project.scheduledSocialPostCount}
         />
       }
+      cmo={project.cmo}
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
@@ -63,6 +65,8 @@ export default async function ProjectBotsPage({
         canCreatePersonal={false}
         defaultScope={SokoBotScope.PROJECT}
         defaultProjectId={project.id}
+        // Core refuses a new bot in a CMO Project; CMO runs its Cuso.
+        canCreate={!project.cmo}
         title={t("bots.title")}
       />
     </ProjectWorkspaceShell>

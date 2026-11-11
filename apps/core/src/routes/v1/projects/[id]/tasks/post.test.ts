@@ -70,6 +70,7 @@ vi.mock("@/middleware/workspace", async (importOriginal) => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    sokoBot: { findFirst: async () => null, findMany: async () => [] },
     project: { findFirst: projectFindFirstMock },
     task: {
       findFirst: taskFindFirstMock,

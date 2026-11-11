@@ -63,6 +63,7 @@ export interface ProjectsViewLabels {
   created: string;
   pinned: string;
   closed: string;
+  cmo: string;
   /**
    * Each card's menu: Pin or Unpin, Hide or Show, and Close. Its writes
    * refresh the page, so a new Pin re-sorts the Open view.
@@ -213,6 +214,7 @@ export function ProjectsView({
                         created: labels.created,
                         pinned: labels.pinned,
                         closed: labels.closed,
+                        cmo: labels.cmo,
                         actions: labels.actions,
                       }}
                     />
