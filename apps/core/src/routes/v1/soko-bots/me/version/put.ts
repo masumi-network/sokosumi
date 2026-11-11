@@ -28,6 +28,7 @@ const spec = {
     200: jsonSuccessResponse(sokoBotSchema, "Bot with the new version"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 };
