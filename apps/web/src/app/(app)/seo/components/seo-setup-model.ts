@@ -44,8 +44,8 @@ function seoRunReady(workspace: ProjectSeoWorkspace) {
 
 /**
  * The header's run button is filled: a check can start and no result waits for the reader.
- * A recommended action from the last check comes first. On the Agent tab its own button is the
- * filled one; on the other tabs the header stays the same, so no button is filled there.
+ * A recommended action from the last check comes first. On the Agent and Actions tabs its own
+ * button is the filled one; on the other tabs the header stays the same, so no button is filled there.
  */
 export function seoRunLeads(workspace: ProjectSeoWorkspace) {
   return (

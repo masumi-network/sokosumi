@@ -10943,7 +10943,7 @@
         "audits": "Captured results",
         "findingsCount": "{count, plural, one {# finding} other {# findings}}",
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
-        "coverageCounts": "Rule checks: {checked} checked, {skipped} not checked, {failed} unavailable",
+        "coverageCounts": "Tests: {checked} with a result, {skipped} without a result, {failed} unavailable",
         "moduleCoverage": "Optional checks: {notRequested} not requested, {failed} unavailable",
         "noFindings": "No findings for these pages",
         "noFindingsBody": "Run a check to inspect its evidence. Missing checks are not passing checks.",
@@ -11185,7 +11185,7 @@
         "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
         "cleanChecks": "No issues in {count} checks",
         "earlierRules": "Some earlier checks ran {counts} tests.",
-        "rulesSkipped": "{count} not checked",
+        "rulesSkipped": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
         "rulesUnavailable": "{count} unavailable",
         "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}",
         "viewResults": "View results",
@@ -11520,7 +11520,9 @@
         "openRankings": "Open rankings",
         "draftFix": "Draft a fix",
         "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
-        "lastCheckPages": "{pages, plural, one {# page} other {# pages}}"
+        "lastCheckPages": "{pages, plural, one {# page} other {# pages}}",
+        "noneFound": "{count, plural, one {Your pages are not in the results the check read for # keyword.} other {Your pages are not in the results the check read for # keywords.}}",
+        "startBelow": "Start with the steps below."
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
@@ -11646,11 +11648,12 @@
         "severityCount": "{count} {severity, select, critical {critical} major {major} other {minor}}",
         "keywords": "Keywords found in Google",
         "of": "of {total}",
-        "searches": "Searches a month",
+        "searches": "Searches for your keywords",
         "searchesFor": "{same, select, yes {For the {of, plural, one {checked keyword} other {# checked keywords}}} other {For {keywords} of {of} checked keywords}}",
-        "tests": "Tests with a result",
+        "tests": "Tests completed",
         "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
-        "testsAll": "Every test gave a result"
+        "testsAll": "Every test gave a result",
+        "aMonth": "a month"
       }
     }
   },

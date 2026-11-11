@@ -42,6 +42,7 @@ import { seoCheckRunning, seoRunLeads } from "./seo-setup-model";
 import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
+import { seoSummary } from "./seo-summary-model";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import { useSeoConnectionStatus } from "./use-seo-connection";
@@ -367,6 +368,9 @@ function SeoAgentPanel({
                 : step.kind !== "action" || (canEdit && !step.action.taskId),
         );
   const periodId = useId();
+  // "0 of 16" in a tile is a number; the sentence says what it means and where to start.
+  const keywordsRead = seoSummary(model.data).keywords;
+  const noneFound = keywordsRead?.found === 0 ? keywordsRead.read : 0;
   const { actionSeverity } = seoOverviewModel(model.data);
   const trafficLine = traffic
     ? t("agent.traffic", {
@@ -457,6 +461,15 @@ function SeoAgentPanel({
               {t("agent.lastCheckOn")} <SeoDate value={brief.lastCheck.at} />
               {" · "}
               {t("agent.lastCheckPages", { pages: brief.lastCheck.pages })}
+            </p>
+          ) : null}
+          {noneFound ? (
+            <p
+              className="max-w-prose text-sm"
+              data-testid="seo-agent-none-found"
+            >
+              {t("agent.noneFound", { count: noneFound })}
+              {steps.length ? ` ${t("agent.startBelow")}` : null}
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />

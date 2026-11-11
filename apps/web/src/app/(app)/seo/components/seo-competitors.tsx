@@ -30,7 +30,6 @@ import {
   SEO_LIST_PAGE_SIZE,
   SEO_SEARCH_MIN_ROWS,
   SEO_STACKED_TABLE_CLASS,
-  SeoBarNumber,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -85,10 +84,6 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     row.confirmed || row.source === "saved";
   // The badge tells a found page from a chosen one; in a list of found pages only, the line above says it once.
   const mixed = all.some(chosen) && !all.every(chosen);
-  const mostDomains = Math.max(
-    0,
-    ...sites.map((site) => site.lead.referringDomains ?? 0),
-  );
   // The numbers of one page, for the lines under a site and in the platform list.
   const facts = (row: SeoCompetitorSite["lead"]) =>
     [
@@ -218,7 +213,9 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="min-w-56 whitespace-normal">
-                      <p className="font-medium break-all">{host}</p>
+                      <p className="font-medium [overflow-wrap:anywhere]">
+                        {host}
+                      </p>
                       <SeoPageLink url={row.url} />
                       {mixed && !chosen(row) ? (
                         <div className="mt-1">
@@ -273,14 +270,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                         className="text-right tabular-nums"
                         data-label={t("competitors.domains")}
                       >
-                        {row.referringDomains === null ? (
-                          t("none")
-                        ) : (
-                          <SeoBarNumber
-                            value={row.referringDomains}
-                            max={mostDomains}
-                          />
-                        )}
+                        {/* A plain number: one site with many links made every other bar empty. */}
+                        {number(row.referringDomains)}
                       </TableCell>
                     ) : null}
                     {shown.observed ? (

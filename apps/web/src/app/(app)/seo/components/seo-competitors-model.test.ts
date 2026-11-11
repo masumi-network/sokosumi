@@ -30,13 +30,20 @@ function row(
 describe("competitorSites", () => {
   it("shows one row per site with its best placed page first", () => {
     const { sites } = competitorSites([
-      row("https://www.rival.com/b", 4),
+      row("https://unplaced.com/", null),
       row("https://other.com/", 2),
+      row("https://www.rival.com/b", 4),
+      row("https://second-unplaced.com/", null),
       row("https://rival.com/a", 1),
       row("https://rival.com/c", null),
     ]);
-    // The order of the first page of each site is kept.
-    expect(sites.map((site) => site.host)).toEqual(["rival.com", "other.com"]);
+    // The best placed site leads; sites without a place follow in the order of the check.
+    expect(sites.map((site) => site.host)).toEqual([
+      "rival.com",
+      "other.com",
+      "unplaced.com",
+      "second-unplaced.com",
+    ]);
     expect(sites[0].pages.map((page) => page.url)).toEqual([
       "https://rival.com/a",
       "https://www.rival.com/b",
@@ -63,15 +70,20 @@ describe("competitorSites", () => {
       row("https://support.apple.com/en-us/1", 3),
       row("https://www.apple.com/mac/", 4),
       row("https://notyoutube.com/", 5),
+      // A forum of any vendor is a platform; a site whose own name is "forum" is not.
+      row("https://forums.macrumors.com/threads/1", 6),
+      row("https://forum.com/", 7),
     ]);
     expect(found.platforms.map((site) => site.host)).toEqual([
       "youtube.com",
       "en.wikipedia.org",
       "support.apple.com",
+      "forums.macrumors.com",
     ]);
     expect(found.sites.map((site) => site.host)).toEqual([
       "apple.com",
       "notyoutube.com",
+      "forum.com",
     ]);
     // A page the reader added and then stopped tracking is still their choice.
     const chosen = competitorSites([

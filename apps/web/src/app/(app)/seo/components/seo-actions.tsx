@@ -3,7 +3,7 @@
 import type { ProjectSeoAction } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -41,19 +41,28 @@ export function SeoActionCard({
   // "See the fix" on the Health tab leads here: the card scrolls into view and takes the focus once.
   const shown = model.shownAction === seoActionKey(action);
   const { setShownAction } = model;
+  // The card stays marked until the focus leaves the card, so the reader sees which of the cards the row meant.
+  const [marked, setMarked] = useState(false);
   useEffect(() => {
     if (!shown) return;
     card.current?.scrollIntoView({ block: "center" });
     card.current?.focus();
+    setMarked(true);
     setShownAction(null);
   }, [shown, setShownAction]);
   return (
     <article
       ref={card}
       tabIndex={-1}
+      aria-current={marked || undefined}
+      onBlur={(event) => {
+        // Focus on a control of the card is still on the card.
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setMarked(false);
+      }}
       className={cn(
         HOLDER_ITEM_CLASS,
-        "focus-visible:outline-ring min-w-0 space-y-2 p-4 focus-visible:outline-2",
+        "group focus-visible:outline-ring aria-[current=true]:ring-ring min-w-0 space-y-2 p-4 focus-visible:outline-2 aria-[current=true]:ring-2",
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -72,8 +81,8 @@ export function SeoActionCard({
           ) : null}
         </div>
       </div>
-      {/* What the fix changes for the reader, in view: the title alone names the edit. */}
-      <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
+      {/* What the fix changes for the reader, in view: the title alone names the edit. Two lines; the open details show all of it. */}
+      <p className="text-muted-foreground line-clamp-2 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none">
         {action.expectedEffect}
       </p>
       <SeoPageLink url={action.pageUrl} />
@@ -153,12 +162,15 @@ function ActionGroup({
   actions,
   model,
   severity,
+  primary,
 }: {
   title: string;
   help: string;
   actions: ProjectSeoAction[];
   model: SeoWorkspaceModel;
   severity: (action: ProjectSeoAction) => SeoIssueSeverity | null;
+  /** The action that carries the tab's one filled button. */
+  primary: ProjectSeoAction | undefined;
 }) {
   if (!actions.length) return null;
   return (
@@ -173,6 +185,7 @@ function ActionGroup({
           action={action}
           model={model}
           severity={severity(action)}
+          primary={action === primary}
         />
       ))}
     </div>
@@ -185,6 +198,10 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const fixes = overview.actions.filter((action) => action.kind === "fix");
   const opportunities = overview.actions.filter(
     (action) => action.kind === "opportunity",
+  );
+  // The first action that still waits carries the tab's filled button. Without one, the header's run button has it.
+  const primary = [...fixes, ...opportunities].find(
+    (action) => action.status === "recommended",
   );
   const searchLoaded = model.data.searchQueries !== null;
   // The recheck rule matters only once a Task exists for an action.
@@ -209,6 +226,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               actions={fixes}
               model={model}
               severity={overview.actionSeverity}
+              primary={primary}
             />
             <ActionGroup
               title={t("actions.opportunitiesTitle")}
@@ -216,6 +234,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               actions={opportunities}
               model={model}
               severity={overview.actionSeverity}
+              primary={primary}
             />
           </div>
         ) : (

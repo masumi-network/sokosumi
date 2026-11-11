@@ -10943,7 +10943,7 @@
         "audits": "Resultados capturados",
         "findingsCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
         "auditsCount": "{count, plural, one {# resultado capturado} other {# resultados capturados}}",
-        "coverageCounts": "Comprobaciones de reglas: {checked} realizadas, {skipped} sin realizar, {failed} no disponibles",
+        "coverageCounts": "Pruebas: {checked} con resultado, {skipped} sin resultado, {failed} no disponibles",
         "moduleCoverage": "Comprobaciones opcionales: {notRequested} no solicitadas, {failed} no disponibles",
         "noFindings": "No hay hallazgos para estas páginas",
         "noFindingsBody": "Inicia una comprobación para consultar la evidencia. Una comprobación ausente no equivale a una comprobación superada.",
@@ -11185,7 +11185,7 @@
         "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}",
         "cleanChecks": "Sin problemas en {count} comprobaciones",
         "earlierRules": "Algunas comprobaciones anteriores hicieron {counts} pruebas.",
-        "rulesSkipped": "{count} sin comprobar",
+        "rulesSkipped": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
         "rulesUnavailable": "{count, plural, one {# no disponible} other {# no disponibles}}",
         "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
         "viewResults": "Ver resultados",
@@ -11520,7 +11520,9 @@
         "openRankings": "Abrir posiciones",
         "draftFix": "Preparar una corrección",
         "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
-        "lastCheckPages": "{pages, plural, one {# página} other {# páginas}}"
+        "lastCheckPages": "{pages, plural, one {# página} other {# páginas}}",
+        "noneFound": "{count, plural, one {Tus páginas no están en los resultados que la comprobación leyó para # palabra clave.} other {Tus páginas no están en los resultados que la comprobación leyó para # palabras clave.}}",
+        "startBelow": "Empieza por los pasos de abajo."
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
@@ -11646,11 +11648,12 @@
         "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {{count, plural, one {importante} other {importantes}}} other {{count, plural, one {menor} other {menores}}}}",
         "keywords": "Palabras clave encontradas en Google",
         "of": "de {total}",
-        "searches": "Búsquedas al mes",
+        "searches": "Búsquedas de tus palabras clave",
         "searchesFor": "{same, select, yes {Para {of, plural, one {la palabra clave comprobada} other {las # palabras clave comprobadas}}} other {Para {keywords} de {of} palabras clave comprobadas}}",
-        "tests": "Pruebas con resultado",
+        "tests": "Pruebas completadas",
         "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
-        "testsAll": "Todas las pruebas tienen resultado"
+        "testsAll": "Todas las pruebas tienen resultado",
+        "aMonth": "al mes"
       }
     }
   },

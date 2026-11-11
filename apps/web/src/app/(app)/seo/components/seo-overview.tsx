@@ -345,7 +345,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         aria-hidden
                         className="text-muted-foreground mt-0.5 size-4 shrink-0 group-open:rotate-180"
                       />
-                      <span className="text-muted-foreground col-span-3 text-xs break-all">
+                      <span className="text-muted-foreground col-span-3 text-xs [overflow-wrap:anywhere]">
                         {[
                           finding.devices.length
                             ? format.list(

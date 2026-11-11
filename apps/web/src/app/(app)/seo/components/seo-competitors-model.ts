@@ -35,6 +35,25 @@ export const SEO_PLATFORM_HOSTS = [
   "answers.microsoft.com",
 ] as const;
 
+/** A forum or a community of any vendor is no rival either: the first label of its host says so. */
+const SEO_PLATFORM_LABELS = [
+  "forum",
+  "forums",
+  "community",
+  "discussions",
+  "answers",
+];
+
+function isPlatform(host: string) {
+  const labels = host.split(".");
+  return (
+    SEO_PLATFORM_HOSTS.some(
+      (entry) => host === entry || host.endsWith(`.${entry}`),
+    ) ||
+    (labels.length > 2 && SEO_PLATFORM_LABELS.includes(labels[0]))
+  );
+}
+
 /** The site of a URL: its host without "www.". A value that is no URL stays as written. */
 export function seoHost(url: string) {
   try {
@@ -58,8 +77,9 @@ export type SeoCompetitorSite = {
 
 /**
  * Competitor pages as one row per site. A check lists several pages of one
- * site; a site is one rival. The order of the rows is kept, with the sites the
- * reader chose first. Platforms are apart: a site the reader chose is never one.
+ * site; a site is one rival. The sites the reader chose come first, then the
+ * best placed; sites without a place keep the order of the check. Platforms are
+ * apart: a site the reader chose is never one.
  */
 export function competitorSites(rows: Competitor[]) {
   const chosen = (row: Competitor) => row.confirmed || row.source === "saved";
@@ -78,16 +98,14 @@ export function competitorSites(rows: Competitor[]) {
         lead: pages[0],
         pages,
         best: ranks.length ? Math.min(...ranks) : null,
-        platform:
-          !pages.some(chosen) &&
-          SEO_PLATFORM_HOSTS.some(
-            (entry) => host === entry || host.endsWith(`.${entry}`),
-          ),
+        platform: !pages.some(chosen) && isPlatform(host),
       };
     },
   );
   const ordered = all.toSorted(
-    (left, right) => Number(chosen(right.lead)) - Number(chosen(left.lead)),
+    (left, right) =>
+      Number(chosen(right.lead)) - Number(chosen(left.lead)) ||
+      (left.best ?? UNRANKED) - (right.best ?? UNRANKED),
   );
   return {
     sites: ordered.filter((site) => !site.platform),

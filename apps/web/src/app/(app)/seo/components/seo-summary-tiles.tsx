@@ -180,6 +180,7 @@ export function SeoSummaryTiles({
         <Tile
           label={t("summary.searches")}
           value={format.number(searches.total)}
+          rest={t("summary.aMonth")}
           testId="seo-summary-searches"
         >
           {t("summary.searchesFor", {
@@ -213,13 +214,20 @@ export function SeoSummaryTiles({
           }
         >
           <span className="flex flex-wrap gap-x-3">
-            <span>
-              {tests.undecided + tests.unavailable
-                ? t("summary.testsNoResult", {
-                    count: tests.undecided + tests.unavailable,
-                  })
-                : t("summary.testsAll")}
-            </span>
+            {/* The same two counts, in the same words, as the row of the check in the Timeline. */}
+            {tests.undecided ? (
+              <span>
+                {t("summary.testsNoResult", { count: tests.undecided })}
+              </span>
+            ) : null}
+            {tests.unavailable ? (
+              <span>
+                {t("timeline.rulesUnavailable", { count: tests.unavailable })}
+              </span>
+            ) : null}
+            {tests.undecided + tests.unavailable ? null : (
+              <span>{t("summary.testsAll")}</span>
+            )}
             {dated ? (
               <span>
                 {t("agent.lastCheckOn")} <SeoDate value={tests.observedAt} />

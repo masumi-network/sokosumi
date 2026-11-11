@@ -371,6 +371,14 @@ describe("SEO workspace integration", () => {
       .getByRole("heading", { name: "Make the markup price match the page" })
       .closest("article");
     await waitFor(() => expect(card).toHaveFocus());
+    // The card is marked while the focus is on it or on one of its controls, and no longer.
+    expect(card).toHaveAttribute("aria-current", "true");
+    await user.tab();
+    expect(card).not.toHaveFocus();
+    expect(card).toContainElement(document.activeElement as HTMLElement);
+    expect(card).toHaveAttribute("aria-current", "true");
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    expect(card).not.toHaveAttribute("aria-current");
     expect(within(card!).getByText("Major")).toBeVisible();
     // What the fix brings is in view; the reasons stay closed.
     expect(within(card!).getByText("One price.")).toBeVisible();
@@ -1081,8 +1089,8 @@ describe("SEO workspace integration", () => {
       expect(
         screen.getByText(
           onTimeline
-            ? /^2 tests · .* · 1 not checked$/
-            : "Rule checks: 2 checked, 1 not checked, 0 unavailable",
+            ? /^2 tests · .* · 1 test gave no result$/
+            : "Tests: 2 with a result, 1 without a result, 0 unavailable",
         ),
       ).toBeInTheDocument();
     },
@@ -4001,18 +4009,18 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByText("Why, and the evidence"));
     expect(screen.getByText("The title is missing")).toBeVisible();
     expect(screen.getByText("A descriptive search result")).toBeVisible();
-    // The Actions tab is the full list of the same cards: the reasons stay closed, and no card takes the filled style.
+    // The Actions tab is the full list of the same cards: the reasons stay closed, and its first card has the filled button.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(await screen.findByText("The title is missing")).not.toBeVisible();
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
-    ).not.toHaveClass("bg-primary");
+    ).toHaveClass("bg-primary");
   });
 
   it("creates one draft action Task with its source references and guards repeated clicks", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
-    workspace.actions.push({
+    const waiting = {
       id: "action-row",
       observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
       pageUrl: "https://example.com/",
@@ -4026,7 +4034,20 @@ describe("SEO workspace integration", () => {
       status: "recommended",
       kind: "fix",
       evidence: [],
-    });
+    } as const;
+    workspace.actions.push(
+      // An action with a Task comes first in the list; the filled button goes to the one that still waits.
+      {
+        ...waiting,
+        id: "action-with-task",
+        findingIds: [],
+        evidence: [],
+        title: "Add a meta description",
+        taskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+        status: "task_created",
+      },
+      { ...waiting, findingIds: ["finding"], evidence: [] },
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -4038,6 +4059,9 @@ describe("SEO workspace integration", () => {
       }),
     );
     renderWorkspace(workspace, "?tab=actions");
+    expect(
+      screen.getByRole("button", { name: "Create draft task" }),
+    ).toHaveClass("bg-primary");
     await user.dblClick(
       screen.getByRole("button", { name: "Create draft task" }),
     );
@@ -4056,6 +4080,116 @@ describe("SEO workspace integration", () => {
     await act(async () => {
       resolve({ ok: true, value: null });
     });
+  });
+
+  it("says what a keyword result of zero means, and where to start", async () => {
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const observedAt = new Date("2026-01-03T12:00:00Z");
+    const observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
+    workspace.observations.push({
+      id: observationId,
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt,
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 201, skipped: 0, failed: 0 },
+    });
+    workspace.keywords.push({
+      id: "missing",
+      keyword: "charge timer",
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      device: "mobile",
+      checkedResults: 20,
+      observedAt,
+      observationId,
+      position: null,
+      positionStatus: "not_in_range",
+      volume: 90,
+      intent: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    expect(await screen.findByTestId("seo-agent-none-found")).toHaveTextContent(
+      "Your pages are not in the results the check read for 1 keyword. Start with the steps below.",
+    );
+  });
+
+  it("points to no steps where the agent offers none", async () => {
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const observedAt = new Date("2026-01-03T12:00:00Z");
+    const observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
+    workspace.availableActions = {
+      canEdit: false,
+      canRequestAnalysis: false,
+      canCreateMonitor: false,
+      canUsePaidSearchData: false,
+      canSyncMetrics: false,
+    };
+    workspace.observations.push({
+      id: observationId,
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt,
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 198, skipped: 2, failed: 1 },
+    });
+    workspace.keywords.push({
+      id: "missing",
+      keyword: "charge timer",
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      device: "mobile",
+      checkedResults: 20,
+      observedAt,
+      observationId,
+      position: null,
+      positionStatus: "not_in_range",
+      volume: 90,
+      intent: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    const line = await screen.findByTestId("seo-agent-none-found");
+    expect(line).toHaveTextContent(/for 1 keyword\.$/);
+    // The tile splits the tests without a result the way the Timeline row of the check does.
+    const tests = screen.getByTestId("seo-summary-tests");
+    expect(within(tests).getByText("2 tests gave no result")).toBeVisible();
+    expect(within(tests).getByText("1 unavailable")).toBeVisible();
   });
 
   it("shows the last check as numbers on the Agent and Health tabs, and one Rankings list at a time on a phone", async () => {
@@ -4189,8 +4323,10 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
       "1 of 2",
     );
+    // One keyword is found: no sentence about a result of zero.
+    expect(screen.queryByTestId("seo-agent-none-found")).toBeNull();
     const searches = screen.getByTestId("seo-summary-searches");
-    expect(searches).toHaveTextContent("810");
+    expect(searches).toHaveTextContent("810 a month");
     expect(
       within(searches).getByText("For the 2 checked keywords"),
     ).toBeVisible();
