@@ -1139,7 +1139,8 @@
       "card": {
         "title": "Chatten aus Buzz",
         "summary": "Neu: deine Räume, Leute und Agenten, auch in der Buzz-App.",
-        "connect": "Verbinden"
+        "connect": "Verbinden",
+        "close": "Schließen"
       },
       "dialogTitle": "Buzz verbinden",
       "notNow": "Nicht jetzt"

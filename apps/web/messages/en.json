@@ -1139,7 +1139,8 @@
       "card": {
         "title": "Chat from Buzz",
         "summary": "New: your rooms, people and agents, in the Buzz app too.",
-        "connect": "Connect"
+        "connect": "Connect",
+        "close": "Close"
       },
       "dialogTitle": "Connect Buzz",
       "notNow": "Not now"

@@ -1139,7 +1139,8 @@
       "card": {
         "title": "Chatea desde Buzz",
         "summary": "Nuevo: tus salas, personas y agentes, también en la app de Buzz.",
-        "connect": "Conectar"
+        "connect": "Conectar",
+        "close": "Cerrar"
       },
       "dialogTitle": "Conectar Buzz",
       "notNow": "Ahora no"
