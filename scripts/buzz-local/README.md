@@ -47,7 +47,9 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   members may bring their own agents (on by default); off, a personal agent
   needs approval first and those granted by the switch leave. Buzz desktop
   agents answer only their owner (they run as them), which is why you use Buzz
-  as you; a reply comes back as the Coworker.
+  as you; a reply comes back as the Coworker. Anyone else who mentions one is
+  told so: the agent replies in Sokosumi ("I only answer …"), and Sokosumi posts
+  the same in the Buzz thread.
 - **Rooms**: a Channel is a private Buzz channel whose members follow the room;
   a Direct of up to nine people is a Buzz DM (kind 41010) in a community all its
   people share.

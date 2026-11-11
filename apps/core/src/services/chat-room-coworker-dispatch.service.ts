@@ -23,6 +23,11 @@ import {
   resolveWorkspaceIdForChatRoom,
 } from "@/routes/v1/chats/rooms/helpers";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
+import {
+  PERSONAL_AGENT_REFUSAL,
+  PERSONAL_AGENT_REFUSAL_NOTICE,
+  personalAgentOwnerOf,
+} from "@/services/buzz-bridge.service";
 import { withMessageSkills } from "@/services/chat-message-skills.service";
 
 import {
@@ -144,11 +149,38 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
 
   // A person's own Buzz agent hears the mention on Buzz (the bridge sends it
   // with its key tagged) and answers there; its reply comes back as a message.
-  if (isBuzzAgentBaseUrl(mention.coworker?.baseURL)) {
+  // It answers only its owner, so anyone else is told so instead of silence.
+  if (mention.coworker && isBuzzAgentBaseUrl(mention.coworker.baseURL)) {
+    const owner = await personalAgentOwnerOf(mention.coworker.id);
+    let responseMessageId: string | undefined;
+    if (owner && mention.message.senderUserId !== owner.userId) {
+      const refusal = await prisma.chatRoomMessage.create({
+        data: {
+          roomId: mention.message.room.id,
+          parentMessageId:
+            mention.message.parentMessageId ?? mention.message.id,
+          senderCoworkerId: mention.coworker.id,
+          content: `I'm ${owner.name}'s personal agent via Buzz, so I only answer ${owner.name}.`,
+          metadata: {
+            [PERSONAL_AGENT_REFUSAL]: true,
+            // What Sokosumi says on Buzz, where the agent cannot speak for itself.
+            [PERSONAL_AGENT_REFUSAL_NOTICE]: `${mention.coworker.name} only answers ${owner.name}: it is their personal agent via Buzz.`,
+          },
+        },
+        select: { id: true },
+      });
+      responseMessageId = refusal.id;
+    }
     await prisma.chatRoomMention.update({
       where: { id: mention.id },
-      data: { status: "responded" },
+      data: {
+        status: "responded",
+        ...(responseMessageId ? { responseMessageId } : {}),
+      },
     });
+    if (responseMessageId) {
+      await publishChatRoomMessageRealtimeById(responseMessageId, "create");
+    }
     return;
   }
 

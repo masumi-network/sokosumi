@@ -934,8 +934,15 @@ describe("personal agents", () => {
       roomId: "room",
       channelId: CHANNEL,
       membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
     });
-    db.buzzIdentity.findMany.mockResolvedValue([{ coworkerId: "cw-agent" }]);
+    db.buzzIdentity.findMany.mockResolvedValue([
+      { pubkey: AGENT, coworkerId: "cw-agent" },
+    ]);
+    // The channel shows the agent as a member now.
+    relay.queryEvents.mockResolvedValue([
+      { kind: 39002, created_at: 1, tags: [["p", AGENT]] },
+    ]);
     const invite = nostrEvent({
       kind: 9000,
       tags: [
@@ -957,6 +964,34 @@ describe("personal agents", () => {
     });
   });
 
+  it("does not let a replayed invite undo a later removal", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      { pubkey: AGENT, coworkerId: "cw-agent" },
+    ]);
+    // Removed since: the channel no longer has the agent.
+    relay.queryEvents.mockResolvedValue([
+      { kind: 39002, created_at: 1, tags: [] },
+    ]);
+    const invite = nostrEvent({
+      kind: 9000,
+      tags: [
+        ["h", CHANNEL],
+        ["p", AGENT],
+      ],
+    });
+    await expect(applyInboundEvent(invite, core)).resolves.toBe("ignored");
+    expect(core).not.toHaveBeenCalled();
+  });
+
   it("leaves Buzz invites of anything but one's own agent to the member sync", async () => {
     db.buzzMessageLink.findUnique.mockResolvedValue(null);
     db.buzzReactionLink.findUnique.mockResolvedValue(null);
@@ -965,6 +1000,7 @@ describe("personal agents", () => {
       roomId: "room",
       channelId: CHANNEL,
       membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
     });
     db.buzzIdentity.findMany.mockResolvedValue([]);
     const invite = nostrEvent({

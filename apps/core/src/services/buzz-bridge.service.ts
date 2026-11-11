@@ -168,6 +168,93 @@ export function identitySecretKey(identity: BuzzIdentity): Uint8Array {
   );
 }
 
+/** Metadata of a personal agent's "I only answer my owner" message. */
+export const PERSONAL_AGENT_REFUSAL = "buzz_personal_agent_refusal";
+export const PERSONAL_AGENT_REFUSAL_NOTICE = "buzz_personal_agent_notice";
+
+function isRefusal(metadata: unknown): boolean {
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    (metadata as Record<string, unknown>)[PERSONAL_AGENT_REFUSAL] === true
+  );
+}
+
+/**
+ * The owner of a personal agent (a Buzz agent made a Coworker), or null for
+ * any other Coworker.
+ */
+export async function personalAgentOwnerOf(coworkerId: string) {
+  const identity = await prisma.buzzIdentity.findUnique({
+    where: { coworkerId },
+    select: {
+      ownerIdentity: {
+        select: { userId: true, user: { select: { name: true } } },
+      },
+    },
+  });
+  const owner = identity?.ownerIdentity;
+  return owner?.userId
+    ? { userId: owner.userId, name: owner.user?.name ?? "its owner" }
+    : null;
+}
+
+/**
+ * Says on Buzz, as Sokosumi, in the thread of the message that asked, that a
+ * personal agent only answers its owner; the agent itself cannot be made to
+ * say it, its key is in its owner's Buzz app.
+ */
+async function tellRefusalOnBuzz(
+  message: {
+    id: string;
+    parentMessageId: string | null;
+    content: string;
+    metadata: unknown;
+  },
+  channelId: string,
+  relayUrl: string,
+): Promise<ReconcileResult> {
+  const notice = (message.metadata as Record<string, unknown>)[
+    PERSONAL_AGENT_REFUSAL_NOTICE
+  ];
+  const text = typeof notice === "string" ? notice : message.content;
+  const root = message.parentMessageId
+    ? await prisma.buzzMessageLink.findUnique({
+        where: { messageId: message.parentMessageId },
+      })
+    : null;
+  if (message.parentMessageId && !root) {
+    throw new Error("Thread root is not on Buzz yet");
+  }
+  await ensureOperatorProfile(relayUrl);
+  const config = requireConfig();
+  const event = signEvent(
+    messageDraft({
+      channelId,
+      content: text,
+      threadRootEventId: root?.eventId ?? null,
+      mentionPubkeys: [],
+    }),
+    config.operatorSecretKey,
+  );
+  await prisma.buzzMessageLink.create({
+    data: {
+      messageId: message.id,
+      eventId: event.id,
+      contentHash: contentHash(message.content),
+      channelId,
+      signerPubkey: config.operatorPubkey,
+      pendingEvent: event as unknown as object,
+    },
+  });
+  const sent = await deliver(relayUrl, event);
+  await prisma.buzzMessageLink.update({
+    where: { messageId: message.id },
+    data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
+  });
+  return "published";
+}
+
 /** A key Sokosumi cannot sign with: a person's own Buzz agent. */
 function isExternal(identity: BuzzIdentity): boolean {
   return !identity.encryptedSecretKey;
@@ -704,36 +791,41 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
           where,
         });
         if (existingAccess) {
-          // Revoked by the switch earlier: back on, back in.
+          // The switch's own grants and revocations have no resolver; one a
+          // person made (say the owner revoking it) stays as they left it.
+          const bySwitch = existingAccess.resolvedById === null;
           const reopen =
             existingAccess.status === "PENDING" ||
-            (existingAccess.status === "REVOKED" &&
-              existingAccess.resolvedById === userId);
+            (existingAccess.status === "REVOKED" && bySwitch);
           if (granted && reopen) {
             await prisma.coworkerWorkspaceAccess.update({
               where,
               data: {
                 status: "GRANTED",
-                resolvedById: userId,
+                resolvedById: null,
                 resolvedAt: new Date(),
               },
             });
           } else if (
             !granted &&
             existingAccess.status === "GRANTED" &&
-            existingAccess.resolvedById === userId
+            bySwitch
           ) {
             // Granted by the switch that is now off: the agent leaves.
-            await prisma.$transaction((tx) =>
-              forceRevokeCoworkerWorkspaceAccessByPair(
+            await prisma.$transaction(async (tx) => {
+              await forceRevokeCoworkerWorkspaceAccessByPair(
                 {
                   coworkerId: coworkerId as string,
                   workspaceId,
                   resolvedById: userId,
                 },
                 tx,
-              ),
-            );
+              );
+              await tx.coworkerWorkspaceAccess.update({
+                where,
+                data: { resolvedById: null },
+              });
+            });
             await resyncRoomsWithCoworkers([coworkerId as string]);
             changed.push(`revoked:${coworkerId}`);
           }
@@ -747,7 +839,7 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
             ...(granted
               ? {
                   status: "GRANTED" as const,
-                  resolvedById: userId,
+                  resolvedById: null,
                   resolvedAt: new Date(),
                 }
               : { status: "PENDING" as const }),
@@ -1317,6 +1409,7 @@ const messageForSync = {
   createdAt: true,
   deletedAt: true,
   clientMessageId: true,
+  metadata: true,
   senderUserId: true,
   senderSokoBotId: true,
   senderCoworkerId: true,
@@ -1363,11 +1456,20 @@ async function deliver(
   /** Records a re-signed event's new id before it is sent, so its echo is known. */
   recordResigned: (fresh: PendingEvent) => Promise<unknown> = async () => {},
 ): Promise<PendingEvent> {
-  const signer = await prisma.buzzIdentity.findUnique({
-    where: { pubkey: event.pubkey },
-  });
-  if (!signer) throw new Error(`No key for ${event.pubkey.slice(0, 8)}`);
-  const secretKey = identitySecretKey(signer);
+  const config = requireConfig();
+  // Sokosumi's own notices are signed by the relay owner.
+  const signer =
+    event.pubkey === config.operatorPubkey
+      ? null
+      : await prisma.buzzIdentity.findUnique({
+          where: { pubkey: event.pubkey },
+        });
+  if (event.pubkey !== config.operatorPubkey && !signer) {
+    throw new Error(`No key for ${event.pubkey.slice(0, 8)}`);
+  }
+  const secretKey = signer
+    ? identitySecretKey(signer)
+    : config.operatorSecretKey;
   try {
     await publishSignedEvent({ relayUrl, event, secretKey });
     return event;
@@ -1417,6 +1519,18 @@ export async function reconcileMessage(
     return "skipped";
   }
   if (isExternal(authorIdentity)) {
+    if (!link && !message.deletedAt && isRefusal(message.metadata)) {
+      return tellRefusalOnBuzz(message, channel.channelId, relayUrl);
+    }
+    // A refusal Sokosumi decided but could not deliver yet.
+    const unsent = asPending(link?.pendingEvent);
+    if (link && unsent) {
+      const sent = await deliver(relayUrl, unsent);
+      link = await prisma.buzzMessageLink.update({
+        where: { messageId: message.id },
+        data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
+      });
+    }
     if (!link || message.deletedAt) return "skipped";
     await reconcileReactions({
       messageId: message.id,
@@ -1910,19 +2024,41 @@ async function applyMemberChange(
   if (!author.userId) return "ignored";
   const channelId = channelIdOf(event);
   const channel = channelId
-    ? await prisma.buzzChannel.findUnique({ where: { channelId } })
+    ? await prisma.buzzChannel.findUnique({
+        where: { channelId },
+        include: { community: { select: { relayUrl: true } } },
+      })
     : null;
   if (!channel || isDirect(channel)) return "ignored";
+  // Whatever happens below, the room's members are checked against Buzz
+  // again: a change Sokosumi does not take (someone else invited, an agent
+  // not allowed) is put back instead of lingering.
+  await prisma.buzzChannel.update({
+    where: { id: channel.id },
+    data: { membersHash: null },
+  });
+  await prisma.buzzOutbox.create({
+    data: { roomId: channel.roomId, messageId: null },
+  });
   const agents = await prisma.buzzIdentity.findMany({
     where: {
       pubkey: { in: change.pubkeys },
       ownerIdentityId: author.id,
       coworkerId: { not: null },
     },
-    select: { coworkerId: true },
+    select: { pubkey: true, coworkerId: true },
   });
+  if (agents.length === 0) return "ignored";
+  // A replayed invite or removal (the worker reads back after a restart)
+  // must not undo a later change: only what the channel still shows applies.
+  const current = await channelMemberPubkeys(
+    channel.community.relayUrl,
+    channel.channelId,
+  );
   const coworkerIds = agents.flatMap((agent) =>
-    agent.coworkerId ? [agent.coworkerId] : [],
+    agent.coworkerId && current.has(agent.pubkey) === change.added
+      ? [agent.coworkerId]
+      : [],
   );
   if (coworkerIds.length === 0) return "ignored";
   if (change.added) {
@@ -1944,6 +2080,7 @@ async function applyMemberChange(
       throw new CoreRejectedError(
         response.status,
         `Core DELETE coworker → ${response.status}`,
+        errorKindOf(response.body),
       );
     }
   }
@@ -2049,17 +2186,31 @@ export class CoreRejectedError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** Core's error kind, e.g. `concurrency_conflict` (a 409 worth retrying). */
+    readonly kind?: string,
   ) {
     super(message);
   }
 
   get terminal(): boolean {
+    if (this.kind === "concurrency_conflict") return false;
     return (
       this.status >= 400 &&
       this.status < 500 &&
       ![401, 403, 408, 429].includes(this.status)
     );
   }
+}
+
+function errorKindOf(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const record = body as Record<string, unknown>;
+  const kind =
+    record.kind ??
+    (record.error && typeof record.error === "object"
+      ? (record.error as Record<string, unknown>).kind
+      : undefined);
+  return typeof kind === "string" ? kind : undefined;
 }
 
 async function sendAs(
@@ -2076,6 +2227,7 @@ async function sendAs(
     throw new CoreRejectedError(
       response.status,
       `Core ${request.method} ${request.path} → ${response.status}: ${JSON.stringify(response.body).slice(0, 300)}`,
+      errorKindOf(response.body),
     );
   }
   return response;
