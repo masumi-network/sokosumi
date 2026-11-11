@@ -41,12 +41,12 @@
 
 - [REPORTED: user choice, 2026-10-05] `coworkers register|connect --personal`, `tasks create --personal`, `runtime start|complete|run --personal` target caller-owned personal Workspace. Personal target excludes organization selectors. `workspaces list --personal` reads availability without creating a Workspace.
 
-- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Vendors, Workspaces, Sign out; Coworker create remains headless `coworkers register` until T41
+- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Vendors, Workspaces, Sign out
 - cmd: `auth login` → browser OAuth or env/stdin user API key
 - cmd: `auth status` → text/JSON auth state
 - cmd: `auth logout` → clear target-scoped local credentials; server key revocation separate
 - cmd: `discover` → command catalog + Core resource snapshot; partial resource failure → JSON/text errors
-- `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get|input` → Core HTTP; Coworker create follows existing Core role checks; target setup selects an administered Vendor + existing Workspace and uses the existing grant route; setup reports `GRANTED` as available and `PENDING` as approval requested; CLI grant support remains T41; `--json` → JSON-only stdout
+- `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get|input` → Core HTTP; Coworker create follows existing Core role checks; target setup selects an administered Vendor + existing Workspace and uses the existing grant route; setup reports `GRANTED` as available and `PENDING` as approval requested; `--json` → JSON-only stdout
 - `vendors me` → administered Vendor memberships only; `workspaces list` → organization-workspace candidates with `organizationId`; text or one JSON document
 - remote headless auth → owner approval URL; exact auth-service contract OPEN; developer credential ≠ runtime `coworker_*` key
 - [VERIFIED: `apps/cli/skills/sokosumi/references/distribution.md:1-18`] Skill install: `npx skills add https://github.com/masumi-network/sokosumi --skill sokosumi` → Skill files only; CLI binary install path OPEN
