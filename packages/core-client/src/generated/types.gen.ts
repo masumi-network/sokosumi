@@ -76226,6 +76226,713 @@ export type RevertCmoUpdateForProjectResponses = {
 
 export type RevertCmoUpdateForProjectResponse = RevertCmoUpdateForProjectResponses[keyof RevertCmoUpdateForProjectResponses];
 
+export type UpdateCmoBrandBrainForProjectData = {
+    body: BrandBrainRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/brand-brain';
+};
+
+export type UpdateCmoBrandBrainForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateCmoBrandBrainForProjectError = UpdateCmoBrandBrainForProjectErrors[keyof UpdateCmoBrandBrainForProjectErrors];
+
+export type UpdateCmoBrandBrainForProjectResponses = {
+    /**
+     * Brand Brain saved
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateCmoBrandBrainForProjectResponse = UpdateCmoBrandBrainForProjectResponses[keyof UpdateCmoBrandBrainForProjectResponses];
+
+export type ConfirmCmoBrandBrainForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/brand-brain/confirm';
+};
+
+export type ConfirmCmoBrandBrainForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Brand Brain is still being built
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConfirmCmoBrandBrainForProjectError = ConfirmCmoBrandBrainForProjectErrors[keyof ConfirmCmoBrandBrainForProjectErrors];
+
+export type ConfirmCmoBrandBrainForProjectResponses = {
+    /**
+     * Brand Brain confirmed
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConfirmCmoBrandBrainForProjectResponse = ConfirmCmoBrandBrainForProjectResponses[keyof ConfirmCmoBrandBrainForProjectResponses];
+
+export type AnswerCmoBrandBrainQuestionForProjectData = {
+    body: QuestionAnswerRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/brand-brain/answers';
+};
+
+export type AnswerCmoBrandBrainQuestionForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such question
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AnswerCmoBrandBrainQuestionForProjectError = AnswerCmoBrandBrainQuestionForProjectErrors[keyof AnswerCmoBrandBrainQuestionForProjectErrors];
+
+export type AnswerCmoBrandBrainQuestionForProjectResponses = {
+    /**
+     * Answer saved
+     */
+    200: {
+        data: BrandBrain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AnswerCmoBrandBrainQuestionForProjectResponse = AnswerCmoBrandBrainQuestionForProjectResponses[keyof AnswerCmoBrandBrainQuestionForProjectResponses];
+
+export type ApproveCmoMarketingStrategyForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        strategyId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/marketing-strategies/{strategyId}/approve';
+};
+
+export type ApproveCmoMarketingStrategyForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such version
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * A new version is being written
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ApproveCmoMarketingStrategyForProjectError = ApproveCmoMarketingStrategyForProjectErrors[keyof ApproveCmoMarketingStrategyForProjectErrors];
+
+export type ApproveCmoMarketingStrategyForProjectResponses = {
+    /**
+     * Marketing strategy version approved
+     */
+    200: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ApproveCmoMarketingStrategyForProjectResponse = ApproveCmoMarketingStrategyForProjectResponses[keyof ApproveCmoMarketingStrategyForProjectResponses];
+
+export type AnswerCmoMarketingStrategyQuestionForProjectData = {
+    body: QuestionAnswerRequest;
+    path: {
+        projectId: string;
+        strategyId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/marketing-strategies/{strategyId}/answers';
+};
+
+export type AnswerCmoMarketingStrategyQuestionForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such version
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AnswerCmoMarketingStrategyQuestionForProjectError = AnswerCmoMarketingStrategyQuestionForProjectErrors[keyof AnswerCmoMarketingStrategyQuestionForProjectErrors];
+
+export type AnswerCmoMarketingStrategyQuestionForProjectResponses = {
+    /**
+     * Answer saved
+     */
+    200: {
+        data: MarketingStrategy;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AnswerCmoMarketingStrategyQuestionForProjectResponse = AnswerCmoMarketingStrategyQuestionForProjectResponses[keyof AnswerCmoMarketingStrategyQuestionForProjectResponses];
+
+export type InitiateCmoSocialConnectionForProjectData = {
+    body: InitiateProjectSocialConnectionRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/social-connections/initiate';
+};
+
+export type InitiateCmoSocialConnectionForProjectErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type InitiateCmoSocialConnectionForProjectError = InitiateCmoSocialConnectionForProjectErrors[keyof InitiateCmoSocialConnectionForProjectErrors];
+
+export type InitiateCmoSocialConnectionForProjectResponses = {
+    /**
+     * Project social connection initiated
+     */
+    201: {
+        data: InitiateProjectSocialConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type InitiateCmoSocialConnectionForProjectResponse = InitiateCmoSocialConnectionForProjectResponses[keyof InitiateCmoSocialConnectionForProjectResponses];
+
+export type FinalizeCmoSocialConnectionForProjectData = {
+    body: FinalizeProjectSocialConnectionRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/social-connections/finalize';
+};
+
+export type FinalizeCmoSocialConnectionForProjectErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FinalizeCmoSocialConnectionForProjectError = FinalizeCmoSocialConnectionForProjectErrors[keyof FinalizeCmoSocialConnectionForProjectErrors];
+
+export type FinalizeCmoSocialConnectionForProjectResponses = {
+    /**
+     * Project social connection finalized
+     */
+    201: {
+        data: ProjectSocialConnection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FinalizeCmoSocialConnectionForProjectResponse = FinalizeCmoSocialConnectionForProjectResponses[keyof FinalizeCmoSocialConnectionForProjectResponses];
+
 export type GetSokoBotsByIdApiKeysData = {
     body?: never;
     path: {
