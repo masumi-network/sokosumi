@@ -23,6 +23,23 @@ export const COMPENSATED_SPEND_CONSUMPTIONS_SELECT = {
   },
 } satisfies Prisma.TransactionInclude;
 
+/** Joins a refund part's suffixed referenceId to the linked part's. */
+export const REFUND_PART_SEPARATOR = "#";
+
+/**
+ * A bucket's (referenceId, referenceType) is unique, which also keeps a
+ * record from being refunded twice. The linked part keeps the record's
+ * referenceId; every other part appends its scope, e.g. `<jobId>#pool`.
+ */
+function refundPartReferenceId(
+  referenceId: string,
+  index: number,
+  projectId: string | null,
+): string {
+  if (index === 0) return referenceId;
+  return `${referenceId}${REFUND_PART_SEPARATOR}${projectId ?? "pool"}`;
+}
+
 /**
  * Creates the refund shared by job, claim, and x402 refunds, and returns the
  * id of the refund transaction the caller links to its record.
@@ -30,8 +47,9 @@ export const COMPENSATED_SPEND_CONSUMPTIONS_SELECT = {
  * Split by scope (ADR 0067): each Project's part goes back to that Project
  * and the rest to the pool, one refund transaction and bucket per scope,
  * since a bucket has one source transaction. The Project part comes first
- * and is the one linked: a charge draws its Project's credits first.
- * shortcut: only the linked part joins its record, so a split refund's pool part shows as an unlinked refund in history and Soko Bot usage; link both if splits become common.
+ * and is the one linked: a charge draws its Project's credits first. The
+ * other parts reach the record through their bucket's referenceId, see
+ * `refundPartReferenceId`.
  *
  * A Project part whose Project has no live Cuso is written off in the same
  * transaction, so the refund stays in history but an ordinary Project can't
@@ -63,7 +81,7 @@ export async function createCompensatingRefund(
   const isOrg = input.organizationId != null;
   const userId = isOrg ? null : input.actorUserId;
   const ids: string[] = [];
-  for (const [projectId, amount] of parts) {
+  for (const [index, [projectId, amount]] of parts.entries()) {
     const refund = await tx.transaction.create({
       data: {
         amount,
@@ -72,7 +90,11 @@ export async function createCompensatingRefund(
         sourceCreditBucket: {
           create: {
             amount,
-            referenceId: input.referenceId,
+            referenceId: refundPartReferenceId(
+              input.referenceId,
+              index,
+              projectId,
+            ),
             referenceType: CreditBucketReferenceType.REFUND,
             expiresAt: null,
             userId,

@@ -193,4 +193,22 @@ describe("createCompensatingRefund", () => {
       data: { updatedAt: expect.any(Date) },
     });
   });
+
+  it("keys the linked part by the record and each other part by record and scope", async () => {
+    const { tx, created } = refundTx();
+
+    await createCompensatingRefund(tx, {
+      ...orgRefund,
+      consumptions: [
+        { amount: 10n, bucket: { projectId: PROJECT_ID } },
+        { amount: 90n, bucket: { projectId: null } },
+      ],
+    });
+
+    // A bucket's (referenceId, referenceType) is unique; the suffix is how
+    // history and usage find the pool part from the linked one.
+    expect(
+      created.map(({ data }) => data.sourceCreditBucket?.create?.referenceId),
+    ).toEqual(["job-1", "job-1#pool"]);
+  });
 });
