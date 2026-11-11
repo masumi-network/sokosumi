@@ -4,7 +4,10 @@ import type {
   GetNotificationsData,
   NotificationItem,
 } from "@sokosumi/core-client";
-import { isNeedsActionNotification } from "@sokosumi/utils";
+import {
+  isNeedsActionNotification,
+  makeUserTasksChannelName,
+} from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
   createContext,
@@ -18,8 +21,10 @@ import {
 import { toast } from "sonner";
 import { NotificationToastListener } from "@/app/components/notification-toast-listener";
 import { NotificationUrlTargetOpener } from "@/app/components/notification-url-target-opener";
+import { NeedsYouTasksRealtimeRefresh } from "@/components/notifications/notification-waiting-tasks";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationFrontPresence } from "@/lib/ably/use-notification-front-presence";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
@@ -70,7 +75,11 @@ function buildListQuery(
     limit: NOTIFICATION_PAGE_SIZE,
     ...(cursor === undefined ? {} : { cursor }),
     ...(view === "unread" ? { isRead: "false" as const } : {}),
-    ...(view === "needs-action" ? { needsAction: "true" as const } : {}),
+    // Needs you lists the active workspace's waiting Tasks itself, so Core
+    // leaves their asks out of the rows, as it does out of the count.
+    ...(view === "needs-action"
+      ? { needsAction: "true" as const, exceptWorkspaceTasks: "true" as const }
+      : {}),
     ...(view === "mentions" ? { mentions: "true" as const } : {}),
   };
 }
@@ -188,6 +197,12 @@ export function NotificationFallbackProvider({
 }
 
 interface NotificationProviderProps {
+  /**
+   * The active organization, null in the personal workspace. The Needs you
+   * rows and count depend on it, and a workspace switch keeps this provider
+   * mounted, so a change reads them again.
+   */
+  organizationId?: string | null;
   sessionId?: string;
   sessionCreatedAt?: number;
   userId: string;
@@ -228,6 +243,7 @@ function NotificationRealtimeBridge({
  */
 export function NotificationProvider({
   userId,
+  organizationId = null,
   sessionId,
   sessionCreatedAt,
   children,
@@ -621,9 +637,12 @@ export function NotificationProvider({
     void fetchNotifications();
   }, [fetchNotifications]);
 
+  // Again on a workspace switch: Core's Needs you rows and count leave out
+  // the Tasks the new workspace lists. A response for the old workspace that
+  // lands later is an older generation, so it is dropped.
   useEffect(() => {
     void fetchNotifications();
-  }, [fetchNotifications]);
+  }, [fetchNotifications, organizationId]);
 
   const value: NotificationContextValue = {
     notifications: state.notifications,
@@ -661,6 +680,14 @@ export function NotificationProvider({
             onSubscribed={handleRealtimeSubscribed}
           />
           <NotificationToastListener userId={userId} markRead={markRead} />
+        </ChannelProvider>
+        <ChannelProvider
+          channelName={makeUserTasksChannelName(
+            userId,
+            getRealtimeChannelEnvironment(),
+          )}
+        >
+          <NeedsYouTasksRealtimeRefresh userId={userId} />
         </ChannelProvider>
       </LazyAblyProvider>
     </NotificationContext>
