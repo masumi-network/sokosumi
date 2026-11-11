@@ -142,6 +142,8 @@ model Organization {
 
   enterpriseContracts EnterpriseContract[]
 
+  buzzCommunity BuzzCommunity?
+
   @@unique([slug])
   @@unique([stripeCustomerId])
   @@map("organization")
@@ -2214,6 +2216,8 @@ model Coworker {
   chatRoomMentions        ChatRoomMention[]
   scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByCoworker")
 
+  buzzIdentity BuzzIdentity?
+
   @@index([archivedAt])
   @@index([vendorId])
   @@map("coworker")
@@ -2567,6 +2571,8 @@ model SokoBot {
 
   // One LIVE bot per user and workspace. Partial, because a plain unique would
   // let a tombstone block its owner from ever creating a new bot.
+  buzzIdentity BuzzIdentity?
+
   @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null })
   @@index([archivedAt])
   @@index([lastPolledAt])
@@ -4373,6 +4379,8 @@ model ChatRoom {
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.
+  buzzChannel BuzzChannel?
+
   @@unique([organizationId, slug], map: "chat_room_organizationId_channel_slug_key", where: { kind: "channel", slug: { not: null } })
   // Postgres UNIQUE treats NULL organizationId as distinct, so org-less
   // matched Channels need their own slug unique.
@@ -4546,6 +4554,8 @@ model ChatRoomMessage {
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
+  buzzLink BuzzMessageLink?
+
   @@unique([roomId, clientMessageId])
   @@unique([roomId, responsesApiResponseId])
   @@index([roomId, createdAt])

@@ -1,0 +1,122 @@
+/// An organization's Buzz community: the relay its chats live on, so members
+/// can use Sokosumi or any Buzz client. One relay serves many communities, each
+/// on its own host.
+model BuzzCommunity {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// `ws(s)://<community host>`; the host selects the community on the relay.
+  relayUrl       String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  members  BuzzCommunityMember[]
+  channels BuzzChannel[]
+
+  @@map("buzz_community")
+}
+
+/// The Nostr key a person, Soko Bot or Coworker speaks with on Buzz. Sokosumi
+/// keeps the secret key (encrypted) so it can sign what they write here; a
+/// person can export it to sign in with a Buzz client as the same identity.
+model BuzzIdentity {
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  /// 64-char lowercase hex.
+  pubkey             String    @unique
+  encryptedSecretKey String
+  userId             String?   @unique
+  user               User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sokoBotId          String?   @unique @db.Uuid
+  sokoBot            SokoBot?  @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  coworkerId         String?   @unique
+  coworker           Coworker? @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+  /// A Core API key (encrypted) the bridge posts with when this person writes
+  /// from a Buzz client, so their message takes the same path as one typed in
+  /// Sokosumi (mentions, bot replies, notifications). People only.
+  encryptedApiKey    String?
+  /// Hash of the kind:0 profile last published, to republish only on change.
+  profileHash        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  communities BuzzCommunityMember[]
+  reactions   BuzzReactionLink[]
+
+  @@map("buzz_identity")
+}
+
+model BuzzCommunityMember {
+  communityId String        @db.Uuid
+  community   BuzzCommunity @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  identityId  String        @db.Uuid
+  identity    BuzzIdentity  @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+
+  @@id([communityId, identityId])
+  @@map("buzz_community_member")
+}
+
+/// A chat room and the Buzz channel (NIP-29 group) that carries it.
+model BuzzChannel {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  roomId      String        @unique @db.Uuid
+  room        ChatRoom      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  communityId String        @db.Uuid
+  community   BuzzCommunity @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  /// The group id: the value of every event's `h` tag.
+  channelId   String        @unique @db.Uuid
+  /// Hash of the member set last pushed, to resync only on change.
+  membersHash String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([communityId])
+  @@map("buzz_channel")
+}
+
+/// A chat message and the kind:9 event that carries it on Buzz. Written before
+/// an event is sent, so the bridge never mistakes its own echo for news.
+model BuzzMessageLink {
+  messageId   String          @id @db.Uuid
+  message     ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  eventId     String          @unique
+  /// sha256 of the content last on Buzz; a differing message is sent as an edit.
+  contentHash String
+  deleted     Boolean         @default(false)
+  /// `created_at` (unix seconds) of the newest edit applied, either way; an
+  /// older edit replayed later is ignored.
+  lastEditAt  Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("buzz_message_link")
+}
+
+/// One reaction and its kind:7 event, keyed by what the reaction is rather
+/// than by row id, so an inbound reaction can be linked before Core stores it.
+model BuzzReactionLink {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  messageId  String       @db.Uuid
+  identityId String       @db.Uuid
+  identity   BuzzIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  emoji      String
+  eventId    String       @unique
+  createdAt  DateTime     @default(now())
+
+  @@unique([messageId, identityId, emoji])
+  @@map("buzz_reaction_link")
+}
+
+/// Messages whose Buzz copy may be stale. Core writes one row per change; the
+/// bridge reconciles each message with the relay and deletes its rows.
+model BuzzOutbox {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  roomId    String   @db.Uuid
+  messageId String?  @db.Uuid
+  attempts  Int      @default(0)
+  lastError String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("buzz_outbox")
+}

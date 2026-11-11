@@ -252,6 +252,7 @@ import {
   getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
+  getBuzzConnection as coreGetBuzzConnection,
   getCategories as coreGetCategories,
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
@@ -430,6 +431,8 @@ import {
   patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
+  postBuzzConnectionSecretKey as corePostBuzzConnectionSecretKey,
+  postBuzzOrganizationsByOrganizationId as corePostBuzzOrganizationsByOrganizationId,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
   postChatsInvitationsByIdAccept as corePostChatsInvitationsByIdAccept,
   postChatsInvitationsByIdDecline as corePostChatsInvitationsByIdDecline,
@@ -984,6 +987,36 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to preview newsletter issue",
+    );
+  }
+
+  async function getBuzzConnection() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetBuzzConnection({ client, cache: "no-store" }),
+      "Failed to read the Buzz connection",
+    );
+  }
+
+  async function postBuzzConnectionSecretKey() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostBuzzConnectionSecretKey({ client, cache: "no-store" }),
+      "Failed to reveal the Buzz key",
+    );
+  }
+
+  async function postBuzzOrganization(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostBuzzOrganizationsByOrganizationId({
+          client,
+          path: { organizationId },
+          cache: "no-store",
+        }),
+      "Failed to put the organization on Buzz",
     );
   }
 
@@ -7228,6 +7261,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPublicNewslettersByPublicSlugIssues,
     getPublicNewslettersByPublicSlugIssuesByIssueSlug,
     getNewsletterAvailability,
+    getBuzzConnection,
+    postBuzzConnectionSecretKey,
+    postBuzzOrganization,
     getProjectsByIdNewsletterSendingDomain,
     putProjectsByIdNewsletterSendingDomain,
     deleteProjectsByIdNewsletterSendingDomain,

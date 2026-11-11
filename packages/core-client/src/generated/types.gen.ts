@@ -2980,6 +2980,50 @@ export type AgentRatingRequest = {
     comment?: string | null;
 };
 
+export type BuzzConnection = {
+    /**
+     * Whether this Sokosumi can put chats on Buzz at all.
+     */
+    available: boolean;
+    /**
+     * The caller's Buzz identity; null until one of their organizations is on Buzz.
+     */
+    identity: {
+        /**
+         * Hex public key.
+         */
+        pubkey: string;
+        npub: string;
+    } | null;
+    /**
+     * Organizations the caller owns or administers that are not on Buzz yet.
+     */
+    canEnable: Array<{
+        organizationId: string;
+        organizationName: string;
+    }>;
+    communities: Array<{
+        organizationId: string;
+        organizationName: string;
+        /**
+         * The address to add in a Buzz client.
+         */
+        relayUrl: string;
+    }>;
+};
+
+export type BuzzSecretKey = {
+    /**
+     * The caller's Nostr secret key, to import into a Buzz client. Anyone holding it can write as the caller.
+     */
+    nsec: string;
+};
+
+export type BuzzCommunity = {
+    organizationId: string;
+    relayUrl: string;
+};
+
 export type ChatRoomInvitation = {
     id: string;
     roomId: string;
@@ -23170,6 +23214,197 @@ export type PostAgentsByIdJobsResponses = {
 };
 
 export type PostAgentsByIdJobsResponse = PostAgentsByIdJobsResponses[keyof PostAgentsByIdJobsResponses];
+
+export type GetBuzzConnectionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/buzz/connection';
+};
+
+export type GetBuzzConnectionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetBuzzConnectionError = GetBuzzConnectionErrors[keyof GetBuzzConnectionErrors];
+
+export type GetBuzzConnectionResponses = {
+    /**
+     * Buzz connection
+     */
+    200: {
+        data: BuzzConnection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetBuzzConnectionResponse = GetBuzzConnectionResponses[keyof GetBuzzConnectionResponses];
+
+export type PostBuzzConnectionSecretKeyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/buzz/connection/secret-key';
+};
+
+export type PostBuzzConnectionSecretKeyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Buzz is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostBuzzConnectionSecretKeyError = PostBuzzConnectionSecretKeyErrors[keyof PostBuzzConnectionSecretKeyErrors];
+
+export type PostBuzzConnectionSecretKeyResponses = {
+    /**
+     * Secret key
+     */
+    200: {
+        data: BuzzSecretKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostBuzzConnectionSecretKeyResponse = PostBuzzConnectionSecretKeyResponses[keyof PostBuzzConnectionSecretKeyResponses];
+
+export type PostBuzzOrganizationsByOrganizationIdData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/buzz/organizations/{organizationId}';
+};
+
+export type PostBuzzOrganizationsByOrganizationIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Buzz is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostBuzzOrganizationsByOrganizationIdError = PostBuzzOrganizationsByOrganizationIdErrors[keyof PostBuzzOrganizationsByOrganizationIdErrors];
+
+export type PostBuzzOrganizationsByOrganizationIdResponses = {
+    /**
+     * Organization is on Buzz
+     */
+    200: {
+        data: BuzzCommunity;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostBuzzOrganizationsByOrganizationIdResponse = PostBuzzOrganizationsByOrganizationIdResponses[keyof PostBuzzOrganizationsByOrganizationIdResponses];
 
 export type GetCategoriesData = {
     body?: never;

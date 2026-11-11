@@ -6,6 +6,7 @@ import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { cn } from "@/lib/utils";
 
 import { OAuthAuthorizedClients } from "./authorized-clients";
+import { BuzzSection } from "./buzz-section";
 import { ConnectionsTabs } from "./connections-tabs";
 import { McpActiveKeyView } from "./mcp-active-key-view";
 import { SocialAccounts } from "./social-accounts";
@@ -52,6 +53,9 @@ export async function ConnectionsPage() {
             </div>
             {socialAccountsSection}
           </section>
+          <Suspense fallback={null}>
+            <BuzzSection />
+          </Suspense>
           <ConnectionsTabs
             connectedAppsContent={<OAuthAuthorizedClients />}
             mcpContent={
