@@ -9325,12 +9325,17 @@
           "title": "Decisions",
           "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
           "loadOlder": "Load older",
-          "note": "We find these for you. If one is wrong, open its message and click the × on the tag."
+          "note": "We find these for you. If one is wrong, open its message and click the × on the tag.",
+          "description": "Decisions found in your chats, newest first, including ones you already read.",
+          "error": "Could not load decisions.",
+          "untitled": "Message without text",
+          "inThread": "In a thread"
         },
         "CatchUpTabs": {
           "label": "Catch up sections",
           "overview": "Overview",
           "threads": "Threads",
+          "decisions": "Decisions",
           "saved": "Saved"
         },
         "Briefing": {
