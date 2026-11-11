@@ -75,13 +75,17 @@ export async function createCompensatingRefund(
   let poolPart = input.amount;
   for (const amount of projectParts.values()) poolPart -= amount;
 
-  const parts: [string | null, bigint][] = [...projectParts];
-  if (poolPart > 0n || parts.length === 0) parts.push([null, poolPart]);
+  const parts: { projectId: string | null; amount: bigint }[] = [
+    ...projectParts,
+  ].map(([projectId, amount]) => ({ projectId, amount }));
+  if (poolPart > 0n || parts.length === 0) {
+    parts.push({ projectId: null, amount: poolPart });
+  }
 
   const isOrg = input.organizationId != null;
   const userId = isOrg ? null : input.actorUserId;
   const ids: string[] = [];
-  for (const [index, [projectId, amount]] of parts.entries()) {
+  for (const [index, { projectId, amount }] of parts.entries()) {
     const refund = await tx.transaction.create({
       data: {
         amount,
@@ -112,5 +116,7 @@ export async function createCompensatingRefund(
     await writeOffUnlessLiveCuso(projectId, tx);
   }
 
-  return ids[0] as string;
+  const [linkedId] = ids;
+  if (linkedId === undefined) throw new Error("A refund has at least one part");
+  return linkedId;
 }
