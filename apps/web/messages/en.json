@@ -7241,6 +7241,7 @@
       "topUpDescription": "Choose an amount or enter a custom value",
       "paidSubscriptionRequiredDescription": "A paid subscription is required to buy additional credits.",
       "paidSubscriptionRequiredHint": "Choose a paid plan in the Subscription tab to unlock credit top-ups.",
+      "seePlans": "See plans",
       "couponExpiryPolicyNotice": "Promotional credits may expire; terms vary by coupon or offer.",
       "costPerCredit": "{cost} per credit",
       "youSaveLabel": "Save {amount}",
@@ -8095,6 +8096,7 @@
             "removeCta": "{count, plural, =1 {Remove # seat} other {Remove # seats}}",
             "decrease": "Remove one seat",
             "increase": "Add one seat",
+            "minimum": "{count, plural, =1 {Enter at least # seat.} other {Enter at least # seats.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {Add # seat?} other {Add # seats?}}",
               "removeTitle": "{count, plural, =1 {Remove # seat?} other {Remove # seats?}}",

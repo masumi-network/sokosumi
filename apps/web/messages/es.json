@@ -7205,6 +7205,7 @@
       "topUpDescription": "Elige un importe o introduce uno personalizado",
       "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
       "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
+      "seePlans": "Ver planes",
       "couponExpiryPolicyNotice": "Los créditos promocionales pueden caducar; las condiciones dependen del cupón o de la oferta.",
       "costPerCredit": "{cost} por Credit",
       "youSaveLabel": "Ahorra {amount}",
@@ -8059,6 +8060,7 @@
             "removeCta": "{count, plural, =1 {Quitar # Seat} other {Quitar # Seats}}",
             "decrease": "Quitar un Seat",
             "increase": "Añadir un Seat",
+            "minimum": "{count, plural, =1 {Introduce al menos # Seat.} other {Introduce al menos # Seats.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {¿Añadir # Seat?} other {¿Añadir # Seats?}}",
               "removeTitle": "{count, plural, =1 {¿Quitar # Seat?} other {¿Quitar # Seats?}}",
