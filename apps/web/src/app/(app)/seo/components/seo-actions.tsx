@@ -73,9 +73,7 @@ export function SeoActionCard({
         <div className="flex flex-wrap gap-1">
           {/* The severity of the issue it fixes; a suggestion from search data has none. */}
           {severity ? (
-            <SeoSeverity severity={severity}>
-              {t(`severity.${severity}`)}
-            </SeoSeverity>
+            <SeoSeverity severity={severity} />
           ) : (
             <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
           )}

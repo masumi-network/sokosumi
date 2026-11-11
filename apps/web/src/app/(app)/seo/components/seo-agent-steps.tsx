@@ -2,18 +2,16 @@
 
 import {
   ChartColumn,
+  ChevronRight,
   Compass,
-  FileText,
-  Lightbulb,
   type LucideIcon,
   Plug,
   Plus,
   Radar,
   RefreshCw,
   Search,
-  WandSparkles,
 } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -23,7 +21,7 @@ import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import type { SeoIssueSeverity } from "./seo-overview-model";
 import {
-  SeoPageLink,
+  SEO_ROW_BUTTON_CLASS,
   SeoSeverity,
   seoPageName,
   seoSiteUrl,
@@ -35,11 +33,7 @@ const STEP_ICONS: Record<
   Exclude<SeoAgentStep, { kind: "action" }>["kind"],
   LucideIcon
 > = {
-  measure: Lightbulb,
   strategy: Compass,
-  keyword: Search,
-  positions: Search,
-  pages: FileText,
   refresh: RefreshCw,
   connect: Plug,
   // Not the people icon: the chat uses that one for "shared in your organization".
@@ -64,7 +58,6 @@ export function SeoStepRow({
   first: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
   // Several steps can carry the same button name; the step's text tells them apart.
   const bodyId = useId();
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
@@ -78,196 +71,94 @@ export function SeoStepRow({
       connectStep,
     ).status.data?.status === "connected" && connectStep;
   const [body, control] =
-    step.kind === "measure"
+    step.kind === "strategy"
       ? [
-          // One page needs no URL; with several, the step names its page.
-          model.data.scope.pageIds.length > 1
-            ? t("agent.steps.measureOnPage", {
-                name: step.name,
-                value: step.value,
-                count: step.tools.length,
-                tools: format.list(step.tools),
-                // The request to the agent below keeps the full address.
-                url: seoPageName(
-                  step.pageUrl,
-                  seoSiteUrl(model.data),
-                  t("pages.homeInText"),
-                ),
-              })
-            : t("agent.steps.measure", {
-                name: step.name,
-                value: step.value,
-                count: step.tools.length,
-                tools: format.list(step.tools),
-              }),
-          model.data.auditId ? (
+          t("agent.steps.strategy", { count: step.count, title: step.title }),
+          <Button
+            key="strategy"
+            size="sm"
+            // A link to a list, not a piece of work: it never takes the filled style.
+            variant="outline"
+            aria-describedby={bodyId}
+            onClick={() => {
+              void model.setFilters({ tab: "actions" });
+            }}
+          >
+            {t("strategy.actions.open")}
+          </Button>,
+        ]
+      : step.kind === "refresh"
+        ? [
+            t(`agent.steps.refresh.${step.reason}`),
             <Button
-              key="measure"
+              key="refresh"
               size="sm"
               variant={variant}
-              aria-describedby={bodyId}
-              onClick={() => {
-                model.askAgent(
-                  t("agent.prompts.measure", {
-                    name: step.name,
-                    value: step.value,
-                    count: step.tools.length,
-                    tools: format.list(step.tools),
-                    url: step.pageUrl,
-                  }),
-                );
-              }}
+              loading={refreshing}
+              disabled={model.pending}
+              onClick={refresh}
             >
-              <WandSparkles />
-              {t("agent.draftFix")}
-            </Button>
-          ) : null,
-        ]
-      : step.kind === "strategy"
-        ? [
-            t("agent.steps.strategy", { count: step.count, title: step.title }),
-            <Button
-              key="strategy"
-              size="sm"
-              // A link to a list, not a piece of work: it never takes the filled style.
-              variant="outline"
-              aria-describedby={bodyId}
-              onClick={() => {
-                void model.setFilters({ tab: "actions" });
-              }}
-            >
-              {t("strategy.actions.open")}
+              <RefreshCw />
+              {t("syncNow")}
             </Button>,
           ]
-        : step.kind === "keyword" || step.kind === "positions"
+        : step.kind === "connect"
           ? [
-              step.kind === "keyword"
-                ? t("agent.steps.keyword", {
-                    keyword: step.keyword,
-                    pages: model.data.scope.pageIds.length,
-                  })
-                : // "The most searches" needs a second keyword and a known number.
-                  t(
-                    step.keywords > 1 && step.volume !== null
-                      ? "agent.steps.positionsSearched"
-                      : "agent.steps.positions",
-                    {
-                      keyword: step.keyword,
-                      volume: step.volume ?? 0,
-                      pages: model.data.scope.pageIds.length,
-                    },
-                  ),
-              model.data.auditId ? (
+              t(
+                sync
+                  ? `agent.steps.sync.${step.provider}`
+                  : `agent.steps.connect.${step.provider}`,
+              ),
+              sync ? (
                 <Button
-                  key="keyword"
+                  key="sync"
                   size="sm"
                   variant={variant}
-                  aria-describedby={bodyId}
-                  onClick={() => {
-                    model.askAgent(
-                      t(`agent.prompts.${step.kind}`, {
-                        keyword: step.keyword,
-                      }),
-                    );
-                  }}
+                  onClick={() => model.openStatistics(step.provider)}
                 >
-                  <WandSparkles />
-                  {t("agent.askHow")}
+                  <RefreshCw />
+                  {t("syncStatistics")}
+                </Button>
+              ) : step.provider === "search_console" ? (
+                <SeoGoogleConnection
+                  key="connect"
+                  variant={variant}
+                  onConnected={model.openStatistics}
+                  inRow
+                />
+              ) : (
+                <SeoConnectionButton
+                  key="connect"
+                  provider={step.provider}
+                  variant={variant}
+                  onConnected={() => model.openStatistics(step.provider)}
+                />
+              ),
+            ]
+          : [
+              t(
+                step.available
+                  ? "agent.steps.competitors.available"
+                  : "agent.steps.competitors.unavailable",
+              ),
+              canEdit && (canRequestAnalysis || !step.available) ? (
+                <Button
+                  key="competitors"
+                  size="sm"
+                  variant={variant}
+                  onClick={() =>
+                    model.setDialog(step.available ? "analysis" : "competitor")
+                  }
+                >
+                  {step.available ? <Search /> : <Plus />}
+                  {t(
+                    step.available
+                      ? "agent.researchCompetitors"
+                      : "competitors.add",
+                  )}
                 </Button>
               ) : null,
-            ]
-          : step.kind === "pages"
-            ? [
-                // No promise of issues where no check can find them.
-                t(
-                  canRequestAnalysis
-                    ? "agent.steps.pages"
-                    : "agent.steps.pagesOff",
-                ),
-                <Button
-                  key="pages"
-                  size="sm"
-                  variant={variant}
-                  onClick={() => model.setDialog("page")}
-                >
-                  <Plus />
-                  {t("addPage")}
-                </Button>,
-              ]
-            : step.kind === "refresh"
-              ? [
-                  t(`agent.steps.refresh.${step.reason}`),
-                  <Button
-                    key="refresh"
-                    size="sm"
-                    variant={variant}
-                    loading={refreshing}
-                    disabled={model.pending}
-                    onClick={refresh}
-                  >
-                    <RefreshCw />
-                    {t("syncNow")}
-                  </Button>,
-                ]
-              : step.kind === "connect"
-                ? [
-                    t(
-                      sync
-                        ? `agent.steps.sync.${step.provider}`
-                        : `agent.steps.connect.${step.provider}`,
-                    ),
-                    sync ? (
-                      <Button
-                        key="sync"
-                        size="sm"
-                        variant={variant}
-                        onClick={() => model.openStatistics(step.provider)}
-                      >
-                        <RefreshCw />
-                        {t("syncStatistics")}
-                      </Button>
-                    ) : step.provider === "search_console" ? (
-                      <SeoGoogleConnection
-                        key="connect"
-                        variant={variant}
-                        onConnected={model.openStatistics}
-                        inRow
-                      />
-                    ) : (
-                      <SeoConnectionButton
-                        key="connect"
-                        provider={step.provider}
-                        variant={variant}
-                        onConnected={() => model.openStatistics(step.provider)}
-                      />
-                    ),
-                  ]
-                : [
-                    t(
-                      step.available
-                        ? "agent.steps.competitors.available"
-                        : "agent.steps.competitors.unavailable",
-                    ),
-                    canEdit && (canRequestAnalysis || !step.available) ? (
-                      <Button
-                        key="competitors"
-                        size="sm"
-                        variant={variant}
-                        onClick={() =>
-                          model.setDialog(
-                            step.available ? "analysis" : "competitor",
-                          )
-                        }
-                      >
-                        {step.available ? <Search /> : <Plus />}
-                        {t(
-                          step.available
-                            ? "agent.researchCompetitors"
-                            : "competitors.add",
-                        )}
-                      </Button>
-                    ) : null,
-                  ];
+            ];
   const Icon = banner ? ChartColumn : STEP_ICONS[step.kind];
   const Shell = banner ? "div" : "li";
   return (
@@ -323,36 +214,34 @@ export function SeoActionStepRow({
   model: SeoWorkspaceModel;
 }) {
   const t = useTranslations("App.Seo");
-  // Every row has the same button name; the title (and the page, where there are several) tells the rows apart.
-  const titleId = useId();
   return (
-    <li
-      className={cn(
-        HOLDER_ITEM_CLASS,
-        "content-rise flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5",
-      )}
-    >
-      <div id={titleId} className="min-w-0 flex-1 basis-48 max-sm:basis-full">
-        <p className="text-sm font-medium break-words">{action.title}</p>
-        {model.data.scope.pageIds.length > 1 ? (
-          <SeoPageLink url={action.pageUrl} site={seoSiteUrl(model.data)} />
-        ) : null}
-      </div>
-      {severity ? (
-        <SeoSeverity severity={severity}>
-          {t(`severity.${severity}`)}
-        </SeoSeverity>
-      ) : null}
-      <Button
-        size="sm"
-        variant="outline"
-        aria-describedby={titleId}
-        // On a phone the text has the full width; the mark and the button share the line under it.
-        className="max-sm:ml-auto"
+    <li className="content-rise">
+      <button
+        type="button"
+        className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5")}
         onClick={() => model.showAction(action)}
       >
-        {t(action.kind === "fix" ? "overview.seeFix" : "agent.seeSuggestion")}
-      </Button>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium break-words">
+            {action.title}
+          </span>
+          {/* With several pages two fixes can have one title: the row names its page. */}
+          {model.data.scope.pageIds.length > 1 ? (
+            <bdi className="text-muted-foreground block text-xs [overflow-wrap:anywhere]">
+              {seoPageName(
+                action.pageUrl,
+                seoSiteUrl(model.data),
+                t("pages.home"),
+              )}
+            </bdi>
+          ) : null}
+        </span>
+        {severity ? <SeoSeverity severity={severity} /> : null}
+        <ChevronRight
+          aria-hidden
+          className="text-muted-foreground size-4 shrink-0"
+        />
+      </button>
     </li>
   );
 }

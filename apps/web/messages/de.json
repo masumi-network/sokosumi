@@ -11296,9 +11296,14 @@
         "position": "Durchschnittliche Position"
       },
       "severity": {
-        "critical": "Kritisch",
-        "major": "Schwerwiegend",
-        "minor": "Gering"
+        "critical": "Kritische Auswirkung",
+        "major": "Große Auswirkung",
+        "minor": "Geringe Auswirkung"
+      },
+      "severityHint": {
+        "critical": "Die Seite kann nicht in den Suchergebnissen erscheinen.",
+        "major": "Eine Ranking-Regel von Google ist nicht erfüllt, oder die Seite verliert eine Suchfunktion.",
+        "minor": "Eine Regel für die Darstellung des Suchergebnisses oder für die Nutzererfahrung ist nicht erfüllt."
       },
       "priority": {
         "low": "Niedrig",
@@ -11510,21 +11515,12 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "Search Console listet noch keine Suchen nach „{keyword}“ für {pages, plural, one {deine Seite} other {deine Seiten}}. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
-          "positions": "{pages, plural, one {Deine Seite ist} other {Deine Seiten sind}} für „{keyword}“ nicht in den ersten Google-Ergebnissen.",
-          "positionsSearched": "„{keyword}“ hat die meisten Suchen der geprüften Keywords: {volume, number} pro Monat. {pages, plural, one {Deine Seite ist} other {Deine Seiten sind}} dafür nicht in den ersten Ergebnissen.",
-          "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden.",
-          "pagesOff": "Dieses Audit umfasst 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um auch ihre Suchanfragen zu sehen.",
-          "measure": "Vorschlag: {name} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}.",
-          "measureOnPage": "Vorschlag: {name} auf {url} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}.",
           "strategy": "Das Website-Audit empfiehlt {count, plural, one {# Aktion} other {# Aktionen}} aus der Keyword-Strategie. Die erste: {title}."
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was weißt du über meine Wettbewerber?",
-          "keyword": "Entwirf einen Plan, damit diese Seiten für „{keyword}“ ranken. Nutze die gespeicherten Prüfungen und Search-Console-Daten und schlage die Änderungen als Aktionen vor, die ich bestätigen kann.",
-          "positions": "Eine Positionsprüfung hat diese Seiten für „{keyword}“ nicht in den ersten Google-Ergebnissen gefunden. Entwirf einen Plan, damit sie dafür ranken. Nutze die gespeicherten Prüfergebnisse und schlage die Änderungen als Aktionen vor, die ich bestätigen kann.",
           "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann."
         },
         "researchCompetitors": "Wettbewerber recherchieren",
@@ -11547,9 +11543,6 @@
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
         "lastCheckPages": "{pages, plural, one {# Seite} other {# Seiten}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# weitere Korrektur} other {# weitere Korrekturen}}} other {{count, plural, one {# weitere Aktion} other {# weitere Aktionen}}}}",
-        "allActions": "{kind, select, fix {Alle Korrekturen ansehen} other {Alle Aktionen ansehen}}",
-        "otherSteps": "Andere Schritte (zählen nicht als Probleme)",
-        "seeSuggestion": "Zum Vorschlag",
         "statisticsMissing": "Statistiken sind nicht eingerichtet",
         "demand": {
           "title": "Geprüfte Keywords mit den meisten Suchen",
@@ -11669,7 +11662,7 @@
       "summary": {
         "issues": "Probleme",
         "issuesNone": "Keine gefunden",
-        "severityCount": "{count} {severity, select, critical {kritisch} major {schwerwiegend} other {gering}}",
+        "severityCount": "{count} {severity, select, critical {kritisch} major {mit großer Auswirkung} other {mit geringer Auswirkung}}",
         "keywords": "Keywords in den ersten Google-Ergebnissen",
         "of": "von {total}",
         "searches": "Suchen nach deinen Keywords",

@@ -11296,9 +11296,14 @@
         "position": "Posición media"
       },
       "severity": {
-        "critical": "Crítica",
-        "major": "Importante",
-        "minor": "Menor"
+        "critical": "Impacto crítico",
+        "major": "Impacto alto",
+        "minor": "Impacto bajo"
+      },
+      "severityHint": {
+        "critical": "La página no puede aparecer en los resultados de búsqueda.",
+        "major": "No se cumple una regla de posicionamiento de Google, o la página pierde una función de búsqueda.",
+        "minor": "No se cumple una regla sobre el aspecto del resultado de búsqueda o sobre la experiencia de uso."
       },
       "priority": {
         "low": "Baja",
@@ -11510,21 +11515,12 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "keyword": "Search Console aún no muestra búsquedas de «{keyword}» para {pages, plural, one {tu página} other {tus páginas}}. El agente puede preparar un plan para que aparezcas en esa búsqueda.",
-          "positions": "{pages, plural, one {Tu página no está} other {Tus páginas no están}} en los primeros resultados de Google para «{keyword}».",
-          "positionsSearched": "«{keyword}» es la palabra clave comprobada con más búsquedas: {volume, number} al mes. {pages, plural, one {Tu página no está} other {Tus páginas no están}} en sus primeros resultados.",
-          "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas.",
-          "pagesOff": "Esta auditoría cubre 1 página. Añade tus otras páginas importantes para ver también sus búsquedas.",
-          "measure": "Sugerencia: {name} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}.",
-          "measureOnPage": "Sugerencia: {name} en {url} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}.",
           "strategy": "La auditoría del sitio recomienda {count, plural, one {# acción} other {# acciones}} de la estrategia de palabras clave. La primera: {title}."
         },
         "prompts": {
           "first": "¿Qué debo hacer primero?",
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabes de mis competidores?",
-          "keyword": "Prepara un plan para que estas páginas se posicionen para «{keyword}». Usa las comprobaciones guardadas y los datos de Search Console, y propón los cambios como acciones que pueda aprobar.",
-          "positions": "Una comprobación de posiciones no encontró estas páginas en los primeros resultados de Google para «{keyword}». Prepara un plan para que se posicionen para esa búsqueda. Usa los resultados guardados de las comprobaciones y propón los cambios como acciones que pueda aprobar.",
           "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar."
         },
         "researchCompetitors": "Investigar competidores",
@@ -11547,9 +11543,6 @@
         "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
         "lastCheckPages": "{pages, plural, one {# página} other {# páginas}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
-        "allActions": "{kind, select, fix {Ver todas las correcciones} other {Ver todas las acciones}}",
-        "otherSteps": "Otros pasos (no cuentan como problemas)",
-        "seeSuggestion": "Ver la sugerencia",
         "statisticsMissing": "Las estadísticas no están configuradas",
         "demand": {
           "title": "Palabras clave comprobadas con más búsquedas",
@@ -11669,7 +11662,7 @@
       "summary": {
         "issues": "Problemas",
         "issuesNone": "Ninguno encontrado",
-        "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {{count, plural, one {importante} other {importantes}}} other {{count, plural, one {menor} other {menores}}}}",
+        "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {de impacto alto} other {de impacto bajo}}",
         "keywords": "Palabras clave en los primeros resultados de Google",
         "of": "de {total}",
         "searches": "Búsquedas de tus palabras clave",

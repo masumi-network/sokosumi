@@ -303,7 +303,7 @@ describe("SEO workspace integration", () => {
       screen.getByText("Not passed: The page has no description"),
     ).toBeVisible();
     // No action fixes this issue, so no link promises a fix.
-    expect(screen.queryByRole("button", { name: "See the fix" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Fix: / })).toBeNull();
     const evidence = screen.getByText(
       "Raw HTML evidence: no meta description element.",
     );
@@ -364,7 +364,11 @@ describe("SEO workspace integration", () => {
     expect(fixName).not.toBeVisible();
     await user.click(row);
     expect(fixName).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "See the fix" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Fix: Make the markup price match the page",
+      }),
+    );
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -383,7 +387,7 @@ describe("SEO workspace integration", () => {
     expect(card).toHaveAttribute("aria-current", "true");
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(card).not.toHaveAttribute("aria-current");
-    expect(within(card!).getByText("Major")).toBeVisible();
+    expect(within(card!).getByText("High impact")).toBeVisible();
     // What the check found is in view; the reasons and the effect of the fix stay closed.
     // The line alone can be a bare count, so the name of its check goes with it.
     expect(
@@ -399,7 +403,7 @@ describe("SEO workspace integration", () => {
     expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
   });
 
-  it("puts the question field in the result card and the numbers before the steps, starts the keyword work, and names a page of the site by its path", async () => {
+  it("puts the question field in the result card and the numbers before the steps, and names a page of the site by its path", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
@@ -539,12 +543,6 @@ describe("SEO workspace integration", () => {
     await user.keyboard("{Escape}");
     expect(
       await screen.findByRole("button", { name: "Continue the conversation" }),
-    ).toBeVisible();
-    // No keyword has a page in the results: the step names the most searched one.
-    expect(
-      screen.getByText(
-        "“battery app” has the most searches of the checked keywords: 720 a month. Your page is not in its top results.",
-      ),
     ).toBeVisible();
     // The page of the fix is a page of the site: its path, with the address as the link's name.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
@@ -2688,6 +2686,7 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
     // Report import is gone: adding a page is the first step without checks.
     expect(screen.queryByRole("button", { name: /import/i })).toBeNull();
+    await user.click(screen.getByRole("tab", { name: "Health" }));
     await user.click(screen.getAllByRole("button", { name: "Add a page" })[0]);
     const addPage = screen.getByRole("dialog", { name: "Add a page" });
     expect(addPage).toBeVisible();
@@ -3276,117 +3275,6 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
-  it("offers a fix for a measured value outside a tool range as the primary step", async () => {
-    const user = userEvent.setup();
-    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
-    // The check passed: the measured value is a suggestion, not an issue.
-    workspace.observations.push({
-      id: "check-description",
-      kind: "page_check",
-      source: "seo_coworker",
-      observedAt: new Date("2026-01-03T12:00:00Z"),
-      pageIds: workspace.scope.pageIds,
-      scopeVersion: 2,
-      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
-      countryCode: "US",
-      languageCode: "en",
-      devices: ["desktop"],
-      rulebookVersion: "html-v1",
-      artifactHash: "checked-html",
-      issues: 0,
-      coverage: { checked: 12, skipped: 0, failed: 0 },
-    });
-    workspace.findings.push({
-      id: "measured-description",
-      observationId: "check-description",
-      pageUrl: workspace.pages[0].url,
-      device: "desktop",
-      rowId: "description-length",
-      title: "Raw HTML: Meta description length",
-      severity: "measure",
-      evidence: [
-        "meta description 163 characters",
-        "vendor tools: Ahrefs under 160 (N1-247); Moz 55 to 300 (N1-279)",
-      ],
-      sourceRef: "html:description",
-      observedAt: new Date("2026-01-03T12:00:00Z"),
-    });
-    const questions: string[] = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (!url.endsWith("/chat")) return Response.json(workspace);
-        if (init?.method !== "POST")
-          return Response.json({ sharing: "personal", turns: [] });
-        questions.push(JSON.parse(String(init.body)).question);
-        return Response.json({
-          id: crypto.randomUUID(),
-          question: questions.at(-1),
-          response: "Draft",
-          status: "completed",
-          actions: [],
-          scope: { pageIds: workspace.scope.pageIds },
-          createdAt: new Date().toISOString(),
-        });
-      }),
-    );
-    renderWorkspace(workspace);
-    expect(
-      await screen.findByText(
-        "Suggestion: Meta description length is 163 characters, outside the range of Ahrefs.",
-      ),
-    ).toBeVisible();
-    // The verdict counts it as a suggestion, so a passed check does not read as broken.
-    expect(
-      screen.getByText(
-        (_, element) =>
-          element?.tagName === "P" &&
-          /^Last check .+ · 1 page$/.test(element.textContent ?? ""),
-      ),
-    ).toBeVisible();
-    // Where a check can run, the header's run button is the one filled button.
-    const draft = screen.getByRole("button", {
-      name: "Ask the agent for a fix",
-      description: /^Suggestion: Meta description length is 163 characters/,
-    });
-    expect(draft).not.toHaveClass("bg-primary");
-    expect(screen.getByRole("button", { name: "Run full audit" })).toHaveClass(
-      "bg-primary",
-    );
-    await user.click(draft);
-    // The step asks in the chat sheet, where the answer shows.
-    expect(
-      await screen.findByRole("dialog", { name: "Ask the SEO agent" }),
-    ).toBeVisible();
-    await waitFor(() =>
-      expect(questions).toEqual([
-        `The check measured “Meta description length” on ${workspace.pages[0].url} as 163 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.`,
-      ]),
-    );
-    cleanup();
-    // With checks off, the agent's first step with a button is the filled one.
-    // Without the agent chat the fix step has no button, so the next step has it.
-    workspace.availableActions.canRequestAnalysis = false;
-    workspace.availableActions.canUsePaidSearchData = false;
-    renderWorkspace({ ...workspace, auditId: null });
-    expect(
-      await screen.findByText(/^Suggestion: Meta description length is 163/),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Ask the agent for a fix" }),
-    ).toBeNull();
-    const pagesStep = screen
-      .getByText(/^This audit covers 1 page/)
-      .closest("li");
-    if (!pagesStep) throw new Error("Pages step missing");
-    expect(
-      within(pagesStep).getByRole("button", { name: "Add a page" }),
-    ).toHaveClass("bg-primary");
-    expect(
-      screen.getByRole("button", { name: "Run page check" }),
-    ).not.toHaveClass("bg-primary");
-  });
-
   it("runs the widest check the workspace allows from the header", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
@@ -3849,7 +3737,7 @@ describe("SEO workspace integration", () => {
     expect(asked).toEqual([]);
   });
 
-  it("leaves the filled button to the next step with work when the strategy step comes first", async () => {
+  it("does not give the strategy step the filled button, also when it is the first step", async () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
     workspace.strategy = seoTestStrategy();
@@ -3879,13 +3767,6 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("button", { name: "View these actions" }),
     ).not.toHaveClass("bg-primary");
-    const pagesStep = screen
-      .getByText(/^This audit covers 1 page/)
-      .closest("li");
-    if (!pagesStep) throw new Error("Pages step missing");
-    expect(
-      within(pagesStep).getByRole("button", { name: "Add a page" }),
-    ).toHaveClass("bg-primary");
   });
 
   it("shows the Actions tab only once the Audit has actions", async () => {
@@ -4356,14 +4237,8 @@ describe("SEO workspace integration", () => {
     // The Agent tab shows three of the four fixes, and a row counts the rest.
     expect(screen.queryByText("Describe the images")).toBeNull();
     expect(screen.getByText("1 more fix")).toBeVisible();
-    // Three choices are enough to start: the other steps wait behind one button, under their own label.
-    const others = { name: "Other steps (not counted as issues)" };
-    expect(screen.queryByRole("heading", others)).toBeNull();
-    await user.click(
-      screen.getByRole("button", { name: /^Show \d+ more steps?$/ }),
-    );
-    expect(screen.getByRole("heading", others)).toBeVisible();
-    await user.click(within(row!).getByRole("button", { name: "See the fix" }));
+    // The whole row is the control: no second button repeats it.
+    await user.click(within(row!).getByRole("button"));
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -4378,7 +4253,7 @@ describe("SEO workspace integration", () => {
     await waitFor(() => expect(card).toHaveFocus());
     // The row that counts the rest leads to the same list.
     await user.click(screen.getByRole("tab", { name: "Agent" }));
-    await user.click(screen.getByRole("button", { name: "See all fixes" }));
+    await user.click(screen.getByRole("button", { name: "1 more fix" }));
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -4403,19 +4278,14 @@ describe("SEO workspace integration", () => {
     const paged = (await screen.findByText("Write a description")).closest(
       "li",
     );
-    expect(within(paged!).getByRole("link", { name: pricing })).toBeVisible();
-    expect(screen.getByText("1 more action")).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "See all actions" }),
-    ).toBeVisible();
+    expect(within(paged!).getByText("/pricing")).toBeVisible();
+    expect(screen.getByRole("button", { name: "1 more action" })).toBeVisible();
     cleanup();
     // Every action shows: no row counts a rest. The row of a suggestion does not call it a fix.
     workspace.actions = [workspace.actions[0], workspace.actions[3]];
     renderWorkspace(workspace, "?tab=agent");
     const suggestion = (await screen.findByText("Write a guide")).closest("li");
-    expect(
-      within(suggestion!).getByRole("button", { name: "See the suggestion" }),
-    ).toBeVisible();
+    expect(within(suggestion!).getByRole("button")).toBeVisible();
     expect(screen.queryByText(/more (fix|action)/)).toBeNull();
     cleanup();
     // Without an action the steps are one list: no label splits them.
@@ -4428,9 +4298,6 @@ describe("SEO workspace integration", () => {
       screen.queryByText(
         "Nothing is waiting. The agent syncs Search Console when you open this audit and the data is older than a day.",
       ),
-    ).toBeNull();
-    expect(
-      screen.queryByText("Other steps (not counted as issues)"),
     ).toBeNull();
   });
 
@@ -4744,7 +4611,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     // The Agent tab says the issue count once, in its headline, and shows the keyword numbers.
     expect(await screen.findByTestId("seo-agent-verdict")).toHaveTextContent(
-      "2 issues to fix: 1 major and 1 minor",
+      "2 issues to fix: 1 high impact and 1 low impact",
     );
     expect(screen.queryByTestId("seo-summary-issues")).toBeNull();
     expect(screen.queryByTestId("seo-summary-tests")).toBeNull();
@@ -4760,8 +4627,8 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("tab", { name: "Health" }));
     const issues = screen.getByTestId("seo-summary-issues");
     expect(issues).toHaveTextContent(/^2/);
-    expect(within(issues).getByText("1 major")).toBeVisible();
-    expect(within(issues).getByText("1 minor")).toBeVisible();
+    expect(within(issues).getByText("1 high impact")).toBeVisible();
+    expect(within(issues).getByText("1 low impact")).toBeVisible();
     // Tests without a result are part of the total, not hidden.
     const tests = screen.getByTestId("seo-summary-tests");
     expect(tests).toHaveTextContent("201 of 231");

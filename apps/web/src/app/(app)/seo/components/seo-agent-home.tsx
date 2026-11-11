@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Play } from "lucide-react";
+import { ChevronDown, ChevronRight, Play } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunLeads, seoSetup } from "./seo-setup-model";
-import { SeoDate, SeoPeriod } from "./seo-shared";
+import { SEO_ROW_BUTTON_CLASS, SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { seoSummary } from "./seo-summary-model";
@@ -102,15 +102,11 @@ function SeoAgentPanel({
     setup?.next || seoRunLeads(model.data)
       ? -1
       : shown.findIndex((step) =>
-          step.kind === "keyword" ||
-          step.kind === "positions" ||
-          step.kind === "measure"
-            ? Boolean(model.data.auditId)
-            : step.kind === "competitors"
-              ? canEdit && (canRequestAnalysis || !step.available)
-              : step.kind === "strategy"
-                ? false
-                : step.kind !== "action" || (canEdit && !step.action.taskId),
+          step.kind === "competitors"
+            ? canEdit && (canRequestAnalysis || !step.available)
+            : step.kind === "strategy"
+              ? false
+              : step.kind !== "action" || (canEdit && !step.action.taskId),
         );
   const periodId = useId();
   const numbers = seoSummary(model.data);
@@ -188,7 +184,7 @@ function SeoAgentPanel({
       )
     ) : (
       <SeoStepRow
-        key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
+        key={`${step.kind}:${"provider" in step ? step.provider : ""}`}
         step={step}
         model={model}
         first={index === primary}
@@ -364,51 +360,35 @@ function SeoAgentPanel({
             ) : null}
           </div>
           {steps.length ? (
-            <>
-              {split ? (
-                <ul role="list" className="space-y-2">
-                  {shown.slice(0, split).map(stepItem)}
-                  {moreActions ? (
-                    // The Agent tab shows the first actions only: the rest must not look absent.
-                    <li
-                      className={cn(
-                        HOLDER_ITEM_CLASS,
-                        "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2.5",
-                      )}
-                    >
-                      <p className="text-sm">
-                        {t("agent.moreActions", {
-                          count: moreActions,
-                          kind: actionKind,
-                        })}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          void model.setFilters({ tab: "actions" });
-                        }}
-                      >
-                        {t("agent.allActions", { kind: actionKind })}
-                      </Button>
-                    </li>
-                  ) : null}
-                </ul>
+            <ul role="list" className="space-y-2">
+              {shown.slice(0, split).map(stepItem)}
+              {moreActions ? (
+                // The Agent tab shows the first actions only: the rest must not look absent.
+                <li>
+                  <button
+                    type="button"
+                    className={cn(
+                      SEO_ROW_BUTTON_CLASS,
+                      "text-muted-foreground px-4 py-2.5 text-sm",
+                    )}
+                    onClick={() => {
+                      void model.setFilters({ tab: "actions" });
+                    }}
+                  >
+                    <span className="min-w-0 flex-1">
+                      {t("agent.moreActions", {
+                        count: moreActions,
+                        kind: actionKind,
+                      })}
+                    </span>
+                    <ChevronRight aria-hidden className="size-4 shrink-0" />
+                  </button>
+                </li>
               ) : null}
-              {split && split < shown.length ? (
-                // The steps after the actions are no issues of the check: the headline does not count them.
-                <h4 className="text-muted-foreground px-2 pt-1 text-xs font-medium">
-                  {t("agent.otherSteps")}
-                </h4>
-              ) : null}
-              {split < shown.length ? (
-                <ul role="list" className="space-y-2">
-                  {shown
-                    .slice(split)
-                    .map((step, index) => stepItem(step, index + split))}
-                </ul>
-              ) : null}
-            </>
+              {shown
+                .slice(split)
+                .map((step, index) => stepItem(step, index + split))}
+            </ul>
           ) : (
             <p className="text-muted-foreground max-w-prose px-2 text-sm">
               {t("agent.nothingNext")}

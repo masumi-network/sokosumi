@@ -11296,9 +11296,14 @@
         "position": "Average position"
       },
       "severity": {
-        "critical": "Critical",
-        "major": "Major",
-        "minor": "Minor"
+        "critical": "Critical impact",
+        "major": "High impact",
+        "minor": "Low impact"
+      },
+      "severityHint": {
+        "critical": "The page cannot appear in search results.",
+        "major": "A Google ranking rule is not met, or the page loses a search feature.",
+        "minor": "A rule for the look of the search result or for user experience is not met."
       },
       "priority": {
         "low": "Low",
@@ -11510,21 +11515,12 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "keyword": "Search Console lists no searches for “{keyword}” on {pages, plural, one {your page} other {your pages}} yet. The agent can draft a plan to rank for it.",
-          "positions": "{pages, plural, one {Your page is} other {Your pages are}} not in Google's top results for “{keyword}”.",
-          "positionsSearched": "“{keyword}” has the most searches of the checked keywords: {volume, number} a month. {pages, plural, one {Your page is} other {Your pages are}} not in its top results.",
-          "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches.",
-          "pagesOff": "This audit covers 1 page. Add your other important pages to see their searches too.",
-          "measure": "Suggestion: {name} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}.",
-          "measureOnPage": "Suggestion: {name} on {url} is {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}.",
           "strategy": "The site audit recommends {count, plural, one {# action} other {# actions}} from the keyword strategy. The first: {title}."
         },
         "prompts": {
           "first": "What should I do first?",
           "queries": "Which searches bring people to these pages?",
           "competitors": "What do you know about my competitors?",
-          "keyword": "Draft a plan to make these pages rank for “{keyword}”. Use the saved checks and Search Console data, and suggest the changes as actions I can approve.",
-          "positions": "A position check did not find these pages in Google's top results for “{keyword}”. Draft a plan to make them rank for it. Use the saved check results, and suggest the changes as actions I can approve.",
           "measure": "The check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Draft a change and suggest it as an action I can approve."
         },
         "researchCompetitors": "Research competitors",
@@ -11547,9 +11543,6 @@
         "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
         "lastCheckPages": "{pages, plural, one {# page} other {# pages}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
-        "allActions": "{kind, select, fix {See all fixes} other {See all actions}}",
-        "otherSteps": "Other steps (not counted as issues)",
-        "seeSuggestion": "See the suggestion",
         "statisticsMissing": "Statistics are not set up",
         "demand": {
           "title": "Checked keywords with the most searches",
@@ -11669,7 +11662,7 @@
       "summary": {
         "issues": "Issues",
         "issuesNone": "None found",
-        "severityCount": "{count} {severity, select, critical {critical} major {major} other {minor}}",
+        "severityCount": "{count} {severity, select, critical {critical} major {high impact} other {low impact}}",
         "keywords": "Keywords in Google's top results",
         "of": "of {total}",
         "searches": "Searches for your keywords",

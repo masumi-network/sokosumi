@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, WandSparkles } from "lucide-react";
+import { ChevronDown, ChevronRight, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useLayoutEffect, useRef, useState } from "react";
@@ -28,6 +28,7 @@ import {
 import { SeoPages } from "./seo-pages";
 import { seoCheckRunning } from "./seo-setup-model";
 import {
+  SEO_ROW_BUTTON_CLASS,
   SeoDate,
   SeoPageLink,
   SeoSection,
@@ -339,9 +340,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           name: checkName(finding.title),
                         })}
                       </h3>
-                      <SeoSeverity severity={finding.severity}>
-                        {t(`severity.${finding.severity}`)}
-                      </SeoSeverity>
+                      <SeoSeverity severity={finding.severity} />
                       <ChevronDown
                         aria-hidden
                         className="text-muted-foreground mt-0.5 size-4 shrink-0 group-open:rotate-180"
@@ -388,22 +387,26 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         />
                       </div>
                       {fix ? (
-                        <div className="space-y-2">
-                          {fix.named ? (
-                            <p className="text-foreground">
-                              {t("overview.fixNamed", {
-                                name: fix.action.title,
-                              })}
-                            </p>
-                          ) : null}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => model.showAction(fix.action)}
-                          >
-                            {t("overview.seeFix")}
-                          </Button>
-                        </div>
+                        <button
+                          type="button"
+                          className={cn(
+                            SEO_ROW_BUTTON_CLASS,
+                            "text-foreground px-3 py-2",
+                          )}
+                          onClick={() => model.showAction(fix.action)}
+                        >
+                          <span className="min-w-0 flex-1 break-words">
+                            {fix.named
+                              ? t("overview.fixNamed", {
+                                  name: fix.action.title,
+                                })
+                              : t("overview.seeFix")}
+                          </span>
+                          <ChevronRight
+                            aria-hidden
+                            className="text-muted-foreground size-4 shrink-0"
+                          />
+                        </button>
                       ) : null}
                     </div>
                   </details>

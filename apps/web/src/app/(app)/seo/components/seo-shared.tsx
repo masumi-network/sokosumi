@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 
@@ -400,18 +401,42 @@ export function SeoBarNumber({
   );
 }
 
-/** How bad an issue is. Critical and major are solid and minor is quiet, so the worst issue reads first. */
+/** A row that is one button: the whole row opens its target, and an arrow at its end says so. */
+export const SEO_ROW_BUTTON_CLASS = cn(
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+  "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2",
+);
+
+/**
+ * How much an issue affects search: a dot and a quiet line of text. The title
+ * and the action of a row stay its loudest marks. The hint says what the level means.
+ */
 export function SeoSeverity({
   severity,
-  children,
 }: {
   severity: "critical" | "major" | "minor";
-  children: ReactNode;
 }) {
-  return severity === "minor" ? (
-    <SeoState>{children}</SeoState>
-  ) : (
-    <Badge variant="destructive">{children}</Badge>
+  const t = useTranslations("App.Seo");
+  return (
+    <span
+      title={t(`severityHint.${severity}`)}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap",
+        severity === "critical"
+          ? "text-foreground font-medium"
+          : "text-muted-foreground",
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "size-1.5 rounded-full",
+          severity === "minor" ? "bg-muted-foreground/40" : "bg-chart-2",
+        )}
+      />
+      {t(`severity.${severity}`)}
+    </span>
   );
 }
 
