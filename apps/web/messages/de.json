@@ -9874,7 +9874,8 @@
         "continue": "Weiter",
         "back": "Zurück",
         "pictureTitle": "Wähle ein Bild für {name}",
-        "skip": "Überspringen"
+        "createWithoutPicture": "Ohne Bild erstellen",
+        "createWithoutPictureHint": "{name} startet mit seiner Farbkugel. Ein Bild fügst du jederzeit in den Einstellungen hinzu."
       },
       "Memory": {
         "title": "Gedächtnis",

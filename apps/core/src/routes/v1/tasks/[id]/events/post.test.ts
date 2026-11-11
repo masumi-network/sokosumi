@@ -1750,6 +1750,46 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
+  it("charges credits with the Task's Project", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ projectId: "proj_123" }),
+    );
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: null,
+            cents: convertCreditsToCents(4),
+            transactionId: "txn_project",
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn() },
+    };
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_project");
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credits: 4 }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: USER_ID,
+        projectId: "proj_123",
+        cents: convertCreditsToCents(4),
+      }),
+    );
+  });
+
   it("charges credit-only on CANCELED task without changing status", async () => {
     const tx: TransactionMock = {
       taskEvent: {

@@ -6,7 +6,10 @@ import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { getEnv } from "@/config/env";
-import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
+import {
+  buildCompensatingRefundTransactionCreate,
+  COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
+} from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
 
 const MAX_FAILURE_REASON_LENGTH = 2_000;
@@ -190,6 +193,7 @@ export async function refundFailedTaskPaymentClaim(
             amount: true,
             userId: true,
             organizationId: true,
+            ...COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
           },
         },
       },
@@ -233,6 +237,7 @@ export async function refundFailedTaskPaymentClaim(
             actorUserId,
             organizationId: claim.transaction.organizationId,
             referenceId: `task-payment:${claim.id}`,
+            consumptions: claim.transaction.creditConsumptions,
           }),
         },
       },

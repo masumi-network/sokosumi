@@ -9874,7 +9874,8 @@
         "continue": "Continuar",
         "back": "Atrás",
         "pictureTitle": "Elige una imagen para {name}",
-        "skip": "Omitir"
+        "createWithoutPicture": "Crear sin imagen",
+        "createWithoutPictureHint": "{name} empieza con su orbe de color. Añade una imagen cuando quieras en sus ajustes."
       },
       "Memory": {
         "title": "Memoria",

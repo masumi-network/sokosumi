@@ -59,7 +59,13 @@ const ON_CHAIN_AMOUNT = "1500000";
  * (createTaskEventTransaction writes `input.cents * -1n`).
  */
 function transaction(overrides: Record<string, unknown> = {}) {
-  return { amount: -500n, userId: USER_ID, organizationId: null, ...overrides };
+  return {
+    amount: -500n,
+    userId: USER_ID,
+    organizationId: null,
+    creditConsumptions: [{ bucket: { projectId: null } }],
+    ...overrides,
+  };
 }
 
 /** The payment row as the refund path selects it, money facts included. */
@@ -336,7 +342,10 @@ describe("refundVerifiedTaskX402Payment", () => {
     paymentUpdateManyMock.mockResolvedValue({ count: 1 });
     paymentFindUniqueMock.mockResolvedValue(
       verifiedPaymentRow({
-        transaction: transaction({ organizationId: ORGANIZATION_ID }),
+        transaction: transaction({
+          organizationId: ORGANIZATION_ID,
+          creditConsumptions: [{ bucket: { projectId: "project_1" } }],
+        }),
       }),
     );
 
@@ -394,6 +403,10 @@ describe("refundVerifiedTaskX402Payment", () => {
       updateArg.data.refundTransaction.create.sourceCreditBucket.create
         .organizationId,
     ).toBe(ORGANIZATION_ID);
+    // Back to the Project the charge spent its Project credits from.
+    expect(
+      updateArg.data.refundTransaction.create.sourceCreditBucket.create,
+    ).toMatchObject({ projectId: "project_1" });
     // The row records WHICH lever refunded it. The aggregate's headline quality
     // signal counts this kind, so a resolve-produced REFUNDED row must never be
     // mistaken for one of these.
