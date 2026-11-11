@@ -145,6 +145,10 @@ vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: jevEvaluate,
 }));
+const forfeitMock = vi.hoisted(() => vi.fn());
+vi.mock("@/helpers/cuso-project-credits", () => ({
+  forfeitCusoProjectCredits: forfeitMock,
+}));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
@@ -3300,6 +3304,27 @@ describe("SokoBotControlPlane lifecycle", () => {
       ).rejects.toMatchObject({ status: 403 });
       await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
       expect(botUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("offers the bot to the Cuso write-off before archiving it", async () => {
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+        BOT_ID,
+        expect.any(Object),
+      );
+      // Before the archive, so the bot still reads as a live Cuso.
+      expect(forfeitMock.mock.invocationCallOrder[0]).toBeLessThan(
+        botUpdateMock.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it("writes nothing off for an already archived bot", async () => {
+      botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
+
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(forfeitMock).not.toHaveBeenCalled();
     });
 
     it.each(["owner_1", "admin_1"])(

@@ -40706,7 +40706,7 @@ export const NotificationCountsSchema = {
         needsAction: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of feed notifications whose request still waits on the reader',
+            description: 'Number of feed notifications whose request still waits on the reader, not counting a Task\'s ask for a Task the active workspace\'s GET /tasks/summary already counts',
             example: 2
         },
         mentions: {
@@ -50119,6 +50119,29 @@ export const TaskSellerReceiptSchema = {
         'settled',
         'txHash',
         'withdrawnForSeller'
+    ]
+} as const;
+
+export const SendTaskToChatRequestSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 2000
+        },
+        clientMessageId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'roomId',
+        'clientMessageId'
     ]
 } as const;
 

@@ -118,6 +118,10 @@ _Avoid_: Workspace switcher (that is Sokosumi's), Cuso switcher, Business picker
 CMO's flow after identity onboarding, from the start form (website, main goal, and a new or an existing organization) until the person finishes it and CMO opens on the chat. Every hire creates a new Project. It reuses what identity onboarding already learned instead of asking again.
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
+**Starter credits**:
+The 10,000 credits each Hiring Cuso grants. They are Project credits of his Project, never expire, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
+_Avoid_: Free credits (that is any admin grant), Cuso's credits (the Project's work spends them, not only Cuso), welcome credits
+
 **Marketing strategy**:
 A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
 _Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
@@ -443,6 +447,10 @@ _Avoid_: License, slot (unless a UI label), workstation, treating a Seat as a pe
 **Organization credit pool**:
 Credits owned by an Organization. Free period grant is the free monthly amount (250), shared by every member. Paid self-serve period grant is purchased seats × credits per seat, spent by assigned Seats. Enterprise keeps its own shared pool. OTC/admin grants sit in the same pool. Distinct from personal credits.
 _Avoid_: Org balance (ambiguous with Stripe), member credits, seat credits (that reads as a private per-member grant), scaling the free 250 by member count
+
+**Project credits**:
+Organization credits only a charge for one Project may spend, drawn before the Organization credit pool. Seats still gate them. Left out of the organization's balance. Starter credits are the only kind so far.
+_Avoid_: Project balance (it also includes the pool), project budget, project wallet
 
 **Personal credits**:
 Credits owned by a User with no Organization. Spent only in a personal workspace.

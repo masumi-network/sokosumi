@@ -816,7 +816,33 @@
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
       "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor",
       "coworkerAccessAcceptSuccess": "Acceso anticipado de coworker aprobado",
-      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker"
+      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker",
+      "reply": "Responder",
+      "replyTo": "Responder: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# tarea te está esperando} other {# tareas te están esperando}}",
+        "showAll": "Ver todas en Tareas",
+        "loadError": "No se pudieron cargar las tareas que te esperan",
+        "ask": {
+          "INPUT_REQUIRED": "{name} necesita tu respuesta",
+          "APPROVAL_REQUIRED": "{name} necesita tu aprobación",
+          "AUTHENTICATION_REQUIRED": "{name} necesita que inicies sesión"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Necesita tu respuesta",
+          "APPROVAL_REQUIRED": "Necesita tu aprobación",
+          "AUTHENTICATION_REQUIRED": "Necesita que inicies sesión",
+          "OUT_OF_CREDITS": "En pausa hasta que se añadan créditos",
+          "GRANT_PENDING": "Esperando acceso al espacio de trabajo"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Responder",
+          "APPROVAL_REQUIRED": "Revisar",
+          "AUTHENTICATION_REQUIRED": "Iniciar sesión",
+          "OUT_OF_CREDITS": "Abrir",
+          "GRANT_PENDING": "Abrir"
+        }
+      }
     },
     "HashValue": {
       "copy": "Copiar",
@@ -1923,7 +1949,26 @@
           "markComplete": "Marcar como completada",
           "repeat": "Repetir",
           "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo.",
-          "duplicate": "Duplicar como borrador"
+          "duplicate": "Duplicar como borrador",
+          "sendToChat": {
+            "menuItem": "Enviar al chat",
+            "title": "Enviar tarea al chat",
+            "description": "Publica un enlace a esta tarea en un canal o mensaje directo. Todos allí ven su título; solo quienes pueden abrir la tarea ven más. No se ofrecen salas con coworkers de IA o invitados.",
+            "roomLabel": "Enviar a",
+            "roomPlaceholder": "Elige un canal o mensaje directo",
+            "noteLabel": "Mensaje (opcional)",
+            "notePlaceholder": "Añade una nota, como lo que necesitas",
+            "noRooms": "Aún no tienes chats en este espacio de trabajo a los que enviar.",
+            "send": "Enviar",
+            "cancel": "Cancelar",
+            "success": "Tarea enviada al chat",
+            "openChat": "Abrir chat",
+            "error": "No se pudo enviar la tarea. Inténtalo de nuevo.",
+            "loadError": "No se pudieron cargar tus chats. Inténtalo de nuevo.",
+            "refused": "Este chat ya no puede recibir esta tarea. Elige otro.",
+            "retry": "Enviar de nuevo",
+            "retryHint": "Puede que el último envío no haya llegado. Enviar de nuevo no la publicará dos veces; si cambias el chat o el mensaje, se envía uno nuevo."
+          }
         },
         "ShareModal": {
           "title": "Share task",
@@ -9841,7 +9886,8 @@
         "continue": "Continuar",
         "back": "Atrás",
         "pictureTitle": "Elige una imagen para {name}",
-        "skip": "Omitir"
+        "createWithoutPicture": "Crear sin imagen",
+        "createWithoutPictureHint": "{name} empieza con su orbe de color. Añade una imagen cuando quieras en sus ajustes."
       },
       "Memory": {
         "title": "Memoria",

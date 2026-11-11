@@ -832,7 +832,33 @@
       "vendorGrantAcceptSuccess": "Vendor access approved",
       "vendorGrantAcceptError": "Failed to approve vendor access",
       "coworkerAccessAcceptSuccess": "Coworker early access approved",
-      "coworkerAccessAcceptError": "Failed to approve coworker early access"
+      "coworkerAccessAcceptError": "Failed to approve coworker early access",
+      "reply": "Reply",
+      "replyTo": "Reply: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# Task is waiting on you} other {# Tasks are waiting on you}}",
+        "showAll": "Show all in Tasks",
+        "loadError": "Could not load the Tasks waiting on you",
+        "ask": {
+          "INPUT_REQUIRED": "{name} needs your input",
+          "APPROVAL_REQUIRED": "{name} needs your approval",
+          "AUTHENTICATION_REQUIRED": "{name} needs you to sign in"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Needs your input",
+          "APPROVAL_REQUIRED": "Needs your approval",
+          "AUTHENTICATION_REQUIRED": "Needs you to sign in",
+          "OUT_OF_CREDITS": "Paused until credits are added",
+          "GRANT_PENDING": "Waiting for workspace access"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Answer",
+          "APPROVAL_REQUIRED": "Review",
+          "AUTHENTICATION_REQUIRED": "Sign in",
+          "OUT_OF_CREDITS": "Open",
+          "GRANT_PENDING": "Open"
+        }
+      }
     },
     "HashValue": {
       "copy": "Copy",
@@ -1924,7 +1950,26 @@
           "markComplete": "Mark complete",
           "repeat": "Repeat",
           "repeatError": "Couldn't open the schedule form. Try again.",
-          "duplicate": "Duplicate as draft"
+          "duplicate": "Duplicate as draft",
+          "sendToChat": {
+            "menuItem": "Send to chat",
+            "title": "Send task to chat",
+            "description": "Post a link to this task in a channel or direct message. Everyone there sees its title; only people who can open the task see more. Rooms with AI coworkers or guests aren't offered.",
+            "roomLabel": "Send to",
+            "roomPlaceholder": "Choose a channel or direct message",
+            "noteLabel": "Message (optional)",
+            "notePlaceholder": "Add a note, like what you need from them",
+            "noRooms": "You have no chats in this workspace to send to yet.",
+            "send": "Send",
+            "cancel": "Cancel",
+            "success": "Task sent to chat",
+            "openChat": "Open chat",
+            "error": "Couldn't send the task. Try again.",
+            "loadError": "Couldn't load your chats. Try again.",
+            "refused": "This chat can't receive this task anymore. Choose another one.",
+            "retry": "Send again",
+            "retryHint": "The last send may not have arrived. Sending again won't post it twice; changing the chat or message sends a new one."
+          }
         },
         "ShareModal": {
           "title": "Share task",
@@ -9841,7 +9886,8 @@
         "continue": "Continue",
         "back": "Back",
         "pictureTitle": "Pick a picture for {name}",
-        "skip": "Skip"
+        "createWithoutPicture": "Create without a picture",
+        "createWithoutPictureHint": "{name} starts with its color orb. Add a picture any time in its settings."
       },
       "Memory": {
         "title": "Memory",

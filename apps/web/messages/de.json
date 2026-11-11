@@ -816,7 +816,33 @@
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
-      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden"
+      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden",
+      "reply": "Antworten",
+      "replyTo": "Antworten: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# Aufgabe wartet auf dich} other {# Aufgaben warten auf dich}}",
+        "showAll": "Alle in Aufgaben anzeigen",
+        "loadError": "Die Aufgaben, die auf dich warten, konnten nicht geladen werden",
+        "ask": {
+          "INPUT_REQUIRED": "{name} braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "{name} braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "{name} braucht deine Anmeldung"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "Braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "Braucht deine Anmeldung",
+          "OUT_OF_CREDITS": "Pausiert, bis Credits aufgeladen sind",
+          "GRANT_PENDING": "Wartet auf Workspace-Zugriff"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Antworten",
+          "APPROVAL_REQUIRED": "Prüfen",
+          "AUTHENTICATION_REQUIRED": "Anmelden",
+          "OUT_OF_CREDITS": "Öffnen",
+          "GRANT_PENDING": "Öffnen"
+        }
+      }
     },
     "HashValue": {
       "copy": "Kopieren",
@@ -1923,7 +1949,26 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren"
+          "duplicate": "Als Entwurf duplizieren",
+          "sendToChat": {
+            "menuItem": "In Chat senden",
+            "title": "Aufgabe in Chat senden",
+            "description": "Poste einen Link zu dieser Aufgabe in einen Kanal oder eine Direktnachricht. Alle dort sehen den Titel; mehr sehen nur Personen, die die Aufgabe öffnen dürfen. Räume mit KI-Coworkern oder Gästen werden nicht angeboten.",
+            "roomLabel": "Senden an",
+            "roomPlaceholder": "Kanal oder Direktnachricht wählen",
+            "noteLabel": "Nachricht (optional)",
+            "notePlaceholder": "Füge eine Notiz hinzu, z. B. was du brauchst",
+            "noRooms": "Du hast in diesem Workspace noch keine Chats, an die du senden kannst.",
+            "send": "Senden",
+            "cancel": "Abbrechen",
+            "success": "Aufgabe in den Chat gesendet",
+            "openChat": "Chat öffnen",
+            "error": "Die Aufgabe konnte nicht gesendet werden. Versuche es erneut.",
+            "loadError": "Deine Chats konnten nicht geladen werden. Versuche es erneut.",
+            "refused": "Dieser Chat kann diese Aufgabe nicht mehr erhalten. Wähle einen anderen.",
+            "retry": "Erneut senden",
+            "retryHint": "Das letzte Senden ist vielleicht nicht angekommen. Erneutes Senden postet sie nicht doppelt; wenn du Chat oder Nachricht änderst, wird eine neue gesendet."
+          }
         },
         "ShareModal": {
           "title": "Share task",
@@ -9841,7 +9886,8 @@
         "continue": "Weiter",
         "back": "Zurück",
         "pictureTitle": "Wähle ein Bild für {name}",
-        "skip": "Überspringen"
+        "createWithoutPicture": "Ohne Bild erstellen",
+        "createWithoutPictureHint": "{name} startet mit seiner Farbkugel. Ein Bild fügst du jederzeit in den Einstellungen hinzu."
       },
       "Memory": {
         "title": "Gedächtnis",
