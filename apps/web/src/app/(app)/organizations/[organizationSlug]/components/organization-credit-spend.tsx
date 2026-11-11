@@ -66,6 +66,8 @@ export async function OrganizationCreditSpendCard({
   // Core sorts by this month's spend; the chart keeps the top people and
   // folds the rest into one bar so it stays short (never a bar for just one
   // other person: that slot shows the person). The table lists everyone.
+  // The rest can include organization charges billed to no person, so the
+  // folded bar gets a neutral label rather than a count of people.
   const shown =
     spenders.length > CHART_PEOPLE + 1 ? CHART_PEOPLE : spenders.length;
   const others = spenders.slice(shown);
@@ -77,7 +79,7 @@ export async function OrganizationCreditSpendCard({
       ? [
           {
             key: "others",
-            label: t("otherPeople", { count: others.length }),
+            label: t("otherSpend"),
             credits: others.reduce((sum, row) => sum + row.credits, 0),
             previousCredits: others.reduce(
               (sum, row) => sum + row.previousCredits,

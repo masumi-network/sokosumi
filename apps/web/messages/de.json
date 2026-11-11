@@ -8112,7 +8112,7 @@
           "person": "Person",
           "noPerson": "Organisationskosten (keine Person)",
           "unknownPerson": "Unbekannte Person",
-          "otherPeople": "{count, plural, =1 {1 weitere Person} other {# weitere Personen}}",
+          "otherSpend": "Alle übrigen Ausgaben",
           "formerMember": "Ehemaliges Mitglied",
           "empty": "In diesem und im letzten Monat wurden keine Credits verbraucht.",
           "loadError": "Der Credit-Verbrauch konnte nicht geladen werden. Versuche es erneut.",

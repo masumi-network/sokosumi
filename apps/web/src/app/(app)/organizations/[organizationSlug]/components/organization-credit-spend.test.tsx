@@ -161,9 +161,39 @@ describe("OrganizationCreditSpendCard", () => {
       ["P2", "60%", "50%"],
       ["P3", "40%", "50%"],
       ["P4", "20%", "50%"],
-      ["otherPeople", "15%", "30%"],
+      ["otherSpend", "15%", "30%"],
     ]);
     expect(screen.getAllByRole("row")).toHaveLength(people.length + 1);
+  });
+
+  it("labels the folded bar neutrally when it holds organization charges", async () => {
+    getOrganizationCreditSpendMock.mockResolvedValue({
+      data: {
+        month: "2026-11",
+        previousMonth: "2026-10",
+        rows: [
+          ...[100, 90, 80, 70, 60, 30].map((credits, index) => ({
+            ...row,
+            userId: `u${index}`,
+            name: `P${index}`,
+            credits,
+          })),
+          { ...row, userId: null, name: null, isMember: false, credits: 20 },
+        ],
+      },
+    });
+
+    const { container } = render(
+      await OrganizationCreditSpendCard({ organizationId: "org_1" }),
+    );
+
+    const bars = [...container.querySelectorAll("figure li")].map((item) => [
+      item.querySelector("p")?.textContent,
+      item.querySelector("div")?.style.width,
+    ]);
+    expect(bars).toHaveLength(6);
+    expect(bars[5]).toEqual(["otherSpend", "50%"]);
+    expect(screen.getByRole("row", { name: /noPerson/ })).toBeInTheDocument();
   });
 
   it("charts a sixth person by name instead of folding one person into others", async () => {

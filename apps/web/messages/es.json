@@ -8112,7 +8112,7 @@
           "person": "Persona",
           "noPerson": "Cargos de la organización (sin persona)",
           "unknownPerson": "Persona desconocida",
-          "otherPeople": "{count, plural, =1 {1 persona más} other {# personas más}}",
+          "otherSpend": "Resto del gasto",
           "formerMember": "Exmiembro",
           "empty": "No se gastaron créditos este mes ni el mes pasado.",
           "loadError": "No se pudo cargar el gasto de créditos. Inténtalo de nuevo.",

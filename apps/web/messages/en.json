@@ -8148,7 +8148,7 @@
           "person": "Person",
           "noPerson": "Organization charges (no person)",
           "unknownPerson": "Unknown person",
-          "otherPeople": "{count, plural, =1 {1 other person} other {# other people}}",
+          "otherSpend": "All other spend",
           "formerMember": "Former member",
           "empty": "No credits spent this month or last month.",
           "loadError": "Could not load credit spend. Try again.",
