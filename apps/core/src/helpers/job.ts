@@ -76,6 +76,7 @@ async function validateCreditBalance(
   organizationId: string | null,
   costCents: bigint,
   tx: Prisma.TransactionClient,
+  creditProjectId?: string | null,
 ): Promise<void> {
   if (costCents <= 0) {
     return;
@@ -85,6 +86,7 @@ async function validateCreditBalance(
     userId,
     organizationId,
     tx,
+    { projectId: creditProjectId },
   );
 
   if (centsBalance < costCents) {
@@ -120,6 +122,8 @@ async function createPaidJob(
     inputSchema: InputSchemaSchemaType;
     name: string | null;
     projectId?: string | null;
+    /** The Project whose credits pay, when it is not the Job's (Cuso's hire). */
+    creditProjectId?: string | null;
     taskId?: string | null;
   },
   cost: AgentCost,
@@ -140,6 +144,7 @@ async function createPaidJob(
     input.organizationId,
     cost.cents,
     tx,
+    { projectId: input.creditProjectId },
   );
 
   const job = await tx.job.create({
@@ -310,6 +315,11 @@ interface CreateAgentJobInput {
   taskContext?: {
     taskId: string;
   };
+  /**
+   * The Project whose credits pay, when it is not the Job's own: a Soko Bot's
+   * hire charges its bot's Project (ADR 0067), even for a Job with none.
+   */
+  creditProjectId?: string | null;
   /**
    * Runs after all local pricing, Agent, project, and buyer-cap validation but
    * immediately before the seller-side start request. Callers use this
@@ -594,6 +604,7 @@ export async function createAgentJobForUser(
     inputData: agentInput.inputData,
     inputSchema: agentInput.inputSchema,
     projectId: agentInput.projectId,
+    creditProjectId: input.creditProjectId,
     taskId: taskContext?.taskId,
   };
 
@@ -608,6 +619,7 @@ export async function createAgentJobForUser(
           owner.organizationId,
           cost.cents,
           tx,
+          input.creditProjectId,
         ),
       "Balance preflight conflicted with a concurrent credit update. Please retry.",
     );
@@ -873,6 +885,7 @@ export async function createAgentJobForUser(
       owner.organizationId,
       cost.cents,
       tx,
+      input.creditProjectId,
     );
 
     let createdJob: JobWithListSummaryRelations;

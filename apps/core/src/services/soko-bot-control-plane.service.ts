@@ -3670,6 +3670,7 @@ export class SokoBotControlPlane {
         id: bot.id,
         userId: bot.userId,
         organizationId: bot.workspace.organizationId,
+        projectId: bot.projectId,
       })),
     );
     return {

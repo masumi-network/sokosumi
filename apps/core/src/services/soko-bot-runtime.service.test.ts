@@ -3880,6 +3880,26 @@ describe("SokoBotRuntimeService hire decisions", () => {
     );
   });
 
+  it("charges a hire with its bot's Project, though the hire names none", async () => {
+    // Cuso's Project credits pay for his hires (ADR 0067).
+    botFindFirstMock.mockResolvedValue(botRow({ projectId: "project_cuso" }));
+
+    await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creditProjectId: "project_cuso",
+        agentInput: expect.not.objectContaining({
+          projectId: expect.anything(),
+        }),
+      }),
+    );
+  });
+
   it("never returns a hire to PENDING after seller-side execution starts", async () => {
     decisionUpdateMock.mockRejectedValueOnce(
       new Error("database connection lost after Job creation"),

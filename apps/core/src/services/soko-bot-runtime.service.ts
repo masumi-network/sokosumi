@@ -9347,6 +9347,8 @@ export class SokoBotRuntimeService {
           },
           creator: { kind: "soko_bot", sokoBotId: decision.sokoBotId },
           agentInput: hire,
+          // The bot's Project pays (ADR 0067), whatever Project the hire names.
+          creditProjectId: activeBot.projectId,
           beforeSellerStart: async () => {
             sellerReservationMarker = createSellerReservationMarker(
               "hire_agent",
