@@ -370,7 +370,12 @@ export function SeoKeywords({
                           {shown.volume ? (
                             <TableCell
                               className="text-right tabular-nums"
-                              data-label={t("keywords.volume")}
+                              // No number, no unit: the label names the empty value.
+                              data-label={
+                                volume === null
+                                  ? t("keywords.volume")
+                                  : undefined
+                              }
                             >
                               {volume === null ? (
                                 t("none")
@@ -378,6 +383,9 @@ export function SeoKeywords({
                                 <SeoBarNumber
                                   value={volume}
                                   max={mostSearched}
+                                  unit={t("keywords.volumeUnit", {
+                                    count: volume,
+                                  })}
                                 />
                               )}
                             </TableCell>
@@ -474,9 +482,7 @@ export function SeoKeywords({
                           ) : null}
                           {shown.intent ? (
                             // No intent in the keyword data: the cell stays empty and the line under the table counts them.
-                            <TableCell data-label={t("keywords.intent")}>
-                              {intent}
-                            </TableCell>
+                            <TableCell>{intent}</TableCell>
                           ) : null}
                           {shown.priority ? (
                             <TableCell data-label={t("keywords.priority")}>

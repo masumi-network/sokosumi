@@ -396,6 +396,100 @@ describe("SEO workspace integration", () => {
     expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
   });
 
+  it("leads with the first step on a phone, starts the keyword work, and names a page of the site by its path", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
+    const guide = "https://example.com/guides/a";
+    workspace.findings.push({
+      id: "price",
+      observationId,
+      pageUrl: guide,
+      device: "mobile",
+      rowId: "SD-08",
+      title: "Markup matches the visible page",
+      severity: "major",
+      evidence: ["The markup says 6.99, the page shows 9.99."],
+      sourceRef: "html:head",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    workspace.actions.push({
+      id: "fix-price",
+      observationId,
+      pageUrl: guide,
+      findingIds: ["price"],
+      title: "Make the markup price match the page",
+      why: "The two prices differ.",
+      effort: "low",
+      expectedEffect: "One price.",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    });
+    workspace.actions.push({
+      ...workspace.actions.at(-1)!,
+      id: "fix-price-2",
+      title: "Show one price in the markup",
+    });
+    const read = {
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      device: "mobile",
+      checkedResults: 18,
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      observationId,
+      position: null,
+      positionStatus: "not_in_range",
+      intent: null,
+    } as const;
+    workspace.keywords.push(
+      { ...read, id: "small", keyword: "charge timer", volume: 90 },
+      { ...read, id: "large", keyword: "battery app", volume: 720 },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    vi.stubGlobal("innerWidth", 375);
+    renderWorkspace(workspace);
+    // On a phone the first step and its button come before the numbers.
+    const step = screen.getByText("Make the markup price match the page");
+    const tiles = screen.getByTestId("seo-summary-tiles");
+    expect(
+      step.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // The other steps follow the numbers, each once.
+    expect(
+      tiles.compareDocumentPosition(
+        screen.getByText("Show one price in the markup"),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // No keyword has a page in the results: the step names the most searched one.
+    expect(
+      screen.getByText(
+        "“battery app” has the most searches of the checked keywords: 720 a month. Your page is not in its top results.",
+      ),
+    ).toBeVisible();
+    // The page of the fix is a page of the site: its path, with the address as the link's name.
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    const card = screen
+      .getByRole("heading", { name: "Make the markup price match the page" })
+      .closest("article");
+    expect(within(card!).getByRole("link", { name: guide })).toHaveTextContent(
+      /^\/guides\/a$/,
+    );
+    await user.click(screen.getByRole("tab", { name: "Health" }));
+    expect(screen.getByText("Mobile · /guides/a")).toBeVisible();
+  });
+
   it("splits page details into measurements and notes and folds their references", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

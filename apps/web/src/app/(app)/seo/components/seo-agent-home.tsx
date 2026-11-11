@@ -1,19 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  Compass,
-  FileText,
-  Lightbulb,
-  type LucideIcon,
-  Play,
-  Plug,
-  Plus,
-  Radar,
-  RefreshCw,
-  Search,
-  WandSparkles,
-} from "lucide-react";
+import { ChevronDown, Play } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
@@ -22,6 +9,7 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SeoActionCard } from "./seo-actions";
 import {
@@ -29,317 +17,26 @@ import {
   type SeoAgentStep,
   seoAgentBrief,
 } from "./seo-agent-model";
+import { SeoActionStepRow, SeoStepRow } from "./seo-agent-steps";
 import { SeoAskBar } from "./seo-ask-bar";
 import { useSeoChatIdentity } from "./seo-chat-panel";
-import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
-import { SeoGoogleConnection } from "./seo-google-connection";
 import { SeoAutomation } from "./seo-monitors";
-import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
+import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunLeads } from "./seo-setup-model";
-import { SeoDate, SeoPageLink, SeoPeriod, SeoSeverity } from "./seo-shared";
+import { SeoDate, SeoPeriod } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { seoSummary } from "./seo-summary-model";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { useSeoAutopilot } from "./use-seo-autopilot";
-import { useSeoConnectionStatus } from "./use-seo-connection";
 import { useSeoSetup } from "./use-seo-setup";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Next steps past this count fold behind a "show more" button. */
 const SEO_AGENT_VISIBLE_STEPS = 6;
-const STEP_ICONS: Record<
-  Exclude<SeoAgentStep, { kind: "action" }>["kind"],
-  LucideIcon
-> = {
-  measure: Lightbulb,
-  strategy: Compass,
-  keyword: Search,
-  pages: FileText,
-  refresh: RefreshCw,
-  connect: Plug,
-  // Not the people icon: the chat uses that one for "shared in your organization".
-  competitors: Radar,
-};
-
-function StepRow({
-  step,
-  model,
-  refresh,
-  refreshing,
-  first,
-}: {
-  step: Exclude<SeoAgentStep, { kind: "action" }>;
-  model: SeoWorkspaceModel;
-  refresh: () => void;
-  refreshing: boolean;
-  /** The agent's top proposal carries the one primary button. */
-  first: boolean;
-}) {
-  const t = useTranslations("App.Seo");
-  const format = useFormatter();
-  // Several steps can carry the same button name; the step's text tells them apart.
-  const bodyId = useId();
-  const { canEdit, canRequestAnalysis } = model.data.availableActions;
-  const variant = first ? "primary" : "outline";
-  // A connected account with nothing synced: the step asks for the sync, not for the account.
-  // The account's own actions are in the sync dialog.
-  const connectStep = step.kind === "connect";
-  const sync =
-    useSeoConnectionStatus(
-      connectStep ? step.provider : "search_console",
-      connectStep,
-    ).status.data?.status === "connected" && connectStep;
-  const [body, control] =
-    step.kind === "measure"
-      ? [
-          // One page needs no URL; with several, the step names its page.
-          model.data.scope.pageIds.length > 1
-            ? t("agent.steps.measureOnPage", {
-                name: step.name,
-                value: step.value,
-                count: step.tools.length,
-                tools: format.list(step.tools),
-                url: step.pageUrl,
-              })
-            : t("agent.steps.measure", {
-                name: step.name,
-                value: step.value,
-                count: step.tools.length,
-                tools: format.list(step.tools),
-              }),
-          model.data.auditId ? (
-            <Button
-              key="measure"
-              size="sm"
-              variant={variant}
-              aria-describedby={bodyId}
-              onClick={() => {
-                model.askAgent(
-                  t("agent.prompts.measure", {
-                    name: step.name,
-                    value: step.value,
-                    count: step.tools.length,
-                    tools: format.list(step.tools),
-                    url: step.pageUrl,
-                  }),
-                );
-              }}
-            >
-              <WandSparkles />
-              {t("agent.draftFix")}
-            </Button>
-          ) : null,
-        ]
-      : step.kind === "strategy"
-        ? [
-            t("agent.steps.strategy", { count: step.count, title: step.title }),
-            <Button
-              key="strategy"
-              size="sm"
-              // A link to a list, not a piece of work: it never takes the filled style.
-              variant="outline"
-              aria-describedby={bodyId}
-              onClick={() => {
-                void model.setFilters({ tab: "actions" });
-              }}
-            >
-              {t("strategy.actions.open")}
-            </Button>,
-          ]
-        : step.kind === "keyword"
-          ? [
-              t("agent.steps.keyword", {
-                keyword: step.keyword,
-                pages: model.data.scope.pageIds.length,
-              }),
-              model.data.auditId ? (
-                <Button
-                  key="keyword"
-                  size="sm"
-                  variant={variant}
-                  aria-describedby={bodyId}
-                  onClick={() => {
-                    model.askAgent(
-                      t("agent.prompts.keyword", { keyword: step.keyword }),
-                    );
-                  }}
-                >
-                  <WandSparkles />
-                  {t("agent.askHow")}
-                </Button>
-              ) : null,
-            ]
-          : step.kind === "pages"
-            ? [
-                // No promise of issues where no check can find them.
-                t(
-                  canRequestAnalysis
-                    ? "agent.steps.pages"
-                    : "agent.steps.pagesOff",
-                ),
-                <Button
-                  key="pages"
-                  size="sm"
-                  variant={variant}
-                  onClick={() => model.setDialog("page")}
-                >
-                  <Plus />
-                  {t("addPage")}
-                </Button>,
-              ]
-            : step.kind === "refresh"
-              ? [
-                  t(`agent.steps.refresh.${step.reason}`),
-                  <Button
-                    key="refresh"
-                    size="sm"
-                    variant={variant}
-                    loading={refreshing}
-                    disabled={model.pending}
-                    onClick={refresh}
-                  >
-                    <RefreshCw />
-                    {t("syncNow")}
-                  </Button>,
-                ]
-              : step.kind === "connect"
-                ? [
-                    t(
-                      sync
-                        ? `agent.steps.sync.${step.provider}`
-                        : `agent.steps.connect.${step.provider}`,
-                    ),
-                    sync ? (
-                      <Button
-                        key="sync"
-                        size="sm"
-                        variant={variant}
-                        onClick={() => model.openStatistics(step.provider)}
-                      >
-                        <RefreshCw />
-                        {t("syncStatistics")}
-                      </Button>
-                    ) : step.provider === "search_console" ? (
-                      <SeoGoogleConnection
-                        key="connect"
-                        variant={variant}
-                        onConnected={model.openStatistics}
-                        inRow
-                      />
-                    ) : (
-                      <SeoConnectionButton
-                        key="connect"
-                        provider={step.provider}
-                        variant={variant}
-                        onConnected={() => model.openStatistics(step.provider)}
-                      />
-                    ),
-                  ]
-                : [
-                    t(
-                      step.available
-                        ? "agent.steps.competitors.available"
-                        : "agent.steps.competitors.unavailable",
-                    ),
-                    canEdit && (canRequestAnalysis || !step.available) ? (
-                      <Button
-                        key="competitors"
-                        size="sm"
-                        variant={variant}
-                        onClick={() =>
-                          model.setDialog(
-                            step.available ? "analysis" : "competitor",
-                          )
-                        }
-                      >
-                        {step.available ? <Search /> : <Plus />}
-                        {t(
-                          step.available
-                            ? "agent.researchCompetitors"
-                            : "competitors.add",
-                        )}
-                      </Button>
-                    ) : null,
-                  ];
-  const Icon = STEP_ICONS[step.kind];
-  return (
-    <li
-      className={cn(
-        HOLDER_ITEM_CLASS,
-        "content-rise flex items-start gap-3 p-4",
-      )}
-    >
-      <span
-        aria-hidden
-        className="bg-quinary text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
-      >
-        <Icon className="size-4" />
-      </span>
-      {/* A control that wraps starts on the text edge, not under the icon. */}
-      {/* A control with a note or an error has its own line: beside the text it would squeeze the text. */}
-      <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
-        <p
-          id={bodyId}
-          className="max-w-prose min-w-0 flex-1 basis-48 text-sm break-words"
-        >
-          {body}
-        </p>
-        {control ? (
-          <div className="max-w-full min-w-0 has-[p]:basis-full">{control}</div>
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-/** An action without the primary button: its title and the way to its card. The Actions tab holds the cards, once. */
-function ActionStepRow({
-  action,
-  severity,
-  model,
-}: {
-  action: Extract<SeoAgentStep, { kind: "action" }>["action"];
-  severity: SeoIssueSeverity | null;
-  model: SeoWorkspaceModel;
-}) {
-  const t = useTranslations("App.Seo");
-  // Every row has the same button name; the title (and the page, where there are several) tells the rows apart.
-  const titleId = useId();
-  return (
-    <li
-      className={cn(
-        HOLDER_ITEM_CLASS,
-        "content-rise flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5",
-      )}
-    >
-      <div id={titleId} className="min-w-0 flex-1 basis-48 max-sm:basis-full">
-        <p className="text-sm font-medium break-words">{action.title}</p>
-        {model.data.scope.pageIds.length > 1 ? (
-          <SeoPageLink url={action.pageUrl} />
-        ) : null}
-      </div>
-      {severity ? (
-        <SeoSeverity severity={severity}>
-          {t(`severity.${severity}`)}
-        </SeoSeverity>
-      ) : null}
-      <Button
-        size="sm"
-        variant="outline"
-        aria-describedby={titleId}
-        // On a phone the text has the full width; the mark and the button share the line under it.
-        className="max-sm:ml-auto"
-        onClick={() => model.showAction(action)}
-      >
-        {t(action.kind === "fix" ? "overview.seeFix" : "agent.seeSuggestion")}
-      </Button>
-    </li>
-  );
-}
 
 /** The SEO agent is the first thing on an Audit: what it knows, what it proposes, and a field to ask it. */
 export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
@@ -405,7 +102,9 @@ function SeoAgentPanel({
     setup?.next || seoRunLeads(model.data)
       ? -1
       : steps.findIndex((step) =>
-          step.kind === "keyword" || step.kind === "measure"
+          step.kind === "keyword" ||
+          step.kind === "positions" ||
+          step.kind === "measure"
             ? Boolean(model.data.auditId)
             : step.kind === "competitors"
               ? canEdit && (canRequestAnalysis || !step.available)
@@ -435,6 +134,20 @@ function SeoAgentPanel({
     brief.opportunities -
     steps.filter((step) => step.kind === "action").length;
   const actionKind = brief.opportunities ? "action" : "fix";
+  // The keyword results as numbers. The issue count is in the headline; its tiles lead the Health tab.
+  const tiles = (
+    <SeoSummaryTiles
+      show="rankings"
+      workspace={model.data}
+      onOpenRankings={() => {
+        void model.setFilters({ tab: "rankings" });
+      }}
+    />
+  );
+  // On a phone the numbers before the steps pushed the first step's button under the first screen.
+  // There the first action leads and the numbers follow it.
+  const tilesAfterFirstStep = useIsMobile() && split > 0;
+  const lead = tilesAfterFirstStep ? 1 : 0;
   const stepItem = (step: SeoAgentStep, index: number) =>
     step.kind === "action" ? (
       index === primary ? (
@@ -450,7 +163,7 @@ function SeoAgentPanel({
           />
         </li>
       ) : (
-        <ActionStepRow
+        <SeoActionStepRow
           key={`${step.action.observationId}:${step.action.id}`}
           action={step.action}
           severity={actionSeverity(step.action)}
@@ -458,7 +171,7 @@ function SeoAgentPanel({
         />
       )
     ) : (
-      <StepRow
+      <SeoStepRow
         key={`${step.kind}:${"provider" in step ? step.provider : ""}:${"name" in step ? `${step.name}:${step.pageUrl}` : ""}`}
         step={step}
         model={model}
@@ -562,14 +275,7 @@ function SeoAgentPanel({
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
-          {/* The keyword results as numbers. The issue count is in the headline; its tiles lead the Health tab. */}
-          <SeoSummaryTiles
-            show="rankings"
-            workspace={model.data}
-            onOpenRankings={() => {
-              void model.setFilters({ tab: "rankings" });
-            }}
-          />
+          {tilesAfterFirstStep ? null : tiles}
           {traffic ? (
             // The link is its own item: when it wraps, no separator leads its line.
             <p
@@ -635,9 +341,19 @@ function SeoAgentPanel({
           </h3>
           {steps.length ? (
             <>
-              {split ? (
+              {tilesAfterFirstStep ? (
+                <>
+                  <ul role="list" className="space-y-2">
+                    {stepItem(shown[0], 0)}
+                  </ul>
+                  <div className={cn(HOLDER_ITEM_CLASS, "p-4")}>{tiles}</div>
+                </>
+              ) : null}
+              {split && (split > lead || moreActions) ? (
                 <ul role="list" className="space-y-2">
-                  {shown.slice(0, split).map(stepItem)}
+                  {shown
+                    .slice(lead, split)
+                    .map((step, index) => stepItem(step, index + lead))}
                   {moreActions ? (
                     // The Agent tab shows the first actions only: the rest must not look absent.
                     <li

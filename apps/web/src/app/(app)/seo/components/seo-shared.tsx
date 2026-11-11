@@ -32,17 +32,26 @@ export const SEO_STACKED_TABLE_CLASS = [
 /**
  * The stacked rows of a list with one button per row (keywords, ideas,
  * competitors). Below the sm breakpoint the name and the button share the first
- * line, and each number takes one line with its label before it: a button on a
- * line of its own made a row 165 to 225 px high.
+ * line, and the values follow on one line that wraps, with a dot between them:
+ * one line per value made a row 121 to 150 px high. A value that does not name
+ * itself keeps its label before it.
  */
 export const SEO_COMPACT_ROWS_CLASS = [
   "max-sm:[&_thead]:hidden",
-  "max-sm:[&_tbody_tr]:grid max-sm:[&_tbody_tr]:grid-cols-[minmax(0,1fr)_auto] max-sm:[&_tbody_tr]:gap-x-3 max-sm:[&_tbody_tr]:gap-y-1 max-sm:[&_tbody_tr]:px-3 max-sm:[&_tbody_tr]:py-3",
-  "max-sm:[&_td]:col-span-2 max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal max-sm:[&_td:empty]:hidden",
+  "max-sm:[&_tbody_tr]:flex max-sm:[&_tbody_tr]:flex-wrap max-sm:[&_tbody_tr]:items-start max-sm:[&_tbody_tr]:gap-x-2 max-sm:[&_tbody_tr]:gap-y-0.5 max-sm:[&_tbody_tr]:px-3 max-sm:[&_tbody_tr]:py-3",
+  "max-sm:[&_td]:order-3 max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal max-sm:[&_td:empty]:hidden",
   // A row of one cell (a chart under a keyword) keeps the full width.
-  "max-sm:[&_td:first-child:not(:last-child)]:col-start-1 max-sm:[&_td:first-child:not(:last-child)]:col-end-2 max-sm:[&_td:first-child:not(:last-child)]:row-start-1",
-  "max-sm:[&_td:last-child:not(:first-child)]:col-start-2 max-sm:[&_td:last-child:not(:first-child)]:col-end-3 max-sm:[&_td:last-child:not(:first-child)]:row-start-1",
-  "max-sm:[&_td[data-label]]:before:mr-1.5 max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
+  "max-sm:[&_td:only-child]:basis-full",
+  "max-sm:[&_td:first-child:not(:last-child)]:order-1 max-sm:[&_td:first-child:not(:last-child)]:flex-1 max-sm:[&_td:first-child:not(:last-child)]:basis-0",
+  "max-sm:[&_td:last-child:not(:first-child)]:order-2 max-sm:[&_td:last-child:not(:first-child)]:shrink-0",
+  // An empty item of full width ends the first line, so the values start a line of their own.
+  // The item is a line too, so the row gap counts twice between the name and the values.
+  "max-sm:[&_tbody_tr]:after:order-2 max-sm:[&_tbody_tr]:after:basis-full max-sm:[&_tbody_tr]:after:content-['']",
+  // A value can be several paragraphs (a position per device): the label, the paragraphs and the dot are items of one line.
+  "max-sm:[&_td:not(:first-child):not(:last-child):not(:empty)]:flex max-sm:[&_td:not(:first-child):not(:last-child):not(:empty)]:flex-wrap max-sm:[&_td:not(:first-child):not(:last-child):not(:empty)]:items-baseline max-sm:[&_td:not(:first-child):not(:last-child):not(:empty)]:gap-x-2",
+  "max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
+  // The dot stands after a value that another value follows, so no line starts with one.
+  "max-sm:[&_td:not(:first-child):not(:empty):has(~td:not(:last-child):not(:empty))]:after:text-muted-foreground max-sm:[&_td:not(:first-child):not(:empty):has(~td:not(:last-child):not(:empty))]:after:content-['·']",
 ].join(" ");
 
 /** "US", "en" read as "United States · English" in the reader's language; an unknown code stays as written. */
@@ -250,6 +259,12 @@ export function seoPagePath(url: string, site: string) {
   }
 }
 
+/** A page of the Audit's site by its path, the home page by the given name; any other address in full. */
+export function seoPageName(url: string, site: string | null, home: string) {
+  const path = site ? seoPagePath(url, site) : null;
+  return path === "/" ? home : (path ?? url);
+}
+
 export function SeoPageLink({
   url,
   label,
@@ -350,16 +365,28 @@ export function SeoSource({
 /** The least width of a bar's fill, so a small count still shows a mark. */
 const SEO_BAR_MIN_PERCENT = 4;
 
-/** A count with a thin bar that sets it against the largest count of its list. */
-export function SeoBarNumber({ value, max }: { value: number; max: number }) {
+/**
+ * A count with a thin bar that sets it against the largest count of its list.
+ * Below the sm breakpoint the row has no column head: the unit names the count there, and the bar goes.
+ */
+export function SeoBarNumber({
+  value,
+  max,
+  unit,
+}: {
+  value: number;
+  max: number;
+  unit: string;
+}) {
   const format = useFormatter();
   return (
-    <span className="inline-flex flex-col items-end gap-1 max-sm:items-start">
+    <span className="inline-flex flex-col items-end gap-1 max-sm:flex-row max-sm:items-baseline">
       {format.number(value)}
+      <span className="sm:hidden">{unit}</span>
       {max > 0 ? (
         <span
           aria-hidden
-          className="bg-muted-foreground/25 block h-1 w-16 rounded-full"
+          className="bg-muted-foreground/25 block h-1 w-16 rounded-full max-sm:hidden"
         >
           <span
             className="bg-chart-5 block h-1 rounded-full"

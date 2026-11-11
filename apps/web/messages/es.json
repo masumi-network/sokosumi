@@ -11026,6 +11026,7 @@
         "keyword": "Palabra clave",
         "market": "Mercado",
         "volume": "Búsquedas al mes",
+        "volumeUnit": "{count, plural, one {búsqueda al mes} other {búsquedas al mes}}",
         "position": "Posición",
         "intent": "Intención",
         "priority": "Prioridad",
@@ -11156,7 +11157,8 @@
         "notChecked": "Aún sin comprobar",
         "notCheckedInDates": "Sin comprobación en estas fechas",
         "checkIncomplete": "comprobación incompleta",
-        "home": "Página de inicio"
+        "home": "Página de inicio",
+        "homeInText": "la página de inicio"
       },
       "timeline": {
         "title": "Cronología",
@@ -11496,6 +11498,8 @@
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
           "keyword": "Search Console aún no muestra búsquedas de «{keyword}» para {pages, plural, one {tu página} other {tus páginas}}. El agente puede preparar un plan para que aparezcas en esa búsqueda.",
+          "positions": "{pages, plural, one {Tu página no está} other {Tus páginas no están}} en los primeros resultados de Google para «{keyword}».",
+          "positionsSearched": "«{keyword}» es la palabra clave comprobada con más búsquedas: {volume, number} al mes. {pages, plural, one {Tu página no está} other {Tus páginas no están}} en sus primeros resultados.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas.",
           "pagesOff": "Esta auditoría cubre 1 página. Añade tus otras páginas importantes para ver también sus búsquedas.",
           "measure": "Sugerencia: {name} es {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}.",
@@ -11507,6 +11511,7 @@
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabes de mis competidores?",
           "keyword": "Prepara un plan para que estas páginas se posicionen para «{keyword}». Usa las comprobaciones guardadas y los datos de Search Console, y propón los cambios como acciones que pueda aprobar.",
+          "positions": "Una comprobación de posiciones no encontró estas páginas en los primeros resultados de Google para «{keyword}». Prepara un plan para que se posicionen para esa búsqueda. Usa los resultados guardados de las comprobaciones y propón los cambios como acciones que pueda aprobar.",
           "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar."
         },
         "researchCompetitors": "Investigar competidores",

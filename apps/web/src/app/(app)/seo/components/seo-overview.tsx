@@ -33,6 +33,8 @@ import {
   SeoSeverity,
   SeoSource,
   SeoState,
+  seoPageName,
+  seoSiteUrl,
 } from "./seo-shared";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { SeoTimeline } from "./seo-timeline";
@@ -233,7 +235,7 @@ function PageDetail({
               <span id={pageLabelId} className="sr-only">
                 {finding.pageUrl}
               </span>
-              <SeoPageLink url={finding.pageUrl} />
+              <SeoPageLink url={finding.pageUrl} site={seoSiteUrl(data)} />
             </>
           ) : null}
         </div>
@@ -351,7 +353,11 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                                 ),
                               )
                             : null,
-                          finding.pageUrl,
+                          seoPageName(
+                            finding.pageUrl,
+                            seoSiteUrl(data),
+                            t("pages.home"),
+                          ),
                         ]
                           .filter(Boolean)
                           .join(" · ")}
@@ -369,7 +375,10 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         ))}
                       </ul>
                       <div className="flex flex-wrap items-center gap-x-3 text-xs">
-                        <SeoPageLink url={finding.pageUrl} />
+                        <SeoPageLink
+                          url={finding.pageUrl}
+                          site={seoSiteUrl(data)}
+                        />
                         <SeoDate value={finding.observedAt} />
                         <SeoSource
                           observationId={finding.observationId}

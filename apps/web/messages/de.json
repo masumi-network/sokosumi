@@ -11026,6 +11026,7 @@
         "keyword": "Keyword",
         "market": "Markt",
         "volume": "Suchen pro Monat",
+        "volumeUnit": "{count, plural, one {Suche pro Monat} other {Suchen pro Monat}}",
         "position": "Position",
         "intent": "Suchabsicht",
         "priority": "Priorität",
@@ -11156,7 +11157,8 @@
         "notChecked": "Noch nicht geprüft",
         "notCheckedInDates": "Keine Prüfung in diesem Zeitraum",
         "checkIncomplete": "Prüfung unvollständig",
-        "home": "Startseite"
+        "home": "Startseite",
+        "homeInText": "der Startseite"
       },
       "timeline": {
         "title": "Verlauf",
@@ -11496,6 +11498,8 @@
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
           "keyword": "Search Console listet noch keine Suchen nach „{keyword}“ für {pages, plural, one {deine Seite} other {deine Seiten}}. Der Agent kann einen Plan entwerfen, damit du dafür gefunden wirst.",
+          "positions": "{pages, plural, one {Deine Seite ist} other {Deine Seiten sind}} für „{keyword}“ nicht in den ersten Google-Ergebnissen.",
+          "positionsSearched": "„{keyword}“ hat die meisten Suchen der geprüften Keywords: {volume, number} pro Monat. {pages, plural, one {Deine Seite ist} other {Deine Seiten sind}} dafür nicht in den ersten Ergebnissen.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden.",
           "pagesOff": "Dieses Audit umfasst 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um auch ihre Suchanfragen zu sehen.",
           "measure": "Vorschlag: {name} ist {value}, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}.",
@@ -11507,6 +11511,7 @@
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was weißt du über meine Wettbewerber?",
           "keyword": "Entwirf einen Plan, damit diese Seiten für „{keyword}“ ranken. Nutze die gespeicherten Prüfungen und Search-Console-Daten und schlage die Änderungen als Aktionen vor, die ich bestätigen kann.",
+          "positions": "Eine Positionsprüfung hat diese Seiten für „{keyword}“ nicht in den ersten Google-Ergebnissen gefunden. Entwirf einen Plan, damit sie dafür ranken. Nutze die gespeicherten Prüfergebnisse und schlage die Änderungen als Aktionen vor, die ich bestätigen kann.",
           "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann."
         },
         "researchCompetitors": "Wettbewerber recherchieren",

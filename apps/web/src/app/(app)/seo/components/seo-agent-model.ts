@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { keywordGroups } from "./seo-keyword-rows-model";
 import {
   measuresOutsideToolRanges,
   seoOverviewModel,
@@ -25,6 +26,14 @@ export type SeoAgentStep =
     }
   | { kind: "strategy"; count: number; title: string }
   | { kind: "keyword"; keyword: string }
+  | {
+      kind: "positions";
+      /** Distinct keywords with a position read: one keyword read for two pages is one. */
+      keywords: number;
+      keyword: string;
+      /** Its monthly searches, where "the most searches" holds: every keyword has a known count. */
+      volume: number | null;
+    }
   | { kind: "pages" }
   | { kind: "refresh"; reason: "stale" | "no_queries" }
   | { kind: "connect"; provider: "ga4" | "search_console" }
@@ -73,7 +82,31 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
         (row) => row.saved && !listed.has(normalizeQuery(row.keyword)),
       )
     : undefined;
-  if (unseen) steps.push({ kind: "keyword", keyword: unseen.keyword });
+  // A position check that found no page in any result list leaves the tile at "0" with no way on.
+  // The step names where the search work starts: the checked keyword with the most searches.
+  const read = keywordGroups(workspace.keywords).checked.filter(
+    (group) => group.reads.length > 0,
+  );
+  const start =
+    read.length && read.every((group) => group.best === null)
+      ? read.reduce((top, group) =>
+          (group.volume ?? -1) > (top.volume ?? -1) ? group : top,
+        )
+      : null;
+  // One keyword plan at a time: the position check is the stronger evidence.
+  if (start)
+    steps.push({
+      kind: "positions",
+      keywords: new Set(read.map(({ lead }) => normalizeQuery(lead.keyword)))
+        .size,
+      keyword: start.lead.keyword,
+      // An unknown count can be the largest, and a keyword with no searches is no place to start from by count.
+      volume:
+        read.every((group) => group.volume !== null) && start.volume
+          ? start.volume
+          : null,
+    });
+  else if (unseen) steps.push({ kind: "keyword", keyword: unseen.keyword });
   // A value outside the tools' ranges is a suggestion, not an error: it follows the search work.
   const suggestions = measuresOutsideToolRanges(overview.diagnostics);
   for (const { name, value, tools, pageUrl } of suggestions.slice(

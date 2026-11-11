@@ -15,6 +15,7 @@ import {
   SeoSeverity,
   SeoSource,
   SeoState,
+  seoSiteUrl,
 } from "./seo-shared";
 import { SeoStrategyActions } from "./seo-strategy";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
@@ -97,7 +98,7 @@ export function SeoActionCard({
           </span>
         ) : null}
       </p>
-      <SeoPageLink url={action.pageUrl} />
+      <SeoPageLink url={action.pageUrl} site={seoSiteUrl(model.data)} />
       <details className="text-sm">
         <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
           {t("actions.whyDetails")}

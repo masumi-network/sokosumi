@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seoMarketName, seoPagePath } from "./seo-shared";
+import { seoMarketName, seoPageName, seoPagePath } from "./seo-shared";
 
 describe("seoMarketName", () => {
   it("keeps a code Intl does not accept as saved", () => {
@@ -30,5 +30,22 @@ describe("seoPagePath", () => {
   it("keeps an address that does not parse", () => {
     expect(seoPagePath("/a", site)).toBeNull();
     expect(seoPagePath("https://example.com/a", "")).toBeNull();
+  });
+});
+
+describe("seoPageName", () => {
+  it("names the home page, gives a path for the site and the address for any other page", () => {
+    const site = "https://example.com/";
+    expect(seoPageName("https://example.com/", site, "Home page")).toBe(
+      "Home page",
+    );
+    expect(seoPageName("https://example.com/a", site, "Home page")).toBe("/a");
+    expect(seoPageName("https://other.example/", site, "Home page")).toBe(
+      "https://other.example/",
+    );
+    // No site is known: no address can be cut.
+    expect(seoPageName("https://example.com/", null, "Home page")).toBe(
+      "https://example.com/",
+    );
   });
 });

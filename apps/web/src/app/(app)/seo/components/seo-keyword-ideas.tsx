@@ -110,25 +110,27 @@ export function SeoKeywordIdeas({
                 {shown.volume ? (
                   <TableCell
                     className="text-right tabular-nums"
-                    data-label={t("keywords.volume")}
+                    // No number, no unit: the label names the empty value.
+                    data-label={
+                      volume === null ? t("keywords.volume") : undefined
+                    }
                   >
                     {volume === null ? (
                       t("none")
                     ) : (
-                      <SeoBarNumber value={volume} max={mostSearched} />
+                      <SeoBarNumber
+                        value={volume}
+                        max={mostSearched}
+                        unit={t("keywords.volumeUnit", { count: volume })}
+                      />
                     )}
                   </TableCell>
                 ) : null}
                 {shown.intent ? (
                   // No intent in the keyword data: the cell stays empty and the line under the table counts them.
-                  <TableCell data-label={t("keywords.intent")}>
-                    {intent}
-                  </TableCell>
+                  <TableCell>{intent}</TableCell>
                 ) : null}
-                <TableCell
-                  className="whitespace-normal"
-                  data-label={t("keywords.ideas.why")}
-                >
+                <TableCell className="whitespace-normal">
                   {format.list(
                     SEO_IDEA_SOURCES.filter((source) =>
                       sources.includes(source),

@@ -325,4 +325,105 @@ describe("SEO agent brief", () => {
     const fixed = seoAgentBrief(workspace, synced);
     expect(fixed.steps.map((step) => step.kind)).not.toContain("measure");
   });
+
+  it("starts the keyword work at the most searched keyword when a position check found no page", () => {
+    const workspace = connected();
+    const read = (
+      keyword: string,
+      volume: number | null,
+      position: number | null,
+    ) => ({
+      keyword,
+      saved: false,
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: "https://example.com/",
+      source: "focus",
+      device: "mobile",
+      observationId: "check-1",
+      observedAt: synced,
+      positionStatus: position === null ? "not_in_range" : "ranked",
+      position,
+      checkedResults: 18,
+      volume,
+      intent: null,
+    });
+    const rows = (...list: ReturnType<typeof read>[]) =>
+      list as unknown as ProjectSeoWorkspace["keywords"];
+    const positions = () =>
+      seoAgentBrief(workspace, synced).steps.filter(
+        (step) => step.kind === "positions" || step.kind === "keyword",
+      );
+    workspace.keywords = rows(
+      read("battery app", 50, null),
+      read("macbook battery health", 720, null),
+      // The same keyword read for a second page is one keyword.
+      {
+        ...read("Battery  App", 50, null),
+        pageUrl: "https://example.com/guide",
+      },
+      // A read that failed is no "not found": it does not count.
+      { ...read("battery test", 9000, null), positionStatus: "unavailable" },
+    );
+    expect(positions()).toEqual([
+      {
+        kind: "positions",
+        keywords: 2,
+        keyword: "macbook battery health",
+        volume: 720,
+      },
+    ]);
+    // One unknown count can be the largest: the step keeps the keyword and drops the claim.
+    workspace.keywords = rows(
+      read("battery app", 50, null),
+      read("macbook battery health", 720, null),
+      read("battery widget", null, null),
+    );
+    expect(positions()).toEqual([
+      {
+        kind: "positions",
+        keywords: 3,
+        keyword: "macbook battery health",
+        volume: null,
+      },
+    ]);
+    // No searches at all is no "most searches".
+    workspace.keywords = rows(
+      read("battery app", 0, null),
+      read("battery widget", 0, null),
+    );
+    expect(positions()).toEqual([
+      { kind: "positions", keywords: 2, keyword: "battery app", volume: null },
+    ]);
+    workspace.keywords = rows(
+      read("battery app", 50, null),
+      read("macbook battery health", 720, null),
+    );
+    // Search Console would add a plan for a tracked keyword: one plan at a time, the check's leads.
+    workspace.keywords[0].saved = true;
+    workspace.searchQueries = {
+      rows: [],
+    } as unknown as ProjectSeoWorkspace["searchQueries"];
+    expect(positions().map((step) => step.kind)).toEqual(["positions"]);
+    // One page in one result list: the Rankings tab has a result to show, so the step goes.
+    workspace.keywords = rows(
+      { ...read("battery app", 50, null), saved: true },
+      read("macbook battery health", 720, 14),
+    );
+    expect(positions()).toEqual([{ kind: "keyword", keyword: "battery app" }]);
+    // No volume on any keyword: the first of the list, with no claim about searches.
+    workspace.keywords = rows(
+      read("battery app", null, null),
+      read("battery widget", null, null),
+    );
+    expect(positions()).toEqual([
+      { kind: "positions", keywords: 2, keyword: "battery app", volume: null },
+    ]);
+    // No position read at all is no result: no step.
+    workspace.keywords = rows({
+      ...read("battery app", 50, null),
+      positionStatus: "unavailable",
+    });
+    expect(positions()).toEqual([]);
+  });
 });

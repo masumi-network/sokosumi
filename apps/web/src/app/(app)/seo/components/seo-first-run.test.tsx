@@ -126,10 +126,18 @@ const primaryButtons = (scope: HTMLElement) =>
     .filter((button) => button.className.split(" ").includes("bg-primary"))
     .map((button) => button.textContent);
 
+// The page also listens for a change of the screen width, so the stub takes listeners.
+const media = (matches: boolean) =>
+  ({
+    matches,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }) as unknown as MediaQueryList;
+
 beforeEach(() => {
   // A pointer device: Enter sends. A touch keyboard has its own test.
-  vi.spyOn(window, "matchMedia").mockImplementation(
-    (query) => ({ matches: query === "(hover: hover)" }) as MediaQueryList,
+  vi.spyOn(window, "matchMedia").mockImplementation((query) =>
+    media(query === "(hover: hover)"),
   );
 });
 afterEach(() => {
@@ -662,13 +670,11 @@ describe("SEO agent chat", () => {
     expect(box).toHaveValue("Fi\nrst\n");
     // Safari reports the Enter that confirms a composition with this key code.
     fireEvent.keyDown(box, { key: "Enter", keyCode: 229 });
-    vi.mocked(window.matchMedia).mockImplementation(
-      () => ({ matches: false }) as MediaQueryList,
-    );
+    vi.mocked(window.matchMedia).mockImplementation(() => media(false));
     fireEvent.keyDown(box, { key: "Enter" });
     expect(posts).toEqual([]);
-    vi.mocked(window.matchMedia).mockImplementation(
-      (query) => ({ matches: query === "(hover: hover)" }) as MediaQueryList,
+    vi.mocked(window.matchMedia).mockImplementation((query) =>
+      media(query === "(hover: hover)"),
     );
     fireEvent.keyDown(box, { key: "Enter" });
     expect(await screen.findByText("Answer one")).toBeVisible();
@@ -777,9 +783,7 @@ describe("SEO agent chat", () => {
     const user = userEvent.setup();
     const workspace = chatWorkspace();
     network(workspace, {});
-    vi.mocked(window.matchMedia).mockImplementation(
-      () => ({ matches: false }) as MediaQueryList,
-    );
+    vi.mocked(window.matchMedia).mockImplementation(() => media(false));
     renderWorkspace(workspace);
     const sheet = await openChat(user);
     await waitFor(() =>
