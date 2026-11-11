@@ -1647,7 +1647,6 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
-          "chatKind": "Chat",
           "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",

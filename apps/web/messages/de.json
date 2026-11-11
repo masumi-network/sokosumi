@@ -1647,7 +1647,6 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
-          "chatKind": "Chat",
           "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",

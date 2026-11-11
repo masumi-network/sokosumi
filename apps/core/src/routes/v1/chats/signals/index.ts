@@ -1,6 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetChatDecisions from "./decisions/get.js";
+import mountGetChatImportant from "./important/get.js";
 import mountPutChatSignalCorrection from "./messages/[messageId]/corrections/put.js";
 import mountPutChatSignalLoop from "./messages/[messageId]/loop/put.js";
 import mountGetChatSignalRouting from "./messages/[messageId]/routing/get.js";
@@ -15,6 +16,7 @@ const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
 mountGetChatDecisions(app);
 mountGetChatNeedsYou(app);
+mountGetChatImportant(app);
 mountGetChatOpenLoops(app);
 mountGetChatCatchUpSummary(app);
 mountGetChatRoomCatchUp(app);

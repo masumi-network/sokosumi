@@ -30,7 +30,7 @@ import {
   findSokoBotDirectRoom,
   SOKO_BOT_HOME_TASK_LIMIT,
   type SokoBotHomeChat,
-  toSokoBotChats,
+  toImportantChats,
   toTeamDay,
 } from "./components/soko-bot-home-data";
 
@@ -48,25 +48,20 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * The bot's Direct (null when it has none yet or the read fails) and the
- * chats with a Soko Bot the reader took part in during the last day. Core
- * picks those chats; the room list is the sidebar's cached one.
+ * reader's important unread chat messages from the last day, which Core
+ * picks from Jev's tags; the room list is the sidebar's cached one.
  */
 async function loadSokoBotChats(
   sokoBotId: string,
 ): Promise<{ roomId: string | null; chats: SokoBotHomeChat[] }> {
-  const [{ rooms }, recent, tChannels] = await Promise.all([
+  const [{ rooms }, important, tChannels] = await Promise.all([
     chatRoomService.listRooms().catch(() => ({ rooms: [] })),
-    chatRoomService.listRecentSokoBotMessages().catch(() => []),
+    chatRoomService.listImportantMessages().catch(() => []),
     getTranslations("App.Channels"),
   ]);
   return {
     roomId: findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null,
-    chats: toSokoBotChats(
-      recent,
-      rooms,
-      tChannels("MentionAll.label"),
-      tChannels("SavedMessages.untitled"),
-    ),
+    chats: toImportantChats(important, tChannels("SavedMessages.untitled")),
   };
 }
 
