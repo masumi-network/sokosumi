@@ -1673,7 +1673,6 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
-          "chatKind": "Chat",
           "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",
@@ -2181,6 +2180,21 @@
         },
         "newSchedule": "Nueva programación",
         "empty": "Todavía no hay programaciones. Una programación crea una tarea nueva en cada ejecución.",
+        "zoneTime": "Hora de {zone}",
+        "localTime": "{datetime} en tu hora",
+        "nextRunWithLocal": "Próxima ejecución {datetime} ({local} en tu hora)",
+        "emptyFiltered": {
+          "ACTIVE": "No hay programaciones activas",
+          "PAUSED": "No hay programaciones en pausa",
+          "ENDED": "No hay programaciones finalizadas"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# está activa} other {# están activas}}",
+          "PAUSED": "{count, plural, one {# está en pausa} other {# están en pausa}}",
+          "ENDED": "{count, plural, one {# ha finalizado} other {# han finalizado}}"
+        },
+        "showAll": "Mostrar todas las programaciones",
         "loadMore": "Cargar más",
         "loadMoreError": "No se pudieron cargar más programaciones.",
         "nextRun": "Próxima ejecución {datetime}",
@@ -2292,7 +2306,6 @@
           "properties": "Propiedades",
           "state": "Estado",
           "rule": "Se repite",
-          "timezone": "Zona horaria",
           "nextRun": "Próxima ejecución",
           "ends": "Termina",
           "assignee": "Responsable",
@@ -5293,6 +5306,8 @@
       "statusCancel": "El checkout de suscripción fue cancelado.",
       "currentPlanBadge": "Actual",
       "pricePerMonth": "por mes",
+      "pricePerSeatPerMonth": "por Seat / mes",
+      "seatTotal": "{total} al mes por {seats, plural, =1 {# Seat} other {# Seats}}",
       "includedCredits": "{credits, plural, =0 {Sin Credits} =1 {# Credit incluido} other {# Credits incluidos}}",
       "mostPopularBadge": "Más popular",
       "canceling": "Programando la cancelación...",
@@ -7238,6 +7253,7 @@
       "topUpDescription": "Elige un importe o introduce uno personalizado",
       "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
       "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
+      "seePlans": "Ver planes",
       "couponExpiryPolicyNotice": "Los créditos promocionales pueden caducar; las condiciones dependen del cupón o de la oferta.",
       "costPerCredit": "{cost} por Credit",
       "youSaveLabel": "Ahorra {amount}",
@@ -8092,6 +8108,7 @@
             "removeCta": "{count, plural, =1 {Quitar # Seat} other {Quitar # Seats}}",
             "decrease": "Quitar un Seat",
             "increase": "Añadir un Seat",
+            "minimum": "{count, plural, =1 {Introduce al menos # Seat.} other {Introduce al menos # Seats.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {¿Añadir # Seat?} other {¿Añadir # Seats?}}",
               "removeTitle": "{count, plural, =1 {¿Quitar # Seat?} other {¿Quitar # Seats?}}",
@@ -9337,12 +9354,17 @@
           "title": "Decisiones",
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
-          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta."
+          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta.",
+          "description": "Decisiones encontradas en tus chats, las más recientes primero, también las que ya leíste.",
+          "error": "No se pudieron cargar las decisiones.",
+          "untitled": "Mensaje sin texto",
+          "inThread": "En un hilo"
         },
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",
           "overview": "Resumen",
           "threads": "Hilos",
+          "decisions": "Decisiones",
           "saved": "Guardados"
         },
         "Briefing": {

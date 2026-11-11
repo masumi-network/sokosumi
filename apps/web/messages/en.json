@@ -1673,7 +1673,6 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
-          "chatKind": "Chat",
           "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",
@@ -2181,6 +2180,21 @@
         },
         "newSchedule": "New schedule",
         "empty": "No schedules here yet. A schedule creates a new task every time it runs.",
+        "zoneTime": "{zone} time",
+        "localTime": "{datetime} your time",
+        "nextRunWithLocal": "Next run {datetime} ({local} your time)",
+        "emptyFiltered": {
+          "ACTIVE": "No active schedules",
+          "PAUSED": "No paused schedules",
+          "ENDED": "No ended schedules"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# is active} other {# are active}}",
+          "PAUSED": "{count, plural, one {# is paused} other {# are paused}}",
+          "ENDED": "{count, plural, one {# has ended} other {# have ended}}"
+        },
+        "showAll": "Show all schedules",
         "loadMore": "Load more",
         "loadMoreError": "Couldn't load more schedules.",
         "nextRun": "Next run {datetime}",
@@ -2292,7 +2306,6 @@
           "properties": "Properties",
           "state": "State",
           "rule": "Repeats",
-          "timezone": "Time zone",
           "nextRun": "Next run",
           "ends": "Ends",
           "assignee": "Assignee",
@@ -5329,6 +5342,8 @@
       "statusCancel": "Subscription checkout was canceled.",
       "currentPlanBadge": "Current",
       "pricePerMonth": "per month",
+      "pricePerSeatPerMonth": "per seat / month",
+      "seatTotal": "{total} a month for {seats, plural, =1 {# seat} other {# seats}}",
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
       "mostPopularBadge": "Most popular",
       "canceling": "Scheduling cancellation...",
@@ -7274,6 +7289,7 @@
       "topUpDescription": "Choose an amount or enter a custom value",
       "paidSubscriptionRequiredDescription": "A paid subscription is required to buy additional credits.",
       "paidSubscriptionRequiredHint": "Choose a paid plan in the Subscription tab to unlock credit top-ups.",
+      "seePlans": "See plans",
       "couponExpiryPolicyNotice": "Promotional credits may expire; terms vary by coupon or offer.",
       "costPerCredit": "{cost} per credit",
       "youSaveLabel": "Save {amount}",
@@ -8128,6 +8144,7 @@
             "removeCta": "{count, plural, =1 {Remove # seat} other {Remove # seats}}",
             "decrease": "Remove one seat",
             "increase": "Add one seat",
+            "minimum": "{count, plural, =1 {Enter at least # seat.} other {Enter at least # seats.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {Add # seat?} other {Add # seats?}}",
               "removeTitle": "{count, plural, =1 {Remove # seat?} other {Remove # seats?}}",
@@ -9337,12 +9354,17 @@
           "title": "Decisions",
           "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
           "loadOlder": "Load older",
-          "note": "We find these for you. If one is wrong, open its message and click the × on the tag."
+          "note": "We find these for you. If one is wrong, open its message and click the × on the tag.",
+          "description": "Decisions found in your chats, newest first, including ones you already read.",
+          "error": "Could not load decisions.",
+          "untitled": "Message without text",
+          "inThread": "In a thread"
         },
         "CatchUpTabs": {
           "label": "Catch up sections",
           "overview": "Overview",
           "threads": "Threads",
+          "decisions": "Decisions",
           "saved": "Saved"
         },
         "Briefing": {
