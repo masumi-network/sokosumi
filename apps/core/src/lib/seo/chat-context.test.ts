@@ -317,6 +317,72 @@ describe("native audit chat inference boundary", () => {
     expect(evidence.observations.length).toBeLessThan(100);
   });
 
+  it("gives the agent the site audit's strategy actions with their limits", () => {
+    const workspace = workspaceFixture();
+    expect(JSON.parse(seoChatContext(workspace)).strategy).toBeNull();
+    const action = {
+      kind: "get listed",
+      title: "Ask to be added to these lists of products",
+      why: "2 lists of products are in the top 10.",
+      expectedEffect: "People who compare products can find the product.",
+      effort: "medium" as const,
+      limit: "Ask on the product's merits only.",
+      targets: [
+        {
+          url: "https://lists.test/best",
+          title: "Best apps",
+          type: "listicle",
+          state: "not mentioned",
+        },
+      ],
+    };
+    workspace.strategy = {
+      verdict: "keep",
+      why: "x".repeat(2500),
+      groups: [],
+      actions: Array.from({ length: 7 }, () => action),
+      observationId: randomUUID(),
+      observedAt: new Date().toISOString(),
+      countryCode: "US",
+      languageCode: "en",
+    };
+    const { strategy, limited } = JSON.parse(seoChatContext(workspace));
+    // The agent must know that it has 5 of the 7 actions.
+    expect(limited).toBe(true);
+    expect(strategy.verdict).toBe("keep");
+    // A reason of 400 to 600 chars is usual, and its last sentence names the niche.
+    expect(strategy.why).toHaveLength(2000);
+    expect(strategy.actions).toHaveLength(5);
+    expect(strategy.actions[0]).toEqual({
+      kind: "get listed",
+      title: action.title,
+      why: action.why,
+      limit: action.limit,
+      targetUrls: ["https://lists.test/best"],
+    });
+    workspace.strategy.actions = workspace.strategy.actions.slice(0, 5);
+    expect(JSON.parse(seoChatContext(workspace)).limited).toBe(false);
+    // A cut address is another address: a long one stays out, a short one stays whole.
+    action.targets = [
+      { ...action.targets[0], url: `https://lists.test/${"x".repeat(400)}` },
+      action.targets[0],
+    ];
+    const cut = JSON.parse(seoChatContext(workspace));
+    expect(cut.strategy.actions[0].targetUrls).toEqual([
+      "https://lists.test/best",
+    ]);
+    // The agent must know that a place is missing.
+    expect(cut.limited).toBe(true);
+    // Many addresses cannot push the context past its size: whole actions drop first.
+    action.targets = Array.from({ length: 20 }, (_, index) => ({
+      ...action.targets[0],
+      url: `https://lists.test/${index}/${"x".repeat(370)}`,
+    }));
+    const long = seoChatContext(workspace);
+    expect(long.length).toBeLessThanOrEqual(30_000);
+    expect(JSON.parse(long).limited).toBe(true);
+  });
+
   it("keeps review opportunities in chat evidence behind many fixes", () => {
     const workspace = workspaceFixture();
     const action = (kind: "fix" | "opportunity", index: number) => ({
