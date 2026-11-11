@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/table";
 import { coreClient } from "@/lib/clients/core.client";
 
+/** People charted one by one; everyone after them shares one bar, so the chart has at most six. */
+const CHART_PEOPLE = 5;
+
 interface OrganizationCreditSpendCardProps {
   organizationId: string;
 }
@@ -60,8 +63,32 @@ export async function OrganizationCreditSpendCard({
   const spenders = spend.rows.filter(
     (row) => row.credits > 0 || row.previousCredits > 0,
   );
+  // Core sorts by this month's spend; the chart keeps the top people and
+  // folds the rest into one bar so it stays short (never a bar for just one
+  // other person: that slot shows the person). The table lists everyone.
+  const shown =
+    spenders.length > CHART_PEOPLE + 1 ? CHART_PEOPLE : spenders.length;
+  const others = spenders.slice(shown);
+  const bars = [
+    ...spenders
+      .slice(0, shown)
+      .map((row) => ({ ...row, key: row.userId ?? "none", label: name(row) })),
+    ...(others.length > 0
+      ? [
+          {
+            key: "others",
+            label: t("otherPeople", { count: others.length }),
+            credits: others.reduce((sum, row) => sum + row.credits, 0),
+            previousCredits: others.reduce(
+              (sum, row) => sum + row.previousCredits,
+              0,
+            ),
+          },
+        ]
+      : []),
+  ];
   const peak = Math.max(
-    ...spenders.flatMap((row) => [row.credits, row.previousCredits]),
+    ...bars.flatMap((row) => [row.credits, row.previousCredits]),
   );
   const bar = (value: number) =>
     value > 0 ? `${Math.max((value / peak) * 100, 1)}%` : "0%";
@@ -88,9 +115,9 @@ export async function OrganizationCreditSpendCard({
                 </span>
               </figcaption>
               <ul className="space-y-3">
-                {spenders.map((row) => (
-                  <li key={row.userId ?? "none"} className="min-w-0 space-y-1">
-                    <p className="truncate text-sm">{name(row)}</p>
+                {bars.map((row) => (
+                  <li key={row.key} className="min-w-0 space-y-1">
+                    <p className="truncate text-sm">{row.label}</p>
                     <div
                       className="bg-chart-1 h-2 rounded-sm"
                       style={{ width: bar(row.credits) }}

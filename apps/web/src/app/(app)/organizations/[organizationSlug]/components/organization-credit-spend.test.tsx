@@ -125,6 +125,70 @@ describe("OrganizationCreditSpendCard", () => {
     expect(screen.getAllByRole("row")).toHaveLength(4);
   });
 
+  it("keeps the chart to five people plus one bar for everyone else", async () => {
+    const people = [
+      [100, 50],
+      [80, 50],
+      [60, 50],
+      [40, 50],
+      [20, 50],
+      [10, 0],
+      [5, 0],
+      [0, 30],
+      [0, 0],
+    ].map(([credits, previousCredits], index) => ({
+      ...row,
+      userId: `u${index}`,
+      name: `P${index}`,
+      credits,
+      previousCredits,
+    }));
+    getOrganizationCreditSpendMock.mockResolvedValue({
+      data: { month: "2026-11", previousMonth: "2026-10", rows: people },
+    });
+
+    const { container } = render(
+      await OrganizationCreditSpendCard({ organizationId: "org_1" }),
+    );
+
+    const bars = [...container.querySelectorAll("figure li")].map((item) => [
+      item.querySelector("p")?.textContent,
+      ...[...item.querySelectorAll("div")].map((bar) => bar.style.width),
+    ]);
+    expect(bars).toEqual([
+      ["P0", "100%", "50%"],
+      ["P1", "80%", "50%"],
+      ["P2", "60%", "50%"],
+      ["P3", "40%", "50%"],
+      ["P4", "20%", "50%"],
+      ["otherPeople", "15%", "30%"],
+    ]);
+    expect(screen.getAllByRole("row")).toHaveLength(people.length + 1);
+  });
+
+  it("charts a sixth person by name instead of folding one person into others", async () => {
+    getOrganizationCreditSpendMock.mockResolvedValue({
+      data: {
+        month: "2026-11",
+        previousMonth: "2026-10",
+        rows: [60, 50, 40, 30, 20, 10].map((credits, index) => ({
+          ...row,
+          userId: `u${index}`,
+          name: `P${index}`,
+          credits,
+        })),
+      },
+    });
+
+    const { container } = render(
+      await OrganizationCreditSpendCard({ organizationId: "org_1" }),
+    );
+
+    expect(
+      [...container.querySelectorAll("figure li p")].map((p) => p.textContent),
+    ).toEqual(["P0", "P1", "P2", "P3", "P4", "P5"]);
+  });
+
   it("says so when nothing was spent", async () => {
     getOrganizationCreditSpendMock.mockResolvedValue({
       data: {
