@@ -122,6 +122,17 @@ export function SeoAnalysisDialog({
               </Button>
             </>
           )}
+          {/* What limits or stops the check shows with the fields closed too: it explains the button. */}
+          {form.serviceAvailable && !form.canUsePaidSearchData ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {t("analysis.htmlService")}
+            </p>
+          ) : null}
+          {form.workspace.scope.pageIds.length > SEO_MAX_PAGES ? (
+            <p role="alert" className="text-destructive text-sm">
+              {t("analysis.scopeTooLarge", { count: SEO_MAX_PAGES })}
+            </p>
+          ) : null}
           {/* Closed fields stay in the form, so the check starts with their values. */}
           <div id={OPTIONS_ID} hidden={!form.optionsOpen} className="space-y-4">
             <SeoField id="seo-analysis-kind" label={t("analysis.kind")}>
@@ -161,22 +172,12 @@ export function SeoAnalysisDialog({
             ) : form.kind === "audit_lite" ? (
               <input type="hidden" name="analyses" value="page.inspect" />
             ) : null}
-            {form.serviceAvailable && !form.canUsePaidSearchData ? (
-              <p role="status" className="text-muted-foreground text-sm">
-                {t("analysis.htmlService")}
-              </p>
-            ) : null}
             {monitor ? (
               <p className="text-muted-foreground text-sm">
                 {t("pages.count", {
                   count: form.workspace.scope.pageIds.length,
                 })}
                 : {form.workspace.scope.name}
-              </p>
-            ) : null}
-            {form.workspace.scope.pageIds.length > SEO_MAX_PAGES ? (
-              <p role="alert" className="text-destructive text-sm">
-                {t("analysis.scopeTooLarge", { count: SEO_MAX_PAGES })}
               </p>
             ) : null}
             <div className="grid gap-3 sm:grid-cols-2">

@@ -192,6 +192,24 @@ describe("SEO check closed fields", () => {
     fireEvent.invalid(within(dialog).getByLabelText("Search language"));
     expect(options).toHaveAttribute("aria-expanded", "true");
   });
+
+  it("says why the check cannot start with more than ten pages, with the fields closed", () => {
+    const data = workspace();
+    data.scope = {
+      ...data.scope,
+      pageIds: Array.from({ length: 11 }, (_, index) => `page-${index}`),
+    };
+    const dialog = showDialog(data);
+    expect(
+      within(dialog).getByRole("button", { name: "Change options" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Choose a single page or a group with up to 10 pages for this check.",
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    ).toBeDisabled();
+  });
 });
 
 describe("SEO check market selection", () => {

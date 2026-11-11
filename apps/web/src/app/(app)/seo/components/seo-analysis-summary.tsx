@@ -75,7 +75,7 @@ export function SeoAnalysisSummary({
             style: "currency",
             currency: "USD",
           }),
-          minutes: Math.round(limits.seconds / 60),
+          minutes: Math.ceil(limits.seconds / 60),
         })
       : limits.kind === "standard"
         ? t("analysis.standardPageLimits")
