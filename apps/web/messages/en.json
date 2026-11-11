@@ -1950,7 +1950,26 @@
           "markComplete": "Mark complete",
           "repeat": "Repeat",
           "repeatError": "Couldn't open the schedule form. Try again.",
-          "duplicate": "Duplicate as draft"
+          "duplicate": "Duplicate as draft",
+          "sendToChat": {
+            "menuItem": "Send to chat",
+            "title": "Send task to chat",
+            "description": "Post a link to this task in a channel or direct message. Everyone there sees its title; only people who can open the task see more. Rooms with AI coworkers or guests aren't offered.",
+            "roomLabel": "Send to",
+            "roomPlaceholder": "Choose a channel or direct message",
+            "noteLabel": "Message (optional)",
+            "notePlaceholder": "Add a note, like what you need from them",
+            "noRooms": "You have no chats in this workspace to send to yet.",
+            "send": "Send",
+            "cancel": "Cancel",
+            "success": "Task sent to chat",
+            "openChat": "Open chat",
+            "error": "Couldn't send the task. Try again.",
+            "loadError": "Couldn't load your chats. Try again.",
+            "refused": "This chat can't receive this task anymore. Choose another one.",
+            "retry": "Send again",
+            "retryHint": "The last send may not have arrived. Sending again won't post it twice; changing the chat or message sends a new one."
+          }
         },
         "ShareModal": {
           "title": "Share task",
@@ -8167,6 +8186,18 @@
             }
           },
           "seatsCheckoutLabel": "Seats to purchase"
+        },
+        "CreditSpend": {
+          "title": "Credits spent by person",
+          "description": "Credits billed to each person this month and last month, before refunds. Months follow UTC. Top ups are not counted.",
+          "person": "Person",
+          "noPerson": "Organization charges (no person)",
+          "unknownPerson": "Unknown person",
+          "otherSpend": "All other spend",
+          "formerMember": "Former member",
+          "empty": "No credits spent this month or last month.",
+          "loadError": "Could not load credit spend. Try again.",
+          "retry": "Try again"
         },
         "Seats": {
           "title": "Seats overview",
