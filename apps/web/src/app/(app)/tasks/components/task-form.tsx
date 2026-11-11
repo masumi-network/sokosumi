@@ -60,7 +60,6 @@ import {
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
-  createTask,
   type TaskContextSelectionInput,
   updateTask,
 } from "@/lib/actions/task/action";
@@ -92,6 +91,7 @@ import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskRunAtModal } from "./task-run-at-modal";
 import { TaskStatusPicker } from "./task-status-picker";
+import { withBoardPreview } from "./use-pending-created-tasks";
 import { useTaskTagSuggestions } from "./use-task-tag-suggestions";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
@@ -744,7 +744,7 @@ export function TaskForm({
           status === TaskStatus.READY ||
           status === TaskStatus.QUEUED)
       ) {
-        const createTaskHandler = onCreateTask ?? createTask;
+        const createTaskHandler = withBoardPreview(onCreateTask);
         const isOtherHuman = isOtherHumanAssignee(
           assigneeFields.assigneeUserId,
           session?.user.id,
