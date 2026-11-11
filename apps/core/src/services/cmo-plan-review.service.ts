@@ -201,11 +201,10 @@ function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
   if (missing.length === 0) return [];
   return [
     `${missing.length} LinkedIn or social-proof pieces have no story (${missing
-      .slice(0, 3)
       .map((entry) => entry.id)
       .join(
         ", ",
-      )}); give each the one real customer, launch, number or decision from the Brand Brain it tells.`,
+      )}); give each the one real customer, launch, number or decision from the Brand Brain it tells. A social-proof piece the Brand Brain has no story for takes another approach.`,
   ];
 }
 

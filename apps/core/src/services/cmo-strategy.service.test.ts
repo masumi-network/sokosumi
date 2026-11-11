@@ -632,7 +632,9 @@ describe("saving versions", () => {
         { calendar: [{ ...strategy.calendar[0]!, draft: "Written." }] },
         { turnId: "turn-2", part: "pieces" },
       ),
-    ).rejects.toThrow(/approved/i);
+    ).rejects.toThrow(
+      /no version is approved yet; until the owner approves, change entries with part patch/,
+    );
 
     expect(strategyRows).toHaveLength(1);
     expect(plan(draft)).toEqual(strategy);
@@ -1145,6 +1147,21 @@ describe("a patch", () => {
         { turnId: "turn-2", part: "patch", rules: true },
       ),
     ).rejects.toThrow('"16 pieces"');
+    expect(strategyRows).toHaveLength(1);
+  });
+
+  it("refuses changes sent only in patched, which is Core's: nothing is saved", async () => {
+    const first = await written();
+    const before = planOf(first);
+    const changed = { ...before.calendar[6]!, title: "A calmer piece seven" };
+
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: [], patched: [{ id: "e7", was: changed }] },
+        { turnId: "turn-2", part: "patch", rules: true },
+      ),
+    ).rejects.toThrow(/Send each entry you change in calendar/);
     expect(strategyRows).toHaveLength(1);
   });
 

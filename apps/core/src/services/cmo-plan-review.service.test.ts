@@ -176,12 +176,17 @@ describe("cmoPlanProblems", () => {
           { ...entry("b", "linkedin", "image"), story: "A shop sold out" },
           { ...entry("c", "x", "post"), approach: "social-proof" },
           { ...entry("d", "x", "post"), approach: "educational" },
+          entry("e", "linkedin", "post"),
+          entry("f", "linkedin", "post"),
         ],
       }),
     ).join("\n");
+    // Every id, so a fix reaches all of them.
     expect(problems).toMatch(
-      /2 LinkedIn or social-proof pieces have no story \(a, c\)/,
+      /4 LinkedIn or social-proof pieces have no story \(a, c, e, f\)/,
     );
+    // A Brand Brain with no story for it is not a dead end.
+    expect(problems).toMatch(/takes another approach/);
   });
 
   it("asks for a source of truth and the month's experiment", () => {
