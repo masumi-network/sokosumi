@@ -34,6 +34,8 @@ interface AdsCampaignsToolbarProps {
   account: ProjectAdAccount;
   projectId: string;
   range: RangeParam;
+  /** A CMO Project: CMO runs its ads, so they are only read (ADR 0066). */
+  readOnly?: boolean;
 }
 
 export function AdsCampaignsToolbar({
@@ -41,6 +43,7 @@ export function AdsCampaignsToolbar({
   account,
   projectId,
   range,
+  readOnly = false,
 }: AdsCampaignsToolbarProps) {
   const t = useTranslations("App.Ads.campaigns");
   const [, setQuery] = useQueryStates(queryParsers, { shallow: false });
@@ -70,16 +73,18 @@ export function AdsCampaignsToolbar({
         </Select>
       ) : null}
       <AdsRangeToggle range={range} />
-      <Button
-        className="ml-auto sm:ml-0"
-        onClick={() => setCreating(true)}
-        size="sm"
-        type="button"
-      >
-        <Plus aria-hidden className="size-4" />
-        {t("new")}
-      </Button>
-      {creating ? (
+      {readOnly ? null : (
+        <Button
+          className="ml-auto sm:ml-0"
+          onClick={() => setCreating(true)}
+          size="sm"
+          type="button"
+        >
+          <Plus aria-hidden className="size-4" />
+          {t("new")}
+        </Button>
+      )}
+      {creating && !readOnly ? (
         <AdsNewCampaignDialog
           account={account}
           onClose={() => setCreating(false)}

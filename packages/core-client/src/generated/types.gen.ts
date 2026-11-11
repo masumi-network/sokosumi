@@ -7166,6 +7166,10 @@ export type Project = {
      */
     projectRevision?: number;
     /**
+     * A CMO Project: it has a live Cuso, so it is read-only outside CMO (ADR 0066).
+     */
+    cmo: boolean;
+    /**
      * Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.
      */
     scheduledSocialPostCount?: number;
@@ -12019,6 +12023,7 @@ export type SharedSokoBotSummary = {
     archivedAt: Date | null;
     sharedRoomId: string | null;
     viewerCanManage: boolean;
+    cuso: boolean;
 };
 
 export type SokoBotActivity = {
@@ -40021,6 +40026,21 @@ export type DeleteDriveFilesDeleteErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -40739,6 +40759,21 @@ export type DeleteDriveFoldersDeleteErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -45389,6 +45424,21 @@ export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -54799,6 +54849,21 @@ export type DeleteProjectsByIdJobsByJobIdErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type DeleteProjectsByIdJobsByJobIdError = DeleteProjectsByIdJobsByJobIdErrors[keyof DeleteProjectsByIdJobsByJobIdErrors];
@@ -55408,6 +55473,21 @@ export type UpdateProjectBrandBrainErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type UpdateProjectBrandBrainError = UpdateProjectBrandBrainErrors[keyof UpdateProjectBrandBrainErrors];
@@ -55631,6 +55711,21 @@ export type AnswerProjectBrandBrainQuestionErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type AnswerProjectBrandBrainQuestionError = AnswerProjectBrandBrainQuestionErrors[keyof AnswerProjectBrandBrainQuestionErrors];
@@ -55808,6 +55903,21 @@ export type CreateProjectMarketingStrategyErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -56091,6 +56201,21 @@ export type AnswerProjectMarketingStrategyQuestionErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type AnswerProjectMarketingStrategyQuestionError = AnswerProjectMarketingStrategyQuestionErrors[keyof AnswerProjectMarketingStrategyQuestionErrors];
@@ -56172,6 +56297,21 @@ export type DeleteProjectsByIdDesignMdErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type DeleteProjectsByIdDesignMdError = DeleteProjectsByIdDesignMdErrors[keyof DeleteProjectsByIdDesignMdErrors];
@@ -56242,6 +56382,21 @@ export type PutProjectsByIdDesignMdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -59197,6 +59352,21 @@ export type DeleteProjectsByIdNewsletterSendingDomainErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -59577,6 +59747,21 @@ export type PostProjectsByIdNewsletterSendingDomainCheckErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -59684,6 +59869,21 @@ export type PostProjectsByIdNewsletterSendingDomainCloudflareErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -68309,6 +68509,21 @@ export type ResearchStudioWebsiteDraftErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Project website missing
      */
     422: {
@@ -68518,6 +68733,21 @@ export type UploadStudioProjectLogoErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Logo is too large
      */
     413: {
@@ -68646,6 +68876,21 @@ export type FindStudioWebsiteLogoErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Project website is required
      */
     422: {
@@ -68747,6 +68992,21 @@ export type PostProjectsByIdImageStudioJobsErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -69079,6 +69339,21 @@ export type ImportStudioProductCatalogErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -69166,6 +69441,21 @@ export type AttachStudioProductPhotoErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -69434,6 +69724,21 @@ export type PostProjectsByIdImageStudioJobsByJobIdCancelErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -69852,6 +70157,21 @@ export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -77066,6 +77386,21 @@ export type PostSokoBotsByIdApiKeysErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostSokoBotsByIdApiKeysError = PostSokoBotsByIdApiKeysErrors[keyof PostSokoBotsByIdApiKeysErrors];
@@ -77131,6 +77466,21 @@ export type DeleteSokoBotsByIdApiKeysByKeyIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -77210,6 +77560,21 @@ export type PatchSokoBotsByIdApiKeysByKeyIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -80442,6 +80807,21 @@ export type CreateSokoBotErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -80606,6 +80986,21 @@ export type ArchiveSokoBotErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type ArchiveSokoBotError = ArchiveSokoBotErrors[keyof ArchiveSokoBotErrors];
@@ -80753,6 +81148,21 @@ export type ReactivateSokoBotErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -81020,6 +81430,21 @@ export type UpdateSokoBotProactiveErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -81083,6 +81508,21 @@ export type UpdateSokoBotBoardFollowingErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -81158,6 +81598,21 @@ export type RenameSokoBotErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -81812,6 +82267,21 @@ export type UpdateSokoBotVersionErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -81951,6 +82421,21 @@ export type ConnectSokoBotIntegrationErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -82128,6 +82613,21 @@ export type DisconnectSokoBotIntegrationErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type DisconnectSokoBotIntegrationError = DisconnectSokoBotIntegrationErrors[keyof DisconnectSokoBotIntegrationErrors];
@@ -82194,6 +82694,21 @@ export type CreateSokoBotScheduleErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -82296,6 +82811,21 @@ export type DeleteSokoBotScheduleErrors = {
             method: string;
         };
     };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type DeleteSokoBotScheduleError = DeleteSokoBotScheduleErrors[keyof DeleteSokoBotScheduleErrors];
@@ -82363,6 +82893,21 @@ export type UpdateSokoBotScheduleErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

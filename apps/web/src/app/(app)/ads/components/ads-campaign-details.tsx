@@ -25,6 +25,8 @@ interface AdsCampaignDetailsProps {
   details: AdCampaignDetails;
   projectId: string;
   range: RangeParam;
+  /** A CMO Project's campaign: shown, never changed here (ADR 0066). */
+  readOnly?: boolean;
 }
 
 /**
@@ -37,6 +39,7 @@ export function AdsCampaignDetails({
   details,
   projectId,
   range,
+  readOnly = false,
 }: AdsCampaignDetailsProps) {
   const t = useTranslations("App.Ads.campaignDetails");
   const tCampaigns = useTranslations("App.Ads.campaigns");
@@ -74,7 +77,7 @@ export function AdsCampaignDetails({
           <p className="text-muted-foreground text-sm">{facts.join(" · ")}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {campaign.editable ? (
+          {campaign.editable && !readOnly ? (
             <Button asChild size="sm" variant="outline">
               <Link
                 href={campaignEditHref(
@@ -88,13 +91,15 @@ export function AdsCampaignDetails({
               </Link>
             </Button>
           ) : null}
-          <AdsCampaignActions
-            accountId={accountId}
-            campaign={campaign}
-            currency={campaign.currency}
-            projectId={projectId}
-            provider="google_ads"
-          />
+          {readOnly ? null : (
+            <AdsCampaignActions
+              accountId={accountId}
+              campaign={campaign}
+              currency={campaign.currency}
+              projectId={projectId}
+              provider="google_ads"
+            />
+          )}
         </div>
       </header>
 
