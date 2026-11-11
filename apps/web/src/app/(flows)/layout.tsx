@@ -55,7 +55,9 @@ export default async function FlowsLayout({
         className="flex h-dvh gap-6 p-6"
         {...(isWorkspaceGate ? { "data-workspace-gate-shell": true } : {})}
       >
-        <div className="flex h-full flex-1 flex-col gap-6">
+        {/* min-w-0: a row flex item would otherwise grow to its widest unwrappable
+            content (a long Soko Bot name on a button) and widen the phone page. */}
+        <div className="flex h-full min-w-0 flex-1 flex-col gap-6">
           {isWorkspaceGate ? (
             <div data-workspace-gate-brand>{brand}</div>
           ) : (
