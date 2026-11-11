@@ -1647,7 +1647,6 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
-          "chatKind": "Chat",
           "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
@@ -9311,12 +9310,17 @@
           "title": "Entscheidungen",
           "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
           "loadOlder": "Ältere laden",
-          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag."
+          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag.",
+          "description": "Entscheidungen aus deinen Chats, die neuesten zuerst, auch bereits gelesene.",
+          "error": "Entscheidungen konnten nicht geladen werden.",
+          "untitled": "Nachricht ohne Text",
+          "inThread": "In einem Thread"
         },
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
           "threads": "Threads",
+          "decisions": "Entscheidungen",
           "saved": "Gespeichert"
         },
         "Briefing": {
