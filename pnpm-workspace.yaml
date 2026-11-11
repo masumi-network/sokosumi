@@ -86,6 +86,12 @@ overrides:
   # before anything launches with webDriverBiDi, and when puppeteer moves past
   # 25.12.
   "chromium-bidi@17.0.2>zod": "4.6.7"
+  # katex GHSA-238p (low) patched in 0.18.2. 2026-11-11: micromark-extension-math
+  # 3.1.0 (latest, via remark-math 6.0.0, @m2d/math and @lobehub/ui) still asks
+  # for katex ^0.16.0. remark-math only parses here; katex runs only in the
+  # extension's HTML renderer (`lib/html.js`, `katex.renderToString`), which no
+  # code here uses. 0.19.1 matches the katex @lobehub/ui already resolves.
+  "micromark-extension-math>katex": "0.19.1"
   # postcss-selector-parser GHSA-rj75-hqrm-r3gf patched in 6.1.5.
   # @tailwindcss/typography 0.5.20 (latest) pins 6.0.10. 6.1.6 is the newest 6.x.
   "postcss-selector-parser@>=6.0.0 <6.1.5": "6.1.6"
