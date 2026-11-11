@@ -1,5 +1,6 @@
 "use client";
 import { ContactChannelType } from "@sokosumi/core-client";
+import { readSignature } from "@sokosumi/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -48,6 +49,8 @@ export function AddContactDialog({
 }) {
   const t = useTranslations("App.Contacts.addDialog");
   const cache = useQueryClient();
+  const [signature, setSignature] = useState("");
+  const [signatureNote, setSignatureNote] = useState("");
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
   const [role, setRole] = useState("");
@@ -64,6 +67,46 @@ export function AddContactDialog({
       previous.map((item) =>
         item.key === key ? { ...item, ...change } : item,
       ),
+    );
+  }
+
+  /** Fills only empty fields and adds channels the form does not have yet. */
+  function handleFillFromSignature() {
+    const read = readSignature(signature);
+    let count = 0;
+    for (const [value, current, set] of [
+      [read.name, name, setName],
+      [read.organization, organization, setOrganization],
+      [read.role, role, setRole],
+    ] as const) {
+      if (value && !current.trim()) {
+        set(value);
+        count++;
+      }
+    }
+    const kept = channels.filter((channel) => channel.value.trim());
+    const added = (
+      [
+        ["EMAIL", read.email],
+        ["PHONE", read.phone],
+        ["LINKEDIN", read.linkedIn],
+      ] as const
+    )
+      .filter(
+        ([, value]) =>
+          value &&
+          !kept.some(
+            (channel) =>
+              channel.value.trim().toLowerCase() === value.toLowerCase(),
+          ),
+      )
+      .map(([type, value]) => ({ ...newChannel(type), value: value ?? "" }));
+    if (added.length) {
+      setChannels([...kept, ...added]);
+      count += added.length;
+    }
+    setSignatureNote(
+      count ? t("signatureFilled", { count }) : t("signatureNothing"),
     );
   }
 
@@ -117,6 +160,31 @@ export function AddContactDialog({
             <DialogTitle>{t("title")}</DialogTitle>
             <DialogDescription>{t("description")}</DialogDescription>
           </DialogHeader>
+          <div className="grid gap-2">
+            <Label htmlFor="add-contact-signature">{t("signature")}</Label>
+            <Textarea
+              id="add-contact-signature"
+              value={signature}
+              rows={3}
+              maxLength={4000}
+              placeholder={t("signaturePlaceholder")}
+              onChange={(event) => setSignature(event.target.value)}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!signature.trim()}
+                onClick={handleFillFromSignature}
+              >
+                {t("signatureFill")}
+              </Button>
+              <p role="status" className="text-muted-foreground text-sm">
+                {signatureNote}
+              </p>
+            </div>
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="add-contact-name">{t("name")}</Label>
             <Input

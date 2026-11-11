@@ -1,7 +1,7 @@
 "use client";
 
 import { NewsletterTemplate } from "@sokosumi/core-client";
-import { Copy, ImageIcon, Plus } from "lucide-react";
+import { ImageIcon, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -15,57 +15,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  copyNewsletterIssue,
-  createNewsletterIssue,
-} from "@/lib/actions/newsletter/issues";
+import { createNewsletterIssue } from "@/lib/actions/newsletter/issues";
 import { newsletterTemplateContent } from "./templates";
-
-export interface LatestIssue {
-  id: string;
-  subject: string;
-}
 
 export function NewIssueDialog({
   projectId,
-  latestIssue,
   onClose,
   onCloseAutoFocus,
 }: {
   projectId: string;
-  latestIssue: LatestIssue | null;
   onClose: () => void;
   onCloseAutoFocus: () => void;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const router = useRouter();
-  const [pending, setPending] = useState<
-    NewsletterTemplate | "blank" | "latest" | null
-  >(null);
+  const [pending, setPending] = useState<NewsletterTemplate | "blank" | null>(
+    null,
+  );
   const [error, setError] = useState("");
 
-  function createFrom(start: NewsletterTemplate | "blank") {
-    const template = start === "blank" ? NewsletterTemplate.TEXT : start;
-    return createNewsletterIssue({
-      projectId,
-      values: {
-        subject: t("Templates.subject"),
-        template,
-        content:
-          start === "blank" ? [] : newsletterTemplateContent(template, t),
-      },
-    });
-  }
-
-  async function handleCreate(
-    start: NewsletterTemplate | "blank" | "latest",
-    request: () => ReturnType<typeof createNewsletterIssue>,
-  ) {
+  async function handleCreate(start: NewsletterTemplate | "blank") {
     if (pending) return;
     setPending(start);
     setError("");
+    const template = start === "blank" ? NewsletterTemplate.TEXT : start;
     try {
-      const result = await request();
+      const result = await createNewsletterIssue({
+        projectId,
+        values: {
+          subject: t("Templates.subject"),
+          template,
+          content:
+            start === "blank" ? [] : newsletterTemplateContent(template, t),
+        },
+      });
       if (!result.ok) {
         setError(result.error.message);
         return;
@@ -98,28 +81,6 @@ export function NewIssueDialog({
           <DialogTitle>{t("Templates.title")}</DialogTitle>
           <DialogDescription>{t("Templates.description")}</DialogDescription>
         </DialogHeader>
-        {latestIssue ? (
-          <div className="bg-card-background flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl p-4">
-            <p className="text-muted-foreground min-w-0 flex-1 text-sm wrap-anywhere">
-              {t("Templates.latestDescription", {
-                subject: latestIssue.subject,
-              })}
-            </p>
-            <Button
-              variant="outline"
-              disabled={pending !== null}
-              loading={pending === "latest"}
-              onClick={() =>
-                void handleCreate("latest", () =>
-                  copyNewsletterIssue({ projectId, issueId: latestIssue.id }),
-                )
-              }
-            >
-              <Copy />
-              {t("Templates.latest")}
-            </Button>
-          </div>
-        ) : null}
         <div className="bg-card-background flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl p-4">
           <p className="text-muted-foreground min-w-0 flex-1 text-sm">
             {t("Templates.blankDescription")}
@@ -128,9 +89,7 @@ export function NewIssueDialog({
             variant="primary"
             disabled={pending !== null}
             loading={pending === "blank"}
-            onClick={() =>
-              void handleCreate("blank", () => createFrom("blank"))
-            }
+            onClick={() => void handleCreate("blank")}
           >
             <Plus />
             {t("Templates.blank")}
@@ -146,9 +105,7 @@ export function NewIssueDialog({
               type="button"
               disabled={!!pending}
               aria-busy={pending === template}
-              onClick={() =>
-                void handleCreate(template, () => createFrom(template))
-              }
+              onClick={() => void handleCreate(template)}
               className="focus-visible:ring-ring focus-visible:inset-ring-ring relative min-w-0 space-y-3 overflow-hidden rounded-xl border p-4 text-start outline-none hover:bg-accent focus-visible:ring-2 focus-visible:inset-ring-1 disabled:opacity-50"
             >
               <div

@@ -18,7 +18,6 @@ import {
   parseAddresses,
   parseEvent,
   parseMail,
-  parseSignature,
   parseSlackConversation,
   parseSlackProfile,
   parseXDmEvent,
@@ -263,33 +262,6 @@ describe("Outlook mail", () => {
     expect(htmlBody("<p>a &amp;lt; b &lt; c &amp;quot;</p>")).toBe(
       "a &lt; b < c &quot;\n",
     );
-  });
-});
-
-describe("signatures", () => {
-  it("ignores the quoted reply, so the owner's own signature never sticks", () => {
-    expect(
-      parseSignature(
-        "Thanks!\n\nOn Mon, Patrick wrote:\n> Patrick Tobler\n> CEO, Yellowhouse GmbH",
-        "Patrick Tobler",
-      ),
-    ).toEqual({});
-  });
-
-  it("needs a title word before it calls a line a role", () => {
-    expect(
-      parseSignature("Cheers\nNina Keller\nZurich, Switzerland", "Nina Keller"),
-    ).toEqual({});
-    expect(
-      parseSignature(
-        "Best\nTom Berger\nCTO at Acme Robotics\n+41 44 000 00 00",
-        "Tom Berger",
-      ),
-    ).toEqual({
-      role: "CTO",
-      organization: "Acme Robotics",
-      phone: "+41 44 000 00 00",
-    });
   });
 });
 

@@ -3571,8 +3571,6 @@
             },
             "blank": "Leer beginnen",
             "blankDescription": "Verwende deine eigenen Texte und füge nur die benötigten Blöcke hinzu.",
-            "latest": "Von letzter Ausgabe starten",
-            "latestDescription": "„{subject}“ wiederverwenden: Blöcke und Vorschautext kommen in einen neuen Entwurf. Nichts wird geplant oder gesendet.",
             "templateHeading": "Oder mit einer Vorlage beginnen"
           },
           "Preview": {
@@ -10782,6 +10780,11 @@
       "addDialog": {
         "title": "Kontakt hinzufügen",
         "description": "Ein Name, ein Weg, die Person zu erreichen, oder beides. Kennt dein Team sie schon, zeigen wir dir diesen Kontakt.",
+        "signature": "Signatur einfügen (optional)",
+        "signaturePlaceholder": "Viele Grüße\nNina Keller\nHead of Marketing, Keller Labs GmbH\nnina@keller-labs.de",
+        "signatureFill": "Aus Signatur ausfüllen",
+        "signatureFilled": "{count, plural, one {# Feld ausgefüllt} other {# Felder ausgefüllt}}. Prüfe sie, bevor du den Kontakt hinzufügst.",
+        "signatureNothing": "Nichts Neues in der Signatur gefunden.",
         "name": "Name",
         "organization": "Organisation",
         "role": "Rolle",

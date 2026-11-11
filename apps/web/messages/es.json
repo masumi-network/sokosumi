@@ -3571,8 +3571,6 @@
             },
             "blank": "Empezar en blanco",
             "blankDescription": "Usa tus propios textos y añade solo los bloques que necesites.",
-            "latest": "Empezar desde la última edición",
-            "latestDescription": "Reutiliza «{subject}»: sus bloques y el texto de vista previa pasan a un nuevo borrador. No se programa ni se envía nada.",
             "templateHeading": "O empieza con una plantilla"
           },
           "Preview": {
@@ -10782,6 +10780,11 @@
       "addDialog": {
         "title": "Añadir contacto",
         "description": "Un nombre, una forma de contactar o ambas. Si tu equipo ya conoce a esta persona, te llevamos a ese contacto.",
+        "signature": "Pega una firma (opcional)",
+        "signaturePlaceholder": "Saludos\nLucía Gómez\nCEO, Acme Robotics\nlucia@acme.es",
+        "signatureFill": "Rellenar desde la firma",
+        "signatureFilled": "{count, plural, one {# campo rellenado} other {# campos rellenados}}. Revísalos antes de añadir el contacto.",
+        "signatureNothing": "No hay datos nuevos en la firma.",
         "name": "Nombre",
         "organization": "Organización",
         "role": "Cargo",

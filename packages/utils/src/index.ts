@@ -164,6 +164,12 @@ export {
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
 export {
+  type PastedSignature,
+  parseSignature,
+  readSignature,
+  type Signature,
+} from "./contact-signature.js";
+export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
   CONTACT_CONVERSATION_DAYS,

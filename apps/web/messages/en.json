@@ -3571,8 +3571,6 @@
             },
             "blank": "Start blank",
             "blankDescription": "Bring your own copy and add only the blocks you need.",
-            "latest": "Start from latest issue",
-            "latestDescription": "Reuse “{subject}”: its blocks and preview text go into a new draft. Nothing is scheduled or sent.",
             "templateHeading": "Or start with a template"
           },
           "Preview": {
@@ -10782,6 +10780,11 @@
       "addDialog": {
         "title": "Add contact",
         "description": "A name, a way to reach them, or both. If your team already knows them, we'll point you to that contact.",
+        "signature": "Paste a signature (optional)",
+        "signaturePlaceholder": "Best,\nTom Berger\nCTO at Acme Robotics\ntom@acme.com",
+        "signatureFill": "Fill in from signature",
+        "signatureFilled": "{count, plural, one {Filled # field} other {Filled # fields}}. Check before you add the contact.",
+        "signatureNothing": "Found nothing new in the signature.",
         "name": "Name",
         "organization": "Organization",
         "role": "Role",

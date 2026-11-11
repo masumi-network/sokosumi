@@ -93,4 +93,60 @@ describe("AddContactDialog", () => {
     expect(props.onOpenExisting).toHaveBeenCalledWith("c-9");
     expect(screen.getByRole("alert")).toHaveTextContent("channelTaken");
   });
+
+  it("fills empty fields from a pasted signature and keeps what was typed", async () => {
+    respond.current = () => Promise.resolve({ contact: { id: "c-2" } });
+    const props = renderDialog();
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Tom B." },
+    });
+    fireEvent.change(screen.getByLabelText("signature"), {
+      target: {
+        value:
+          "Best,\nTom Berger\nCTO at Acme Robotics\n+41 44 000 00 00\ntom@acme.example",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "signatureFill" }));
+    expect(screen.getByRole("status")).toHaveTextContent("signatureFilled");
+    expect(screen.getByLabelText("name")).toHaveValue("Tom B.");
+    expect(screen.getByLabelText("organization")).toHaveValue("Acme Robotics");
+    expect(screen.getByLabelText("role")).toHaveValue("CTO");
+    expect(create).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "submit" }));
+    await waitFor(() => expect(props.onCreated).toHaveBeenCalledWith("c-2"));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Tom B.",
+        organization: "Acme Robotics",
+        role: "CTO",
+        channels: [
+          {
+            type: "EMAIL",
+            value: "tom@acme.example",
+            isPrimary: true,
+            source: "MANUAL",
+          },
+          {
+            type: "PHONE",
+            value: "+41 44 000 00 00",
+            isPrimary: false,
+            source: "MANUAL",
+          },
+        ],
+      }),
+    );
+  });
+
+  it("says so when a signature has nothing new", () => {
+    renderDialog();
+    expect(
+      screen.getByRole("button", { name: "signatureFill" }),
+    ).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("signature"), {
+      target: { value: "Thanks!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "signatureFill" }));
+    expect(screen.getByRole("status")).toHaveTextContent("signatureNothing");
+    expect(screen.getByLabelText("name")).toHaveValue("");
+  });
 });

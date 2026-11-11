@@ -8,7 +8,6 @@ import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   enabled: vi.fn(),
-  issues: vi.fn(),
   list: vi.fn(),
   settings: vi.fn(),
   project: vi.fn(),
@@ -49,12 +48,7 @@ vi.mock("@/lib/services/project.service", () => ({
     listProjects: mocks.listProjects,
   },
 }));
-vi.mock("./issues", () => ({
-  Issues: (props: { latestIssue: unknown }) => {
-    mocks.issues(props);
-    return <p>Issue list</p>;
-  },
-}));
+vi.mock("./issues", () => ({ Issues: () => <p>Issue list</p> }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: (request: object) => mocks.requireScope(request),
@@ -136,43 +130,6 @@ describe("newsletter issues page", () => {
     );
     expect(screen.getByText("Issue list")).toBeInTheDocument();
   });
-  it("passes the newest issue, from the first page when on a later one", async () => {
-    render(await NewsletterIssuesPage(PROPS));
-    expect(mocks.issues).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        latestIssue: {
-          id: NEWSLETTER_ISSUE.id,
-          subject: NEWSLETTER_ISSUE.subject,
-        },
-      }),
-    );
-    expect(mocks.list).toHaveBeenCalledTimes(1);
-    const cursor = "55555555-5555-4555-8555-555555555555";
-    mocks.list.mockImplementation(async (_projectId, query) => ({
-      data: [
-        query.limit === 1
-          ? { ...NEWSLETTER_ISSUE, id: cursor, subject: "Newest" }
-          : NEWSLETTER_ISSUE,
-      ],
-      meta: { pagination: { cursor, limit: 25, total: 2, nextCursor: null } },
-    }));
-    render(
-      await NewsletterIssuesPage({
-        searchParams: Promise.resolve({
-          projectId: NEWSLETTER_PROJECT_ID,
-          cursor,
-        }),
-      }),
-    );
-    expect(mocks.list).toHaveBeenCalledWith(NEWSLETTER_PROJECT_ID, {
-      limit: 1,
-    });
-    expect(mocks.issues).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        latestIssue: { id: cursor, subject: "Newest" },
-      }),
-    );
-  });
   it("offers project selection without opening the selector on navigation", async () => {
     const user = userEvent.setup();
     render(
@@ -201,7 +158,7 @@ describe("newsletter issues page", () => {
         cursor: NEWSLETTER_ISSUE.id,
       }),
     });
-    expect(mocks.list).toHaveBeenCalledWith(NEWSLETTER_PROJECT_ID, {
+    expect(mocks.list).toHaveBeenLastCalledWith(NEWSLETTER_PROJECT_ID, {
       limit: 25,
       cursor: NEWSLETTER_ISSUE.id,
     });
