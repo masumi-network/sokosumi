@@ -156,18 +156,6 @@ export interface ComposioOAuthCallbackPayload {
   nonce: string;
 }
 
-export interface ComposioOAuthAckPayload {
-  type: typeof COMPOSIO_OAUTH_ACK_TYPE;
-  nonce: string;
-}
-
-export interface ComposioOAuthCallbackResult {
-  status: ComposioOAuthCallbackStatus;
-  connectionId: string | null;
-  sessionUri: string | null;
-  errorMessage: string | null;
-}
-
 export function getComposioOAuthPopupName(nonce: string): string {
   return `${COMPOSIO_OAUTH_POPUP_NAME_PREFIX}${nonce}`;
 }
@@ -185,51 +173,6 @@ export function isComposioOAuthCallbackPayload(
     (value as { type?: unknown }).type === COMPOSIO_OAUTH_MESSAGE_TYPE &&
     typeof (value as { nonce?: unknown }).nonce === "string"
   );
-}
-
-export function isComposioOAuthAckPayload(
-  value: unknown,
-): value is ComposioOAuthAckPayload {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { type?: unknown }).type === COMPOSIO_OAUTH_ACK_TYPE &&
-    typeof (value as { nonce?: unknown }).nonce === "string"
-  );
-}
-
-export function parseComposioCallbackSearchParams(
-  search: string,
-): ComposioOAuthCallbackResult {
-  const params = new URLSearchParams(
-    search.startsWith("?") ? search : `?${search}`,
-  );
-  const rawStatus = (params.get("status") ?? "").toLowerCase();
-  const connectionId =
-    params.get("connectedAccountId") ??
-    params.get("connected_account_id") ??
-    params.get("connectionId") ??
-    params.get("id");
-  const sessionUri = params.get("session_uri") ?? params.get("sessionUri");
-  const errorMessage = params.get("error") ?? params.get("error_description");
-
-  const isExplicitFailure =
-    rawStatus === "failed" ||
-    rawStatus === "error" ||
-    rawStatus === "expired" ||
-    rawStatus === "inactive" ||
-    Boolean(errorMessage);
-
-  const status: ComposioOAuthCallbackStatus = isExplicitFailure
-    ? "error"
-    : rawStatus === "success" ||
-        rawStatus === "active" ||
-        connectionId ||
-        sessionUri
-      ? "success"
-      : "error";
-
-  return { status, connectionId, sessionUri, errorMessage };
 }
 
 /**
