@@ -172,7 +172,7 @@ export async function SokoBotHome({
                       <span className="text-foreground min-w-0 flex-1 truncate text-sm">
                         {row.chat.title}
                       </span>
-                      <span className="text-muted-foreground hidden shrink-0 truncate text-sm sm:inline">
+                      <span className="text-muted-foreground hidden max-w-40 shrink-0 truncate text-sm sm:block">
                         {row.chat.from}
                       </span>
                       {timeOf(row.at)}
@@ -194,7 +194,7 @@ export async function SokoBotHome({
                       <span className="text-foreground min-w-0 flex-1 truncate text-sm">
                         {row.task.name}
                       </span>
-                      <span className="text-muted-foreground hidden shrink-0 truncate text-sm sm:inline">
+                      <span className="text-muted-foreground hidden max-w-40 shrink-0 truncate text-sm sm:block">
                         {row.task.who}
                       </span>
                       {timeOf(row.at)}
