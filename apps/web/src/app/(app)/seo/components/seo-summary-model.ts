@@ -92,3 +92,52 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
 }
 
 export type SeoSummary = ReturnType<typeof seoSummary>;
+
+/**
+ * The checked keywords with the most monthly searches, largest first, for the Agent tab's picture.
+ * One keyword read for two pages is one row with its best position. A keyword without a known
+ * count has no bar, and one bar is no comparison.
+ */
+export function seoKeywordDemand(
+  workspace: ProjectSeoWorkspace,
+  limit: number,
+) {
+  const read = keywordGroups(workspace.keywords).checked.filter(
+    (group) => group.reads.length > 0,
+  );
+  const rows = [
+    ...Map.groupBy(read, ({ lead }) =>
+      JSON.stringify([
+        normalizeQuery(lead.keyword),
+        lead.countryCode,
+        lead.languageCode,
+      ]),
+    ).values(),
+  ]
+    .map((pages) => {
+      const ranks = pages.flatMap(({ best }) => (best === null ? [] : [best]));
+      return {
+        keyword: pages[0].lead.keyword,
+        countryCode: pages[0].lead.countryCode,
+        languageCode: pages[0].lead.languageCode,
+        volume: pages.find((group) => group.volume !== null)?.volume ?? 0,
+        best: ranks.length ? Math.min(...ranks) : null,
+      };
+    })
+    .filter((row) => row.volume > 0)
+    .toSorted((left, right) => right.volume - left.volume)
+    .slice(0, limit);
+  return rows.length > 1
+    ? {
+        rows,
+        max: rows[0].volume,
+        // One keyword read in two markets is two rows: each then names its market.
+        manyMarkets:
+          new Set(
+            rows.map((row) =>
+              JSON.stringify([row.countryCode, row.languageCode]),
+            ),
+          ).size > 1,
+      }
+    : { rows: [], max: 0, manyMarkets: false };
+}

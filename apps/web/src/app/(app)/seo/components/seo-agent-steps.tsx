@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChartColumn,
   Compass,
   FileText,
   Lightbulb,
@@ -51,7 +52,10 @@ export function SeoStepRow({
   refresh,
   refreshing,
   first,
+  banner,
 }: {
+  /** The step stands alone as a banner with this title, not as a row of the step list. */
+  banner?: string;
   step: Exclude<SeoAgentStep, { kind: "action" }>;
   model: SeoWorkspaceModel;
   refresh: () => void;
@@ -264,34 +268,47 @@ export function SeoStepRow({
                       </Button>
                     ) : null,
                   ];
-  const Icon = STEP_ICONS[step.kind];
+  const Icon = banner ? ChartColumn : STEP_ICONS[step.kind];
+  const Shell = banner ? "div" : "li";
   return (
-    <li
+    <Shell
       className={cn(
         HOLDER_ITEM_CLASS,
         "content-rise flex items-start gap-3 p-4",
       )}
+      data-testid={banner ? "seo-statistics-banner" : undefined}
     >
       <span
         aria-hidden
-        className="bg-quinary text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-full",
+          banner
+            ? "bg-chart-5/15 text-chart-5"
+            : "bg-quinary text-muted-foreground",
+        )}
       >
         <Icon className="size-4" />
       </span>
       {/* A control that wraps starts on the text edge, not under the icon. */}
       {/* A control with a note or an error has its own line: beside the text it would squeeze the text. */}
       <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
-        <p
-          id={bodyId}
-          className="max-w-prose min-w-0 flex-1 basis-48 text-sm break-words"
-        >
-          {body}
-        </p>
+        <div className="max-w-prose min-w-0 flex-1 basis-48 space-y-0.5">
+          {banner ? <h3 className="text-sm font-semibold">{banner}</h3> : null}
+          <p
+            id={bodyId}
+            className={cn(
+              "text-sm break-words",
+              banner && "text-muted-foreground",
+            )}
+          >
+            {body}
+          </p>
+        </div>
         {control ? (
           <div className="max-w-full min-w-0 has-[p]:basis-full">{control}</div>
         ) : null}
       </div>
-    </li>
+    </Shell>
   );
 }
 

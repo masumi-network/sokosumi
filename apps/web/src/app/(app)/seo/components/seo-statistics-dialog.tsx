@@ -32,6 +32,12 @@ export function SeoStatisticsDialog({
   const t = useTranslations("App.Seo");
   const form = useSeoStatistics(model, source);
   const properties = form.properties.data;
+  // No account for this source yet: the dialog is the connect step. The sync fields follow the approval.
+  // After the approval the saved answer still says "not connected" until the new read ends.
+  const reading =
+    form.properties.isPending ||
+    (form.properties.isFetching && properties?.status === "not_connected");
+  const connectFirst = properties?.status === "not_connected" && !reading;
   return (
     <Dialog
       open
@@ -41,8 +47,16 @@ export function SeoStatisticsDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("statistics.title")}</DialogTitle>
-          <DialogDescription>{t("statistics.description")}</DialogDescription>
+          <DialogTitle>
+            {t(connectFirst ? "statistics.connectTitle" : "statistics.title")}
+          </DialogTitle>
+          <DialogDescription>
+            {connectFirst
+              ? t("statistics.connectFirst", {
+                  provider: t(`statistics.${form.provider}`),
+                })
+              : t("statistics.description")}
+          </DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"
@@ -65,7 +79,7 @@ export function SeoStatisticsDialog({
               }))}
             />
           </SeoField>
-          {form.properties.isPending ? (
+          {reading ? (
             <p role="status" className="text-muted-foreground text-sm">
               {t("statistics.propertiesLoading")}
             </p>
@@ -100,81 +114,23 @@ export function SeoStatisticsDialog({
                 }))}
               />
             </SeoField>
-          ) : (
+          ) : connectFirst ? null : (
             <p className="text-muted-foreground text-sm">
-              {t(
-                properties?.status === "not_connected"
-                  ? "statistics.notConnected"
-                  : "statistics.noProperties",
-              )}
+              {t("statistics.noProperties")}
             </p>
           )}
-          {properties?.reason ? (
+          {properties?.reason && !connectFirst ? (
             <p className="text-muted-foreground text-sm">{properties.reason}</p>
           ) : null}
           <SeoConnectionButton
             key={form.provider}
             provider={form.provider}
+            variant={connectFirst ? "primary" : "outline"}
             onConnected={() => {
               void form.properties.refetch();
             }}
           />
-          <div
-            className="flex flex-wrap gap-2"
-            role="group"
-            aria-label={t("period")}
-          >
-            {SEO_STATISTICS_PERIODS.map((days) => (
-              <Button
-                key={days}
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-pressed={form.preset === days}
-                // The same mark as the chosen metric tile on the Traffic tab.
-                className={cn(form.preset === days && SEO_CHOSEN_CLASS)}
-                onClick={() => form.setPeriod(days)}
-              >
-                {t("statistics.lastDays", { days })}
-              </Button>
-            ))}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <PerformanceDateRange
-              idPrefix="seo-statistics-period"
-              from={form.from}
-              until={form.to}
-              fromLabel={t("statistics.from")}
-              untilLabel={t("statistics.to")}
-              invalid={form.invalidDates}
-              onFromChange={form.setFrom}
-              onUntilChange={form.setTo}
-            />
-          </div>
-          {form.invalidDates ? (
-            <p role="alert" className="text-destructive text-sm">
-              {t("statistics.invalidDates")}
-            </p>
-          ) : null}
-          {form.provider === "ga4" ? (
-            <SeoField
-              id="seo-statistics-channel"
-              label={t("statistics.channel")}
-            >
-              <SeoSelect
-                id="seo-statistics-channel"
-                value={form.channel}
-                onValueChange={(value) => {
-                  if (value === "all" || value === "organic")
-                    form.setChannel(value);
-                }}
-                options={[
-                  { value: "all", label: t("statistics.channelAll") },
-                  { value: "organic", label: t("statistics.channelOrganic") },
-                ]}
-              />
-            </SeoField>
-          ) : null}
+          {connectFirst ? null : <SeoStatisticsPeriod form={form} />}
           <p className="text-muted-foreground text-sm">
             {t("statistics.ownerOnly")}
           </p>
@@ -192,23 +148,91 @@ export function SeoStatisticsDialog({
             >
               {t("cancel")}
             </Button>
-            <Button
-              type="submit"
-              loading={model.pending}
-              disabled={
-                model.pending ||
-                form.propertiesUnavailable ||
-                !form.propertyId ||
-                form.invalidDates ||
-                !model.data.scope.pageIds.length ||
-                !model.data.availableActions.canSyncMetrics
-              }
-            >
-              {t("statistics.submit")}
-            </Button>
+            {connectFirst ? null : (
+              <Button
+                type="submit"
+                loading={model.pending}
+                disabled={
+                  model.pending ||
+                  form.propertiesUnavailable ||
+                  !form.propertyId ||
+                  form.invalidDates ||
+                  !model.data.scope.pageIds.length ||
+                  !model.data.availableActions.canSyncMetrics
+                }
+              >
+                {t("statistics.submit")}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** The period and, for Google Analytics, the traffic channel of one sync. */
+function SeoStatisticsPeriod({
+  form,
+}: {
+  form: ReturnType<typeof useSeoStatistics>;
+}) {
+  const t = useTranslations("App.Seo");
+  return (
+    <>
+      <div
+        className="flex flex-wrap gap-2"
+        role="group"
+        aria-label={t("period")}
+      >
+        {SEO_STATISTICS_PERIODS.map((days) => (
+          <Button
+            key={days}
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-pressed={form.preset === days}
+            // The same mark as the chosen metric tile on the Traffic tab.
+            className={cn(form.preset === days && SEO_CHOSEN_CLASS)}
+            onClick={() => form.setPeriod(days)}
+          >
+            {t("statistics.lastDays", { days })}
+          </Button>
+        ))}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <PerformanceDateRange
+          idPrefix="seo-statistics-period"
+          from={form.from}
+          until={form.to}
+          fromLabel={t("statistics.from")}
+          untilLabel={t("statistics.to")}
+          invalid={form.invalidDates}
+          onFromChange={form.setFrom}
+          onUntilChange={form.setTo}
+        />
+      </div>
+      {form.invalidDates ? (
+        <p role="alert" className="text-destructive text-sm">
+          {t("statistics.invalidDates")}
+        </p>
+      ) : null}
+      {form.provider === "ga4" ? (
+        <SeoField id="seo-statistics-channel" label={t("statistics.channel")}>
+          <SeoSelect
+            id="seo-statistics-channel"
+            value={form.channel}
+            onValueChange={(value) => {
+              if (value === "all" || value === "organic")
+                form.setChannel(value);
+            }}
+            options={[
+              { value: "all", label: t("statistics.channelAll") },
+              { value: "organic", label: t("statistics.channelOrganic") },
+            ]}
+          />
+        </SeoField>
+      ) : null}
+    </>
   );
 }

@@ -11263,14 +11263,15 @@
         "submit": "Sincronizar estadísticas",
         "propertiesLoading": "Cargando propiedades autorizadas",
         "propertiesFailed": "No se pudieron cargar las propiedades. Inténtalo de nuevo.",
-        "notConnected": "Conecta esta cuenta aquí para consultar sus estadísticas.",
         "noProperties": "No hay propiedades autorizadas disponibles.",
         "ownerOnly": "Las estadísticas usan la cuenta y los permisos de la persona que las sincroniza.",
         "shared": "Las estadísticas guardadas se comparten en esta auditoría de tu organización. Tu cuenta de Google sigue bajo tu control.",
         "synced": "Estadísticas sincronizadas",
         "invalidDates": "Elige un intervalo de fechas válido de hasta 366 días.",
         "channelAny": "Todos los segmentos medidos",
-        "lastDays": "Últimos {days} días"
+        "lastDays": "Últimos {days} días",
+        "connectTitle": "Configurar estadísticas",
+        "connectFirst": "Conecta primero {provider}. Después eliges aquí la propiedad y el periodo."
       },
       "metrics": {
         "page_views": "Vistas de página",
@@ -11536,7 +11537,12 @@
         "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
         "allActions": "{kind, select, fix {Ver todas las correcciones} other {Ver todas las acciones}}",
         "otherSteps": "Otros pasos (no cuentan como problemas)",
-        "seeSuggestion": "Ver la sugerencia"
+        "seeSuggestion": "Ver la sugerencia",
+        "statisticsMissing": "Las estadísticas no están configuradas",
+        "demand": {
+          "title": "Palabras clave comprobadas con más búsquedas",
+          "position": "Posición {position}"
+        }
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",

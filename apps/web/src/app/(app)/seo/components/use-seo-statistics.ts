@@ -18,6 +18,7 @@ import {
   seoStatisticsPeriod,
   seoStatisticsPreset,
 } from "./seo-statistics-model";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function useSeoStatistics(
@@ -30,9 +31,36 @@ export function useSeoStatistics(
   const [workspace] = useState(() => model.data);
   const owner = seoWorkspaceOwner(workspace);
   const [saved] = useState(() => savedSeoStatistics(workspace.metrics, source));
-  const [provider, setProvider] = useState<SeoStatisticsProvider>(
-    source ?? (saved?.source === "search_console" ? "search_console" : "ga4"),
+  const [chosenProvider, setProvider] = useState<SeoStatisticsProvider | null>(
+    source ??
+      (saved
+        ? saved.source === "search_console"
+          ? "search_console"
+          : "ga4"
+        : null),
   );
+  // Nothing saved and no source asked for: Google Analytics leads while it is connected, or where
+  // an account state cannot be read. Else Search Console leads: it is connected, or it is the first
+  // account to connect. A dialog on Google Analytics beside a connected Search Console had no sync.
+  const search = useSeoConnectionStatus(
+    "search_console",
+    chosenProvider === null,
+  ).status;
+  const analytics = useSeoConnectionStatus(
+    "ga4",
+    chosenProvider === null,
+  ).status;
+  // The source is decided once, when both reads end. A later change of an account (a failed
+  // property read, a disconnect in the dialog) must not move the dialog to the other source.
+  if (chosenProvider === null && !search.isPending && !analytics.isPending)
+    setProvider(
+      search.data?.status !== undefined &&
+        analytics.data?.status !== undefined &&
+        analytics.data.status !== "connected"
+        ? "search_console"
+        : "ga4",
+    );
+  const provider: SeoStatisticsProvider = chosenProvider ?? "ga4";
   const [chosenPropertyId, setPropertyId] = useState(saved?.propertyId ?? "");
   const [channel, setChannel] = useState<"all" | "organic">(
     source && saved
@@ -80,7 +108,8 @@ export function useSeoStatistics(
         });
       return data;
     },
-    enabled: !!session?.user.id,
+    // No read for a source that is not decided yet: its answer would show for a moment.
+    enabled: !!session?.user.id && chosenProvider !== null,
     refetchOnWindowFocus: false,
   });
   const availableProperties = properties.data?.properties ?? [];

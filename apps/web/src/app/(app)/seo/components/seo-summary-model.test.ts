@@ -1,6 +1,10 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { lastRuleCheck, seoSummary } from "./seo-summary-model";
+import {
+  lastRuleCheck,
+  seoKeywordDemand,
+  seoSummary,
+} from "./seo-summary-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 
 type Workspace = ProjectSeoWorkspace;
@@ -210,6 +214,73 @@ describe("seoSummary", () => {
       }),
     ];
     expect(seoSummary(workspace).issues).toBeNull();
+  });
+});
+
+describe("seoKeywordDemand", () => {
+  it("lists the most searched checked keywords once each, largest first", () => {
+    const workspace = seoTestWorkspace();
+    const market = { countryCode: "US", languageCode: "en" };
+    workspace.keywords = [
+      keyword("battery app", { volume: 50 }),
+      keyword("macbook battery", {
+        volume: 720,
+        position: 9,
+        positionStatus: "ranked",
+      }),
+      // The same keyword read for a second page: one row, with the better position.
+      keyword("Macbook  Battery", {
+        volume: 720,
+        position: 4,
+        positionStatus: "ranked",
+        pageUrl: "https://example.com/guide",
+      }),
+      keyword("battery widget", { volume: 320 }),
+      // No known count and no searches: no bar.
+      keyword("battery test", { volume: null }),
+      keyword("battery zero", { volume: 0 }),
+      // A read that failed is no checked keyword of the picture.
+      keyword("battery fail", { volume: 9000, positionStatus: "unavailable" }),
+    ];
+    expect(seoKeywordDemand(workspace, 5)).toEqual({
+      rows: [
+        // The page with the better position leads its keyword.
+        { keyword: "Macbook  Battery", ...market, volume: 720, best: 4 },
+        { keyword: "battery widget", ...market, volume: 320, best: null },
+        { keyword: "battery app", ...market, volume: 50, best: null },
+      ],
+      max: 720,
+      manyMarkets: false,
+    });
+    // The same keyword in a second market is a row of its own, and the rows name their markets.
+    workspace.keywords.push(
+      keyword("battery app", {
+        volume: 90,
+        countryCode: "DE",
+        languageCode: "de",
+      }),
+    );
+    const markets = seoKeywordDemand(workspace, 5);
+    expect(markets.manyMarkets).toBe(true);
+    expect(
+      markets.rows
+        .filter((row) => row.keyword === "battery app")
+        .map((row) => [row.countryCode, row.volume]),
+    ).toEqual([
+      ["DE", 90],
+      ["US", 50],
+    ]);
+    workspace.keywords.pop();
+    expect(
+      seoKeywordDemand(workspace, 2).rows.map((row) => row.keyword),
+    ).toEqual(["Macbook  Battery", "battery widget"]);
+    // One bar is no comparison.
+    workspace.keywords = [keyword("battery app", { volume: 50 })];
+    expect(seoKeywordDemand(workspace, 5)).toEqual({
+      rows: [],
+      max: 0,
+      manyMarkets: false,
+    });
   });
 });
 

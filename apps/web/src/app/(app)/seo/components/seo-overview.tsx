@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useLayoutEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -457,23 +458,37 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
       />
       <SeoPages model={model} />
       {overview.diagnostics.length || offTimeline.length ? (
-        <details className={cn(HOLDER_CLASS, "text-sm")}>
-          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm px-2 py-2.5 focus-visible:ring-2 focus-visible:outline-none">
-            <h2 className="inline text-sm font-semibold">
+        <details className={cn(HOLDER_CLASS, "group/details text-sm")}>
+          {/* The same shape as an issue row: the name, its counts as marks, and the arrow at the end. */}
+          <summary
+            className={cn(
+              "focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-sm px-2 py-2 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden",
+              (suggestions || flagged) &&
+                "sm:grid-cols-[minmax(0,1fr)_auto_auto]",
+            )}
+          >
+            <h2 className="min-w-0 text-sm font-semibold">
               {t("overview.diagnostics")}
             </h2>
-            {suggestions ? (
-              <span className="text-muted-foreground text-sm whitespace-nowrap">
-                {" "}
-                · {t("overview.suggestionCount", { count: suggestions })}
+            {suggestions || flagged ? (
+              // On a phone the counts are a line of their own under the name.
+              <span className="flex flex-wrap items-center gap-1.5 max-sm:order-last max-sm:col-span-2">
+                {suggestions ? (
+                  <Badge variant="outline" className="font-normal">
+                    {t("overview.suggestionCount", { count: suggestions })}
+                  </Badge>
+                ) : null}
+                {flagged ? (
+                  <Badge variant="outline" className="font-normal">
+                    {t("overview.noteCount", { count: flagged })}
+                  </Badge>
+                ) : null}
               </span>
             ) : null}
-            {flagged ? (
-              <span className="text-muted-foreground text-sm whitespace-nowrap">
-                {" "}
-                · {t("overview.noteCount", { count: flagged })}
-              </span>
-            ) : null}
+            <ChevronDown
+              aria-hidden
+              className="text-muted-foreground size-4 shrink-0 group-open/details:rotate-180"
+            />
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
             {oneCheck ? (

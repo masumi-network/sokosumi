@@ -17,6 +17,7 @@ import messages from "../../../../../messages/en.json";
 import { SeoSetupCard } from "./seo-setup";
 import { seoSetup } from "./seo-setup-model";
 import {
+  openStatisticsSetup,
   SEO_TEST_AUDIT,
   seoTestMetric,
   seoTestWorkspace,
@@ -326,21 +327,37 @@ describe("SEO audit first run", () => {
     expect(
       screen.queryByText(copy.agent.steps.connect.search_console),
     ).toBeNull();
-    // One action, like every other row: the account's menu is in the sync dialog.
-    const row = text.closest("li");
-    if (!row) throw new Error("no step row");
+    // One action: the account's menu is in the sync dialog. The step is the banner, not a row of the list.
+    const row = text.closest<HTMLElement>(
+      '[data-testid="seo-statistics-banner"]',
+    );
+    if (!row) throw new Error("no statistics banner");
+    expect(
+      within(row).getByRole("heading", { name: copy.agent.statisticsMissing }),
+    ).toBeVisible();
     expect(
       within(row)
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["Sync statistics"]);
-    // The dialog opens on this row's source; without one it starts on Google Analytics.
+    // The dialog opens on this banner's source.
     await userEvent.click(within(row).getByRole("button"));
     expect(
       within(
         await screen.findByRole("dialog", { name: "Sync statistics" }),
       ).getByRole("combobox", { name: "Source" }),
     ).toHaveTextContent("Search Console");
+    // Without a source the dialog starts on the connected account too: on Google Analytics it had no sync.
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await openStatisticsSetup(userEvent);
+    const reopened = await screen.findByRole("dialog", {
+      name: "Sync statistics",
+    });
+    await waitFor(() =>
+      expect(
+        within(reopened).getByRole("combobox", { name: "Source" }),
+      ).toHaveTextContent("Search Console"),
+    );
   });
 
   it("asks for the account on the Traffic tab while no account is connected", async () => {

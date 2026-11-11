@@ -12,6 +12,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SeoActionCard } from "./seo-actions";
+import { SeoAgentGraphics } from "./seo-agent-graphics";
 import {
   type SeoAgentBrief,
   type SeoAgentStep,
@@ -87,12 +88,18 @@ function SeoAgentPanel({
     if (checkSeen && !checkRunning && document.activeElement === document.body)
       verdict.current?.focus();
   }, [checkSeen, checkRunning]);
+  // Missing search statistics are a banner under the result, not one of the steps.
+  const statisticsStep = setup
+    ? undefined
+    : brief.steps.find(
+        (step) => step.kind === "connect" && step.provider === "search_console",
+      );
   // The setup card already offers the connections and the page step.
   const steps = setup
     ? brief.steps.filter(
         (step) => step.kind !== "connect" && step.kind !== "pages",
       )
-    : brief.steps;
+    : brief.steps.filter((step) => step !== statisticsStep);
   const [showAllSteps, setShowAllSteps] = useState(false);
   const shown = showAllSteps ? steps : steps.slice(0, SEO_AGENT_VISIBLE_STEPS);
   // The first proposal with its own button carries the one primary action,
@@ -136,14 +143,31 @@ function SeoAgentPanel({
   const actionKind = brief.opportunities ? "action" : "fix";
   // The keyword results as numbers. The issue count is in the headline; its tiles lead the Health tab.
   const tiles = (
-    <SeoSummaryTiles
-      show="rankings"
-      workspace={model.data}
-      onOpenRankings={() => {
-        void model.setFilters({ tab: "rankings" });
-      }}
-    />
+    <>
+      <SeoSummaryTiles
+        show="rankings"
+        workspace={model.data}
+        onOpenRankings={() => {
+          void model.setFilters({ tab: "rankings" });
+        }}
+      />
+      <SeoAgentGraphics model={model} />
+    </>
   );
+  const banner =
+    statisticsStep && statisticsStep.kind !== "action" ? (
+      <SeoStepRow
+        banner={t("agent.statisticsMissing")}
+        step={statisticsStep}
+        model={model}
+        // The banner carries the filled button only where no step and no run button does.
+        first={primary === -1 && !seoRunLeads(model.data)}
+        refresh={() => {
+          void autopilot.refresh();
+        }}
+        refreshing={autopilot.state === "refreshing"}
+      />
+    ) : null;
   // On a phone the numbers before the steps pushed the first step's button under the first screen.
   // There the first action leads and the numbers follow it.
   const tilesAfterFirstStep = useIsMobile() && split > 0;
@@ -331,10 +355,12 @@ function SeoAgentPanel({
       )}
       {/* The setup card has no line for upkeep, so it sits under the card. */}
       {setup && upkeep ? <div className="px-2">{upkeep}</div> : null}
+      {/* One place on every width: a move would remount the control and drop an approval in flight. */}
+      {banner}
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}
-      {setup && !steps.length ? null : (
+      {(setup || banner) && !steps.length ? null : (
         <div className="space-y-2">
           <h3 className="px-2 text-sm font-semibold">
             {t(setup ? "setup.more" : "agent.nextTitle")}
@@ -346,7 +372,15 @@ function SeoAgentPanel({
                   <ul role="list" className="space-y-2">
                     {stepItem(shown[0], 0)}
                   </ul>
-                  <div className={cn(HOLDER_ITEM_CLASS, "p-4")}>{tiles}</div>
+                  {/* No number and no picture: no card. */}
+                  <div
+                    className={cn(
+                      HOLDER_ITEM_CLASS,
+                      "space-y-2 p-4 empty:hidden",
+                    )}
+                  >
+                    {tiles}
+                  </div>
                 </>
               ) : null}
               {split && (split > lead || moreActions) ? (

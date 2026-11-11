@@ -11263,14 +11263,15 @@
         "submit": "Sync statistics",
         "propertiesLoading": "Loading authorized properties",
         "propertiesFailed": "Failed to load properties. Try again.",
-        "notConnected": "Connect this account here to read its statistics.",
         "noProperties": "No authorized properties available.",
         "ownerOnly": "Statistics use the account and access of the person who syncs them.",
         "shared": "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
         "synced": "Statistics synced",
         "invalidDates": "Choose a valid date range of up to 366 days.",
         "channelAny": "All measured segments",
-        "lastDays": "Last {days} days"
+        "lastDays": "Last {days} days",
+        "connectTitle": "Set up statistics",
+        "connectFirst": "Connect {provider} first. You then choose the property and the period here."
       },
       "metrics": {
         "page_views": "Page views",
@@ -11536,7 +11537,12 @@
         "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
         "allActions": "{kind, select, fix {See all fixes} other {See all actions}}",
         "otherSteps": "Other steps (not counted as issues)",
-        "seeSuggestion": "See the suggestion"
+        "seeSuggestion": "See the suggestion",
+        "statisticsMissing": "Statistics are not set up",
+        "demand": {
+          "title": "Checked keywords with the most searches",
+          "position": "Position {position}"
+        }
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

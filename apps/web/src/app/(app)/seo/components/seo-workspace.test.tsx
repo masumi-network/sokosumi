@@ -270,8 +270,9 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
     );
+    // No account yet: the dialog is the connect step.
     expect(
-      screen.getByRole("dialog", { name: "Sync statistics" }),
+      await screen.findByRole("dialog", { name: "Set up statistics" }),
     ).toBeVisible();
   });
 
@@ -601,7 +602,7 @@ describe("SEO workspace integration", () => {
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(60);
     renderWorkspace(workspace, "?tab=health");
     // The folded section says whether opening it pays off.
-    expect(screen.getByText(/· 2 notes$/)).toBeInTheDocument();
+    expect(screen.getByText("2 notes")).toBeInTheDocument();
     await user.click(
       screen.getByRole("heading", {
         name: "Title, description and other page details",
@@ -640,7 +641,7 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // The fold counts suggestions apart from notes, as the Agent tab does.
     expect(details.querySelector("summary")).toHaveTextContent(
-      /· 1 suggestion · 2 notes$/,
+      /1 suggestion\s*2 notes$/,
     );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/From the check on/)).toBeNull();
@@ -3900,15 +3901,28 @@ describe("SEO workspace integration", () => {
                 reason: null,
                 properties: [],
               }
-            : workspace,
+            : url.includes("/api/seo/connections/")
+              ? { status: "not_connected", source: "none" }
+              : workspace,
         ),
       ),
     );
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
+    // No account yet: the dialog asks for the account. The sync fields and the sync button follow the approval.
     const dialog = await screen.findByRole("dialog", {
-      name: "Sync statistics",
+      name: "Set up statistics",
     });
+    expect(
+      within(dialog).getByText(
+        // No account at all: Search Console is the first one to connect.
+        "Connect Search Console first. You then choose the property and the period here.",
+      ),
+    ).toBeVisible();
+    expect(within(dialog).queryByLabelText("Start date")).toBeNull();
+    expect(
+      within(dialog).queryByRole("button", { name: "Sync statistics" }),
+    ).toBeNull();
     expect(
       within(dialog).getByText(
         "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
