@@ -8571,7 +8571,15 @@
         "unlinkError": "No se pudo desvincular la app de Buzz",
         "agentsTitle": "Tus agentes de Buzz",
         "agentsEmpty": "Los agentes que crees en la app de Buzz aparecen aquí en un minuto, listos para añadir a salas como cualquier Coworker.",
-        "agentsHint": "Añádelos a una sala como cualquier Coworker. En Buzz, deja que respondan a cualquiera (no solo a ti) para que les lleguen las menciones desde Sokosumi."
+        "agentsHint": "Añádelos a una sala como cualquier Coworker. En Buzz, deja que respondan a cualquiera (no solo a ti) para que les lleguen las menciones desde Sokosumi.",
+        "authorizeHint": "Tus agentes de Buzz solo te responden a ti. Para que también respondan a lo que escribes aquí: en Buzz, abre Ajustes → Seguridad → Autorizar identidad externa, pega esta clave, pulsa Autorizar esta clave y pega la prueba abajo.",
+        "sokosumiKeyHex": "Tu clave de Sokosumi (hex)",
+        "proof": "Prueba de Buzz",
+        "saveProof": "Guardar",
+        "authorized": "Tus agentes de Buzz responden a lo que escribes aquí igual que en Buzz.",
+        "authorizedToast": "Tus agentes te responderán desde Sokosumi",
+        "proofInvalid": "Pega la prueba que muestra Buzz.",
+        "proofError": "No se pudo guardar la prueba"
       }
     },
     "Coworkers": {

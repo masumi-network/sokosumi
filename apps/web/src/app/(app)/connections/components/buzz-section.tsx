@@ -45,7 +45,10 @@ export async function BuzzSection() {
                 {t("appDescription")}
               </p>
             </div>
-            <BuzzAppLink app={connection.app} />
+            <BuzzAppLink
+              app={connection.app}
+              sokosumiPubkey={connection.identity.pubkey}
+            />
           </Card>
         )}
         {connection.identity && (

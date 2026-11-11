@@ -15,6 +15,7 @@ import {
   buzzConnectionFor,
   enableBuzzForOrganization,
   exportBuzzSecretKey,
+  saveBuzzAppAuthorization,
   startBuzzAppLink,
   unlinkBuzzApp,
 } from "@/services/buzz-bridge.service";
@@ -45,6 +46,10 @@ const connectionSchema = z
         status: z.enum(["pending", "linked"]).openapi({
           description:
             "pending until the key joins a community with the invite Sokosumi issued for it.",
+        }),
+        authorized: z.boolean().openapi({
+          description:
+            "Whether the caller's Buzz app vouched for their Sokosumi key, so their Buzz agents answer what they write in Sokosumi.",
         }),
         agents: z
           .array(z.object({ name: z.string(), npub: z.string() }))
@@ -196,6 +201,35 @@ const unlinkAppKey = createRoute({
   },
 });
 
+const authorizeAppKey = createRoute({
+  method: "post",
+  path: "/app-key/authorization",
+  tags: ["Buzz"],
+  description:
+    "Save the proof the caller's Buzz app signed for their Sokosumi key (Settings → Security → Authorize external identity). Interactive sessions only.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            proof: z.string().openapi({
+              description:
+                'The NIP-OA auth tag Buzz shows, ["auth", owner, "", signature].',
+            }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(z.object({ authorized: z.boolean() }), "Saved"),
+    400: jsonErrorResponse("Not a proof for this key"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
 const app = new OpenAPIHonoWithAuth();
 
 app.openapi(getConnection, async (c) => {
@@ -233,6 +267,19 @@ app.openapi(linkAppKey, async (c) => {
     if (error instanceof BuzzAppLinkError) throw badRequest(error.message);
     throw error;
   }
+});
+
+app.openapi(authorizeAppKey, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  const { proof } = c.req.valid("json");
+  try {
+    await saveBuzzAppAuthorization(userId, proof);
+  } catch (error) {
+    if (error instanceof BuzzAppLinkError) throw badRequest(error.message);
+    throw error;
+  }
+  return ok(c, { authorized: true });
 });
 
 app.openapi(unlinkAppKey, async (c) => {

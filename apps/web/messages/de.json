@@ -8571,7 +8571,15 @@
         "unlinkError": "Buzz-App konnte nicht getrennt werden",
         "agentsTitle": "Deine Buzz-Agenten",
         "agentsEmpty": "Agenten, die du in der Buzz-App erstellst, erscheinen hier innerhalb einer Minute und lassen sich wie jeder Coworker zu Räumen hinzufügen.",
-        "agentsHint": "Füge sie wie jeden Coworker zu einem Raum hinzu. Lass sie in Buzz allen antworten (nicht nur dir), damit Erwähnungen aus Sokosumi ankommen."
+        "agentsHint": "Füge sie wie jeden Coworker zu einem Raum hinzu. Lass sie in Buzz allen antworten (nicht nur dir), damit Erwähnungen aus Sokosumi ankommen.",
+        "authorizeHint": "Deine Buzz-Agenten antworten nur dir. Damit sie auch auf das antworten, was du hier schreibst: Öffne in Buzz Einstellungen → Sicherheit → Externe Identität autorisieren, füge diesen Schlüssel ein, klicke auf Diesen Schlüssel autorisieren und füge den Nachweis unten ein.",
+        "sokosumiKeyHex": "Dein Sokosumi-Schlüssel (hex)",
+        "proof": "Nachweis aus Buzz",
+        "saveProof": "Speichern",
+        "authorized": "Deine Buzz-Agenten antworten auf das, was du hier schreibst, genauso wie in Buzz.",
+        "authorizedToast": "Deine Agenten antworten dir jetzt auch aus Sokosumi",
+        "proofInvalid": "Füge den Nachweis aus Buzz ein.",
+        "proofError": "Nachweis konnte nicht gespeichert werden"
       }
     },
     "Coworkers": {

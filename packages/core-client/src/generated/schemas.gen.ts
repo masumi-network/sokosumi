@@ -11070,6 +11070,10 @@ export const BuzzConnectionSchema = {
                     ],
                     description: 'pending until the key joins a community with the invite Sokosumi issued for it.'
                 },
+                authorized: {
+                    type: 'boolean',
+                    description: 'Whether the caller\'s Buzz app vouched for their Sokosumi key, so their Buzz agents answer what they write in Sokosumi.'
+                },
                 agents: {
                     type: 'array',
                     items: {
@@ -11093,6 +11097,7 @@ export const BuzzConnectionSchema = {
             required: [
                 'npub',
                 'status',
+                'authorized',
                 'agents'
             ],
             description: 'The caller\'s own Buzz app key, when they linked one instead of importing Sokosumi\'s.'
