@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
@@ -16,12 +17,14 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import {
+  SEO_LIST_PAGE_SIZE,
   SEO_SEARCH_MIN_ROWS,
   SEO_STACKED_TABLE_CLASS,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
   SeoSection,
+  SeoShowMore,
   SeoSource,
   SeoState,
 } from "./seo-shared";
@@ -30,16 +33,26 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
-  const rows = model.filteredCompetitors;
+  // The reader's own page and the competitors they chose lead, so a row they
+  // just added never hides behind "Show more". The sort keeps Core's order within each part.
+  const part = (row: (typeof model.filteredCompetitors)[number]) =>
+    row.role === "page" ? 0 : row.confirmed ? 1 : 2;
+  const all = model.filteredCompetitors.toSorted(
+    (left, right) => part(left) - part(right),
+  );
+  const [expanded, setExpanded] = useState(false);
+  // A search already narrows the list; it shows every match.
+  const rows =
+    expanded || model.competitorSearch ? all : all.slice(0, SEO_LIST_PAGE_SIZE);
   const number = (value: number | null) =>
     value === null ? t("none") : format.number(value);
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
-    rank: rows.some((row) => row.rank !== null),
-    backlinks: rows.some((row) => row.backlinks !== null),
-    domains: rows.some((row) => row.referringDomains !== null),
-    observed: rows.some((row) => row.observedAt !== null),
-    source: rows.some((row) => row.observationId || row.source !== "saved"),
+    rank: all.some((row) => row.rank !== null),
+    backlinks: all.some((row) => row.backlinks !== null),
+    domains: all.some((row) => row.referringDomains !== null),
+    observed: all.some((row) => row.observedAt !== null),
+    source: all.some((row) => row.observationId || row.source !== "saved"),
   };
   const hidden = [
     shown.rank ? null : t("competitors.rank"),
@@ -252,6 +265,15 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           )}
         />
       )}
+      {all.length > SEO_LIST_PAGE_SIZE && !model.competitorSearch ? (
+        <SeoShowMore
+          more={t("competitors.more", {
+            count: all.length - SEO_LIST_PAGE_SIZE,
+          })}
+          expanded={expanded}
+          onToggle={() => setExpanded((open) => !open)}
+        />
+      ) : null}
     </SeoSection>
   );
 }

@@ -37,6 +37,8 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
     (metric) => metric.source === "search_console",
   );
   const choosable = model.data.pages.length >= MIN_PAGES_FOR_SELECTIONS;
+  // An empty card for saved selections only says "none"; the card shows once one exists.
+  const selections = choosable && model.data.scopes.length > 0;
   const datesFiltered = Boolean(model.data.scope.from || model.data.scope.to);
   const totalsPeriod = search[0]
     ? // The same rule as the query rows: only the end moves to the last reported day.
@@ -58,15 +60,27 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   )
     return null;
   return (
-    <div className={cn("grid gap-6", choosable && "xl:grid-cols-2")}>
+    <div className={cn("grid gap-6", selections && "xl:grid-cols-2")}>
       <SeoSection
         title={t("pages.title")}
         actions={
           model.data.availableActions.canEdit ? (
-            <Button size="sm" onClick={() => model.setDialog("page")}>
-              <Plus className="size-4" />
-              {t("addPage")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {/* Without a saved selection there is no card for it; the button to save the first one sits here. */}
+              {choosable && !selections ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => model.setDialog("scope")}
+                >
+                  {t("createScope")}
+                </Button>
+              ) : null}
+              <Button size="sm" onClick={() => model.setDialog("page")}>
+                <Plus className="size-4" />
+                {t("addPage")}
+              </Button>
+            </div>
           ) : null
         }
       >
@@ -216,7 +230,7 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
           <SeoEmpty title={t("noPages")} description={t("noPagesBody")} />
         )}
       </SeoSection>
-      {model.data.pages.length < MIN_PAGES_FOR_SELECTIONS ? null : (
+      {selections ? (
         <SeoSection
           title={t("pages.groups")}
           actions={
@@ -228,55 +242,51 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
             ) : null
           }
         >
-          {model.data.scopes.length ? (
-            <ul className="space-y-2">
-              {model.data.scopes.map((scope) => (
-                <li
-                  className={`${HOLDER_ITEM_CLASS} space-y-3 p-4`}
-                  key={scope.id}
+          <ul className="space-y-2">
+            {model.data.scopes.map((scope) => (
+              <li
+                className={`${HOLDER_ITEM_CLASS} space-y-3 p-4`}
+                key={scope.id}
+              >
+                <div>
+                  <h3 className="text-sm font-medium">{scope.name}</h3>
+                  <p className="text-muted-foreground text-sm">
+                    {t("pages.count", { count: scope.pageIds.length })} ·{" "}
+                    {t("pages.version", { version: scope.version })}
+                  </p>
+                </div>
+                <ul className="space-y-1 text-sm">
+                  {scope.pageIds.map((id) => {
+                    const page = model.data.pages.find(
+                      (candidate) => candidate.id === id,
+                    );
+                    return page ? (
+                      <li key={id}>
+                        <SeoPageLink url={page.url} label={page.label} />
+                      </li>
+                    ) : null;
+                  })}
+                </ul>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    void model.setFilters({
+                      scopeId: scope.id,
+                      pageId: null,
+                    });
+                  }}
                 >
-                  <div>
-                    <h3 className="text-sm font-medium">{scope.name}</h3>
-                    <p className="text-muted-foreground text-sm">
-                      {t("pages.count", { count: scope.pageIds.length })} ·{" "}
-                      {t("pages.version", { version: scope.version })}
-                    </p>
-                  </div>
-                  <ul className="space-y-1 text-sm">
-                    {scope.pageIds.map((id) => {
-                      const page = model.data.pages.find(
-                        (candidate) => candidate.id === id,
-                      );
-                      return page ? (
-                        <li key={id}>
-                          <SeoPageLink url={page.url} label={page.label} />
-                        </li>
-                      ) : null;
-                    })}
-                  </ul>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      void model.setFilters({
-                        scopeId: scope.id,
-                        pageId: null,
-                      });
-                    }}
-                  >
-                    {model.filters.scopeId === scope.id ? (
-                      <Check className="size-4" />
-                    ) : null}
-                    {t("pages.chooseSelection")}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <SeoEmpty description={t("pages.emptyGroups")} />
-          )}
+                  {model.filters.scopeId === scope.id ? (
+                    <Check className="size-4" />
+                  ) : null}
+                  {t("pages.chooseSelection")}
+                </Button>
+              </li>
+            ))}
+          </ul>
         </SeoSection>
-      )}
+      ) : null}
     </div>
   );
 }

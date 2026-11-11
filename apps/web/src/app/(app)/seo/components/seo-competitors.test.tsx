@@ -1,6 +1,7 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -145,6 +146,39 @@ describe("SEO competitor baselines", () => {
       ).toBeVisible();
     },
   );
+
+  it("shows the first ten pages of a long list and the rest on request", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.competitors = Array.from({ length: 12 }, (_, index) => ({
+      id: `competitor-${index}`,
+      url: `https://rival-${index}.example/`,
+      role: "competitor" as const,
+      // Core lists a competitor the reader just added last.
+      confirmed: index === 11,
+      source: "search",
+      // Only a row past the first ten has backlinks: its column still shows.
+      rank: index + 1,
+      backlinks: index === 11 ? 40 : null,
+      referringDomains: null,
+      observedAt: null,
+      observationId: null,
+      version: 0,
+      canConfirm: true,
+      exclusionReason: null,
+    }));
+    renderWorkspace(workspace);
+    // The chosen competitor leads, so it never hides behind "Show more".
+    expect(screen.getByText("https://rival-11.example/")).toBeVisible();
+    expect(screen.getByText("https://rival-8.example/")).toBeVisible();
+    expect(screen.queryByText("https://rival-9.example/")).toBeNull();
+    expect(
+      screen.getByRole("columnheader", { name: "Backlinks" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Show 2 more pages" }));
+    expect(screen.getByText("https://rival-10.example/")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
+  });
 
   it("leaves the actions cell empty when a row has no button", () => {
     const workspace = seoTestWorkspace();
