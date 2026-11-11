@@ -134,5 +134,15 @@
     "minOffers": 5,
     "why": "many product lines: the Brand Brain lists each, not only the one the homepage features",
     "contentLanguage": "english"
+  },
+  {
+    "name": "Begin",
+    "url": "https://begin.is/",
+    "goal": "More users",
+    "main": "wallet",
+    "price": "free",
+    "profile": "(x|twitter)\\.com/beginwallet",
+    "why": "the wallet is free, and its X account is linked only from the site's footer",
+    "contentLanguage": "english"
   }
 ]

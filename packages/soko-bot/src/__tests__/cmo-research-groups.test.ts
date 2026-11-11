@@ -47,4 +47,16 @@ describe("Cuso's research in groups (SOKD-167)", () => {
     expect(grouped).toContain(serial.slice(serial.indexOf(" a plain summary")));
     expect(grouped).toContain("hand-over");
   });
+
+  it("reads the business's own site page by page, never from search passages", () => {
+    const skill = getSokoBotSkill("cmo-brand-brain-groups").content;
+    const brief = (label: string) =>
+      skill.slice(skill.indexOf(`### ${label}`)).split("\n\n")[0] ?? "";
+    expect(skill).toContain(
+      "the business's own site is never read from passages",
+    );
+    expect(brief("Website")).toContain("Start with web_fetch on the homepage");
+    expect(brief("Website")).toContain('"Not public" only after');
+    expect(brief("Social accounts")).toContain("its profiles field");
+  });
 });
