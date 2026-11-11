@@ -185,15 +185,29 @@ export function ThreadListPanel({
   // Two groups, so the eye finds where the unread stops instead of reading
   // each row's weight. A partition of what is loaded: nothing extra is
   // fetched, and Core returns unread first, so paging only grows Earlier.
-  const unreadItems = items.filter((item) => threadNeedsOverviewUnread(item));
-  const earlierItems = items.filter((item) => !threadNeedsOverviewUnread(item));
+  // While Mark all is on its way, every thread Core will mark shows as read
+  // already. Core leaves muted threads alone (SOK-1087). A refused Mark all
+  // ends this, and the unread rows are back.
+  const shownItems = isMarkingAllRead
+    ? items.map((item) =>
+        item.mutedAt == null ? { ...item, unreadReplyCount: 0 } : item,
+      )
+    : items;
+  const unreadItems = shownItems.filter((item) =>
+    threadNeedsOverviewUnread(item),
+  );
+  const earlierItems = shownItems.filter(
+    (item) => !threadNeedsOverviewUnread(item),
+  );
   const showEmpty = !isLoading && !error && items.length === 0;
   // Every loaded list is divided, even one with nothing unread: the reader
   // scans for the Unread heading, so it answers them either way, with the rows
   // or with a line saying there are none. Only a room with no Threads at all
   // drops the headings, because there its own empty state already speaks.
   const hasGroups = items.length > 0;
-  const showMarkAll = unreadItems.length > 0;
+  // The button stays while its write is open, so focus and the spinner
+  // have somewhere to be.
+  const showMarkAll = isMarkingAllRead || unreadItems.length > 0;
 
   function renderRow(item: ChatRoomThread) {
     const sender = messageSender(item.parentMessage);

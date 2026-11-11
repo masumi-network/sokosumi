@@ -1,5 +1,6 @@
 import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -347,6 +348,116 @@ describe("ThreadListPanel", () => {
     expect(
       within(screen.getByTestId("thread-list-load-more")).getByRole("button"),
     ).toHaveTextContent(labels.loadOlder);
+  });
+
+  it.each([
+    [
+      "Core refuses",
+      (settle: { answer: (v: unknown) => void; reject: (e: Error) => void }) =>
+        settle.answer({
+          ok: false,
+          error: { message: labels.markAllReadError },
+        }),
+    ],
+    [
+      "the call fails",
+      (settle: { answer: (v: unknown) => void; reject: (e: Error) => void }) =>
+        settle.reject(new Error("network down")),
+    ],
+  ])(
+    "shows the threads as read before Core answers, and unread again when %s",
+    async (_case, settle) => {
+      const mutedId = "550e8400-e29b-41d4-a716-446655440098";
+      listThreadsActionMock.mockResolvedValue({
+        ok: true,
+        value: {
+          threads: [
+            threadItem(),
+            threadItem({
+              parentMessage: parentMessage({
+                id: mutedId,
+                content: "Muted parent",
+              }),
+              mutedAt: new Date("2026-08-01T02:00:00.000Z"),
+            }),
+          ],
+          nextCursor: null,
+        },
+      });
+      const write = {
+        answer: (_value: unknown) => {},
+        reject: (_reason: Error) => {},
+      };
+      markAllUnreadThreadsReadActionMock.mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          write.answer = resolve;
+          write.reject = reject;
+        }),
+      );
+      renderPanel();
+      const unread = () =>
+        screen
+          .getAllByTestId("thread-list-item")
+          .map((row) => row.getAttribute("data-unread"));
+
+      fireEvent.click(await screen.findByTestId("thread-list-mark-all-read"));
+      // Core leaves the muted thread unread, so the list does too.
+      expect(unread()).toEqual(["true", "false"]);
+      expect(screen.getAllByTestId("thread-list-item")[0]).toHaveTextContent(
+        "Muted parent",
+      );
+
+      await act(async () => settle(write));
+      expect(unread()).toEqual(["true", "true"]);
+      expect(screen.getByTestId("thread-list-error")).toHaveTextContent(
+        labels.markAllReadError,
+      );
+    },
+  );
+
+  it("keeps the threads read and the button in place until the list is read again", async () => {
+    let answerMarkAll: (value: unknown) => void = () => {};
+    markAllUnreadThreadsReadActionMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answerMarkAll = resolve;
+      }),
+    );
+    let answerReload: (value: unknown) => void = () => {};
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { threads: [threadItem()], nextCursor: null },
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          answerReload = resolve;
+        }),
+      );
+    renderPanel();
+    const row = () => screen.getByTestId("thread-list-item");
+
+    const button = await screen.findByTestId("thread-list-mark-all-read");
+    fireEvent.click(button);
+    expect(row()).toHaveAttribute("data-unread", "false");
+    expect(screen.getByTestId("thread-list-mark-all-read")).toBe(button);
+
+    // Core marked them; the list read that follows is still out.
+    await act(async () =>
+      answerMarkAll({ ok: true, value: { markedCount: 1 } }),
+    );
+    expect(row()).toHaveAttribute("data-unread", "false");
+
+    await act(async () =>
+      answerReload({
+        ok: true,
+        value: {
+          threads: [threadItem({ unreadReplyCount: 0, hasLooked: true })],
+          nextCursor: null,
+        },
+      }),
+    );
+    expect(row()).toHaveAttribute("data-unread", "false");
+    expect(screen.queryByTestId("thread-list-mark-all-read")).toBeNull();
   });
 
   it("selects a row and marks all unread", async () => {
