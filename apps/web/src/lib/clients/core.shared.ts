@@ -257,7 +257,6 @@ import {
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
   getChatsInvitationsById as coreGetChatsInvitationsById,
-  getChatsRecent as coreGetChatsRecent,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
@@ -274,6 +273,7 @@ import {
   getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
   getChatsSavedMessages as coreGetChatsSavedMessages,
   getChatsSignalsDecisions as coreGetChatsSignalsDecisions,
+  getChatsSignalsImportant as coreGetChatsSignalsImportant,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
@@ -1926,11 +1926,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getChatRecentSokoBotMessages() {
+  async function getChatImportantMessages() {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetChatsRecent({ client, cache: "no-store" }),
-      "Failed to fetch recent Soko Bot chats",
+      (client) => coreGetChatsSignalsImportant({ client, cache: "no-store" }),
+      "Failed to fetch important chat messages",
     );
   }
 
@@ -6920,7 +6920,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreadMessages,
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
-    getChatRecentSokoBotMessages,
+    getChatImportantMessages,
     getChatUnreadThreads,
     getChatEarlierThreads,
     getChatRooms,

@@ -1101,16 +1101,3 @@ export type ChatUnreadThread = z.infer<typeof chatUnreadThreadSchema>;
 export type ChatRoomThreadsUnreadCount = z.infer<
   typeof chatRoomThreadsUnreadCountSchema
 >;
-
-/** The caller's newest own message in one room with a Soko Bot. */
-export const chatRecentSokoBotMessageSchema = z
-  .object({
-    roomId: z.string().uuid(),
-    messageId: z.string().uuid(),
-    parentMessageId: z.string().uuid().nullable().openapi({
-      description: "The Thread's parent when the message is a reply.",
-    }),
-    content: z.string(),
-    createdAt: dateTimeSchema,
-  })
-  .openapi("ChatRecentSokoBotMessage");

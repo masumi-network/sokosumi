@@ -1647,7 +1647,6 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
-          "chatKind": "Chat",
           "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
@@ -5281,6 +5280,8 @@
       "statusCancel": "Abonnement-Checkout wurde abgebrochen.",
       "currentPlanBadge": "Aktuell",
       "pricePerMonth": "pro Monat",
+      "pricePerSeatPerMonth": "pro Seat / Monat",
+      "seatTotal": "{total} pro Monat für {seats, plural, =1 {# Seat} other {# Seats}}",
       "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
       "mostPopularBadge": "Am beliebtesten",
       "canceling": "Kündigung wird geplant...",
@@ -7226,6 +7227,7 @@
       "topUpDescription": "Wähle einen Betrag oder gib einen eigenen Wert ein",
       "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
       "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
+      "seePlans": "Pläne ansehen",
       "couponExpiryPolicyNotice": "Aktionsguthaben kann verfallen; die Bedingungen hängen vom jeweiligen Gutschein oder Angebot ab.",
       "costPerCredit": "{cost} pro Credit",
       "youSaveLabel": "Spare {amount}",
@@ -8080,6 +8082,7 @@
             "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
             "decrease": "Einen Seat entfernen",
             "increase": "Einen Seat hinzufügen",
+            "minimum": "{count, plural, =1 {Gib mindestens # Seat ein.} other {Gib mindestens # Seats ein.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
               "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",

@@ -3013,17 +3013,6 @@ export type ChatPerson = {
     image: string | null;
 };
 
-export type ChatRecentSokoBotMessage = {
-    roomId: string;
-    messageId: string;
-    /**
-     * The Thread's parent when the message is a reply.
-     */
-    parentMessageId: string | null;
-    content: string;
-    createdAt: Date;
-};
-
 export type ChatRoom = {
     /**
      * Room ID
@@ -3850,6 +3839,52 @@ export type ChatSignalListItem = {
     dueAt: Date | null;
 };
 
+export type ChatCatchUpItem = {
+    messageId: string;
+    roomId: string;
+    roomName: string;
+    roomKind: 'channel' | 'direct';
+    parentMessageId: string | null;
+    senderName: string;
+    senderImageUrl: string | null;
+    excerpt: string;
+    bucket: ChatCatchUpBucket;
+    createdAt: Date;
+    dueAt: Date | null;
+    /**
+     * For a decision: the earlier message it answers, so a bare reply reads on its own.
+     */
+    inReplyTo: {
+        senderName: string;
+        excerpt: string;
+    } | null;
+};
+
+/**
+ * The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.
+ */
+export const ChatCatchUpBucket = {
+    NEEDS_YOU: 'needsYou',
+    ESCALATION: 'escalation',
+    URGENT: 'urgent',
+    BLOCKER: 'blocker',
+    BUG: 'bug',
+    DECISION_MADE: 'decisionMade',
+    ANNOUNCEMENT: 'announcement',
+    NEEDS_DECISION: 'needsDecision',
+    COMMITMENT: 'commitment',
+    WORK_REQUEST: 'workRequest',
+    REVIEW: 'review',
+    QUESTION: 'question',
+    FYI: 'fyi',
+    CHIT_CHAT: 'chitChat'
+} as const;
+
+/**
+ * The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.
+ */
+export type ChatCatchUpBucket = typeof ChatCatchUpBucket[keyof typeof ChatCatchUpBucket];
+
 export type ChatCatchUpSummary = {
     /**
      * `all` or the room id.
@@ -3912,31 +3947,6 @@ export type ChatCatchUpSummary = {
     highlights: Array<ChatCatchUpItem>;
 };
 
-/**
- * The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.
- */
-export const ChatCatchUpBucket = {
-    NEEDS_YOU: 'needsYou',
-    ESCALATION: 'escalation',
-    URGENT: 'urgent',
-    BLOCKER: 'blocker',
-    BUG: 'bug',
-    DECISION_MADE: 'decisionMade',
-    ANNOUNCEMENT: 'announcement',
-    NEEDS_DECISION: 'needsDecision',
-    COMMITMENT: 'commitment',
-    WORK_REQUEST: 'workRequest',
-    REVIEW: 'review',
-    QUESTION: 'question',
-    FYI: 'fyi',
-    CHIT_CHAT: 'chitChat'
-} as const;
-
-/**
- * The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.
- */
-export type ChatCatchUpBucket = typeof ChatCatchUpBucket[keyof typeof ChatCatchUpBucket];
-
 export type ChatCatchUpTopic = {
     /**
      * Its oldest message's id.
@@ -3957,27 +3967,6 @@ export type ChatCatchUpTopic = {
      * The unread messages behind it, oldest first.
      */
     messages: Array<ChatCatchUpItem>;
-};
-
-export type ChatCatchUpItem = {
-    messageId: string;
-    roomId: string;
-    roomName: string;
-    roomKind: 'channel' | 'direct';
-    parentMessageId: string | null;
-    senderName: string;
-    senderImageUrl: string | null;
-    excerpt: string;
-    bucket: ChatCatchUpBucket;
-    createdAt: Date;
-    dueAt: Date | null;
-    /**
-     * For a decision: the earlier message it answers, so a bare reply reads on its own.
-     */
-    inReplyTo: {
-        senderName: string;
-        excerpt: string;
-    } | null;
 };
 
 export type ChatRoomCatchUp = {
@@ -23668,85 +23657,6 @@ export type ListChatPeopleResponses = {
 
 export type ListChatPeopleResponse = ListChatPeopleResponses[keyof ListChatPeopleResponses];
 
-export type GetChatsRecentData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/recent';
-};
-
-export type GetChatsRecentErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsRecentError = GetChatsRecentErrors[keyof GetChatsRecentErrors];
-
-export type GetChatsRecentResponses = {
-    /**
-     * The caller's recent Soko Bot chats
-     */
-    200: {
-        data: Array<ChatRecentSokoBotMessage>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsRecentResponse = GetChatsRecentResponses[keyof GetChatsRecentResponses];
-
 export type GetChatsRoomsData = {
     body?: never;
     headers?: {
@@ -30699,6 +30609,70 @@ export type GetChatsSignalsNeedsYouResponses = {
 };
 
 export type GetChatsSignalsNeedsYouResponse = GetChatsSignalsNeedsYouResponses[keyof GetChatsSignalsNeedsYouResponses];
+
+export type GetChatsSignalsImportantData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/signals/important';
+};
+
+export type GetChatsSignalsImportantErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsSignalsImportantError = GetChatsSignalsImportantErrors[keyof GetChatsSignalsImportantErrors];
+
+export type GetChatsSignalsImportantResponses = {
+    /**
+     * Important unread chat messages
+     */
+    200: {
+        data: Array<ChatCatchUpItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsSignalsImportantResponse = GetChatsSignalsImportantResponses[keyof GetChatsSignalsImportantResponses];
 
 export type GetChatsSignalsOpenLoopsData = {
     body?: never;
