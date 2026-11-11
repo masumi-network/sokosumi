@@ -1,12 +1,12 @@
 "use client";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { seoMarketNames } from "./seo-analysis-market-model";
 import {
   formLines,
   type SeoAnalysisKind,
   type SeoDevice,
 } from "./seo-form-model";
+import { seoMarketName } from "./seo-shared";
 
 /** More keywords than this show as a count. */
 const SHOWN_KEYWORDS = 3;
@@ -40,7 +40,7 @@ export function SeoAnalysisSummary({
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
-  const market = seoMarketNames(useLocale(), countryCode, languageCode);
+  const locale = useLocale();
   const words = keywords === null ? null : formLines(keywords);
   const rows: [label: string, value: string][] = [
     [t("analysis.summary.check"), t(`analysis.${kind}`)],
@@ -53,8 +53,7 @@ export function SeoAnalysisSummary({
     [
       t("analysis.summary.market"),
       [
-        market.country,
-        market.language,
+        seoMarketName(locale, countryCode, languageCode),
         format.list(devices.map((device) => t(`analysis.${device}`))),
       ]
         .filter(Boolean)

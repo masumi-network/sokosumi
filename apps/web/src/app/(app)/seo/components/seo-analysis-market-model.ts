@@ -78,25 +78,6 @@ export function seoDefaultMarket(
   return SEO_DOMAIN_MARKETS[domain] ?? SEO_FALLBACK_MARKET;
 }
 
-/** The names of a market in the reader's language; a code Intl does not know stays as typed. */
-export function seoMarketNames(
-  locale: string,
-  countryCode: string,
-  languageCode: string,
-) {
-  const name = (type: "region" | "language", code: string) => {
-    try {
-      return new Intl.DisplayNames([locale], { type }).of(code) ?? code;
-    } catch {
-      return code;
-    }
-  };
-  return {
-    country: name("region", countryCode),
-    language: name("language", languageCode),
-  };
-}
-
 export function initialSeoAnalysisMarket(
   keywords: readonly SeoAnalysisSavedKeyword[],
   fallback: SeoMarket = { countryCode: "", languageCode: "" },
