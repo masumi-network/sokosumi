@@ -31,14 +31,10 @@ import {
   Loader2,
   LucideSquareMousePointer,
   MessageSquareShare,
-  OctagonMinus,
   Pencil,
   Repeat,
   RotateCcw,
   SquareArrowRightExit,
-  SquareMinus,
-  SquareMousePointer,
-  SquarePlus,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -88,6 +84,10 @@ import { buildNewTaskFormLabels } from "./task-detail-new-task-labels";
 import { useOptimisticTaskStatus } from "./task-detail-optimistic";
 import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
+import {
+  buildCreateRelatedOptions,
+  buildTaskPickerOptions,
+} from "./task-link-action-options";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
 import {
   type TaskLinkActionOption,
@@ -1244,72 +1244,4 @@ function getTaskStatusActions(
   }
 
   return [];
-}
-
-function buildTaskPickerOptions(
-  tDetailActions: ReturnType<typeof useTranslations>,
-): TaskLinkActionOption[] {
-  return [
-    {
-      id: "related",
-      label: tDetailActions("relations.related"),
-      relation: TaskLinkRelation.RELATED,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.RELATED),
-    },
-    {
-      id: "subtask",
-      label: tDetailActions("relations.subtask"),
-      relation: TaskLinkRelation.CHILD,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.PARENT),
-    },
-    {
-      id: "blocks",
-      label: tDetailActions("relations.blocks"),
-      relation: TaskLinkRelation.BLOCKS,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKS),
-    },
-    {
-      id: "blocked-by",
-      label: tDetailActions("relations.blockedBy"),
-      relation: TaskLinkRelation.BLOCKED_BY,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKED_BY),
-    },
-    {
-      id: "duplicate",
-      label: tDetailActions("relations.duplicate"),
-      relation: TaskLinkRelation.DUPLICATE,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.DUPLICATE),
-    },
-  ];
-}
-
-function buildCreateRelatedOptions(
-  tDetailActions: ReturnType<typeof useTranslations>,
-): TaskLinkActionOption[] {
-  return [
-    {
-      id: "related",
-      label: tDetailActions("relations.related"),
-      relation: TaskLinkRelation.RELATED,
-      icon: SquareMousePointer,
-    },
-    {
-      id: "add-subtask",
-      label: tDetailActions("relations.addSubtask"),
-      relation: TaskLinkRelation.PARENT,
-      icon: SquarePlus,
-    },
-    {
-      id: "blocks",
-      label: tDetailActions("relations.blocks"),
-      relation: TaskLinkRelation.BLOCKS,
-      icon: OctagonMinus,
-    },
-    {
-      id: "blocked-by",
-      label: tDetailActions("relations.blockedBy"),
-      relation: TaskLinkRelation.BLOCKED_BY,
-      icon: SquareMinus,
-    },
-  ];
 }
