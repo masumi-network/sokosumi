@@ -10933,13 +10933,13 @@
         "health": "Estado"
       },
       "overview": {
-        "measurements": "Rendimiento",
+        "measurements": "Tráfico",
         "not_connected": "Todavía no hay estadísticas de tráfico guardadas para estas páginas. Elige una cuenta para cargarlas.",
         "unavailable": "Las estadísticas no están disponibles. Revisa aquí la conexión e inténtalo de nuevo.",
         "partial": "Faltan algunas estadísticas. Abre cada fuente para ver cuáles.",
         "available": "Hay estadísticas disponibles para los periodos indicados.",
         "priority": "Acciones recomendadas",
-        "findings": "Problemas para revisar",
+        "findings": "Problemas por corregir",
         "audits": "Resultados capturados",
         "findingsCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
         "auditsCount": "{count, plural, one {# resultado capturado} other {# resultados capturados}}",
@@ -11069,8 +11069,9 @@
           "short": "Ideas"
         },
         "intentMissing": "{count, plural, one {Los datos no indican la intención de # palabra clave.} other {Los datos no indican la intención de # palabras clave.}}",
-        "readOn": "Posiciones leídas el",
-        "addButton": "Añadir una palabra clave"
+        "addButton": "Añadir una palabra clave",
+        "keywordAndPage": "Palabra clave y su página",
+        "readOn": "Última comprobación de posiciones"
       },
       "competitors": {
         "title": "Competidores",
@@ -11086,7 +11087,7 @@
         "domains": "Sitios que enlazan a esta página",
         "excluded": "No se puede confirmar este candidato.",
         "noMatch": "Ningún competidor coincide con esta búsqueda",
-        "help": "Sitios en los resultados de Google para tus palabras clave principales. La posición es el mejor lugar que ocupa una página del sitio en esos resultados. Un sitio confirmado cuenta como tu competidor.",
+        "help": "Sitios en los resultados de Google para tus palabras clave. La mejor posición es el mejor lugar que ocupa una página del sitio.",
         "rowActions": "Acciones para {url}",
         "yourPages": "{count, plural, one {Tu página} other {Tus páginas}}",
         "compare": "Comparar con mi página",
@@ -11099,7 +11100,8 @@
         "domainsOf": "{count, plural, one {# sitio que enlaza} other {# sitios que enlazan}}",
         "platforms": "Otros sitios en los resultados ({count})",
         "platformsHelp": "Sitios de vídeo, foros, tiendas y páginas de ayuda. Ocupan un lugar en los resultados, pero no son rivales de tu sitio.",
-        "fromCheck": "De los resultados de búsqueda de la comprobación del"
+        "dialogHelp": "Añade un sitio con el que compites. Se queda en esta lista como tu competidor.",
+        "searchPlaceholder": "Filtrar sitios"
       },
       "actions": {
         "title": "Acciones",
@@ -11521,7 +11523,7 @@
         "askShort": "Preguntar",
         "openTraffic": "Abrir tráfico",
         "openRankings": "Abrir posiciones",
-        "draftFix": "Preparar una corrección",
+        "draftFix": "Pedir una corrección al agente",
         "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
         "lastCheckPages": "{pages, plural, one {# página} other {# páginas}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
@@ -11659,7 +11661,7 @@
         "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
         "testsAll": "Todas las pruebas tienen resultado",
         "aMonth": "al mes",
-        "depth": "{same, select, yes {En los primeros {max} resultados} other {En los primeros {min} a {max} resultados}}"
+        "depth": "{same, select, yes {Resultados leídos por palabra clave: {max}} other {Resultados leídos por palabra clave: {min} a {max}}}"
       }
     }
   },

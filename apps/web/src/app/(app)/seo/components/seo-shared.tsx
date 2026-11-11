@@ -29,6 +29,22 @@ export const SEO_STACKED_TABLE_CLASS = [
   "max-sm:[&_td[data-label]]:before:block max-sm:[&_td[data-label]]:before:text-xs max-sm:[&_td[data-label]]:before:font-normal max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
 ].join(" ");
 
+/**
+ * The stacked rows of a list with one button per row (keywords, ideas,
+ * competitors). Below the sm breakpoint the name and the button share the first
+ * line, and each number takes one line with its label before it: a button on a
+ * line of its own made a row 165 to 225 px high.
+ */
+export const SEO_COMPACT_ROWS_CLASS = [
+  "max-sm:[&_thead]:hidden",
+  "max-sm:[&_tbody_tr]:grid max-sm:[&_tbody_tr]:grid-cols-[minmax(0,1fr)_auto] max-sm:[&_tbody_tr]:gap-x-3 max-sm:[&_tbody_tr]:gap-y-1 max-sm:[&_tbody_tr]:px-3 max-sm:[&_tbody_tr]:py-3",
+  "max-sm:[&_td]:col-span-2 max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal max-sm:[&_td:empty]:hidden",
+  // A row of one cell (a chart under a keyword) keeps the full width.
+  "max-sm:[&_td:first-child:not(:last-child)]:col-start-1 max-sm:[&_td:first-child:not(:last-child)]:col-end-2 max-sm:[&_td:first-child:not(:last-child)]:row-start-1",
+  "max-sm:[&_td:last-child:not(:first-child)]:col-start-2 max-sm:[&_td:last-child:not(:first-child)]:col-end-3 max-sm:[&_td:last-child:not(:first-child)]:row-start-1",
+  "max-sm:[&_td[data-label]]:before:mr-1.5 max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
+].join(" ");
+
 /** "US", "en" read as "United States · English" in the reader's language; an unknown code stays as written. */
 export function seoMarketName(
   locale: string,

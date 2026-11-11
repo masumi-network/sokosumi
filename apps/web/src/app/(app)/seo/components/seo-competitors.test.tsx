@@ -390,9 +390,7 @@ describe("SEO competitor baselines", () => {
     await user.click(more);
     expect(second).toBeVisible();
     // One check found every row: the line above says so once, and no row repeats it.
-    expect(
-      screen.getByText(/^From the search results of the check on/),
-    ).toBeVisible();
+    expect(screen.getByText(/^Last position check$/)).toBeVisible();
     expect(screen.queryByRole("columnheader", { name: "Source" })).toBeNull();
     expect(
       screen.queryByRole("columnheader", { name: "Last checked" }),
@@ -436,9 +434,7 @@ describe("SEO competitor baselines", () => {
     expect(within(rows[0]).queryByText("From the search results")).toBeNull();
     expect(within(rows[1]).getByText("From the search results")).toBeVisible();
     // The rows carry no date, so no line dates the check.
-    expect(
-      screen.queryByText(/From the search results of the check on/),
-    ).toBeNull();
+    expect(screen.queryByText(/^Last position check$/)).toBeNull();
   });
 
   it("dates each row when the rows come from several checks", () => {
@@ -470,9 +466,7 @@ describe("SEO competitor baselines", () => {
     ];
     renderWorkspace(workspace);
     // One line with one date would give the older check's rows the newer date.
-    expect(
-      screen.queryByText(/From the search results of the check on/),
-    ).toBeNull();
+    expect(screen.queryByText(/^Last position check$/)).toBeNull();
     expect(
       screen.getByRole("columnheader", { name: "Last checked" }),
     ).toBeVisible();

@@ -36,9 +36,9 @@ import {
   searchConsoleIndex,
 } from "./seo-search-model";
 import {
+  SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
   SEO_SEARCH_MIN_ROWS,
-  SEO_STACKED_TABLE_CLASS,
   SeoBarNumber,
   SeoDate,
   SeoEmpty,
@@ -244,10 +244,16 @@ export function SeoKeywords({
           )}
           {rows.length ? (
             <div className={HOLDER_ITEM_CLASS}>
-              <Table className={SEO_STACKED_TABLE_CLASS}>
+              <Table className={SEO_COMPACT_ROWS_CLASS}>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("keywords.keyword")}</TableHead>
+                    <TableHead>
+                      {t(
+                        manyPages
+                          ? "keywords.keywordAndPage"
+                          : "keywords.keyword",
+                      )}
+                    </TableHead>
                     {shown.market ? (
                       <TableHead>{t("keywords.market")}</TableHead>
                     ) : null}
@@ -471,7 +477,7 @@ export function SeoKeywords({
                           ) : null}
                           <TableCell>
                             {model.data.availableActions.canEdit ? (
-                              <div className="flex flex-wrap justify-end gap-2 max-sm:justify-start">
+                              <div className="flex flex-wrap justify-end gap-2 max-sm:flex-col max-sm:items-end">
                                 {row.version > 0 ? (
                                   <Button
                                     variant="outline"

@@ -10933,13 +10933,13 @@
         "health": "Health"
       },
       "overview": {
-        "measurements": "Performance",
+        "measurements": "Traffic",
         "not_connected": "No traffic statistics are saved for these pages yet. Choose an account to load them.",
         "unavailable": "Statistics are unavailable. Check the connection here, then try again.",
         "partial": "Some statistics are missing. Open each source to see which.",
         "available": "Statistics are available for the stated periods.",
         "priority": "Recommended actions",
-        "findings": "Issues to review",
+        "findings": "Issues to fix",
         "audits": "Captured results",
         "findingsCount": "{count, plural, one {# finding} other {# findings}}",
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
@@ -11069,8 +11069,9 @@
           "short": "Ideas"
         },
         "intentMissing": "{count, plural, one {The keyword data gives no intent for # keyword.} other {The keyword data gives no intent for # keywords.}}",
-        "readOn": "Positions read on",
-        "addButton": "Add a keyword"
+        "addButton": "Add a keyword",
+        "keywordAndPage": "Keyword and its page",
+        "readOn": "Last position check"
       },
       "competitors": {
         "title": "Competitors",
@@ -11086,7 +11087,7 @@
         "domains": "Sites linking to this page",
         "excluded": "This candidate cannot be confirmed.",
         "noMatch": "No competitor matches this search",
-        "help": "Sites in Google's results for your focus keywords. The position is the best place a page of the site holds in those results. A confirmed site counts as your competitor.",
+        "help": "Sites in Google's results for your keywords. Best position is the best place one page of the site holds.",
         "rowActions": "Actions for {url}",
         "yourPages": "{count, plural, one {Your page} other {Your pages}}",
         "compare": "Compare with my page",
@@ -11099,7 +11100,8 @@
         "domainsOf": "{count, plural, one {# linking site} other {# linking sites}}",
         "platforms": "Other sites in the results ({count})",
         "platformsHelp": "Video sites, forums, stores and help pages. They hold a place in the results, but they are not rivals of your site.",
-        "fromCheck": "From the search results of the check on"
+        "dialogHelp": "Add a site you compete with. It stays on this list as your competitor.",
+        "searchPlaceholder": "Filter sites"
       },
       "actions": {
         "title": "Actions",
@@ -11521,7 +11523,7 @@
         "askShort": "Ask",
         "openTraffic": "Open traffic",
         "openRankings": "Open rankings",
-        "draftFix": "Draft a fix",
+        "draftFix": "Ask the agent for a fix",
         "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
         "lastCheckPages": "{pages, plural, one {# page} other {# pages}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
@@ -11659,7 +11661,7 @@
         "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
         "testsAll": "Every test gave a result",
         "aMonth": "a month",
-        "depth": "{same, select, yes {In the first {max} results} other {In the first {min} to {max} results}}"
+        "depth": "{same, select, yes {Results read per keyword: {max}} other {Results read per keyword: {min} to {max}}}"
       }
     }
   },

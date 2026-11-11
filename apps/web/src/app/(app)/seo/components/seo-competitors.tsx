@@ -27,9 +27,9 @@ import {
   type SeoCompetitorSite,
 } from "./seo-competitors-model";
 import {
+  SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
   SEO_SEARCH_MIN_ROWS,
-  SEO_STACKED_TABLE_CLASS,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -120,7 +120,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             type="search"
             value={model.competitorSearch}
             onChange={(event) => model.setCompetitorSearch(event.target.value)}
-            placeholder={t("search")}
+            placeholder={t("competitors.searchPlaceholder")}
           />
         </div>
       ) : null}
@@ -163,8 +163,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       {oneCheck ? (
         <p className="text-muted-foreground flex flex-wrap gap-x-3 px-2 pb-2 text-xs">
           <span>
-            {t("competitors.fromCheck")}{" "}
-            <SeoDate day value={oneCheck.observedAt} />
+            {t("keywords.readOn")} <SeoDate day value={oneCheck.observedAt} />
           </span>
           {oneCheck.observationId ? (
             <SeoSource
@@ -176,7 +175,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       ) : null}
       {rows.length ? (
         <div className={HOLDER_ITEM_CLASS}>
-          <Table className={SEO_STACKED_TABLE_CLASS}>
+          <Table className={SEO_COMPACT_ROWS_CLASS}>
             {/* A lone "Site" header names what every row already shows. */}
             <TableHeader
               className={cn(

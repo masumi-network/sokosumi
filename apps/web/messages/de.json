@@ -10933,13 +10933,13 @@
         "health": "Zustand"
       },
       "overview": {
-        "measurements": "Leistung",
+        "measurements": "Zugriffe",
         "not_connected": "Für diese Seiten sind noch keine Zugriffsstatistiken gespeichert. Wähle ein Konto, um sie zu laden.",
         "unavailable": "Statistiken sind nicht verfügbar. Prüfe hier die Verbindung und versuche es erneut.",
         "partial": "Einige Statistiken fehlen. Öffne jede Quelle, um zu sehen, welche.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
-        "findings": "Probleme prüfen",
+        "findings": "Probleme zu beheben",
         "audits": "Erfasste Ergebnisse",
         "findingsCount": "{count, plural, one {# Befund} other {# Befunde}}",
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
@@ -11069,8 +11069,9 @@
           "short": "Ideen"
         },
         "intentMissing": "{count, plural, one {Die Keyword-Daten nennen für # Keyword keine Suchabsicht.} other {Die Keyword-Daten nennen für # Keywords keine Suchabsicht.}}",
-        "readOn": "Positionen gelesen am",
-        "addButton": "Keyword hinzufügen"
+        "addButton": "Keyword hinzufügen",
+        "keywordAndPage": "Keyword und seine Seite",
+        "readOn": "Letzte Positionsprüfung"
       },
       "competitors": {
         "title": "Mitbewerber",
@@ -11086,7 +11087,7 @@
         "domains": "Websites, die auf diese Seite verlinken",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
         "noMatch": "Kein Mitbewerber passt zu dieser Suche",
-        "help": "Websites in den Google-Ergebnissen für deine Fokus-Keywords. Die Position ist der beste Platz, den eine Seite der Website in diesen Ergebnissen hat. Eine bestätigte Website zählt als dein Mitbewerber.",
+        "help": "Websites in den Google-Ergebnissen für deine Keywords. Beste Position ist der beste Platz, den eine Seite der Website dort hat.",
         "rowActions": "Aktionen für {url}",
         "yourPages": "{count, plural, one {Deine Seite} other {Deine Seiten}}",
         "compare": "Mit meiner Seite vergleichen",
@@ -11099,7 +11100,8 @@
         "domainsOf": "{count, plural, one {# verlinkende Website} other {# verlinkende Websites}}",
         "platforms": "Andere Websites in den Ergebnissen ({count})",
         "platformsHelp": "Videoseiten, Foren, Shops und Hilfeseiten. Sie haben einen Platz in den Ergebnissen, sind aber keine Rivalen deiner Website.",
-        "fromCheck": "Aus den Suchergebnissen der Prüfung vom"
+        "dialogHelp": "Füge eine Website hinzu, mit der du konkurrierst. Sie bleibt als dein Mitbewerber in dieser Liste.",
+        "searchPlaceholder": "Websites filtern"
       },
       "actions": {
         "title": "Aktionen",
@@ -11521,7 +11523,7 @@
         "askShort": "Agent fragen",
         "openTraffic": "Zugriffe öffnen",
         "openRankings": "Rankings öffnen",
-        "draftFix": "Korrektur entwerfen",
+        "draftFix": "Agent um Korrektur bitten",
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
         "lastCheckPages": "{pages, plural, one {# Seite} other {# Seiten}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# weitere Korrektur} other {# weitere Korrekturen}}} other {{count, plural, one {# weitere Aktion} other {# weitere Aktionen}}}}",
@@ -11659,7 +11661,7 @@
         "testsNoResult": "{count, plural, one {# Test ohne Ergebnis} other {# Tests ohne Ergebnis}}",
         "testsAll": "Jeder Test hat ein Ergebnis",
         "aMonth": "pro Monat",
-        "depth": "{same, select, yes {In den ersten {max} Ergebnissen} other {In den ersten {min} bis {max} Ergebnissen}}"
+        "depth": "{same, select, yes {Gelesene Ergebnisse pro Keyword: {max}} other {Gelesene Ergebnisse pro Keyword: {min} bis {max}}}"
       }
     }
   },

@@ -17,8 +17,8 @@ import {
   type SeoKeywordGroup,
 } from "./seo-keyword-rows-model";
 import {
+  SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
-  SEO_STACKED_TABLE_CLASS,
   SeoBarNumber,
   SeoPageLink,
   SeoSection,
@@ -63,10 +63,12 @@ export function SeoKeywordIdeas({
       description={t("keywords.ideas.help")}
     >
       <div className={HOLDER_ITEM_CLASS}>
-        <Table className={SEO_STACKED_TABLE_CLASS}>
+        <Table className={SEO_COMPACT_ROWS_CLASS}>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("keywords.keyword")}</TableHead>
+              <TableHead>
+                {t(manyPages ? "keywords.keywordAndPage" : "keywords.keyword")}
+              </TableHead>
               {shown.volume ? (
                 <TableHead className="text-right">
                   {t("keywords.volume")}
@@ -131,7 +133,7 @@ export function SeoKeywordIdeas({
                 </TableCell>
                 <TableCell>
                   {model.data.availableActions.canEdit ? (
-                    <div className="flex justify-end max-sm:justify-start">
+                    <div className="flex justify-end">
                       <Button
                         variant="outline"
                         size="sm"

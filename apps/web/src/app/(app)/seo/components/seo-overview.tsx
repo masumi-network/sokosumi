@@ -436,6 +436,9 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
         </SeoSection>
       ) : null}
       <SeoTimeline
+        // With several pages each page card gives its last check: day, issues and results link.
+        // With one page only the Timeline row links the results.
+        summarized={data.pages.length > 1}
         workspace={data}
         onRetry={
           data.availableActions.canRequestAnalysis && !checkRunning
@@ -465,7 +468,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
             {oneCheck ? (
-              // The Timeline row for this check links its results; the date says which row it is.
+              // The check's Timeline row, or its page cards when the Timeline is hidden, link its results.
               <p className="text-muted-foreground text-xs">
                 {t.rich("overview.fromCheck", {
                   date: () => <SeoDate value={oneCheckAt} />,

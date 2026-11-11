@@ -56,9 +56,12 @@ const FLAGGED_STATUSES = new Set([
 export function SeoTimeline({
   workspace,
   onRetry,
+  summarized = false,
 }: {
   workspace: ProjectSeoWorkspace;
   onRetry?: () => void;
+  /** The tab shows the last check in its tiles and on each page card, with the link to its results. */
+  summarized?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -160,6 +163,16 @@ export function SeoTimeline({
       ),
   );
   const nodes = foldCleanChecks(synced, (node) => resultOf(node) === 0);
+  // One check and nothing else: the tiles and the page cards already give its day, its tests and its issues.
+  // A check that lost an optional part keeps its row: only the row says so.
+  if (
+    summarized &&
+    nodes.length === 1 &&
+    resultOf(nodes[0]) !== null &&
+    !nodes[0].earlier?.length &&
+    !nodes[0].observation?.coverage.modules?.failed
+  )
+    return null;
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
   const onePage = workspace.scope.pageIds.length <= 1;
   // The market only tells runs apart when they used different ones.

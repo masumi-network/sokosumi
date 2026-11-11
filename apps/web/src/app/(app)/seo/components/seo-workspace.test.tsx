@@ -577,9 +577,9 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getAllByRole("button", { name: "Ask the agent" }),
     ).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: "Draft a fix" })).toHaveLength(
-      1,
-    );
+    expect(
+      screen.getAllByRole("button", { name: "Ask the agent for a fix" }),
+    ).toHaveLength(1);
     // Provenance folds once: a line every row shares is listed once, without row names.
     const reference = screen.getByText(
       "Source: raw HTML; the rendered DOM was not requested.",
@@ -605,7 +605,7 @@ describe("SEO workspace integration", () => {
     // A fix request is the Agent tab's, as a draft; the unsent note question stays above it.
     await user.click(
       screen.getByRole("button", {
-        name: "Draft a fix",
+        name: "Ask the agent for a fix",
         description: "Title length: https://example.com/old",
       }),
     );
@@ -661,7 +661,9 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=health");
     // Both device rows are the one suggestion; only its first row offers the fix.
     expect(await screen.findAllByText(/Suggestion: outside/)).toHaveLength(2);
-    const fixes = screen.getAllByRole("button", { name: "Draft a fix" });
+    const fixes = screen.getAllByRole("button", {
+      name: "Ask the agent for a fix",
+    });
     expect(fixes).toHaveLength(1);
     await user.click(fixes[0]);
     const sheet = await screen.findByRole("dialog");
@@ -1094,6 +1096,90 @@ describe("SEO workspace integration", () => {
             : "Tests: 2 with a result, 1 without a result, 0 unavailable",
         ),
       ).toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    // [case, pages, issues of each check, tests that failed, optional parts lost, Timeline shown]
+    ["one page: no page card gives the last check", 1, [1], 0, 0, true],
+    [
+      "several pages and one check: the page cards give it",
+      2,
+      [1],
+      0,
+      0,
+      false,
+    ],
+    ["two checks with issues: two rows", 2, [1, 2], 0, 0, true],
+    [
+      "two clean checks: one row that folds the earlier one",
+      2,
+      [0, 0],
+      0,
+      0,
+      true,
+    ],
+    ["a check with failed tests: the row says so", 2, [0], 1, 0, true],
+    ["a check that lost an optional part: the row says so", 2, [1], 0, 1, true],
+  ] as const)(
+    "shows the Health Timeline only when it adds to the tiles and page cards, %s",
+    (_case, pages, issues, failed, lost, shown) => {
+      const workspace = seoTestWorkspace();
+      workspace.findings = [];
+      if (pages > 1)
+        workspace.pages.push({
+          ...workspace.pages[0],
+          id: crypto.randomUUID(),
+          url: "https://example.com/blog",
+          label: "Blog",
+        });
+      const pageIds = workspace.pages.map((page) => page.id);
+      workspace.scope.pageIds = pageIds;
+      workspace.observations = issues.map((count, index) => ({
+        id: `check-${index}`,
+        kind: "page_check" as const,
+        source: "seo_coworker" as const,
+        observedAt: new Date(Date.UTC(2026, 0, 3 + index, 12)),
+        pageIds,
+        scopeVersion: 2,
+        sourceTaskId: "check-task",
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop" as const],
+        rulebookVersion: "html-v1",
+        artifactHash: `hash-${index}`,
+        issues: count,
+        coverage: {
+          checked: 2,
+          skipped: 0,
+          failed,
+          modules: { notRequested: 0, failed: lost },
+        },
+      }));
+      workspace.timeline = workspace.observations.map((observation) => ({
+        id: `event-${observation.id}`,
+        kind: "check" as const,
+        title: "SEO check results imported",
+        status: "completed" as const,
+        detail: "",
+        at: observation.observedAt,
+        pageIds,
+        taskId: observation.sourceTaskId,
+        observationId: observation.id,
+      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace, "?tab=health");
+      expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
+      expect(screen.queryByRole("heading", { name: "Timeline" }) !== null).toBe(
+        shown,
+      );
+      // The link to the results is on the Timeline row, or on the page cards when the row is hidden.
+      expect(
+        screen.getAllByRole("link", { name: "View results" }).length,
+      ).toBeGreaterThan(0);
     },
   );
 
@@ -3090,7 +3176,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     // Where a check can run, the header's run button is the one filled button.
     const draft = screen.getByRole("button", {
-      name: "Draft a fix",
+      name: "Ask the agent for a fix",
       description: /^Suggestion: Meta description length is 163 characters/,
     });
     expect(draft).not.toHaveClass("bg-primary");
@@ -3116,7 +3202,9 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByText(/^Suggestion: Meta description length is 163/),
     ).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Draft a fix" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Ask the agent for a fix" }),
+    ).toBeNull();
     const pagesStep = screen
       .getByText(/^This audit covers 1 page/)
       .closest("li");
@@ -4006,7 +4094,7 @@ describe("SEO workspace integration", () => {
     expect(run).not.toHaveAttribute("aria-disabled");
     // The position result leads the Agent tab.
     expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
-      "1 of 21 on the first pageIn the first 20 resultsOpen rankings",
+      "1 of 21 on the first pageResults read per keyword: 20Open rankings",
     );
     expect(screen.getByText("The title is missing")).not.toBeVisible();
     await user.click(screen.getByText("Why, and the evidence"));
@@ -4271,7 +4359,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     // "0 of 2" is no "not in Google": the tile names the results the check read.
     expect(await screen.findByTestId("seo-summary-keywords")).toHaveTextContent(
-      "0 of 2In the first 20 to 100 resultsOpen rankings",
+      "0 of 2Results read per keyword: 20 to 100Open rankings",
     );
     // The line that dates the check shows the day: two reads of one check differ by minutes.
     expect(screen.getAllByText("Jan 3, 2026").length).toBeGreaterThan(0);
