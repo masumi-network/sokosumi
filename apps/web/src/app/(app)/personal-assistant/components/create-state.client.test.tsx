@@ -121,6 +121,22 @@ describe("CreateState", () => {
     expect(screen.getByLabelText("Name")).toHaveFocus();
   });
 
+  it("keeps a long name inside the phone width on the picture step", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    const name = "Pebble the Very Helpful Office Companion";
+
+    await user.type(screen.getByLabelText("Name"), `${name}{Enter}`);
+
+    // Buttons never wrap, so the label truncates; the full name stays its name.
+    const label = screen.getByText(`Create ${name}`);
+    expect(label).toHaveClass("truncate");
+    expect(label.closest("button")).toHaveAccessibleName(`Create ${name}`);
+    expect(
+      screen.getByRole("heading", { name: `Pick a picture for ${name}` }),
+    ).toHaveClass("wrap-break-word");
+  });
+
   it("locks the pictures while the bot is being created", async () => {
     const user = userEvent.setup();
     createMock.mockReturnValue(new Promise(() => {}));

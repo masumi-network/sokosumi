@@ -145,7 +145,7 @@ export function CreateState({
             className="size-32"
           />
         </div>
-        <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both text-foreground mt-8 text-center text-2xl font-light delay-300 duration-500 md:text-3xl text-balance tracking-tight">
+        <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both text-foreground mt-8 text-center text-2xl font-light delay-300 duration-500 md:text-3xl text-balance wrap-break-word tracking-tight">
           {t("successTitle", { name: created.name })}
         </h1>
         <p className="animate-in fade-in fill-mode-both text-muted-foreground mt-3 text-sm delay-700 duration-500">
@@ -212,7 +212,7 @@ export function CreateState({
             <h1
               ref={pictureHeadingRef}
               tabIndex={-1}
-              className="text-foreground text-3xl font-light tracking-tight text-balance outline-none"
+              className="text-foreground text-3xl font-light tracking-tight text-balance wrap-break-word outline-none"
             >
               {t("pictureTitle", { name: name.trim() })}
             </h1>
@@ -248,7 +248,10 @@ export function CreateState({
             disabled={loadingAvatars}
             loading={isPending}
           >
-            {t("submit", { name: name.trim() })}
+            {/* Buttons do not wrap: a long name would push the phone page sideways. */}
+            <span className="truncate">
+              {t("submit", { name: name.trim() })}
+            </span>
           </Button>
           {/* No picture: the bot shows its orb, and one can be picked later. */}
           <Button
