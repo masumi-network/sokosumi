@@ -574,6 +574,10 @@ _Avoid_: Announcement (a use of this), pinned room, thread pin
 A room message one reader saved for later, on their private Saved list (Catch up's Saved tab). Any message they can read, in a Channel, Direct or Thread. Nobody else sees it. The list reads each message live, so a deleted message or a room they left drops out. Distinct from a Pinned message, which is shared, and from Send to yourself, which copies the message.
 _Avoid_: Bookmark, starred message
 
+**Decisions list**:
+Catch up's Decisions tab: every message Jev read as a decision made (chat signals, readers' corrections applied) in the rooms the reader's sidebar lists, newest first. Read or unread, muted rooms and Thread replies included, because muting silences alerts, not access. A deleted message or a room they left drops out. Distinct from a room's decision log (one room, in its header) and from the Catch up overview, which covers unread decisions only. A detected decision, not a formal approval.
+_Avoid_: Decision register, approvals
+
 ### Chat reactions
 
 **Reaction**:

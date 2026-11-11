@@ -60,6 +60,7 @@ import type {
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
   GetChatsSavedMessagesData,
+  GetChatsSignalsDecisionsData,
   GetChatsSignalsRoomsByIdDecisionsData,
   GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
@@ -272,6 +273,7 @@ import {
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
   getChatsSavedMessages as coreGetChatsSavedMessages,
+  getChatsSignalsDecisions as coreGetChatsSignalsDecisions,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
@@ -1782,6 +1784,17 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch the room catch-up",
+    );
+  }
+
+  async function getChatDecisions(
+    query?: GetChatsSignalsDecisionsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsDecisions({ client, query, cache: "no-store" }),
+      "Failed to fetch decisions",
     );
   }
 
@@ -6928,6 +6941,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unsaveChatMessage,
     getChatCatchUpSummary,
     getChatRoomCatchUp,
+    getChatDecisions,
     getChatRoomDecisions,
     correctChatMessageSignal,
     setChatMessageSignalLoop,
