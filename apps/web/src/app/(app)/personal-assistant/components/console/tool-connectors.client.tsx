@@ -46,7 +46,7 @@ interface Connector {
 }
 
 /** Composio's apps for a search; the empty search is the most used ones. */
-function useCatalog(query: string) {
+function useCatalog(query: string, enabled: boolean) {
   const [debounced, setDebounced] = useState(query);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query), SEARCH_DELAY_MS);
@@ -60,6 +60,7 @@ function useCatalog(query: string) {
       });
       return result.ok ? result.value : [];
     },
+    enabled,
     placeholderData: keepPreviousData,
     staleTime: 5 * 60_000,
   });
@@ -69,22 +70,26 @@ function useCatalog(query: string) {
  * The apps the assistant can use, each with its connection state and one
  * action: Connect, Reconnect, or Manage once it works. The search reaches
  * every app Composio connects in one click; `focusProvider` (from a bot's
- * connect link) opens with that app searched and marked.
+ * connect link) opens with that app searched and marked. `readOnly` (Cuso,
+ * ADR 0066) lists only the bot's own apps, with no search or action.
  */
 export function ToolConnectors({
   integrations,
   focusProvider = null,
+  readOnly = false,
 }: {
   integrations: SokoBotIntegrations;
   focusProvider?: string | null;
+  readOnly?: boolean;
 }) {
   const t = useTranslations("App.SokoBot.Integrations");
   const format = useFormatter();
   const { busy, connect, disconnect } = useIntegrationActions();
   const [query, setQuery] = useState(focusProvider ?? "");
-  const catalog = useCatalog(query);
+  const catalog = useCatalog(query, !readOnly);
   const focused = useRef<HTMLLIElement>(null);
-  const searching = query.trim().length > 0;
+  // A connect link never searches on a read-only bot.
+  const searching = !readOnly && query.trim().length > 0;
 
   useEffect(() => {
     if (focusProvider && catalog.data)
@@ -136,20 +141,22 @@ export function ToolConnectors({
 
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <Search
-          aria-hidden
-          className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-        />
-        <Input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={t("searchPlaceholder")}
-          aria-label={t("searchPlaceholder")}
-          className="ps-9"
-        />
-      </div>
+      {readOnly ? null : (
+        <div className="relative">
+          <Search
+            aria-hidden
+            className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
+          />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("searchPlaceholder")}
+            aria-label={t("searchPlaceholder")}
+            className="ps-9"
+          />
+        </div>
+      )}
       {searching && catalog.data?.length === 0 && !catalog.isFetching ? (
         <p className="text-muted-foreground px-1 text-sm">{t("noResults")}</p>
       ) : (
@@ -190,12 +197,14 @@ export function ToolConnectors({
                     {connector.caption}
                   </p>
                 </div>
-                <ConnectorAction
-                  connector={connector}
-                  busy={busy === connector.provider}
-                  onConnect={() => connect(connector.provider)}
-                  onDisconnect={() => disconnect(connector.provider)}
-                />
+                {readOnly ? null : (
+                  <ConnectorAction
+                    connector={connector}
+                    busy={busy === connector.provider}
+                    onConnect={() => connect(connector.provider)}
+                    onDisconnect={() => disconnect(connector.provider)}
+                  />
+                )}
               </li>
             );
           })}

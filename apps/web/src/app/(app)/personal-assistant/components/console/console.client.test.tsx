@@ -107,7 +107,9 @@ vi.mock("../integrations-section.client", () => ({
   IntegrationsSection: () => <span data-testid="integrations" />,
 }));
 vi.mock("./tool-connectors.client", () => ({
-  ToolConnectors: () => <span data-testid="connectors" />,
+  ToolConnectors: ({ readOnly }: { readOnly?: boolean }) => (
+    <span data-testid="connectors" data-read-only={String(Boolean(readOnly))} />
+  ),
 }));
 vi.mock("../ad-accounts-section", () => ({
   AdAccountsSection: ({ botProjectId }: { botProjectId: string | null }) => (
@@ -229,6 +231,25 @@ describe("SokoBotConsole", () => {
     expect(
       screen.getByRole("button", { name: /Console.openChat/ }),
     ).toBeInTheDocument();
+  });
+
+  it("offers Cuso's apps read-only and any other bot's to connect", () => {
+    viewMock.mockReturnValue(null);
+    const integrations = { configured: true, integrations: [] };
+    const { unmount } = renderConsole({
+      integrations,
+      cmoProjectId: "project-9",
+    });
+    expect(screen.getByTestId("connectors")).toHaveAttribute(
+      "data-read-only",
+      "true",
+    );
+    unmount();
+    renderConsole({ integrations, cmoProjectId: null });
+    expect(screen.getByTestId("connectors")).toHaveAttribute(
+      "data-read-only",
+      "false",
+    );
   });
 
   it("shows schedules in the default view, not under Advanced", () => {

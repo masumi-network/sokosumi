@@ -614,6 +614,7 @@ export function SokoBotConsole({
                     <ToolConnectors
                       integrations={integrations}
                       focusProvider={connectProvider}
+                      readOnly={isCuso}
                     />
                   </HolderSection>
                 ) : null}
