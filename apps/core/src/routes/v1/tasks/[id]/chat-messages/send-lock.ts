@@ -11,8 +11,11 @@ import { notFound } from "@/helpers/error";
  * waits for the send, or the send waits for it and then reads its result.
  *
  * Run it first in the send transaction; the checks after it read current
- * state. Shared locks, so sends do not block one another. A missing row
- * answers 404, as the checks would.
+ * state. Locks go in the order other flows take them: Member, then room, then
+ * room membership. The Task and memberships are shared; the room is held for
+ * update, so sends into one room run one after another and sends into
+ * different rooms do not block one another. A missing row answers 404, as the
+ * checks would.
  */
 export async function lockTaskChatSend(
   tx: Prisma.TransactionClient,
@@ -38,13 +41,19 @@ export async function lockTaskChatSend(
     if (members.length === 0) throw notFound("Task not found");
   }
 
+  // The room is locked for the write the send makes to it (room.updatedAt),
+  // before any send writes. Taken shared, two sends into one room would both
+  // hold it and then deadlock upgrading it. Room before room membership, as
+  // the roster flows lock it.
+  const rooms = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "chat_room" WHERE "id" = ${input.roomId}::uuid
+    FOR NO KEY UPDATE
+  `;
+  if (rooms.length === 0) throw notFound("Room not found");
+
   const roomMembers = await tx.$queryRaw<{ id: string }[]>`
-    SELECT "chat_room_user_member"."id"
-    FROM "chat_room"
-    JOIN "chat_room_user_member"
-      ON "chat_room_user_member"."roomId" = "chat_room"."id"
-    WHERE "chat_room"."id" = ${input.roomId}::uuid
-      AND "chat_room_user_member"."userId" = ${input.userId}
+    SELECT "id" FROM "chat_room_user_member"
+    WHERE "roomId" = ${input.roomId}::uuid AND "userId" = ${input.userId}
     FOR SHARE
   `;
   if (roomMembers.length === 0) throw notFound("Room not found");

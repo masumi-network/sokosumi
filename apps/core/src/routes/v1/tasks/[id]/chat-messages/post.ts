@@ -9,7 +9,7 @@ import {
 
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { conflict, forbidden } from "@/helpers/error";
+import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -27,6 +27,7 @@ import { requireWritableChatRoom } from "@/routes/v1/chats/rooms/writable-chat-r
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 
 import { lockTaskChatSend } from "./send-lock";
+import { assertSameAttempt, writeTaskChatMessage } from "./send-write";
 
 const NOTE_MAX_LENGTH = 2000;
 
@@ -141,44 +142,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           memberUserIds: room.userMembers.map((member) => member.userId),
         };
 
-        const existing = await tx.chatRoomMessage.findUnique({
-          where: {
-            roomId_clientMessageId: { roomId: room.id, clientMessageId },
-          },
-          include: chatRoomMessageInclude,
+        const written = await writeTaskChatMessage(tx, {
+          roomId: room.id,
+          userId,
+          clientMessageId,
+          content,
+          attempt,
         });
-        if (existing) {
-          return {
-            message: assertSameAttempt(existing, userId, attempt),
-            room: roomSummary,
-            didCreate: false,
-          };
-        }
-
-        // No mention rows, so nothing is dispatched to a Coworker or Soko Bot.
-        const message = await tx.chatRoomMessage.create({
-          data: {
-            roomId: room.id,
-            senderUserId: userId,
-            content,
-            clientMessageId,
-            metadata: {
-              client_message_id: clientMessageId,
-              [TASK_CHAT_ATTEMPT_KEY]: attempt,
-            },
-          },
-          include: chatRoomMessageInclude,
-        });
-        await tx.chatRoom.update({
-          where: { id: room.id },
-          data: { updatedAt: new Date() },
-        });
-        await tx.chatRoomReadState.upsert({
-          where: { roomId_userId: { roomId: room.id, userId } },
-          update: { lastReadAt: message.createdAt },
-          create: { roomId: room.id, userId, lastReadAt: message.createdAt },
-        });
-        return { message, room: roomSummary, didCreate: true };
+        return { ...written, room: roomSummary };
       })
       .catch(async (error: unknown) => {
         // Two sends of one attempt raced; the loser returns the winner's row.
@@ -216,33 +187,4 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ),
     );
   });
-}
-
-/** Where a sent Task's attempt is kept on its message. */
-const TASK_CHAT_ATTEMPT_KEY = "task_chat_attempt";
-
-/**
- * A retry is the same attempt when the same person sent the same Task with
- * the same note into the room (the room is part of the id's key). It is
- * compared on what was sent, not on the rendered message, so a Task renamed
- * or a message edited since still answers with the first message. Anything
- * else under the id is a different message and is refused.
- */
-export function assertSameAttempt<
-  T extends { senderUserId: string | null; metadata: unknown },
->(message: T, userId: string, attempt: { taskId: string; note: string }): T {
-  const stored =
-    message.metadata && typeof message.metadata === "object"
-      ? (message.metadata as Record<string, unknown>)[TASK_CHAT_ATTEMPT_KEY]
-      : undefined;
-  const same =
-    message.senderUserId === userId &&
-    stored !== null &&
-    typeof stored === "object" &&
-    (stored as { taskId?: unknown }).taskId === attempt.taskId &&
-    (stored as { note?: unknown }).note === attempt.note;
-  if (!same) {
-    throw conflict("clientMessageId already used for another message");
-  }
-  return message;
 }
