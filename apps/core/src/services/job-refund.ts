@@ -1,6 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
 
-import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
+import {
+  buildCompensatingRefundTransactionCreate,
+  COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
+} from "@/helpers/compensating-refund";
 
 /**
  * Creates a refund transaction and source credit bucket for a job when the job
@@ -14,7 +17,7 @@ export async function refundJob(
     where: { id: jobId },
     select: {
       refundedTransaction: true,
-      transaction: true,
+      transaction: { include: COMPENSATED_SPEND_CONSUMPTIONS_SELECT },
     },
   });
 
@@ -42,6 +45,7 @@ export async function refundJob(
           actorUserId,
           organizationId: transaction.organizationId,
           referenceId: jobId,
+          consumptions: transaction.creditConsumptions,
         }),
       },
     },

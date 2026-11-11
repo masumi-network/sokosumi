@@ -156,6 +156,7 @@ import type {
   PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
+  PostTasksByIdChatMessagesData,
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
@@ -522,6 +523,7 @@ import {
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postPublicNewslettersByPublicSlugSubscribe as corePostPublicNewslettersByPublicSlugSubscribe,
   postTasks as corePostTasks,
+  postTasksByIdChatMessages as corePostTasksByIdChatMessages,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
@@ -1882,6 +1884,22 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id: roomId, messageId },
         }),
       "Failed to send message to yourself",
+    );
+  }
+
+  async function sendTaskToChat(
+    taskId: string,
+    body: NonNullable<PostTasksByIdChatMessagesData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdChatMessages({
+          client,
+          path: { id: taskId },
+          body,
+        }),
+      "Failed to send task to chat",
     );
   }
 
@@ -6963,6 +6981,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     pinChatRoomMessage,
     unpinChatRoomMessage,
     sendChatRoomMessageToSelf,
+    sendTaskToChat,
     muteChatRoom,
     unmuteChatRoom,
     markChatRoomUnread,

@@ -159,6 +159,7 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: "organization-1",
+        creditConsumptions: [{ bucket: { projectId: "project-1" } }],
       },
     });
     claimUpdateMock.mockResolvedValue(undefined);
@@ -191,6 +192,8 @@ describe("task payment claims", () => {
       expiresAt: null,
       userId: null,
       organizationId: "organization-1",
+      // Back to the Project the charge spent its Project credits from.
+      projectId: "project-1",
     });
     expect(refund.sourceCreditBucket.create.user).toBeUndefined();
   });
@@ -204,6 +207,7 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: null,
+        creditConsumptions: [],
       },
     });
     claimUpdateMock.mockResolvedValue(undefined);
@@ -229,6 +233,7 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: null,
+        creditConsumptions: [],
       },
     });
 
@@ -247,6 +252,7 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: null,
+        creditConsumptions: [],
       },
     });
 
@@ -267,6 +273,7 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: null,
+        creditConsumptions: [],
       },
     });
 
@@ -300,6 +307,7 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: null,
+        creditConsumptions: [],
       },
     });
 
@@ -476,6 +484,7 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: null,
+        creditConsumptions: [],
       },
     });
 
@@ -547,6 +556,7 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: null,
+        creditConsumptions: [],
       },
     });
 

@@ -311,12 +311,16 @@ export async function buildCreditsPayload(params: {
   userId: string | null;
   organizationId: string | null;
   referenceId: string;
+  /** Cuso's Project: its Project credits count with the pool (ADR 0067). */
+  projectId?: string | null;
   tx: Prisma.TransactionClient;
 }): Promise<CreditsApiPayload> {
+  const projectScope = { projectId: params.projectId };
   const totalCredits = await getCredits(
     params.userId,
     params.organizationId,
     params.tx,
+    projectScope,
   );
   const latestSubscription =
     (await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
@@ -346,6 +350,7 @@ export async function buildCreditsPayload(params: {
       params.userId,
       params.organizationId,
       params.tx,
+      projectScope,
     );
 
   const enterpriseBucketRows = params.organizationId

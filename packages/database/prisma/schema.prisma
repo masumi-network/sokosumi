@@ -520,6 +520,8 @@ model Project {
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
 
+  creditBuckets CreditBucket[]
+
   fileLinks FileProjectLink[]
 
   /// Last task number handed out. Advanced by the task_assign_number trigger.
@@ -1591,11 +1593,17 @@ model CreditBucket {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  // Project credits (ADR 0067): only a charge for this Project spends them.
+  // The owner stays the organization; null is the Organization credit pool.
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   // Track which transactions consumed from this bucket
   consumptions CreditConsumption[]
 
   @@unique([referenceId, referenceType])
   @@index([userId, organizationId, expiresAt])
+  @@index([projectId])
   @@index([expiresAt])
   @@index([activatesAt])
   @@map("credit_bucket")

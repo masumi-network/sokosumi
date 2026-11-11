@@ -16,6 +16,7 @@ const {
   deleteManyCalls,
   revokeIntegrationsMock,
   txIntegrationsFindManyMock,
+  forfeitMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
@@ -39,6 +40,11 @@ const {
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
   txIntegrationsFindManyMock: vi.fn(),
+  forfeitMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/cuso-project-credits", () => ({
+  forfeitCusoProjectCredits: forfeitMock,
 }));
 
 vi.mock("@/helpers/chat-room-mention-status", () => ({
@@ -322,6 +328,24 @@ describe("deleteSokoBot", () => {
 
     await expect(deleteSokoBot(BOT_ID)).rejects.toThrow();
   });
+
+  it.each([
+    ["deleted", 0],
+    ["tombstoned", 1],
+  ])(
+    "offers the bot to the Cuso write-off when it is %s",
+    async (outcome, tasks) => {
+      counts.task = tasks;
+
+      const result = await deleteSokoBot(BOT_ID);
+
+      expect(result.outcome).toBe(outcome);
+      expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+        BOT_ID,
+        expect.any(Object),
+      );
+    },
+  );
 
   it("keeps a tombstone when the assistant uploaded a task file", async () => {
     // The file outlives the bot on the Task and its uploader FK is

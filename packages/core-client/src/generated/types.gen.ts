@@ -12948,6 +12948,12 @@ export type TaskSellerReceipt = {
     }>;
 };
 
+export type SendTaskToChatRequest = {
+    roomId: string;
+    note?: string;
+    clientMessageId: string;
+};
+
 export type TaskWorkspace = {
     /**
      * Task title
@@ -87958,6 +87964,111 @@ export type PutTasksByIdShareResponses = {
 };
 
 export type PutTasksByIdShareResponse = PutTasksByIdShareResponses[keyof PutTasksByIdShareResponses];
+
+export type PostTasksByIdChatMessagesData = {
+    body?: SendTaskToChatRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/chat-messages';
+};
+
+export type PostTasksByIdChatMessagesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task or room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * clientMessageId already used for another message
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdChatMessagesError = PostTasksByIdChatMessagesErrors[keyof PostTasksByIdChatMessagesErrors];
+
+export type PostTasksByIdChatMessagesResponses = {
+    /**
+     * Task sent to chat
+     */
+    201: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdChatMessagesResponse = PostTasksByIdChatMessagesResponses[keyof PostTasksByIdChatMessagesResponses];
 
 export type GetTasksByIdWorkspaceData = {
     body?: never;
