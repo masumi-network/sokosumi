@@ -3571,6 +3571,8 @@
             },
             "blank": "Start blank",
             "blankDescription": "Bring your own copy and add only the blocks you need.",
+            "latest": "Start from latest issue",
+            "latestDescription": "Reuse “{subject}”: its blocks and preview text go into a new draft. Nothing is scheduled or sent.",
             "templateHeading": "Or start with a template"
           },
           "Preview": {

@@ -54,6 +54,10 @@ export default async function NewsletterIssuesPage({
     getTranslations("App.Newsletter"),
     getTranslations("App.Projects.Newsletter"),
   ]);
+  // The list is newest first, so a later page needs the first page's top issue.
+  const latestIssue = cursor.success
+    ? (await newsletterService.listIssues(project.id, { limit: 1 })).data[0]
+    : response.data[0];
 
   return (
     <NewsletterPageShell
@@ -64,6 +68,11 @@ export default async function NewsletterIssuesPage({
       <Issues
         projectId={project.id}
         issues={response.data}
+        latestIssue={
+          latestIssue
+            ? { id: latestIssue.id, subject: latestIssue.subject }
+            : null
+        }
         pagination={response.meta.pagination}
         activeSubscribers={subscribers.data.counts.ACTIVE}
       />

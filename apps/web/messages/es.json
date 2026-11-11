@@ -3571,6 +3571,8 @@
             },
             "blank": "Empezar en blanco",
             "blankDescription": "Usa tus propios textos y añade solo los bloques que necesites.",
+            "latest": "Empezar desde la última edición",
+            "latestDescription": "Reutiliza «{subject}»: sus bloques y el texto de vista previa pasan a un nuevo borrador. No se programa ni se envía nada.",
             "templateHeading": "O empieza con una plantilla"
           },
           "Preview": {

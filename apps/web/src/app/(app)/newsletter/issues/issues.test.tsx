@@ -16,6 +16,7 @@ import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
+  copy: vi.fn(),
   change: vi.fn(),
   remove: vi.fn(),
   push: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/actions/newsletter/issues", () => ({
   createNewsletterIssue: mocks.create,
+  copyNewsletterIssue: mocks.copy,
   deleteNewsletterIssue: mocks.remove,
 }));
 
@@ -47,6 +49,7 @@ function renderIssues(
   issues: NewsletterIssue[] = [NEWSLETTER_ISSUE],
   pagination = PAGINATION,
   locale: "en" | "de" | "es" = "en",
+  latestIssue: { id: string; subject: string } | null = issues[0] ?? null,
 ) {
   return render(
     <NextIntlClientProvider
@@ -61,6 +64,7 @@ function renderIssues(
         <Issues
           projectId={NEWSLETTER_PROJECT_ID}
           issues={issues}
+          latestIssue={latestIssue}
           pagination={pagination}
           activeSubscribers={3}
         />
@@ -72,6 +76,7 @@ function renderIssues(
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.create.mockResolvedValue({ ok: true, value: NEWSLETTER_ISSUE });
+  mocks.copy.mockResolvedValue({ ok: true, value: NEWSLETTER_ISSUE });
   mocks.remove.mockResolvedValue({ ok: true, value: null });
 });
 
@@ -235,6 +240,52 @@ describe("newsletter issues list", () => {
       );
     },
   );
+
+  it.each(["en", "de", "es"] as const)(
+    "starts a new draft from the latest issue in %s",
+    async (locale) => {
+      const user = userEvent.setup();
+      const copy = { en, de, es }[locale].App.Projects.Newsletter.Issues;
+      renderIssues([NEWSLETTER_ISSUE], PAGINATION, locale);
+      await user.click(screen.getByRole("button", { name: copy.newIssue }));
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toHaveTextContent(NEWSLETTER_ISSUE.subject);
+      await user.click(
+        within(dialog).getByRole("button", { name: copy.Templates.latest }),
+      );
+      expect(mocks.copy).toHaveBeenCalledWith({
+        projectId: NEWSLETTER_PROJECT_ID,
+        issueId: NEWSLETTER_ISSUE.id,
+      });
+      expect(mocks.create).not.toHaveBeenCalled();
+      expect(mocks.push).toHaveBeenCalledWith(
+        `/newsletter/issues/${NEWSLETTER_ISSUE.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
+      );
+    },
+  );
+
+  it("offers no copy without an earlier issue and keeps a failed copy open", async () => {
+    const user = userEvent.setup();
+    const empty = renderIssues([], { ...PAGINATION, total: 0 });
+    await user.click(screen.getByRole("button", { name: COPY.newIssue }));
+    expect(
+      screen.queryByRole("button", { name: COPY.Templates.latest }),
+    ).toBeNull();
+    empty.unmount();
+    mocks.copy.mockResolvedValue({
+      ok: false,
+      error: { message: COPY.createError },
+    });
+    renderIssues();
+    await user.click(screen.getByRole("button", { name: COPY.newIssue }));
+    await user.click(
+      screen.getByRole("button", { name: COPY.Templates.latest }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      COPY.createError,
+    );
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
 
   it("keeps a failed blank issue creation open for retry", async () => {
     const user = userEvent.setup();

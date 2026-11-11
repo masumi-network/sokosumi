@@ -24,17 +24,19 @@ import {
   IssueDeliveryOutcome,
   IssueStatusBadge,
 } from "./issue-delivery-status";
-import { NewIssueDialog } from "./new-issue-dialog";
+import { type LatestIssue, NewIssueDialog } from "./new-issue-dialog";
 import { issueSearchParams } from "./search-params";
 
 export function Issues({
   projectId,
   issues,
+  latestIssue,
   pagination,
   activeSubscribers,
 }: {
   projectId: string;
   issues: NewsletterIssue[];
+  latestIssue: LatestIssue | null;
   pagination: PaginationMetadata;
   activeSubscribers: number;
 }) {
@@ -194,6 +196,7 @@ export function Issues({
       {dialogOpen ? (
         <NewIssueDialog
           projectId={projectId}
+          latestIssue={latestIssue}
           onClose={() => setDialogOpen(false)}
           onCloseAutoFocus={() => newButton.current?.focus()}
         />

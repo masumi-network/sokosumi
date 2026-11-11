@@ -7,6 +7,7 @@ import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
+  get: vi.fn(),
   save: vi.fn(),
   remove: vi.fn(),
 }));
@@ -30,12 +31,14 @@ vi.mock("@/lib/clients/core.client", async () => ({
 vi.mock("@/lib/services/newsletter.service", () => ({
   newsletterService: {
     createIssue: mocks.create,
+    getIssue: mocks.get,
     saveIssue: mocks.save,
     deleteIssue: mocks.remove,
   },
 }));
 
 import {
+  copyNewsletterIssue,
   createNewsletterIssue,
   deleteNewsletterIssue,
   saveNewsletterIssue,
@@ -151,5 +154,44 @@ describe("newsletter issue actions", () => {
         values: VALUES,
       }),
     ).toEqual({ ok: false, error: { message: COPY.createError } });
+  });
+
+  it("copies only the content of an issue into a new draft", async () => {
+    mocks.get.mockResolvedValue({
+      ...NEWSLETTER_ISSUE,
+      status: "SENT",
+      sentAt: new Date("2026-10-24T10:00:00Z"),
+      scheduledAt: new Date("2026-10-24T09:00:00Z"),
+      timezone: "Europe/Berlin",
+      approvedByUserId: "u1",
+      taskId: "t1",
+    });
+    expect(await copyNewsletterIssue(TARGET)).toEqual({
+      ok: true,
+      value: NEWSLETTER_ISSUE,
+    });
+    expect(mocks.get).toHaveBeenCalledWith(TARGET.projectId, TARGET.issueId);
+    expect(mocks.create).toHaveBeenCalledWith(TARGET.projectId, {
+      subject: NEWSLETTER_ISSUE.subject,
+      previewText: NEWSLETTER_ISSUE.previewText,
+      template: NEWSLETTER_ISSUE.template,
+      content: NEWSLETTER_ISSUE.content,
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/newsletter/issues", "layout");
+  });
+  it("does not copy a malformed, missing or unreadable issue", async () => {
+    const failed = { ok: false, error: { message: COPY.createError } };
+    expect(await copyNewsletterIssue({ ...TARGET, issueId: "bad" })).toEqual(
+      failed,
+    );
+    expect(mocks.get).not.toHaveBeenCalled();
+    mocks.get.mockResolvedValue(null);
+    expect(await copyNewsletterIssue(TARGET)).toEqual(failed);
+    mocks.get.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+    expect(await copyNewsletterIssue(TARGET)).toEqual(failed);
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

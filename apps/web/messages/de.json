@@ -3571,6 +3571,8 @@
             },
             "blank": "Leer beginnen",
             "blankDescription": "Verwende deine eigenen Texte und füge nur die benötigten Blöcke hinzu.",
+            "latest": "Von letzter Ausgabe starten",
+            "latestDescription": "„{subject}“ wiederverwenden: Blöcke und Vorschautext kommen in einen neuen Entwurf. Nichts wird geplant oder gesendet.",
             "templateHeading": "Oder mit einer Vorlage beginnen"
           },
           "Preview": {

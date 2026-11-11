@@ -56,6 +56,30 @@ export const createNewsletterIssue = withSession<
   }
 });
 
+/** A new draft with the content of an issue in the same Project. Nothing about its delivery is copied. */
+export const copyNewsletterIssue = withSession<
+  IssueTarget,
+  ActionResultDto<NewsletterIssue, NewsletterIssueError>
+>(async ({ projectId, issueId }) => {
+  const t = await getTranslations("App.Projects.Newsletter.Issues");
+  if (!targetSchema.safeParse({ projectId, issueId }).success)
+    return toActionResult(err({ message: t("createError") }));
+  try {
+    const source = await newsletterService.getIssue(projectId, issueId);
+    if (!source) return toActionResult(err({ message: t("createError") }));
+    const issue = await newsletterService.createIssue(projectId, {
+      subject: source.subject,
+      previewText: source.previewText,
+      template: source.template,
+      content: source.content,
+    });
+    revalidatePath("/newsletter/issues", "layout");
+    return toActionResult(ok(issue));
+  } catch {
+    return toActionResult(err({ message: t("createError") }));
+  }
+});
+
 export const saveNewsletterIssue = withSession<
   IssueInput & IssueTarget & { revision: unknown },
   ActionResultDto<NewsletterIssue, NewsletterIssueError>
