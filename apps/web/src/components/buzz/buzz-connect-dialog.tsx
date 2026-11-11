@@ -195,9 +195,7 @@ function BuzzConnectFlow({
 
       <div className="flex h-16 items-center gap-2 px-6 sm:px-8">
         <BuzzLogo className="size-6 rounded-md" />
-        <span className="text-[15px] font-semibold tracking-[-0.01em]">
-          Buzz
-        </span>
+        <span className="text-base font-semibold tracking-[-0.01em]">Buzz</span>
       </div>
 
       <div className="app-scrollbar flex min-h-0 flex-col items-center overflow-y-auto overscroll-contain px-6 py-4 text-center sm:px-14">
@@ -560,7 +558,7 @@ function Stage({
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="mt-6 text-[28px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance outline-none"
+        className="mt-6 text-3xl leading-[1.1] font-semibold tracking-[-0.02em] text-balance outline-none"
       >
         {title}
       </h2>
@@ -634,7 +632,7 @@ function StepDots({ total, current }: { total: number; current: number }) {
           key={dot}
           className={cn(
             "size-1.5 rounded-full transition-colors duration-200",
-            dot === current ? "bg-foreground" : "bg-foreground/15",
+            dot === current ? "bg-foreground" : "bg-border",
           )}
         />
       ))}
