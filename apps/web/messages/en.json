@@ -1674,6 +1674,19 @@
         "title": "Task manager",
         "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
       },
+      "Archived": {
+        "title": "Archived tasks",
+        "link": "Archived",
+        "description": "Tasks you archived in this workspace, latest first. Restore one to put it back on the board.",
+        "back": "Back to tasks",
+        "empty": "No archived tasks. Tasks you archive show up here, so you can bring them back.",
+        "draftNote": "Tasks that were waiting to run come back as drafts, so nothing starts until you start it again.",
+        "restore": "Restore",
+        "restoreNamed": "Restore {name}",
+        "restored": "{name} is back on the board",
+        "open": "Open",
+        "restoreError": "Couldn't restore this task. Try again."
+      },
       "Columns": {
         "backlog": "Backlog",
         "todo": "Todo",
