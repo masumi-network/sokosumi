@@ -607,6 +607,7 @@ describe("POST /{id}/x402-payments", () => {
       assignee: { name: "Test coworker" },
       project: null,
       owner: { notificationsOptIn: true },
+      events: [],
     });
   });
 
@@ -3564,6 +3565,7 @@ describe("POST /{id}/x402-payments", () => {
         assignee: { name: "Test coworker" },
         assigneeSokoBot: null,
         project: null,
+        events: [],
       });
       const app = createApp(COWORKER_AGENT_CONTEXT);
 

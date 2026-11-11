@@ -123,10 +123,17 @@ describe("OrganizationSeatsCard", () => {
     expect(
       screen.getByRole("button", { name: "seatsCard.addIdleCta" }),
     ).toBeDisabled();
+    // The disabled button gets a reason tied to the field.
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription('seatsCard.minimum:{"count":1}');
 
     await userEvent.type(input, "5");
 
     expect(input).toHaveValue(5);
+    expect(input).toHaveAttribute("aria-invalid", "false");
+    expect(
+      screen.queryByText('seatsCard.minimum:{"count":1}'),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: ADD_TWO })).toBeEnabled();
   });
 

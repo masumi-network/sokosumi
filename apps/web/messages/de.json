@@ -816,7 +816,33 @@
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
-      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden"
+      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden",
+      "reply": "Antworten",
+      "replyTo": "Antworten: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# Aufgabe wartet auf dich} other {# Aufgaben warten auf dich}}",
+        "showAll": "Alle in Aufgaben anzeigen",
+        "loadError": "Die Aufgaben, die auf dich warten, konnten nicht geladen werden",
+        "ask": {
+          "INPUT_REQUIRED": "{name} braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "{name} braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "{name} braucht deine Anmeldung"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "Braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "Braucht deine Anmeldung",
+          "OUT_OF_CREDITS": "Pausiert, bis Credits aufgeladen sind",
+          "GRANT_PENDING": "Wartet auf Workspace-Zugriff"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Antworten",
+          "APPROVAL_REQUIRED": "Prüfen",
+          "AUTHENTICATION_REQUIRED": "Anmelden",
+          "OUT_OF_CREDITS": "Öffnen",
+          "GRANT_PENDING": "Öffnen"
+        }
+      }
     },
     "HashValue": {
       "copy": "Kopieren",
@@ -2154,6 +2180,21 @@
         },
         "newSchedule": "Neuer Zeitplan",
         "empty": "Hier gibt es noch keine Zeitpläne. Ein Zeitplan erstellt bei jedem Lauf einen neuen Task.",
+        "zoneTime": "Zeit {zone}",
+        "localTime": "{datetime} bei dir",
+        "nextRunWithLocal": "Nächster Lauf {datetime} ({local} bei dir)",
+        "emptyFiltered": {
+          "ACTIVE": "Keine aktiven Zeitpläne",
+          "PAUSED": "Keine pausierten Zeitpläne",
+          "ENDED": "Keine beendeten Zeitpläne"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# ist aktiv} other {# sind aktiv}}",
+          "PAUSED": "{count, plural, one {# ist pausiert} other {# sind pausiert}}",
+          "ENDED": "{count, plural, one {# ist beendet} other {# sind beendet}}"
+        },
+        "showAll": "Alle Zeitpläne zeigen",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Zeitpläne ließen sich nicht laden.",
         "nextRun": "Nächster Lauf {datetime}",
@@ -2265,7 +2306,6 @@
           "properties": "Eigenschaften",
           "state": "Status",
           "rule": "Wiederholung",
-          "timezone": "Zeitzone",
           "nextRun": "Nächster Lauf",
           "ends": "Endet",
           "assignee": "Zuständig",
@@ -5266,6 +5306,8 @@
       "statusCancel": "Abonnement-Checkout wurde abgebrochen.",
       "currentPlanBadge": "Aktuell",
       "pricePerMonth": "pro Monat",
+      "pricePerSeatPerMonth": "pro Seat / Monat",
+      "seatTotal": "{total} pro Monat für {seats, plural, =1 {# Seat} other {# Seats}}",
       "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
       "mostPopularBadge": "Am beliebtesten",
       "canceling": "Kündigung wird geplant...",
@@ -7211,6 +7253,7 @@
       "topUpDescription": "Wähle einen Betrag oder gib einen eigenen Wert ein",
       "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
       "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
+      "seePlans": "Pläne ansehen",
       "couponExpiryPolicyNotice": "Aktionsguthaben kann verfallen; die Bedingungen hängen vom jeweiligen Gutschein oder Angebot ab.",
       "costPerCredit": "{cost} pro Credit",
       "youSaveLabel": "Spare {amount}",
@@ -8065,6 +8108,7 @@
             "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
             "decrease": "Einen Seat entfernen",
             "increase": "Einen Seat hinzufügen",
+            "minimum": "{count, plural, =1 {Gib mindestens # Seat ein.} other {Gib mindestens # Seats ein.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
               "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",
@@ -9811,7 +9855,8 @@
         "continue": "Weiter",
         "back": "Zurück",
         "pictureTitle": "Wähle ein Bild für {name}",
-        "skip": "Überspringen"
+        "createWithoutPicture": "Ohne Bild erstellen",
+        "createWithoutPictureHint": "{name} startet mit seiner Farbkugel. Ein Bild fügst du jederzeit in den Einstellungen hinzu."
       },
       "Memory": {
         "title": "Gedächtnis",

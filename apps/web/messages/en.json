@@ -832,7 +832,33 @@
       "vendorGrantAcceptSuccess": "Vendor access approved",
       "vendorGrantAcceptError": "Failed to approve vendor access",
       "coworkerAccessAcceptSuccess": "Coworker early access approved",
-      "coworkerAccessAcceptError": "Failed to approve coworker early access"
+      "coworkerAccessAcceptError": "Failed to approve coworker early access",
+      "reply": "Reply",
+      "replyTo": "Reply: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# Task is waiting on you} other {# Tasks are waiting on you}}",
+        "showAll": "Show all in Tasks",
+        "loadError": "Could not load the Tasks waiting on you",
+        "ask": {
+          "INPUT_REQUIRED": "{name} needs your input",
+          "APPROVAL_REQUIRED": "{name} needs your approval",
+          "AUTHENTICATION_REQUIRED": "{name} needs you to sign in"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Needs your input",
+          "APPROVAL_REQUIRED": "Needs your approval",
+          "AUTHENTICATION_REQUIRED": "Needs you to sign in",
+          "OUT_OF_CREDITS": "Paused until credits are added",
+          "GRANT_PENDING": "Waiting for workspace access"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Answer",
+          "APPROVAL_REQUIRED": "Review",
+          "AUTHENTICATION_REQUIRED": "Sign in",
+          "OUT_OF_CREDITS": "Open",
+          "GRANT_PENDING": "Open"
+        }
+      }
     },
     "HashValue": {
       "copy": "Copy",
@@ -2154,6 +2180,21 @@
         },
         "newSchedule": "New schedule",
         "empty": "No schedules here yet. A schedule creates a new task every time it runs.",
+        "zoneTime": "{zone} time",
+        "localTime": "{datetime} your time",
+        "nextRunWithLocal": "Next run {datetime} ({local} your time)",
+        "emptyFiltered": {
+          "ACTIVE": "No active schedules",
+          "PAUSED": "No paused schedules",
+          "ENDED": "No ended schedules"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# is active} other {# are active}}",
+          "PAUSED": "{count, plural, one {# is paused} other {# are paused}}",
+          "ENDED": "{count, plural, one {# has ended} other {# have ended}}"
+        },
+        "showAll": "Show all schedules",
         "loadMore": "Load more",
         "loadMoreError": "Couldn't load more schedules.",
         "nextRun": "Next run {datetime}",
@@ -2265,7 +2306,6 @@
           "properties": "Properties",
           "state": "State",
           "rule": "Repeats",
-          "timezone": "Time zone",
           "nextRun": "Next run",
           "ends": "Ends",
           "assignee": "Assignee",
@@ -5302,6 +5342,8 @@
       "statusCancel": "Subscription checkout was canceled.",
       "currentPlanBadge": "Current",
       "pricePerMonth": "per month",
+      "pricePerSeatPerMonth": "per seat / month",
+      "seatTotal": "{total} a month for {seats, plural, =1 {# seat} other {# seats}}",
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
       "mostPopularBadge": "Most popular",
       "canceling": "Scheduling cancellation...",
@@ -7247,6 +7289,7 @@
       "topUpDescription": "Choose an amount or enter a custom value",
       "paidSubscriptionRequiredDescription": "A paid subscription is required to buy additional credits.",
       "paidSubscriptionRequiredHint": "Choose a paid plan in the Subscription tab to unlock credit top-ups.",
+      "seePlans": "See plans",
       "couponExpiryPolicyNotice": "Promotional credits may expire; terms vary by coupon or offer.",
       "costPerCredit": "{cost} per credit",
       "youSaveLabel": "Save {amount}",
@@ -8101,6 +8144,7 @@
             "removeCta": "{count, plural, =1 {Remove # seat} other {Remove # seats}}",
             "decrease": "Remove one seat",
             "increase": "Add one seat",
+            "minimum": "{count, plural, =1 {Enter at least # seat.} other {Enter at least # seats.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {Add # seat?} other {Add # seats?}}",
               "removeTitle": "{count, plural, =1 {Remove # seat?} other {Remove # seats?}}",
@@ -9811,7 +9855,8 @@
         "continue": "Continue",
         "back": "Back",
         "pictureTitle": "Pick a picture for {name}",
-        "skip": "Skip"
+        "createWithoutPicture": "Create without a picture",
+        "createWithoutPictureHint": "{name} starts with its color orb. Add a picture any time in its settings."
       },
       "Memory": {
         "title": "Memory",

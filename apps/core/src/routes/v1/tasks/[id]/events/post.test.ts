@@ -453,6 +453,7 @@ describe("POST /{id}/events", () => {
       projectId: "proj_123",
       workspaceId: "ws_123",
       owner: { notificationsOptIn: true },
+      events: [],
     });
     prismaTaskEventFindUniqueMock.mockResolvedValue({ createdAt: new Date() });
     prismaTaskFindFirstMock.mockImplementation(
@@ -3243,6 +3244,7 @@ describe("POST /{id}/events", () => {
         assignee: null,
         assigneeSokoBot: null,
         project: null,
+        events: [],
       });
       const tx: TransactionMock = {
         taskEvent: {
