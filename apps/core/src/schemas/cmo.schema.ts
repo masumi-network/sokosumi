@@ -115,7 +115,21 @@ export const cmoAdBudgetRequestSchema = z
   .openapi("CmoAdBudgetRequest");
 
 export const cmoStrategyRequestSchema = z
-  .object({ note: z.string().trim().max(1_000).optional() })
+  .object({
+    note: z.string().trim().max(1_000).optional(),
+    patch: z
+      .boolean()
+      .optional()
+      .describe(
+        "With a note: Cuso changes only the entries the note touches (a no, the pace) in a short turn, instead of writing a new plan.",
+      ),
+    restart: z
+      .boolean()
+      .optional()
+      .describe(
+        "Try again: replaces a plan running past twice the usual time. Otherwise a plan being written is returned as it is.",
+      ),
+  })
   .openapi("CmoStrategyRequest");
 
 /** The Project of the Cuso a CMO route acts on. */
@@ -128,6 +142,29 @@ export const cmoProjectParamsSchema = z.object({
       example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     }),
 });
+
+export const cmoBrandFixRequestSchema = z
+  .object({
+    section: z.enum(CMO_BRAND_SECTION_KEYS),
+    note: z
+      .string()
+      .trim()
+      .min(1)
+      .max(400)
+      .describe("What is true instead, in the owner's words."),
+  })
+  .openapi("CmoBrandFixRequest");
+
+export const cmoBrandFixStartedSchema = z
+  .object({
+    turnId: z.union([z.string(), z.null()]),
+    queued: z
+      .boolean()
+      .describe(
+        "Cuso is busy: the fix is kept on its section and starts when his current turn ends.",
+      ),
+  })
+  .openapi("CmoBrandFixStarted");
 
 /** A version of the plan of the Cuso a CMO route acts on. */
 export const cmoStrategyParamsSchema = cmoProjectParamsSchema.extend({
@@ -192,6 +229,12 @@ export const cmoWorkStepSchema = z
 export const cmoWorkSchema = z
   .object({
     kind: z.enum(["research", "strategy"]),
+    change: z
+      .union([z.enum(["fix", "patch"]), z.null()])
+      .optional()
+      .describe(
+        "A strategy turn that fixes Brand Brain sections or patches the plan's entries; null for a whole plan.",
+      ),
     status: z.enum(["running", "failed", "done"]),
     startedAt: dateTimeSchema,
     steps: z.array(cmoWorkStepSchema),
@@ -209,6 +252,33 @@ export const cmoWorkSchema = z
     sectionsTotal: z.number().int().min(0),
   })
   .openapi("CmoWork");
+
+export const cmoResearchSchema = z
+  .object({
+    groups: z
+      .array(
+        z.object({
+          key: z.string(),
+          label: z.string(),
+          sections: z
+            .array(z.enum(CMO_BRAND_SECTION_KEYS))
+            .describe("The Brand Brain sections this group researches."),
+          state: z.enum(["running", "done"]),
+        }),
+      )
+      .describe(
+        "The research in six groups of Brand Brain sections, in the order Cuso saves them; done once every section in a group is saved, or the essentials are.",
+      ),
+    preview: z
+      .union([
+        z.object({ line: z.string(), facts: z.array(z.string()) }),
+        z.null(),
+      ])
+      .describe(
+        "The quick look from the homepage alone, until the essentials replace it. The plan never reads it.",
+      ),
+  })
+  .openapi("CmoResearch");
 
 export const cmoBrandVisualSchema = z
   .object({
@@ -300,6 +370,7 @@ export const cmoOverviewSchema = z
         "Whether this member may approve the strategy: the organization's owners and admins only. Every other member works with Cuso but cannot.",
       ),
     work: z.union([cmoWorkSchema, z.null()]),
+    research: cmoResearchSchema,
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
     projectLogo: z.union([z.string(), z.null()]),
     onboardingStep: z

@@ -1,7 +1,11 @@
 import {
+  type BrandBrain,
   CMO_BRAND_SECTION_KEYS,
   CMO_BRAND_SECTIONS,
+  CMO_RESEARCH_GROUPS,
   CMO_SOKO_BOT_VERSION_ID,
+  type CmoBrandSectionKey,
+  getSokoBotVersion,
 } from "@sokosumi/soko-bot";
 import {
   buildOrganizationMetadataWithUrl,
@@ -13,7 +17,10 @@ import { getEnv } from "@/config/env";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
+import type { TurnPart } from "@/lib/soko-bot/turn-parts";
 import {
+  type BrandBrainPreview,
+  brandBrainPreview,
   brandBrainSectionHeadlines,
   brandBrainSectionsSaved,
   type CmoSectionHeadline,
@@ -34,12 +41,17 @@ import {
   type Cuso,
   type CusoTarget,
   cmoBusinessNameFromUrl,
+  cmoRunIsSlow,
   findCusoForBot,
   ONBOARDING_TURN_PREFIX,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
-import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
+import { writeCmoQuickLook } from "@/services/cmo-quick-look.service";
+import {
+  cmoChangeKind,
+  STRATEGY_TURN_PREFIX,
+} from "@/services/marketing-strategy.service";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -64,9 +76,17 @@ export function cmoProjectName(businessName: string): string {
  * A retry after a turn that saved sections but not the essentials: the
  * research is done, so Cuso only writes what is missing.
  */
-function finishBrandBrainMessage(input: { businessName: string }): string {
+function finishBrandBrainMessage(
+  input: { businessName: string },
+  inParts = false,
+): string {
   return [
     `Your research on ${input.businessName} stopped before the Brand Brain essentials were saved. The profile sections you saved are kept.`,
+    ...(inParts
+      ? [
+          "The groups still missing were researched again in parts before this message: their sections are saved, but your packet does not show them; their hand-overs below do.",
+        ]
+      : []),
     "",
     "Read the saved sections, then save the essentials with save_brand_brain (summary, voice, audience, products, offers, competitors, alternatives and channels), following your Brand Brain skill. Research again only what the essentials still need.",
     "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
@@ -88,19 +108,126 @@ function onboardingMessage(input: {
   ].join("\n");
 }
 
-export async function cmoLearningState(
-  cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
-  now: Date = new Date(),
-): Promise<CmoLearningState> {
-  if (parseBrandBrain(cuso.brandBrain)) return "done";
-  const turn = await prisma.sokoBotTurn.findFirst({
+/**
+ * A first read on a version that reads in parts: Core ran one part per
+ * research group before this message, so Cuso writes the essentials.
+ */
+function essentialsFromPartsMessage(input: {
+  businessName: string;
+  websiteUrl: string;
+}): string {
+  return [
+    `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
+    "",
+    "Your research ran in parts, one per group of your Brand Brain skill, side by side; each part saved its sections. Their hand-overs follow this message.",
+    "Now save the essentials with save_brand_brain, with reveal, questions and marketingToday in the same call, following your Brand Brain skill. Draw them from the hand-overs; research again only what a hand-over left open, or a group whose part failed.",
+    "Do not plan yet: the owner reviews the Brand Brain first, then asks you for the strategy.",
+    "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
+    "The Brand Brain card is your report: do not call report_update, and never mention tools, tool limits or what you may not do this turn.",
+  ].join("\n");
+}
+
+/** The Brand Brain skill that reads in parts (SOKD-167). */
+const PARTS_SKILL = "cmo-brand-brain-groups";
+
+/** A research part reads the web and saves its sections; nothing else. */
+const RESEARCH_PART_TOOLS = [
+  "search_exa",
+  "web_search",
+  "web_fetch",
+  "read_social_profile",
+  "save_brand_brain",
+] as const;
+
+/** Whether a Cuso on this version reads the business in parts. */
+function readsInParts(versionId: string | null): boolean {
+  return (
+    versionId !== null &&
+    getSokoBotVersion(versionId).skills.includes(PARTS_SKILL)
+  );
+}
+
+function researchPartMessage(
+  cuso: Pick<Cuso, "businessName" | "websiteUrl">,
+  group: (typeof CMO_RESEARCH_GROUPS)[number],
+): string {
+  return [
+    `You are one part of your first read of ${cuso.businessName} (${cuso.websiteUrl}): the ${group.label} group, sections ${group.sections.join(", ")}. The other groups run at the same time.`,
+    "",
+    `Research it as "### ${group.label}" in your Brand Brain skill says, within its share of searches and page reads, running independent calls together in one step. Save these sections with save_brand_brain in sections as soon as you have researched them, never brandBrain, reveal, questions or marketingToday.`,
+    "End with your hand-over, as the skill describes. Do not post in chat or call report_update.",
+  ].join("\n");
+}
+
+/**
+ * The parts a research turn runs before its message: one per research group
+ * not yet saved, on a version that reads in parts, until the essentials
+ * exist. A retry runs only the groups still missing.
+ */
+export function cmoResearchParts(
+  versionId: string | null,
+  cuso: Pick<Cuso, "businessName" | "websiteUrl" | "brandBrain">,
+): TurnPart[] {
+  if (!readsInParts(versionId) || parseBrandBrain(cuso.brandBrain)) return [];
+  const saved = new Set(brandBrainSectionsSaved(cuso.brandBrain));
+  return CMO_RESEARCH_GROUPS.filter(
+    (group) => !group.sections.every((section) => saved.has(section)),
+  ).map((group) => ({
+    key: group.key,
+    title: group.label,
+    message: researchPartMessage(cuso, group),
+    tools: RESEARCH_PART_TOOLS,
+  }));
+}
+
+/** The parts of this turn, when it is a Cuso's research; none otherwise. */
+/**
+ * A first read in parts ends on the save that completes the essentials, with
+ * the reveal's position as Cuso's answer: no closing model step after it.
+ */
+export function cmoResearchEndAnswer(
+  turn: { clientTurnId: string | null; versionId: string | null },
+  brain: {
+    reveal?: { positioning: string } | null;
+    questions: readonly unknown[];
+    marketingToday?: unknown;
+  } | null,
+): string | undefined {
+  if (!turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)) return undefined;
+  if (!readsInParts(turn.versionId)) return undefined;
+  if (!brain?.reveal || brain.questions.length === 0 || !brain.marketingToday)
+    return undefined;
+  return brain.reveal.positioning;
+}
+
+export async function cmoTurnParts(turnId: string): Promise<TurnPart[]> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { sokoBotId: true, clientTurnId: true, versionId: true },
+  });
+  if (!turn?.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)) return [];
+  if (!readsInParts(turn.versionId)) return [];
+  const cuso = await findCusoForBot(turn.sokoBotId);
+  return cuso ? cmoResearchParts(turn.versionId, cuso) : [];
+}
+
+function newestResearchTurn(sokoBotId: string) {
+  return prisma.sokoBotTurn.findFirst({
     where: {
-      sokoBotId: cuso.sokoBotId,
+      sokoBotId,
       clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX },
     },
     orderBy: { createdAt: "desc" },
     select: TURN_ROW_SELECT,
   });
+}
+
+export async function cmoLearningState(
+  cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
+  now: Date = new Date(),
+): Promise<CmoLearningState> {
+  if (parseBrandBrain(cuso.brandBrain)) return "done";
+  const turn = await newestResearchTurn(cuso.sokoBotId);
   // Cuso can finish without a Brand Brain on purpose: it asked questions.
   return turn ? settledTurnStatus(turn, now) : "failed";
 }
@@ -117,6 +244,8 @@ export interface CmoWorkStep {
 
 export interface CmoWork {
   kind: "research" | "strategy";
+  /** A strategy turn that fixes the Brand Brain or patches the plan; null for a whole plan. */
+  change: "fix" | "patch" | null;
   status: CmoLearningState;
   startedAt: Date;
   steps: CmoWorkStep[];
@@ -289,6 +418,7 @@ export async function cmoWork(
     kind: turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)
       ? "strategy"
       : "research",
+    change: cmoChangeKind(turn.clientTurnId),
     status: await settledTurnStatus(turn, now),
     startedAt: turn.createdAt,
     steps,
@@ -298,21 +428,65 @@ export async function cmoWork(
   };
 }
 
+export interface CmoResearch {
+  groups: {
+    key: string;
+    label: string;
+    sections: CmoBrandSectionKey[];
+    state: "running" | "done";
+  }[];
+  /** The quick look, until the essentials replace it. */
+  preview: BrandBrainPreview | null;
+}
+
 /**
- * Starts learning again after a failed or stuck first look, or after one that
- * ended without the Brand Brain's essentials and asked nothing.
+ * Each group is done once all its sections are saved; the essentials end
+ * the research, so they mark every group done.
+ */
+export function cmoResearch(
+  brandBrain: unknown,
+  /** The essentials, when the caller already parsed them. */
+  essentials: BrandBrain | null = parseBrandBrain(brandBrain),
+): CmoResearch {
+  const saved = new Set(brandBrainSectionsSaved(brandBrain));
+  const finished = essentials !== null;
+  return {
+    groups: CMO_RESEARCH_GROUPS.map(({ key, label, sections }) => ({
+      key,
+      label,
+      sections: [...sections],
+      state:
+        finished || sections.every((section) => saved.has(section))
+          ? "done"
+          : "running",
+    })),
+    preview: finished ? null : brandBrainPreview(brandBrain),
+  };
+}
+
+/**
+ * Starts learning again after a failed or stuck first look, after one that
+ * ended without the Brand Brain's essentials and asked nothing, or in place
+ * of one running past twice the usual time.
  */
 export async function retryCmoOnboarding(
   target: CusoTarget,
+  now: Date = new Date(),
 ): Promise<{ turnId: string }> {
   const { userId } = target;
   const cuso = await requireCuso(target);
-  const state = await cmoLearningState(cuso);
-  if (state === "running") {
-    throw new CmoConflictError("Cuso is still learning the business");
-  }
   if (parseBrandBrain(cuso.brandBrain)) {
     throw new CmoConflictError("Cuso already learned the business");
+  }
+  const turn = await newestResearchTurn(cuso.sokoBotId);
+  if (turn && (await settledTurnStatus(turn, now)) === "running") {
+    if (!cmoRunIsSlow("research", turn.createdAt, now)) {
+      throw new CmoConflictError("Cuso is still learning the business");
+    }
+    const { sokoBotControlPlane } = await import(
+      "@/services/soko-bot-control-plane.service"
+    );
+    await sokoBotControlPlane.expireTurn(turn.id);
   }
   const project = await prisma.project.findUnique({
     where: { id: cuso.projectId },
@@ -383,15 +557,23 @@ export async function startCmoOver(target: CusoTarget): Promise<void> {
  * Starts Cuso's research turn for a hire, as the member `userId`; the CMO lab
  * reruns it per brand.
  */
-export function startCmoResearch(
+export async function startCmoResearch(
   cuso: Cuso,
   userId: string,
+  clientTurnId = `${ONBOARDING_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
 ): Promise<{ turnId: string }> {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: cuso.sokoBotId },
+    select: { versionId: true },
+  });
+  const resuming = brandBrainSectionsSaved(cuso.brandBrain).length > 0;
+  const inParts = readsInParts(bot?.versionId ?? null);
   return startCmoTurn(cuso, userId, {
-    clientTurnId: `${ONBOARDING_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
-    message:
-      brandBrainSectionsSaved(cuso.brandBrain).length > 0
-        ? finishBrandBrainMessage(cuso)
+    clientTurnId,
+    message: resuming
+      ? finishBrandBrainMessage(cuso, inParts)
+      : inParts
+        ? essentialsFromPartsMessage(cuso)
         : onboardingMessage(cuso),
     route: CMO_ONBOARDING_ROUTE,
   });
@@ -656,6 +838,9 @@ export async function startCmoOnboarding(input: {
       });
     }),
   );
+  // The quick look gives the founder a line to read while the research
+  // runs; it fails quietly and the research never waits for it.
+  waitUntil(writeCmoQuickLook(created));
   // The homepage screenshots need no research either, so the Brand Brain
   // opens with them instead of waiting for the full capture.
   waitUntil(
@@ -669,11 +854,11 @@ export async function startCmoOnboarding(input: {
 
   // A turn that cannot start (no credits yet) leaves the hire ready:
   // the learning card offers Try again and says why when it fails again.
-  await startCmoTurn(created, input.userId, {
-    clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.sokoBotId}`,
-    message: onboardingMessage(created),
-    route: CMO_ONBOARDING_ROUTE,
-  }).catch((error) => {
+  await startCmoResearch(
+    created,
+    input.userId,
+    `${ONBOARDING_TURN_PREFIX}${created.sokoBotId}`,
+  ).catch((error) => {
     console.warn("CMO onboarding turn did not start", {
       sokoBotId: created.sokoBotId,
       error: error instanceof Error ? error.message : "unknown",

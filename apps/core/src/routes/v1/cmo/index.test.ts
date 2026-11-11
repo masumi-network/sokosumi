@@ -11,10 +11,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
+const { revertMock, overviewMock, strategyMock, fixMock } = vi.hoisted(() => ({
   revertMock: vi.fn(),
   overviewMock: vi.fn(),
   strategyMock: vi.fn(),
+  fixMock: vi.fn(),
 }));
 
 const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
@@ -47,6 +48,7 @@ vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   return {
     ...actual,
     requestCmoStrategy: strategyMock,
+    fixCmoBrandSection: fixMock,
   };
 });
 vi.mock("@/services/cmo-reports.service", async (importOriginal) => {
@@ -94,6 +96,17 @@ function overview() {
     subscriptionActive: false,
     viewerCanApprove: true,
     brandBrain: null,
+    research: {
+      groups: [
+        {
+          key: "website",
+          label: "Website",
+          sections: ["company", "offer", "pricing"],
+          state: "done",
+        },
+      ],
+      preview: { line: "You sell rockets to founders.", facts: ["Berlin"] },
+    },
     strategy: null,
     approvedStrategy: null,
     strategyVersions: [
@@ -320,6 +333,17 @@ describe("CMO routes", () => {
     expect(body.data.updates[0]).toMatchObject({ revertible: true });
     expect(body.data.updates[0].previousVersionId).toBeUndefined();
     expect(body.data.updates[0].versionId).toBeUndefined();
+    expect(body.data.research).toEqual({
+      groups: [
+        {
+          key: "website",
+          label: "Website",
+          sections: ["company", "offer", "pricing"],
+          state: "done",
+        },
+      ],
+      preview: { line: "You sell rockets to founders.", facts: ["Berlin"] },
+    });
     expect(body.data.posts).toEqual({
       draft: 3,
       scheduled: 2,
@@ -341,6 +365,88 @@ describe("CMO routes", () => {
       },
     );
     expect(response.status).toBe(409);
+  });
+
+  it("passes Try again's restart to the plan request", async () => {
+    strategyMock.mockResolvedValue({ turnId: "turn-2" });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/strategy`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ restart: true }),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(strategyMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      note: undefined,
+      patch: undefined,
+      restart: true,
+    });
+  });
+
+  it("asks for a patch, not a new plan, for a pace", async () => {
+    strategyMock.mockResolvedValue({ turnId: "turn-3" });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/strategy`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          note: "Switch to the active pace.",
+          patch: true,
+        }),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(strategyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        note: "Switch to the active pace.",
+        patch: true,
+      }),
+    );
+  });
+
+  it("fixes one Brand Brain section, or says the fix waits its turn", async () => {
+    fixMock.mockResolvedValueOnce({ turnId: "turn-4" });
+    fixMock.mockResolvedValueOnce({ queued: true });
+    const fix = () =>
+      createApp().request(`/projects/${PROJECT_ID}/brand/fix`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ section: "pricing", note: "From 19 dollars." }),
+      });
+
+    const started = await fix();
+    expect(started.status).toBe(201);
+    expect(await started.json()).toMatchObject({
+      data: { turnId: "turn-4", queued: false },
+    });
+    const queued = await fix();
+    expect(await queued.json()).toMatchObject({
+      data: { turnId: null, queued: true },
+    });
+    expect(fixMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      section: "pricing",
+      note: "From 19 dollars.",
+    });
+  });
+
+  it("refuses a fix for a section that does not exist", async () => {
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/brand/fix`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ section: "weather", note: "Sunny." }),
+      },
+    );
+    expect(response.status).toBe(422);
+    expect(fixMock).not.toHaveBeenCalled();
   });
 
   it("archives the named Cuso on starting over and names no next one", async () => {

@@ -137,6 +137,7 @@ import {
   type TableOperationCompletion,
 } from "@/helpers/data-table";
 import { moveDriveFile } from "@/helpers/drive-file-move";
+import { badRequest } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -181,6 +182,7 @@ import {
   publicDriveUrl,
   transferBetweenStores,
 } from "@/lib/drive-blob";
+import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import {
   evalCoworkerRefusal,
   globalCoworkersFor,
@@ -353,9 +355,11 @@ import {
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import {
+  CMO_CALENDAR_REVIEWS_PER_TURN,
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
   type CmoPlanReview,
+  cmoCalendarRepeats,
   cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
@@ -451,6 +455,7 @@ import {
   createSocialPost,
   getSocialPost,
   listSocialPosts,
+  ownMessageProblem,
   requireMonthPostPicture,
   scheduleSocialPost,
   updateSocialPost,
@@ -5709,6 +5714,18 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
+  /** What a check's model call cost, charged to the turn like its steps. */
+  private async chargeCheck(
+    input: ExecuteSokoBotToolInput,
+    modelId: string,
+    costUsd: number,
+  ): Promise<void> {
+    if (costUsd <= 0) return;
+    await new RuntimeEventLog(input.turnId, input.sessionId).append(
+      runtimeEvent("step.completed", { modelId, usage: { costUsd } }),
+    );
+  }
+
   /** Cuso's Brand Brain, strategy and reports, written to his Project. */
   /**
    * The plan's review while it waits for approval: the strategy skill's hard
@@ -5724,15 +5741,43 @@ export class SokoBotRuntimeService {
       approved: boolean;
       strategy: MarketingStrategyPlan | null;
       planSent: boolean;
+      /** This save is part calendar. */
+      calendarSent: boolean;
     },
   ): Promise<CmoPlanReview | null> {
     const { strategy } = plan;
     if (!strategy || plan.approved) return null;
-    const saves = await prisma.sokoBotToolCall.count({
-      where: { turnId: authorized.turn.id, capability: "save_strategy" },
-    });
-    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
-    const problems = cmoPlanProblems(strategy);
+    // Only saves that landed count: a refused save saved nothing to review.
+    const landedBefore = {
+      turnId: authorized.turn.id,
+      capability: "save_strategy",
+      status: "COMPLETED" as const,
+      NOT: { toolCallId: input.toolCallId },
+    };
+    const saves =
+      (await prisma.sokoBotToolCall.count({ where: landedBefore })) + 1;
+    // A plan saved in parts lands its calendar last, so calendar saves have
+    // their own reviews, however many plan and patch saves came before.
+    const reviewed = plan.calendarSent
+      ? await prisma.sokoBotToolCall.count({
+          // The review, not the input: a calendar's input is too long to
+          // keep whole, so its part is not stored.
+          where: {
+            ...landedBefore,
+            result: { path: ["review", "calendar"], equals: true },
+          },
+        })
+      : saves - 1;
+    if (
+      reviewed >=
+      (plan.calendarSent
+        ? CMO_CALENDAR_REVIEWS_PER_TURN
+        : CMO_PLAN_REVIEWS_PER_TURN)
+    )
+      return null;
+    const titles = await cmoCalendarRepeats(strategy.calendar);
+    await this.chargeCheck(input, EMBEDDING_MODEL, titles.costUsd);
+    const problems = [...cmoPlanProblems(strategy), ...titles.problems];
     const bot = plan.planSent
       ? await prisma.sokoBot.findUnique({
           where: { id: authorized.turn.sokoBotId },
@@ -5747,16 +5792,14 @@ export class SokoBotRuntimeService {
       const drift = await cmoPlanDrift({ strategy, brain });
       mainOffer = drift.verdict;
       if (drift.problem) problems.push(drift.problem);
-      if (drift.costUsd > 0) {
-        await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
-          runtimeEvent("step.completed", {
-            modelId: SOKO_BOT_JEV_MODEL,
-            usage: { costUsd: drift.costUsd },
-          }),
-        );
-      }
+      await this.chargeCheck(input, SOKO_BOT_JEV_MODEL, drift.costUsd);
     }
-    const review = { save: saves, mainOffer, problems };
+    const review = {
+      save: saves,
+      calendar: plan.calendarSent,
+      mainOffer,
+      problems,
+    };
     tryUseLogger()?.set({
       cmoPlanReview: {
         sokoBotId: authorized.turn.sokoBotId,
@@ -5829,6 +5872,24 @@ export class SokoBotRuntimeService {
                 ...(stored.questions.length > 0 ? [] : ["questions"]),
               ]
             : [];
+          // A first read in parts ends on this save: no closing step.
+          const endTurn = save.brandBrain
+            ? (
+                await import("@/services/cmo-hiring.service")
+              ).cmoResearchEndAnswer(
+                {
+                  clientTurnId:
+                    (
+                      await prisma.sokoBotTurn.findUnique({
+                        where: { id: authorized.turn.id },
+                        select: { clientTurnId: true },
+                      })
+                    )?.clientTurnId ?? null,
+                  versionId: authorized.turn.versionId,
+                },
+                stored,
+              )
+            : undefined;
           return {
             targetId: saved.id,
             result: {
@@ -5842,12 +5903,14 @@ export class SokoBotRuntimeService {
                     next: `Send ${missing.join(" and ")} with save_brand_brain, on their own (no brandBrain): they add to the essentials you saved.`,
                   }
                 : {}),
+              ...(endTurn ? { endTurn } : {}),
             },
           };
         }
         case "save_strategy": {
           const sent = parseCmoStrategySave(input.input);
-          const pieces = cmoStrategySavePart(input.input) === "pieces";
+          const part = cmoStrategySavePart(input.input);
+          const pieces = part === "pieces";
           // A rhythm or production run builds on the approved version.
           const turn = await prisma.sokoBotTurn.findUnique({
             where: { id: authorized.turn.id },
@@ -5858,7 +5921,15 @@ export class SokoBotRuntimeService {
             saveCmoStrategy(
               where,
               sent,
-              { turnId: authorized.turn.id, pieces, executing },
+              // A plan, change or patch that breaks a hard rule is refused
+              // at save time. A rhythm's save sees only 31 days of the
+              // calendar, so the review only advises it.
+              {
+                turnId: authorized.turn.id,
+                part,
+                executing,
+                rules: !pieces && !executing,
+              },
               tx,
             ),
           );
@@ -5878,18 +5949,21 @@ export class SokoBotRuntimeService {
             approved,
             strategy: stored,
             planSent: sent.summary !== undefined,
+            calendarSent: part === "calendar",
           });
           // Once the plan runs, the drafts are checked against the copy rules,
           // a filed piece's words as sent (the calendar holds only its file).
-          const draftProblems = approved
-            ? cmoDraftProblems([
+          const drafts = approved
+            ? await cmoDraftProblems([
                 ...calendar,
                 ...(sent.calendar ?? []).filter(
                   (entry) =>
                     isMarketingFilePiece(entry) && Boolean(entry.draft),
                 ),
               ])
-            : [];
+            : { problems: [], costUsd: 0 };
+          await this.chargeCheck(input, EMBEDDING_MODEL, drafts.costUsd);
+          const draftProblems = drafts.problems;
           const written = (entry: (typeof calendar)[number]) =>
             Boolean(entry.draft || entry.fileId);
           // Says which pieces still have no draft.
@@ -7516,6 +7590,20 @@ export class SokoBotRuntimeService {
                 ),
               )
             : { media: undefined, threadParts: undefined };
+        if (input.capability === "update_social_post") {
+          const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
+            input.input,
+          );
+          if (params.text) {
+            const own = await ownMessageProblem({
+              postId: params.postId,
+              workspaceId,
+              text: params.text,
+            });
+            await this.chargeCheck(input, EMBEDDING_MODEL, own.costUsd);
+            if (own.problem) throw badRequest(own.problem);
+          }
+        }
         return serializableTransaction(async (tx) => {
           await this.requireMutationAuthority(
             tx,

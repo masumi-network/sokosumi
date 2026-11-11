@@ -18,6 +18,7 @@ import {
   commentChecks,
   pollCmoCase,
   prepareCmoComments,
+  prepareCmoPlan,
   startCmoCase,
 } from "./eval-cmo-runner";
 import {
@@ -96,11 +97,15 @@ async function startScenario(
   bot: "soko-bot" | "cuso",
   lane: EvalLaneRecord,
   context: CaseContext,
-  prepare?: "cmo-comments",
+  prepare?: "cmo-comments" | "cmo-plan",
 ): Promise<CaseStart> {
   const sokoBotId = bot === "cuso" ? lane.cusoBotId : lane.sokoBotId;
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
-  const state = prepare ? { comments: await prepareCmoComments(lane) } : {};
+  if (prepare === "cmo-plan") await prepareCmoPlan(lane);
+  const state =
+    prepare === "cmo-comments"
+      ? { comments: await prepareCmoComments(lane) }
+      : {};
   if (bot === "soko-bot" && (context.firstOfSuite || scenario.setup))
     await resetEvalLaneForSokoBot(lane);
   for (const schedule of scenario.setup?.schedules ?? [])

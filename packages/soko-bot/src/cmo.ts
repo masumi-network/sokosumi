@@ -113,6 +113,44 @@ export const CMO_BRAND_SECTIONS: Record<
 };
 
 /**
+ * Cuso's research in six groups of Brand Brain sections, in the order the
+ * serial skill saves them. The CMO shows them as the research runs, and on a
+ * version that reads in groups each one is its own part of the turn.
+ */
+export const CMO_RESEARCH_GROUPS: readonly {
+  key: string;
+  label: string;
+  sections: readonly CmoBrandSectionKey[];
+}[] = [
+  {
+    key: "website",
+    label: "Website",
+    sections: ["company", "offer", "pricing"],
+  },
+  {
+    key: "buyers",
+    label: "Buyers' world",
+    sections: ["problems", "customers", "buyers", "value"],
+  },
+  {
+    key: "competitors",
+    label: "Competitors",
+    sections: ["positioning", "competition", "sales"],
+  },
+  {
+    key: "social",
+    label: "Social accounts",
+    sections: ["marketing", "content"],
+  },
+  { key: "reviews", label: "Reviews", sections: ["proof", "reputation"] },
+  {
+    key: "news",
+    label: "News and people",
+    sections: ["momentum", "opportunities"],
+  },
+];
+
+/**
  * What the owner can connect so Cuso measures the funnel instead of
  * estimating it. Ids are Composio toolkit slugs.
  */
@@ -240,12 +278,14 @@ export const CMO_PRODUCTION_MEDIA_PER_RUN = { images: 60, videos: 10 };
 /**
  * plan: every field but the calendar; calendar: the whole calendar; pieces:
  * only the social entries sent, written to the approved version's Social
- * posts by id (other channels are not produced); all: everything.
+ * posts by id (other channels are not produced); patch: only the entries
+ * and plan fields sent, everything else as saved; all: everything.
  */
 export const CMO_STRATEGY_SAVE_PARTS = [
   "plan",
   "calendar",
   "pieces",
+  "patch",
   "all",
 ] as const;
 export type CmoStrategySavePart = (typeof CMO_STRATEGY_SAVE_PARTS)[number];
@@ -560,5 +600,25 @@ export function parseCmoStrategySave(input: unknown): CmoStrategySave {
     const { calendar: _calendar, ...rest } = strategy;
     return rest;
   }
+  if (part === "patch") return patchFields(sent, strategy);
   return strategy;
+}
+
+/**
+ * A patch keeps only what the call really sent: a field the model filled
+ * with an empty list or left without a value is filler, and the plan keeps
+ * its own.
+ */
+function patchFields(
+  sent: Record<string, unknown>,
+  strategy: CmoStrategySave,
+): CmoStrategySave {
+  return Object.fromEntries(
+    Object.entries(strategy).filter(
+      ([key, value]) =>
+        key in sent &&
+        value !== undefined &&
+        !(Array.isArray(value) && value.length === 0),
+    ),
+  ) as CmoStrategySave;
 }

@@ -145,4 +145,44 @@ describe("runTurnLoop", () => {
     expect(result.text).toBe("Hi Patrick.");
     expect(model.doStreamCalls).toHaveLength(1);
   });
+
+  it("ends on the step whose tool said so, without a closing step", async () => {
+    const clock = { now: 0 };
+    const model = new MockLanguageModelV3({
+      doStream: async () =>
+        streamOf({
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_1",
+              toolName: "save",
+              input: "{}",
+            },
+          ],
+          finishReason: { unified: "tool-calls", raw: "tool_calls" },
+          warnings: [],
+          usage,
+        }),
+    });
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Save the essentials",
+      tools: {
+        save: tool({
+          inputSchema: z.object({}),
+          execute: async () => ({ endTurn: "Scheduling for everyone" }),
+        }),
+      },
+      maxSteps: 50,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => clock.now,
+    });
+
+    expect(model.doStreamCalls).toHaveLength(1);
+    expect(JSON.parse(result.text).message).toBe("Scheduling for everyone");
+  });
 });

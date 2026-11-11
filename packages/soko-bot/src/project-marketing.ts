@@ -61,6 +61,19 @@ export const cmoBrandSectionSchema = z.object({
   findings: z.array(cmoBrandFindingSchema).max(6).default([]),
   /** What still needs the owner or a source to confirm. */
   openQuestions: z.array(shortText).max(3).default([]),
+  /**
+   * The owner's correction: what is true instead, when they asked, and
+   * whether the section was rewritten to match it. Set by Core; anything a
+   * save sends here is ignored.
+   */
+  fix: z
+    .object({
+      note: shortText,
+      /** When the owner asked, as an ISO time. */
+      at: z.string().max(40),
+      fixed: z.boolean(),
+    })
+    .optional(),
 });
 export type CmoBrandSection = z.infer<typeof cmoBrandSectionSchema>;
 
@@ -855,5 +868,19 @@ export const marketingStrategyPlanSchema = z.object({
   previews: z.array(cmoPreviewSchema).max(4).default([]),
   /** After a change request: what is different from the last version. */
   changes: z.array(shortText).max(10).default([]),
+  /**
+   * What the last patch changed: each entry it touched, with the entry as it
+   * was before (null when the patch added it), so CMO can strike it through.
+   * Set by Core; the next whole save clears it.
+   */
+  patched: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(64),
+        was: cmoCalendarEntrySchema.nullable(),
+      }),
+    )
+    .max(120)
+    .default([]),
 });
 export type MarketingStrategyPlan = z.infer<typeof marketingStrategyPlanSchema>;
