@@ -1693,6 +1693,7 @@
         "feedbackUseful": "Useful",
         "feedbackNotUseful": "Not useful",
         "feedbackThanks": "Thanks, noted.",
+        "feedbackError": "Could not save your rating.",
         "approvals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
         "review": "Review on the assistant page",
         "task": "Task",

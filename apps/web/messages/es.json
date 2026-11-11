@@ -1693,6 +1693,7 @@
         "feedbackUseful": "Útil",
         "feedbackNotUseful": "No útil",
         "feedbackThanks": "Gracias, anotado.",
+        "feedbackError": "No se pudo guardar tu valoración.",
         "approvals": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}",
         "review": "Revisar en la página del asistente",
         "task": "Task",
