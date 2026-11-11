@@ -1,5 +1,8 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 
+import { writeOffProjectCredits } from "@/helpers/cuso-project-credits";
+import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
+
 export interface CompensatingRefundInput {
   /** Positive cents. Callers already negated the debit. */
   amount: bigint;
@@ -8,47 +11,89 @@ export interface CompensatingRefundInput {
   organizationId: string | null;
   referenceId: string;
   /** The spend's consumptions, read with `COMPENSATED_SPEND_CONSUMPTIONS_SELECT`. */
-  consumptions: readonly { bucket: { projectId: string | null } }[];
+  consumptions: readonly {
+    amount: bigint;
+    bucket: { projectId: string | null };
+  }[];
 }
 
-/** Selects, on the spend transaction, what the refund needs to keep its Project. */
+/** Selects, on the spend transaction, what the refund needs to keep its scopes. */
 export const COMPENSATED_SPEND_CONSUMPTIONS_SELECT = {
-  creditConsumptions: { select: { bucket: { select: { projectId: true } } } },
+  creditConsumptions: {
+    select: { amount: true, bucket: { select: { projectId: true } } },
+  },
 } satisfies Prisma.TransactionInclude;
 
 /**
- * Nested transaction create shared by job, claim, and x402 refunds.
+ * Creates the refund shared by job, claim, and x402 refunds, and returns the
+ * id of the refund transaction the caller links to its record.
+ *
+ * Split by scope (ADR 0067): each Project's part goes back to that Project
+ * and the rest to the pool, one refund transaction and bucket per scope,
+ * since a bucket has one source transaction. The Project part comes first
+ * and is the one linked: a charge draws its Project's credits first.
+ * shortcut: only the linked part joins its record, so a split refund's pool part shows as an unlinked refund in history and Soko Bot usage; link both if splits become common.
+ *
+ * A Project part whose Project has no live Cuso is written off in the same
+ * transaction, so the refund stays in history but an ordinary Project can't
+ * spend it.
  *
  * Always unchecked scalars so org `userId: null` and personal `userId` share
  * one shape. Org refunds leave the ledger actor null; personal refunds stamp
- * the spend actor. The debit may have consumed expiring buckets, so the
- * refund bucket does not expire.
- *
- * A charge carries one Project, so it drew that Project's credits and then the
- * pool. One refund bucket per transaction, so a refund of a charge that spent
- * any Project credits goes back to that Project whole (ADR 0067).
+ * the spend actor. The debit may have consumed expiring buckets, so refund
+ * buckets do not expire.
  */
-export function buildCompensatingRefundTransactionCreate(
+export async function createCompensatingRefund(
+  tx: Prisma.TransactionClient,
   input: CompensatingRefundInput,
-): Prisma.TransactionUncheckedCreateInput {
-  const isOrg = input.organizationId != null;
+): Promise<string> {
+  const projectParts = new Map<string, bigint>();
+  for (const { amount, bucket } of input.consumptions) {
+    if (bucket.projectId === null) continue;
+    projectParts.set(
+      bucket.projectId,
+      (projectParts.get(bucket.projectId) ?? 0n) + amount,
+    );
+  }
+  let poolPart = input.amount;
+  for (const amount of projectParts.values()) poolPart -= amount;
 
-  return {
-    amount: input.amount,
-    organizationId: input.organizationId,
-    userId: isOrg ? null : input.actorUserId,
-    sourceCreditBucket: {
-      create: {
-        amount: input.amount,
-        referenceId: input.referenceId,
-        referenceType: CreditBucketReferenceType.REFUND,
-        expiresAt: null,
-        userId: isOrg ? null : input.actorUserId,
+  const parts: [string | null, bigint][] = [...projectParts];
+  if (poolPart > 0n || parts.length === 0) parts.push([null, poolPart]);
+
+  const isOrg = input.organizationId != null;
+  const userId = isOrg ? null : input.actorUserId;
+  const ids: string[] = [];
+  for (const [projectId, amount] of parts) {
+    const refund = await tx.transaction.create({
+      data: {
+        amount,
         organizationId: input.organizationId,
-        projectId:
-          input.consumptions.find(({ bucket }) => bucket.projectId !== null)
-            ?.bucket.projectId ?? null,
+        userId,
+        sourceCreditBucket: {
+          create: {
+            amount,
+            referenceId: input.referenceId,
+            referenceType: CreditBucketReferenceType.REFUND,
+            expiresAt: null,
+            userId,
+            organizationId: input.organizationId,
+            projectId,
+          },
+        },
       },
-    },
-  };
+      select: { id: true },
+    });
+    ids.push(refund.id);
+  }
+
+  for (const projectId of projectParts.keys()) {
+    const cuso = await tx.sokoBot.findFirst({
+      where: { ...LIVE_CUSO_WHERE, projectId },
+      select: { id: true },
+    });
+    if (!cuso) await writeOffProjectCredits(projectId, tx);
+  }
+
+  return ids[0] as string;
 }

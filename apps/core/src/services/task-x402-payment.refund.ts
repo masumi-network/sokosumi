@@ -5,8 +5,9 @@ import {
 } from "@sokosumi/database";
 
 import {
-  buildCompensatingRefundTransactionCreate,
   COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
+  type CompensatingRefundInput,
+  createCompensatingRefund,
 } from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
 import type {
@@ -80,7 +81,7 @@ interface RefundablePayment {
     amount: bigint;
     userId: string | null;
     organizationId: string | null;
-    creditConsumptions: { bucket: { projectId: string | null } }[];
+    creditConsumptions: CompensatingRefundInput["consumptions"];
   };
 }
 
@@ -198,8 +199,8 @@ async function writePaymentOutcomeAudit(
  * automated refusal refund and both operator levers so all three mint the exact
  * same refund shape (mirrors refundFailedTaskPaymentClaim).
  *
- * KNOWN TRIPLICATION: the nested refund-transaction + REFUND-bucket stamp
- * now lives in `buildCompensatingRefundTransactionCreate`. Remaining local
+ * KNOWN TRIPLICATION: the refund-transaction + REFUND-bucket stamp
+ * now lives in `createCompensatingRefund`. Remaining local
  * duplication is parent attach, referenceId, and refundKind, not bucket
  * ownership.
  *
@@ -224,22 +225,21 @@ async function attachCompensatingRefund(
     throw new Error(`Task x402 payment ${payment.id} has no debit to refund`);
   }
 
+  const refundId = await createCompensatingRefund(tx, {
+    amount: refundAmount,
+    actorUserId: requireSpendUserId(
+      payment.transaction.userId,
+      `Task x402 payment ${payment.id}`,
+    ),
+    organizationId: payment.transaction.organizationId,
+    referenceId: `task-x402-payment:${payment.id}`,
+    consumptions: payment.transaction.creditConsumptions,
+  });
   const updatedPayment = await tx.taskX402Payment.update({
     where: { id: payment.id },
     data: {
       refundKind: kind,
-      refundTransaction: {
-        create: buildCompensatingRefundTransactionCreate({
-          amount: refundAmount,
-          actorUserId: requireSpendUserId(
-            payment.transaction.userId,
-            `Task x402 payment ${payment.id}`,
-          ),
-          organizationId: payment.transaction.organizationId,
-          referenceId: `task-x402-payment:${payment.id}`,
-          consumptions: payment.transaction.creditConsumptions,
-        }),
-      },
+      refundTransaction: { connect: { id: refundId } },
     },
     select: { refundTransactionId: true },
   });
@@ -271,8 +271,8 @@ export async function refundRefusedTaskX402Payment(
   return await prisma.$transaction(async (tx) => {
     const claimed = await tx.taskX402Payment.updateMany({
       // `refundTransactionId: null` for the same reason both operator levers
-      // carry it: an occupied optional one-to-one does not make the nested
-      // create in attachCompensatingRefund fail, it re-points the FK, so
+      // carry it: an occupied optional one-to-one does not make the
+      // link in attachCompensatingRefund fail, it re-points the FK, so
       // status alone would let this path mint a second refund and orphan the
       // first. Unreachable through app code; the invariant belongs in the
       // predicate anyway.
@@ -398,7 +398,7 @@ export async function refundVerifiedTaskX402Payment(
     //
     // `refundTransactionId: null` is part of the claim, not a downstream check.
     // Nothing else stops a second refund on a row that somehow already has one:
-    // `attachCompensatingRefund`'s nested create does NOT fail on an occupied
+    // `attachCompensatingRefund`'s connect does NOT fail on an occupied
     // optional one-to-one — Prisma re-points the FK, so the lever would mint a
     // second refund transaction and a second non-expiring REFUND bucket, orphan
     // the first, and write an audit row claiming one compensation. Unreachable
@@ -562,7 +562,7 @@ export async function resolvePendingTaskX402Payment(
     //
     // `refundTransactionId: null` is in the predicate for the same reason it is
     // in the goodwill lever's — see there. An occupied optional one-to-one does
-    // not make the nested create fail; it re-points the FK.
+    // not make the link fail; it re-points the FK.
     const now = new Date();
     const leaseCutoff = new Date(now.getTime() - TASK_X402_SIGN_LEASE_MS);
     const conservativeRiskCutoff = new Date(

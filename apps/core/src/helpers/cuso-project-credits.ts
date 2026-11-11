@@ -20,8 +20,18 @@ export async function forfeitCusoProjectCredits(
     select: { projectId: true },
   });
   if (!cuso?.projectId) return;
-  const projectId = cuso.projectId;
+  await writeOffProjectCredits(cuso.projectId, tx);
+}
 
+/**
+ * Writes off what is left of one Project's credits. Also used for a refund
+ * that lands after the Project lost its live Cuso, and for a version change
+ * that takes Cuso off CMO.
+ */
+export async function writeOffProjectCredits(
+  projectId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
   const now = new Date();
   const buckets = await tx.$queryRaw<
     Array<{
