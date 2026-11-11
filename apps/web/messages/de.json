@@ -11271,8 +11271,6 @@
         "channel": "Traffic",
         "channelAll": "Gesamter Website-Traffic",
         "channelOrganic": "Organische Suche",
-        "from": "Startdatum",
-        "to": "Enddatum",
         "submit": "Statistiken synchronisieren",
         "propertiesLoading": "Autorisierte Properties werden geladen",
         "propertiesFailed": "Properties konnten nicht geladen werden. Versuche es erneut.",
@@ -11280,11 +11278,12 @@
         "ownerOnly": "Statistiken nutzen das Konto und die Zugriffsrechte der synchronisierenden Person.",
         "shared": "Gespeicherte Statistiken werden in diesem Audit mit deiner Organisation geteilt. Dein Google-Konto bleibt unter deiner Kontrolle.",
         "synced": "Statistiken synchronisiert",
-        "invalidDates": "Wähle einen gültigen Zeitraum von bis zu 366 Tagen.",
+        "readsSearch": "Liest die letzten {days} Tage der Google-Suchdaten.",
+        "readsOrganic": "Liest die letzten {days} Tage des Traffics aus der organischen Suche.",
+        "readsAll": "Liest die letzten {days} Tage des gesamten Website-Traffics.",
         "channelAny": "Alle gemessenen Segmente",
-        "lastDays": "Letzte {days} Tage",
         "connectTitle": "Statistiken einrichten",
-        "connectFirst": "Verbinde zuerst {provider}. Danach wählst du hier die Property und den Zeitraum."
+        "connectFirst": "Verbinde zuerst {provider}. Danach synchronisierst du hier die Statistiken."
       },
       "metrics": {
         "page_views": "Seitenaufrufe",

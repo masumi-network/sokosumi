@@ -11271,8 +11271,6 @@
         "channel": "Traffic",
         "channelAll": "All website traffic",
         "channelOrganic": "Organic search",
-        "from": "Start date",
-        "to": "End date",
         "submit": "Sync statistics",
         "propertiesLoading": "Loading authorized properties",
         "propertiesFailed": "Failed to load properties. Try again.",
@@ -11280,11 +11278,12 @@
         "ownerOnly": "Statistics use the account and access of the person who syncs them.",
         "shared": "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
         "synced": "Statistics synced",
-        "invalidDates": "Choose a valid date range of up to 366 days.",
+        "readsSearch": "Reads the last {days} days of Google search data.",
+        "readsOrganic": "Reads the last {days} days of organic search traffic.",
+        "readsAll": "Reads the last {days} days of all website traffic.",
         "channelAny": "All measured segments",
-        "lastDays": "Last {days} days",
         "connectTitle": "Set up statistics",
-        "connectFirst": "Connect {provider} first. You then choose the property and the period here."
+        "connectFirst": "Connect {provider} first. You can then sync its statistics here."
       },
       "metrics": {
         "page_views": "Page views",

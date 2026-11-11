@@ -2325,12 +2325,10 @@ describe("SEO workspace integration", () => {
           within(dialog).getByRole("combobox", { name: "Property" }),
         ).toHaveTextContent("Example website"),
       );
-      expect(within(dialog).getByLabelText("Start date")).toHaveValue(
-        "2026-01-01",
-      );
-      expect(within(dialog).getByLabelText("End date")).toHaveValue(
-        "2026-01-02",
-      );
+      // The saved period is not offered again: every sync reads the same rolling days.
+      expect(
+        within(dialog).getByTestId("seo-statistics-reads"),
+      ).toHaveTextContent("Reads the last 90 days of Google search data.");
       await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     }
   });
@@ -2343,7 +2341,7 @@ describe("SEO workspace integration", () => {
       to: "2026-11-05",
     },
   ])(
-    "keeps Audit activity dates ($from / $to) when syncing a different Google reporting period",
+    "keeps Audit activity dates ($from / $to) when a sync reads its own 90 days",
     async ({ query, from, to }) => {
       const user = userEvent.setup();
       const workspace = seoTestWorkspace();
@@ -2364,23 +2362,15 @@ describe("SEO workspace integration", () => {
       renderWorkspace(workspace, `tab=traffic&${query}`);
       await openStatisticsSetup(user);
       const dialog = screen.getByRole("dialog");
-      await waitFor(() =>
-        expect(
-          within(dialog).getByRole("combobox", { name: "Property" }),
-        ).toHaveTextContent("Example website"),
-      );
-      fireEvent.change(within(dialog).getByLabelText("Start date"), {
-        target: { value: "2026-10-01" },
-      });
-      fireEvent.change(within(dialog).getByLabelText("End date"), {
-        target: { value: "2026-10-31" },
-      });
+      // One property: it is chosen, and shown as a line.
+      expect(await within(dialog).findByText("Example website")).toBeVisible();
       await user.click(
         within(dialog).getByRole("button", { name: "Sync statistics" }),
       );
+      // A new Google Analytics sync reads organic search, and the view follows it.
       await waitFor(() =>
         expect(fetch).toHaveBeenCalledWith(
-          expect.stringContaining("channel=all"),
+          expect.stringContaining("channel=organic"),
           expect.anything(),
         ),
       );
@@ -2400,12 +2390,18 @@ describe("SEO workspace integration", () => {
             body: expect.objectContaining({
               provider: "ga4",
               propertyId: "properties/123",
-              from: "2026-10-01",
-              to: "2026-10-31",
+              channel: "organic",
             }),
           },
         }),
       );
+      // The period is the 90 complete days up to yesterday, whatever the Audit's dates are.
+      const body = mutate.mock.calls[0][0].command.body;
+      const day = 86_400_000;
+      expect(body.to).toBe(
+        new Date(Date.now() - day).toISOString().slice(0, 10),
+      );
+      expect((Date.parse(body.to) - Date.parse(body.from)) / day).toBe(89);
     },
   );
 
@@ -3058,10 +3054,8 @@ describe("SEO workspace integration", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("combobox", { name: "Source" }));
     await user.click(screen.getByRole("option", { name: "Search Console" }));
-    await user.click(
-      await within(dialog).findByRole("combobox", { name: "Property" }),
-    );
-    await user.click(screen.getByRole("option", { name: "Website property" }));
+    // The one property is chosen for the reader.
+    expect(await within(dialog).findByText("Website property")).toBeVisible();
     await user.click(
       within(dialog).getByRole("button", { name: "Sync statistics" }),
     );
@@ -3110,9 +3104,7 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
-    expect(
-      await screen.findByRole("combobox", { name: "Property" }),
-    ).toBeVisible();
+    expect(await screen.findByText("Current Google account")).toBeVisible();
     // The account is one line; its two actions are in the line's menu.
     await userEvent.click(
       await screen.findByRole("button", { name: "Google Analytics connected" }),
@@ -3124,7 +3116,7 @@ describe("SEO workspace integration", () => {
     expect(await screen.findByRole("alertdialog")).toBeVisible();
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
-    expect(screen.getByRole("combobox", { name: "Property" })).toBeVisible();
+    expect(screen.getByText("Current Google account")).toBeVisible();
   });
 
   it("opens embedded SEO chat without assistant setup, navigation, or a paid send", async () => {
@@ -3998,10 +3990,10 @@ describe("SEO workspace integration", () => {
     expect(
       within(dialog).getByText(
         // No account at all: Search Console is the first one to connect.
-        "Connect Search Console first. You then choose the property and the period here.",
+        "Connect Search Console first. You can then sync its statistics here.",
       ),
     ).toBeVisible();
-    expect(within(dialog).queryByLabelText("Start date")).toBeNull();
+    expect(within(dialog).queryByTestId("seo-statistics-reads")).toBeNull();
     expect(
       within(dialog).queryByRole("button", { name: "Sync statistics" }),
     ).toBeNull();

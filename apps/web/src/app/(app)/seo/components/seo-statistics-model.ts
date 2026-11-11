@@ -4,10 +4,16 @@ import type {
 } from "@sokosumi/core-client";
 import { seoStatisticsLostData } from "@sokosumi/utils";
 
-export const SEO_STATISTICS_PERIODS = [7, 28, 90] as const;
-export const SEO_DEFAULT_STATISTICS_DAYS = 28;
-const MILLISECONDS_PER_DAY = 86_400_000;
-const MAX_STATISTICS_DAYS = 366;
+/**
+ * The days every sync reads; the reader does not choose a range. A quarter gives the trend a
+ * line, and the equal window before it is still inside the 16 months Search Console keeps, so
+ * Core can compare the totals with the quarter before.
+ */
+export const SEO_DEFAULT_STATISTICS_DAYS = 90;
+/** A Search Console property for a whole domain starts with this. */
+const SEARCH_DOMAIN_PROPERTY = "sc-domain:";
+/** A domain property covers every address of the site, so it beats an address-prefix property. */
+const DOMAIN_PROPERTY_RANK = 10_000;
 
 export type SeoStatisticsProvider = "ga4" | "search_console";
 
@@ -51,17 +57,50 @@ export function savedSeoStatistics(
 }
 
 /** The preset whose dates these are, so its button shows as chosen. Null for other dates. */
-export function seoStatisticsPreset(
-  from: string,
-  to: string,
-  now = new Date(),
-) {
-  return (
-    SEO_STATISTICS_PERIODS.find((days) => {
-      const period = seoStatisticsPeriod(days, now);
-      return period.from === from && period.to === to;
-    }) ?? null
-  );
+/**
+ * The property that holds the audit's page, so the reader does not choose among several.
+ * Search Console names a property by its domain or by an address prefix: the closest one wins.
+ * Google Analytics names a property freely: one name with the page's host counts.
+ * No match, or two equal matches: no guess, and the reader chooses.
+ */
+export function seoMatchingProperty(
+  provider: SeoStatisticsProvider,
+  properties: readonly { id: string; name: string }[],
+  pageUrl: string | undefined,
+): string {
+  if (properties.length === 1) return properties[0].id;
+  let page: URL;
+  try {
+    page = new URL(pageUrl ?? "");
+  } catch {
+    return "";
+  }
+  const host = page.hostname.replace(/^www\./, "");
+  const rank = (property: { id: string; name: string }) => {
+    if (provider === "ga4")
+      return property.name.toLowerCase().includes(host) ? 1 : 0;
+    if (property.id.startsWith(SEARCH_DOMAIN_PROPERTY)) {
+      const domain = property.id
+        .slice(SEARCH_DOMAIN_PROPERTY.length)
+        .toLowerCase();
+      return host === domain || host.endsWith(`.${domain}`)
+        ? DOMAIN_PROPERTY_RANK + domain.length
+        : 0;
+    }
+    return page.href.startsWith(property.id) ? property.id.length : 0;
+  };
+  let best = "";
+  let bestRank = 0;
+  let tied = false;
+  for (const property of properties) {
+    const value = rank(property);
+    if (value > bestRank) {
+      best = property.id;
+      bestRank = value;
+      tied = false;
+    } else if (value && value === bestRank) tied = true;
+  }
+  return tied ? "" : best;
 }
 
 export function seoStatisticsPeriod(days: number, now = new Date()) {
@@ -73,17 +112,6 @@ export function seoStatisticsPeriod(days: number, now = new Date()) {
     from: from.toISOString().slice(0, 10),
     to: until.toISOString().slice(0, 10),
   };
-}
-
-export function invalidSeoStatisticsPeriod(from: string, to: string) {
-  const days = (Date.parse(to) - Date.parse(from)) / MILLISECONDS_PER_DAY;
-  return (
-    !from ||
-    !to ||
-    !Number.isFinite(days) ||
-    days < 0 ||
-    days >= MAX_STATISTICS_DAYS
-  );
 }
 
 /**

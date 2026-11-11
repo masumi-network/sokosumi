@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   cleanup,
-  fireEvent,
   render,
   screen,
   waitFor,
@@ -182,7 +181,7 @@ describe("statistics source and property recovery", () => {
     expect(viewers.every((id) => id === "owner")).toBe(true);
   });
 
-  it("syncs the displayed source's saved property and period while generic setup keeps the newest source", async () => {
+  it("syncs the displayed source's saved property and traffic while generic setup keeps the newest source", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.observations = [
@@ -250,28 +249,30 @@ describe("statistics source and property recovery", () => {
         within(dialog).getByRole("combobox", { name: "Property" }),
       ).toHaveTextContent("Saved Analytics property"),
     );
-    expect(within(dialog).getByLabelText("Start date")).toHaveValue(
-      "2026-09-01",
-    );
-    expect(within(dialog).getByLabelText("End date")).toHaveValue("2026-09-28");
+    // No range and no traffic field: the dialog says what it reads. The saved source keeps its traffic.
+    expect(within(dialog).queryByLabelText("Start date")).toBeNull();
     expect(
-      within(dialog).getByRole("combobox", { name: "Traffic" }),
-    ).toHaveTextContent("All website traffic");
-    fireEvent.change(within(dialog).getByLabelText("Start date"), {
-      target: { value: "2026-09-02" },
-    });
+      within(dialog).queryByRole("combobox", { name: "Traffic" }),
+    ).toBeNull();
+    expect(
+      within(dialog).getByTestId("seo-statistics-reads"),
+    ).toHaveTextContent("Reads the last 90 days of all website traffic.");
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await openStatisticsSetup(user);
     const generic = screen.getByRole("dialog");
     expect(
       within(generic).getByRole("combobox", { name: "Source" }),
     ).toHaveTextContent("Search Console");
-    expect(within(generic).getByLabelText("Start date")).toHaveValue(
-      "2026-10-01",
-    );
-    expect(within(generic).getByLabelText("End date")).toHaveValue(
-      "2026-10-28",
-    );
+    // One property: a line, not a field.
+    expect(
+      await within(generic).findByText("Saved Search property"),
+    ).toBeVisible();
+    expect(
+      within(generic).queryByRole("combobox", { name: "Property" }),
+    ).toBeNull();
+    expect(
+      within(generic).getByTestId("seo-statistics-reads"),
+    ).toHaveTextContent("Reads the last 90 days of Google search data.");
     expect(mutate).not.toHaveBeenCalled();
   });
 
@@ -298,7 +299,7 @@ describe("statistics source and property recovery", () => {
     const { finish } = await renderWithPendingAgentRefresh();
     await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
-    await within(dialog).findByRole("combobox", { name: "Property" });
+    await within(dialog).findByTestId("seo-statistics-reads");
     await user.click(
       within(dialog).getByRole("button", { name: "Sync statistics" }),
     );
@@ -308,7 +309,43 @@ describe("statistics source and property recovery", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("retries a temporary unavailable property result in place without replacing edited dates", async () => {
+  it("chooses the property that names the audit's site among several", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        const url = new URL(input, "https://web.test");
+        return Response.json(
+          url.pathname.endsWith("statistics/properties")
+            ? {
+                provider: "ga4",
+                status: "available",
+                reason: null,
+                properties: [
+                  { id: "properties/1", name: "Company blog" },
+                  { id: "properties/2", name: "example.com website" },
+                ],
+              }
+            : workspace,
+        );
+      }),
+    );
+    renderWorkspace(workspace);
+    await openStatisticsSetup(user);
+    const dialog = screen.getByRole("dialog");
+    // Nothing is saved and nothing is clicked: the sync is ready.
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("combobox", { name: "Property" }),
+      ).toHaveTextContent("example.com website"),
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Sync statistics" }),
+    ).toBeEnabled();
+  });
+
+  it("retries a temporary unavailable property result in place", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     let propertyReads = 0;
@@ -343,22 +380,12 @@ describe("statistics source and property recovery", () => {
     await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
     await within(dialog).findByText("Temporary native property read failure");
-    fireEvent.change(within(dialog).getByLabelText("Start date"), {
-      target: { value: "2026-09-01" },
-    });
-    fireEvent.change(within(dialog).getByLabelText("End date"), {
-      target: { value: "2026-09-28" },
-    });
     expect(
       within(dialog).getByRole("button", { name: "Sync statistics" }),
     ).toBeDisabled();
     await user.click(within(dialog).getByRole("button", { name: "Try again" }));
     await within(dialog).findByRole("combobox", { name: "Property" });
     expect(propertyReads).toBe(2);
-    expect(within(dialog).getByLabelText("Start date")).toHaveValue(
-      "2026-09-01",
-    );
-    expect(within(dialog).getByLabelText("End date")).toHaveValue("2026-09-28");
     expect(mutate).not.toHaveBeenCalled();
   });
 });

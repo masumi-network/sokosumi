@@ -10,13 +10,13 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
+import { seoScopePage } from "./seo-form-model";
 import {
-  invalidSeoStatisticsPeriod,
   SEO_DEFAULT_STATISTICS_DAYS,
   type SeoStatisticsProvider,
   savedSeoStatistics,
+  seoMatchingProperty,
   seoStatisticsPeriod,
-  seoStatisticsPreset,
 } from "./seo-statistics-model";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -62,16 +62,11 @@ export function useSeoStatistics(
     );
   const provider: SeoStatisticsProvider = chosenProvider ?? "ga4";
   const [chosenPropertyId, setPropertyId] = useState(saved?.propertyId ?? "");
-  const [channel, setChannel] = useState<"all" | "organic">(
-    source && saved
-      ? saved.channel
-      : (model.filters.channel ?? saved?.channel ?? "all"),
-  );
-  const [defaultPeriod] = useState(() =>
-    seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS),
-  );
-  const [from, setFrom] = useState(saved?.from ?? defaultPeriod.from);
-  const [to, setTo] = useState(saved?.to ?? defaultPeriod.to);
+  // No choice for the reader: Search Console counts Google search only, and for Google Analytics
+  // an SEO audit reads organic search. A source that is saved keeps its channel, so the new
+  // numbers show in the same view.
+  const channel: "all" | "organic" =
+    provider === "search_console" ? "organic" : (saved?.channel ?? "organic");
   const properties = useQuery<ProjectSeoStatisticsProperties>({
     queryKey: [
       "seo-properties",
@@ -119,39 +114,35 @@ export function useSeoStatistics(
     (item) => item.id === chosenPropertyId,
   )
     ? chosenPropertyId
-    : availableProperties.length === 1
-      ? availableProperties[0].id
-      : "";
-  const invalidDates = invalidSeoStatisticsPeriod(from, to);
+    : seoMatchingProperty(
+        provider,
+        availableProperties,
+        seoScopePage(workspace)?.url,
+      );
   function changeProvider(value: string) {
     if (value !== "ga4" && value !== "search_console") return;
     setProvider(value);
     setPropertyId("");
   }
-  function setPeriod(days: number) {
-    const period = seoStatisticsPeriod(days);
-    setFrom(period.from);
-    setTo(period.to);
-  }
   async function submit() {
     if (
       propertiesUnavailable ||
-      invalidDates ||
       !properties.data?.properties.some(
         (property) => property.id === propertyId,
       )
     )
       return;
-    const selectedChannel = provider === "search_console" ? "organic" : channel;
+    // The period ends yesterday, read when the sync starts: a dialog left open over midnight stays right.
+    const period = seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS);
     const saved = await model.execute(
       {
         kind: "sync_statistics",
         body: {
           provider,
           propertyId,
-          from,
-          to,
-          channel: selectedChannel,
+          from: period.from,
+          to: period.to,
+          channel,
           ...(workspace.scope.id
             ? {
                 scopeId: workspace.scope.id,
@@ -162,7 +153,7 @@ export function useSeoStatistics(
       },
       t("statistics.synced"),
     );
-    if (saved) await model.setFilters({ channel: selectedChannel });
+    if (saved) await model.setFilters({ channel });
   }
   return {
     provider,
@@ -170,16 +161,8 @@ export function useSeoStatistics(
     propertyId,
     setPropertyId,
     channel,
-    setChannel,
     properties,
     propertiesUnavailable,
-    from,
-    setFrom,
-    to,
-    setTo,
-    setPeriod,
-    preset: seoStatisticsPreset(from, to),
-    invalidDates,
     submit,
   };
 }

@@ -104,6 +104,16 @@ export function seoMonitorRunCount(form: FormData) {
   return count;
 }
 
+/** The first page of the selection: the page a default (a market, a statistics property) is read from. */
+export function seoScopePage(
+  workspace: Pick<ProjectSeoWorkspace, "pages" | "scope">,
+) {
+  return (
+    workspace.pages.find((page) => workspace.scope.pageIds.includes(page.id)) ??
+    workspace.pages[0]
+  );
+}
+
 /** The page a new page relates to by default: the first page that stands alone. */
 export function seoMainPageId(workspace: ProjectSeoWorkspace): string {
   const main =

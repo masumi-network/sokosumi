@@ -2,7 +2,7 @@ import type {
   ProjectSeoKeyword,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
-import { formLines, SEO_COUNTRIES } from "./seo-form-model";
+import { formLines, SEO_COUNTRIES, seoScopePage } from "./seo-form-model";
 
 export type SeoAnalysisSavedKeyword = Pick<
   ProjectSeoKeyword,
@@ -67,12 +67,11 @@ export function seoDefaultMarket(
     }
   }
   if (last) return last;
-  const page =
-    workspace.pages.find((row) => workspace.scope.pageIds.includes(row.id)) ??
-    workspace.pages[0];
   let domain = "";
   try {
-    domain = new URL(page?.url ?? "").hostname.split(".").at(-1) ?? "";
+    domain =
+      new URL(seoScopePage(workspace)?.url ?? "").hostname.split(".").at(-1) ??
+      "";
   } catch {
     // A page without a readable address names no country.
   }

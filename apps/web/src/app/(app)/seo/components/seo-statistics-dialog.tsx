@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { PerformanceDateRange } from "@/components/performance/performance-date-range";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,12 +10,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoField, SeoSelect } from "./seo-form-fields";
-import { SEO_CHOSEN_CLASS } from "./seo-shared";
 import {
-  SEO_STATISTICS_PERIODS,
+  SEO_DEFAULT_STATISTICS_DAYS,
   type SeoStatisticsProvider,
 } from "./seo-statistics-model";
 import { useSeoStatistics } from "./use-seo-statistics";
@@ -97,6 +94,14 @@ export function SeoStatisticsDialog({
                 {t("retry")}
               </Button>
             </div>
+          ) : properties?.properties.length === 1 ? (
+            // One property: nothing to choose, so it is a line and not a field.
+            <p className="text-sm">
+              <span className="text-muted-foreground">
+                {t("statistics.property")}:{" "}
+              </span>
+              {properties.properties[0].name}
+            </p>
           ) : properties?.properties.length ? (
             <SeoField
               id="seo-statistics-property"
@@ -130,7 +135,19 @@ export function SeoStatisticsDialog({
               void form.properties.refetch();
             }}
           />
-          {connectFirst ? null : <SeoStatisticsPeriod form={form} />}
+          {connectFirst || !properties?.properties.length ? null : (
+            // The period and the traffic are set: the reader has no range or channel to choose.
+            <p className="text-sm" data-testid="seo-statistics-reads">
+              {t(
+                form.provider === "search_console"
+                  ? "statistics.readsSearch"
+                  : form.channel === "organic"
+                    ? "statistics.readsOrganic"
+                    : "statistics.readsAll",
+                { days: SEO_DEFAULT_STATISTICS_DAYS },
+              )}
+            </p>
+          )}
           <p className="text-muted-foreground text-sm">
             {t("statistics.ownerOnly")}
           </p>
@@ -156,7 +173,6 @@ export function SeoStatisticsDialog({
                   model.pending ||
                   form.propertiesUnavailable ||
                   !form.propertyId ||
-                  form.invalidDates ||
                   !model.data.scope.pageIds.length ||
                   !model.data.availableActions.canSyncMetrics
                 }
@@ -168,71 +184,5 @@ export function SeoStatisticsDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** The period and, for Google Analytics, the traffic channel of one sync. */
-function SeoStatisticsPeriod({
-  form,
-}: {
-  form: ReturnType<typeof useSeoStatistics>;
-}) {
-  const t = useTranslations("App.Seo");
-  return (
-    <>
-      <div
-        className="flex flex-wrap gap-2"
-        role="group"
-        aria-label={t("period")}
-      >
-        {SEO_STATISTICS_PERIODS.map((days) => (
-          <Button
-            key={days}
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-pressed={form.preset === days}
-            // The same mark as the chosen metric tile on the Traffic tab.
-            className={cn(form.preset === days && SEO_CHOSEN_CLASS)}
-            onClick={() => form.setPeriod(days)}
-          >
-            {t("statistics.lastDays", { days })}
-          </Button>
-        ))}
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <PerformanceDateRange
-          idPrefix="seo-statistics-period"
-          from={form.from}
-          until={form.to}
-          fromLabel={t("statistics.from")}
-          untilLabel={t("statistics.to")}
-          invalid={form.invalidDates}
-          onFromChange={form.setFrom}
-          onUntilChange={form.setTo}
-        />
-      </div>
-      {form.invalidDates ? (
-        <p role="alert" className="text-destructive text-sm">
-          {t("statistics.invalidDates")}
-        </p>
-      ) : null}
-      {form.provider === "ga4" ? (
-        <SeoField id="seo-statistics-channel" label={t("statistics.channel")}>
-          <SeoSelect
-            id="seo-statistics-channel"
-            value={form.channel}
-            onValueChange={(value) => {
-              if (value === "all" || value === "organic")
-                form.setChannel(value);
-            }}
-            options={[
-              { value: "all", label: t("statistics.channelAll") },
-              { value: "organic", label: t("statistics.channelOrganic") },
-            ]}
-          />
-        </SeoField>
-      ) : null}
-    </>
   );
 }

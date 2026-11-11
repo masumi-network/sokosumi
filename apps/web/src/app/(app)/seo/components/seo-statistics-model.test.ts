@@ -5,15 +5,14 @@ import {
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
-  invalidSeoStatisticsPeriod,
   latestSeoMeasurements,
   savedSeoStatistics,
   seoChangeMarkers,
   seoCoverageIsNews,
   seoDefaultMetric,
+  seoMatchingProperty,
   seoQueryPeriod,
   seoStatisticsPeriod,
-  seoStatisticsPreset,
 } from "./seo-statistics-model";
 
 function metric(change: Partial<ProjectSeoMetric> = {}): ProjectSeoMetric {
@@ -71,18 +70,57 @@ describe("SEO statistics presentation", () => {
       from: "2024-02-24",
       to: "2024-03-01",
     });
-    expect(invalidSeoStatisticsPeriod("2026-11-05", "2026-11-04")).toBe(true);
-    expect(invalidSeoStatisticsPeriod("bad-date", "2026-11-04")).toBe(true);
-    expect(invalidSeoStatisticsPeriod("2026-11-04", "2026-11-04")).toBe(false);
   });
 
-  it("names the preset of a period, and none for the reader's own dates", () => {
-    const now = new Date("2024-03-02T00:01:00Z");
-    expect(seoStatisticsPreset("2024-02-24", "2024-03-01", now)).toBe(7);
-    expect(seoStatisticsPreset("2024-02-03", "2024-03-01", now)).toBe(28);
-    // One day off at either end is not a preset.
-    expect(seoStatisticsPreset("2024-02-25", "2024-03-01", now)).toBeNull();
-    expect(seoStatisticsPreset("2024-02-24", "2024-02-29", now)).toBeNull();
+  it("chooses the Search Console property that holds the page, and guesses nothing on a tie", () => {
+    const property = (id: string, name = id) => ({ id, name });
+    const page = "https://shop.example.com/boots";
+    const choose = (ids: string[], url: string | undefined = page) =>
+      seoMatchingProperty(
+        "search_console",
+        ids.map((id) => property(id)),
+        url,
+      );
+    // One property needs no match.
+    expect(choose(["sc-domain:other.org"])).toBe("sc-domain:other.org");
+    // The domain property covers every address of the site: it beats the address prefix.
+    expect(
+      choose([
+        "sc-domain:other.org",
+        "https://shop.example.com/",
+        "sc-domain:example.com",
+      ]),
+    ).toBe("sc-domain:example.com");
+    // The closer domain wins, and "ample.com" is no parent of "example.com".
+    expect(
+      choose(["sc-domain:example.com", "sc-domain:shop.example.com"]),
+    ).toBe("sc-domain:shop.example.com");
+    expect(choose(["sc-domain:ample.com", "sc-domain:other.org"])).toBe("");
+    // Without a domain property the longest address prefix that holds the page wins.
+    expect(
+      choose([
+        "https://shop.example.com/",
+        "https://shop.example.com/boots",
+        "http://shop.example.com/",
+      ]),
+    ).toBe("https://shop.example.com/boots");
+    expect(choose(["sc-domain:a.com", "sc-domain:b.com"], undefined)).toBe("");
+  });
+
+  it("chooses the one Google Analytics property that names the host", () => {
+    const properties = [
+      { id: "properties/1", name: "Blog" },
+      { id: "properties/2", name: "Example.com shop" },
+    ];
+    const choose = (list = properties) =>
+      seoMatchingProperty("ga4", list, "https://www.example.com/");
+    expect(choose()).toBe("properties/2");
+    expect(
+      choose([...properties, { id: "properties/3", name: "example.com old" }]),
+    ).toBe("");
+    expect(choose([properties[0], { id: "properties/4", name: "App" }])).toBe(
+      "",
+    );
   });
 });
 
