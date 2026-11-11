@@ -91,8 +91,9 @@ export function TaskScheduleActions({
   const canDelete = schedule.ownerId !== null || canDeleteUnowned;
 
   function refreshAfterChange() {
-    if (onChanged) onChanged();
-    else router.refresh();
+    // The schedule actions revalidate, so their response already carries the
+    // page. A parent that keeps extra client state resets it in `onChanged`.
+    onChanged?.();
   }
 
   function reportError(error: TaskScheduleActionError) {
