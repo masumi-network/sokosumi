@@ -4,6 +4,7 @@ import {
   TaskScheduleState,
 } from "@sokosumi/core-client";
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -57,6 +58,18 @@ const MANUAL_RUNS_FETCH_LIMIT = 100;
 
 interface TaskScheduleDetailPageProps {
   params: Promise<{ scheduleId: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: TaskScheduleDetailPageProps): Promise<Metadata> {
+  const { scheduleId } = await params;
+  const [schedule, t] = await Promise.all([
+    taskScheduleService.getSchedule(scheduleId),
+    getTranslations("App.Tasks.Schedules.Page"),
+  ]);
+
+  return { title: schedule?.name ?? t("title") };
 }
 
 export default function TaskScheduleDetailPage({
@@ -245,10 +258,11 @@ async function TaskScheduleDetailContent({
                         className={cn(
                           HOLDER_ITEM_CLASS,
                           HOLDER_ITEM_HOVER_CLASS,
-                          "flex items-center justify-between gap-3 px-4 py-2.5 transition-colors",
+                          "flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 transition-colors",
                         )}
                       >
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                        {/* Own line on a phone: the date and badges would squeeze the name to nothing. */}
+                        <span className="min-w-0 basis-full truncate text-sm font-medium sm:basis-0 sm:flex-1">
                           {task.name}
                         </span>
                         {manualTaskIds.has(task.id) ? (
