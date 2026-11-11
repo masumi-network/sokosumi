@@ -1839,6 +1839,10 @@ export const SokoBotDeletionResultSchema = {
                 jobs: {
                     type: 'integer',
                     minimum: 0
+                },
+                socialPosts: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1848,7 +1852,8 @@ export const SokoBotDeletionResultSchema = {
                 'chatMessages',
                 'uploadedTaskFiles',
                 'taskSchedules',
-                'jobs'
+                'jobs',
+                'socialPosts'
             ]
         }
     },
@@ -21856,7 +21861,7 @@ export const CreditsResponseExtraSchema = {
             items: {
                 $ref: '#/components/schemas/CreditBucketBreakdown'
             },
-            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id'
+            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id. In the organization\'s own view, every Project\'s credits follow as their own rows with `project` set; `credits` leaves them out'
         },
         enterprise: {
             type: [
@@ -21895,7 +21900,7 @@ export const CreditsResponseExtraSchema = {
         'buckets',
         'enterprise'
     ],
-    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.'
+    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets` lines without a `project`). `extra.buckets`: per-bucket lines, Project credits included.'
 } as const;
 
 export const CreditsResponseExtraCreditsSchema = {
@@ -21903,12 +21908,12 @@ export const CreditsResponseExtraCreditsSchema = {
     properties: {
         total: {
             type: 'number',
-            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`',
+            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`, leaving out Project credits (lines with a `project`)',
             example: 25
         },
         remaining: {
             type: 'number',
-            description: 'Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)',
+            description: 'Sum of remaining balances across those buckets (matches sum of each of their lines’ `remaining`)',
             example: 12.5
         },
         used: {
@@ -21946,6 +21951,25 @@ export const CreditBucketBreakdownSchema = {
             format: 'date-time',
             example: '2026-07-01T00:00:00.000Z',
             description: 'When this bucket expires; null if it does not expire'
+        },
+        project: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Set on Project credits: only that Project\'s work spends them, and they are left out of the organization\'s totals'
         }
     },
     required: [

@@ -2,7 +2,10 @@ import type { Prisma } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
 
-import { forfeitCusoProjectCredits } from "./cuso-project-credits";
+import {
+  forfeitCusoProjectCredits,
+  forfeitCusoProjectCreditsIfLeavingCmo,
+} from "./cuso-project-credits";
 
 const BOT_ID = "01960001-0001-7001-8001-00000000000a";
 const PROJECT_ID = "22222222-2222-7222-8222-222222222222";
@@ -101,5 +104,29 @@ describe("forfeitCusoProjectCredits", () => {
     await forfeitCusoProjectCredits(BOT_ID, tx);
 
     expect(created).toEqual([]);
+  });
+});
+
+describe("forfeitCusoProjectCreditsIfLeavingCmo", () => {
+  it("keeps the Project credits on a move between CMO versions", async () => {
+    const { tx, findFirst } = forfeitTx({ projectId: PROJECT_ID }, []);
+
+    await forfeitCusoProjectCreditsIfLeavingCmo(
+      BOT_ID,
+      CMO_SOKO_BOT_VERSION_IDS.at(-1) as string,
+      tx,
+    );
+
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it("forfeits them on a move off CMO", async () => {
+    const { tx, created } = forfeitTx({ projectId: PROJECT_ID }, [
+      { id: "bucket-1", organizationId: "org-1", userId: null, remaining: 7n },
+    ]);
+
+    await forfeitCusoProjectCreditsIfLeavingCmo(BOT_ID, "v16", tx);
+
+    expect(created).toHaveLength(1);
   });
 });

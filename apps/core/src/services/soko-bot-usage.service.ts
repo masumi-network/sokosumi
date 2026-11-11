@@ -1,6 +1,7 @@
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
+import { REFUND_PART_SEPARATOR } from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 
@@ -54,6 +55,7 @@ async function delegatedCreditsSpent(sokoBotId: string): Promise<number> {
       taskId: true,
       job: {
         select: {
+          id: true,
           transaction: { select: { amount: true } },
           refundedTransaction: { select: { amount: true } },
         },
@@ -66,10 +68,32 @@ async function delegatedCreditsSpent(sokoBotId: string): Promise<number> {
   let credits = 0;
   for (const charged of (await taskCreditsCharged(taskIds)).values())
     credits += charged;
+  // A split refund links one part to the Job; the others carry the Job id
+  // in their bucket's referenceId (`createCompensatingRefund`).
+  const refundedJobIds = delegations.flatMap(({ job }) =>
+    job?.refundedTransaction ? [job.id] : [],
+  );
+  const otherRefundParts = new Map<string, bigint>();
+  if (refundedJobIds.length > 0) {
+    const parts = await prisma.creditBucket.findMany({
+      where: {
+        referenceType: "REFUND",
+        OR: refundedJobIds.map((id) => ({
+          referenceId: { startsWith: `${id}${REFUND_PART_SEPARATOR}` },
+        })),
+      },
+      select: { referenceId: true, amount: true },
+    });
+    for (const { referenceId, amount } of parts) {
+      const jobId = referenceId?.split(REFUND_PART_SEPARATOR)[0] ?? "";
+      otherRefundParts.set(jobId, (otherRefundParts.get(jobId) ?? 0n) + amount);
+    }
+  }
   for (const { job } of delegations) {
     const net =
       -(job?.transaction?.amount ?? 0n) -
-      (job?.refundedTransaction?.amount ?? 0n);
+      (job?.refundedTransaction?.amount ?? 0n) -
+      (job ? (otherRefundParts.get(job.id) ?? 0n) : 0n);
     if (net > 0n) credits += convertCentsToCredits(net);
   }
   return credits;

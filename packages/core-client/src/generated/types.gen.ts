@@ -445,6 +445,7 @@ export type SokoBotDeletionResult = {
         uploadedTaskFiles: number;
         taskSchedules: number;
         jobs: number;
+        socialPosts: number;
     };
 };
 
@@ -6193,12 +6194,12 @@ export type NewsletterAvailability = {
 };
 
 /**
- * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
+ * `extra.credits`: non-subscription totals (sums over `extra.buckets` lines without a `project`). `extra.buckets`: per-bucket lines, Project credits included.
  */
 export type CreditsResponseExtra = {
     credits: CreditsResponseExtraCredits;
     /**
-     * Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
+     * Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id. In the organization's own view, every Project's credits follow as their own rows with `project` set; `credits` leaves them out
      */
     buckets: Array<CreditBucketBreakdown>;
     /**
@@ -6220,11 +6221,11 @@ export type CreditsResponseExtra = {
  */
 export type CreditsResponseExtraCredits = {
     /**
-     * Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`
+     * Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`, leaving out Project credits (lines with a `project`)
      */
     total: number;
     /**
-     * Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)
+     * Sum of remaining balances across those buckets (matches sum of each of their lines’ `remaining`)
      */
     remaining: number;
     /**
@@ -6246,6 +6247,13 @@ export type CreditBucketBreakdown = {
      * When this bucket expires; null if it does not expire
      */
     expiresAt: Date | null;
+    /**
+     * Set on Project credits: only that Project's work spends them, and they are left out of the organization's totals
+     */
+    project?: {
+        id: string;
+        name: string | null;
+    };
 };
 
 export type UserDeletionEvaluation = {
@@ -80173,6 +80181,21 @@ export type UpdateMySokoBotVersionErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

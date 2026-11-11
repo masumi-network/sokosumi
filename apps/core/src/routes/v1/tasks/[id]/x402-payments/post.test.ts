@@ -203,6 +203,8 @@ interface TxMock {
   };
   taskX402PaymentAction: { createMany: ReturnType<typeof vi.fn> };
   taskEvent: { create: ReturnType<typeof vi.fn> };
+  // The refund's own Transaction (createCompensatingRefund).
+  transaction: { create: ReturnType<typeof vi.fn> };
   task: { updateMany: ReturnType<typeof vi.fn> };
   agent: {
     findFirst: ReturnType<typeof vi.fn>;
@@ -509,6 +511,7 @@ function createTxMock(): TxMock {
       createMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     taskEvent: { create: vi.fn().mockResolvedValue({ id: "evt_charge_1" }) },
+    transaction: { create: vi.fn().mockResolvedValue({ id: "refund_txn_1" }) },
     task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     agent: {
       findFirst: vi.fn().mockResolvedValue(createAgentRow()),
@@ -2438,6 +2441,21 @@ describe("POST /{id}/x402-payments", () => {
           failureReason: "node_refused_operational",
         },
       });
+      expect(tx.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amount: CENTS_FOR_DEMAND,
+            sourceCreditBucket: {
+              create: expect.objectContaining({
+                amount: CENTS_FOR_DEMAND,
+                referenceId: `task-x402-payment:${PAYMENT_ID}`,
+                referenceType: "REFUND",
+                expiresAt: null,
+              }),
+            },
+          }),
+        }),
+      );
       expect(tx.taskX402Payment.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: PAYMENT_ID },
@@ -2445,19 +2463,7 @@ describe("POST /{id}/x402-payments", () => {
             // Labelled at the mint: this refund is the AUTOMATED node-refusal
             // one, never an operator quality signal in the admin rollup.
             refundKind: "NODE_REFUSAL",
-            refundTransaction: {
-              create: expect.objectContaining({
-                amount: CENTS_FOR_DEMAND,
-                sourceCreditBucket: {
-                  create: expect.objectContaining({
-                    amount: CENTS_FOR_DEMAND,
-                    referenceId: `task-x402-payment:${PAYMENT_ID}`,
-                    referenceType: "REFUND",
-                    expiresAt: null,
-                  }),
-                },
-              }),
-            },
+            refundTransaction: { connect: { id: "refund_txn_1" } },
           }),
         }),
       );
