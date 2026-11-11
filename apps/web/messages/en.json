@@ -5303,6 +5303,8 @@
       "statusCancel": "Subscription checkout was canceled.",
       "currentPlanBadge": "Current",
       "pricePerMonth": "per month",
+      "pricePerSeatPerMonth": "per seat / month",
+      "seatTotal": "{total} a month for {seats, plural, =1 {# seat} other {# seats}}",
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
       "mostPopularBadge": "Most popular",
       "canceling": "Scheduling cancellation...",

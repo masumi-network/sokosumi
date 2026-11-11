@@ -5267,6 +5267,8 @@
       "statusCancel": "Abonnement-Checkout wurde abgebrochen.",
       "currentPlanBadge": "Aktuell",
       "pricePerMonth": "pro Monat",
+      "pricePerSeatPerMonth": "pro Seat / Monat",
+      "seatTotal": "{total} pro Monat für {seats, plural, =1 {# Seat} other {# Seats}}",
       "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
       "mostPopularBadge": "Am beliebtesten",
       "canceling": "Kündigung wird geplant...",
