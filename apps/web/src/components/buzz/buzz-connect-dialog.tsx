@@ -1,6 +1,7 @@
 "use client";
 
 import type { BuzzConnection } from "@sokosumi/core-client";
+import { getBuzzConnectionResponseTransformer } from "@sokosumi/core-client/transformers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -20,6 +21,7 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useState } from "react";
 
 import { BuzzLogo } from "@/components/buzz/buzz-logo";
+import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,11 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useClipboard } from "@/hooks/use-clipboard";
-import {
-  linkBuzzApp,
-  readBuzzConnection,
-  revealBuzzSecretKey,
-} from "@/lib/actions/buzz/action";
+import { linkBuzzApp, revealBuzzSecretKey } from "@/lib/actions/buzz/action";
 import { cn } from "@/lib/utils";
 
 /** Where Buzz is downloaded: the app's own releases. */
@@ -64,10 +62,10 @@ const HAVE_PATH: Step[] = ["choose", "have-key", "have-join", "done"];
 
 type Invite = { organizationName: string; joinUrl: string; inviteUrl: string };
 
+/** A background read (route handler), so polling never queues actions. */
 export async function fetchBuzzConnection(): Promise<BuzzConnection> {
-  const result = await readBuzzConnection({});
-  if (!result.ok) throw new Error(result.error.message);
-  return result.value;
+  const response = await fetchBackgroundJson("/api/buzz/connection", 10_000);
+  return (await getBuzzConnectionResponseTransformer(response)).data;
 }
 
 /**
@@ -79,18 +77,32 @@ export async function fetchBuzzConnection(): Promise<BuzzConnection> {
 export function BuzzConnectDialog({
   open,
   onOpenChange,
+  onNotNow,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Offered on the first screen when the dialog came from a reminder. */
+  onNotNow?: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open ? <BuzzConnectFlow onClose={() => onOpenChange(false)} /> : null}
+      {open ? (
+        <BuzzConnectFlow
+          onClose={() => onOpenChange(false)}
+          onNotNow={onNotNow}
+        />
+      ) : null}
     </Dialog>
   );
 }
 
-function BuzzConnectFlow({ onClose }: { onClose: () => void }) {
+function BuzzConnectFlow({
+  onClose,
+  onNotNow,
+}: {
+  onClose: () => void;
+  onNotNow?: () => void;
+}) {
   const t = useTranslations("Components.BuzzConnect");
   const queryClient = useQueryClient();
   // Buzz's own labels stand out, so they are easy to find in the app.
@@ -430,6 +442,14 @@ function BuzzConnectFlow({ onClose }: { onClose: () => void }) {
           >
             <ArrowLeft className="size-4" />
             {t("back")}
+          </Button>
+        ) : step === "choose" && onNotNow ? (
+          <Button
+            variant="ghost"
+            className="text-muted-foreground h-11 px-4"
+            onClick={onNotNow}
+          >
+            {t("notNow")}
           </Button>
         ) : (
           <span />

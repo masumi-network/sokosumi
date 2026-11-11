@@ -1137,13 +1137,12 @@
       "copied": "Copied",
       "copyFailed": "Couldn't copy",
       "card": {
-        "new": "New",
         "title": "Chat from Buzz",
-        "summary": "Your rooms and agents, in the Buzz app too.",
-        "connect": "Connect",
-        "dismiss": "Dismiss"
+        "summary": "New: your rooms, people and agents, in the Buzz app too.",
+        "connect": "Connect"
       },
-      "dialogTitle": "Connect Buzz"
+      "dialogTitle": "Connect Buzz",
+      "notNow": "Not now"
     }
   },
   "Join": {
@@ -8680,8 +8679,7 @@
         "statusConnected": "Connected. You're on Buzz as you.",
         "statusLinked": "Linked to your Buzz identity {npub}.",
         "connect": "Connect Buzz",
-        "connectAgain": "Connect again",
-        "readError": "Couldn't load Buzz"
+        "connectAgain": "Connect again"
       }
     },
     "Channels": {

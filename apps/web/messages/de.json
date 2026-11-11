@@ -1137,13 +1137,12 @@
       "copied": "Kopiert",
       "copyFailed": "Kopieren fehlgeschlagen",
       "card": {
-        "new": "Neu",
         "title": "Chatten aus Buzz",
-        "summary": "Deine Räume und Agenten, auch in der Buzz-App.",
-        "connect": "Verbinden",
-        "dismiss": "Ausblenden"
+        "summary": "Neu: deine Räume, Leute und Agenten, auch in der Buzz-App.",
+        "connect": "Verbinden"
       },
-      "dialogTitle": "Buzz verbinden"
+      "dialogTitle": "Buzz verbinden",
+      "notNow": "Nicht jetzt"
     }
   },
   "Join": {
@@ -8635,8 +8634,7 @@
         "statusConnected": "Verbunden. Du bist als du auf Buzz.",
         "statusLinked": "Mit deiner Buzz-Identität {npub} verknüpft.",
         "connect": "Buzz verbinden",
-        "connectAgain": "Erneut verbinden",
-        "readError": "Buzz konnte nicht geladen werden"
+        "connectAgain": "Erneut verbinden"
       }
     },
     "Coworkers": {

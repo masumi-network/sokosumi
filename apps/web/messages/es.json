@@ -1137,13 +1137,12 @@
       "copied": "Copiado",
       "copyFailed": "No se pudo copiar",
       "card": {
-        "new": "Nuevo",
         "title": "Chatea desde Buzz",
-        "summary": "Tus salas y agentes, también en la app de Buzz.",
-        "connect": "Conectar",
-        "dismiss": "Descartar"
+        "summary": "Nuevo: tus salas, personas y agentes, también en la app de Buzz.",
+        "connect": "Conectar"
       },
-      "dialogTitle": "Conectar Buzz"
+      "dialogTitle": "Conectar Buzz",
+      "notNow": "Ahora no"
     }
   },
   "Join": {
@@ -8635,8 +8634,7 @@
         "statusConnected": "Conectado. Estás en Buzz como tú.",
         "statusLinked": "Vinculado a tu identidad de Buzz {npub}.",
         "connect": "Conectar Buzz",
-        "connectAgain": "Conectar de nuevo",
-        "readError": "No se pudo cargar Buzz"
+        "connectAgain": "Conectar de nuevo"
       }
     },
     "Coworkers": {
