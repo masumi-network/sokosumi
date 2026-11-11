@@ -6198,7 +6198,7 @@ export type NewsletterAvailability = {
 export type CreditsResponseExtra = {
     credits: CreditsResponseExtraCredits;
     /**
-     * Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
+     * Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id. In the organization's own view, every Project's credits follow as their own rows with `project` set; `credits` leaves them out
      */
     buckets: Array<CreditBucketBreakdown>;
     /**
@@ -6246,6 +6246,13 @@ export type CreditBucketBreakdown = {
      * When this bucket expires; null if it does not expire
      */
     expiresAt: Date | null;
+    /**
+     * Set on Project credits: only that Project's work spends them, and they are left out of the organization's totals
+     */
+    project?: {
+        id: string;
+        name: string | null;
+    };
 };
 
 export type UserDeletionEvaluation = {

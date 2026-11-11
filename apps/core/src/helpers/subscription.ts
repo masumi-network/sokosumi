@@ -278,6 +278,8 @@ interface CreditBucketPayload {
   expiresAt: Date | null;
   remaining: number;
   total: number;
+  /** Set on Project credits (ADR 0067). */
+  project?: { id: string; name: string | null };
 }
 
 export interface CreditsApiPayload {
@@ -353,6 +355,17 @@ export async function buildCreditsPayload(params: {
       projectScope,
     );
 
+  // The organization's own view lists every Project's credits as extra rows,
+  // outside its totals (ADR 0067).
+  const projectBucketRows =
+    params.organizationId && !params.projectId
+      ? await creditBucketRepository.listProjectBucketsWithBalances(
+          params.userId,
+          params.organizationId,
+          params.tx,
+        )
+      : [];
+
   const enterpriseBucketRows = params.organizationId
     ? await creditBucketRepository.listEnterprisePoolBucketsWithBalances(
         params.userId,
@@ -371,10 +384,13 @@ export async function buildCreditsPayload(params: {
   const nonSubUsedCents =
     nonSubAggregates.totalCents - nonSubAggregates.remainingCents;
 
-  const buckets = bucketRows.map((row) => ({
+  const buckets = [...bucketRows, ...projectBucketRows].map((row) => ({
     total: convertCentsToCredits(row.totalCents),
     remaining: convertCentsToCredits(row.remainingCents),
     expiresAt: row.expiresAt,
+    ...(row.projectId && {
+      project: { id: row.projectId, name: row.projectName ?? null },
+    }),
   }));
 
   const enterpriseAggregates = enterpriseBucketRows.reduce(

@@ -31,6 +31,49 @@ interface CreditBucketBalanceRow {
   totalCents: bigint;
   remainingCents: bigint;
   expiresAt: Date | null;
+  /** Set on Project credits (ADR 0067); null for the pool. */
+  projectId?: string | null;
+  projectName?: string | null;
+}
+
+/** Unexpired, active non-subscription buckets with remaining > 0. */
+async function queryBucketBalances(
+  where: Prisma.Sql,
+  orderBy: Prisma.Sql,
+  now: Date,
+  tx: Prisma.TransactionClient,
+): Promise<CreditBucketBalanceRow[]> {
+  return await tx.$queryRaw<CreditBucketBalanceRow[]>`
+    WITH bucket_avail AS (
+      SELECT
+        cb.id,
+        cb.amount,
+        (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
+        cb."expiresAt",
+        cb."createdAt",
+        cb."projectId",
+        p.name AS "projectName"
+      FROM credit_bucket cb
+      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+      LEFT JOIN project p ON p.id = cb."projectId"
+      WHERE ${where}
+        AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+        AND ${creditBucketActivatesAtOrBeforeSql(now)}
+        AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+        AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}
+        AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_TOP_UP}
+      GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt", cb."projectId", p.name
+      HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+    )
+    SELECT
+      amount AS "totalCents",
+      available AS "remainingCents",
+      "expiresAt",
+      "projectId",
+      "projectName"
+    FROM bucket_avail
+    ${orderBy}
+  `;
 }
 
 export const creditBucketRepository = {
@@ -96,41 +139,43 @@ export const creditBucketRepository = {
       tx,
       now,
     );
-    const where = buildCreditBucketScopeSql(scopeContext, options);
+    return await queryBucketBalances(
+      buildCreditBucketScopeSql(scopeContext, options),
+      creditBucketSpendOrderSql(options.projectId),
+      now,
+      tx,
+    );
+  },
 
-    return await tx.$queryRaw<
-      Array<{
-        totalCents: bigint;
-        remainingCents: bigint;
-        expiresAt: Date | null;
-      }>
-    >`
-      WITH bucket_avail AS (
-        SELECT
-          cb.id,
-          cb.amount,
-          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
-          cb."expiresAt",
-          cb."createdAt",
-          cb."projectId"
-        FROM credit_bucket cb
-        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
-        WHERE ${where}
-          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
-          AND ${creditBucketActivatesAtOrBeforeSql(now)}
-          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
-          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}
-          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_TOP_UP}
-        GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt", cb."projectId"
-        HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
-      )
-      SELECT
-        amount AS "totalCents",
-        available AS "remainingCents",
-        "expiresAt"
-      FROM bucket_avail
-      ${creditBucketSpendOrderSql(options.projectId)}
-    `;
+  /**
+   * Every Project's credits in the organization the member can see, as their
+   * own rows named by Project (ADR 0067). Organization balances leave them out.
+   */
+  async listProjectBucketsWithBalances(
+    userId: string | null,
+    organizationId: string | null,
+    tx: Prisma.TransactionClient,
+  ): Promise<CreditBucketBalanceRow[]> {
+    if (!organizationId) return [];
+    const now = new Date();
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    if (
+      scopeContext.workspace !== "organization" ||
+      scopeContext.poolAccess === "none"
+    ) {
+      return [];
+    }
+    return await queryBucketBalances(
+      Prisma.sql`cb."organizationId" = ${organizationId} AND cb."projectId" IS NOT NULL`,
+      creditBucketSpendOrderSql(undefined),
+      now,
+      tx,
+    );
   },
 
   async sumOrganizationEnterprisePoolBalances(

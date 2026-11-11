@@ -21856,7 +21856,7 @@ export const CreditsResponseExtraSchema = {
             items: {
                 $ref: '#/components/schemas/CreditBucketBreakdown'
             },
-            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id'
+            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id. In the organization\'s own view, every Project\'s credits follow as their own rows with `project` set; `credits` leaves them out'
         },
         enterprise: {
             type: [
@@ -21946,6 +21946,25 @@ export const CreditBucketBreakdownSchema = {
             format: 'date-time',
             example: '2026-07-01T00:00:00.000Z',
             description: 'When this bucket expires; null if it does not expire'
+        },
+        project: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Set on Project credits: only that Project\'s work spends them, and they are left out of the organization\'s totals'
         }
     },
     required: [

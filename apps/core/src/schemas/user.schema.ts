@@ -24,6 +24,16 @@ const creditBucketBreakdownItemSchema = z
       description: "When this bucket expires; null if it does not expire",
       example: "2026-07-01T00:00:00.000Z",
     }),
+    project: z
+      .object({
+        id: z.string(),
+        name: z.string().nullable(),
+      })
+      .optional()
+      .openapi({
+        description:
+          "Set on Project credits: only that Project's work spends them, and they are left out of the organization's totals",
+      }),
   })
   .openapi("CreditBucketBreakdown");
 
@@ -67,7 +77,7 @@ const creditsResponseExtraSchema = z
     }),
     buckets: z.array(creditBucketBreakdownItemSchema).openapi({
       description:
-        "Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id",
+        "Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id. In the organization's own view, every Project's credits follow as their own rows with `project` set; `credits` leaves them out",
     }),
     enterprise: creditsResponseEnterpriseSchema.nullable().openapi({
       deprecated: true,

@@ -406,6 +406,54 @@ describe("creditBucketRepository.listAvailableBucketsWithBalances", () => {
   });
 });
 
+describe("creditBucketRepository.listProjectBucketsWithBalances", () => {
+  it("lists the organization's Project credits, named by Project", async () => {
+    let queryArgs: unknown[] = [];
+    const row = {
+      totalCents: 1_000_000n,
+      remainingCents: 900_000n,
+      expiresAt: null,
+      projectId: "project-1",
+      projectName: "Acme launch",
+    };
+    const tx = {
+      $queryRaw: async (...rawArgs: unknown[]) => {
+        queryArgs = rawArgs;
+        return [row];
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const rows = await creditBucketRepository.listProjectBucketsWithBalances(
+      "user-1",
+      "org-1",
+      tx,
+    );
+
+    assert.deepEqual(rows, [row]);
+    const { text, values } = extractNestedSql(queryArgs);
+    assert.ok(values.includes("org-1"));
+    assert.ok(text.includes('cb."projectId" IS NOT NULL'));
+    const query = (queryArgs[0] as string[]).join("");
+    assert.ok(query.includes('p.name AS "projectName"'));
+    assert.ok(query.includes('LEFT JOIN project p ON p.id = cb."projectId"'));
+  });
+
+  it("lists none in a personal workspace", async () => {
+    const queryRaw = vi.fn();
+    const tx = { $queryRaw: queryRaw } as unknown as Prisma.TransactionClient;
+
+    assert.deepEqual(
+      await creditBucketRepository.listProjectBucketsWithBalances(
+        "user-1",
+        null,
+        tx,
+      ),
+      [],
+    );
+    assert.equal(queryRaw.mock.calls.length, 0);
+  });
+});
+
 describe("creditBucketRepository.prepareConsumption (organization scope SQL)", () => {
   it("filters organization consumption without leftover member: matching", async () => {
     let queryArgs: unknown[] = [];
