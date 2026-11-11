@@ -77,13 +77,17 @@ async function resolveTarget(
 }
 
 export const freeCreditAdminService = {
-  /** A `projectId` makes them Project credits of the organization (ADR 0067). */
+  /**
+   * A `projectId` makes them Project credits of the organization (ADR 0067).
+   * A `tx` grants inside the caller's transaction instead of a new one.
+   */
   async grantFreeCredits(
     params: CreditBucketProjectOption & {
       target: FreeCreditTarget;
       credits: number;
       ttlDays: number | null;
       referenceNote: string | null;
+      tx?: Prisma.TransactionClient;
     },
   ): Promise<FreeCreditGrant> {
     if (!isPositiveIntegerCredits(params.credits)) {
@@ -109,7 +113,9 @@ export const freeCreditAdminService = {
         : getCreditExpiryDate(grantedAt, params.ttlDays);
     const grantId = randomUUID();
 
-    return await prisma.$transaction(async (tx) => {
+    const grant = async (
+      tx: Prisma.TransactionClient,
+    ): Promise<FreeCreditGrant> => {
       const target = await resolveTarget(params.target, tx);
       const organizationId =
         params.target.targetType === "organization" ? target.id : null;
@@ -154,6 +160,9 @@ export const freeCreditAdminService = {
         ttlDays: params.ttlDays,
         referenceNote,
       };
-    });
+    };
+    return params.tx
+      ? await grant(params.tx)
+      : await prisma.$transaction(grant);
   },
 };
