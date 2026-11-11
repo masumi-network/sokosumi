@@ -39124,6 +39124,16 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        strategy: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoStrategy'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         timeline: {
             type: 'array',
             items: {
@@ -40307,6 +40317,209 @@ export const ProjectSeoIndexedPageSchema = {
         'userCanonical'
     ],
     additionalProperties: false
+} as const;
+
+export const ProjectSeoStrategySchema = {
+    type: 'object',
+    properties: {
+        verdict: {
+            type: 'string',
+            maxLength: 100
+        },
+        why: {
+            type: 'string',
+            maxLength: 20000
+        },
+        groups: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    lead: {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    keywords: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 20000
+                        },
+                        maxItems: 100
+                    },
+                    pageUrl: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 4096
+                    },
+                    volume: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    recent: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    trend: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'falling',
+                            'rising',
+                            'flat',
+                            null
+                        ]
+                    },
+                    reach: {
+                        type: 'string',
+                        maxLength: 100
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'lead',
+                    'keywords',
+                    'pageUrl',
+                    'volume',
+                    'recent',
+                    'trend',
+                    'reach',
+                    'position'
+                ]
+            },
+            maxItems: 1000
+        },
+        actions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    kind: {
+                        type: 'string',
+                        maxLength: 100
+                    },
+                    title: {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    why: {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    expectedEffect: {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    effort: {
+                        type: 'string',
+                        enum: [
+                            'low',
+                            'medium',
+                            'high'
+                        ]
+                    },
+                    limit: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 20000
+                    },
+                    targets: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string',
+                                    maxLength: 4096
+                                },
+                                title: {
+                                    type: [
+                                        'string',
+                                        'null'
+                                    ],
+                                    maxLength: 20000
+                                },
+                                type: {
+                                    type: 'string',
+                                    maxLength: 100
+                                },
+                                state: {
+                                    type: [
+                                        'string',
+                                        'null'
+                                    ],
+                                    maxLength: 100
+                                }
+                            },
+                            required: [
+                                'url',
+                                'title',
+                                'type',
+                                'state'
+                            ]
+                        },
+                        maxItems: 20
+                    }
+                },
+                required: [
+                    'kind',
+                    'title',
+                    'why',
+                    'expectedEffect',
+                    'effort',
+                    'limit',
+                    'targets'
+                ]
+            },
+            maxItems: 50
+        },
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        countryCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        languageCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'verdict',
+        'why',
+        'groups',
+        'actions',
+        'observationId',
+        'observedAt',
+        'countryCode',
+        'languageCode'
+    ]
 } as const;
 
 export const ProjectSeoTimelineItemSchema = {

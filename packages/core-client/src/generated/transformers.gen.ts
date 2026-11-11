@@ -4222,6 +4222,11 @@ const projectSeoIndexStatusSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoStrategySchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
 const projectSeoTimelineItemSchemaResponseTransformer = (data: any) => {
     data.at = new Date(data.at);
     return data;
@@ -4251,6 +4256,9 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     }
     if (data.indexStatus) {
         data.indexStatus = projectSeoIndexStatusSchemaResponseTransformer(data.indexStatus);
+    }
+    if (data.strategy) {
+        data.strategy = projectSeoStrategySchemaResponseTransformer(data.strategy);
     }
     data.timeline = data.timeline.map((item: any) => projectSeoTimelineItemSchemaResponseTransformer(item));
     data.analyses = data.analyses.map((item: any) => projectSeoAnalysisSchemaResponseTransformer(item));

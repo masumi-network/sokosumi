@@ -10407,6 +10407,7 @@ export type ProjectSeoWorkspace = {
     metrics: Array<ProjectSeoMetric>;
     searchQueries: ProjectSeoSearchQueries | null;
     indexStatus?: ProjectSeoIndexStatus | null;
+    strategy?: ProjectSeoStrategy | null;
     timeline: Array<ProjectSeoTimelineItem>;
     analyses: Array<ProjectSeoAnalysis>;
     monitors: Array<ProjectSeoMonitor>;
@@ -10624,6 +10625,39 @@ export type ProjectSeoIndexedPage = {
     lastCrawlTime: Date | null;
     googleCanonical: string | null;
     userCanonical: string | null;
+};
+
+export type ProjectSeoStrategy = {
+    verdict: string;
+    why: string;
+    groups: Array<{
+        lead: string;
+        keywords: Array<string>;
+        pageUrl: string | null;
+        volume: number | null;
+        recent: number | null;
+        trend: 'falling' | 'rising' | 'flat' | null;
+        reach: string;
+        position: number | null;
+    }>;
+    actions: Array<{
+        kind: string;
+        title: string;
+        why: string;
+        expectedEffect: string;
+        effort: 'low' | 'medium' | 'high';
+        limit: string | null;
+        targets: Array<{
+            url: string;
+            title: string | null;
+            type: string;
+            state: string | null;
+        }>;
+    }>;
+    observationId: string;
+    observedAt: Date;
+    countryCode: string | null;
+    languageCode: string | null;
 };
 
 export type ProjectSeoTimelineItem = {

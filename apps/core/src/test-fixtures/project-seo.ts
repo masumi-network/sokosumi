@@ -107,3 +107,119 @@ export function legacyReport() {
     couldNotSee: [],
   };
 }
+export const SEO_TEST_SECOND_PAGE = "https://example.test/second";
+const reachRead = {
+  featured: false,
+  pageDomains: 2,
+  weakest: null,
+  counted: 1,
+  top: 7,
+  forums: true,
+};
+/** A site report with a strategy block as the worker writes it, with fields Core does not keep. */
+export function siteStrategyReport() {
+  return {
+    kind: "site",
+    rulebookVersion: "test-rulebook",
+    pages: [legacyReport()],
+    selection: {
+      pages: [
+        { n: 1, url: SEO_TEST_PAGE, role: "start" },
+        { n: 2, url: SEO_TEST_SECOND_PAGE, role: "feature" },
+      ],
+      skipped: [],
+      picked: [],
+    },
+    strategy: {
+      verdict: "keep",
+      why: "160 of 160 monthly searches lie in groups the site can reach.",
+      groups: [
+        {
+          ...reachRead,
+          keywords: ["example"],
+          lead: "example",
+          page: 1,
+          volume: 140,
+          recent: 47,
+          trend: "falling",
+          demand: 47,
+          reach: "in reach",
+          position: null,
+        },
+        {
+          ...reachRead,
+          keywords: ["second term"],
+          lead: "second term",
+          page: 2,
+          volume: 20,
+          recent: null,
+          trend: null,
+          demand: 20,
+          reach: "open",
+          position: 4,
+        },
+        {
+          ...reachRead,
+          keywords: ["site term"],
+          lead: "site term",
+          volume: null,
+          recent: null,
+          trend: null,
+          demand: null,
+          reach: "not determined",
+          position: null,
+        },
+      ],
+      openings: [],
+      actions: [
+        {
+          kind: "get listed",
+          title: "Ask to be added to these lists of products",
+          why: "2 lists of products are in the top 10.",
+          whatToExpect: "People who compare products can find the product.",
+          effort: "medium",
+          category: "listings",
+          limit: "Ask on the product's merits only.",
+          targets: [
+            {
+              url: "https://lists.test/best",
+              title: "Best apps",
+              type: "listicle",
+              serps: 2,
+              state: "not mentioned",
+            },
+            {
+              url: "javascript:alert(1)",
+              title: null,
+              type: "other",
+              serps: 1,
+            },
+            // Short enough as text, too long once the address is encoded.
+            {
+              url: `https://long.test/${"\u00e9".repeat(1000)}`,
+              title: null,
+              type: "other",
+              serps: 1,
+            },
+            // The worker keeps a result whose address does not parse.
+            { url: "example.com/x", title: null, type: "other", serps: 1 },
+            {
+              url: "https://user:secret@lists.test/private",
+              title: null,
+              type: "other",
+              serps: 1,
+            },
+            {
+              // A no-break space: the URL check trims it, `new URL` does not.
+              url: "\u00a0https://store.test/app",
+              title: null,
+              type: "app store",
+              serps: 1,
+            },
+          ],
+        },
+      ],
+      markets: { rows: [] },
+    },
+  };
+}

@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
+import { seoStrategySchema } from "./project-seo-strategy.schema";
 
 export const SEO_MAX_PAGES = 10;
 export const SEO_MAX_KEYWORDS = 20;
@@ -29,6 +30,8 @@ export const seoUrlSchema = z
   .url({ protocol: /^https?$/ })
   .max(4096)
   .refine((value) => {
+    // A value that is no address already failed the check above; `new URL` would throw on it.
+    if (!URL.canParse(value)) return true;
     const url = new URL(value);
     return !url.username && !url.password;
   }, "Page URLs cannot contain credentials");
@@ -594,6 +597,8 @@ export const projectSeoWorkspaceSchema = z
     searchQueries: z.union([seoSearchQueriesSchema, z.null()]),
     /** Google's index verdict per page from the newest Search Console sync that inspected them. */
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
+    /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
+    strategy: z.union([seoStrategySchema, z.null()]).optional(),
     timeline: z.array(seoTimelineSchema),
     analyses: z.array(seoJobSchema),
     monitors: z.array(seoMonitorSchema),

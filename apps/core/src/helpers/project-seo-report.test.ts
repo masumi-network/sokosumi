@@ -4,11 +4,14 @@ import {
   legacyReport,
   SEO_TEST_PAGE,
   SEO_TEST_REQUEST_ID,
+  SEO_TEST_SECOND_PAGE,
+  siteStrategyReport,
 } from "@/test-fixtures/project-seo";
 import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
 } from "./project-seo-report";
+import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
   it("keeps unrequested modules separate from individual rule check counts", () => {
@@ -140,6 +143,8 @@ describe("public SEO report trust boundary", () => {
     expect(parsed.notes).toContain(
       `Page not audited: ${second} (the page Run failed: timeout)`,
     );
+    expect(parsed.strategy).toBeUndefined();
+    expect(parsed.notes).not.toContain(SEO_STRATEGY_NOT_IMPORTED);
     expect(() =>
       assertSeoArtifactMatchesRequest(partial, parsed, request),
     ).not.toThrow();
@@ -163,6 +168,99 @@ describe("public SEO report trust boundary", () => {
           request,
         ),
       ).toThrow("frozen page scope");
+    }
+  });
+
+  it("keeps a site audit's strategy results: page per keyword group, and only web links as targets", () => {
+    expect(parsePublicSeoArtifact(siteStrategyReport()).strategy).toEqual({
+      verdict: "keep",
+      why: "160 of 160 monthly searches lie in groups the site can reach.",
+      groups: [
+        {
+          keywords: ["example"],
+          lead: "example",
+          pageUrl: SEO_TEST_PAGE,
+          volume: 140,
+          recent: 47,
+          trend: "falling",
+          reach: "in reach",
+          position: null,
+        },
+        {
+          keywords: ["second term"],
+          lead: "second term",
+          pageUrl: SEO_TEST_SECOND_PAGE,
+          volume: 20,
+          recent: null,
+          trend: null,
+          reach: "open",
+          position: 4,
+        },
+        {
+          // A group without a page number is the start page's.
+          keywords: ["site term"],
+          lead: "site term",
+          pageUrl: SEO_TEST_PAGE,
+          volume: null,
+          recent: null,
+          trend: null,
+          reach: "not determined",
+          position: null,
+        },
+      ],
+      actions: [
+        {
+          kind: "get listed",
+          title: "Ask to be added to these lists of products",
+          why: "2 lists of products are in the top 10.",
+          expectedEffect: "People who compare products can find the product.",
+          effort: "medium",
+          limit: "Ask on the product's merits only.",
+          targets: [
+            {
+              url: "https://lists.test/best",
+              title: "Best apps",
+              type: "listicle",
+              state: "not mentioned",
+            },
+            {
+              url: "https://store.test/app",
+              title: null,
+              type: "app store",
+              state: null,
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("keeps a keyword group whose page the page selection does not name", () => {
+    const report = siteStrategyReport();
+    report.selection.pages = [];
+    expect(
+      parsePublicSeoArtifact(report).strategy?.groups.map(
+        (group) => group.pageUrl,
+      ),
+    ).toEqual([null, null, null]);
+  });
+
+  it("imports the audit with a note when it cannot read the strategy section", () => {
+    for (const broken of [
+      { verdict: "keep" },
+      {
+        ...siteStrategyReport().strategy,
+        why: "x".repeat(20_001),
+      },
+    ]) {
+      const parsed = parsePublicSeoArtifact({
+        ...siteStrategyReport(),
+        strategy: broken,
+      });
+      expect(parsed.strategy).toBeUndefined();
+      expect(parsed.notes).toContain(SEO_STRATEGY_NOT_IMPORTED);
+      expect(parsed.pageUrls).toEqual([SEO_TEST_PAGE]);
+      expect(parsed.findings).toHaveLength(1);
     }
   });
 

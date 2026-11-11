@@ -9,6 +9,7 @@ import {
   focusedReport,
   legacyReport,
   SEO_TEST_PAGE,
+  siteStrategyReport,
 } from "@/test-fixtures/project-seo";
 
 import { projectSeoProjection } from "./project-seo-projection";
@@ -243,6 +244,60 @@ describe("stored SEO workspace projections", () => {
       "2026-11-01T12:00:00.000Z": 1,
       "2026-11-02T12:00:00.000Z": 0,
     });
+  });
+
+  it("shows the newest site audit's strategy with the keyword groups of the selected pages", () => {
+    const input = fixture();
+    expect(projectSeoProjection(input).strategy).toBeNull();
+    const current = parsePublicSeoArtifact(siteStrategyReport());
+    const older = parsePublicSeoArtifact({
+        ...siteStrategyReport(),
+        strategy: { ...siteStrategyReport().strategy, verdict: "low demand" },
+      }),
+      newest = observation(
+        input,
+        {
+          ...current,
+          strategy: current.strategy && {
+            ...current.strategy,
+            groups: [
+              ...current.strategy.groups,
+              // The page selection did not name this group's page.
+              { ...current.strategy.groups[0], lead: "no page", pageUrl: null },
+            ],
+          },
+        },
+        "2026-11-03T12:00:00Z",
+      );
+    input.observations = [
+      // A focused check after the audit holds no strategy and hides none.
+      observation(
+        input,
+        parsePublicSeoArtifact(focusedReport()),
+        "2026-11-04T12:00:00Z",
+      ),
+      newest,
+      observation(input, older, "2026-11-01T12:00:00Z"),
+    ];
+    const strategy = projectSeoProjection(input).strategy;
+    expect(strategy).toMatchObject({
+      verdict: "keep",
+      observationId: newest.id,
+      observedAt: "2026-11-03T12:00:00.000Z",
+      countryCode: "US",
+      languageCode: "en",
+    });
+    // The second page is not in the page selection. A group without a known page stays.
+    expect(strategy?.groups.map((group) => group.lead)).toEqual([
+      "example",
+      "site term",
+      "no page",
+    ]);
+    expect(strategy?.actions).toHaveLength(1);
+    expect(
+      projectSeoProjection({ ...input, query: { from: "2026-11-04" } })
+        .strategy,
+    ).toBeNull();
   });
 
   it("omits unsaved manual keywords while keeping real observations and saved choices", () => {

@@ -7,7 +7,9 @@ import {
   seoSeveritySchema,
   seoUrlSchema,
 } from "@/schemas/project-seo.schema";
+import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
+import { publicSeoStrategy } from "./project-seo-strategy";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
@@ -84,6 +86,8 @@ export const publicSeoPayloadSchema = z.object({
     modules: seoModuleCoverageSchema.optional(),
   }),
   notes: z.array(text).max(500),
+  /** A site audit's strategy results. Older rows and focused checks have none. */
+  strategy: seoStrategyPayloadSchema.optional(),
 });
 export type PublicSeoPayload = z.infer<typeof publicSeoPayloadSchema>;
 
@@ -455,7 +459,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     if (!site.success)
       throw badRequest("The site report does not match its supported format");
     const pages = site.data.pages.map(parsePublicSeoArtifact),
-      first = pages[0];
+      first = pages[0],
+      { strategy, note } = publicSeoStrategy(raw);
     return publicSeoPayloadSchema.parse({
       ...first,
       kind: "audit_full",
@@ -484,7 +489,9 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
           (page) =>
             `Page not audited: ${page.url} (${page.reason.slice(0, SKIPPED_REASON_CHARS)})`,
         ),
+        ...(note ? [note] : []),
       ],
+      strategy,
     });
   }
   if (object(raw)?.schema === "sokosumi.seo-result/1") {

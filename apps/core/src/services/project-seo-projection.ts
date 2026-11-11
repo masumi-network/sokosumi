@@ -171,6 +171,7 @@ export function projectSeoProjection(
     input.tasks.map((task) => [task.id, task.status]),
   );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
+  let strategy: ProjectSeoWorkspace["strategy"] = null;
   const searchSources: SearchEvidenceSource[] = [];
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   for (const row of input.observations) {
@@ -279,6 +280,19 @@ export function projectSeoProjection(
           : ""),
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
+    // Rows come newest first, so the first strategy is the newest site audit's.
+    if (data.strategy && !strategy)
+      strategy = {
+        ...data.strategy,
+        groups: data.strategy.groups.filter(
+          (group) =>
+            !group.pageUrl || selectedUrls.has(normalizeSeoUrl(group.pageUrl)),
+        ),
+        observationId: row.id,
+        observedAt: row.observedAt.toISOString(),
+        countryCode: data.countryCode || null,
+        languageCode: data.languageCode || null,
+      };
     observations.push({
       id: row.id,
       kind: row.kind,
@@ -586,6 +600,7 @@ export function projectSeoProjection(
     metrics,
     searchQueries: search.searchQueries,
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
+    strategy,
     metricsStatus: !metrics.length
       ? "unavailable"
       : metrics.some((metric) => metric.coverage !== "complete")
