@@ -1,7 +1,7 @@
 import type { TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { TaskSchedulesView } from "./task-schedules-view";
@@ -281,23 +281,82 @@ describe("TaskSchedulesView", () => {
     expect(replaceMock).toHaveBeenCalledWith("/schedules");
   });
 
-  it("lands focus on the All tab after Show all remounts the view", async () => {
-    const user = userEvent.setup();
-    const { unmount } = renderView([], {
-      state: "ENDED",
-      otherStateCounts: [{ state: "ACTIVE", count: 1 }],
+  describe("focus after Show all", () => {
+    const ENDED_EMPTY = {
+      state: "ENDED" as const,
+      otherStateCounts: [{ state: "ACTIVE" as const, count: 1 }],
+    };
+
+    /** The browser URL the router would have committed. */
+    function at(url: string) {
+      window.history.replaceState(null, "", url);
+      searchParamsRef.current = new URL(
+        url,
+        window.location.origin,
+      ).searchParams;
+    }
+
+    async function clickShowAllFromEmptyEnded() {
+      const user = userEvent.setup();
+      at("/schedules?scheduleState=ENDED");
+      const view = renderView([], ENDED_EMPTY);
+      await user.click(screen.getByRole("button", { name: "showAll" }));
+      expect(replaceMock).toHaveBeenCalledWith("/schedules");
+      replaceMock.mockClear();
+      return { user, view };
+    }
+
+    afterEach(() => at("/"));
+
+    it("lands on the All tab when Show all arrives", async () => {
+      const { view } = await clickShowAllFromEmptyEnded();
+      // The new filter is a new key on the page, so the view mounts afresh.
+      at("/schedules");
+      view.unmount();
+      renderView([schedule({})]);
+
+      expect(screen.getByRole("tab", { name: "filterAll" })).toHaveFocus();
+      expect(replaceMock).not.toHaveBeenCalled();
     });
-    await user.click(screen.getByRole("button", { name: "showAll" }));
-    // The new filter is a new key on the page, so the view mounts afresh.
-    unmount();
-    const remounted = renderView([schedule({})]);
 
-    expect(screen.getByRole("tab", { name: "filterAll" })).toHaveFocus();
+    it("drops the request when the user leaves before it arrives", async () => {
+      const { view } = await clickShowAllFromEmptyEnded();
+      at("/tasks");
+      view.unmount();
 
-    // A later, ordinary mount leaves focus alone.
-    remounted.unmount();
-    renderView([schedule({})]);
-    expect(screen.getByRole("tab", { name: "filterAll" })).not.toHaveFocus();
+      at("/schedules?scheduleState=PAUSED");
+      const paused = renderView([schedule({ state: "PAUSED" })], {
+        state: "PAUSED",
+      });
+      expect(replaceMock).not.toHaveBeenCalled();
+      expect(screen.getByRole("tab", { name: "state.PAUSED" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(document.body).toHaveFocus();
+
+      paused.unmount();
+      at("/schedules");
+      renderView([schedule({})]);
+      expect(document.body).toHaveFocus();
+      expect(replaceMock).not.toHaveBeenCalled();
+    });
+
+    it("drops the request when it never arrives and another filter is picked", async () => {
+      const { user, view } = await clickShowAllFromEmptyEnded();
+      // Navigation failed: still on Ended, the reader picks Paused instead.
+      await user.click(screen.getByRole("tab", { name: "state.PAUSED" }));
+      expect(replaceMock).toHaveBeenCalledWith(
+        "/schedules?scheduleState=PAUSED",
+      );
+      replaceMock.mockClear();
+
+      at("/schedules?scheduleState=PAUSED");
+      view.unmount();
+      renderView([schedule({ state: "PAUSED" })], { state: "PAUSED" });
+      expect(replaceMock).not.toHaveBeenCalled();
+      expect(document.body).toHaveFocus();
+    });
   });
 
   it("keeps the first-use text when no state holds a schedule", () => {

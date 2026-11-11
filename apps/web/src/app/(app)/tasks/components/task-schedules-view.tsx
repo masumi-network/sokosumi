@@ -38,11 +38,18 @@ import { TaskScheduleRow } from "./task-schedule-row";
 const ALL_STATES = "all";
 
 /**
- * "Show all schedules" unmounts with the empty state, and the new filter
- * remounts this view (the page keys it by filter), so the request to land on
- * the All tab has to outlive the instance that made it.
+ * Where a "Show all schedules" click is headed. The button unmounts with the
+ * empty state and the new filter remounts this view (the page keys it by
+ * filter), so the request to land on the All tab outlives the instance that
+ * made it. Only a view mounted at this URL uses it; every mount, any other
+ * filter change and leaving for another URL drop it, so a stale request never
+ * moves focus (focusing a Radix tab selects it).
  */
-let focusAllTabOnMount = false;
+let showAllDestination: string | null = null;
+
+function currentUrl(): string {
+  return `${window.location.pathname}${window.location.search}`;
+}
 
 interface TaskSchedulesViewProps {
   defaultViewMode?: SchedulesViewMode;
@@ -98,7 +105,8 @@ export function TaskSchedulesView({
   const [shownState, setShownState] = useOptimistic(selectedState);
   const [, startFiltering] = useTransition();
 
-  function handleStateChange(next: string) {
+  function handleStateChange(next: string): string {
+    showAllDestination = null;
     const params = new URLSearchParams(searchParams.toString());
     const nextState = parseTaskScheduleStateFilter(next);
     if (nextState) {
@@ -107,21 +115,26 @@ export function TaskSchedulesView({
       params.delete(TASK_SCHEDULE_STATE_PARAM);
     }
     const query = params.toString();
+    const href = query ? `${pathname}?${query}` : pathname;
     startFiltering(() => {
       setShownState(nextState);
-      router.replace(query ? `${pathname}?${query}` : pathname);
+      router.replace(href);
     });
+    return href;
   }
 
   useMountEffect(() => {
-    if (!focusAllTabOnMount) return;
-    focusAllTabOnMount = false;
-    allTabRef.current?.focus();
+    const arrived = showAllDestination === currentUrl();
+    showAllDestination = null;
+    if (arrived) allTabRef.current?.focus();
+    return () => {
+      // Unmounted for anything but the Show all landing: drop the request.
+      if (showAllDestination !== currentUrl()) showAllDestination = null;
+    };
   });
 
   function handleShowAll() {
-    focusAllTabOnMount = true;
-    handleStateChange(ALL_STATES);
+    showAllDestination = handleStateChange(ALL_STATES);
   }
 
   function handleScheduleChanged() {
