@@ -61,7 +61,7 @@ export function AssistantConnectStep({
       <h1
         ref={headingRef}
         tabIndex={-1}
-        className="text-foreground text-center text-2xl font-light tracking-tight text-balance wrap-break-word outline-none md:text-3xl"
+        className="text-foreground text-center text-2xl font-light tracking-tight text-balance wrap-anywhere outline-none md:text-3xl"
       >
         {tConnect("connectTitle", { bot: botName })}
       </h1>

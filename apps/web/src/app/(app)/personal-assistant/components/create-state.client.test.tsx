@@ -121,21 +121,27 @@ describe("CreateState", () => {
     expect(screen.getByLabelText("Name")).toHaveFocus();
   });
 
-  it("keeps a long name inside the phone width on the picture step", async () => {
-    const user = userEvent.setup();
-    renderCreate();
-    const name = "Pebble the Very Helpful Office Companion";
+  it.each([
+    ["spaced", "Pebble the Very Helpful Office Companion"],
+    // The field allows 80 characters; one unbroken word must wrap too.
+    ["unbroken", "W".repeat(80)],
+  ])(
+    "keeps a long %s name inside the phone width on the picture step",
+    async (_, name) => {
+      const user = userEvent.setup();
+      renderCreate();
 
-    await user.type(screen.getByLabelText("Name"), `${name}{Enter}`);
+      await user.type(screen.getByLabelText("Name"), `${name}{Enter}`);
 
-    // Buttons never wrap, so the label truncates; the full name stays its name.
-    const label = screen.getByText(`Create ${name}`);
-    expect(label).toHaveClass("truncate");
-    expect(label.closest("button")).toHaveAccessibleName(`Create ${name}`);
-    expect(
-      screen.getByRole("heading", { name: `Pick a picture for ${name}` }),
-    ).toHaveClass("wrap-break-word");
-  });
+      // Buttons never wrap, so the label truncates; the full name stays its name.
+      const label = screen.getByText(`Create ${name}`);
+      expect(label).toHaveClass("truncate");
+      expect(label.closest("button")).toHaveAccessibleName(`Create ${name}`);
+      expect(
+        screen.getByRole("heading", { name: `Pick a picture for ${name}` }),
+      ).toHaveClass("wrap-anywhere");
+    },
+  );
 
   it("locks the pictures while the bot is being created", async () => {
     const user = userEvent.setup();
