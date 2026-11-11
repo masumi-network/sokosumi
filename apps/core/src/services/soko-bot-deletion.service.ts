@@ -4,6 +4,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
 import { notFound } from "@/helpers/error";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import {
@@ -88,7 +89,14 @@ export async function deleteSokoBot(
   const deleted = await serializableTransaction(async (tx) => {
     const bot = await tx.sokoBot.findFirst({
       where: { id: sokoBotId, deletedAt: null },
-      select: { id: true, sharedRoomId: true },
+      select: {
+        id: true,
+        sharedRoomId: true,
+        userId: true,
+        projectId: true,
+        versionId: true,
+        archivedAt: true,
+      },
     });
     if (!bot) throw notFound("Soko Bot not found");
     await tx.$queryRaw`
@@ -108,6 +116,10 @@ export async function deleteSokoBot(
         pendingComposioAccountId: true,
       },
     });
+
+    // Both outcomes end a live Cuso; a hard delete keeps his Project, and so
+    // its credits, so they are written off here (ADR 0067).
+    await forfeitCusoProjectCredits(bot, tx);
 
     // Stop live work before erasing what it would write back into.
     await tx.sokoBotTurn.updateMany({
