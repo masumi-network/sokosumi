@@ -11144,7 +11144,6 @@
         "groups": "Saved page selections",
         "relationship": "Relationship",
         "selected": "Selected",
-        "choose": "View page",
         "chooseSelection": "View selection",
         "version": "Version {version}",
         "count": "{count, plural, one {# page} other {# pages}}",
@@ -11502,7 +11501,7 @@
             "no_queries": "Load the searches behind your Search Console totals, so the agent can suggest work."
           },
           "connect": {
-            "search_console": "Connect Google to measure clicks, impressions and the searches that show these pages. Google Analytics adds visits and page views and is optional.",
+            "search_console": "Connect Google to measure clicks, impressions and the searches that show these pages.",
             "ga4": "Connect Google Analytics to measure visits and page views."
           },
           "sync": {

@@ -208,24 +208,6 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                       <SeoPeriod {...totalsPeriod} />
                     </p>
                   ) : null}
-                  {choosable ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-pressed={model.filters.pageId === page.id}
-                      onClick={() => {
-                        void model.setFilters({
-                          pageId: page.id,
-                          scopeId: null,
-                        });
-                      }}
-                    >
-                      {model.filters.pageId === page.id ? (
-                        <Check className="size-4" />
-                      ) : null}
-                      {t("pages.choose")}
-                    </Button>
-                  ) : null}
                 </li>
               );
             })}

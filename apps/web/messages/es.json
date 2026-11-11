@@ -11144,7 +11144,6 @@
         "groups": "Selecciones de páginas guardadas",
         "relationship": "Relación",
         "selected": "Seleccionada",
-        "choose": "Ver página",
         "chooseSelection": "Ver selección",
         "version": "Versión {version}",
         "count": "{count, plural, one {# página} other {# páginas}}",
@@ -11502,7 +11501,7 @@
             "no_queries": "Carga las búsquedas detrás de tus totales de Search Console para que el agente pueda sugerir trabajo."
           },
           "connect": {
-            "search_console": "Conecta Google para medir clics, impresiones y las búsquedas que muestran estas páginas. Google Analytics añade visitas y páginas vistas y es opcional.",
+            "search_console": "Conecta Google para medir clics, impresiones y las búsquedas que muestran estas páginas.",
             "ga4": "Conecta Google Analytics para medir visitas y páginas vistas."
           },
           "sync": {

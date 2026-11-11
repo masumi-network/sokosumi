@@ -141,7 +141,7 @@ export function SeoKeywordIdeas({
                   {model.data.availableActions.canEdit ? (
                     <div className="flex justify-end">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         disabled={model.pending}
                         onClick={() => {

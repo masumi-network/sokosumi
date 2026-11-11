@@ -494,7 +494,7 @@ export function SeoKeywords({
                               <div className="flex flex-wrap justify-end gap-2 max-sm:flex-col max-sm:items-end">
                                 {row.version > 0 ? (
                                   <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     size="sm"
                                     disabled={model.pending}
                                     onClick={() => model.openKeywordEdit(row)}
@@ -503,7 +503,7 @@ export function SeoKeywords({
                                   </Button>
                                 ) : null}
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
                                   disabled={model.pending}
                                   onClick={() => {

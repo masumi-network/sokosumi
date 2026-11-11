@@ -11144,7 +11144,6 @@
         "groups": "Gespeicherte Seitenauswahl",
         "relationship": "Beziehung",
         "selected": "Ausgewählt",
-        "choose": "Seite ansehen",
         "chooseSelection": "Auswahl ansehen",
         "version": "Version {version}",
         "count": "{count, plural, one {# Seite} other {# Seiten}}",
@@ -11502,7 +11501,7 @@
             "no_queries": "Lade die Suchanfragen hinter deinen Search-Console-Summen, damit der Agent Arbeit vorschlagen kann."
           },
           "connect": {
-            "search_console": "Verbinde Google, um Klicks, Impressionen und Suchanfragen zu messen. Google Analytics ergänzt Besuche und Seitenaufrufe und ist optional.",
+            "search_console": "Verbinde Google, um Klicks, Impressionen und Suchanfragen zu messen.",
             "ga4": "Verbinde Google Analytics, um Besuche und Seitenaufrufe zu messen."
           },
           "sync": {
