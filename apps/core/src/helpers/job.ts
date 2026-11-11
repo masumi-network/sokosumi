@@ -329,6 +329,7 @@ interface CreateAgentJobInput {
   };
   /**
    * The Project whose credits pay for the Job, ahead of the pool (ADR 0067).
+   * A Soko Bot's hire passes its bot's Project, even for a Job with none.
    * Undefined charges with the Job's own `projectId`; null sees only the pool.
    */
   creditProjectId?: string | null;

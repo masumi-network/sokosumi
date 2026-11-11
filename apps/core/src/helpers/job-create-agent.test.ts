@@ -517,6 +517,42 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     );
   });
 
+  it("gates and charges a hire with the Project named for credits, even when the Job has none", async () => {
+    // Cuso hiring: his bot's Project pays, whatever the Job row holds.
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV1JobResponse),
+    });
+
+    await createAgentJobForUser(
+      createInput({
+        owner: {
+          ownerId: null,
+          organizationId: "org_1",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+        creator: { kind: "soko_bot", sokoBotId: "bot_1" },
+        creditProjectId: "project_cuso",
+      }),
+    ).catch(() => undefined);
+
+    const scope = { projectId: "project_cuso" };
+    expect(txJobCreateMock.mock.calls[0]?.[0].data.project).toBeUndefined();
+    // Preflight and the re-check inside the creation transaction.
+    expect(getBalanceMock).toHaveBeenCalledTimes(2);
+    for (const call of getBalanceMock.mock.calls) {
+      expect(call).toEqual([null, "org_1", expect.anything(), scope]);
+    }
+    expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      null,
+      "org_1",
+      BigInt(5),
+      expect.anything(),
+      scope,
+    );
+  });
+
   it("runs the local Job callback inside its creation transaction", async () => {
     let insideLocalTransaction = false;
     const transactionClient = {
