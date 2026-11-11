@@ -1,6 +1,6 @@
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   type ComponentProps,
@@ -9,12 +9,17 @@ import {
   isValidElement,
   type ReactElement,
   type ReactNode,
+  startTransition,
   useContext,
   useState,
 } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
+import {
+  TaskDetailStatusProvider,
+  useOptimisticTaskStatus,
+} from "@/app/tasks/components/task-detail-optimistic";
 import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import {
   type CreateTaskResult,
@@ -707,10 +712,10 @@ const coworkerOptions = [
   }),
 ];
 
-function renderActions(
+function renderActionsElement(
   props?: Partial<ComponentProps<typeof TaskDetailActions>>,
 ) {
-  return render(
+  return (
     <TaskDetailActions
       taskId="task-1"
       share={null}
@@ -728,8 +733,14 @@ function renderActions(
       isTaskOwner
       taskOwnerId="owner-1"
       {...props}
-    />,
+    />
   );
+}
+
+function renderActions(
+  props?: Partial<ComponentProps<typeof TaskDetailActions>>,
+) {
+  return render(renderActionsElement(props));
 }
 
 describe("TaskDetailActions", () => {
@@ -813,6 +824,71 @@ describe("TaskDetailActions", () => {
         desiredStatus: TaskStatus.CANCELED,
       });
     });
+  });
+
+  it("shows a menu status change to the rest of the task page at once", async () => {
+    const user = userEvent.setup();
+    let answer: (result: ReturnType<typeof taskStatusSuccess>) => void =
+      () => {};
+    vi.mocked(setTaskStatusFromDrag).mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    function Panel() {
+      const [shown] = useOptimisticTaskStatus(TaskStatus.QUEUED);
+      return <p>panel {shown}</p>;
+    }
+    render(
+      <TaskDetailStatusProvider status={TaskStatus.QUEUED}>
+        {renderActionsElement({ status: TaskStatus.QUEUED })}
+        <Panel />
+      </TaskDetailStatusProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: labels.cancel }));
+
+    expect(
+      screen.getByText(`panel ${TaskStatus.CANCELED}`),
+    ).toBeInTheDocument();
+    await act(async () => answer(taskStatusSuccess()));
+  });
+
+  it("locks the menu while the panel changes the status", async () => {
+    let finishWrite: () => void = () => {};
+    function Panel() {
+      const [, showStatus] = useOptimisticTaskStatus(TaskStatus.RUNNING);
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            startTransition(async () => {
+              showStatus(TaskStatus.COMPLETED);
+              await new Promise<void>((resolve) => (finishWrite = resolve));
+            })
+          }
+        >
+          panel write
+        </button>
+      );
+    }
+    render(
+      <TaskDetailStatusProvider status={TaskStatus.RUNNING}>
+        {renderActionsElement({ status: TaskStatus.RUNNING })}
+        <Panel />
+      </TaskDetailStatusProvider>,
+    );
+
+    await act(async () =>
+      screen.getByRole("button", { name: "panel write" }).click(),
+    );
+
+    expect(
+      screen.getByRole("button", { name: actionsMenuLabel }),
+    ).toBeDisabled();
+    await act(async () => finishWrite());
+    expect(
+      screen.getByRole("button", { name: actionsMenuLabel }),
+    ).toBeEnabled();
   });
 
   it("hides archive while the coworker is running", async () => {
@@ -1140,6 +1216,44 @@ describe("TaskDetailActions", () => {
         comment: "Please continue from the last draft",
       });
     });
+  });
+
+  it("shows a reopen to the rest of the task page while it is sent", async () => {
+    const user = userEvent.setup();
+    let answer: (result: ReturnType<typeof taskStatusSuccess>) => void =
+      () => {};
+    vi.mocked(setTaskStatusFromDrag).mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    function Panel() {
+      const [shown] = useOptimisticTaskStatus(TaskStatus.CANCELED);
+      return <p>panel {shown}</p>;
+    }
+    render(
+      <TaskDetailStatusProvider status={TaskStatus.CANCELED}>
+        {renderActionsElement({
+          status: TaskStatus.CANCELED,
+          defaultAssigneeId: "cow-1",
+          organizations: undefined,
+        })}
+        <Panel />
+      </TaskDetailStatusProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    );
+    await user.type(
+      screen.getByLabelText(labels.reopenToReadyCommentLabel),
+      "Please continue",
+    );
+    await user.click(
+      screen.getByRole("button", { name: labels.reopenToReadyConfirm }),
+    );
+
+    expect(screen.getByText(`panel ${TaskStatus.READY}`)).toBeInTheDocument();
+    await act(async () => answer(taskStatusSuccess()));
   });
 
   it("offers reopen-to-ready for completed tasks", async () => {

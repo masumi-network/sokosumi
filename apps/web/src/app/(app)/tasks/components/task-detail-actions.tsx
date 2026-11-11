@@ -85,6 +85,7 @@ import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { buildNewTaskFormLabels } from "./task-detail-new-task-labels";
+import { useOptimisticTaskStatus } from "./task-detail-optimistic";
 import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
@@ -172,7 +173,7 @@ interface TaskDetailActionsProps {
 export function TaskDetailActions({
   taskId,
   share,
-  status,
+  status: savedStatus,
   taskVisibility = "PUBLIC",
   jobsCount,
   taskLinks,
@@ -203,6 +204,8 @@ export function TaskDetailActions({
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
+  const [status, showStatus, isStatusChanging] =
+    useOptimisticTaskStatus(savedStatus);
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
   const [isParentRemovalPending, startParentRemovalTransition] =
@@ -397,6 +400,7 @@ export function TaskDetailActions({
     setPendingStatusTarget(action.target);
 
     startStatusTransition(async () => {
+      showStatus(action.target);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
@@ -426,6 +430,7 @@ export function TaskDetailActions({
     setPendingStatusTarget(TaskStatus.READY);
 
     startStatusTransition(async () => {
+      showStatus(TaskStatus.READY);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
@@ -548,8 +553,11 @@ export function TaskDetailActions({
     });
   };
 
+  // The gates above follow a status that Core has not confirmed yet, so
+  // nothing here acts on it while a status write is open, here or in the panel.
   const actionsDisabled =
     isStatusPending ||
+    isStatusChanging ||
     isLinkPending ||
     isParentRemovalPending ||
     isRemoveRelatedPending;
