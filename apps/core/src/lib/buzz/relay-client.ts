@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { makeAuthEvent } from "nostr-tools/nip42";
 import {
   type Event,
@@ -55,6 +55,9 @@ export function nip98Header(input: {
   const tags = [
     ["u", input.url],
     ["method", input.method.toUpperCase()],
+    // The relay refuses a proof it has seen; two identical requests in one
+    // second would otherwise sign to the same event.
+    ["nonce", randomBytes(16).toString("hex")],
   ];
   if (input.body !== undefined) tags.push(["payload", sha256Hex(input.body)]);
   const proof = finalizeEvent(

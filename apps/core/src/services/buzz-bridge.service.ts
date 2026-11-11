@@ -317,23 +317,27 @@ export async function startBuzzAppLink(userId: string, publicKey: string) {
   if (taken) {
     throw new BuzzAppLinkError("That Buzz key belongs to another account.");
   }
+  // One invite per community; organizations can share one in local setups.
+  const byRelay = new Map(communities.map((c) => [c.relayUrl, c]));
+  const invites = [];
+  for (const community of byRelay.values()) {
+    const code = await mintInvite(community.relayUrl);
+    invites.push({
+      organizationName: community.organizationName,
+      relayUrl: community.relayUrl,
+      joinUrl: `buzz://join?relay=${encodeURIComponent(community.relayUrl)}&code=${encodeURIComponent(code)}`,
+      inviteUrl: `${relayHttpOrigin(community.relayUrl)}/invite/${code}`,
+    });
+  }
+  // Recorded once the invites exist, so a failed request leaves nothing
+  // pending; a key can only join after its person has seen them.
   if (identity.appPubkey !== pubkey) {
     await prisma.buzzIdentity.update({
       where: { id: identity.id },
       data: { pendingAppPubkey: pubkey, pendingAppSince: new Date() },
     });
   }
-  return Promise.all(
-    communities.map(async (community) => {
-      const code = await mintInvite(community.relayUrl);
-      return {
-        organizationName: community.organizationName,
-        relayUrl: community.relayUrl,
-        joinUrl: `buzz://join?relay=${encodeURIComponent(community.relayUrl)}&code=${encodeURIComponent(code)}`,
-        inviteUrl: `${relayHttpOrigin(community.relayUrl)}/invite/${code}`,
-      };
-    }),
-  );
+  return invites;
 }
 
 /** Rooms the person is in that are on Buzz get their members pushed again. */

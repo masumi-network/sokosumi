@@ -41,8 +41,19 @@ describe("nip98Header", () => {
     expect(proof.tags).toEqual([
       ["u", "http://relay/events"],
       ["method", "POST"],
+      ["nonce", expect.stringMatching(/^[0-9a-f]{32}$/)],
       ["payload", createHash("sha256").update(body).digest("hex")],
     ]);
+  });
+
+  it("never signs two requests the same, so the relay does not take one for a replay", () => {
+    const input = {
+      secretKey,
+      url: "http://relay/api/invites",
+      method: "POST",
+      body: "{}",
+    };
+    expect(nip98Header(input)).not.toBe(nip98Header(input));
   });
 });
 
