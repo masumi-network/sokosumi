@@ -63,15 +63,16 @@ export function StudioGallery({
   cancelRequestedJobIds: string[];
   catalog: StudioCatalog;
   labels: StudioLabels;
-  onCancelJob: (jobId: string) => void;
+  /** Omitted, with the draw actions below, in a read-only studio. */
+  onCancelJob?: (jobId: string) => void;
   onOpen: (assetId: string) => void;
   /** Same brief, same settings, no reference: another draw of the dice. */
-  onReroll: (asset: StudioAsset) => void;
+  onReroll?: (asset: StudioAsset) => void;
   /** Put this image's prompt back in the composer to edit. */
-  onReusePrompt: (asset: StudioAsset) => void;
+  onReusePrompt?: (asset: StudioAsset) => void;
   onToggleSelect: (assetId: string) => void;
   /** Same brief with this image as the reference. */
-  onVariation: (asset: StudioAsset) => void;
+  onVariation?: (asset: StudioAsset) => void;
   /** Requests still held in this page, not yet accepted by Core. */
   queued: QueuedGeneration[];
   selectedIds: string[];
@@ -204,7 +205,7 @@ export function StudioGallery({
                         "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
                       )}
                     >
-                      {video ? null : (
+                      {video || !onReroll ? null : (
                         <HoverAction
                           label={labels.reroll}
                           onClick={() => onReroll(asset)}
@@ -212,7 +213,9 @@ export function StudioGallery({
                           <Dices aria-hidden className="size-3.5" />
                         </HoverAction>
                       )}
-                      {!video && supportsVariation(catalog, asset.model) ? (
+                      {onVariation &&
+                      !video &&
+                      supportsVariation(catalog, asset.model) ? (
                         <HoverAction
                           label={labels.regenerate}
                           onClick={() => onVariation(asset)}
@@ -220,12 +223,14 @@ export function StudioGallery({
                           <Shuffle aria-hidden className="size-3.5" />
                         </HoverAction>
                       ) : null}
-                      <HoverAction
-                        label={labels.reusePrompt}
-                        onClick={() => onReusePrompt(asset)}
-                      >
-                        <Quote aria-hidden className="size-3.5" />
-                      </HoverAction>
+                      {onReusePrompt ? (
+                        <HoverAction
+                          label={labels.reusePrompt}
+                          onClick={() => onReusePrompt(asset)}
+                        >
+                          <Quote aria-hidden className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <a
@@ -312,15 +317,17 @@ export function StudioGallery({
                 {/* Cancelling belongs on the thing being cancelled. As a row
                     of buttons above the gallery it was a second list of the
                     running jobs, in a different order, with no picture. */}
-                <Button
-                  className="mt-2"
-                  disabled={requested}
-                  onClick={() => onCancelJob(job.id)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {requested ? labels.cancelRequested : labels.cancel}
-                </Button>
+                {onCancelJob ? (
+                  <Button
+                    className="mt-2"
+                    disabled={requested}
+                    onClick={() => onCancelJob(job.id)}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {requested ? labels.cancelRequested : labels.cancel}
+                  </Button>
+                ) : null}
               </PendingTile>
             </li>
           );

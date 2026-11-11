@@ -49,6 +49,8 @@ interface PickerState {
 interface AdsAccountsProps {
   accounts: ProjectAdAccount[];
   projectId: string;
+  /** A CMO Project: CMO runs its ads, so they are only read (ADR 0066). */
+  readOnly?: boolean;
 }
 
 /**
@@ -57,7 +59,11 @@ interface AdsAccountsProps {
  * them again. The list itself comes from the server, so writes revalidate
  * `/ads` rather than patching local state.
  */
-export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
+export function AdsAccounts({
+  accounts,
+  projectId,
+  readOnly = false,
+}: AdsAccountsProps) {
   const t = useTranslations("App.Ads.accounts");
   const { connect } = useComposioConnection();
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -201,7 +207,7 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
     }
   }
 
-  const connectControls = (
+  const connectControls = readOnly ? null : (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start">
         {PROVIDERS.map((provider) => {
@@ -281,17 +287,19 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
                     {account.externalAccountId} · {account.currency}
                   </p>
                 </div>
-                <Button
-                  aria-label={t("disconnectLabel", { name: account.name })}
-                  className="self-start md:self-auto"
-                  disabled={disconnectingId === account.id}
-                  onClick={() => setDisconnectTarget(account)}
-                  size="sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  {t("disconnect")}
-                </Button>
+                {readOnly ? null : (
+                  <Button
+                    aria-label={t("disconnectLabel", { name: account.name })}
+                    className="self-start md:self-auto"
+                    disabled={disconnectingId === account.id}
+                    onClick={() => setDisconnectTarget(account)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    {t("disconnect")}
+                  </Button>
+                )}
               </li>
             ))}
           </ul>

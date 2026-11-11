@@ -1081,6 +1081,13 @@
       "highlights": "Logros",
       "experience": "Experiencia",
       "education": "Formación"
+    },
+    "CmoProject": {
+      "badge": "CMO",
+      "title": "Gestionado por CMO",
+      "description": "CMO gestiona este proyecto, así que los cambios se hacen en CMO. Aquí puedes consultarlo.",
+      "open": "Abrir en CMO",
+      "newTab": "(se abre en una pestaña nueva)"
     }
   },
   "Join": {

@@ -151,6 +151,11 @@ interface ProjectSocialPostsProps {
   projectId: string;
   /** Render only the post dialog and its actions for an unscoped calendar. */
   previewOnly?: boolean;
+  /**
+   * A CMO Project: CMO writes and schedules its posts, so they can be read
+   * and previewed here but not changed (ADR 0066).
+   */
+  readOnly?: boolean;
   returnFocus?: () => void;
   /**
    * The post a link names (`?postId=`), opened in a preview without changing tabs.
@@ -160,6 +165,20 @@ interface ProjectSocialPostsProps {
   requestedPostId?: string;
   /** The named post request failed, so do not pretend the link is gone. */
   selectedPostFailed?: boolean;
+}
+
+/** A post with nothing it can do, as every post of a CMO Project shows. */
+function withoutActions(post: SocialPost): SocialPost {
+  return {
+    ...post,
+    canEdit: false,
+    canSchedule: false,
+    canCancel: false,
+    canPublishNow: false,
+    canApprove: false,
+    canReject: false,
+    canDuplicate: false,
+  };
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
@@ -312,12 +331,14 @@ export function ProjectSocialPosts({
   requestedPostId,
   selectedPostFailed = false,
   previewOnly = false,
+  readOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
   const { enabledProviders, isProviderEnabled } =
     useSocialProviderAvailability();
   function canRetryPost(post: SocialPost): boolean {
     return (
+      !readOnly &&
       isProviderEnabled(post.provider) &&
       RETRY_STATUSES.includes(post.status) &&
       post.canPublishNow
@@ -362,17 +383,18 @@ export function ProjectSocialPosts({
   const studioPrefill = compose?.open
     ? peekSocialComposePrefill(projectId)
     : null;
-  const composerMode: SocialPostComposerMode | null =
-    composer ??
-    (compose?.open
-      ? ({
-          kind: "create",
-          ...peekSocialComposePrefill(projectId),
-          scheduledAt: compose.scheduledAt ?? undefined,
-          ...studioPrefill,
-          source: studioPrefill ? "studio" : undefined,
-        } satisfies SocialPostComposerMode)
-      : null);
+  const composerMode: SocialPostComposerMode | null = readOnly
+    ? null
+    : (composer ??
+      (compose?.open
+        ? ({
+            kind: "create",
+            ...peekSocialComposePrefill(projectId),
+            scheduledAt: compose.scheduledAt ?? undefined,
+            ...studioPrefill,
+            source: studioPrefill ? "studio" : undefined,
+          } satisfies SocialPostComposerMode)
+        : null));
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
@@ -438,7 +460,9 @@ export function ProjectSocialPosts({
       connection,
   );
   const allAffectedPosts = posts.reduce(upsertPost, affectedPosts);
-  const reconnections = getSocialReconnections(managed, allAffectedPosts);
+  const reconnections = readOnly
+    ? []
+    : getSocialReconnections(managed, allAffectedPosts);
 
   function handleReconnected(connection: ProjectSocialConnection): void {
     const failedPosts =
@@ -514,7 +538,7 @@ export function ProjectSocialPosts({
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
   const listedAccountCount = accountCount ?? connections.length;
   const accountPrompt =
-    accounts === undefined || tab === "accounts" || accountsFailed
+    readOnly || accounts === undefined || tab === "accounts" || accountsFailed
       ? null
       : listedAccountCount === 0
         ? "connect"
@@ -898,7 +922,8 @@ export function ProjectSocialPosts({
     }
   }
 
-  function renderPostActions(post: SocialPost, preview = false) {
+  function renderPostActions(target: SocialPost, preview = false) {
+    const post = readOnly ? withoutActions(target) : target;
     const providerEnabled = isProviderEnabled(post.provider);
     const isRetry = RETRY_STATUSES.includes(post.status);
     // A post that failed or missed its time has one thing left to do, so
@@ -974,7 +999,8 @@ export function ProjectSocialPosts({
             {t("actions.approve")}
           </Button>
         ) : null}
-        {preview &&
+        {!readOnly &&
+        preview &&
         post.status === "FAILED" &&
         post.publishingThreadPartPosition != null ? (
           <Button
@@ -1710,7 +1736,7 @@ export function ProjectSocialPosts({
         post={
           previewTarget
             ? {
-                ...previewTarget,
+                ...(readOnly ? withoutActions(previewTarget) : previewTarget),
                 socialConnection: previewTarget.socialConnection
                   ? {
                       ...previewTarget.socialConnection,
