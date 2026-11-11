@@ -11009,7 +11009,7 @@
         "points": "{value} Pp."
       },
       "keywords": {
-        "title": "Verfolgte Keywords",
+        "title": "Keywords",
         "edit": "Keyword bearbeiten",
         "empty": "Noch keine verfolgten Keywords",
         "emptyBody": "Verfolge eine Suchanfrage im Tab „Zugriffe“ oder starte eine Prüfung, um Keywords zu finden.",
@@ -11023,8 +11023,8 @@
         "add": "Keyword verfolgen",
         "keyword": "Keyword",
         "market": "Markt",
-        "volume": "Suchvolumen",
-        "position": "Durchschnittliche Position",
+        "volume": "Suchen pro Monat",
+        "position": "Position",
         "intent": "Suchabsicht",
         "priority": "Priorität",
         "saved": "Verfolgt",
@@ -11032,8 +11032,10 @@
         "save": "Verfolgen",
         "unsave": "Nicht mehr verfolgen",
         "ranked": "Position {position}",
-        "notInRange": "Nicht unter den {count} geprüften Treffern",
-        "unavailable": "Nicht gemessen",
+        "noMatch": "Kein verfolgtes oder geprüftes Keyword passt zur Suche",
+        "readFailed": "Keine Position gelesen",
+        "notInRange": "Nicht in den ersten {count} Ergebnissen",
+        "unavailable": "Noch nicht geprüft",
         "country": "Ländercode",
         "language": "Sprachcode",
         "target": "Zielseite",
@@ -11049,7 +11051,19 @@
         "trendEmpty": "In keinem Land Search-Console-Impressionen",
         "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 25 verfolgte Keywords erhalten tägliche Positionen.",
         "trendLabel": "Durchschnittliche Position für „{keyword}“",
-        "trendNoImpressions": "Keine Impressionen"
+        "trendNoImpressions": "Keine Impressionen",
+        "summary": "In den Google-Ergebnissen für {found} von {read, plural, one {# geprüftem Keyword} other {# geprüften Keywords}} gefunden",
+        "firstPage": "{count} auf der ersten Seite",
+        "more": "{count, plural, one {# weiteres Keyword anzeigen} other {# weitere Keywords anzeigen}}",
+        "ideas": {
+          "title": "Keyword-Ideen ({count})",
+          "help": "Suchen, die die letzte Prüfung für diese Seiten gefunden hat. Für sie ist noch keine Position gelesen. Verfolge eine, um sie im Blick zu behalten.",
+          "why": "Warum es gelistet ist",
+          "source": {
+            "gap": "Wettbewerber ranken dafür",
+            "opportunity": "Verwandte Suche"
+          }
+        }
       },
       "competitors": {
         "title": "Mitbewerber",
@@ -11068,7 +11082,8 @@
         "yourPage": "Deine Seite",
         "compare": "Mit meiner Seite vergleichen",
         "compareDraft": "Vergleiche meine Seite mit {url}. Was macht sie bei denselben Suchanfragen besser, und was sollte ich zuerst ändern?",
-        "paidOff": "Rang- und Backlink-Zahlen brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind."
+        "paidOff": "Rang- und Backlink-Zahlen brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind.",
+        "more": "{count, plural, one {# weitere Seite anzeigen} other {# weitere Seiten anzeigen}}"
       },
       "actions": {
         "title": "Aktionen",
@@ -11078,6 +11093,7 @@
         "createTask": "Entwurfsaufgabe erstellen",
         "why": "Warum das wichtig ist",
         "effect": "Erwartete Wirkung",
+        "whyDetails": "Begründung und Belege",
         "effort": "Aufwand",
         "before": "Vorher",
         "after": "Vorgeschlagene Änderung",
@@ -11490,6 +11506,7 @@
         "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
         "askShort": "Agent fragen",
         "openTraffic": "Zugriffe öffnen",
+        "openRankings": "Rankings öffnen",
         "draftFix": "Korrektur entwerfen",
         "suggestions": "{count, plural, one {# Vorschlag, kein Fehler.} other {# Vorschläge, keine Fehler.}}",
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}"

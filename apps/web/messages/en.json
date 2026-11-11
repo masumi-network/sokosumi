@@ -11009,7 +11009,7 @@
         "points": "{value} pp"
       },
       "keywords": {
-        "title": "Tracked keywords",
+        "title": "Keywords",
         "edit": "Edit keyword",
         "empty": "No tracked keywords yet",
         "emptyBody": "Track a search in the Traffic tab, or run a check to find keywords.",
@@ -11023,8 +11023,8 @@
         "add": "Track a keyword",
         "keyword": "Keyword",
         "market": "Market",
-        "volume": "Search volume",
-        "position": "Average position",
+        "volume": "Searches a month",
+        "position": "Position",
         "intent": "Intent",
         "priority": "Priority",
         "saved": "Tracked",
@@ -11032,8 +11032,10 @@
         "save": "Track",
         "unsave": "Stop tracking",
         "ranked": "Position {position}",
-        "notInRange": "Not in the top {count} checked",
-        "unavailable": "Not measured",
+        "noMatch": "No tracked or checked keyword matches this search",
+        "readFailed": "No position read",
+        "notInRange": "Not in the first {count} results",
+        "unavailable": "Not checked yet",
         "country": "Country code",
         "language": "Language code",
         "target": "Target page",
@@ -11049,7 +11051,19 @@
         "trendEmpty": "No Search Console impressions in any country",
         "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
         "trendLabel": "Average position for “{keyword}”",
-        "trendNoImpressions": "No impressions"
+        "trendNoImpressions": "No impressions",
+        "summary": "Found in Google's results for {found} of {read, plural, one {# checked keyword} other {# checked keywords}}",
+        "firstPage": "{count} on the first page",
+        "more": "{count, plural, one {Show # more keyword} other {Show # more keywords}}",
+        "ideas": {
+          "title": "Keyword ideas ({count})",
+          "help": "Searches the last check found for these pages. No position is read for them yet. Track one to follow it.",
+          "why": "Why it is listed",
+          "source": {
+            "gap": "Competitors rank for it",
+            "opportunity": "Related search"
+          }
+        }
       },
       "competitors": {
         "title": "Competitors",
@@ -11068,7 +11082,8 @@
         "yourPage": "Your page",
         "compare": "Compare with my page",
         "compareDraft": "Compare my page with {url}. What does it do better for the same searches, and what should I change first?",
-        "paidOff": "Rank and backlink numbers need paid search data, which is off in this workspace."
+        "paidOff": "Rank and backlink numbers need paid search data, which is off in this workspace.",
+        "more": "{count, plural, one {Show # more page} other {Show # more pages}}"
       },
       "actions": {
         "title": "Actions",
@@ -11078,6 +11093,7 @@
         "createTask": "Create draft task",
         "why": "Why this matters",
         "effect": "Expected effect",
+        "whyDetails": "Why, and the evidence",
         "effort": "Effort",
         "before": "Before",
         "after": "Suggested change",
@@ -11490,6 +11506,7 @@
         "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
         "askShort": "Ask",
         "openTraffic": "Open traffic",
+        "openRankings": "Open rankings",
         "draftFix": "Draft a fix",
         "suggestions": "{count, plural, one {# suggestion, not an error.} other {# suggestions, not errors.}}",
         "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}"

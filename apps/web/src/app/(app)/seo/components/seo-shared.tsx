@@ -1,12 +1,13 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Fragment, type ReactNode } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -56,6 +57,8 @@ export function seoMarketName(
 
 /** A search box helps only in a list longer than about one screen. */
 export const SEO_SEARCH_MIN_ROWS = 10;
+/** Rows a long list shows before its "Show more" button. */
+export const SEO_LIST_PAGE_SIZE = 10;
 /** The mark of the chosen one in a set of bordered toggle buttons. */
 export const SEO_CHOSEN_CLASS = "bg-quinary border-foreground";
 /**
@@ -98,6 +101,41 @@ export function SeoSection({
       </div>
       {children}
     </section>
+  );
+}
+
+/**
+ * A long list shows its first rows; this button under it shows the rest.
+ * The button stays after the press, so the keyboard focus stays too.
+ */
+export function SeoShowMore({
+  more,
+  expanded,
+  onToggle,
+}: {
+  /** The label that names how many rows wait, for example "Show 6 more keywords". */
+  more: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const t = useTranslations("App.Seo");
+  return (
+    <div className="px-1 pt-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-expanded={expanded}
+        onClick={onToggle}
+      >
+        <ChevronDown
+          className={cn(
+            "transition-transform duration-150 ease-out motion-reduce:transition-none",
+            expanded && "rotate-180",
+          )}
+        />
+        {expanded ? t("overview.showLess") : more}
+      </Button>
+    </div>
   );
 }
 

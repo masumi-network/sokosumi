@@ -358,6 +358,208 @@ function queryOrder() {
     .map((row) => row.querySelector("bdi")?.textContent);
 }
 
+describe("Keywords after a check", () => {
+  it("shows a keyword once, the result first, and the unread keywords as ideas", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    const read = (
+      patch: Partial<ProjectSeoWorkspace["keywords"][number]>,
+    ): ProjectSeoWorkspace["keywords"][number] => ({
+      ...workspace.keywords[0],
+      saved: false,
+      version: 0,
+      source: "focus",
+      countryCode: "US",
+      languageCode: "en",
+      positionStatus: "not_in_range",
+      checkedResults: 17,
+      observedAt: new Date("2026-11-11T00:26:00Z"),
+      ...patch,
+    });
+    const idea = { device: null, checkedResults: null } as const;
+    workspace.keywords = [
+      read({ id: "m", keyword: "battery app", device: "mobile", volume: 140 }),
+      read({
+        id: "d",
+        keyword: "battery app",
+        device: "desktop",
+        checkedResults: 16,
+      }),
+      // The check lists the read keyword again as a competitor gap.
+      read({
+        id: "g",
+        keyword: "battery app",
+        source: "gap",
+        positionStatus: "unavailable",
+        ...idea,
+      }),
+      ...Array.from({ length: 12 }, (_, index) =>
+        read({
+          id: `idea-${index}`,
+          keyword: `idea ${index}`,
+          source: index % 2 ? "gap" : "opportunity",
+          positionStatus: "unavailable",
+          volume: 100 - index,
+          ...idea,
+        }),
+      ),
+    ];
+    renderWorkspace(workspace);
+    expect(
+      screen.getByText("Found in Google's results for 0 of 1 checked keyword"),
+    ).toBeVisible();
+    expect(screen.getAllByText("battery app")).toHaveLength(1);
+    // One line for both devices, with the depth that holds for both.
+    expect(screen.getByText("Not in the first 16 results")).toBeVisible();
+    // The market shows once, in the result line, not once per row.
+    expect(screen.getAllByText("United States · English")).toHaveLength(1);
+    expect(
+      screen.getByRole("heading", { name: "Keyword ideas (12)" }),
+    ).toBeVisible();
+    expect(screen.getByText("idea 9")).toBeVisible();
+    expect(screen.queryByText("idea 10")).toBeNull();
+    expect(screen.getAllByText("Competitors rank for it")).toHaveLength(5);
+    const more = screen.getByRole("button", { name: "Show 2 more keywords" });
+    await user.click(more);
+    expect(screen.getByText("idea 11")).toBeVisible();
+    // The same button stays, so the keyboard focus stays.
+    expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
+  });
+
+  it("dates a row from an older check and names an idea's market when the markets differ", () => {
+    const { workspace } = savedKeywordWorkspace();
+    const [saved] = workspace.keywords;
+    const read = {
+      ...saved,
+      saved: false,
+      version: 0,
+      source: "focus",
+      countryCode: "US",
+      languageCode: "en",
+      device: "mobile",
+      positionStatus: "ranked",
+    } as const;
+    const idea = {
+      ...read,
+      keyword: "battery widget",
+      source: "gap",
+      device: null,
+      position: null,
+      positionStatus: "unavailable",
+    } as const;
+    workspace.keywords = [
+      {
+        ...read,
+        id: "new",
+        keyword: "new read",
+        position: 2,
+        observedAt: new Date("2026-11-10T12:00:00Z"),
+        observationId: "0d4c7f0e-58a5-4f3a-9d43-0c7f3a1b2c01",
+      },
+      {
+        ...read,
+        id: "old",
+        keyword: "old read",
+        position: 5,
+        observedAt: new Date("2026-09-01T12:00:00Z"),
+        observationId: "0d4c7f0e-58a5-4f3a-9d43-0c7f3a1b2c02",
+      },
+      { ...idea, id: "idea-us" },
+      { ...idea, id: "idea-de", countryCode: "DE", languageCode: "de" },
+    ];
+    renderWorkspace(workspace);
+    const row = (keyword: string) =>
+      within(screen.getByText(keyword).closest("tr") as HTMLElement);
+    // The result line carries the newest date; only the older row repeats its own.
+    expect(row("old read").getByText(/^Last checked:/)).toBeVisible();
+    expect(row("new read").queryByText(/^Last checked:/)).toBeNull();
+    expect(screen.getByText("Germany · German")).toBeVisible();
+    // Two checked rows and one idea name the other market.
+    expect(screen.getAllByText("United States · English")).toHaveLength(3);
+  });
+
+  it("does not ask for a check above the ideas a check already found", () => {
+    const { workspace } = savedKeywordWorkspace();
+    workspace.keywords = [
+      {
+        ...workspace.keywords[0],
+        keyword: "battery widget",
+        saved: false,
+        version: 0,
+        source: "gap",
+      },
+    ];
+    renderWorkspace(workspace);
+    expect(
+      screen.getByRole("heading", { name: "Keyword ideas (1)" }),
+    ).toBeVisible();
+    expect(screen.queryByText("No tracked keywords yet")).toBeNull();
+  });
+
+  it("counts keywords, not device rows, and says when a read failed", () => {
+    const { workspace } = savedKeywordWorkspace();
+    const [saved] = workspace.keywords;
+    // Five keywords on two devices: ten rows from Core, five rows in the list.
+    workspace.keywords = Array.from({ length: 10 }, (_, index) => ({
+      ...saved,
+      id: `row-${index}`,
+      keyword: `focus ${index % 5}`,
+      saved: false,
+      version: 0,
+      source: "focus",
+      device: index < 5 ? ("mobile" as const) : ("desktop" as const),
+    }));
+    renderWorkspace(workspace);
+    expect(screen.getAllByText("No position read")).toHaveLength(5);
+    expect(screen.queryByText("Not checked yet")).toBeNull();
+    // Too few keywords for a search field.
+    expect(document.getElementById("seo-keyword-search")).toBeNull();
+  });
+
+  it("shows the ten best checked keywords first and the rest on request", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    const [saved] = workspace.keywords;
+    workspace.keywords = Array.from({ length: 11 }, (_, index) => ({
+      ...saved,
+      id: `read-${index}`,
+      keyword: `read ${index}`,
+      saved: false,
+      version: 0,
+      source: "focus",
+      device: "mobile",
+      position: index + 1,
+      positionStatus: "ranked",
+      checkedResults: 20,
+      observedAt: new Date("2026-11-11T00:26:00Z"),
+    }));
+    renderWorkspace(workspace);
+    expect(screen.getByText("read 9")).toBeVisible();
+    expect(screen.queryByText("read 10")).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Show 1 more keyword" }),
+    );
+    expect(screen.getByText("read 10")).toBeVisible();
+    // A search narrows the rows; the result line still speaks for every keyword.
+    const search = document.getElementById("seo-keyword-search");
+    if (!search) throw new Error("Keyword search missing");
+    await user.type(search, "read 10");
+    expect(screen.queryByText("read 9")).toBeNull();
+    expect(
+      screen.getByText(
+        "Found in Google's results for 11 of 11 checked keywords",
+      ),
+    ).toBeVisible();
+    // A search without a match says so; it does not ask for a first check.
+    await user.clear(search);
+    await user.type(search, "nothing");
+    expect(
+      screen.getByText("No tracked or checked keyword matches this search"),
+    ).toBeVisible();
+    expect(screen.queryByText("No tracked keywords yet")).toBeNull();
+  });
+});
+
 describe("Search Console queries", () => {
   it("sorts by impressions first and by best position after a header click", async () => {
     const user = userEvent.setup();

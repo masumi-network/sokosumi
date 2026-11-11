@@ -15,6 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoKeywordIdeas } from "./seo-keyword-ideas";
+import {
+  keywordGroups,
+  keywordPage,
+  keywordPositions,
+  keywordReadFailed,
+  keywordSummary,
+} from "./seo-keyword-rows-model";
 import { SeoKeywordSuggestions } from "./seo-keyword-suggestions";
 import {
   SeoKeywordTrendChart,
@@ -27,6 +35,7 @@ import {
   searchConsoleIndex,
 } from "./seo-search-model";
 import {
+  SEO_LIST_PAGE_SIZE,
   SEO_SEARCH_MIN_ROWS,
   SEO_STACKED_TABLE_CLASS,
   SeoDate,
@@ -34,6 +43,7 @@ import {
   SeoPageLink,
   SeoPeriod,
   SeoSection,
+  SeoShowMore,
   SeoSource,
   SeoState,
   seoMarketName,
@@ -71,7 +81,15 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const locale = useLocale();
-  const rows = model.filteredKeywords;
+  // One row per keyword: a check reports it once per device, and again as a gap or an idea.
+  const { checked, ideas } = keywordGroups(model.filteredKeywords);
+  // The result line speaks for every keyword; a search narrows the rows only.
+  const all = keywordGroups(model.data.keywords);
+  const summary = keywordSummary(all.checked);
+  const [expanded, setExpanded] = useState(false);
+  const page = keywordPage(checked, SEO_LIST_PAGE_SIZE);
+  // A search already narrows the list; it shows every match.
+  const rows = expanded || model.keywordSearch ? checked : page.rows;
   const queries = model.data.searchQueries;
   const averages = queries ? searchConsoleIndex(queries.rows) : null;
   // An empty list starts from the searches Google already reports; a search that matched nothing does not.
@@ -79,12 +97,15 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
     model.data.keywords.length === 0 && model.data.availableActions.canEdit
       ? keywordSuggestions(model.filteredQueries)
       : [];
+  const markets = new Set(
+    model.data.keywords.map((row) => `${row.countryCode}:${row.languageCode}`),
+  );
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
-    volume: rows.some((row) => row.volume !== null),
-    intent: rows.some((row) => row.intent !== null),
-    observed: rows.some((row) => row.observedAt !== null),
-    source: rows.some((row) => row.observationId || row.source !== "saved"),
+    volume: checked.some((group) => group.volume !== null),
+    intent: checked.some((group) => group.intent !== null),
+    // One market for every keyword is said once, in the result line above the table.
+    market: markets.size > 1 || !summary.read,
     // The same priority on every keyword tells nothing; the edit dialog still sets it.
     // All keywords decide, so a search does not hide the column.
     priority: new Set(model.data.keywords.map((row) => row.priority)).size > 1,
@@ -92,25 +113,28 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   const hidden = [
     shown.volume ? null : t("keywords.volume"),
     shown.intent ? null : t("keywords.intent"),
-    shown.observed ? null : t("observed"),
   ].filter((label): label is string => label !== null);
   // Without paid search data these columns can never fill, so nothing names them.
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
   // A state label only helps when the list mixes tracked and found keywords.
-  const mixed = new Set(model.data.keywords.map((row) => row.saved)).size > 1;
+  const mixed = new Set(checked.map((group) => group.lead.saved)).size > 1;
   const manyPages = model.data.scope.pageIds.length > 1;
   // One keyword's daily positions open at a time, in a full-width row under it.
   const [trendOpen, setTrendOpen] = useState<string | null>(null);
   const columns =
-    4 +
+    3 +
+    Number(shown.market) +
     Number(shown.volume) +
     Number(shown.intent) +
-    Number(shown.priority) +
-    Number(shown.observed) +
-    Number(shown.source);
+    Number(shown.priority);
+  const first = model.data.keywords[0];
   return (
     <div className="space-y-5">
-      <SeoQueryFilter model={model} rows={model.data.keywords.length} />
+      {/* The lists show a keyword once, so the search counts keywords, not device rows. */}
+      <SeoQueryFilter
+        model={model}
+        rows={all.checked.length + all.ideas.length}
+      />
       <SeoSection
         title={t("keywords.title")}
         description={paidOff ? undefined : t("keywords.help")}
@@ -123,46 +147,75 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
           ) : null
         }
       >
+        {summary.read ? (
+          // The result first: one sentence, then the market and the date the rows no longer repeat.
+          <div className="space-y-0.5 px-2 pb-1">
+            <p className="text-base font-semibold text-balance">
+              {t("keywords.summary", {
+                found: summary.found,
+                read: summary.read,
+              })}
+            </p>
+            <p className="text-muted-foreground flex flex-wrap gap-x-2 text-sm">
+              {summary.found ? (
+                <span>
+                  {t("keywords.firstPage", { count: summary.firstPage })}
+                </span>
+              ) : null}
+              {!shown.market && first ? (
+                <span>
+                  {seoMarketName(locale, first.countryCode, first.languageCode)}
+                </span>
+              ) : null}
+              {summary.newest ? (
+                <span>
+                  {t("observed")}: <SeoDate value={summary.newest.observedAt} />
+                </span>
+              ) : null}
+              {summary.newest?.observationId ? (
+                <SeoSource
+                  workspace={model.data}
+                  observationId={summary.newest.observationId}
+                />
+              ) : null}
+            </p>
+          </div>
+        ) : null}
         {rows.length ? (
           <div className={HOLDER_ITEM_CLASS}>
             <Table className={SEO_STACKED_TABLE_CLASS}>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("keywords.keyword")}</TableHead>
-                  <TableHead>{t("keywords.market")}</TableHead>
+                  {shown.market ? (
+                    <TableHead>{t("keywords.market")}</TableHead>
+                  ) : null}
                   {shown.volume ? (
                     <TableHead className="text-right">
                       {t("keywords.volume")}
                     </TableHead>
                   ) : null}
-                  <TableHead className="text-right">
-                    {t("keywords.position")}
-                  </TableHead>
+                  <TableHead>{t("keywords.position")}</TableHead>
                   {shown.intent ? (
                     <TableHead>{t("keywords.intent")}</TableHead>
                   ) : null}
                   {shown.priority ? (
                     <TableHead>{t("keywords.priority")}</TableHead>
                   ) : null}
-                  {shown.observed ? (
-                    <TableHead>{t("observed")}</TableHead>
-                  ) : null}
-                  {shown.source ? <TableHead>{t("source")}</TableHead> : null}
                   <TableHead>
                     <span className="sr-only">{t("queries.rowActions")}</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row) => {
+                {rows.map(({ lead: row, reads, volume, intent, sources }) => {
                   const target = model.data.pages.find(
                     (page) => page.id === row.targetPageId,
                   );
                   // Only an unmeasured position falls back to the Search Console period average.
-                  const average =
-                    row.positionStatus === "unavailable"
-                      ? averages?.get(normalizeQuery(row.keyword))
-                      : undefined;
+                  const average = reads.length
+                    ? undefined
+                    : averages?.get(normalizeQuery(row.keyword));
                   // Daily positions are read for tracked keywords only.
                   const trend = row.saved
                     ? keywordTrend(queries, row.keyword, row.countryCode)
@@ -171,7 +224,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                   // Without a rank or a listed average, the position cell says "no impressions"; the line under the keyword would repeat it.
                   const cellSaysEmpty =
                     trend.state === "empty" &&
-                    row.positionStatus === "unavailable" &&
+                    !reads.length &&
                     Boolean(queries) &&
                     !average?.averagePosition;
                   return (
@@ -222,43 +275,57 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                             </div>
                           ) : null}
                         </TableCell>
-                        <TableCell data-label={t("keywords.market")}>
-                          {seoMarketName(
-                            locale,
-                            row.countryCode,
-                            row.languageCode,
-                          )}
-                          {row.device ? (
-                            <div className="text-muted-foreground text-sm">
-                              {t(`analysis.${row.device}`)}
-                            </div>
-                          ) : null}
-                        </TableCell>
+                        {shown.market ? (
+                          <TableCell data-label={t("keywords.market")}>
+                            {seoMarketName(
+                              locale,
+                              row.countryCode,
+                              row.languageCode,
+                            )}
+                          </TableCell>
+                        ) : null}
                         {shown.volume ? (
                           <TableCell
                             className="text-right tabular-nums"
                             data-label={t("keywords.volume")}
                           >
-                            {row.volume === null
+                            {volume === null
                               ? t("none")
-                              : format.number(row.volume)}
+                              : format.number(volume)}
                           </TableCell>
                         ) : null}
                         <TableCell
-                          className="text-right whitespace-normal tabular-nums"
+                          className="whitespace-normal tabular-nums"
                           data-label={t("keywords.position")}
                         >
-                          {row.positionStatus === "ranked" &&
-                          row.position !== null ? (
-                            format.number(row.position)
-                          ) : row.positionStatus === "not_in_range" ? (
-                            row.checkedResults === null ? (
-                              t("keywords.notInRangeUnknown")
-                            ) : (
-                              t("keywords.notInRange", {
-                                count: row.checkedResults,
-                              })
-                            )
+                          {reads.length ? (
+                            <>
+                              {keywordPositions(reads).map((line) => (
+                                <p key={line.device ?? "all"}>
+                                  {line.device ? (
+                                    <span className="text-muted-foreground">
+                                      {t(`analysis.${line.device}`)}:{" "}
+                                    </span>
+                                  ) : null}
+                                  {line.position !== null
+                                    ? format.number(line.position)
+                                    : line.depth === null
+                                      ? t("keywords.notInRangeUnknown")
+                                      : t("keywords.notInRange", {
+                                          count: line.depth,
+                                        })}
+                                </p>
+                              ))}
+                              {/* The result line dates the newest check; a row from an older one carries its own date. */}
+                              {reads[0].observedAt &&
+                              reads[0].observationId !==
+                                summary.newest?.observationId ? (
+                                <p className="text-muted-foreground text-xs">
+                                  {t("observed")}:{" "}
+                                  <SeoDate value={reads[0].observedAt} />
+                                </p>
+                              ) : null}
+                            </>
                           ) : queries && average?.averagePosition ? (
                             <>
                               <p>
@@ -309,37 +376,21 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                               </p>
                             </>
                           ) : (
-                            t("keywords.unavailable")
+                            t(
+                              keywordReadFailed({ reads, sources })
+                                ? "keywords.readFailed"
+                                : "keywords.unavailable",
+                            )
                           )}
                         </TableCell>
                         {shown.intent ? (
                           <TableCell data-label={t("keywords.intent")}>
-                            {row.intent ?? t("none")}
+                            {intent ?? t("none")}
                           </TableCell>
                         ) : null}
                         {shown.priority ? (
                           <TableCell data-label={t("keywords.priority")}>
                             {t(`priority.${row.priority}`)}
-                          </TableCell>
-                        ) : null}
-                        {shown.observed ? (
-                          <TableCell data-label={t("observed")}>
-                            <SeoDate value={row.observedAt} />
-                          </TableCell>
-                        ) : null}
-                        {shown.source ? (
-                          <TableCell data-label={t("source")}>
-                            <span className="text-muted-foreground text-sm">
-                              {row.source}
-                            </span>
-                            {row.observationId ? (
-                              <div>
-                                <SeoSource
-                                  workspace={model.data}
-                                  observationId={row.observationId}
-                                />
-                              </div>
-                            ) : null}
                           </TableCell>
                         ) : null}
                         <TableCell>
@@ -401,7 +452,11 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
           </div>
         ) : suggestions.length ? (
           <SeoKeywordSuggestions model={model} rows={suggestions} />
-        ) : (
+        ) : model.keywordSearch ? (
+          // The search hides every row of this list; the ideas below may still match.
+          <SeoEmpty title={t("keywords.noMatch")} />
+        ) : ideas.length ? null : (
+          // With ideas listed below, "run a check to find keywords" would be wrong.
           <SeoEmpty
             title={t("keywords.empty")}
             // No call to run a check where no check can run.
@@ -412,7 +467,15 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
             )}
           />
         )}
+        {page.more && !model.keywordSearch ? (
+          <SeoShowMore
+            more={t("keywords.more", { count: page.more })}
+            expanded={expanded}
+            onToggle={() => setExpanded((open) => !open)}
+          />
+        ) : null}
       </SeoSection>
+      <SeoKeywordIdeas model={model} ideas={ideas} />
     </div>
   );
 }
