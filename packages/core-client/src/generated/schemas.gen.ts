@@ -21895,7 +21895,7 @@ export const CreditsResponseExtraSchema = {
         'buckets',
         'enterprise'
     ],
-    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.'
+    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets` lines without a `project`). `extra.buckets`: per-bucket lines, Project credits included.'
 } as const;
 
 export const CreditsResponseExtraCreditsSchema = {
@@ -21903,12 +21903,12 @@ export const CreditsResponseExtraCreditsSchema = {
     properties: {
         total: {
             type: 'number',
-            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`',
+            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`, leaving out Project credits (lines with a `project`)',
             example: 25
         },
         remaining: {
             type: 'number',
-            description: 'Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)',
+            description: 'Sum of remaining balances across those buckets (matches sum of each of their lines’ `remaining`)',
             example: 12.5
         },
         used: {

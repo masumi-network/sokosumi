@@ -37,17 +37,17 @@ const creditBucketBreakdownItemSchema = z
   })
   .openapi("CreditBucketBreakdown");
 
-/** Rollup of non-subscription credits (sums over `extra.buckets` lines). */
+/** Rollup of non-subscription credits (sums over `extra.buckets` lines without a `project`). */
 const creditsResponseExtraCreditsSchema = z
   .object({
     total: z.number().openapi({
       description:
-        "Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`",
+        "Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`, leaving out Project credits (lines with a `project`)",
       example: 25,
     }),
     remaining: z.number().openapi({
       description:
-        "Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)",
+        "Sum of remaining balances across those buckets (matches sum of each of their lines’ `remaining`)",
       example: 12.5,
     }),
     used: z.number().openapi({
@@ -320,7 +320,7 @@ export const creditsResponseSchema = z.object({
   }),
   extra: creditsResponseExtraSchema.openapi({
     description:
-      "`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.",
+      "`extra.credits`: non-subscription totals (sums over `extra.buckets` lines without a `project`). `extra.buckets`: per-bucket lines, Project credits included.",
   }),
   enterprise: creditsResponseEnterpriseWalletSchema.nullable().openapi({
     description:

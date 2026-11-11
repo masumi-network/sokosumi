@@ -6193,7 +6193,7 @@ export type NewsletterAvailability = {
 };
 
 /**
- * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
+ * `extra.credits`: non-subscription totals (sums over `extra.buckets` lines without a `project`). `extra.buckets`: per-bucket lines, Project credits included.
  */
 export type CreditsResponseExtra = {
     credits: CreditsResponseExtraCredits;
@@ -6220,11 +6220,11 @@ export type CreditsResponseExtra = {
  */
 export type CreditsResponseExtraCredits = {
     /**
-     * Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`
+     * Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`, leaving out Project credits (lines with a `project`)
      */
     total: number;
     /**
-     * Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)
+     * Sum of remaining balances across those buckets (matches sum of each of their lines’ `remaining`)
      */
     remaining: number;
     /**
