@@ -154,41 +154,45 @@ export async function releaseFailedTurnForRetry(
 }
 
 /**
- * Fails a Soko Bot reply for the attempt started under `clientTurnId`, only
- * while that attempt still owns the mention: its turn holds the mention, or it
- * has no turn yet and no other turn does. Ownership is checked and the failed
- * card and mention written under the mention's row lock, the lock Retry's
- * reset takes before `releaseFailedTurnForRetry`. A dispatch that resumes
- * after Retry handed the mention to a fresh attempt changes nothing; checking
- * before writing without the lock would leave that window open. Returns
- * whether the reply now shows the failed card, so the caller publishes it.
+ * Fails a Soko Bot reply for one attempt, only while that attempt still owns
+ * the mention. Once a turn holds the mention, the attempt owns it when that
+ * turn runs under its key (`clientTurnId`). Before any turn holds it, the
+ * attempt owns it when the mention's write stamp is still the one the attempt
+ * left (`stamp`): a stale reclaim or Retry rewrites it.
+ *
+ * Ownership is checked and the failed card and mention written under the
+ * mention's row lock, the lock Retry's reset takes before
+ * `releaseFailedTurnForRetry`. A dispatch that resumes after Retry handed the
+ * mention to a fresh attempt changes nothing; checking before writing without
+ * the lock would leave that window open.
+ *
+ * A reply already gone gets no new card: a soft-deleted one was withdrawn on
+ * purpose (the room changed, or it was deleted), and a hard-deleted one left
+ * the mention without a reply, which Retry opens afresh. The mention is still
+ * marked failed so Retry is offered. Returns whether the reply now shows the
+ * failed card, so the caller publishes it.
  */
 export async function failSokoBotReplyIfOwned(params: {
   mentionId: string;
-  sokoBotId: string;
   clientTurnId: string;
   replyId: string | null;
+  stamp: Date | null;
   sourceMessageId: string;
   error: unknown;
 }): Promise<boolean> {
   const { mentionId, replyId } = params;
   return prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "chat_room_mention" WHERE "id" = ${mentionId}::uuid FOR UPDATE`;
+    const [locked] = await tx.$queryRaw<{ updatedAt: Date }[]>`
+      SELECT "updatedAt" FROM "chat_room_mention"
+      WHERE "id" = ${mentionId}::uuid FOR UPDATE`;
+    if (!locked) return false;
     const holder = await tx.sokoBotTurn.findUnique({
       where: { chatMentionId: mentionId },
       select: { clientTurnId: true },
     });
     const owned = holder
       ? holder.clientTurnId === params.clientTurnId
-      : !(await tx.sokoBotTurn.findUnique({
-          where: {
-            sokoBotId_clientTurnId: {
-              sokoBotId: params.sokoBotId,
-              clientTurnId: params.clientTurnId,
-            },
-          },
-          select: { id: true },
-        }));
+      : params.stamp?.getTime() === locked.updatedAt.getTime();
     if (!owned) return false;
     // Same guards as `failMentionThoughtPlaceholder`: never erase final
     // content or a responded mention.
@@ -197,6 +201,7 @@ export async function failSokoBotReplyIfOwned(params: {
           where: {
             id: replyId,
             content: "",
+            deletedAt: null,
             mentionResponseFor: { status: { not: "responded" } },
           },
           data: {

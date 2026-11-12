@@ -43,6 +43,12 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: vi.fn(),
     },
     sokoBotDelivery: { findFirst: findOpenDelivery },
+    chatRoomMention: {
+      findUniqueOrThrow: async () => ({
+        updatedAt: new Date(0),
+        responseMessageId: "response-a",
+      }),
+    },
     $transaction: transaction,
   },
 }));
@@ -119,6 +125,14 @@ function input(
     failWithShell: fail,
     askedByBot: false,
     chainDepth: 0,
+  };
+}
+
+function withReply() {
+  const base = input();
+  return {
+    ...base,
+    mention: { ...base.mention, responseMessageId: "response-a" },
   };
 }
 
@@ -391,8 +405,10 @@ describe("Retry on a failed Soko Bot reply", () => {
         status: "RUNNING",
       },
     ]);
-    await runSokoBotMentionDispatch(input());
+    await runSokoBotMentionDispatch(withReply());
     expect(releaseMention).not.toHaveBeenCalled();
+    // The running turn is writing the reply; it is not reopened.
+    expect(placeholder).not.toHaveBeenCalled();
     expect(startTurn).toHaveBeenCalledWith(
       expect.objectContaining({ clientTurnId: "chat:mention-a" }),
     );
@@ -441,7 +457,7 @@ describe("a reclaimed mention whose turn already ended", () => {
       status: "COMPLETED",
       duplicate: true,
     });
-    await runSokoBotMentionDispatch(input());
+    await runSokoBotMentionDispatch(withReply());
     expect(persistChatTurn).toHaveBeenCalledWith(
       "turn-live",
       expect.anything(),
@@ -495,11 +511,7 @@ describe("a reclaimed mention whose turn already ended", () => {
       },
     ]);
     findOpenDelivery.mockResolvedValue({ id: "delivery-a" });
-    const base = input();
-    await runSokoBotMentionDispatch({
-      ...base,
-      mention: { ...base.mention, responseMessageId: "response-a" },
-    });
+    await runSokoBotMentionDispatch(withReply());
     expect(placeholder).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
     expect(deliverOutbox).toHaveBeenCalledWith("turn-failed");
@@ -508,6 +520,46 @@ describe("a reclaimed mention whose turn already ended", () => {
         clientTurnId: "chat:mention-a",
         replyId: "response-a",
       }),
+    );
+  });
+  it("routes a failure past the claim through the ownership check", async () => {
+    loadRoomContextMessages.mockRejectedValue(new Error("room read failed"));
+    await runSokoBotMentionDispatch(input());
+    expect(fail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientTurnId: "chat:mention-a",
+        replyId: "response-a",
+        stamp: new Date(0),
+      }),
+    );
+  });
+  it("writes nothing when the ownership check itself fails", async () => {
+    // Left `sent` for stale reclaim; nothing escapes to the caller's
+    // unchecked cleanup.
+    loadRoomContextMessages.mockRejectedValue(new Error("room read failed"));
+    fail.mockRejectedValue(new Error("transaction timeout"));
+    await expect(runSokoBotMentionDispatch(input())).resolves.toBeUndefined();
+  });
+  it("fails a reply it could not open under the ownership check", async () => {
+    placeholder.mockRejectedValue(new Error("insert failed"));
+    const base = input();
+    const findUniqueOrThrow = vi.fn(async () => ({
+      updatedAt: new Date(5),
+      responseMessageId: null,
+    }));
+    const prisma = (await import("@/lib/db/prisma")).default as unknown as {
+      chatRoomMention: { findUniqueOrThrow: typeof findUniqueOrThrow };
+    };
+    const real = prisma.chatRoomMention.findUniqueOrThrow;
+    prisma.chatRoomMention.findUniqueOrThrow = findUniqueOrThrow;
+    try {
+      await runSokoBotMentionDispatch(base);
+    } finally {
+      prisma.chatRoomMention.findUniqueOrThrow = real;
+    }
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(fail).toHaveBeenCalledWith(
+      expect.objectContaining({ replyId: null, stamp: new Date(5) }),
     );
   });
   it("fails a fresh attempt's reply under its own key", async () => {

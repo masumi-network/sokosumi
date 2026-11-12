@@ -66,10 +66,20 @@ export async function dispatchChatRoomMention(
     const linked = await prisma.chatRoomMention
       .findUnique({
         where: { id: mentionId },
-        select: { responseMessageId: true, message: { select: { id: true } } },
+        select: {
+          responseMessageId: true,
+          sokoBotId: true,
+          message: { select: { id: true } },
+        },
       })
       .catch(() => null);
-    if (linked?.responseMessageId) {
+    // A Soko Bot mention may belong to a newer attempt by now (Retry), and
+    // its dispatch fails its own reply under that check
+    // (`failSokoBotReplyIfOwned`). An unchecked write here could fail the
+    // newer attempt and discard its answer, so write nothing and leave the
+    // mention to stale reclaim; likewise when the mention could not be read.
+    if (!linked || linked.sokoBotId) return;
+    if (linked.responseMessageId) {
       await failMentionThoughtPlaceholder({
         placeholderId: linked.responseMessageId,
         sourceMessageId: linked.message.id,

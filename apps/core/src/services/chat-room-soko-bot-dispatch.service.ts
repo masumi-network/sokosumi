@@ -21,7 +21,6 @@ import {
 import {
   claimMentionForDispatch,
   failSokoBotReplyIfOwned,
-  markMentionFailed,
 } from "./chat-room-mention-state";
 import { publishMentionThoughtPlaceholder } from "./chat-room-mention-stream";
 
@@ -200,104 +199,114 @@ export async function runSokoBotMentionDispatch(params: {
   const claimed = await claimMentionForDispatch(mentionId);
   if (!claimed) return;
 
-  // The key this start runs under. The turn holding the mention keeps it:
-  // a reclaimed dispatch resumes that turn (and its delivery) instead of
-  // running the request again. Only an explicit Retry lets go of a failed
-  // turn (`releaseFailedTurnForRetry`); the next attempt is then keyed by the
-  // newest turn it follows, so workers that see the same predecessor share
-  // one key. Newest by key, not by link: a retry whose start threw left no
-  // turn, and the original still holds `chat:<id>`.
-  const keyPrefix = `chat:${mentionId}`;
-  const [newest] = await prisma.sokoBotTurn.findMany({
-    where: { sokoBotId: bot.id, clientTurnId: { startsWith: keyPrefix } },
-    orderBy: { createdAt: "desc" },
-    take: 1,
-    select: { id: true, clientTurnId: true, chatMentionId: true, status: true },
-  });
-  const holder = newest?.chatMentionId === mentionId ? newest : null;
-  const clientTurnId = holder
-    ? holder.clientTurnId
-    : newest
-      ? `${keyPrefix}:retry:${newest.id}`
-      : keyPrefix;
-  // Fails this attempt's reply, and only while this attempt still owns the
-  // mention: after Retry hands it to a fresh attempt, a dispatch resuming
-  // late must not fail the new reply or discard its answer.
-  const failReply = (replyId: string | null) => async (error: unknown) => {
+  // This attempt: the key its turn runs under, its reply, and, until a turn
+  // holds the mention, the mention's write stamp after this worker's own
+  // writes (claim, opening the reply). A stale reclaim or Retry rewrites the
+  // stamp, so it tells this attempt from a newer one sharing the key.
+  let clientTurnId = `chat:${mentionId}`;
+  let replyId = mention.responseMessageId;
+  let stamp: Date | null = null;
+  // From here the caller's closure is stale: it captured the mention's
+  // responseMessageId before this placeholder existed, so failing through it
+  // would open a second bubble and leave this one streaming for ever — the
+  // shape of the "Thinking…" messages that never ended.
+  // Every failure past the claim ends here, and only while this attempt
+  // still owns the mention: after Retry hands it to a fresh attempt, a
+  // dispatch resuming late must not fail the new reply or discard its answer.
+  const failReply = async (error: unknown) => {
     const failed = await failSokoBotReplyIfOwned({
       mentionId,
-      sokoBotId: bot.id,
       clientTurnId,
       replyId,
+      stamp,
       sourceMessageId: mention.message.id,
       error,
     });
     if (failed && replyId)
       await publishChatRoomMessageRealtimeById(replyId, "update");
   };
-  // A turn that already ended still holds the mention (stale reclaim, or
-  // Retry while its delivery was owed): put its outcome back without
-  // reopening the reply. A reopened "Thinking…" is a snapshot a concurrent
-  // publisher of that delivery could read and send after the outcome.
-  if (holder && !isActiveTurnStatus(holder.status)) {
-    await settleEndedTurn(
-      holder.id,
-      holder.status,
-      failReply(mention.responseMessageId),
-    );
-    return;
-  }
 
-  const startedAtMs = Date.now();
-  let placeholderId: string | null = mention.responseMessageId;
   try {
-    placeholderId = await publishMentionThoughtPlaceholder({
-      placeholderId,
-      roomId: mention.message.roomId,
-      parentMessageId: mention.message.parentMessageId,
-      sourceMessageId: mention.message.id,
-      mentionId,
-      sokoBotId: bot.id,
-      reasoningSteps: [],
-      thoughtStartedAtMs: startedAtMs,
+    stamp = (
+      await prisma.chatRoomMention.findUniqueOrThrow({
+        where: { id: mentionId },
+        select: { updatedAt: true },
+      })
+    ).updatedAt;
+    // The key this start runs under. The turn holding the mention keeps it:
+    // a reclaimed dispatch resumes that turn (and its delivery) instead of
+    // running the request again. Only an explicit Retry lets go of a failed
+    // turn (`releaseFailedTurnForRetry`); the next attempt is then keyed by
+    // the newest turn it follows, so workers that see the same predecessor
+    // share one key. Newest by key, not by link: a retry whose start threw
+    // left no turn, and the original still holds `chat:<id>`.
+    const [newest] = await prisma.sokoBotTurn.findMany({
+      where: { sokoBotId: bot.id, clientTurnId: { startsWith: clientTurnId } },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+      select: {
+        id: true,
+        clientTurnId: true,
+        chatMentionId: true,
+        status: true,
+      },
     });
-  } catch (publishError) {
-    console.error("Soko Bot Thought placeholder create failed:", {
-      mentionId,
-      error: publishError,
-    });
-  }
-  if (!placeholderId) {
-    // The create may have committed with its acknowledgement lost, leaving a
-    // bubble streaming that this worker never learned the id of. Marking the
-    // mention failed without adopting it is how a placeholder outlives every
-    // other signal, so look before giving up.
-    const committed = await prisma.chatRoomMention.findUnique({
-      where: { id: mentionId },
-      select: { responseMessageId: true },
-    });
-    placeholderId = committed?.responseMessageId ?? null;
-  }
-  if (!placeholderId) {
-    await markMentionFailed(mentionId, "Could not open the reply");
-    return;
-  }
+    const holder = newest?.chatMentionId === mentionId ? newest : null;
+    if (holder) clientTurnId = holder.clientTurnId;
+    else if (newest) clientTurnId = `chat:${mentionId}:retry:${newest.id}`;
+    // A turn that already ended still holds the mention (stale reclaim, or
+    // Retry while its delivery was owed): put its outcome back without
+    // reopening the reply. A reopened "Thinking…" is a snapshot a concurrent
+    // publisher of that delivery could read and send after the outcome.
+    if (holder && !isActiveTurnStatus(holder.status)) {
+      await settleEndedTurn(holder.id, holder.status, failReply);
+      return;
+    }
+    // Only a new attempt opens the reply. A turn holding the mention is
+    // already writing it, and may end at any moment: a reopened "Thinking…"
+    // read by a publisher then would land after its outcome.
+    if (!holder) {
+      try {
+        replyId = await publishMentionThoughtPlaceholder({
+          placeholderId: replyId,
+          roomId: mention.message.roomId,
+          parentMessageId: mention.message.parentMessageId,
+          sourceMessageId: mention.message.id,
+          mentionId,
+          sokoBotId: bot.id,
+          reasoningSteps: [],
+          thoughtStartedAtMs: Date.now(),
+        });
+      } catch (publishError) {
+        console.error("Soko Bot Thought placeholder create failed:", {
+          mentionId,
+          error: publishError,
+        });
+      }
+      if (replyId !== mention.responseMessageId || !replyId) {
+        // The create may have committed with its acknowledgement lost, leaving a
+        // bubble streaming that this worker never learned the id of. Marking the
+        // mention failed without adopting it is how a placeholder outlives every
+        // other signal, so look before giving up.
+        const committed = await prisma.chatRoomMention.findUniqueOrThrow({
+          where: { id: mentionId },
+          select: { responseMessageId: true, updatedAt: true },
+        });
+        replyId = committed.responseMessageId;
+        // Opening the reply wrote the mention: this attempt's own write.
+        stamp = committed.updatedAt;
+      }
+    }
+    if (!replyId) throw new Error("Could not open the reply");
+    const responseMessageId = replyId;
 
-  // From here the caller's closure is stale: it captured the mention's
-  // responseMessageId before this placeholder existed, so failing through it
-  // would open a second bubble and leave this one streaming for ever — the
-  // shape of the "Thinking…" messages that never ended.
-  const failPlaceholder = failReply(placeholderId);
-
-  // Every mention carries the conversation right above it, as coworker
-  // mentions do. In a direct chat that is the bot's own posts too: inbox
-  // checks and briefings are messages there, not turns the owner started.
-  const threadRootId = mention.message.parentMessageId;
-  // Inside the guard: this reads the room, and a read that throws once left
-  // the placeholder above streaming for ever while the mention was marked
-  // failed somewhere the reader could not see.
-  let message: string;
-  try {
+    // Every mention carries the conversation right above it, as coworker
+    // mentions do. In a direct chat that is the bot's own posts too: inbox
+    // checks and briefings are messages there, not turns the owner started.
+    const threadRootId = mention.message.parentMessageId;
+    // Inside the guard: this reads the room, and a read that throws once left
+    // the placeholder above streaming for ever while the mention was marked
+    // failed somewhere the reader could not see.
     const said = withAttachmentNote(
       roomMessagePromptText(
         mention.message.content,
@@ -311,7 +320,7 @@ export async function runSokoBotMentionDispatch(params: {
       createdAt: mention.message.createdAt,
       threadRootId,
     });
-    message =
+    const message =
       mention.message.room.kind === "direct"
         ? buildDirectMessagePrompt({ content: said, contextMessages })
         : buildRoomMentionPrompt({
@@ -321,55 +330,50 @@ export async function runSokoBotMentionDispatch(params: {
             isThreadReply: threadRootId != null,
             contextMessages,
           });
-  } catch (error) {
-    await failPlaceholder(error);
-    return;
-  }
 
-  const accept = async () => {
-    const accepted = sokoBotControlPlane.startTurn({
-      sokoBotId: bot.id,
-      userId: isPersonalSokoBot(bot) ? bot.userId : userId,
-      // The mentioned bot runs in its own workspace, whatever room it was
-      // asked in. The room's workspace ran a different bot of the same owner
-      // (their personal one) and put its Tasks there.
-      workspaceId: bot.workspaceId,
-      clientTurnId,
-      message: isOwner
-        ? message
-        : `${mention.message.senderUser?.name ?? "A teammate"} (${isPersonalSokoBot(bot) ? "a teammate, not your owner" : "a member of the team"}) asked:\n${message}`,
-      source: "CHAT",
-      chat: {
-        mentionId,
-        responseMessageId: placeholderId,
-        classifyMessage: message,
-        askedByUserId: isOwner && !askedByBot ? null : userId,
-        askedByBot,
-        chainDepth,
-      },
-    });
-    let acceptTimer: ReturnType<typeof setTimeout> | undefined;
-    return Promise.race([
-      accepted,
-      new Promise<never>((_resolve, reject) => {
-        acceptTimer = setTimeout(
-          () =>
-            reject(new Error("Soko Bot took too long to accept the message")),
-          SOKO_BOT_ACCEPT_TIMEOUT_MS,
-        );
-      }),
-    ]).finally(() => {
-      if (acceptTimer) clearTimeout(acceptTimer);
-    });
-  };
+    const accept = async () => {
+      const accepted = sokoBotControlPlane.startTurn({
+        sokoBotId: bot.id,
+        userId: isPersonalSokoBot(bot) ? bot.userId : userId,
+        // The mentioned bot runs in its own workspace, whatever room it was
+        // asked in. The room's workspace ran a different bot of the same owner
+        // (their personal one) and put its Tasks there.
+        workspaceId: bot.workspaceId,
+        clientTurnId,
+        message: isOwner
+          ? message
+          : `${mention.message.senderUser?.name ?? "A teammate"} (${isPersonalSokoBot(bot) ? "a teammate, not your owner" : "a member of the team"}) asked:\n${message}`,
+        source: "CHAT",
+        chat: {
+          mentionId,
+          responseMessageId,
+          classifyMessage: message,
+          askedByUserId: isOwner && !askedByBot ? null : userId,
+          askedByBot,
+          chainDepth,
+        },
+      });
+      let acceptTimer: ReturnType<typeof setTimeout> | undefined;
+      return Promise.race([
+        accepted,
+        new Promise<never>((_resolve, reject) => {
+          acceptTimer = setTimeout(
+            () =>
+              reject(new Error("Soko Bot took too long to accept the message")),
+            SOKO_BOT_ACCEPT_TIMEOUT_MS,
+          );
+        }),
+      ]).finally(() => {
+        if (acceptTimer) clearTimeout(acceptTimer);
+      });
+    };
 
-  try {
     const result = await acceptOnceIdle(accept, bot.id);
     // A turn that already ended answers through its own outcome: a
     // completed one may still be delivering, and failing the reply here
     // would turn a good answer into a failed card.
     if (result.duplicate && !isActiveTurnStatus(result.status)) {
-      await settleEndedTurn(result.turnId, result.status, failPlaceholder);
+      await settleEndedTurn(result.turnId, result.status, failReply);
       return;
     }
     if (
@@ -383,6 +387,15 @@ export async function runSokoBotMentionDispatch(params: {
       );
     }
   } catch (error) {
-    await failPlaceholder(error);
+    // If even the fenced write fails, write nothing: an unchecked write could
+    // fail a newer attempt and discard its answer. The mention stays `sent`
+    // for stale reclaim to settle.
+    await failReply(error).catch((fenceError: unknown) => {
+      console.error("Soko Bot reply failure left for reclaim:", {
+        mentionId,
+        error,
+        fenceError,
+      });
+    });
   }
 }
