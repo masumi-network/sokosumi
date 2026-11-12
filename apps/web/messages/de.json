@@ -8998,7 +8998,8 @@
       "Unfurl": {
         "openLink": "Linkvorschau öffnen: {title}",
         "imageAlt": "Vorschaubild für {title}",
-        "remove": "Linkvorschau entfernen: {title}"
+        "remove": "Linkvorschau entfernen: {title}",
+        "removeError": "Die Linkvorschau konnte nicht entfernt werden. Versuche es erneut."
       },
       "Message": {
         "delete": "Löschen",

@@ -58,6 +58,7 @@ export function useRoomMessageMutations({
   } | null>(null);
   const [isSavingEdit, startSavingEditTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
+  const [openUnfurlRemovals] = useState(() => new Set<string>());
   const [pinWrites] = useState(
     () =>
       new Map<
@@ -66,7 +67,19 @@ export function useRoomMessageMutations({
       >(),
   );
 
-  function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
+  function mergeUpdatedMessage(answer: ChatRoomMessage) {
+    // An answer can still hold the cards whose removal is open.
+    const updatedMessage =
+      openUnfurlRemovals.size === 0
+        ? answer
+        : {
+            ...answer,
+            unfurls:
+              answer.unfurls?.filter(
+                (unfurl) =>
+                  !openUnfurlRemovals.has(`${answer.id} ${unfurl.url}`),
+              ) ?? null,
+          };
     setMessagesState((current) => {
       // Thread replies never belong in the room list (edit/delete/reaction).
       if (!isTopLevelChatRoomMessage(updatedMessage)) {
@@ -239,26 +252,66 @@ export function useRoomMessageMutations({
     });
   }
 
+  /** Changes one message in the room list, the open thread and its parent. */
+  function patchMessage(
+    messageId: string,
+    patch: (row: ChatRoomMessage) => ChatRoomMessage,
+  ) {
+    const apply = (row: ChatRoomMessage) =>
+      row.id === messageId ? patch(row) : row;
+    setMessagesState((current) => current.map(apply));
+    setThreadMessages((current) => current.map(apply));
+    setThreadParentMessage((current) => (current ? apply(current) : current));
+  }
+
+  /**
+   * The card leaves at once. A refused removal puts it back where it was,
+   * into the row as it is by then, so nothing that arrived meanwhile is lost.
+   */
   function handleRemoveUnfurl(message: ChatRoomMessage, url: string) {
     const roomId = getSelectedRoomId();
     if (!roomId) {
       return;
     }
-    void (async () => {
-      const result = await removeRoomMessageUnfurlAction(
-        roomId,
-        message.id,
-        url,
-      );
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      mergeUpdatedMessage(result.value);
-    })();
+    const unfurls = message.unfurls ?? [];
+    const laterUrls = unfurls
+      .slice(unfurls.findIndex((unfurl) => unfurl.url === url) + 1)
+      .map((unfurl) => unfurl.url);
+    const removed = unfurls.filter((unfurl) => unfurl.url === url);
+    const key = `${message.id} ${url}`;
+    openUnfurlRemovals.add(key);
+    patchMessage(message.id, (row) => ({
+      ...row,
+      unfurls: row.unfurls?.filter((unfurl) => unfurl.url !== url) ?? null,
+    }));
+    void removeRoomMessageUnfurlAction(roomId, message.id, url)
+      .catch(() => null)
+      .then((result) => {
+        openUnfurlRemovals.delete(key);
+        if (!result?.ok) {
+          toast.error(result?.error.message ?? t("Unfurl.removeError"));
+          patchMessage(message.id, (row) => {
+            const kept = row.unfurls ?? [];
+            if (kept.some((unfurl) => unfurl.url === url)) {
+              return row;
+            }
+            // Before the first card that came after it; else at the end.
+            const next = kept.findIndex((unfurl) =>
+              laterUrls.includes(unfurl.url),
+            );
+            const at = next === -1 ? kept.length : next;
+            return {
+              ...row,
+              unfurls: [...kept.slice(0, at), ...removed, ...kept.slice(at)],
+            };
+          });
+          return;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+        mergeUpdatedMessage(result.value);
+      });
   }
 
   function handleDeleteMessage(message: ChatRoomMessage) {
