@@ -16,6 +16,7 @@ import {
   briefStage,
   briefSteps,
   meanwhile,
+  questionEntry,
   stageMarks,
   weekOne,
   workingStatus,
@@ -427,6 +428,24 @@ describe("meanwhile with a general fix", () => {
     ).toBe(
       "Meanwhile Cuso is writing your plan · the fix waits its turn, then joins it",
     );
+  });
+});
+
+describe("questionEntry", () => {
+  const ask = (entryIds?: string[]) => ({
+    id: "pq",
+    question: "Can I quote Lena?",
+    statement: "Thursday quotes Lena.",
+    ...(entryIds ? { entryIds } : {}),
+  });
+
+  it("is the first piece of the plan the question changes", () => {
+    expect(questionEntry(strategy, ask(["gone", "b", "a"]))?.id).toBe("b");
+  });
+
+  it("is none for a question without pieces, or with none on the calendar", () => {
+    expect(questionEntry(strategy, ask())).toBeNull();
+    expect(questionEntry(strategy, ask(["gone"]))).toBeNull();
   });
 });
 

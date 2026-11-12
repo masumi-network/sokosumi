@@ -33,6 +33,7 @@ import {
   type BriefLocal,
   brandFixPending,
   briefSteps,
+  questionEntry,
   STAGES,
   type StageId,
   weekOne,
@@ -843,6 +844,7 @@ export function BriefMain({
       ask?.kind === "plan-question"
         ? strategy.questions?.find((candidate) => candidate.id === ask.id)
         : undefined;
+    const piece = question ? questionEntry(strategy, question) : null;
     body = (
       <>
         <BriefingSteps overview={overview} current={step} />
@@ -879,9 +881,18 @@ export function BriefMain({
           </>
         ) : question ? (
           <>
-            <Result label="What a yes keeps in the plan">
-              <p className="brief-line">{question.statement}</p>
-            </Result>
+            {piece ? (
+              <section className="brief-result card" aria-label="The piece">
+                <p className="brief-result-head">
+                  The piece this question changes
+                </p>
+                <WeekList entries={[piece]} patched={patched} />
+              </section>
+            ) : (
+              <Result label="What a yes keeps in the plan">
+                <p className="brief-line">{question.statement}</p>
+              </Result>
+            )}
             <SeeMore label="week one">{weekView("Week one", false)}</SeeMore>
           </>
         ) : step === "ads" ? (

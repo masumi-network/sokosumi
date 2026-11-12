@@ -468,6 +468,27 @@ describe("briefing", () => {
     ).toBe("Change “Why we built it”: ");
   });
 
+  it("shows the piece a check changes, else what a yes keeps", async () => {
+    const withPiece = draft({
+      strategy: {
+        ...fullPlan,
+        questions: [{ ...firstCheck, entryIds: ["b"] }, secondCheck],
+      },
+    });
+    await render(withPiece, undefined, { briefed: ["plan", "pace"] });
+    expect(text()).toContain("The piece this question changes");
+    expect(text()).toContain("Launch day");
+    expect(text()).toContain("See more: week one");
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render(draft({ strategy: fullPlan }), undefined, {
+      briefed: ["plan", "pace"],
+    });
+    expect(text()).toContain("What a yes keeps in the plan");
+    expect(text()).toContain("They ship monthly.");
+  });
+
   it("fits the plan to the nos once the last check is answered", async () => {
     const answered: Strategy = {
       ...fullPlan,

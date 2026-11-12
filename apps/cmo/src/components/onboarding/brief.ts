@@ -407,3 +407,19 @@ export function adWeek(strategy: Strategy, date: string | undefined) {
     86_400_000;
   return Math.floor(days / 7) + 1;
 }
+
+/**
+ * The piece a plan question changes: the first of its `entryIds` on the
+ * calendar. Core does not check them (the plan part saves before its
+ * pieces), so an id may not resolve; null then, and the statement shows.
+ */
+export function questionEntry(
+  strategy: Strategy,
+  question: NonNullable<Strategy["questions"]>[number],
+): Entry | null {
+  for (const id of question.entryIds ?? []) {
+    const entry = strategy.calendar.find((candidate) => candidate.id === id);
+    if (entry) return entry;
+  }
+  return null;
+}
