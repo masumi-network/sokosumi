@@ -160,6 +160,7 @@ import type {
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
+  PostTasksDueDatesData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
@@ -528,6 +529,7 @@ import {
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postTasksByIdParticipants as corePostTasksByIdParticipants,
+  postTasksDueDates as corePostTasksDueDates,
   postTasksSchedules as corePostTasksSchedules,
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
@@ -5703,6 +5705,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function moveTaskDueDates(
+    body: NonNullable<PostTasksDueDatesData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksDueDates({ client, body }),
+      "Failed to move due dates",
+    );
+  }
+
   async function getTaskLinks(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7256,6 +7268,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasks,
     getTasksSummary,
     patchTask,
+    moveTaskDueDates,
     suggestTaskTags,
     putJobShare,
     putTaskShare,

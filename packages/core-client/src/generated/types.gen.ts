@@ -12686,6 +12686,27 @@ export type TaskTagSuggestion = {
     receipt: string;
 };
 
+export type MoveTaskDueDates = {
+    /**
+     * Ids of the Tasks whose due day changed. The others were skipped.
+     */
+    moved: Array<string>;
+};
+
+export type MoveTaskDueDatesRequest = {
+    tasks: Array<{
+        id: string;
+        /**
+         * The due day the Task must still have (YYYY-MM-DD).
+         */
+        from: string;
+        /**
+         * The new due day (YYYY-MM-DD).
+         */
+        to: string;
+    }>;
+};
+
 export type TaskSchedule = {
     id: string;
     workspaceId: string;
@@ -85404,6 +85425,79 @@ export type SuggestTaskTagsResponses = {
 };
 
 export type SuggestTaskTagsResponse = SuggestTaskTagsResponses[keyof SuggestTaskTagsResponses];
+
+export type PostTasksDueDatesData = {
+    body?: MoveTaskDueDatesRequest;
+    path?: never;
+    query?: never;
+    url: '/tasks/due-dates';
+};
+
+export type PostTasksDueDatesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksDueDatesError = PostTasksDueDatesErrors[keyof PostTasksDueDatesErrors];
+
+export type PostTasksDueDatesResponses = {
+    /**
+     * Moved due days
+     */
+    200: {
+        data: MoveTaskDueDates;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksDueDatesResponse = PostTasksDueDatesResponses[keyof PostTasksDueDatesResponses];
 
 export type GetTasksSchedulesData = {
     body?: never;

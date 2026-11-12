@@ -1,10 +1,10 @@
 import type { TaskStatus } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
-import { FINISHED_STATUSES } from "@/app/tasks/utils/task-due";
+import { FINISHED_STATUSES, shiftDay } from "@/app/tasks/utils/task-due";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { taskService } from "@/lib/services/task.service";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
-
+import { MoveOverdueMenu } from "./move-overdue-menu.client";
 import { MyDayList } from "./my-day-list.client";
 
 export const MY_DAY_LIMIT = 5;
@@ -13,6 +13,43 @@ export const MY_DAY_LIMIT = 5;
 export const MY_DAY_STATUSES = TASK_STATUS_DISPLAY_ORDER.filter(
   (status) => !FINISHED_STATUSES.includes(status),
 );
+
+/**
+ * The most overdue Tasks one move re-dates. Anything past it stays overdue
+ * and the menu offers it again after the move.
+ */
+export const MOVE_OVERDUE_LIMIT = 100;
+
+/** Overdue work a move may re-date: open, and not parked on a vendor grant. */
+const MOVABLE_STATUSES = MY_DAY_STATUSES.filter(
+  (status) => status !== "GRANT_PENDING",
+);
+
+/**
+ * The reader's open Tasks due before `today`, owned or assigned to them in
+ * the active workspace, oldest first: what "Move overdue" re-dates.
+ */
+export function listOverdue(today: string, limit = MOVE_OVERDUE_LIMIT) {
+  return taskService.listTasks({
+    scope: "mine",
+    dueOnTo: shiftDay(today, -1),
+    sort: "dueOn",
+    status: MOVABLE_STATUSES,
+    limit,
+  });
+}
+
+/** How many Tasks "Move overdue" would re-date. 0 on failure hides it. */
+export function countOverdue(today: string): Promise<number> {
+  return listOverdue(today, 1)
+    .then(({ tasks, pagination }) =>
+      Math.min(pagination?.total ?? tasks.length, MOVE_OVERDUE_LIMIT),
+    )
+    .catch((error: unknown) => {
+      console.warn("Overdue count failed", { error });
+      return 0;
+    });
+}
 
 /** One row of My day, as plain data the client list can append to. */
 export interface MyDayRow {
@@ -73,22 +110,29 @@ export function loadMyDay(
  */
 export async function MyDay({
   feed,
+  overdue,
   today,
 }: {
   feed: Promise<MyDayPage | null>;
+  /** How many Tasks "Move overdue" would re-date. */
+  overdue: Promise<number>;
   today: string;
 }) {
-  const [page, t] = await Promise.all([
+  const [page, overdueCount, t] = await Promise.all([
     feed,
+    overdue,
     getTranslations("App.Chat.Landing.MyDay"),
   ]);
   if (!page || page.rows.length === 0) return null;
 
   return (
     <section aria-label={t("title")} data-testid="home-my-day">
-      <h2 className="text-foreground px-3 pb-2 text-sm font-medium">
-        {t("title")}
-      </h2>
+      <div className="flex items-center justify-between gap-2 px-3 pb-2">
+        <h2 className="text-foreground text-sm font-medium">{t("title")}</h2>
+        {overdueCount > 0 ? (
+          <MoveOverdueMenu today={today} count={overdueCount} />
+        ) : null}
+      </div>
       <MyDayList today={today} initial={page} />
     </section>
   );

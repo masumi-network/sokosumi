@@ -365,6 +365,23 @@ export const taskService = (() => {
     return result.data;
   }
 
+  /**
+   * Moves each Task's due day from `from` to `to`, in the active workspace.
+   * Core skips a Task that changed since or that the reader cannot edit, so
+   * only the returned ids moved.
+   */
+  async function moveTaskDueDates(
+    tasks: { id: string; from: string; to: string }[],
+  ): Promise<string[]> {
+    const result = await coreClient.moveTaskDueDates({ tasks });
+
+    if (!result.data) {
+      throw new Error("Failed to move due dates");
+    }
+
+    return result.data.moved;
+  }
+
   async function moveTaskToWorkspace(
     taskId: string,
     organizationId: string | null,
@@ -487,6 +504,7 @@ export const taskService = (() => {
     removeTaskParticipant,
     subscribeTaskParticipant,
     moveTaskToWorkspace,
+    moveTaskDueDates,
     patchTask,
     listTaskLinks,
     deleteTask,

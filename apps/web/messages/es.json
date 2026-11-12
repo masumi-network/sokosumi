@@ -1664,7 +1664,24 @@
         "MyDay": {
           "title": "Mi día",
           "more": "{count, plural, one {Mostrar # más} other {Mostrar # más}}",
-          "error": "No se pudieron cargar más. Inténtalo de nuevo."
+          "error": "No se pudieron cargar más. Inténtalo de nuevo.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {Mover # vencida} other {Mover # vencidas}}",
+            "label": "{count, plural, one {Mover # tarea vencida a} other {Mover # tareas vencidas a}}",
+            "targets": {
+              "today": "Hoy",
+              "tomorrow": "Mañana",
+              "nextMonday": "El próximo lunes"
+            },
+            "moved": "{count, plural, one {# tarea movida al {date}} other {# tareas movidas al {date}}}",
+            "movedPartly": "{count} de {total} tareas movidas al {date}. Las demás cambiaron o no puedes editarlas.",
+            "nothingMoved": "No se movió nada. Esas tareas cambiaron o no puedes editarlas.",
+            "error": "No se pudieron mover tus tareas vencidas. Inténtalo de nuevo.",
+            "undo": "Deshacer",
+            "undone": "{count, plural, one {# tarea devuelta} other {# tareas devueltas}}",
+            "undonePartly": "{count} de {total} tareas devueltas. Las demás cambiaron desde entonces.",
+            "undoError": "No se pudo deshacer el cambio. Inténtalo de nuevo."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",

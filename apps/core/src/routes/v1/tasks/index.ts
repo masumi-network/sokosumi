@@ -22,6 +22,7 @@ import mountPutTaskShareById from "./[id]/share/put.js";
 import mountGetTaskWorkspace from "./[id]/workspace/get.js";
 import mountPutTaskWorkspace from "./[id]/workspace/put.js";
 import mountPostTaskX402Payment from "./[id]/x402-payments/post.js";
+import mountPostTaskDueDates from "./due-dates/post.js";
 import mountGetTasks from "./get.js";
 import mountMovedTaskScheduleRoutes from "./moved-schedule-routes.js";
 import mountPostTask from "./post.js";
@@ -49,6 +50,7 @@ mountGetTasks(app);
 // Before the `/{id}` routes so the literal path cannot be read as a task id.
 mountGetTaskSummary(app);
 mountSuggestTaskTags(app);
+mountPostTaskDueDates(app);
 mountGetTaskSchedules(app);
 mountGetTaskScheduleAssignees(app);
 mountPostTaskSchedule(app);

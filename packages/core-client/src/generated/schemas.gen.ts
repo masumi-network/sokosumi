@@ -49201,6 +49201,63 @@ export const TaskTagSuggestionSchema = {
     ]
 } as const;
 
+export const MoveTaskDueDatesSchema = {
+    type: 'object',
+    properties: {
+        moved: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Ids of the Tasks whose due day changed. The others were skipped.'
+        }
+    },
+    required: [
+        'moved'
+    ]
+} as const;
+
+export const MoveTaskDueDatesRequestSchema = {
+    type: 'object',
+    properties: {
+        tasks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        minLength: 1,
+                        example: 'tsk_123'
+                    },
+                    from: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        description: 'The due day the Task must still have (YYYY-MM-DD).',
+                        example: '2026-11-10'
+                    },
+                    to: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        description: 'The new due day (YYYY-MM-DD).',
+                        example: '2026-11-13'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'to'
+                ]
+            },
+            minItems: 1,
+            maxItems: 100
+        }
+    },
+    required: [
+        'tasks'
+    ]
+} as const;
+
 export const TaskScheduleSchema = {
     type: 'object',
     properties: {
