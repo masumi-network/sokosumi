@@ -2,7 +2,7 @@
 
 [REPORTED: SOK-1132 requirement] Goal: prove the intended developer wallet receipt for a Coworker Task on Cardano Preprod. A `PURCHASED`/`FundsLocked`/`RefundWithdrawn` state or a mock receipt does not count as live acceptance proof.
 
-[CORRECTION, VERIFIED: merged source `c2271e441`, 2026-09-30] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) merged the Core receipt route and CLI reader. This is receipt reading only. [VERIFIED: `apps/cli/src/coworker/runtime-task.ts:195-203`] CLI completion posts status and result text without `masumiPayment`. [OPEN] Paid runtime execution and intended seller wallet proof remain pending.
+[CORRECTION, VERIFIED: merged source `c2271e441`, 2026-09-30] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) merged the Core receipt route and CLI reader. This is receipt reading only. [VERIFIED: `completeVerifiedTask` in `apps/cli/src/coworker/runtime-task.ts`] CLI completion posts status and result text without `masumiPayment`. [OPEN] Paid runtime execution and intended seller wallet proof remain pending.
 
 [VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:71,113-122`, at `c2271e441`] The reader checks stored purchase terms, then maps MPS settlement state. `settled` is true for `Withdrawn`, or `DisputedWithdrawn` with nonempty `WithdrawnForSeller`. `txHash` comes from `CurrentTransaction` and can be null even when settled. [CORRECTION] The earlier text incorrectly promised a transaction hash for every plain `Withdrawn` response.
 
