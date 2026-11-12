@@ -105,6 +105,30 @@ describe("pre-hire Site", () => {
     expect(html).toContain("3 min");
     expect(html).toContain("Drafts your first month");
     expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Site/);
+    // No organizations: nothing asks where Cuso goes.
+    expect(html).not.toContain('name="organizationId"');
+  });
+
+  it("asks where Cuso goes, with a new organization selected", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        organizations={[
+          { id: "org-1", name: "Agency" },
+          { id: "org-2", name: "Studio" },
+        ]}
+        onboard={async () => ({ attempt: 0, websiteUrl: "", errors: {} })}
+      />,
+    );
+    const options = [
+      ...html.matchAll(/<input[^>]*name="organizationId"[^>]*>/g),
+    ].map(([tag]) => [/value="([^"]*)"/.exec(tag)?.[1], /checked/.test(tag)]);
+    expect(options).toEqual([
+      ["", true],
+      ["org-1", false],
+      ["org-2", false],
+    ]);
+    expect(html).toContain("New organization (named after your website)");
+    expect(html).toContain("Agency");
   });
 });
 

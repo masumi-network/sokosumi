@@ -98,7 +98,7 @@ function runRef(run: Pick<EvalRun, "prNumber" | "commitSha">): string {
 }
 
 /** Why a case did not pass, in one line: a failed check, the judge, or the error. */
-export function caseReason(evalCase: EvalCaseReport): string {
+function caseReason(evalCase: EvalCaseReport): string {
   for (const result of evalCase.results) {
     const check = result.checks.find((item) => !item.pass);
     if (check) return `${check.label}: ${check.actual}`.slice(0, 200);
@@ -129,7 +129,7 @@ function counts(report: EvalRunReport): string {
     .join(" · ");
 }
 
-export function formatReportText(report: EvalRunReport): string[] {
+function formatReportText(report: EvalRunReport): string[] {
   const { run, summary } = report;
   const rate = summary.scored ? summary.passed / summary.scored : null;
   return [
@@ -149,7 +149,7 @@ export function formatReportText(report: EvalRunReport): string[] {
 }
 
 /** The table a PR's Evidence section takes. */
-export function formatReportMarkdown(report: EvalRunReport): string[] {
+function formatReportMarkdown(report: EvalRunReport): string[] {
   const { run, summary } = report;
   const suites = [...new Set(report.cases.map((evalCase) => evalCase.suite))];
   const lines = [

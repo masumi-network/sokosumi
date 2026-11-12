@@ -68,6 +68,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
     $queryRaw: queryRawMock,
+    sokoBot: { findFirst: async () => null, findMany: async () => [] },
     project: {
       findFirst: projectFindFirstMock,
       updateMany: projectUpdateManyMock,

@@ -175,13 +175,14 @@ describe("SokoBotHome", () => {
     );
   });
 
-  it("lists a chat with the bot among the Tasks by time, opening at the reader's message", async () => {
+  it("lists an important message among the Tasks by time, with who wrote it", async () => {
     await renderHome({
       chats: [
         {
           roomId: "room-1",
           messageId: "msg-9",
-          title: "Plan this week's bakery posts",
+          title: "Can you approve the bakery posts?",
+          from: "Maya",
           at: new Date("2026-10-24T09:00:00Z"),
         },
       ],
@@ -193,7 +194,10 @@ describe("SokoBotHome", () => {
       "/chat/rooms/room-1?message=msg-9",
       "/tasks/task-1",
     ]);
-    expect(links[0]?.textContent).toContain("Plan this week's bakery posts");
+    expect(links[0]?.textContent).toContain(
+      "Can you approve the bakery posts?",
+    );
+    expect(links[0]?.textContent).toContain("Maya");
     expect(links[0]?.textContent).toContain("open");
     expect(screen.queryByText(/quietDay/)).toBeNull();
   });
@@ -206,11 +210,32 @@ describe("SokoBotHome", () => {
           roomId: "room-1",
           messageId: "msg-9",
           title: "Hi",
+          from: "Maya",
           at: new Date("2026-10-24T09:00:00Z"),
         },
       ],
     });
     expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
+  it("draws a failed Task's icon in its page colour, not white on nothing", async () => {
+    await renderHome({
+      teamTasks: [
+        {
+          id: "task-2",
+          name: "Feature lab",
+          status: "FAILED",
+          updatedAt: new Date("2026-10-24T08:00:00Z"),
+          who: "CodePat",
+        },
+      ],
+    });
+    const icon = screen.getByRole("img", { name: "FAILED" });
+    const glyph = icon.querySelector("svg");
+    expect(glyph?.getAttribute("class")).toContain("text-semantic-destructive");
+    expect(glyph?.getAttribute("class")).not.toContain(
+      "text-semantic-destructive-foreground",
+    );
   });
 
   it("says so when nothing moved", async () => {

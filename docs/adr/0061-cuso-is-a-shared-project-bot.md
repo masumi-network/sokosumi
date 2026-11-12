@@ -1,13 +1,15 @@
 # Cuso is a shared Project bot
 
-Cuso was a personal Soko Bot pinned to his marketing Project, so only the person who hired him could use him, and Core needed a pinned-bot shape no other bot has. CMO is a Sokosumi wrapper: the business's people should reach the same Cuso, in CMO and in Sokosumi. Cuso is now an ordinary shared Project bot (Project set, no personal owner) in the organization [ADR 0060](0060-every-cuso-hire-gets-its-own-organization.md) creates for each hire, so every member of that organization works with him.
+- Status: Partially superseded by [ADR-0065](0065-a-cuso-hire-goes-into-a-new-or-an-existing-organization.md): a hire may go into an existing organization, and the person picks their Cuso.
+
+Cuso was a personal Soko Bot pinned to his marketing Project, so only the person who hired him could use him, and Core needed a pinned-bot shape no other bot has. CMO is a Sokosumi wrapper: the business's people should reach the same Cuso, in CMO and in Sokosumi. Cuso is now an ordinary shared Project bot (Project set, no personal owner) in the organization [ADR 0060](superseded/every-cuso-hire-gets-its-own-organization.md) creates for each hire, so every member of that organization works with him.
 
 ## Decisions
 
 - **Every member acts in the brand's name.** A member's turn on Cuso may change the Brand Brain, strategy and reports, use the Project's social tools and answer Social comments. On any other shared bot a member's turn stays a teammate's.
 - **Owners and admins commit.** Approving the strategy and starting the paid month need the organization's owner or admin role, because they spend money and publish in the brand's name.
 - **The chat is Cuso's shared room.** Cuso talks in the public room every shared bot gets, with all the organization's members. Shared bots have no Direct chats, so Cuso's reports land there too.
-- **CMO shows the preferred organization's Cuso.** A hire belongs to its Project, not to a person, and a person may reach several through several organizations. CMO shows the one in the organization hiring made preferred, otherwise the newest; who hired Cuso is his bot's creator.
+- **The person picks their Cuso.** A hire belongs to its Project, not to a person, and a person may reach several, in several organizations or in one. CMO opens the one the address names or the one last opened on that device, else the only one, else the Cuso picker ([ADR 0065](0065-a-cuso-hire-goes-into-a-new-or-an-existing-organization.md)). The preferred organization plays no part. Who hired Cuso is his bot's creator.
 
 ## Considered Options
 

@@ -120,7 +120,6 @@ vi.mock(
 
 import cmoRouter from "../index";
 
-const PREFERRED = "aaaaaaaa-aaaa-4aaa-8aaa-000000000001";
 const OTHER = "aaaaaaaa-aaaa-4aaa-8aaa-000000000002";
 const STRANGER = "aaaaaaaa-aaaa-4aaa-8aaa-000000000003";
 const NO_CUSO = "aaaaaaaa-aaaa-4aaa-8aaa-000000000004";
@@ -137,6 +136,7 @@ function createApp() {
       organizationId: null,
       role: "user",
       authenticationMethod: "oauth",
+      oauthClientId: "cmo-oauth-client",
     });
     return await next();
   });
@@ -205,12 +205,6 @@ describe("CMO routes naming a Cuso by his Project", () => {
       `/projects/${PERSONAL}/calendar/article/text`,
     );
     expect(status).toBe(404);
-  });
-
-  it("keeps acting on the preferred organization's Cuso without a Project", async () => {
-    const { status, body } = await readPiece("/calendar/article/text");
-    expect(status).toBe(200);
-    expect(body.data.text).toBe(`article of strategy-of-${PREFERRED}`);
   });
 
   const ID = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000ff";

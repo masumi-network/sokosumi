@@ -19,6 +19,8 @@ import { NewsletterSignupDesigner } from "./signup-form-designer";
 
 export const instant = false;
 
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
+
 interface NewsletterSignupFormPageProps {
   searchParams: Promise<SearchParams>;
 }
@@ -36,6 +38,7 @@ export default async function NewsletterSignupFormPage({
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);
   if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
+  // CMO designs a CMO Project's signup form; its saved preview stays readable.
 
   const [page, t] = await Promise.all([
     getTranslations("App.Newsletter"),
@@ -44,8 +47,9 @@ export default async function NewsletterSignupFormPage({
 
   return (
     <NewsletterPageShell
+      cmoProjectId={project.cmo ? project.id : undefined}
       navigationLabel={t("navigation")}
-      tabs={getNewsletterTabs(project.id, true, t)}
+      tabs={getNewsletterTabs(project.id, true, t, project.cmo)}
       title={page("title")}
     >
       <ClientMessageBoundary
@@ -54,6 +58,7 @@ export default async function NewsletterSignupFormPage({
         <NewsletterSignupDesigner
           newsletter={newsletter}
           projectId={project.id}
+          readOnly={project.cmo}
         />
       </ClientMessageBoundary>
     </NewsletterPageShell>

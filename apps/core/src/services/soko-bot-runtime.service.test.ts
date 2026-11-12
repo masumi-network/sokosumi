@@ -324,6 +324,7 @@ vi.mock("@/services/social-account-statistics.service", () => ({
   refreshSocialAccountStatistics: social.refreshAccountStatistics,
 }));
 vi.mock("@/services/social-posts.service", () => ({
+  prepareSocialPostMutationMedia: vi.fn(async (input) => input),
   listSocialPosts: social.list,
   getSocialPost: social.get,
   createSocialPost: social.create,
@@ -3878,6 +3879,46 @@ describe("SokoBotRuntimeService hire decisions", () => {
     expect(sellerStartMock.mock.invocationCallOrder[0]).toBeLessThan(
       localJobDelegationUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+
+  it("charges a hire with its bot's Project, though the hire names none", async () => {
+    // Cuso's Project credits pay for his hires (ADR 0067).
+    botFindFirstMock.mockResolvedValue(botRow({ projectId: "project_cuso" }));
+
+    await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creditProjectId: "project_cuso",
+        agentInput: expect.not.objectContaining({
+          projectId: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("charges a personal bot's hire with the Job's own Project", async () => {
+    // Only a bot's own Project overrides the Job's (SOKD-179, SOKD-180).
+    const JOB_PROJECT_ID = "01960001-0001-7001-8001-0000000000b1";
+    decisionFindFirstMock.mockResolvedValue({
+      ...hireDecision(),
+      proposal: { ...hireDecision().proposal, projectId: JOB_PROJECT_ID },
+    });
+
+    await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    const input = createAgentJobForUserMock.mock.calls[0]?.[0];
+    expect(input?.agentInput.projectId).toBe(JOB_PROJECT_ID);
+    // undefined, not null: null would charge the pool only.
+    expect(input?.creditProjectId).toBeUndefined();
   });
 
   it("never returns a hire to PENDING after seller-side execution starts", async () => {

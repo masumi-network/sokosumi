@@ -1,179 +1,155 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { refundJob } from "./job-refund";
 
+const PROJECT_ID = "22222222-2222-7222-8222-222222222222";
+
+function jobTx(
+  job: unknown,
+  { liveCuso = true, remaining = [] as unknown[] } = {},
+) {
+  const update = vi.fn().mockResolvedValue({});
+  const transactionCreate = vi.fn(async () => ({
+    id: `refund-${transactionCreate.mock.calls.length}`,
+  }));
+  const tx = {
+    job: { findUnique: async () => job, update },
+    transaction: { create: transactionCreate },
+    sokoBot: {
+      updateMany: vi.fn().mockResolvedValue({ count: liveCuso ? 1 : 0 }),
+    },
+    $queryRaw: vi.fn().mockResolvedValue(remaining),
+  } as unknown as Prisma.TransactionClient;
+  const created = () =>
+    transactionCreate.mock.calls.map(
+      (call) =>
+        (
+          call as unknown as [{ data: Prisma.TransactionUncheckedCreateInput }]
+        )[0].data,
+    );
+  return { tx, update, created };
+}
+
+function spend(overrides: Record<string, unknown> = {}) {
+  return {
+    refundedTransaction: null,
+    transaction: {
+      amount: -500n,
+      organizationId: "org-1",
+      userId: "user-1",
+      creditConsumptions: [{ amount: 500n, bucket: { projectId: PROJECT_ID } }],
+      ...overrides,
+    },
+  };
+}
+
 describe("refundJob", () => {
-  it("creates a refund bucket with REFUND reference type and no expiry", async () => {
-    const updateCalls: unknown[] = [];
-    const tx = {
-      job: {
-        findUnique: async () => ({
-          refundedTransaction: null,
-          transaction: {
-            amount: -500n,
-            organizationId: "org-1",
-            userId: "user-1",
-          },
-        }),
-        update: async (args: unknown) => {
-          updateCalls.push(args);
-          return {};
-        },
-      },
-    } as unknown as Prisma.TransactionClient;
+  it("creates a refund bucket with REFUND reference type and no expiry, linked to the job", async () => {
+    const { tx, update, created } = jobTx(spend());
 
     await refundJob("job-1", tx);
 
-    expect(updateCalls).toHaveLength(1);
-
-    const updateCall = updateCalls[0] as {
-      data: {
-        refundedTransaction: {
+    expect(created()).toEqual([
+      {
+        amount: 500n,
+        organizationId: "org-1",
+        userId: null,
+        sourceCreditBucket: {
           create: {
-            amount: bigint;
-            organization?: { connect: { id: string } };
-            organizationId?: string | null;
-            user?: { connect: { id: string } };
-            userId?: string | null;
-            sourceCreditBucket: {
-              create: {
-                expiresAt: Date | null;
-                organizationId?: string | null;
-                referenceId: string;
-                referenceType: CreditBucketReferenceType;
-                user?: { connect: { id: string } };
-                userId?: string | null;
-              };
-            };
-          };
-        };
-      };
-      where: { id: string };
-    };
+            amount: 500n,
+            referenceId: "job-1",
+            referenceType: CreditBucketReferenceType.REFUND,
+            expiresAt: null,
+            userId: null,
+            organizationId: "org-1",
+            // Back to the Project the charge spent its Project credits from.
+            projectId: PROJECT_ID,
+          },
+        },
+      },
+    ]);
+    expect(update).toHaveBeenCalledExactlyOnceWith({
+      where: { id: "job-1" },
+      data: { refundedTransaction: { connect: { id: "refund-1" } } },
+    });
+  });
 
-    expect(updateCall.where.id).toBe("job-1");
-    expect(updateCall.data.refundedTransaction.create.amount).toBe(500n);
-    expect(updateCall.data.refundedTransaction.create.user).toBeUndefined();
-    expect(updateCall.data.refundedTransaction.create.userId).toBeNull();
-    expect(updateCall.data.refundedTransaction.create.organizationId).toBe(
-      "org-1",
+  it("splits a mixed refund: 10 back to the Project, 90 back to the pool", async () => {
+    const { tx, created } = jobTx(
+      spend({
+        amount: -100n,
+        creditConsumptions: [
+          { amount: 10n, bucket: { projectId: PROJECT_ID } },
+          { amount: 90n, bucket: { projectId: null } },
+        ],
+      }),
     );
-    expect(
-      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
-        .referenceId,
-    ).toBe("job-1");
-    expect(
-      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
-        .referenceType,
-    ).toBe(CreditBucketReferenceType.REFUND);
-    expect(
-      updateCall.data.refundedTransaction.create.organization,
-    ).toBeUndefined();
-    expect(
-      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
-        .userId,
-    ).toBeNull();
-    expect(
-      updateCall.data.refundedTransaction.create.sourceCreditBucket.create.user,
-    ).toBeUndefined();
-    expect(
-      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
-        .organizationId,
-    ).toBe("org-1");
+
+    await refundJob("job-1", tx);
 
     expect(
-      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
-        .expiresAt,
-    ).toBeNull();
+      created().map((data) => data.sourceCreditBucket?.create),
+    ).toMatchObject([
+      { amount: 10n, projectId: PROJECT_ID },
+      { amount: 90n, projectId: null },
+    ]);
+  });
+
+  it("writes the Project part off when the Project has no live Cuso", async () => {
+    const { tx, created } = jobTx(spend(), {
+      liveCuso: false,
+      remaining: [
+        {
+          id: "bucket-r",
+          organizationId: "org-1",
+          userId: null,
+          remaining: 500n,
+        },
+      ],
+    });
+
+    await refundJob("job-1", tx);
+
+    expect(created().map((data) => data.amount)).toEqual([500n, -500n]);
+    expect(created()[1]).toMatchObject({
+      creditConsumptions: { create: { amount: 500n, bucketId: "bucket-r" } },
+    });
   });
 
   it("stamps a personal refund bucket with the actor", async () => {
-    const updateCalls: unknown[] = [];
-    const tx = {
-      job: {
-        findUnique: async () => ({
-          refundedTransaction: null,
-          transaction: {
-            amount: -500n,
-            organizationId: null,
-            userId: "user-1",
-          },
-        }),
-        update: async (args: unknown) => {
-          updateCalls.push(args);
-          return {};
-        },
-      },
-    } as unknown as Prisma.TransactionClient;
+    const { tx, created } = jobTx(
+      spend({
+        organizationId: null,
+        creditConsumptions: [{ amount: 500n, bucket: { projectId: null } }],
+      }),
+    );
 
     await refundJob("job-1", tx);
 
-    const updateCall = updateCalls[0] as {
-      data: {
-        refundedTransaction: {
-          create: {
-            organizationId?: string | null;
-            userId?: string | null;
-            sourceCreditBucket: {
-              create: {
-                organizationId?: string | null;
-                userId?: string | null;
-              };
-            };
-          };
-        };
-      };
-    };
-
-    expect(updateCall.data.refundedTransaction.create.userId).toBe("user-1");
-    expect(
-      updateCall.data.refundedTransaction.create.organizationId,
-    ).toBeNull();
-    expect(
-      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
-        .userId,
-    ).toBe("user-1");
-    expect(
-      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
-        .organizationId,
-    ).toBeNull();
+    expect(created()[0]).toMatchObject({
+      userId: "user-1",
+      organizationId: null,
+      sourceCreditBucket: {
+        create: { userId: "user-1", organizationId: null, projectId: null },
+      },
+    });
   });
 
   it("does nothing when job is already refunded", async () => {
-    let updateCalled = false;
-    const tx = {
-      job: {
-        findUnique: async () => ({
-          refundedTransaction: { id: "refund-1" },
-          transaction: {
-            amount: -500n,
-            organizationId: null,
-            userId: "user-1",
-          },
-        }),
-        update: async () => {
-          updateCalled = true;
-          return {};
-        },
-      },
-    } as unknown as Prisma.TransactionClient;
+    const { tx, update, created } = jobTx({
+      ...spend(),
+      refundedTransaction: { id: "refund-1" },
+    });
 
     await refundJob("job-1", tx);
 
-    expect(updateCalled).toBe(false);
+    expect(update).not.toHaveBeenCalled();
+    expect(created()).toEqual([]);
   });
 
   it("throws when the original transaction is missing", async () => {
-    const tx = {
-      job: {
-        findUnique: async () => ({
-          refundedTransaction: null,
-          transaction: null,
-        }),
-        update: async () => ({}),
-      },
-    } as unknown as Prisma.TransactionClient;
+    const { tx } = jobTx({ refundedTransaction: null, transaction: null });
 
     await expect(refundJob("job-1", tx)).rejects.toThrow(
       /Transaction not found/,

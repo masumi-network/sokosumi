@@ -24,13 +24,13 @@ import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
-import { loadMyDay, MyDay } from "./components/my-day";
+import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
   SOKO_BOT_HOME_TASK_LIMIT,
   type SokoBotHomeChat,
-  toSokoBotChats,
+  toImportantChats,
   toTeamDay,
 } from "./components/soko-bot-home-data";
 
@@ -48,25 +48,20 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * The bot's Direct (null when it has none yet or the read fails) and the
- * chats with a Soko Bot the reader took part in during the last day. Core
- * picks those chats; the room list is the sidebar's cached one.
+ * reader's important unread chat messages from the last day, which Core
+ * picks from Jev's tags; the room list is the sidebar's cached one.
  */
 async function loadSokoBotChats(
   sokoBotId: string,
 ): Promise<{ roomId: string | null; chats: SokoBotHomeChat[] }> {
-  const [{ rooms }, recent, tChannels] = await Promise.all([
+  const [{ rooms }, important, tChannels] = await Promise.all([
     chatRoomService.listRooms().catch(() => ({ rooms: [] })),
-    chatRoomService.listRecentSokoBotMessages().catch(() => []),
+    chatRoomService.listImportantMessages().catch(() => []),
     getTranslations("App.Channels"),
   ]);
   return {
     roomId: findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null,
-    chats: toSokoBotChats(
-      recent,
-      rooms,
-      tChannels("MentionAll.label"),
-      tChannels("SavedMessages.untitled"),
-    ),
+    chats: toImportantChats(important, tChannels("SavedMessages.untitled")),
   };
 }
 
@@ -116,7 +111,11 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   const today = dayInTimeZone(now, timeZone);
   const myDay = (
     <Suspense fallback={null}>
-      {MyDay({ feed: loadMyDay(today), today })}
+      {MyDay({
+        feed: loadMyDay(today),
+        overdue: countOverdue(today),
+        today,
+      })}
     </Suspense>
   );
   // What waits on the reader, as the quiet list under either welcome. One

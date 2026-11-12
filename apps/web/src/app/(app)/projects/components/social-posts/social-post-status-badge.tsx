@@ -8,6 +8,8 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
+ * Original Task board grouping, retained here for context:
+ *
  * The Task board's status scale, read for a post: hue says where it stands,
  * weight separates statuses that share a hue, and the glyph names it.
  *
@@ -17,6 +19,10 @@ import { cn } from "@/lib/utils";
  * arranged. Publishing is `active` and spins. Published is `resolved`.
  * Failed is `fault` at full weight, and missed is `blocked`: it waits on the
  * reader to retry or reschedule it.
+ *
+ * Social now uses semantic ink instead of column hues: approval and attention
+ * are warning, scheduled/publishing info, published success and failed
+ * destructive. Draft and canceled stay dormant; every glyph stays distinct.
  */
 const STATUS_MARKERS: Record<SocialPostStatus, StatusMarkerSpec> = {
   DRAFT: {
@@ -24,28 +30,28 @@ const STATUS_MARKERS: Record<SocialPostStatus, StatusMarkerSpec> = {
     icon: MARKER_ICONS.draft,
   },
   NEEDS_APPROVAL: {
-    tone: { hue: "staged", weight: "outline" },
+    tone: { hue: "warning", weight: "outline" },
     icon: MARKER_ICONS.approval,
   },
   SCHEDULED: {
-    tone: { hue: "staged", weight: "filled" },
+    tone: { hue: "info", weight: "filled" },
     icon: MARKER_ICONS.queued,
   },
   PUBLISHING: {
-    tone: { hue: "active", weight: "filled" },
+    tone: { hue: "info", weight: "filled" },
     icon: MARKER_ICONS.running,
     spin: true,
   },
   PUBLISHED: {
-    tone: { hue: "resolved", weight: "filled" },
+    tone: { hue: "success", weight: "filled" },
     icon: MARKER_ICONS.completed,
   },
   FAILED: {
-    tone: { hue: "fault", weight: "solid" },
+    tone: { hue: "destructive", weight: "filled" },
     icon: MARKER_ICONS.failed,
   },
   MISSED: {
-    tone: { hue: "blocked", weight: "filled" },
+    tone: { hue: "warning", weight: "filled" },
     icon: MARKER_ICONS.warning,
   },
   CANCELED: {
@@ -55,8 +61,34 @@ const STATUS_MARKERS: Record<SocialPostStatus, StatusMarkerSpec> = {
 };
 
 /** The status's hue and weight, for a mark drawn outside the badge. */
-export function socialPostStatusTone(status: SocialPostStatus) {
-  return STATUS_MARKERS[status].tone;
+export function socialPostStatusTone(
+  status: SocialPostStatus,
+  display: {
+    partiallyPublished?: boolean;
+    waitingForQuotedPost?: boolean;
+  } = {},
+) {
+  return socialPostStatusMarker(status, display).tone;
+}
+
+function socialPostStatusMarker(
+  status: SocialPostStatus,
+  {
+    partiallyPublished = false,
+    waitingForQuotedPost = false,
+  }: {
+    partiallyPublished?: boolean;
+    waitingForQuotedPost?: boolean;
+  },
+): StatusMarkerSpec {
+  return partiallyPublished
+    ? { tone: { hue: "warning", weight: "filled" }, icon: MARKER_ICONS.warning }
+    : waitingForQuotedPost
+      ? {
+          tone: { hue: "warning", weight: "outline" },
+          icon: MARKER_ICONS.awaiting,
+        }
+      : STATUS_MARKERS[status];
 }
 
 interface SocialPostStatusBadgeProps {
@@ -77,14 +109,10 @@ export function SocialPostStatusBadge({
   partiallyPublished = false,
   waitingForQuotedPost = false,
 }: SocialPostStatusBadgeProps) {
-  const marker: StatusMarkerSpec = partiallyPublished
-    ? { tone: { hue: "blocked", weight: "filled" }, icon: MARKER_ICONS.warning }
-    : waitingForQuotedPost
-      ? {
-          tone: { hue: "staged", weight: "outline" },
-          icon: MARKER_ICONS.awaiting,
-        }
-      : STATUS_MARKERS[status];
+  const marker = socialPostStatusMarker(status, {
+    partiallyPublished,
+    waitingForQuotedPost,
+  });
   const style = getToneStyle(marker.tone);
   return (
     <span

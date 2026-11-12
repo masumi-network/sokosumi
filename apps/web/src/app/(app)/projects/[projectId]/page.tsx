@@ -69,6 +69,7 @@ export default async function ProjectDetailPage({
     <ProjectWorkspaceShell
       actions={
         <ProjectHeaderActions
+          cmo={project.cmo}
           closedAt={project.closedAt}
           closingAt={project.closingAt}
           projectId={project.id}
@@ -76,6 +77,7 @@ export default async function ProjectDetailPage({
           scheduledSocialPostCount={project.scheduledSocialPostCount}
         />
       }
+      cmo={project.cmo}
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
@@ -105,6 +107,8 @@ export default async function ProjectDetailPage({
       */}
       <ProjectBrandProvider
         key={project.designMd?.url ?? "project-brand-empty"}
+        // CMO writes a CMO Project's brand; never start one from here.
+        autoStart={!project.cmo}
         projectId={project.id}
         initialDesignMd={project.designMd}
         websiteUrl={project.websiteUrl}
@@ -140,12 +144,13 @@ export default async function ProjectDetailPage({
             briefing={project.briefing}
             emptyLabel={t("emptyBriefing")}
             emptyActionLabel={t("writeBriefing")}
-            editHref={`/projects/${project.id}/edit`}
+            editHref={project.cmo ? undefined : `/projects/${project.id}/edit`}
             showMoreLabel={t("showMore")}
             showLessLabel={t("showLess")}
           />
 
           <ProjectBrandCard
+            readOnly={project.cmo}
             projectId={project.id}
             websiteUrl={project.websiteUrl}
           />

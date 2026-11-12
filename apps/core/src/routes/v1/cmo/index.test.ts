@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -16,21 +17,28 @@ const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
   strategyMock: vi.fn(),
 }));
 
-const { archiveMock, nextCusoMock } = vi.hoisted(() => ({
+const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
   archiveMock: vi.fn(),
-  nextCusoMock: vi.fn(),
+  hireMock: vi.fn(),
+  listMock: vi.fn(),
+  mayHireMock: vi.fn(),
 }));
 
 vi.mock("@/services/cmo-hiring.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-hiring.service")>();
-  return { ...actual, startCmoOver: archiveMock };
+  return {
+    ...actual,
+    startCmoOver: archiveMock,
+    startCmoOnboarding: hireMock,
+    mayHireCuso: mayHireMock,
+  };
 });
 
 vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-cuso.service")>();
-  return { ...actual, findCusoForUser: nextCusoMock };
+  return { ...actual, listCusosForUser: listMock };
 });
 
 vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
@@ -52,7 +60,12 @@ vi.mock("@/services/cmo-overview.service", async (importOriginal) => {
   return { ...actual, getCmoOverview: overviewMock };
 });
 
-import { CmoNotFoundError } from "@/services/cmo-cuso.service";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { APIError } from "better-auth/api";
+import {
+  CmoForbiddenError,
+  CmoNotFoundError,
+} from "@/services/cmo-cuso.service";
 import { SokoBotTurnInProgressError } from "@/services/soko-bot-control-plane.service";
 
 import cmoRouter from "./index";
@@ -152,10 +165,12 @@ function createApp() {
       organizationId: null,
       role: "user",
       authenticationMethod: "oauth",
+      oauthClientId: "cmo-oauth-client",
     });
     return await next();
   });
   app.route("/", cmoRouter);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -165,10 +180,134 @@ describe("CMO routes", () => {
     overviewMock.mockResolvedValue(overview());
   });
 
-  it("returns the overview of the caller's Cuso", async () => {
-    const response = await createApp().request("/");
+  it("lists every Cuso the caller can use, newest first, as Core ordered them", async () => {
+    const hired = new Date("2026-10-01T09:00:00.000Z");
+    listMock.mockResolvedValue([
+      {
+        projectId: PROJECT_ID,
+        businessName: "acme.io",
+        websiteUrl: "https://acme.io",
+        projectLogo: null,
+        organizationId: "org-1",
+        organizationName: "Agency",
+        hiring: true,
+        createdAt: NOW,
+      },
+      {
+        projectId: "aaaaaaaa-aaaa-4aaa-8aaa-000000000003",
+        businessName: "beta.io",
+        websiteUrl: "https://beta.io",
+        projectLogo: "https://beta.io/icon.png",
+        organizationId: "org-1",
+        organizationName: "Agency",
+        hiring: false,
+        createdAt: hired,
+      },
+    ]);
+    mayHireMock.mockResolvedValue(true);
+    const response = await createApp().request("/cusos");
     expect(response.status).toBe(200);
-    expect(overviewMock).toHaveBeenCalledWith({ userId: "user-1" });
+    expect(listMock).toHaveBeenCalledWith("user-1");
+    const { data } = await response.json();
+    expect(data.mayHire).toBe(true);
+    expect(
+      data.cusos.map((cuso: { businessName: string }) => cuso.businessName),
+    ).toEqual(["acme.io", "beta.io"]);
+    expect(data.cusos[1]).toEqual({
+      projectId: "aaaaaaaa-aaaa-4aaa-8aaa-000000000003",
+      businessName: "beta.io",
+      websiteUrl: "https://beta.io",
+      projectLogo: "https://beta.io/icon.png",
+      organizationId: "org-1",
+      organizationName: "Agency",
+      hiring: false,
+      createdAt: hired.toISOString(),
+    });
+  });
+
+  it("says the caller may not hire when they are not on the allowlist", async () => {
+    listMock.mockResolvedValue([]);
+    mayHireMock.mockResolvedValue(false);
+    const response = await createApp().request("/cusos");
+    expect(response.status).toBe(200);
+    expect(mayHireMock).toHaveBeenCalledWith("user-1");
+    expect((await response.json()).data).toEqual({ cusos: [], mayHire: false });
+  });
+
+  it("no longer opens a default Cuso for the caller", async () => {
+    const response = await createApp().request("/");
+    expect(response.status).toBe(404);
+    expect(overviewMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["into a new organization", {}],
+    ["into the organization the body names", { organizationId: "org-team" }],
+  ])("hires Cuso %s and answers his overview", async (_label, where) => {
+    hireMock.mockResolvedValue({ projectId: PROJECT_ID });
+    const response = await createApp().request("/onboarding", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ websiteUrl: "https://acme.io", ...where }),
+    });
+    expect(response.status).toBe(201);
+    expect(hireMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      websiteUrl: "https://acme.io",
+      ...where,
+    });
+    expect(overviewMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+    });
+  });
+
+  it.each([
+    [
+      "not being on the allowlist",
+      new CmoForbiddenError(
+        "CMO is invite-only for now",
+        CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED,
+      ),
+      403,
+      CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED,
+    ],
+    [
+      "no Seat",
+      new CmoForbiddenError(
+        "You need a Seat",
+        CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
+      ),
+      403,
+      CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
+    ],
+    [
+      "the organization limit",
+      APIError.from("FORBIDDEN", {
+        code: "YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS",
+        message: "You have reached the maximum number of organizations",
+      }),
+      403,
+      CORE_API_ERROR_KINDS.ORGANIZATION_LIMIT_REACHED,
+    ],
+  ])("declares a hire refused for %s", async (_label, error, status, kind) => {
+    hireMock.mockRejectedValue(error);
+    const response = await createApp().request("/onboarding", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ websiteUrl: "https://acme.io" }),
+    });
+    expect(response.status).toBe(status);
+    expect((await response.json()).kind).toBe(kind);
+  });
+
+  it("returns the overview of the Cuso of the Project the path names, as CMO reads it", async () => {
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    expect(response.status).toBe(200);
+    expect(overviewMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+    });
     const body = await response.json();
     expect(body.data.strategyVersion).toMatchObject({
       id: "strategy-1",
@@ -193,64 +332,33 @@ describe("CMO routes", () => {
     strategyMock.mockRejectedValue(
       new SokoBotTurnInProgressError("Soko Bot is already working"),
     );
-    const response = await createApp().request("/strategy", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({}),
-    });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/strategy`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
     expect(response.status).toBe(409);
   });
 
-  it.each(["aaaaaaaa-aaaa-4aaa-8aaa-000000000001", null])(
-    "returns the next Project after starting over (%s)",
-    async (nextProjectId) => {
-      archiveMock.mockResolvedValue(undefined);
-      nextCusoMock.mockResolvedValue(
-        nextProjectId ? { projectId: nextProjectId } : null,
-      );
-      const response = await createApp().request(
-        `/projects/${PROJECT_ID}/start-over`,
-        { method: "POST" },
-      );
-      expect(response.status).toBe(200);
-      expect(archiveMock).toHaveBeenCalledWith({
-        userId: "user-1",
-        projectId: PROJECT_ID,
-      });
-      expect((await response.json()).data).toEqual({
-        startedOver: true,
-        projectId: nextProjectId,
-      });
-    },
-  );
-
-  it("reverts a weekly update by its report card's id", async () => {
-    revertMock.mockResolvedValue(PROJECT_ID);
-    const response = await createApp().request(`/updates/${REPORT_ID}/revert`, {
-      method: "POST",
-    });
+  it("archives the named Cuso on starting over and names no next one", async () => {
+    archiveMock.mockResolvedValue(undefined);
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/start-over`,
+      { method: "POST" },
+    );
     expect(response.status).toBe(200);
-    expect(revertMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      updateId: REPORT_ID,
-    });
-    expect(overviewMock).toHaveBeenCalledWith({
+    expect(archiveMock).toHaveBeenCalledWith({
       userId: "user-1",
       projectId: PROJECT_ID,
     });
-  });
-
-  it("returns the overview of the Cuso of the Project the path names", async () => {
-    const response = await createApp().request(`/projects/${PROJECT_ID}`);
-    expect(response.status).toBe(200);
-    expect(overviewMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      projectId: PROJECT_ID,
-    });
+    expect((await response.json()).data).toEqual({ startedOver: true });
   });
 
   it("reverts an update of the named Project's Cuso and returns his overview", async () => {
-    revertMock.mockResolvedValue(PROJECT_ID);
+    revertMock.mockResolvedValue(undefined);
     const response = await createApp().request(
       `/projects/${PROJECT_ID}/updates/${REPORT_ID}/revert`,
       { method: "POST" },
@@ -274,18 +382,20 @@ describe("CMO routes", () => {
   });
 
   it("answers 422 for an id that is no report card", async () => {
-    const response = await createApp().request("/updates/u1/revert", {
-      method: "POST",
-    });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/updates/u1/revert`,
+      { method: "POST" },
+    );
     expect(response.status).toBe(422);
     expect(revertMock).not.toHaveBeenCalled();
   });
 
   it("answers 404 when an update cannot be reverted", async () => {
     revertMock.mockRejectedValue(new CmoNotFoundError("Nothing to revert"));
-    const response = await createApp().request(`/updates/${REPORT_ID}/revert`, {
-      method: "POST",
-    });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/updates/${REPORT_ID}/revert`,
+      { method: "POST" },
+    );
     expect(response.status).toBe(404);
   });
 });

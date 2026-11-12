@@ -4,7 +4,12 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
 import { notFound } from "@/helpers/error";
+import {
+  flagSocialPostQuotes,
+  QUOTED_POST_CANCELLED,
+} from "@/helpers/social-post-quote";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import {
   ME_SOKO_BOT,
@@ -18,7 +23,8 @@ import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integratio
 /**
  * Deleting a Soko Bot always erases everything the bot owned — turns, runtime
  * events, memory, schedules, integrations, installed skills, lab runs, nudges
- * and watches — and always frees the owner's `(userId, workspaceId)` slot so
+ * and watches — cancels every Social post it made that has not gone out, and
+ * always frees the owner's `(userId, workspaceId)` slot so
  * they can create a brand-new bot immediately.
  *
  * Whether the row itself survives depends on what else points at it:
@@ -50,7 +56,45 @@ export interface SokoBotDeletionResult {
     taskSchedules: number;
     /** Jobs it hired; the creator FK restricts a hard delete. */
     jobs: number;
+    /** Social posts it made: published ones and the canceled rest. The
+     * creator FK restricts a hard delete. */
+    socialPosts: number;
   };
+}
+
+/** Social posts that have not gone out; a deleted bot's must never publish. */
+const UNPUBLISHED_SOCIAL_POST_STATUSES = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+] as const;
+
+/** Cancels the bot's planned posts, as canceling each one by hand would. */
+async function cancelUnpublishedSocialPosts(
+  tx: Prisma.TransactionClient,
+  sokoBotId: string,
+): Promise<void> {
+  const posts = await tx.socialPost.findMany({
+    where: {
+      creatorSokoBotId: sokoBotId,
+      status: { in: [...UNPUBLISHED_SOCIAL_POST_STATUSES] },
+    },
+    select: { id: true },
+  });
+  if (posts.length === 0) return;
+  await tx.socialPost.updateMany({
+    where: { id: { in: posts.map((post) => post.id) } },
+    data: {
+      status: "CANCELED",
+      canceledAt: new Date(),
+      revision: { increment: 1 },
+    },
+  });
+  for (const post of posts) {
+    await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
+  }
 }
 
 /** Everything the bot exclusively owns; none of it outlives the deletion. */
@@ -109,6 +153,10 @@ export async function deleteSokoBot(
       },
     });
 
+    // Both outcomes end a live Cuso; a hard delete keeps his Project, and so
+    // its credits, so they are written off here (ADR 0067).
+    await forfeitCusoProjectCredits(bot.id, tx);
+
     // Stop live work before erasing what it would write back into.
     await tx.sokoBotTurn.updateMany({
       where: { sokoBotId: bot.id, status: { in: ["STARTING", "RUNNING"] } },
@@ -118,6 +166,7 @@ export async function deleteSokoBot(
       },
     });
     await eraseOwnedRecords(tx, bot.id);
+    await cancelUnpublishedSocialPosts(tx, bot.id);
     const mentionMessageIds = await failOpenChatRoomMentions(
       {
         where: { sokoBotId: bot.id },
@@ -158,6 +207,9 @@ export async function deleteSokoBot(
     const jobs = await tx.job.count({
       where: { creatorSokoBotId: bot.id },
     });
+    const socialPosts = await tx.socialPost.count({
+      where: { creatorSokoBotId: bot.id },
+    });
     const tasks = createdTasks + assignedTasks;
 
     const retained = {
@@ -168,6 +220,7 @@ export async function deleteSokoBot(
       uploadedTaskFiles,
       taskSchedules,
       jobs,
+      socialPosts,
     };
 
     if (
@@ -178,7 +231,8 @@ export async function deleteSokoBot(
       chatMessages === 0 &&
       uploadedTaskFiles === 0 &&
       taskSchedules === 0 &&
-      jobs === 0
+      jobs === 0 &&
+      socialPosts === 0
     ) {
       await tx.sokoBot.delete({ where: { id: bot.id } });
       return {

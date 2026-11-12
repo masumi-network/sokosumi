@@ -1,13 +1,9 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import mountCmoAds from "./ads/routes.js";
-import mountPauseCmoCalendarEntry from "./calendar/[id]/pause/post.js";
-import mountGetCmoCalendarEntryText from "./calendar/[id]/text/get.js";
-import mountGetCmoOverview from "./get.js";
-import mountConnectCmoMeasurement from "./measurement/[provider]/connect/post.js";
-import mountFinalizeCmoMeasurement from "./measurement/[provider]/finalize/post.js";
+import { cmoClientCheck } from "./cmo-client-check.js";
+
+import mountListCmoCusos from "./cusos/get.js";
 import mountStartCmoOnboarding from "./onboarding/post.js";
-import mountRetryCmoOnboarding from "./onboarding/retry/post.js";
 import mountConnectCmoAdsForProject from "./projects/[projectId]/ads/[provider]/connect/post.js";
 import mountChooseCmoAdAccountForProject from "./projects/[projectId]/ads/accounts/post.js";
 import mountListCmoAdCampaignsForProject from "./projects/[projectId]/ads/campaigns/get.js";
@@ -15,43 +11,37 @@ import mountSetCmoAdCampaignStatusForProject from "./projects/[projectId]/ads/ca
 import mountListCmoAdChoicesForProject from "./projects/[projectId]/ads/connections/[adConnectionId]/choices/get.js";
 import mountFinalizeCmoAdsForProject from "./projects/[projectId]/ads/finalize/post.js";
 import mountLaunchCmoSearchAdForProject from "./projects/[projectId]/ads/launch/post.js";
+import mountAnswerCmoBrandBrainQuestionForProject from "./projects/[projectId]/brand-brain/answers/post.js";
+import mountConfirmCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/confirm/post.js";
+import mountUpdateCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/put.js";
 import mountPauseCmoCalendarEntryForProject from "./projects/[projectId]/calendar/[id]/pause/post.js";
 import mountGetCmoCalendarEntryTextForProject from "./projects/[projectId]/calendar/[id]/text/get.js";
 import mountGetCmoOverviewForProject from "./projects/[projectId]/get.js";
+import mountAnswerCmoMarketingStrategyQuestionForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/answers/post.js";
+import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/approve/post.js";
 import mountConnectCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/connect/post.js";
 import mountFinalizeCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/finalize/post.js";
 import mountRetryCmoOnboardingForProject from "./projects/[projectId]/onboarding/retry/post.js";
+import mountFinalizeCmoSocialConnectionForProject from "./projects/[projectId]/social-connections/finalize/post.js";
+import mountInitiateCmoSocialConnectionForProject from "./projects/[projectId]/social-connections/initiate/post.js";
 import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.js";
 import mountSetCmoAdBudgetForProject from "./projects/[projectId]/strategy/ads/post.js";
 import mountApplyCmoPlanAnswersForProject from "./projects/[projectId]/strategy/answers/apply/post.js";
 import mountRequestCmoStrategyForProject from "./projects/[projectId]/strategy/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
-import mountStartCmoOver from "./start-over/post.js";
-import mountSetCmoAdBudget from "./strategy/ads/post.js";
-import mountApplyCmoPlanAnswers from "./strategy/answers/apply/post.js";
-import mountRequestCmoStrategy from "./strategy/post.js";
-import mountRevertCmoUpdate from "./updates/[id]/revert/post.js";
 
 /**
  * CMO.xyz's API. The CMO app calls it server side with the person's Sign in
- * with Sokosumi token; everything is scoped to the Cuso the caller works with,
- * so no organization header is needed.
+ * with Sokosumi token. Every Cuso action names him by his Project
+ * (`/projects/{projectId}/…`); only hiring and the list of the caller's
+ * Cusos go by the caller alone. No organization header is needed.
  */
 const app = new OpenAPIHonoWithAuth();
 
-mountGetCmoOverview(app);
+app.use("*", cmoClientCheck);
+
+mountListCmoCusos(app);
 mountStartCmoOnboarding(app);
-mountRetryCmoOnboarding(app);
-mountStartCmoOver(app);
-mountRequestCmoStrategy(app);
-mountSetCmoAdBudget(app);
-mountApplyCmoPlanAnswers(app);
-mountRevertCmoUpdate(app);
-mountPauseCmoCalendarEntry(app);
-mountGetCmoCalendarEntryText(app);
-mountConnectCmoMeasurement(app);
-mountFinalizeCmoMeasurement(app);
-mountCmoAds(app);
 
 mountConnectCmoAdsForProject(app);
 mountChooseCmoAdAccountForProject(app);
@@ -71,5 +61,14 @@ mountSetCmoAdBudgetForProject(app);
 mountApplyCmoPlanAnswersForProject(app);
 mountRequestCmoStrategyForProject(app);
 mountRevertCmoUpdateForProject(app);
+
+// Writes CMO made on the shared Project routes (ADR 0066); those stay too.
+mountUpdateCmoBrandBrainForProject(app);
+mountConfirmCmoBrandBrainForProject(app);
+mountAnswerCmoBrandBrainQuestionForProject(app);
+mountApproveCmoMarketingStrategyForProject(app);
+mountAnswerCmoMarketingStrategyQuestionForProject(app);
+mountInitiateCmoSocialConnectionForProject(app);
+mountFinalizeCmoSocialConnectionForProject(app);
 
 export default app;

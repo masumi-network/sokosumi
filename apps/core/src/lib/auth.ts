@@ -8,8 +8,6 @@ import * as Sentry from "@sentry/node";
 import { MemberRole } from "@sokosumi/database";
 import {
   ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
-  getCreditExpiryDate,
-  grantSignupBonusCredits,
   hasConsumableEnterpriseContract,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
@@ -67,7 +65,6 @@ import {
   prepareStripeEmailSyncForUserUpdate,
 } from "@/services/stripe-user-email.service";
 import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.service";
-import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import {
@@ -121,42 +118,6 @@ const betterAuthCookiePrefixParams = {
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
   betterAuthCookiePrefixParams,
 );
-
-async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
-  const { SIGNUP_BONUS_CREDITS, SIGNUP_BONUS_TTL_DAYS } = getEnv();
-  const grantedAt = new Date();
-  const expiresAt = getCreditExpiryDate(grantedAt, SIGNUP_BONUS_TTL_DAYS);
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const { created } = await grantSignupBonusCredits(
-        {
-          credits: SIGNUP_BONUS_CREDITS,
-          expiresAt,
-          userId,
-        },
-        tx,
-      );
-
-      if (created) {
-        await markOutOfCreditsTasksAsToppedUp({
-          organizationId: null,
-          tx,
-          userId,
-        });
-      }
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        context: "signup_bonus_grant",
-      },
-      extra: {
-        userId,
-      },
-    });
-  }
-}
 
 type StripeBackedLocalSubscription = NonNullable<
   Parameters<typeof reconcileActiveStripeBackedSubscription>[0]
@@ -309,7 +270,6 @@ export const auth = betterAuth({
           });
           // Awaited: it reads this request's OAuth state.
           await recordSignUpContext(user.id);
-          waitUntil(grantSignupBonusForCreatedUser(user.id));
           waitUntil(
             stripeClient
               .createUserCustomer({

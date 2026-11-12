@@ -18,6 +18,7 @@ import {
   SECTION_STATUSES,
 } from "@/app/projects/components/social-posts/constants";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
+import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
@@ -218,15 +219,20 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
 
   return (
     <SocialPageShell title={t("title")}>
+      {project.cmo ? (
+        <CmoProjectBanner className="mb-4" projectId={project.id} />
+      ) : null}
       <SocialCalendarPreviewProvider>
         <SocialComposeProvider>
           <ProjectSocialPosts
+            readOnly={project.cmo}
             connectDisabled={Boolean(project.closingAt || project.closedAt)}
             accounts={
               <div className="space-y-6">
                 <ProjectSocialAccounts
                   projectId={project.id}
                   connections={connections}
+                  readOnly={project.cmo}
                   queueSlots={queueSlots ?? undefined}
                   connectDisabled={Boolean(
                     project.closingAt || project.closedAt,
@@ -235,15 +241,19 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
                 <ProjectPostingInstructions
                   projectId={project.id}
                   postingInstructionsMd={project.postingInstructionsMd}
-                  disabled={Boolean(project.closingAt || project.closedAt)}
+                  disabled={Boolean(
+                    project.cmo || project.closingAt || project.closedAt,
+                  )}
                 />
               </div>
             }
             actions={
-              <SocialNewPostMenu
-                project={{ id: project.id, name: project.name }}
-                sokoBotId={sokoBot?.id ?? null}
-              />
+              project.cmo ? undefined : (
+                <SocialNewPostMenu
+                  project={{ id: project.id, name: project.name }}
+                  sokoBotId={sokoBot?.id ?? null}
+                />
+              )
             }
             calendar={
               calendar ? (

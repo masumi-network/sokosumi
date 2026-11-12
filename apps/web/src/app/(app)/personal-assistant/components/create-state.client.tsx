@@ -11,6 +11,7 @@ import { CHAT_MOBILE_COMPOSER_SAFE_AREA_PB } from "@/app/chat/components/chat-mo
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import {
   SOKO_BOT_SETUP_FRAME_CLASS,
+  SokoBotSetupHeader,
   SokoBotSetupSteps,
 } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
@@ -52,12 +53,15 @@ export function CreateState({
   const tChat = useTranslations("App.SokoBot.Chat");
   const router = useRouter();
   const nameId = useId();
+  const noPictureHintId = useId();
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
   // The picker mounts loading its first set; Create waits for it, so the bot
   // does not go without the picture the set would have offered.
   const [loadingAvatars, setLoadingAvatars] = useState(true);
   const [isPending, startTransition] = useTransition();
+  // Which button is creating, so "Create without a picture" shows its own progress.
+  const [creatingWithoutPicture, setCreatingWithoutPicture] = useState(false);
   const [created, setCreated] = useState<{
     name: string;
     imageUrl: string | null;
@@ -90,14 +94,15 @@ export function CreateState({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (loadingAvatars) return;
+    if (loadingAvatars || isPending) return;
     create(avatar);
   }
 
   /** Create the bot with `picked`, or with no picture so it shows its orb. */
-  function create(picked: SokoBotAvatar | null) {
+  function create(picked: SokoBotAvatar | null, withoutPicture = false) {
     const trimmed = name.trim();
     if (!trimmed) return;
+    setCreatingWithoutPicture(withoutPicture);
     startTransition(async () => {
       const result = await createSokoBotAction({
         input: {
@@ -145,7 +150,7 @@ export function CreateState({
             className="size-32"
           />
         </div>
-        <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both text-foreground mt-8 text-center text-2xl font-light delay-300 duration-500 md:text-3xl text-balance tracking-tight">
+        <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both text-foreground mt-8 text-center text-2xl font-light delay-300 duration-500 md:text-3xl text-balance wrap-anywhere tracking-tight">
           {t("successTitle", { name: created.name })}
         </h1>
         <p className="animate-in fade-in fill-mode-both text-muted-foreground mt-3 text-sm delay-700 duration-500">
@@ -156,21 +161,14 @@ export function CreateState({
   }
 
   return (
-    <div className={cn(SOKO_BOT_SETUP_FRAME_CLASS, "gap-8")}>
+    <div className={SOKO_BOT_SETUP_FRAME_CLASS}>
       <SokoBotSetupSteps current={step === "name" ? 1 : 2} />
       <form
         hidden={step !== "name"}
         onSubmit={handleContinue}
         className={step === "name" ? "flex flex-col gap-8" : "hidden"}
       >
-        <header className="flex flex-col gap-2 text-center">
-          <h1 className="text-foreground text-3xl font-light tracking-tight text-balance">
-            {t("nameTitle")}
-          </h1>
-          <p className="text-muted-foreground text-sm text-pretty">
-            {t("nameHint")}
-          </p>
-        </header>
+        <SokoBotSetupHeader title={t("nameTitle")} hint={t("nameHint")} />
         <div className="flex flex-col gap-2">
           <Label htmlFor={nameId}>{t("nameLabel")}</Label>
           <Input
@@ -198,33 +196,21 @@ export function CreateState({
         onSubmit={handleSubmit}
         className={step === "picture" ? "flex flex-col gap-8" : "hidden"}
       >
-        <header className="flex flex-col items-center gap-4 text-center">
-          {avatar ? (
-            <img
-              src={avatar.imageUrl}
-              alt=""
-              className="size-24 rounded-full border object-cover"
-            />
-          ) : (
-            <span className="bg-muted size-24 animate-pulse rounded-full" />
+        <SokoBotSetupHeader
+          imageUrl={avatar?.imageUrl}
+          loading={loadingAvatars}
+          title={t("pictureTitle", { name: name.trim() })}
+          hint={t(
+            paidByOrganization ? "spendNoticeOrganization" : "spendNotice",
           )}
-          <div className="flex flex-col gap-2">
-            <h1
-              ref={pictureHeadingRef}
-              tabIndex={-1}
-              className="text-foreground text-3xl font-light tracking-tight text-balance outline-none"
-            >
-              {t("pictureTitle", { name: name.trim() })}
-            </h1>
-            <p className="text-muted-foreground text-sm text-pretty">
-              {t(
-                paidByOrganization ? "spendNoticeOrganization" : "spendNotice",
-              )}
-            </p>
-          </div>
-        </header>
-        {/* Locked while creating: the bot gets the picture picked on submit. */}
-        <fieldset disabled={isPending} className={cn(HOLDER_CLASS, "min-w-0")}>
+          headingRef={pictureHeadingRef}
+        />
+        {/* Locked while creating: the bot gets the picture picked on submit.
+            The scroll margin keeps a focused picture clear of the pinned buttons. */}
+        <fieldset
+          disabled={isPending}
+          className={cn(HOLDER_CLASS, "min-w-0 [&_button]:scroll-mb-40")}
+        >
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
             <AvatarPicker
               value={avatar?.id ?? null}
@@ -233,7 +219,8 @@ export function CreateState({
             />
           </div>
         </fieldset>
-        {/* Pinned to the foot on phones, so Create stays in reach above the pictures. */}
+        {/* Pinned to the foot on phones, so Create stays in reach above the pictures.
+            Only the two create buttons: a taller bar hid the pictures it sits over. */}
         <div
           className={cn(
             "bg-background sticky bottom-0 flex flex-col gap-2 pt-3 md:static md:pt-0",
@@ -245,10 +232,14 @@ export function CreateState({
             type="submit"
             variant="primary"
             className="w-full"
-            disabled={loadingAvatars}
-            loading={isPending}
+            // Locked while either button creates: a second submit would race the first.
+            disabled={loadingAvatars || isPending}
+            loading={isPending && !creatingWithoutPicture}
           >
-            {t("submit", { name: name.trim() })}
+            {/* Buttons do not wrap: a long name would push the phone page sideways. */}
+            <span className="truncate">
+              {t("submit", { name: name.trim() })}
+            </span>
           </Button>
           {/* No picture: the bot shows its orb, and one can be picked later. */}
           <Button
@@ -256,10 +247,21 @@ export function CreateState({
             variant="ghost"
             className="w-full"
             disabled={isPending}
-            onClick={() => create(null)}
+            loading={isPending && creatingWithoutPicture}
+            aria-describedby={noPictureHintId}
+            onClick={() => create(null, true)}
           >
-            {t("skip")}
+            {t("createWithoutPicture")}
           </Button>
+        </div>
+        {/* Right under the pinned buttons once scrolled to the end. */}
+        <div className="-mt-6 flex flex-col gap-2">
+          <p
+            id={noPictureHintId}
+            className="text-muted-foreground text-center text-sm text-pretty wrap-anywhere"
+          >
+            {t("createWithoutPictureHint", { name: name.trim() })}
+          </p>
           <Button
             type="button"
             variant="ghost"
