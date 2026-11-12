@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -36,7 +35,6 @@ interface RunMoveDialogProps {
 /** Moves one Task Schedule Run to another time; the rule stays as it is. */
 export function RunMoveDialog({ item, timeZone, onClose }: RunMoveDialogProps) {
   const t = useTranslations("App.Calendar");
-  const router = useRouter();
   const reportRunChangeFailure = useReportRunChangeFailure();
   const inputId = useId();
   const [value, setValue] = useState(() =>
@@ -73,7 +71,6 @@ export function RunMoveDialog({ item, timeZone, onClose }: RunMoveDialogProps) {
       }
 
       onClose();
-      router.refresh();
     } catch {
       setError(t("event.runError"));
     } finally {
