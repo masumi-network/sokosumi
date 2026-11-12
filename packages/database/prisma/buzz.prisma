@@ -94,9 +94,10 @@ model BuzzChannel {
   /// Hash of the member set last pushed, to resync only on change. A DM's is
   /// `direct:` and the hash of the keys it was opened with, which never change.
   membersHash String?
-  /// Archived on Buzz, as its room is in Sokosumi: the relay then refuses
-  /// new posts there, as Core does.
-  archived    Boolean       @default(false)
+  /// Hash of the name, topic and archived state last pushed, to edit the
+  /// channel only on change. An archived one takes no new posts on Buzz
+  /// either, as Core does.
+  metadataHash String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

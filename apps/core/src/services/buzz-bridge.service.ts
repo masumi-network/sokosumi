@@ -805,6 +805,23 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
  * (or was removed) leaves too.
  */
 export async function removeAgentsWithoutOwner() {
+  // An owner's account deleted takes the agents' identities with it: their
+  // Coworkers are archived, which takes them out of rooms here and on Buzz.
+  const ownerless = await prisma.coworker.findMany({
+    where: {
+      archivedAt: null,
+      baseURL: { startsWith: BUZZ_AGENT_URL_PREFIX },
+      buzzIdentity: null,
+    },
+    select: { id: true },
+  });
+  if (ownerless.length > 0) {
+    await prisma.coworker.updateMany({
+      where: { id: { in: ownerless.map((agent) => agent.id) } },
+      data: { archivedAt: new Date() },
+    });
+    await resyncRoomsWithCoworkers(ownerless.map((agent) => agent.id));
+  }
   const memberships = await prisma.chatRoomCoworkerMember.findMany({
     where: { coworker: { buzzIdentity: { ownerIdentityId: { not: null } } } },
     select: {
@@ -1352,22 +1369,6 @@ export async function syncRoomChannel(roomId: string) {
   }
   if (isDirect(channel)) return { channel, relayUrl };
 
-  const archived = room.archivedAt !== null;
-  if (channel.archived !== archived) {
-    await publish(relayUrl, config.operatorSecretKey, {
-      kind: BUZZ_KIND.editChannel,
-      content: "",
-      tags: [
-        ["h", channel.channelId],
-        ["archived", String(archived)],
-      ],
-    });
-    channel = await prisma.buzzChannel.update({
-      where: { id: channel.id },
-      data: { archived },
-    });
-  }
-
   const wanted = new Map(
     members.flatMap((member) =>
       keysOf(member.identity).map((pubkey) => [pubkey, member.role] as const),
@@ -1414,6 +1415,43 @@ export async function syncRoomChannel(roomId: string) {
     channel = await prisma.buzzChannel.update({
       where: { id: channel.id },
       data: { membersHash },
+    });
+  }
+  // Name, topic and archiving follow the room, after its members. An
+  // archived channel takes no edits on Buzz, so it gets only that; reopening
+  // sends the rest again.
+  const archived = room.archivedAt !== null;
+  const about = room.topic ?? "";
+  const metadataHash = contentHash(
+    `${channelName(room)}\n${about}\n${archived}`,
+  );
+  if (channel.metadataHash !== metadataHash) {
+    const channelId = channel.channelId;
+    const edit = (tags: string[][]) =>
+      publish(relayUrl, config.operatorSecretKey, {
+        kind: BUZZ_KIND.editChannel,
+        content: "",
+        tags: [["h", channelId], ...tags],
+      });
+    try {
+      await edit([["archived", String(archived)]]);
+    } catch (error) {
+      // Already so: the relay refuses a change that changes nothing.
+      const already =
+        error instanceof BuzzRelayRejectedError &&
+        /channel is (not )?archived/i.test(error.reason);
+      if (!already) throw error;
+    }
+    if (!archived) {
+      // Empty clears a topic that was removed.
+      await edit([
+        ["name", channelName(room)],
+        ["about", about],
+      ]);
+    }
+    channel = await prisma.buzzChannel.update({
+      where: { id: channel.id },
+      data: { metadataHash },
     });
   }
   return { channel, relayUrl };

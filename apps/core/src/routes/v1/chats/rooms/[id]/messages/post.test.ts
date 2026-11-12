@@ -715,6 +715,28 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(membershipFindManyMock).toHaveBeenCalledTimes(1);
     });
 
+    it("refuses a client id another sender already used in the room, with 409", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+      });
+      messageFindUniqueMock.mockResolvedValueOnce(
+        createdMessage({ senderUserId: ALICE_ID }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello", clientMessageId: "buzz:x" }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+    });
+
     it("emits a CHAT Direct notification to the human in a coworker 1:1", async () => {
       roomFindFirstMock.mockResolvedValue({
         id: ROOM_ID,

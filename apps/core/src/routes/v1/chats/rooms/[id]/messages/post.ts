@@ -120,19 +120,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         } else {
           await requireChatRoomSokoBotAccess(id, authContext.sokoBotId, prisma);
         }
-        const replayed = await prisma.chatRoomMessage.findFirst({
+        const replayed = await prisma.chatRoomMessage.findUnique({
           where: {
-            roomId: id,
-            clientMessageId: body.clientMessageId,
-            senderCoworkerId: isCoworkerAuthContext(authContext)
-              ? authContext.coworkerId
-              : null,
-            senderSokoBotId: isSokoBotAuthContext(authContext)
-              ? authContext.sokoBotId
-              : null,
+            roomId_clientMessageId: {
+              roomId: id,
+              clientMessageId: body.clientMessageId,
+            },
           },
           include: chatRoomMessageInclude,
         });
+        // The key is the room's: one someone else used is theirs, not ours.
+        if (
+          replayed &&
+          (replayed.senderCoworkerId !==
+            (isCoworkerAuthContext(authContext)
+              ? authContext.coworkerId
+              : null) ||
+            replayed.senderSokoBotId !==
+              (isSokoBotAuthContext(authContext)
+                ? authContext.sokoBotId
+                : null))
+        ) {
+          throw conflict(
+            "clientMessageId already used by another sender in this room",
+          );
+        }
         if (replayed) {
           return created(
             c,
