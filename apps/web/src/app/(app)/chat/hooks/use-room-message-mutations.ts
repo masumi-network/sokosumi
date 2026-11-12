@@ -66,8 +66,15 @@ export function useRoomMessageMutations({
   const [savingMessageIds, setSavingMessageIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  // A pin and an edit can be open on one message: the mark stays until the
+  // last of them answers.
+  const [openSavesByMessage] = useState(() => new Map<string, number>());
 
   function setMessageSaving(messageId: string, saving: boolean) {
+    const open = (openSavesByMessage.get(messageId) ?? 0) + (saving ? 1 : -1);
+    if (open > 0) openSavesByMessage.set(messageId, open);
+    else openSavesByMessage.delete(messageId);
+    if (!saving && open > 0) return;
     setSavingMessageIds((current) => {
       if (current.has(messageId) === saving) return current;
       const next = new Set(current);
@@ -265,12 +272,15 @@ export function useRoomMessageMutations({
     });
     setEditSession(null);
     openEditSaves.add(messageId);
+    setMessageSaving(messageId, true);
     void editRoomMessageAction(roomId, messageId, content)
       .catch(() => null)
       .then((result) => {
         openEditSaves.delete(messageId);
+        setMessageSaving(messageId, false);
         if (!result?.ok) {
           toast.error(result?.error.message ?? t("Edit.saveError"), {
+            description: t("Edit.restored"),
             action: {
               label: t("Edit.action"),
               onClick: () => {

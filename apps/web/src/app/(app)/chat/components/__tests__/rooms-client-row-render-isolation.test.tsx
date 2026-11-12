@@ -964,6 +964,7 @@ describe("RoomsClient transcript row render isolation", () => {
 
       await typeAndSave();
       expect(m2()).toEqual(["typed draft", "false", ""]);
+      expect(savingRowIds()).toEqual(["m2"]);
 
       // No second edit on a text Core does not have yet.
       await act(async () => {
@@ -978,6 +979,7 @@ describe("RoomsClient transcript row render isolation", () => {
         });
       });
       expect(m2()).toEqual(["typed draft, by Core", "false", ""]);
+      expect(savingRowIds()).toEqual([]);
 
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: "Edit m2" }));
@@ -1002,6 +1004,7 @@ describe("RoomsClient transcript row render isolation", () => {
       expect(toast.error).toHaveBeenCalledExactlyOnceWith(
         "Edit refused",
         expect.objectContaining({
+          description: "Edit.restored",
           action: expect.objectContaining({ label: "Edit.action" }),
         }),
       );
@@ -1013,19 +1016,65 @@ describe("RoomsClient transcript row render isolation", () => {
       expect(m2()).toEqual(["body m2", "true", "typed draft"]);
     });
 
-    it("does the same when the request fails", async () => {
-      vi.mocked(editRoomMessageAction).mockRejectedValueOnce(new Error("down"));
+    it("does the same when the request fails, and marks the row as saving until then", async () => {
+      let fail: (error: Error) => void = () => {};
+      vi.mocked(editRoomMessageAction).mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = reject;
+          }),
+      );
       await mountRoom();
 
       await typeAndSave();
+      expect(savingRowIds()).toEqual(["m2"]);
+      expect(toast.error).not.toHaveBeenCalled();
 
+      await act(async () => {
+        fail(new Error("down"));
+      });
+
+      expect(savingRowIds()).toEqual([]);
       expect(m2()).toEqual(["body m2", "false", ""]);
       expect(toast.error).toHaveBeenCalledExactlyOnceWith(
         "Edit.saveError",
         expect.objectContaining({
+          description: "Edit.restored",
           action: expect.objectContaining({ label: "Edit.action" }),
         }),
       );
+    });
+
+    it("keeps the saving mark while an edit is open after a pin on the same message answers", async () => {
+      let answerPin: (result: { ok: true; value: never }) => void = () => {};
+      let answerEdit: (result: unknown) => void = () => {};
+      vi.mocked(pinRoomMessageAction).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answerPin = resolve;
+          }),
+      );
+      vi.mocked(editRoomMessageAction).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answerEdit = resolve;
+          }),
+      );
+      await mountRoom();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+      });
+      await typeAndSave();
+
+      await act(async () => {
+        answerPin({ ok: true, value: undefined as never });
+      });
+      expect(savingRowIds()).toEqual(["m2"]);
+
+      await act(async () => {
+        answerEdit({ ok: true, value: { ...message("m2", 2) } });
+      });
+      expect(savingRowIds()).toEqual([]);
     });
 
     it("does not open the editor from an old toast while a newer save is open", async () => {

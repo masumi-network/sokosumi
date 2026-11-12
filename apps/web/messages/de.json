@@ -9113,7 +9113,8 @@
         "edited": "Bearbeitet",
         "editedAt": "Bearbeitet {when}",
         "save": "Speichern",
-        "saveError": "Die Änderung konnte nicht gespeichert werden. Versuche es erneut."
+        "saveError": "Die Änderung konnte nicht gespeichert werden. Versuche es erneut.",
+        "restored": "Die Nachricht zeigt wieder ihren früheren Text."
       },
       "Browse": {
         "trigger": "Kanäle durchsuchen",

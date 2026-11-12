@@ -9093,7 +9093,8 @@
         "edited": "Edited",
         "editedAt": "Edited {when}",
         "save": "Save",
-        "saveError": "Could not save the edit. Try again."
+        "saveError": "Could not save the edit. Try again.",
+        "restored": "The message shows its earlier text again."
       },
       "Copy": {
         "action": "Copy text",
