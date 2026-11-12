@@ -22,6 +22,7 @@ export interface TaskCardData
   extends Pick<
     TaskWithCoworker,
     | "id"
+    | "isPending"
     | "identifier"
     | "name"
     | "status"
@@ -58,8 +59,9 @@ export function TaskCard({
       className={cn(
         "group",
         dragHandleProps && "cursor-grab",
-        dragHandleProps?.isDragging && "opacity-60",
+        (dragHandleProps?.isDragging || task.isPending) && "opacity-60",
       )}
+      aria-busy={task.isPending || undefined}
       {...handleProps}
     >
       <article
@@ -92,13 +94,17 @@ export function TaskCard({
               {task.identifier}
             </span>
           ) : null}
-          <TaskDetailLink
-            href={taskHref(task)}
-            title={task.name}
-            className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
-          >
-            {task.name}
-          </TaskDetailLink>
+          {task.isPending ? (
+            task.name
+          ) : (
+            <TaskDetailLink
+              href={taskHref(task)}
+              title={task.name}
+              className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
+            >
+              {task.name}
+            </TaskDetailLink>
+          )}
         </h3>
         {!compact && (
           <>
