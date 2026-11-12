@@ -40,6 +40,9 @@ export interface QueuedGeneration {
    */
   projectId: string;
   prompt: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   modelId: string;
   /** Shown while the request waits, so a batch is legible before it lands. */
   modelLabel: string;
@@ -181,6 +184,13 @@ export function useGenerationQueue({
           projectId: next.projectId,
           modelId: next.modelId,
           prompt: next.prompt,
+          ...(next.templateId ? { templateId: next.templateId } : {}),
+          ...(next.creativeDirection
+            ? { creativeDirection: next.creativeDirection }
+            : {}),
+          ...(next.variationIndex !== undefined
+            ? { variationIndex: next.variationIndex }
+            : {}),
           settings: next.settings,
           parentAssetId: next.parentAssetId,
           ...(next.product ? { product: next.product } : {}),

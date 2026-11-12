@@ -168,6 +168,9 @@ export const imageStudioJobSchema = z
     kind: z.enum(["GENERATE", "EDIT", "TEXT_TO_VIDEO", "IMAGE_TO_VIDEO"]),
     model: z.string(),
     prompt: z.string(),
+    templateId: z.string().optional(),
+    creativeDirection: z.string().optional(),
+    variationIndex: z.number().int().nonnegative().max(2147483647).optional(),
     /**
      * What this job asked the provider for, so a retry can ask the same. For a
      * video only `aspectRatio` is meaningful; read `video` instead.
@@ -267,6 +270,10 @@ export const createImageJobRequestSchema = z
         { message: "Unknown image model. Choose one from the studio catalog." },
       ),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
+    templateId: z.string().trim().min(1).max(100).optional(),
+    creativeDirection: z.string().trim().min(1).max(100).optional(),
+    /** Zero-based index of the ad variation guidance included in the prompt. */
+    variationIndex: z.number().int().nonnegative().max(2147483647).optional(),
     product: studioProductIdentitySchema.optional(),
     batchId: z.uuid().optional(),
     exportHeadline: studioHeadlineTextSchema.optional(),
