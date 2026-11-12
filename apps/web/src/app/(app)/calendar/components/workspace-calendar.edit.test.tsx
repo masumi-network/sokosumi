@@ -930,32 +930,39 @@ describe("WorkspaceCalendar editing", () => {
     expect(refreshMock).toHaveBeenCalledOnce();
   });
 
-  it("offers Undo after a skip, restoring at the revision the skip left", async () => {
-    const user = userEvent.setup();
-    renderCalendar();
+  it.each([
+    ["a planned Run", ITEM],
+    ["a moved Run, keeping its move", MOVED_ITEM],
+  ])(
+    "offers Undo after skipping %s, back at its time before the skip",
+    async (_name, item) => {
+      const user = userEvent.setup();
+      renderCalendar({ items: [item] });
 
-    await openEventMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
+      await openEventMenu(user);
+      await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
 
-    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledOnce());
-    const [message, options] = toastSuccessMock.mock.calls[0] as [
-      string,
-      { action: { label: string; onClick: () => void } },
-    ];
-    expect(message).toBe("event.runSkipped");
-    expect(options.action.label).toBe("event.undo");
+      await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledOnce());
+      const [message, options] = toastSuccessMock.mock.calls[0] as [
+        string,
+        { action: { label: string; onClick: () => void } },
+      ];
+      expect(message).toBe("event.runSkipped");
+      expect(options.action.label).toBe("event.undo");
 
-    options.action.onClick();
+      options.action.onClick();
 
-    await waitFor(() =>
-      expect(changeTaskScheduleRunMock).toHaveBeenLastCalledWith({
-        scheduleId: "schedule-1",
-        runId: ITEM.id,
-        expectedRevision: 4,
-        action: "restore",
-      }),
-    );
-  });
+      await waitFor(() =>
+        expect(changeTaskScheduleRunMock).toHaveBeenLastCalledWith({
+          scheduleId: "schedule-1",
+          runId: item.id,
+          expectedRevision: 4,
+          action: "move",
+          scheduledAt: item.scheduledAt,
+        }),
+      );
+    },
+  );
 
   it("restores a moved Run to the rule's time", async () => {
     const user = userEvent.setup();

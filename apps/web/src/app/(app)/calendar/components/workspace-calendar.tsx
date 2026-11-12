@@ -1344,7 +1344,7 @@ export function WorkspaceCalendar({
 
   async function handleRunChange(
     item: ChangeableRun,
-    change: { action: "skip" | "restore" },
+    change: Parameters<typeof changeRun>[1],
   ) {
     try {
       const result = await changeRun(item, change);
@@ -1353,8 +1353,10 @@ export function WorkspaceCalendar({
         return;
       }
       router.refresh();
-      // A skipped Run leaves the calendar, so its Undo lives here. The skip
-      // bumped the schedule's revision by one.
+      // A skipped Run leaves the calendar, so its Undo lives here: it moves
+      // the Run back to its time before the skip, a moved Run included
+      // (Restore would reset it to the rule's time). The skip bumped the
+      // schedule's revision by one.
       if (change.action === "skip") {
         toast.success(t("event.runSkipped", { name: item.taskName }), {
           action: {
@@ -1362,7 +1364,7 @@ export function WorkspaceCalendar({
             onClick: () =>
               void handleRunChange(
                 { ...item, scheduleRevision: item.scheduleRevision + 1 },
-                { action: "restore" },
+                { action: "move", scheduledAt: item.scheduledAt },
               ),
           },
         });
