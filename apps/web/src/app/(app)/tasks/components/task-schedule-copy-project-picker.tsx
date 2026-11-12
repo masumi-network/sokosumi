@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
   CommandDialog,
   CommandEmpty,
@@ -75,7 +76,7 @@ export function TaskScheduleCopyProjectPicker({
   onClose,
 }: {
   currentProjectId: string | null;
-  onSelect: (projectId: string) => void;
+  onSelect: (project: ProjectFilterOption) => void;
   onClose: () => void;
 }) {
   const t = useTranslations("App.Tasks.Schedules.Actions");
@@ -162,7 +163,13 @@ export function TaskScheduleCopyProjectPicker({
               <CommandItem
                 key={project.id}
                 value={project.id}
-                onSelect={() => onSelect(project.id)}
+                onSelect={() =>
+                  onSelect({
+                    id: project.id,
+                    name: project.name,
+                    logo: project.logo,
+                  })
+                }
               >
                 <ProjectAvatar
                   name={project.name}

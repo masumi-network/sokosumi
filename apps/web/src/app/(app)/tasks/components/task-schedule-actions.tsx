@@ -91,8 +91,10 @@ export function TaskScheduleActions({
   const [isPending, startTransition] = useTransition();
   const [isEditOpen, setIsEditOpen] = useState(false);
   // "pick" asks for the destination Project first; then the form opens there.
+  // A picked Project may be past the capped `projectOptions`; it rides along
+  // so the form can still name it.
   const [copy, setCopy] = useState<
-    "pick" | { projectId: string | null } | null
+    "pick" | { projectId: string | null; project?: ProjectFilterOption } | null
   >(null);
   const [confirming, setConfirming] = useState<"end" | "delete" | null>(null);
   const isEnded = schedule.state === TaskScheduleState.ENDED;
@@ -303,14 +305,19 @@ export function TaskScheduleActions({
       {copy === "pick" ? (
         <TaskScheduleCopyProjectPicker
           currentProjectId={schedule.projectId}
-          onSelect={(projectId) => setCopy({ projectId })}
+          onSelect={(project) => setCopy({ projectId: project.id, project })}
           onClose={() => setCopy(null)}
         />
       ) : copy ? (
         <TaskScheduleDialog
           copyOf={{ ...schedule, projectId: copy.projectId }}
           coworkerOptions={coworkerOptions}
-          projectOptions={projectOptions}
+          projectOptions={
+            copy.project &&
+            !projectOptions.some((option) => option.id === copy.projectId)
+              ? [copy.project, ...projectOptions]
+              : projectOptions
+          }
           canCreatePrivate={canCreatePrivate}
           onClose={() => setCopy(null)}
           onSaved={(scheduleId) =>

@@ -1,4 +1,4 @@
-import type { TaskSchedule } from "@sokosumi/core-client";
+import type { ProjectListItem, TaskSchedule } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { UploadUserFileDirectOptions } from "@/lib/utils/user-file-upload.client";
 
+import { TaskScheduleActions } from "./task-schedule-actions";
 import {
   copiedTaskScheduleRule,
   TaskScheduleDialog,
@@ -22,8 +23,10 @@ const {
   updateTaskScheduleMock,
   uploadUserFileDirectMock,
   listDriveItemsMock,
+  loadMoreProjectsMock,
   toastMock,
 } = vi.hoisted(() => ({
+  loadMoreProjectsMock: vi.fn(),
   createTaskScheduleMock: vi.fn(),
   updateTaskScheduleMock: vi.fn(),
   uploadUserFileDirectMock: vi.fn(),
@@ -65,6 +68,10 @@ vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => ({
 vi.mock("@/lib/actions/task-schedule/action", () => ({
   createTaskSchedule: createTaskScheduleMock,
   updateTaskSchedule: updateTaskScheduleMock,
+}));
+
+vi.mock("@/app/projects/actions", () => ({
+  loadMoreProjects: loadMoreProjectsMock,
 }));
 
 vi.mock("@/lib/utils/user-file-upload.client", () => ({
@@ -654,6 +661,57 @@ describe("TaskScheduleDialog", () => {
         assigneeSokoBotId: null,
         assigneeUserId: null,
       }),
+    );
+  });
+
+  it("names a destination picked past the shared Project options and creates the copy there", async () => {
+    const far = {
+      id: "p_far",
+      name: "Far Project",
+      logo: null,
+      cmo: false,
+      closingAt: null,
+      closedAt: null,
+    } as ProjectListItem;
+    loadMoreProjectsMock.mockResolvedValue({
+      projects: [far],
+      nextCursor: null,
+    });
+    createTaskScheduleMock.mockResolvedValue({
+      ok: true,
+      value: { scheduleId: "copy-id" },
+    });
+    const user = userEvent.setup();
+    render(
+      <TaskScheduleActions
+        schedule={SCHEDULE}
+        coworkerOptions={[COWORKER]}
+        projectOptions={[{ id: "p_near", name: "Near Project" }]}
+        canCreatePrivate={false}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "more" }));
+    await user.click(screen.getByRole("menuitem", { name: "copyToProject" }));
+    await user.click(
+      await screen.findByRole("option", { name: /Far Project/ }),
+    );
+
+    const project = await screen.findByRole("combobox", {
+      name: "projectLabel",
+    });
+    expect(project).toHaveTextContent("Far Project");
+    expect(project).not.toHaveTextContent("p_far");
+    await user.click(project);
+    expect(
+      screen.getByRole("option", { name: /Far Project/ }),
+    ).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(createTaskScheduleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "p_far" }),
     );
   });
 
