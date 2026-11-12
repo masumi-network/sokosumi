@@ -8,8 +8,8 @@ import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
-
 import { capabilityGrants } from "./ably-capability-map";
+import { authorizeAbly } from "./authorize.client";
 import { registerAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import {
   applyTypingEvent,
@@ -182,7 +182,7 @@ export function useRoomTyping(
     async function runSyncOnce() {
       let tokenDetails: Ably.TokenDetails | null = null;
       try {
-        tokenDetails = await ably.auth.authorize();
+        tokenDetails = await authorizeAbly(ably);
       } catch (error) {
         if (!cancelled) {
           console.error("Ably authorize for typing failed:", error);

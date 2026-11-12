@@ -33,6 +33,7 @@ import {
   driveFileSchema,
   renameDriveFileRequestSchema,
 } from "@/schemas/drive-file.schema";
+import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
 import { renameDriveUploadResource } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
@@ -123,6 +124,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("A folder with that name already exists");
     }
 
+    const workspace = await resolveDriveTasksWorkspace({
+      userContext,
+      scope: scope === "user" ? "me" : "org",
+      organizationId: scope === "organization" ? ownerId : undefined,
+    });
+    if (scope === "organization") {
+      await requireNotCmoDriveFile(workspace.workspaceId, oldPathname);
+    }
+
     let renamedBlob;
     try {
       renamedBlob = await driveRename(oldPathname, newPathname, {
@@ -152,11 +162,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // The document is the same document. Only its name and object key move,
     // so nothing is re-extracted and no manual label is lost.
-    const workspace = await resolveDriveTasksWorkspace({
-      userContext,
-      scope: scope === "user" ? "me" : "org",
-      organizationId: scope === "organization" ? ownerId : undefined,
-    });
     await renameDriveUploadResource({
       workspaceId: workspace.workspaceId,
       scope,

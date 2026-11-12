@@ -2,7 +2,6 @@
 
 import type { NewsletterIssue } from "@sokosumi/core-client";
 import { Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
@@ -27,7 +26,6 @@ export function IssueDeleteButton({
   issue: NewsletterIssue;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -44,7 +42,6 @@ export function IssueDeleteButton({
         return;
       }
       setOpen(false);
-      router.refresh();
     } catch {
       setError(t("Delete.error"));
     } finally {

@@ -1171,7 +1171,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
   });
 
   describe("thread replies", () => {
-    it("delivers a user thread reply to coworkers already in the thread", async () => {
+    it("does not wake coworkers already in the thread without a mention", async () => {
       roomFindFirstMock.mockResolvedValue(
         roomWithMembers({
           userMembers: [
@@ -1184,26 +1184,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
         id: PARENT_MESSAGE_ID,
         parentMessageId: null,
       });
-      messageFindManyMock.mockResolvedValue([
-        { senderCoworkerId: COWORKER_ID, mentionsAsSource: [] },
-        {
-          senderCoworkerId: null,
-          mentionsAsSource: [{ coworkerId: "coworker_not_in_room" }],
-        },
-      ]);
       messageCreateMock.mockResolvedValue(
         createdMessage({
           senderUserId: USER_ID,
           parentMessageId: PARENT_MESSAGE_ID,
-          mentionsAsSource: [
-            {
-              id: MENTION_ID,
-              coworkerId: COWORKER_ID,
-              sokoBotId: null,
-              status: "pending",
-              responseMessageId: null,
-            },
-          ],
         }),
       );
 
@@ -1235,18 +1219,17 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
 
-      // The thread coworker became a mention target without an @mention;
-      // the non-member coworker id from the thread was filtered out.
+      // A coworker that wrote in the thread is not a mention target: it
+      // answers only a reply that names it.
+      expect(messageFindManyMock).not.toHaveBeenCalled();
       expect(messageCreateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            mentionsAsSource: {
-              create: [{ coworkerId: COWORKER_ID, sokoBotId: null }],
-            },
+            mentionsAsSource: { create: [] },
           }),
         }),
       );
-      expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
+      expect(dispatchMock).not.toHaveBeenCalled();
       await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
       expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
         userIds: [USER_ID, ALICE_ID],

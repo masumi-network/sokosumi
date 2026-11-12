@@ -1,5 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import {
@@ -7,7 +7,10 @@ import {
   cloneElement,
   isValidElement,
   type ReactNode,
+  useEffect,
+  useState,
 } from "react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { makeRoom } from "./__tests__/chat-room-fixtures";
@@ -16,6 +19,13 @@ import {
   ChatUnreadNavRows,
   ChatUnreadsFilterChip,
 } from "./chat-unread-nav-rows";
+import { subscribeOrganizationChatRoomRead } from "./organization-chat-events";
+import {
+  applyRoomReadOverlays,
+  beginRoomAttentionRefresh,
+  clearRoomReadOverlays,
+  reconcileRoomAttention,
+} from "./room-read-overlay";
 
 const { markAllActionMock, notifyMock } = vi.hoisted(() => ({
   markAllActionMock: vi.fn(),
@@ -27,7 +37,10 @@ vi.mock("@/app/chat/actions", () => ({
     markAllActionMock(...args),
 }));
 
-vi.mock("@/components/chat/organization-chat-events", () => ({
+vi.mock("@/components/chat/organization-chat-events", async () => ({
+  ...(await vi.importActual<
+    typeof import("@/components/chat/organization-chat-events")
+  >("@/components/chat/organization-chat-events")),
   notifyOrganizationChatRoomsChanged: (...args: unknown[]) =>
     notifyMock(...args),
 }));
@@ -133,8 +146,47 @@ function catchUpRow() {
   return screen.getByTestId("chat-catch-up-row");
 }
 
+/**
+ * The button over rooms that follow a read as the sidebar's do, with what
+ * each room holds unread written out beside it.
+ */
+function LiveMarkAll({ initial }: { initial: ChatRoom[] }) {
+  const [rooms, setRooms] = useState(initial);
+  useEffect(() => subscribeOrganizationChatRoomRead(setRooms), []);
+  return (
+    <NextIntlClientProvider locale="en" messages={messages}>
+      <ChatMarkAllReadButton rooms={rooms} unreadOnly />
+      <ul>
+        {rooms.map((room) => (
+          <li key={room.id} data-testid={`held-${room.id}`}>
+            {room.channelUnreadCount}/{room.unreadThreadCount ?? 0}/
+            {room.unreadThreads?.length ?? 0}
+          </li>
+        ))}
+      </ul>
+    </NextIntlClientProvider>
+  );
+}
+
+/** A Mark all as read that stays open until the test answers or rejects it. */
+function holdMarkAll() {
+  let answer: (value: unknown) => void = () => {};
+  let reject: (reason: Error) => void = () => {};
+  markAllActionMock.mockReturnValueOnce(
+    new Promise((resolve, fail) => {
+      answer = resolve;
+      reject = fail;
+    }),
+  );
+  return {
+    answer: (value: unknown) => act(async () => answer(value)),
+    reject: () => act(async () => reject(new Error("network down"))),
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  clearRoomReadOverlays();
   sidebarMock.isMobile = false;
   markAllActionMock.mockResolvedValue({ ok: true, value: null });
   navigation.pathname = "/chat/rooms/room-1";
@@ -403,6 +455,97 @@ describe("ChatUnreadNavRows", () => {
     expect(markAllActionMock).toHaveBeenCalledWith([
       { roomId: "channel", readRoom: true, lookThreads: false },
     ]);
+  });
+
+  describe("Mark all as read, before Core answers", () => {
+    const unreadRooms = () => [
+      makeRoom({ id: "channel", unreadCount: 2, channelUnreadCount: 2 }),
+      makeRoom({
+        id: "threads",
+        unreadCount: 4,
+        channelUnreadCount: 0,
+        threadUnreadCount: 4,
+        unreadThreadCount: 2,
+        unreadThreads: [unreadThread("t1"), unreadThread("t2")],
+      }),
+    ];
+    const held = (id: string) => screen.getByTestId(`held-${id}`).textContent;
+    const button = () =>
+      screen.queryByRole("button", { name: "Mark all as read" });
+
+    it("reads every room at once, keeps the button for the write, and stays read", async () => {
+      const write = holdMarkAll();
+      render(<LiveMarkAll initial={unreadRooms()} />);
+      const markAll = button();
+
+      await act(async () => markAll?.click());
+      expect(held("channel")).toBe("0/0/0");
+      expect(held("threads")).toBe("0/0/0");
+      expect(button()).toBe(markAll);
+      expect(markAll?.getAttribute("aria-busy")).toBe("true");
+
+      await write.answer({ ok: true, value: null });
+      expect(held("channel")).toBe("0/0/0");
+      expect(held("threads")).toBe("0/0/0");
+      expect(button()).toBeNull();
+      expect(toast.error).not.toHaveBeenCalled();
+      // A remount with the old props still shows the room read.
+      const [channel] = unreadRooms();
+      expect(applyRoomReadOverlays([channel])[0].channelUnreadCount).toBe(0);
+      // The write is closed, so what Core lists next is what shows.
+      expect(
+        reconcileRoomAttention(
+          [{ ...channel, unreadCount: 5, channelUnreadCount: 5 }],
+          beginRoomAttentionRefresh(),
+        )[0].channelUnreadCount,
+      ).toBe(5);
+    });
+
+    it("leaves a room with nothing unread out of the write", async () => {
+      const read = makeRoom({
+        id: "read",
+        unreadCount: 0,
+        channelUnreadCount: 0,
+      });
+      const write = holdMarkAll();
+      render(<LiveMarkAll initial={[...unreadRooms(), read]} />);
+
+      await act(async () => button()?.click());
+      // A message that lands in it during the write shows at once.
+      expect(
+        reconcileRoomAttention(
+          [{ ...read, unreadCount: 1, channelUnreadCount: 1 }],
+          beginRoomAttentionRefresh(),
+        )[0].channelUnreadCount,
+      ).toBe(1);
+
+      await write.answer({ ok: true, value: null });
+    });
+
+    it.each([
+      [
+        "Core refuses",
+        (write: ReturnType<typeof holdMarkAll>) =>
+          write.answer({ ok: false, error: { message: "x" } }),
+      ],
+      [
+        "the call fails",
+        (write: ReturnType<typeof holdMarkAll>) => write.reject(),
+      ],
+    ])("puts every room back when %s", async (_case, settle) => {
+      const write = holdMarkAll();
+      render(<LiveMarkAll initial={unreadRooms()} />);
+
+      await act(async () => button()?.click());
+      expect(held("channel")).toBe("0/0/0");
+
+      await settle(write);
+      expect(held("channel")).toBe("2/0/0");
+      expect(held("threads")).toBe("0/2/2");
+      expect(button()).not.toBeNull();
+      expect(toast.error).toHaveBeenCalledTimes(1);
+      expect(notifyMock).toHaveBeenCalledWith({ collections: ["active"] });
+    });
   });
 
   it("marks the entry the reader is on", () => {

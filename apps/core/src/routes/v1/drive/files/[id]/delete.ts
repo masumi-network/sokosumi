@@ -15,6 +15,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { deleteDriveFileRequestSchema } from "@/schemas/drive-file.schema";
+import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
 import { tombstoneDriveUploadResource } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
@@ -45,6 +46,7 @@ const route = withCoworkerContextHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Unprocessable Entity"),
       503: jsonErrorResponse("Service Unavailable"),
     },
@@ -72,15 +74,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Drive file not found");
     }
 
-    await driveDel([pathname]);
-
-    // Tombstone the catalog entry in the same request: a deleted document
-    // must stop matching at once, not when a sweeper next runs.
     const workspace = await resolveDriveTasksWorkspace({
       userContext,
       scope: scope === "user" ? "me" : "org",
       organizationId: scope === "organization" ? ownerId : undefined,
     });
+    if (scope === "organization") {
+      await requireNotCmoDriveFile(workspace.workspaceId, pathname);
+    }
+
+    await driveDel([pathname]);
+
+    // Tombstone the catalog entry in the same request: a deleted document
+    // must stop matching at once, not when a sweeper next runs.
     await tombstoneDriveUploadResource({
       workspaceId: workspace.workspaceId,
       scope,

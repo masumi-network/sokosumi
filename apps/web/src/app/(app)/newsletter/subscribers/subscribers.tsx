@@ -45,6 +45,8 @@ interface SubscribersProps {
   contactListId: string | null;
   data: NewsletterSubscriberList;
   pagination: PaginationMetadata;
+  /** A CMO Project: CMO manages its subscribers, so they are only read. */
+  readOnly?: boolean;
 }
 
 export function Subscribers({
@@ -53,6 +55,7 @@ export function Subscribers({
   contactListId,
   data,
   pagination,
+  readOnly = false,
 }: SubscribersProps) {
   const t = useTranslations("App.Projects.Newsletter.Subscribers");
   const format = useFormatter();
@@ -127,15 +130,16 @@ export function Subscribers({
       id: "actions",
       header: () => <span className="sr-only">{t("columns.actions")}</span>,
       size: 56,
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <SubscriberActions
-            key={row.original.id}
-            projectId={projectId}
-            subscriber={row.original}
-          />
-        </div>
-      ),
+      cell: ({ row }) =>
+        readOnly ? null : (
+          <div className="flex justify-end">
+            <SubscriberActions
+              key={row.original.id}
+              projectId={projectId}
+              subscriber={row.original}
+            />
+          </div>
+        ),
     }),
   ]);
 
@@ -148,7 +152,7 @@ export function Subscribers({
     void setQuery({ search, cursor: null });
   }
 
-  const actions = (
+  const actions = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
       <Button
         ref={contactsButton}
@@ -309,10 +313,12 @@ export function Subscribers({
                         {renderName(subscriber)}
                       </div>
                     </div>
-                    <SubscriberActions
-                      projectId={projectId}
-                      subscriber={subscriber}
-                    />
+                    {readOnly ? null : (
+                      <SubscriberActions
+                        projectId={projectId}
+                        subscriber={subscriber}
+                      />
+                    )}
                   </div>
                   <Badge
                     variant="secondary"

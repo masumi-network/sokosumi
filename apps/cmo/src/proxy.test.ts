@@ -1,3 +1,4 @@
+import { listCmoCusos } from "@sokosumi/core-client";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { afterEach, expect, it, vi } from "vitest";
@@ -14,10 +15,16 @@ vi.mock("./lib/auth", () => ({
   renewSession: vi.fn(),
 }));
 
+vi.mock("@sokosumi/core-client", () => ({ listCmoCusos: vi.fn() }));
+vi.mock("./lib/core", () => ({
+  asSignedInPersonInPage: vi.fn(async () => ({})),
+}));
+
 afterEach(() => {
   cmo.baseURL = "https://app.cmo.xyz";
   vi.unstubAllEnvs();
   vi.mocked(renewSession).mockReset();
+  vi.mocked(listCmoCusos).mockReset();
 });
 
 it("shows the waitlist site to a signed-out visitor of the home page", async () => {
@@ -49,6 +56,37 @@ it("renders the app for a visitor with a session", async () => {
   const response = await proxy(new NextRequest("https://app.cmo.xyz/"));
 
   expect(response.headers.has("x-middleware-rewrite")).toBe(false);
+});
+
+it("remembers on this device the Cuso an address opens", async () => {
+  vi.mocked(hasSessionCookie).mockReturnValue(true);
+  vi.mocked(renewSession).mockResolvedValue(
+    new Response(null, { status: 204 }),
+  );
+
+  vi.mocked(listCmoCusos).mockResolvedValue({
+    data: { data: { cusos: [{ projectId: "project-2" }], mayHire: true } },
+  } as Awaited<ReturnType<typeof listCmoCusos>>);
+
+  const opened = await proxy(
+    new NextRequest("https://app.cmo.xyz/strategy?project=project-2"),
+  );
+  expect(opened.cookies.get("cmo-last-cuso")).toMatchObject({
+    value: "project-2",
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 365,
+  });
+
+  const unavailable = await proxy(
+    new NextRequest("https://app.cmo.xyz/?project=project-gone", {
+      headers: { cookie: "cmo-last-cuso=project-2" },
+    }),
+  );
+  expect(unavailable.cookies.get("cmo-last-cuso")).toBeUndefined();
+
+  const plain = await proxy(new NextRequest("https://app.cmo.xyz/strategy"));
+  expect(plain.cookies.get("cmo-last-cuso")).toBeUndefined();
+  vi.mocked(hasSessionCookie).mockReturnValue(false);
 });
 
 const BRANCH_ALIAS = "https://sokosumi-cmo-git-sok-1-fix.preview.cmo.xyz";

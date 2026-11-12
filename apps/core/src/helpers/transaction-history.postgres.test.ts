@@ -386,6 +386,28 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
     });
   });
 
+  it("names the job behind the unlinked pool part of a split refund", async () => {
+    await withSeededLedger(async (tx) => {
+      await seedRefundTransaction(tx, "tx-refund-job");
+      await seedRefundedJob(tx, "tx-refund-job", "REFUND_WITHDRAWN");
+      await tx.$executeRaw`
+        UPDATE "credit_bucket" SET "referenceId" = 'tx-refund-job-job'
+        WHERE "sourceTransactionId" = 'tx-refund-job'
+      `;
+      await seedRefundTransaction(tx, "tx-refund-pool");
+      await tx.$executeRaw`
+        UPDATE "credit_bucket" SET "referenceId" = 'tx-refund-job-job#pool'
+        WHERE "sourceTransactionId" = 'tx-refund-pool'
+      `;
+
+      expect(await findRefundRow(tx, "tx-refund-pool")).toMatchObject({
+        refundSource: "job",
+        refundedJobId: "tx-refund-job-job",
+        refundedJobName: "Audit the contract",
+      });
+    });
+  });
+
   it("names a refunded job that never got a purchase", async () => {
     await withSeededLedger(async (tx) => {
       await seedRefundTransaction(tx, "tx-refund-job");

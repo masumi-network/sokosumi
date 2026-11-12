@@ -8,6 +8,7 @@ import {
   studioAdHeadlineSchema,
   studioHeadlineTextSchema,
 } from "@/schemas/project-image-studio.schema";
+import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 import {
   readStudioAdHeadline,
   saveStudioAdHeadline,
@@ -82,14 +83,16 @@ export default function mount(
       }),
     ),
   );
-  app.openapi(updateRoute, async (c) =>
-    ok(
+  app.openapi(updateRoute, async (c) => {
+    const { projectId, workspaceId } = c.var.agentGrant;
+    await requireNotCmoProject(projectId, workspaceId);
+    return ok(
       c,
       await saveStudioAdHeadline({
         ...c.var.agentGrant,
         ...c.req.valid("param"),
         ...c.req.valid("json"),
       }),
-    ),
-  );
+    );
+  });
 }
