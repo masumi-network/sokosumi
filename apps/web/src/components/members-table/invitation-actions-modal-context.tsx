@@ -23,8 +23,14 @@ const {
 
 export function InvitationActionsModalContextProvider({
   children,
+  onCancelling,
 }: {
   children: ReactNode;
+  /**
+   * The invitation left (`true`) or came back to (`false`) the table. It
+   * leaves when the cancel starts and comes back when the cancel fails.
+   */
+  onCancelling: (invitationId: string, cancelling: boolean) => void;
 }) {
   const t = useTranslations(
     "Components.MembersTable.InvitationActions.CancelModal",
@@ -36,10 +42,20 @@ export function InvitationActionsModalContextProvider({
     action: InvitationAction,
   ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
-      case InvitationAction.CANCEL:
-        return await authClient.organization.cancelInvitation({
-          invitationId: invitation.id,
-        });
+      case InvitationAction.CANCEL: {
+        onCancelling(invitation.id, true);
+        // A request that never reached Core is a failed cancel like any other.
+        const result = await authClient.organization
+          .cancelInvitation({ invitationId: invitation.id })
+          .catch(
+            (): BetterAuthClientResult<null> => ({
+              data: null,
+              error: { status: 0, statusText: "" },
+            }),
+          );
+        if (result.error) onCancelling(invitation.id, false);
+        return result;
+      }
     }
   }
 
@@ -69,6 +85,7 @@ export function InvitationActionsModalContextProvider({
       onAction={onAction}
       onSuccess={onSuccess}
       onError={onError}
+      closeOnStart
     >
       {children}
     </InvitationActionsModalContextProviderBase>
