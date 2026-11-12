@@ -1861,6 +1861,7 @@
       },
       "Detail": {
         "back": "Zurück zu Tasks",
+        "backToCalendar": "Zurück zum Kalender",
         "privateBadge": "Privat",
         "visibility": "Sichtbarkeit",
         "parentTask": "Übergeordnet:",
@@ -3585,7 +3586,20 @@
           }
         },
         "Calendar": {
-          "title": "Kalender"
+          "title": "Kalender",
+          "nextIssue": "Nächste Ausgabe",
+          "nothingScheduled": "Noch nichts geplant. Plane eine Ausgabe, dann erscheint sie hier.",
+          "openFullCalendar": "Im Kalender öffnen",
+          "emptyTitle": "Noch keine Ausgaben",
+          "emptyDescription": "Schreibe eine Ausgabe, dann erscheint sie hier nach Datum.",
+          "goToIssues": "Zu den Ausgaben",
+          "groups": {
+            "scheduled": "Geplant",
+            "unscheduled": "Nicht geplant",
+            "sent": "Gesendet"
+          },
+          "count": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
+          "newestOnly": "Es werden die neuesten {count} Ausgaben angezeigt. Öffne den Kalender für ältere."
         },
         "Issues": {
           "title": "Ausgaben",
@@ -3616,6 +3630,7 @@
           "previewText": "Vorschautext",
           "status": "Status",
           "sentAt": "Gesendet am {date}",
+          "sentTo": "Gesendet am {date} an {count, plural, one {# Abonnent} other {# Abonnenten}}",
           "firstPage": "Erste Seite",
           "nextPage": "Nächste Seite",
           "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
@@ -3798,10 +3813,10 @@
           "Image": {
             "width": "Breite",
             "widths": {
-              "100": "Volle Breite",
-              "75": "Drei Viertel",
+              "25": "Viertel",
               "50": "Halb",
-              "25": "Viertel"
+              "75": "Drei Viertel",
+              "100": "Volle Breite"
             },
             "align": "Ausrichtung",
             "aligns": {
@@ -10474,6 +10489,8 @@
         "moveRun": "Lauf verschieben",
         "skipRun": "Lauf überspringen",
         "restoreRun": "Lauf wiederherstellen",
+        "runSkipped": "Lauf von {name} übersprungen.",
+        "undo": "Rückgängig",
         "openSchedule": "Zeitplan öffnen",
         "allDay": "Ganztägig",
         "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
@@ -10518,7 +10535,10 @@
         "showing": "Zeiten in {zone}"
       },
       "empty": {
-        "title": "Nichts Geplantes entspricht diesen Filtern.",
+        "title": "{view, select, month {Diesen Monat ist nichts geplant} week {Diese Woche ist nichts geplant} other {Nichts steht an}}",
+        "filtered": "Nichts Geplantes entspricht diesen Filtern.",
+        "hint": "Tasks mit Startzeit, Läufe von Zeitplänen und datierte Beiträge erscheinen hier.",
+        "createHint": "{view, select, agenda {Mit „Task planen“ fügst du einen hinzu.} other {Mit „Task planen“ oder einem Klick auf einen Tag startest du an diesem Datum.}}",
         "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {
@@ -10864,7 +10884,7 @@
       },
       "toolbar": {
         "search": "Kontakte durchsuchen",
-        "searchPlaceholder": "Name, Firma, E-Mail suchen…",
+        "searchPlaceholder": "Name, Firma, E-Mail, Ort suchen…",
         "me": "Ich",
         "clearFilter": "Filter {filter} entfernen",
         "export": "CSV exportieren",
@@ -10979,6 +10999,7 @@
         "channelTaken": "Diese Person ist in deinem Team bereits ein Kontakt.",
         "openExisting": "Kontakt öffnen",
         "failed": "Der Kontakt wurde nicht gespeichert. Versuch es noch einmal.",
+        "listFailed": "Der Kontakt ist gespeichert, aber noch nicht auf der Liste. Versuch es noch einmal, um ihn hinzuzufügen.",
         "cancel": "Abbrechen",
         "submit": "Kontakt hinzufügen"
       },
@@ -11070,6 +11091,8 @@
         "addToList": "Zu einer Liste hinzufügen",
         "manualLists": "Listen",
         "noManualLists": "Noch keine Listen.",
+        "newList": "Neue Liste…",
+        "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",
