@@ -550,14 +550,7 @@ function unclaimedAvatarFilter(excludeIds?: string[]) {
   };
 }
 
-/**
- * Unclaimed avatars for a picker. Reads only; never generates.
- *
- * Claimed picks leave the unclaimed rows clustered by animal, so the newest
- * `take` rows could offer three sloths out of six, each named "sloth" to a
- * screen reader. Read a wider window and offer one per animal first; repeats
- * only fill what is left.
- */
+/** Unclaimed avatars for a picker. Reads only; never generates. */
 export async function listAvailableAvatars(
   take: number,
   options: { excludeIds?: string[] } = {},
@@ -565,19 +558,10 @@ export async function listAvailableAvatars(
   const rows = await prisma.sokoBotAvatar.findMany({
     where: unclaimedAvatarFilter(options.excludeIds),
     orderBy: [{ createdAt: "desc" }],
-    // ponytail: newest window only; an older animal past it stays unseen until
-    // the newer ones are claimed.
-    take: take * 4,
+    take,
     select: { id: true, imageUrl: true, subject: true, background: true },
   });
-  const seen = new Set<string>();
-  const distinct = rows.filter((row) => {
-    if (seen.has(row.subject)) return false;
-    seen.add(row.subject);
-    return true;
-  });
-  const repeats = rows.filter((row) => !distinct.includes(row));
-  return [...distinct, ...repeats].slice(0, take);
+  return rows;
 }
 
 /**

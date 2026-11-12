@@ -428,7 +428,7 @@ describe("SokoBotConsole header portrait", () => {
     expect(screen.getByText("Console.lastActivity(now)")).toBeInTheDocument();
   });
 
-  it("says what to do when its last reply failed, and only then", () => {
+  it("says its last reply failed, and only then", () => {
     const { rerender } = renderConsole({
       initialState: stateWith({ status: "ERROR" }),
     });

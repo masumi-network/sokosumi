@@ -10172,7 +10172,7 @@
       },
       "Console": {
         "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
-        "lastTurnFailed": "{name} no pudo terminar su última respuesta. Abre el chat y vuelve a enviarla.",
+        "lastTurnFailed": "{name} no pudo terminar su última respuesta.",
         "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
         "openChat": "Abrir chat",

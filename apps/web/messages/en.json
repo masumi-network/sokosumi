@@ -10172,7 +10172,7 @@
       },
       "Console": {
         "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
-        "lastTurnFailed": "{name} couldn't finish its last reply. Open the chat and send it again.",
+        "lastTurnFailed": "{name} couldn't finish its last reply.",
         "lastActivity": "last active {time}",
         "adminView": "Admin view",
         "openChat": "Open chat",

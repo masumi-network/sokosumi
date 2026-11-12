@@ -10172,7 +10172,7 @@
       },
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
-        "lastTurnFailed": "{name} konnte die letzte Antwort nicht fertigstellen. Öffne den Chat und sende die Nachricht erneut.",
+        "lastTurnFailed": "{name} konnte die letzte Antwort nicht fertigstellen.",
         "lastActivity": "zuletzt aktiv {time}",
         "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
