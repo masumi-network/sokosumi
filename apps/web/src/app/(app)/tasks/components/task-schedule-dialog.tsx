@@ -2,7 +2,6 @@
 
 import { type TaskSchedule, TaskVisibility } from "@sokosumi/core-client";
 import { CalendarClock, ChevronDown, Lock, Paperclip } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -154,7 +153,6 @@ function TaskScheduleDialogForm({
   const t = useTranslations("App.Tasks.Schedules.Dialog");
   const tWhen = useTranslations("App.Tasks.Schedules.Dialog.When");
   const tNewTask = useTranslations("App.Tasks.NewTask");
-  const router = useRouter();
   const descriptionId = useId();
   const privateDescriptionId = useId();
   const blueprint = schedule ?? initialBlueprint ?? {};
@@ -307,7 +305,6 @@ function TaskScheduleDialogForm({
         return;
       }
       toast.success(schedule ? t("saved") : t("created"));
-      router.refresh();
       onSaved?.(result.value.scheduleId);
       onClose();
     } finally {

@@ -38,6 +38,77 @@ const VIDEO: SocialPostMediaRef = {
 };
 
 describe("SocialPostPreview", () => {
+  it("shows a platform transformation notice once for matching images", () => {
+    const transformation = {
+      provider: "instagram" as const,
+      code: "pad_4_5" as const,
+      notice: "Instagram will pad this image to 4:5.",
+      original: IMAGE,
+    };
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          { ...IMAGE, transformation },
+          { ...IMAGE, pathname: "drive/b.png", transformation },
+        ]}
+        provider="instagram"
+        text="Launch post"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getAllByText("mediaNotice.pad_4_5")).toHaveLength(1);
+    expect(screen.queryByText(transformation.notice)).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-media-notice")).toBeVisible();
+  });
+
+  it.each([
+    "x",
+    "linkedin",
+    "facebook",
+    "instagram",
+    "youtube",
+    "tiktok",
+  ] as const)("shows the entire image in the %s preview", (provider) => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        compact
+        media={[IMAGE]}
+        provider={provider}
+        text="Launch post"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByAltText(IMAGE.name)).toHaveClass("object-contain");
+    expect(screen.getByAltText(IMAGE.name)).not.toHaveClass("object-cover");
+    expect(screen.getByAltText(IMAGE.name)).toHaveAttribute(
+      "src",
+      IMAGE.fileUrl,
+    );
+    expect(
+      screen.queryByTestId("social-post-media-notice"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows entire images in a multiple-image preview", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[IMAGE, { ...IMAGE, pathname: "drive/b.png", name: "b.png" }]}
+        provider="x"
+        text="Launch post"
+        timestamp={null}
+      />,
+    );
+
+    for (const image of screen.getAllByRole("img")) {
+      expect(image).toHaveClass("object-contain");
+    }
+  });
+
   it("renders every thread part with the real X layout, shared author, media and connecting avatars", () => {
     render(
       <SocialPostPreview
@@ -902,7 +973,7 @@ describe("SocialPostPreview", () => {
     expect(frame).toHaveClass("max-h-64");
     expect(screen.getByRole("img", { name: "a.png" })).toHaveClass(
       "max-h-64",
-      "object-top",
+      "object-contain",
     );
     expect(screen.getByTestId("social-post-preview")).toHaveAttribute(
       "data-compact",

@@ -488,7 +488,7 @@ async function startStrategyTurn(
               "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
               "",
               "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-              "This is the plan, not the posts. Save it in two calls of save_strategy, so the owner reads the plan while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar whose approach shares match the mix and whose pillar shares match the pillars. Week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece); weeks two to four as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why). The calendar holds every piece the pace and each channel's cadence call for, in all four weeks. Each part leaves the other as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
+              "This is the plan, not the posts. Save it in two calls of save_strategy, so the owner reads the plan while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar whose approach shares match the mix and whose pillar shares match the pillars. Week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece); weeks two to four as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why). In every week, a piece that a no to one of your questions would change also has questionIds: those questions' ids. The calendar holds every piece the pace and each channel's cadence call for, in all four weeks. Each part leaves the other as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
             ],
       )
       .concat([
@@ -646,6 +646,7 @@ export function keepCalendarWork(
       brief: entry.brief ?? old.brief,
       why: entry.why ?? old.why,
       hook: entry.hook ?? old.hook,
+      questionIds: entry.questionIds ?? old.questionIds,
     };
   });
   return withDrafts.filter((entry) => {

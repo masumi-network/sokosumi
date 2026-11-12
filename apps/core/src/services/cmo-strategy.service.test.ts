@@ -142,6 +142,18 @@ describe("requestCmoStrategy", () => {
     expect(strategyRows).toHaveLength(1);
   });
 
+  it("asks for the questions each piece depends on, in every week", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+
+    // Cuso writes exactly the entry fields this message lists.
+    expect(JSON.stringify(startTurn.mock.calls[0]?.[0])).toContain(
+      "In every week, a piece that a no to one of your questions would change also has questionIds",
+    );
+  });
+
   it("has Cuso correct each section the owner said no to before he plans", async () => {
     const question = {
       id: "q1",
@@ -835,6 +847,14 @@ describe("keepCalendarWork", () => {
       [entry("a", "2026-11-02", "Customer story")],
     );
     expect(kept[0]?.draft).toBe("Full text");
+  });
+
+  it("keeps a kept entry's question links", () => {
+    const kept = keepCalendarWork(
+      [{ ...entry("a", "2026-11-02", "Customer story"), questionIds: ["q1"] }],
+      [entry("a", "2026-11-02", "Customer story")],
+    );
+    expect(kept[0]?.questionIds).toEqual(["q1"]);
   });
 
   it("drops a stale draft when the piece was rewritten", () => {

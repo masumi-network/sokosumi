@@ -24,7 +24,7 @@ import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
-import { loadMyDay, MyDay } from "./components/my-day";
+import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
@@ -111,7 +111,11 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   const today = dayInTimeZone(now, timeZone);
   const myDay = (
     <Suspense fallback={null}>
-      {MyDay({ feed: loadMyDay(today), today })}
+      {MyDay({
+        feed: loadMyDay(today),
+        overdue: countOverdue(today),
+        today,
+      })}
     </Suspense>
   );
   // What waits on the reader, as the quiet list under either welcome. One

@@ -77,12 +77,15 @@ describe("CMO version", () => {
     );
   });
 
-  it("asks cmo-v2, not cmo-v1, to link questions to pieces and ground each funnel stage", () => {
+  it("asks cmo-v2, not cmo-v1, to link pieces to questions and ground each funnel stage", () => {
     const v1 = composeSystemPrompt(getSokoBotVersion("cmo-v1"));
     const v2 = composeSystemPrompt(getSokoBotVersion("cmo-v2"));
-    expect(v2).toMatch(/entryIds: the ids of up to three calendar entries/);
+    expect(v2).toMatch(
+      /also has questionIds: the ids of up to three questions/,
+    );
+    expect(v2).toMatch(/Never set entryIds on a question/);
     expect(v2).toMatch(/basedOn: the one or two Brand Brain sections/);
-    expect(v1).not.toMatch(/entryIds|basedOn/);
+    expect(v1).not.toMatch(/questionIds|entryIds|basedOn/);
   });
 
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
@@ -267,21 +270,31 @@ describe("CMO strategy and rhythms", () => {
     expect(strategy.previews).toEqual([]);
   });
 
-  it("links a plan question to up to three pieces, and grounds a funnel stage in up to two sections", () => {
+  it("links a piece to up to three plan questions, and grounds a funnel stage in up to two sections", () => {
     const stage = {
       stage: "consideration",
       name: "Compare us",
       goal: "Buyers weigh us against agencies",
       metric: "Demo requests",
     };
-    const plan = (question: object, extra: object) =>
+    const plan = (question: object, extra: object, piece: object = {}) =>
       marketingStrategyPlanSchema.safeParse({
         month: "2026-10",
         summary: "Grow LinkedIn reach with founder-led posts.",
         goals: ["More demo requests"],
         pillars: ["Product stories"],
         channels: [],
-        calendar: [],
+        calendar: [
+          {
+            id: "w1-thu",
+            date: "2026-10-08",
+            channel: "linkedin",
+            title: "What Florian Haller told us",
+            format: "post",
+            status: "idea",
+            ...piece,
+          },
+        ],
         questions: [
           {
             id: "q1",
@@ -294,11 +307,12 @@ describe("CMO strategy and rhythms", () => {
       });
 
     const linked = plan(
-      { entryIds: ["w1-thu"] },
+      {},
       { why: "Buyers compare before they book", basedOn: ["buyers"] },
+      { questionIds: ["q1"] },
     );
-    expect(linked.success && linked.data.questions[0]?.entryIds).toEqual([
-      "w1-thu",
+    expect(linked.success && linked.data.calendar[0]?.questionIds).toEqual([
+      "q1",
     ]);
     expect(linked.success && linked.data.funnel[0]).toMatchObject({
       why: "Buyers compare before they book",
@@ -306,10 +320,14 @@ describe("CMO strategy and rhythms", () => {
     });
     // Older plans carry none of them and still read.
     const older = plan({}, {});
-    expect(older.success && older.data.questions[0]?.entryIds).toBeUndefined();
+    expect(
+      older.success && older.data.calendar[0]?.questionIds,
+    ).toBeUndefined();
     expect(older.success && older.data.funnel[0]?.basedOn).toBeUndefined();
 
-    expect(plan({ entryIds: ["a", "b", "c", "d"] }, {}).success).toBe(false);
+    expect(plan({}, {}, { questionIds: ["a", "b", "c", "d"] }).success).toBe(
+      false,
+    );
     expect(plan({}, { basedOn: ["buyers", "pricing", "proof"] }).success).toBe(
       false,
     );

@@ -3647,6 +3647,28 @@ export type ChatResultOutput = {
     openHref: string;
     previewHref: string | null;
     downloadHref?: string | null;
+    /**
+     * Required provider adaptation, with the original source retained.
+     */
+    transformation?: {
+        provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        code: 'pad_4_5' | 'pad_1_91_1' | 'resize' | 'jpeg' | 'srgb' | 'smaller_file';
+        notice: string;
+        original: {
+            /**
+             * Drive blob pathname; must belong to the active workspace
+             */
+            pathname: string;
+            /**
+             * Public Blob URL of the Drive file
+             */
+            fileUrl: string;
+            name: string;
+            size: number;
+            mimeType: string;
+            kind: 'image' | 'gif' | 'video';
+        };
+    };
 };
 
 export type ChatResultUnavailable = {
@@ -4916,6 +4938,49 @@ export type CreateDriveFileUploadSessionRequest = {
     organizationId?: string;
     /**
      * Target folder path relative to scope root (empty/omit for root)
+     */
+    folder?: string;
+};
+
+export type DriveGoogleSheet = {
+    /**
+     * The copy's file id
+     */
+    resourceId: string;
+    /**
+     * The copy's Blob pathname
+     */
+    pathname: string;
+    name: string;
+    /**
+     * The sheet in Google Sheets
+     */
+    url: string;
+    /**
+     * When Sokosumi last read the sheet
+     */
+    syncedAt: Date;
+    /**
+     * Why the last refresh failed (the copy stays as it was), or null.
+     */
+    error: 'not_shared' | 'too_large' | 'failed' | null;
+};
+
+export type LinkDriveGoogleSheetRequest = {
+    /**
+     * The sheet's address. Its sharing must be 'Anyone with the link can view'.
+     */
+    url: string;
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
+    /**
+     * Folder to put the copy in; the Drive root when omitted
      */
     folder?: string;
 };
@@ -8459,6 +8524,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            questionIds?: Array<string>;
         }>;
         previews?: Array<{
             kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -8510,6 +8576,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 campaignId?: string;
                 approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
                 pillar?: string;
+                questionIds?: Array<string>;
             } | null;
         }>;
     };
@@ -8756,6 +8823,7 @@ export type MarketingStrategyRequest = {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            questionIds?: Array<string>;
         }>;
         previews?: Array<{
             kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -8807,6 +8875,7 @@ export type MarketingStrategyRequest = {
                 campaignId?: string;
                 approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
                 pillar?: string;
+                questionIds?: Array<string>;
             } | null;
         }>;
     };
@@ -10446,6 +10515,28 @@ export type SocialPostMediaRef = {
     size: number;
     mimeType: string;
     kind: 'image' | 'gif' | 'video';
+    /**
+     * Required provider adaptation, with the original source retained.
+     */
+    transformation?: {
+        provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        code: 'pad_4_5' | 'pad_1_91_1' | 'resize' | 'jpeg' | 'srgb' | 'smaller_file';
+        notice: string;
+        original: {
+            /**
+             * Drive blob pathname; must belong to the active workspace
+             */
+            pathname: string;
+            /**
+             * Public Blob URL of the Drive file
+             */
+            fileUrl: string;
+            name: string;
+            size: number;
+            mimeType: string;
+            kind: 'image' | 'gif' | 'video';
+        };
+    };
 };
 
 export type SocialPostQuotedPost = {
@@ -12222,6 +12313,7 @@ export type CmoPlan = {
         campaignId?: string;
         approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
         pillar?: string;
+        questionIds?: Array<string>;
     }>;
     previews?: Array<{
         kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -12273,6 +12365,7 @@ export type CmoPlan = {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            questionIds?: Array<string>;
         } | null;
     }>;
 };
@@ -13137,6 +13230,64 @@ export type TaskActivitySummary = {
 export type TaskTagSuggestion = {
     tags: Array<TaskTagId>;
     receipt: string;
+};
+
+export type MoveOverdueTasks = {
+    moved: Array<{
+        id: string;
+        /**
+         * The due day the Task had before (YYYY-MM-DD).
+         */
+        from: string;
+        /**
+         * The Task's `updatedAt` right after the move. Undo needs it, so it puts the Task back only if nothing changed since.
+         */
+        version: string;
+    }>;
+    /**
+     * Overdue Tasks that changed meanwhile, could not be edited or failed, and kept their due day.
+     */
+    skipped: number;
+};
+
+export type MoveOverdueTasksRequest = {
+    /**
+     * The caller's own calendar day (YYYY-MM-DD).
+     */
+    today: string;
+    /**
+     * The new due day; today or later (YYYY-MM-DD).
+     */
+    to: string;
+};
+
+export type UndoMoveOverdueTasks = {
+    /**
+     * Ids of the Tasks put back on their old due day.
+     */
+    restored: Array<string>;
+    /**
+     * Tasks that changed in any way since the move, or could not be edited, and were left as they are.
+     */
+    skipped: number;
+};
+
+export type UndoMoveOverdueTasksRequest = {
+    /**
+     * The due day the move gave the Tasks (YYYY-MM-DD).
+     */
+    to: string;
+    tasks: Array<{
+        id: string;
+        /**
+         * The due day to put back (YYYY-MM-DD).
+         */
+        from: string;
+        /**
+         * The `version` the move returned for this Task.
+         */
+        version: string;
+    }>;
 };
 
 export type TaskSchedule = {
@@ -40135,6 +40286,153 @@ export type PostDriveFilesFinalizeResponses = {
 
 export type PostDriveFilesFinalizeResponse = PostDriveFilesFinalizeResponses[keyof PostDriveFilesFinalizeResponses];
 
+export type PostDriveFilesGoogleSheetsData = {
+    body: LinkDriveGoogleSheetRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/files/google-sheets';
+};
+
+export type PostDriveFilesGoogleSheetsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - a file with that name exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - not a Google Sheets link, or not shared
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFilesGoogleSheetsError = PostDriveFilesGoogleSheetsErrors[keyof PostDriveFilesGoogleSheetsErrors];
+
+export type PostDriveFilesGoogleSheetsResponses = {
+    /**
+     * Google Sheet linked
+     */
+    201: {
+        data: DriveGoogleSheet;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFilesGoogleSheetsResponse = PostDriveFilesGoogleSheetsResponses[keyof PostDriveFilesGoogleSheetsResponses];
+
 export type GetDriveFilesContentData = {
     body?: never;
     headers?: {
@@ -42134,6 +42432,226 @@ export type GetDriveResourcesByIdContentResponses = {
 };
 
 export type GetDriveResourcesByIdContentResponse = GetDriveResourcesByIdContentResponses[keyof GetDriveResourcesByIdContentResponses];
+
+export type GetDriveResourcesByIdGoogleSheetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/google-sheet';
+};
+
+export type GetDriveResourcesByIdGoogleSheetErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdGoogleSheetError = GetDriveResourcesByIdGoogleSheetErrors[keyof GetDriveResourcesByIdGoogleSheetErrors];
+
+export type GetDriveResourcesByIdGoogleSheetResponses = {
+    /**
+     * Linked Google Sheet
+     */
+    200: {
+        data: DriveGoogleSheet;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdGoogleSheetResponse = GetDriveResourcesByIdGoogleSheetResponses[keyof GetDriveResourcesByIdGoogleSheetResponses];
+
+export type PostDriveResourcesByIdGoogleSheetRefreshData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/google-sheet/refresh';
+};
+
+export type PostDriveResourcesByIdGoogleSheetRefreshErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdGoogleSheetRefreshError = PostDriveResourcesByIdGoogleSheetRefreshErrors[keyof PostDriveResourcesByIdGoogleSheetRefreshErrors];
+
+export type PostDriveResourcesByIdGoogleSheetRefreshResponses = {
+    /**
+     * Google Sheet refreshed
+     */
+    200: {
+        data: DriveGoogleSheet;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdGoogleSheetRefreshResponse = PostDriveResourcesByIdGoogleSheetRefreshResponses[keyof PostDriveResourcesByIdGoogleSheetRefreshResponses];
 
 export type GetDriveResourcesByIdRelatedData = {
     body?: never;
@@ -85947,6 +86465,152 @@ export type SuggestTaskTagsResponses = {
 };
 
 export type SuggestTaskTagsResponse = SuggestTaskTagsResponses[keyof SuggestTaskTagsResponses];
+
+export type PostTasksDueDatesMoveOverdueData = {
+    body?: MoveOverdueTasksRequest;
+    path?: never;
+    query?: never;
+    url: '/tasks/due-dates/move-overdue';
+};
+
+export type PostTasksDueDatesMoveOverdueErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksDueDatesMoveOverdueError = PostTasksDueDatesMoveOverdueErrors[keyof PostTasksDueDatesMoveOverdueErrors];
+
+export type PostTasksDueDatesMoveOverdueResponses = {
+    /**
+     * Moved overdue Tasks
+     */
+    200: {
+        data: MoveOverdueTasks;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksDueDatesMoveOverdueResponse = PostTasksDueDatesMoveOverdueResponses[keyof PostTasksDueDatesMoveOverdueResponses];
+
+export type PostTasksDueDatesUndoData = {
+    body?: UndoMoveOverdueTasksRequest;
+    path?: never;
+    query?: never;
+    url: '/tasks/due-dates/undo';
+};
+
+export type PostTasksDueDatesUndoErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksDueDatesUndoError = PostTasksDueDatesUndoErrors[keyof PostTasksDueDatesUndoErrors];
+
+export type PostTasksDueDatesUndoResponses = {
+    /**
+     * Undid the move
+     */
+    200: {
+        data: UndoMoveOverdueTasks;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksDueDatesUndoResponse = PostTasksDueDatesUndoResponses[keyof PostTasksDueDatesUndoResponses];
 
 export type GetTasksSchedulesData = {
     body?: never;
