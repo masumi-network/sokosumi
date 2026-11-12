@@ -1,7 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { startTransition, useEffect, useOptimistic } from "react";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import { getPendingTaskName } from "@/app/tasks/utils/pending-created-task";
 import { createTask } from "@/lib/actions/task/action";
 import type { TaskFormCreateHandler, TaskFormCreateInput } from "./task-form";
 
@@ -29,14 +31,23 @@ export function usePendingCreatedTasks(
     (current, task: TaskWithCoworker) => [task, ...current],
   );
 
+  const untitledTask = useTranslations("App.Tasks.NewTask")("untitledTask");
+
   useEffect(() => {
-    const show: ShowPendingTask = (input) =>
-      addPendingTask(buildPendingTask(input));
+    const show: ShowPendingTask = (input) => {
+      const task = buildPendingTask(input);
+      // The same name the create failure toast uses for a nameless Task.
+      addPendingTask(
+        getPendingTaskName(input) === null
+          ? { ...task, name: untitledTask }
+          : task,
+      );
+    };
     showPendingTask = show;
     return () => {
       if (showPendingTask === show) showPendingTask = null;
     };
-  }, [addPendingTask, buildPendingTask]);
+  }, [addPendingTask, buildPendingTask, untitledTask]);
 
   return pendingTasks.length > 0 ? [...pendingTasks, ...items] : items;
 }

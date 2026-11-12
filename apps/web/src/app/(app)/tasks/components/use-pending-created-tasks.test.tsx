@@ -9,8 +9,11 @@ import {
 } from "./use-pending-created-tasks";
 
 vi.mock("@/lib/actions/task/action", () => ({ createTask: vi.fn() }));
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
-const input = { name: "New task" } as TaskFormCreateInput;
+const input = { name: "New task", description: "" } as TaskFormCreateInput;
 const buildPendingTask = (created: TaskFormCreateInput) =>
   ({
     id: "pending:1",
@@ -55,6 +58,26 @@ describe("pending created tasks", () => {
     });
 
     expect(screen.queryByText("pending New task")).not.toBeInTheDocument();
+  });
+
+  it("names a nameless row the way the create failure toast does", async () => {
+    const { handler, finish } = deferredCreate();
+    render(<Board items={[]} />);
+
+    let created: Promise<CreateTaskResult> | undefined;
+    await act(async () => {
+      created = withBoardPreview(handler)({
+        name: "",
+        description: "![](https://example.com/a.png)",
+      } as TaskFormCreateInput);
+    });
+
+    expect(screen.getByText("pending untitledTask")).toBeInTheDocument();
+
+    await act(async () => {
+      finish({ ok: false } as CreateTaskResult);
+      await created;
+    });
   });
 
   it("leaves one row when the real Task arrives with the answer", async () => {
