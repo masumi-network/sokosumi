@@ -10632,7 +10632,8 @@
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben.",
-        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}"
+        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}",
+        "cellNotSaved": "Dein Wert wurde nicht gespeichert. Er steht wieder im Editor. {reason}"
       },
       "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
       "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",

@@ -211,7 +211,7 @@ it("F4: definitive cell rejection does not leave the cell retry-locked", async (
         .getAllByRole("alert")
         .map((item) => item.textContent)
         .join(" "),
-    ).toContain("errors.forbidden"),
+    ).toContain("errors.cellNotSaved"),
   );
   expect(cell).not.toBeDisabled();
   expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument();

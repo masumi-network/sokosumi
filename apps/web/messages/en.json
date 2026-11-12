@@ -10632,7 +10632,8 @@
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns.",
-        "layout": "Column layout wasn't saved and was reset. {reason}"
+        "layout": "Column layout wasn't saved and was reset. {reason}",
+        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}"
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",

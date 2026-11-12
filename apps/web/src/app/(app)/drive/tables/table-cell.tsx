@@ -164,8 +164,15 @@ export function TableCell({
       setUncertain(false);
       stopEditing();
     } catch (error) {
-      if (isTableRejection(error)) setUncertain(false);
-      setError(tableError(error, t));
+      const rejected = isTableRejection(error);
+      if (rejected) setUncertain(false);
+      const reason = tableError(error, t);
+      // A rejection did not commit, and the editor is back with the value.
+      setError(
+        rejected && column.type !== "checkbox"
+          ? t("errors.cellNotSaved", { reason })
+          : reason,
+      );
     } finally {
       saving.current = false;
       setPending(false);
@@ -461,7 +468,13 @@ export function TableCell({
         className,
       )}
     >
-      <div className="flex min-h-8 min-w-0 items-start px-2 py-1.5 text-sm leading-5">
+      <div
+        className={cn(
+          "flex min-h-8 min-w-0 items-start px-2 py-1.5 text-sm leading-5",
+          // The sent value is not saved yet: it reads as pending until then.
+          sent && "opacity-60",
+        )}
+      >
         {display()}
       </div>
       {(!editing || sent) && column.type !== "checkbox" && (

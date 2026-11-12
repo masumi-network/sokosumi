@@ -97,7 +97,7 @@ describe("table cell editing", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Row changed");
     expect(screen.getByRole("textbox")).toHaveValue("Keep me");
   });
-  it("reads as saved and closes the editor while the save is open", async () => {
+  it("shows the sent value as pending and closes the editor while the save is open", async () => {
     let finish = () => {};
     const save = vi.fn(
       () => new Promise<void>((resolve) => void (finish = resolve)),
@@ -110,6 +110,8 @@ describe("table cell editing", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(gridCell()).toHaveTextContent("Sent");
     expect(gridCell()).toHaveAttribute("aria-busy", "true");
+    // The value it shows reads as pending, not as saved.
+    expect(screen.getByText("Sent").closest(".opacity-60")).not.toBeNull();
     // The pointer actions are back as soon as the editor leaves.
     expect(
       screen.getByRole("button", { name: "cellHistory", hidden: true }),
@@ -120,6 +122,8 @@ describe("table cell editing", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     finish();
     await waitFor(() => expect(gridCell()).toHaveTextContent("Original"));
+    expect(gridCell()).not.toHaveAttribute("aria-busy");
+    expect(screen.getByText("Original").closest(".opacity-60")).toBeNull();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
   it("brings the editor back after a failed save without taking focus", async () => {
@@ -141,7 +145,10 @@ describe("table cell editing", () => {
     elsewhere.focus();
     // A rejection leaves the editor enabled, so it could take focus.
     fail({ error: "Conflict" });
-    await screen.findByRole("alert");
+    // It says the value was not saved and is back, before the reason.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "errors.cellNotSaved",
+    );
     expect(screen.getByRole("textbox")).toHaveValue("Keep me");
     expect(screen.getByRole("textbox")).toBeEnabled();
     expect(elsewhere).toHaveFocus();
