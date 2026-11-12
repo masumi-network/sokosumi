@@ -2,44 +2,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 
 import { cmoOverview } from "../test-fixtures/cmo";
-import { brain, draft } from "../test-fixtures/onboarding";
 import { ResultsPage } from "./app/pages";
-import { BrandStep } from "./onboarding/brand-step";
-
-const noop = async () => {};
 
 /** The card whose class list holds `marker`, as its opening tag. */
-function cardTag(html: string, marker: string): string | undefined {
+function _cardTag(html: string, marker: string): string | undefined {
   return html
     .match(/<[a-z]+ class="[^"]*"/g)
     ?.find((tag) => tag.includes(marker) && tag.includes("card"));
 }
-
-function brandStep(answered: boolean) {
-  const questions = (brain.questions ?? []).map((question) => ({
-    ...question,
-    answer: answered ? ("yes" as const) : undefined,
-  }));
-  return renderToStaticMarkup(
-    <BrandStep
-      overview={draft({
-        brandBrainConfirmedAt: null,
-        strategy: null,
-        brandBrain: { ...brain, questions },
-      })}
-      messages={[]}
-      onCorrect={noop}
-      onSave={noop}
-      onAnswer={noop}
-      onApprove={async () => null}
-    />,
-  );
-}
-
-it("Brand's questions-left card carries the hard shadow, and is gone once answered", () => {
-  expect(cardTag(brandStep(false), "ob-left")).toContain("card-focus");
-  expect(cardTag(brandStep(true), "ob-left")).toBeUndefined();
-});
 
 function results(connected: boolean) {
   const sources = cmoOverview().measurement.map((source) => ({

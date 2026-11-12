@@ -5,18 +5,10 @@ import "../../components/onboarding/onboarding.css";
 import { CusoStatus } from "../../components/app/cuso-status";
 import { Sidebar } from "../../components/app/sidebar";
 import { CusoAvatar } from "../../components/cuso";
+import { STAGES } from "../../components/onboarding/brief";
+import { Timeline } from "../../components/onboarding/brief-bar";
 import { Checklist, SkeletonTile } from "../../components/onboarding/checklist";
-import {
-  AssumptionChip,
-  QuestionCard,
-} from "../../components/onboarding/questions";
-import { StepMarkers } from "../../components/onboarding/step-markers";
-import {
-  GoalBlock,
-  SidePanel,
-  StatRow,
-  Tile,
-} from "../../components/onboarding/tiles";
+import { GoalBlock, SidePanel, Tile } from "../../components/onboarding/tiles";
 import { AGENT_NAME } from "../../lib/agent";
 import { overview } from "./app/fixtures";
 
@@ -57,8 +49,26 @@ export function PartsPreview() {
   return (
     <div className="ds-parts">
       <div className="ds-part">
-        <p className="ds-t-small muted">Step markers</p>
-        <StepMarkers current={1} reached={1} />
+        <p className="ds-t-small muted">Timeline (the bar's seven stages)</p>
+        <Timeline
+          marks={STAGES.map((stage, index) => ({
+            ...stage,
+            state:
+              index < 2
+                ? "done"
+                : index === 2
+                  ? "now"
+                  : index === 3
+                    ? "background"
+                    : "next",
+            who:
+              index < 2
+                ? "done"
+                : index === 3
+                  ? `${AGENT_NAME} · writing`
+                  : stage.who,
+          }))}
+        />
       </div>
 
       <div className="ds-part">
@@ -71,18 +81,6 @@ export function PartsPreview() {
           ]}
         />
         <SkeletonTile />
-      </div>
-
-      <div className="ds-part">
-        <p className="ds-t-small muted">Question card</p>
-        <QuestionCard
-          topic="Target customers"
-          question={{ question: "Are households your largest customer group?" }}
-          index={1}
-          answered={[true, false, false]}
-          onAnswer={noop}
-          onSkip={() => {}}
-        />
       </div>
 
       <div className="ds-part">
@@ -112,15 +110,6 @@ export function PartsPreview() {
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small muted">Assumption chip</p>
-        <AssumptionChip
-          question="Is €200 a month OK for ads?"
-          yes={{ onClick: () => {} }}
-          other={{ label: "Change", onClick: () => {} }}
-        />
-      </div>
-
-      <div className="ds-part">
         <p className="ds-t-small muted">Goal block</p>
         <GoalBlock
           label="The goal"
@@ -130,17 +119,6 @@ export function PartsPreview() {
             { term: "The offer", value: "A 14-day trial" },
             { term: "Where", value: "LinkedIn, X" },
             { term: "This month", value: "28 pieces" },
-          ]}
-        />
-      </div>
-
-      <div className="ds-part">
-        <p className="ds-t-small muted">Stat row</p>
-        <StatRow
-          stats={[
-            { value: "3 min", line: "I read your site." },
-            { value: "5 taps", line: "You answer a few questions." },
-            { value: "1 plan", line: "You approve it." },
           ]}
         />
       </div>

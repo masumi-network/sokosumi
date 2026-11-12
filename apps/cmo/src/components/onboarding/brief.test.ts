@@ -108,6 +108,19 @@ describe("stageMarks", () => {
     expect(marks[2]?.who).toBe("You");
   });
 
+  it("marks a plan written before the brand check as done", () => {
+    const marks = stageMarks(asking({ strategy }), local());
+    expect(marks.map((mark) => mark.state)).toEqual([
+      "done",
+      "done",
+      "now",
+      "done",
+      "next",
+      "next",
+      "next",
+    ]);
+  });
+
   it("says Cuso stopped when the read failed, and is waiting when he asked in words", () => {
     const failed = reading({ work: work("research", { status: "failed" }) });
     expect(stageMarks(failed, local())[1]?.who).toBe("Cuso · stopped");

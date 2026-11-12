@@ -30,6 +30,15 @@ export const STAGES: { id: StageId; label: string; who: "You" | "Cuso" }[] = [
   { id: "month", label: "Your month", who: "Cuso" },
 ];
 
+/** The bar before the hire: the website is the stage, the rest is to come. */
+export function websiteMarks(): StageMark[] {
+  return STAGES.map((stage, index) => ({
+    ...stage,
+    state: index === 0 ? "now" : "next",
+    who: stage.who,
+  }));
+}
+
 /** What "Next" says on a phone, for each stage. */
 export const NEXT_LINE: Record<StageId, string> = {
   website: "Next: I read your site",
@@ -92,9 +101,13 @@ export function stageMarks(
 ): StageMark[] {
   const stage = briefStage(overview, local);
   const at = STAGES.findIndex((candidate) => candidate.id === stage);
-  // Core starts the plan when the read ends: it writes behind the brand check.
-  const planBehind =
-    stage === "brand" && (strategyRunning(overview) || !!overview.strategy);
+  // Core starts the plan when the read ends: it writes behind the brand
+  // check, and may be written before the brand is confirmed.
+  const planBehind = stage === "brand" && strategyRunning(overview);
+  const planWritten =
+    stage === "brand" &&
+    !planBehind &&
+    (overview.strategy?.calendar.length ?? 0) > 0;
   return STAGES.map((candidate, index) => {
     if (index < at) return { ...candidate, state: "done", who: "done" };
     if (index === at) {
@@ -103,6 +116,9 @@ export function stageMarks(
         state: "now",
         who: nowWho(overview, local, stage),
       };
+    }
+    if (candidate.id === "plan" && planWritten) {
+      return { ...candidate, state: "done", who: "done" };
     }
     if (candidate.id === "plan" && planBehind) {
       return {
@@ -356,4 +372,15 @@ export function weekOne(calendar: Entry[]): Entry[] {
     .sort((a, b) =>
       `${a.date} ${a.time ?? ""}`.localeCompare(`${b.date} ${b.time ?? ""}`),
     );
+}
+
+/** Which week of the plan a date falls in, from 1; null without one. */
+export function adWeek(strategy: Strategy, date: string | undefined) {
+  const start = planWeeks(strategy.calendar)[0]?.start;
+  if (!date || !start) return null;
+  const days =
+    (new Date(`${date}T00:00:00Z`).getTime() -
+      new Date(`${start}T00:00:00Z`).getTime()) /
+    86_400_000;
+  return Math.floor(days / 7) + 1;
 }

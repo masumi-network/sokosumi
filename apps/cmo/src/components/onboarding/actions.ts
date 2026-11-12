@@ -3,7 +3,9 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import type { BrandSectionKey } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { AdActions } from "../ads";
-import type { Answer } from "./questions";
+
+/** Yes, no or not sure, to one of Cuso's yes/no questions. */
+export type Answer = "yes" | "no" | "unsure";
 
 /** One answer to one of Cuso's questions, with what is true instead after a no. */
 export interface AnswerInput {
