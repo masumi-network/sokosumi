@@ -1738,6 +1738,7 @@
         "feedbackUseful": "Nützlich",
         "feedbackNotUseful": "Nicht nützlich",
         "feedbackThanks": "Danke, notiert.",
+        "feedbackError": "Deine Bewertung konnte nicht gespeichert werden.",
         "approvals": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}",
         "review": "Auf der Assistenten-Seite prüfen",
         "task": "Task",
