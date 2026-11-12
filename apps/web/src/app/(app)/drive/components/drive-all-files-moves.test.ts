@@ -120,6 +120,8 @@ describe("renaming a collection", () => {
 
     expect(await done).toBe(false);
     expect(box.now[0].name).toBe("from Core");
+    // The name the reader acted on; the copy claims no restored name.
+    expect(toastError).toHaveBeenCalledWith("collectionRenameFailed a");
   });
 });
 
