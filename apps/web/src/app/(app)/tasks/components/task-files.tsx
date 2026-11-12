@@ -149,7 +149,16 @@ function DownloadAllButton({ name, files }: DownloadAllButtonProps) {
   const t = useTranslations("App.Tasks.Detail.downloadAll");
   const [downloading, setDownloading] = useState(false);
   const downloadAbort = useRef<AbortController | null>(null);
-  useEffect(() => () => downloadAbort.current?.abort(), []);
+  // Next keeps a left Task page in Activity: its effects clean up but its
+  // state stays, so a running download is cancelled and the button freed.
+  useEffect(
+    () => () => {
+      downloadAbort.current?.abort();
+      downloadAbort.current = null;
+      setDownloading(false);
+    },
+    [],
+  );
 
   async function handleDownloadAll() {
     const controller = new AbortController();
@@ -157,6 +166,8 @@ function DownloadAllButton({ name, files }: DownloadAllButtonProps) {
     setDownloading(true);
     try {
       const archive = await createTaskFilesArchive(files, controller.signal);
+      // Cancelled while the zip was being made: no file and no toast.
+      if (controller.signal.aborted) return;
       if (!archive.data) {
         toast.error(t("failed"));
         return;
@@ -184,7 +195,10 @@ function DownloadAllButton({ name, files }: DownloadAllButtonProps) {
     } catch {
       if (!controller.signal.aborted) toast.error(t("failed"));
     } finally {
-      if (!controller.signal.aborted) setDownloading(false);
+      if (downloadAbort.current === controller) {
+        downloadAbort.current = null;
+        setDownloading(false);
+      }
     }
   }
 

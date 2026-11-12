@@ -14,11 +14,23 @@ export interface TaskFilesArchive {
   missing: string[];
 }
 
-/** A name without path separators, control characters or characters Windows rejects. */
+/** Windows device names: `CON.txt` cannot be unpacked there, whatever the extension. */
+const WINDOWS_RESERVED_NAME =
+  /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\.|$)/i;
+
+/**
+ * A name that unpacks as written on every system: no path separators, control
+ * characters or characters Windows rejects, no trailing dots or spaces (Windows
+ * drops them, so `report.` would land on `report`) and no device names.
+ */
 export function safeFileName(name: string, fallback: string): string {
-  const safe = name.replace(/[\u0000-\u001f\\/:*?"<>|]/g, "-").trim();
-  // "." and ".." would point outside the zip folder when unpacked.
-  return /^\.*$/.test(safe) ? fallback : safe;
+  const safe = name
+    .replace(/[\u0000-\u001f\\/:*?"<>|]/g, "-")
+    .trim()
+    .replace(/[. ]+$/, "");
+  // Also covers "." and "..", which would point outside the zip folder.
+  if (!safe) return fallback;
+  return WINDOWS_RESERVED_NAME.test(safe) ? `_${safe}` : safe;
 }
 
 /** `Report.pdf`, `Report (2).pdf`: zip entries need distinct, path-free names. */
@@ -35,9 +47,39 @@ export function uniqueArchiveName(name: string, taken: Set<string>): string {
   return candidate;
 }
 
+/**
+ * The response body, or null once it passes `budget` bytes. A declared
+ * length over budget is refused unread; otherwise reading stops at the first
+ * chunk past it, so an oversized file is never held in memory.
+ */
+export async function readWithinBudget(
+  response: Response,
+  budget: number,
+): Promise<Blob | null> {
+  if (Number(response.headers.get("content-length")) > budget) {
+    await response.body?.cancel();
+    return null;
+  }
+  if (!response.body) return new Blob([]);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let bytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return new Blob(chunks);
+    bytes += value.byteLength;
+    if (bytes > budget) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+}
+
 export async function createTaskFilesArchive(
   files: TaskArchiveFile[],
   signal?: AbortSignal,
+  maxBytes = MAX_TASK_ARCHIVE_BYTES,
 ): Promise<TaskFilesArchive> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
@@ -58,8 +100,8 @@ export async function createTaskFilesArchive(
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       });
       if (!response.ok) throw new Error(`File returned ${response.status}`);
-      const blob = await response.blob();
-      if (bytes + blob.size > MAX_TASK_ARCHIVE_BYTES) {
+      const blob = await readWithinBudget(response, maxBytes - bytes);
+      if (!blob) {
         missing.push(file.name);
         continue;
       }
@@ -72,11 +114,13 @@ export async function createTaskFilesArchive(
     }
   }
 
-  return {
-    data: included.length
-      ? await zip.generateAsync({ type: "arraybuffer", streamFiles: true })
-      : null,
-    included,
-    missing,
-  };
+  signal?.throwIfAborted();
+  if (!included.length) return { data: null, included, missing };
+  const data = await zip.generateAsync({
+    type: "arraybuffer",
+    streamFiles: true,
+  });
+  // ponytail: JSZip cannot stop mid-generation, so a cancel during it is honoured here, once it ends.
+  signal?.throwIfAborted();
+  return { data, included, missing };
 }
