@@ -306,7 +306,7 @@ describe("RoomMembersPanel", () => {
     expect(toastMock.success).toHaveBeenCalledWith(
       "RoomRoster.removeSuccess:Gus",
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("removes a Coworker at once and offers Undo, which adds it back", async () => {

@@ -359,7 +359,6 @@ export function ChatRoomSidebarRow({
     if (isActive) {
       // Land on chat home / list (`/chat` — mobile list; desktop redirects).
       router.replace(CHAT_CHATS_LIST_PATH);
-      router.refresh();
     }
   }
 
