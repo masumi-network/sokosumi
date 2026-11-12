@@ -66,6 +66,21 @@ export function useRoomMessageMutations({
         { pinned: boolean; echoed: boolean; done: Promise<boolean> }
       >(),
   );
+  // Rows that show a change Core has not answered yet. The row reads as
+  // saving until the answer comes, success or failure.
+  const [savingMessageIds, setSavingMessageIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  function setMessageSaving(messageId: string, saving: boolean) {
+    setSavingMessageIds((current) => {
+      if (current.has(messageId) === saving) return current;
+      const next = new Set(current);
+      if (saving) next.add(messageId);
+      else next.delete(messageId);
+      return next;
+    });
+  }
 
   function mergeUpdatedMessage(answer: ChatRoomMessage) {
     // An answer can still hold the cards whose removal is open.
@@ -154,6 +169,7 @@ export function useRoomMessageMutations({
     const write = { pinned, echoed: false, done: Promise.resolve(false) };
     pinWrites.set(messageId, write);
     setRowPinned(messageId, pinned);
+    setMessageSaving(messageId, true);
     write.done = (
       pinned
         ? pinRoomMessageAction(roomId, messageId)
@@ -162,8 +178,10 @@ export function useRoomMessageMutations({
       .catch(() => null)
       .then((result) => {
         pinWrites.delete(messageId);
+        setMessageSaving(messageId, false);
         if (!result?.ok) {
-          setRowPinned(messageId, write.echoed ? pinned : !pinned);
+          const restoredPinned = write.echoed ? pinned : !pinned;
+          setRowPinned(messageId, restoredPinned);
           toast.error(
             result?.error.message ??
               t(
@@ -171,6 +189,14 @@ export function useRoomMessageMutations({
                   ? "PinnedMessages.pinError"
                   : "PinnedMessages.unpinError",
               ),
+            // Says how the row stands now, so the jump back is explained.
+            {
+              description: t(
+                restoredPinned
+                  ? "PinnedMessages.statePinned"
+                  : "PinnedMessages.stateUnpinned",
+              ),
+            },
           );
           return false;
         }
@@ -365,6 +391,7 @@ export function useRoomMessageMutations({
     editSession,
     setEditSession,
     isSavingEdit,
+    savingMessageIds,
     applyPinnedMutation,
     handlePinMessage,
     handleUnpinFromPanel,
