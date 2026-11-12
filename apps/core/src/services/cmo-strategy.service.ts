@@ -300,7 +300,7 @@ function withHiddenCalendar(
 
 /**
  * Guards a bot's save against the two ways a revision loses work: an entry
- * kept under the same id and title without its draft gets the draft back,
+ * kept under the same id and title keeps every field the save leaves out,
  * and an entry left in its old slot while a copy moved to a new day is
  * dropped, so a moved piece shows once.
  */
@@ -314,13 +314,23 @@ export function keepCalendarWork(
   const withDrafts = incoming.map((entry) => {
     const old = before.get(entry.id);
     if (!old || !sameTitle(old.title, entry.title)) return entry;
-    return {
-      ...entry,
+    const words = {
       draft: entry.draft ?? old.draft,
       brief: entry.brief ?? old.brief,
       why: entry.why ?? old.why,
       hook: entry.hook ?? old.hook,
     };
+    // Moved to another channel or format, its post, files and ad belong to
+    // the old piece: only the words come along.
+    if (old.channel !== entry.channel || old.format !== entry.format)
+      return { ...entry, ...words };
+    return {
+      ...old,
+      ...Object.fromEntries(
+        Object.entries(entry).filter(([, value]) => value !== undefined),
+      ),
+      ...words,
+    } as typeof entry;
   });
   return withDrafts.filter((entry) => {
     const old = before.get(entry.id);
@@ -454,13 +464,29 @@ export async function saveCmoStrategy(
     own ??
     (await cmoWorkingStrategy(cuso.projectId, options.executing ?? false, db));
   // What a save leaves out stays as stored; the merged plan must be whole.
+  // A tool call has to fill every field, so Cuso sends an empty list or text
+  // for what it is not changing: that keeps the stored value too. Changing
+  // one channel's cadence once emptied the mix, campaigns and improvements.
   const before = parseMarketingPlan(base?.plan);
+  const left = (value: unknown) =>
+    value === undefined ||
+    (options.turnId !== undefined &&
+      (value === "" || (Array.isArray(value) && value.length === 0)));
+  // A save of the calendar alone replaces it, so an empty one removes every
+  // piece. `changes` is empty on purpose when the save is not a revision.
+  const calendarOnly = Object.keys(strategy).every((key) => key === "calendar");
   const whole = marketingStrategyPlanSchema.parse({
     ...before,
     ...Object.fromEntries(
-      Object.entries(strategy).filter(([, value]) => value !== undefined),
+      Object.entries(strategy).filter(
+        ([key, value]) => key === "changes" || !left(value),
+      ),
     ),
-    calendar: strategy.calendar ?? before?.calendar ?? [],
+    calendar:
+      strategy.calendar !== undefined &&
+      (calendarOnly || !left(strategy.calendar))
+        ? strategy.calendar
+        : (before?.calendar ?? []),
   });
   // A channel the plan now runs is no longer a proposal.
   const running = new Set(whole.channels.map((channel) => channel.channel));
@@ -493,9 +519,6 @@ export async function saveCmoStrategy(
           keepCalendarWork(previous.calendar, parsed.calendar),
           options.now ?? new Date(),
         ),
-        // An empty previews list keeps the stored samples.
-        previews:
-          parsed.previews.length > 0 ? parsed.previews : previous.previews,
       }
     : parsed;
   const stored = options.turnId

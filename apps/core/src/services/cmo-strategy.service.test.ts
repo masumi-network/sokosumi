@@ -473,6 +473,38 @@ describe("saving versions", () => {
     expect(plan(saved).previews).toEqual([preview]);
   });
 
+  it("keeps what Cuso fills with an empty list or text", async () => {
+    // A tool call fills every field: changing one channel's cadence sent the
+    // goals, the summary and the calendar empty and wiped them.
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, summary: "", goals: [], calendar: [] },
+      { turnId: "turn-1" },
+    );
+    expect(plan(saved).summary).toBe(strategy.summary);
+    expect(plan(saved).goals).toEqual(strategy.goals);
+    expect(plan(saved).calendar.map((entry) => entry.id)).toEqual(
+      strategy.calendar.map((entry) => entry.id),
+    );
+  });
+
+  it("still lets an owner clear a list", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy({
+      ...strategy,
+      previews: [
+        { kind: "post", channel: "linkedin", title: "Sample", body: "Text." },
+      ],
+    });
+    const owner = await saveCmoStrategy(
+      { userId: "user-1", projectId: "project-1" },
+      { ...strategy, previews: [] },
+    );
+    expect(plan(owner).previews).toEqual([]);
+  });
+
   it("lets an owner save replace the calendar, including hidden days", async () => {
     cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
@@ -577,6 +609,37 @@ describe("keepCalendarWork", () => {
       [entry("a", "2026-11-02", "Customer story")],
     );
     expect(kept[0]?.draft).toBe("Full text");
+  });
+
+  it("keeps every field a kept entry leaves out", () => {
+    const kept = keepCalendarWork(
+      [
+        {
+          ...entry("a", "2026-11-02", "Customer story", "Full text"),
+          imageFileId: "file-1",
+        },
+      ],
+      [entry("a", "2026-11-09", "Customer story")],
+    );
+    expect(kept[0]).toMatchObject({
+      date: "2026-11-09",
+      draft: "Full text",
+      imageFileId: "file-1",
+    });
+  });
+
+  it("leaves the old piece's files behind when the entry changes channel", () => {
+    const kept = keepCalendarWork(
+      [
+        {
+          ...entry("a", "2026-11-02", "Customer story", "Full text"),
+          imageFileId: "file-1",
+        },
+      ],
+      [{ ...entry("a", "2026-11-02", "Customer story"), channel: "x" }],
+    );
+    expect(kept[0]?.draft).toBe("Full text");
+    expect(kept[0]?.imageFileId).toBeUndefined();
   });
 
   it("drops a stale draft when the piece was rewritten", () => {

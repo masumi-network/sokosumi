@@ -5898,6 +5898,19 @@ export class SokoBotRuntimeService {
             ),
           );
           const approved = saved.approvedAt !== null;
+          // Fields sent empty were filler: say they stayed, so nobody reads
+          // the call as having cleared them.
+          const leftAsSaved = pieces
+            ? []
+            : Object.entries(sent)
+                .filter(
+                  ([key, value]) =>
+                    key !== "changes" &&
+                    key !== "calendar" &&
+                    (value === "" ||
+                      (Array.isArray(value) && value.length === 0)),
+                )
+                .map(([key]) => key);
           // Pieces that are not Social posts become the Project's Files.
           const filed =
             pieces && approved
@@ -5942,6 +5955,7 @@ export class SokoBotRuntimeService {
               entries: calendar.length,
               drafted: calendar.filter(written).length,
               ...(filed > 0 ? { filed } : {}),
+              ...(leftAsSaved.length > 0 ? { leftAsSaved } : {}),
               undrafted: undrafted.length,
               firstUndrafted: undrafted[0],
               ...(review ? { review } : {}),
