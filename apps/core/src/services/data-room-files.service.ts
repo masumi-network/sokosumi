@@ -282,6 +282,25 @@ async function viewerBytes(input: {
   };
 }
 
+const XLSX_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/**
+ * Whether the room viewer can show this file in the page. A spreadsheet is
+ * read into a table by the viewer itself, so it is served for viewing too,
+ * though never inline: the browser cannot render it on its own.
+ */
+export function viewableInRoom(file: {
+  mimeType: string | null;
+  name: string;
+}) {
+  return (
+    isInlineRenderable(file.mimeType) ||
+    file.mimeType === XLSX_TYPE ||
+    file.name.toLowerCase().endsWith(".xlsx")
+  );
+}
+
 /**
  * One file for a signed-in viewer: only what their access covers, only
  * downloaded when the room allows it, stamped when the room says so, and
@@ -298,7 +317,7 @@ export async function openDataRoomFile(input: {
   const file = await findDataRoomFile(input.room, input.resourceId);
   if (!file || !memberSeesPath(input.member, file.path))
     throw notFound("File not found");
-  const viewable = isInlineRenderable(file.mimeType);
+  const viewable = viewableInRoom(file);
   if ((input.download || !viewable) && !input.room.allowDownload)
     throw forbidden(
       viewable
@@ -320,7 +339,7 @@ export async function openDataRoomFile(input: {
   return {
     ...content,
     name: file.name,
-    inline: !input.download && viewable,
+    inline: !input.download && isInlineRenderable(file.mimeType),
   };
 }
 

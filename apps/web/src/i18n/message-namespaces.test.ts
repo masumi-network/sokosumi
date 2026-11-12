@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
-
 import {
   ADMIN_MESSAGE_PATHS,
   APP_MESSAGE_PATHS,
   APP_SHELL_MESSAGE_PATHS,
   AUTH_MESSAGE_PATHS,
   PUBLIC_NEWSLETTER_MESSAGE_PATHS,
+  SHARE_MESSAGE_PATHS,
   SOKO_BOT_MESSAGE_PATHS,
 } from "@/i18n/message-namespaces";
+import { pickMessages } from "@/i18n/pick-messages";
+import de from "../../messages/de.json";
+import en from "../../messages/en.json";
+import es from "../../messages/es.json";
 
 describe("message namespaces", () => {
   it("provides public archive copy to clients outside the app group", () => {
@@ -15,6 +19,27 @@ describe("message namespaces", () => {
     expect(PUBLIC_NEWSLETTER_MESSAGE_PATHS).toContain("Components");
     expect(PUBLIC_NEWSLETTER_MESSAGE_PATHS).toContain("CookieConsent");
   });
+  it.each([
+    ["en", en],
+    ["de", de],
+    ["es", es],
+  ])(
+    "gives public share pages the %s Download all copy and no other App copy",
+    (_, messages) => {
+      const picked = pickMessages(messages, SHARE_MESSAGE_PATHS);
+      expect(picked.App).toEqual({
+        Tasks: {
+          Detail: { downloadAll: messages.App.Tasks.Detail.downloadAll },
+        },
+      });
+      expect(Object.keys(messages.App.Tasks.Detail.downloadAll)).toEqual([
+        "button",
+        "failed",
+        "partial",
+      ]);
+    },
+  );
+
   it("includes DesignMd on the auth bag so the setup wizard can generate brand copy", () => {
     expect(AUTH_MESSAGE_PATHS).toContain("App.DesignMd");
     expect(AUTH_MESSAGE_PATHS).toContain("Components");
