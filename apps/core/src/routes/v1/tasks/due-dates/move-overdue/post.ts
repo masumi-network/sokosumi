@@ -110,17 +110,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where,
       orderBy: [{ dueOn: "asc" }, { id: "asc" }],
       take: MAX_DUE_DATE_MOVES,
-      select: { id: true },
+      select: { id: true, dueOn: true },
     });
+    // The day each Task had when it was picked. The locked write moves it
+    // only from that day, so a date someone set meanwhile (later, another
+    // overdue day, or another move) is kept.
+    const selectedDueOn = new Map(
+      candidates.flatMap((task) => (task.dueOn ? [[task.id, task.dueOn]] : [])),
+    );
     const { done, skipped } = await eachLockedTask(
-      candidates.map((task) => task.id),
+      [...selectedDueOn.keys()],
       { userContext, workspaceId },
       async (tx, task) => {
-        // Checked again under lock: finished, reassigned or re-dated
-        // meanwhile means this Task is no longer the caller's to move.
-        if (!task.dueOn) return null;
+        const from = selectedDueOn.get(task.id);
+        if (!from) return null;
+        // Every selection rule again, under lock, plus the picked day: a
+        // Task finished, reassigned or re-dated meanwhile matches nothing.
         const { count } = await tx.task.updateMany({
-          where: { ...where, id: task.id, dueOn: task.dueOn },
+          where: { AND: [where, { id: task.id, dueOn: from }] },
           data: { dueOn: dueDay(to) },
         });
         if (count !== 1) return null;
@@ -130,7 +137,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
         return {
           id: task.id,
-          from: dueDayString(task.dueOn),
+          from: dueDayString(from),
           version: updatedAt.toISOString(),
         };
       },

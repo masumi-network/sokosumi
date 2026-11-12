@@ -61,6 +61,11 @@ const tx = {
   },
 };
 
+/** A Task as the move picks it: id and the due day it had then. */
+function picked(id: string) {
+  return { id, dueOn: new Date("2026-11-02T00:00:00.000Z") };
+}
+
 function task(id: string, workspaceId = WORKSPACE_ID) {
   return {
     id,
@@ -125,7 +130,7 @@ beforeEach(() => {
 
 describe("POST /due-dates/move-overdue", () => {
   it("re-dates the caller's open overdue Tasks and returns their Undo data", async () => {
-    mocks.findMany.mockResolvedValue([{ id: "tsk_a" }]);
+    mocks.findMany.mockResolvedValue([picked("tsk_a")]);
 
     const res = await post("/due-dates/move-overdue", {
       today: "2026-11-12",
@@ -153,14 +158,15 @@ describe("POST /due-dates/move-overdue", () => {
       },
     });
     expect(mocks.findMany.mock.calls[0]?.[0].take).toBe(MAX_DUE_DATE_MOVES);
-    // The locked write repeats every eligibility rule, pinned to the day
-    // read under lock, so a Task finished, reassigned or re-dated since the
-    // selection matches nothing.
+    // The locked write repeats every selection rule, still overdue
+    // included, and pins the day the Task had when picked, so a Task
+    // finished, reassigned or re-dated since matches nothing.
     expect(mocks.updateMany).toHaveBeenCalledWith({
       where: {
-        ...where,
-        id: "tsk_a",
-        dueOn: new Date("2026-11-02T00:00:00.000Z"),
+        AND: [
+          where,
+          { id: "tsk_a", dueOn: new Date("2026-11-02T00:00:00.000Z") },
+        ],
       },
       data: { dueOn: new Date("2026-11-13T00:00:00.000Z") },
     });
@@ -170,7 +176,7 @@ describe("POST /due-dates/move-overdue", () => {
   });
 
   it("skips a Task that stopped being eligible after it was selected", async () => {
-    mocks.findMany.mockResolvedValue([{ id: "tsk_done" }]);
+    mocks.findMany.mockResolvedValue([picked("tsk_done")]);
     mocks.updateMany.mockResolvedValue({ count: 0 });
 
     const res = await post("/due-dates/move-overdue", {
@@ -184,10 +190,10 @@ describe("POST /due-dates/move-overdue", () => {
 
   it("keeps the Tasks it already moved when a later one fails", async () => {
     mocks.findMany.mockResolvedValue([
-      { id: "tsk_a" },
-      { id: "tsk_broken" },
-      { id: "tsk_gone" },
-      { id: "tsk_elsewhere" },
+      picked("tsk_a"),
+      picked("tsk_broken"),
+      picked("tsk_gone"),
+      picked("tsk_elsewhere"),
     ]);
     const deadlock = new Error("deadlock detected");
     mocks.transaction.mockImplementation(

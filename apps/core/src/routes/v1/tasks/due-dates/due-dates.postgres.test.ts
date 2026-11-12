@@ -61,6 +61,9 @@ const ids = {
   elsewhere: randomUUID(),
   laterFinished: randomUUID(),
   laterReassigned: randomUUID(),
+  laterToFuture: randomUUID(),
+  laterToOtherOverdue: randomUUID(),
+  overlapping: randomUUID(),
 };
 
 function createApp(userId: string) {
@@ -291,5 +294,73 @@ describe.skipIf(!enabled)("moving overdue Tasks", () => {
     expect(result.skipped).toBe(2);
     expect(await dueOf(ids.laterFinished)).toBe("2026-11-03");
     expect(await dueOf(ids.laterReassigned)).toBe("2026-11-04");
+  });
+
+  it("keeps a due day someone set after the selection, later or still overdue", async () => {
+    await prisma.task.createMany({
+      data: [
+        { id: ids.laterToFuture, dueOn: day("2026-11-06") },
+        { id: ids.laterToOtherOverdue, dueOn: day("2026-11-07") },
+      ].map((task) => ({
+        ...task,
+        name: "Re-dated meanwhile",
+        workspaceId,
+        ownerId: adaId,
+        organizationId,
+      })),
+    });
+    // A teammate re-dates both after the move picked them.
+    beforeLock.current = async () => {
+      await prisma.task.update({
+        where: { id: ids.laterToFuture },
+        data: { dueOn: day("2026-11-20") },
+      });
+      await prisma.task.update({
+        where: { id: ids.laterToOtherOverdue },
+        data: { dueOn: day("2026-11-09") },
+      });
+    };
+
+    const result = await call<Moved>("/due-dates/move-overdue", {
+      today: TODAY,
+      to: TO,
+    });
+
+    const movedIds = result.moved.map((task) => task.id);
+    expect(movedIds).not.toContain(ids.laterToFuture);
+    expect(movedIds).not.toContain(ids.laterToOtherOverdue);
+    expect(result.skipped).toBe(2);
+    expect(await dueOf(ids.laterToFuture)).toBe("2026-11-20");
+    expect(await dueOf(ids.laterToOtherOverdue)).toBe("2026-11-09");
+  });
+
+  it("lets only one of two overlapping moves re-date a Task", async () => {
+    await prisma.task.create({
+      data: {
+        id: ids.overlapping,
+        name: "Picked by two moves",
+        workspaceId,
+        ownerId: adaId,
+        organizationId,
+        dueOn: day("2026-11-08"),
+      },
+    });
+    // A second move (another tab) picks the same Task and finishes first.
+    let first: Moved | undefined;
+    beforeLock.current = async () => {
+      first = await call<Moved>("/due-dates/move-overdue", {
+        today: TODAY,
+        to: "2026-11-16",
+      });
+    };
+
+    const second = await call<Moved>("/due-dates/move-overdue", {
+      today: TODAY,
+      to: TO,
+    });
+
+    expect(first?.moved.map((task) => task.id)).toContain(ids.overlapping);
+    expect(second.moved.map((task) => task.id)).not.toContain(ids.overlapping);
+    expect(await dueOf(ids.overlapping)).toBe("2026-11-16");
   });
 });

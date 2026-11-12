@@ -90,6 +90,9 @@ describe("MoveOverdueMenu", () => {
     expect(refresh).toHaveBeenCalled();
     const [message, options] = toast.success.mock.calls[0] ?? [];
     expect(message).toBe('moved:{"count":1,"date":"2026-11-13T12:00:00.000Z"}');
+    // Undo is the only way back: it stays until the reader uses or closes it.
+    expect(options.duration).toBe(Number.POSITIVE_INFINITY);
+    expect(options.closeButton).toBe(true);
 
     options.action.onClick();
     await waitFor(() =>
