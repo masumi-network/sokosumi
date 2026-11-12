@@ -32,13 +32,15 @@ import {
   adWeek,
   type BriefLocal,
   briefSteps,
+  STAGES,
   type StageId,
   weekOne,
 } from "./brief";
 import { Checklist } from "./checklist";
 import { researchGroups } from "./live";
 import { connectedNetworks, firstPost } from "./networks";
-import { MonthPanel, PlanPanel } from "./plan-tabs";
+import { PlanReview } from "./plan-step";
+import { type ConnectMeasurement, MonthPanel, PlanPanel } from "./plan-tabs";
 import { GoalBlock } from "./tiles";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
@@ -673,6 +675,8 @@ export interface BriefMainProps {
   networks: { key: string; pieces: number; connected: boolean }[];
   /** A piece tapped on week one goes into the chat's field. */
   onPick: (entry: Entry) => void;
+  /** Google Analytics, Search Console or Shopify, from the full strategy. */
+  onConnectMeasurement: ConnectMeasurement;
   brand: Omit<BrandDetailProps, "overview" | "messages">;
 }
 
@@ -685,6 +689,7 @@ export function BriefMain({
   away,
   networks,
   onPick,
+  onConnectMeasurement,
   brand,
 }: BriefMainProps) {
   const [open, setOpen] = useState<Entry | null>(null);
@@ -847,7 +852,11 @@ export function BriefMain({
             <Goal strategy={strategy} />
             <Moves strategy={strategy} />
             <SeeMore label="the whole strategy: pillars, channels, funnel, budget, measurement">
-              <PlanPanel overview={overview} strategy={strategy} />
+              <PlanReview
+                overview={overview}
+                titled={false}
+                onConnectMeasurement={onConnectMeasurement}
+              />
             </SeeMore>
           </>
         ) : step === "week" ? (
@@ -913,8 +922,12 @@ export function BriefMain({
     );
   }
 
+  const stageLabel = STAGES.find((candidate) => candidate.id === stage)?.label;
   return (
     <main className="brief-main" id="brief-main">
+      <h1 className="ob-sr">
+        Hiring {AGENT_NAME}: {stageLabel}
+      </h1>
       {body}
       <AnimatePresence>
         {open ? (

@@ -508,6 +508,9 @@ export function OnboardingFlow({
           setDraft(`Change “${entry.title}”: `);
           window.setTimeout(() => draftRef.current?.focus(), 0);
         }}
+        onConnectMeasurement={(provider) =>
+          actions.connectMeasurement(provider, "onboarding")
+        }
         brand={{
           onFix: async (section, note) => {
             const refused = await fixSection(section, note);
