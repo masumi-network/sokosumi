@@ -3996,10 +3996,18 @@ describe("SEO workspace integration", () => {
     );
     const card = screen
       .getByRole("heading", {
-        name: "Ask to be added to these lists of products",
+        name: /^Ask to be added to these lists of products/,
       })
       .closest("article");
     if (!card) throw new Error("no card");
+    // With more than one action each card starts as one row: the title, the kind and the effort.
+    expect(
+      within(card).queryByRole("button", { name: "Draft a plan" }),
+    ).toBeNull();
+    expect(
+      within(card).queryByText("Ask on the product's merits only."),
+    ).toBeNull();
+    await user.click(within(card).getByRole("button", { expanded: false }));
     expect(within(card).getByText("Effort: Medium")).toBeVisible();
     expect(within(card).getByText("On another site")).toBeVisible();
     // An action on the site's own pages says so.
@@ -4007,6 +4015,7 @@ describe("SEO workspace integration", () => {
       .getByRole("heading", { name: /Write a comparison page/ })
       .closest("article");
     if (!page) throw new Error("no page card");
+    await user.click(within(page).getByRole("button", { expanded: false }));
     expect(within(page).getByText("New page")).toBeVisible();
     expect(within(page).queryByText("Limit")).toBeNull();
     // Both buttons have one name; each card's title tells them apart.

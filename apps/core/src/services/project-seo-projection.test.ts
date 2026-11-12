@@ -522,6 +522,89 @@ describe("stored SEO workspace projections", () => {
     expect(projectSeoProjection(input).actions).toHaveLength(1);
   });
 
+  it("replaces an unlinked recommendation when a later check proposes its own fix for the finding", () => {
+    const { input, original } = actionFixture();
+    const linked = input.actionTasks;
+    input.actionTasks = [];
+    const latest = observation(
+      input,
+      parsePublicSeoArtifact(legacyReport()),
+      "2026-11-04T12:00:00Z",
+    );
+    input.observations = [latest, original];
+    const once = projectSeoProjection(input).actions;
+    // The same findings fire again and the later check proposes its fixes: each fix shows once.
+    expect(once.length).toBeGreaterThan(0);
+    expect(new Set(once.map((action) => action.observationId))).toEqual(
+      new Set([latest.id]),
+    );
+    // Work that has a Task stays on its history beside the later proposal.
+    input.actionTasks = linked;
+    expect(
+      projectSeoProjection(input).actions.filter(
+        (action) => action.observationId === original.id,
+      ),
+    ).toMatchObject([{ taskId: linked[0].taskId }]);
+    // A check of another Market finds other things: its proposals replace nothing.
+    input.actionTasks = [];
+    latest.payload = {
+      ...parsePublicSeoArtifact(legacyReport()),
+      countryCode: "DE",
+    };
+    expect(projectSeoProjection(input).actions).toHaveLength(once.length * 2);
+    // Two actions of one check can fix one finding: neither replaces the other.
+    const source = parsePublicSeoArtifact(legacyReport());
+    latest.payload = {
+      ...source,
+      actions: [...source.actions, { ...source.actions[0], id: "second-fix" }],
+    };
+    input.observations = [latest];
+    expect(projectSeoProjection(input).actions).toHaveLength(
+      source.actions.length + 1,
+    );
+  });
+
+  it("lets only a live fix of a later check replace a recommendation, and only for each of its findings", () => {
+    const { input, original } = actionFixture();
+    const [link] = input.actionTasks;
+    const [task] = input.tasks;
+    const source = parsePublicSeoArtifact(legacyReport());
+    const latest = observation(input, source, "2026-11-04T12:00:00Z");
+    input.observations = [latest, original];
+    const from = (id: string) =>
+      projectSeoProjection(input).actions.filter(
+        (action) => action.observationId === id,
+      );
+    // The owner made a Task from the later proposal: the older one does not come back.
+    input.actionTasks = [{ ...link, observationId: latest.id }];
+    expect(from(original.id)).toHaveLength(0);
+    expect(from(latest.id)).toMatchObject([{ taskId: link.taskId }]);
+    // A Task that was cancelled, failed or is gone fixes nothing: the older proposal is the open one.
+    for (const tasks of [
+      [],
+      [{ ...task, status: "CANCELED" as const }],
+      [{ ...task, status: "FAILED" as const }],
+    ]) {
+      input.tasks = tasks;
+      expect(from(original.id), JSON.stringify(tasks)).toMatchObject([
+        { status: "recommended" },
+      ]);
+    }
+    // An older action that also fixes a finding the later check has no fix for stays.
+    input.actionTasks = [];
+    input.tasks = [task];
+    const [finding] = source.findings;
+    original.payload = {
+      ...source,
+      findings: [finding, { ...finding, id: "on-mobile", device: "mobile" }],
+      actions: source.actions.map((action) => ({
+        ...action,
+        findingIds: [...action.findingIds, "on-mobile"],
+      })),
+    };
+    expect(from(original.id)).toHaveLength(source.actions.length);
+  });
+
   it("keeps the recommendation when the newest matching check fires again after a pass", () => {
     const { input, pass, original } = actionFixture();
     input.actionTasks = [];

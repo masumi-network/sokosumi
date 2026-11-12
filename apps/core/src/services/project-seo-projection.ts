@@ -74,6 +74,8 @@ const SEO_ISSUE_SEVERITIES = new Set(["critical", "major", "minor"]);
 const IDEA_SOURCES = new Set(["gap", "opportunity"]);
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 const priority = z.enum(["low", "medium", "high"]);
+/** A Task in one of these states does no work on its action any more. */
+const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
 
 function checkIdentity(
   source: PublicSeoPayload,
@@ -156,6 +158,8 @@ export function projectSeoProjection(
     seenCompetitors = new Set<string>(),
     seenFindings = new Set<string>(),
     seenMetricGroups = new Set<string>();
+  /** The findings that an action of a later check fixes. Rows come newest first. */
+  const proposed = new Set<string>();
   const latestChecked = new Map<
     string,
     { id: string; result: "pass" | "fired"; observedAt: Date }
@@ -448,27 +452,38 @@ export function projectSeoProjection(
             : "Resolve this search redirect before confirming it",
       });
     }
+    const rowProposed: string[] = [];
     for (const item of data.actions) {
       if (!selectedUrls.has(normalizeSeoUrl(item.pageUrl))) continue;
       const link = input.actionTasks.find(
         (task) => task.observationId === row.id && task.actionId === item.id,
       );
-      // Keep linked work on its history. Unlinked proposals stop being current after an exact later pass.
+      const fixed = item.findingIds.map((id) =>
+        data.findings.find((candidate) => candidate.id === id),
+      );
+      // Keep linked work on its history. An unlinked proposal stops being current when each of its findings
+      // has the fix of a later check, or an exact later pass.
       if (
         !link &&
-        item.findingIds.length > 0 &&
-        item.findingIds.every((id) => {
-          const finding = data.findings.find(
-            (candidate) => candidate.id === id,
-          );
-          if (!finding?.device) return false;
-          const latest = latestChecked.get(checkIdentity(data, finding));
+        fixed.length > 0 &&
+        fixed.every((finding) => {
+          if (!finding) return false;
+          const identity = checkIdentity(data, finding);
+          if (proposed.has(identity)) return true;
+          if (!finding.device) return false;
+          const latest = latestChecked.get(identity);
           return (
             latest?.result === "pass" && latest.observedAt > row.observedAt
           );
         })
       )
         continue;
+      // A Task that failed, was cancelled or is gone fixes nothing: its action replaces no older proposal,
+      // so the finding keeps one open fix.
+      const taskStatus = link ? taskStatuses.get(link.taskId) : undefined;
+      if (!link || (taskStatus && !DEAD_TASK_STATUSES.has(taskStatus)))
+        for (const finding of fixed)
+          if (finding) rowProposed.push(checkIdentity(data, finding));
       actions.push({
         ...item,
         observationId: row.id,
@@ -485,6 +500,8 @@ export function projectSeoProjection(
           : "recommended",
       });
     }
+    // Only a later check replaces a proposal: two actions of one check can fix one finding.
+    for (const identity of rowProposed) proposed.add(identity);
   }
   for (const choice of input.keywords) {
     if (

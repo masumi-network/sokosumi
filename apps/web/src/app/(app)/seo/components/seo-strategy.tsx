@@ -3,12 +3,14 @@
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
 import { Check, Copy, WandSparkles } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { useClipboard } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
+import { SeoActionCardHead } from "./seo-card-head";
 import {
+  SEO_ROW_LIST_CLASS,
   SeoDate,
   SeoFoldSummary,
   SeoPageLink,
@@ -193,18 +195,80 @@ function StrategyDraft({ text, titleId }: { text: string; titleId: string }) {
   );
 }
 
+/**
+ * One action of the keyword strategy. Closed, it is one row: the title, the kind and the effort, so a list of
+ * actions reads as a list. Open, it adds the reason, the places, the limit, the suggested text and the button.
+ */
 function StrategyActionCard({
   action,
   model,
+  startOpen,
 }: {
   action: ProjectSeoStrategy["actions"][number];
   model: SeoWorkspaceModel;
+  /** The one action of a list has nothing to choose from, so it starts open. */
+  startOpen: boolean;
+}) {
+  const t = useTranslations("App.Seo");
+  // Every card has the same button name; the card's title tells them apart.
+  const titleId = useId();
+  const bodyId = useId();
+  // Null until the reader presses the row: the start state follows the list, also when the list changes.
+  const [toggled, setToggled] = useState<boolean | null>(null);
+  const open = toggled ?? startOpen;
+  const kind = seoStrategyKey(SEO_STRATEGY_ACTION_KINDS, action.kind);
+  return (
+    <article className={cn(HOLDER_ITEM_CLASS, "min-w-0")}>
+      <h3>
+        <SeoActionCardHead
+          bodyId={bodyId}
+          open={open}
+          onToggle={() => setToggled(!open)}
+        >
+          <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
+            <span
+              id={titleId}
+              className="block min-w-0 text-sm font-semibold break-words sm:flex-1"
+            >
+              {action.title}
+            </span>
+            <span className="flex flex-wrap items-center gap-1 max-sm:mt-1">
+              {kind ? (
+                <SeoState>{t(`strategy.actionKind.${kind}`)}</SeoState>
+              ) : null}
+              <SeoState>
+                {t("actions.effort")}: {t(`priority.${action.effort}`)}
+              </SeoState>
+            </span>
+          </span>
+        </SeoActionCardHead>
+      </h3>
+      {open ? (
+        <StrategyActionBody
+          action={action}
+          model={model}
+          bodyId={bodyId}
+          titleId={titleId}
+        />
+      ) : null}
+    </article>
+  );
+}
+
+/** What an open strategy action adds under its title row. */
+function StrategyActionBody({
+  action,
+  model,
+  bodyId,
+  titleId,
+}: {
+  action: ProjectSeoStrategy["actions"][number];
+  model: SeoWorkspaceModel;
+  bodyId: string;
+  titleId: string;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
-  // Every card has the same button name; the card's title tells them apart.
-  const titleId = useId();
-  const kind = seoStrategyKey(SEO_STRATEGY_ACTION_KINDS, action.kind);
   const placeForm = action.place
     ? seoStrategyKey(SEO_STRATEGY_PLACE_FORMS, action.place.form)
     : null;
@@ -220,20 +284,7 @@ function StrategyActionCard({
     ? [action.place.url]
     : action.targets.map((target) => target.url);
   return (
-    <article className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 id={titleId} className="text-sm font-semibold break-words">
-          {action.title}
-        </h3>
-        <div className="flex flex-wrap gap-1">
-          {kind ? (
-            <SeoState>{t(`strategy.actionKind.${kind}`)}</SeoState>
-          ) : null}
-          <SeoState>
-            {t("actions.effort")}: {t(`priority.${action.effort}`)}
-          </SeoState>
-        </div>
-      </div>
+    <div id={bodyId} className="space-y-3 px-4 pt-1 pb-4">
       <p className="text-muted-foreground max-w-prose text-sm break-words">
         {action.why}
       </p>
@@ -316,7 +367,7 @@ function StrategyActionCard({
           {t("agent.askHow")}
         </Button>
       ) : null}
-    </article>
+    </div>
   );
 }
 
@@ -339,13 +390,17 @@ export function SeoStrategyActions({ model }: { model: SeoWorkspaceModel }) {
           : t("strategy.actions.help")
       }
     >
-      {actions.map((action, index) => (
-        <StrategyActionCard
-          key={`${index}:${action.title}`}
-          action={action}
-          model={model}
-        />
-      ))}
+      <ul role="list" className={SEO_ROW_LIST_CLASS}>
+        {actions.map((action, index) => (
+          <li key={`${index}:${action.title}`}>
+            <StrategyActionCard
+              action={action}
+              model={model}
+              startOpen={actions.length === 1}
+            />
+          </li>
+        ))}
+      </ul>
     </SeoSection>
   );
 }

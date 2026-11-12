@@ -64,6 +64,8 @@ INFERRED: Competitors distinguishes discovered URLs from confirmed choices. Miss
 
 INFERRED: Actions can create one draft Task with source references. Later compatible passing checks remove superseded, unlinked recommendations.
 
+VERIFIED (apps/core/src/services/project-seo-projection.test.ts, "replaces an unlinked recommendation when a later check proposes its own fix for the finding"): A later compatible check that proposes its own fix for each finding of an unlinked recommendation replaces that recommendation. A fix whose Task failed, was cancelled or is gone replaces nothing.
+
 INFERRED: Completing a Task records implementation. Verification requires a later compatible check of the referenced findings.
 
 ## 4. Follow changes and ask SEO chat

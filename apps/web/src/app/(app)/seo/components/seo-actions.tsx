@@ -1,23 +1,14 @@
 "use client";
 
 import type { ProjectSeoAction } from "@sokosumi/core-client";
-import {
-  ArrowUpRight,
-  ChevronDown,
-  ClipboardPlus,
-  Play,
-  Plug,
-  Plus,
-} from "lucide-react";
+import { ArrowUpRight, ClipboardPlus, Play, Plug, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  HOLDER_ITEM_CLASS,
-  HOLDER_ITEM_HOVER_CLASS,
-} from "@/components/ui/holder-surface";
+import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { SeoActionCardHead } from "./seo-card-head";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
   SEO_ROW_LIST_CLASS,
@@ -33,50 +24,6 @@ import {
 } from "./seo-shared";
 import { SeoStrategyActions } from "./seo-strategy";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
-
-/** The title row of an action card: a button that opens and closes the card, or plain text where the card stays open. */
-function SeoActionCardHead({
-  bodyId,
-  open,
-  onToggle,
-  children,
-}: {
-  bodyId: string;
-  open: boolean;
-  /** Absent where the card stays open. */
-  onToggle: (() => void) | undefined;
-  children: ReactNode;
-}) {
-  // An open card has its page link directly under the title: the head ends close over it.
-  const pad = open ? "pt-3 pb-1" : "py-3";
-  if (!onToggle)
-    return (
-      <span className={cn("flex items-center gap-3 px-4", pad)}>
-        {children}
-      </span>
-    );
-  return (
-    <button
-      type="button"
-      aria-expanded={open}
-      aria-controls={open ? bodyId : undefined}
-      onClick={onToggle}
-      className={cn(
-        HOLDER_ITEM_HOVER_CLASS,
-        "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 text-start outline-none focus-visible:ring-2",
-        pad,
-      )}
-    >
-      {children}
-      <ChevronDown
-        className={cn(
-          "text-muted-foreground size-4 shrink-0 transition-transform duration-150 ease-out motion-reduce:transition-none",
-          open && "rotate-180",
-        )}
-      />
-    </button>
-  );
-}
 
 /**
  * One card for an action (the Actions tab, and the top proposal on the Agent tab). Closed, it is one row:
