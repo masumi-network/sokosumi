@@ -9,11 +9,13 @@ import { Download, File, Folder, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
+import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isCapTableFileName } from "@/lib/cap-table-file";
 import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { fileTitle, isTeamFileName } from "@/lib/team-file";
 import { cn } from "@/lib/utils";
@@ -211,6 +213,8 @@ function RoomFile({
 
       {isTeamFileName(row.name) ? (
         <TeamFileView url={url} />
+      ) : isCapTableFileName(row.name) ? (
+        <CapTableFileView url={url} />
       ) : sheet ? (
         <SpreadsheetFileView url={url} kind={sheet} />
       ) : mime === "application/pdf" ? (
