@@ -19,15 +19,13 @@ vi.mock("@/lib/services/chat-room.service", () => ({
   },
 }));
 
-vi.mock("@/lib/services/user.service", () => ({
-  userService: {
-    getMyMembersWithOrganizations: () => getMyMembersMock(),
-  },
-}));
-
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getMyCredits: (...args: unknown[]) => getMyCreditsMock(...args),
+  },
+  coreClientNoRedirect: {
+    getMyMembersWithOrganizations: () =>
+      Promise.resolve(getMyMembersMock()).then((data) => ({ data })),
   },
 }));
 

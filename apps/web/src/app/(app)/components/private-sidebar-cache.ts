@@ -7,13 +7,12 @@ import type {
 } from "@sokosumi/core-client";
 import { cacheLife, cacheTag, updateTag } from "next/cache";
 import { cache } from "react";
-import { coreClient } from "@/lib/clients/core.client";
+import { coreClient, coreClientNoRedirect } from "@/lib/clients/core.client";
 import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
   type ChatRoomsPage,
   chatRoomService,
 } from "@/lib/services/chat-room.service";
-import { userService } from "@/lib/services/user.service";
 export function privateSidebarUserTag(userId: string): string {
   return `app-sidebar-user-${userId}`;
 }
@@ -60,8 +59,16 @@ export async function loadChatListArchivedAndMembers(
   const archivedChatRoomsPromise = activeOrganizationId
     ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
     : Promise.resolve(EMPTY_ROOMS_PAGE);
-  const membersPromise = userService
+  // Straight to Core, not through `userService`: that reads the session
+  // first, and under "use cache: private" React's `cache()` does not share the
+  // frame's session read, so it was a second fetch on every fill. When it
+  // stalled, everything that awaits this slice (the account footer, the
+  // sidebar's chat list) waited out its timeout and then cached "no
+  // memberships". The frame has already proved the session and Core checks
+  // the cookie itself; a 401 lands in the catch.
+  const membersPromise = coreClientNoRedirect
     .getMyMembersWithOrganizations()
+    .then((response) => response.data)
     .catch(() => []);
 
   const [archivedChatRoomsPage, members] = await Promise.all([
