@@ -433,7 +433,7 @@ function BrandCheck({ overview, handlers }: ChatAskProps) {
         <Note
           id="brief-fix-note"
           label="What's off"
-          placeholder="Or say what's off, e.g. “We sell to agencies too”"
+          placeholder="Or say what's off"
           value={note}
           onChange={setNote}
           inputRef={noteRef}
@@ -545,7 +545,7 @@ function BriefingPlan(props: ChatAskProps) {
       </Answers>
       <PlanNote
         {...props}
-        placeholder="Your own goal, or what to change"
+        placeholder="Your goal, or a change"
         onRefused={setRefusal}
       />
       {refusal ? (
@@ -587,7 +587,7 @@ function BriefingWeek(props: ChatAskProps) {
   return (
     <Bubble
       question={`Week one has ${week.length} ${week.length === 1 ? "piece" : "pieces"}, about ${perDay} a day. Keep this pace?`}
-      sub="Tap any piece above to change it."
+      sub="Tap a piece above, or say what to change, e.g. “No hype on Thursday”."
     >
       <Answers>
         <Choice
@@ -615,7 +615,7 @@ function BriefingWeek(props: ChatAskProps) {
       </Answers>
       <PlanNote
         {...props}
-        placeholder="Or change something, e.g. “No hype on Thursday”"
+        placeholder="Or say what to change"
         onRefused={setNoteRefusal}
       />
       {refusal || noteRefusal ? (
@@ -637,7 +637,7 @@ function PlanQuestion({ overview, handlers, id }: QuestionProps) {
     <YesNo
       key={id}
       question={question.question}
-      placeholder="If no, what should I do instead?"
+      placeholder="If no, what should I do?"
       noteId="brief-plan-question-note"
       onAnswer={(answer, note) => handlers.answerPlan(id, answer, note)}
     />
@@ -748,7 +748,7 @@ function BriefingAds(props: ChatAskProps) {
       ) : (
         <PlanNote
           {...props}
-          placeholder="Or say what to change about the ads"
+          placeholder="Or say what to change"
           onRefused={setNoteRefusal}
         />
       )}

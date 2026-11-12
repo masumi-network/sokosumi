@@ -690,15 +690,55 @@ button.brief-week-row:hover .brief-week-text b {
   }
 
   .brief-fold {
+    display: grid;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  .brief-fold-line {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 4px 12px;
     margin: 0;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
     font-size: 0.75rem;
     line-height: 1rem;
+  }
+
+  /* The seven stages as segments, marked like the desktop timeline. */
+  .brief-fold-strip {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .brief-fold-strip li {
+    box-sizing: border-box;
+    height: 5px;
+    border-radius: var(--radius-mark);
+    background: var(--border);
+  }
+
+  .brief-fold-strip .done {
+    background: var(--line);
+  }
+
+  .brief-fold-strip .now {
+    background: var(--primary);
+  }
+
+  .brief-fold-strip .background {
+    border: 1px dashed var(--line);
+    background: none;
+  }
+
+  /* Send under the field, so a placeholder reads in full. */
+  .brief-note input {
+    flex-basis: 100%;
   }
 
   .brief-bar-asking .brief-bar-inner {
@@ -713,6 +753,7 @@ button.brief-week-row:hover .brief-week-text b {
 
   .brief-note {
     flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }
 

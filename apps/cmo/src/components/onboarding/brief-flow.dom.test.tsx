@@ -173,6 +173,27 @@ describe("working", () => {
   });
 });
 
+describe("the phone's progress strip", () => {
+  it("draws seven segments under the step line, marked like the timeline", async () => {
+    // The brand check, with the plan writing behind it.
+    await render(
+      asking({
+        brandBrain: { ...brain, questions: [] },
+        work: work("strategy"),
+      }),
+    );
+    const strip = container.querySelector(".brief-fold-strip");
+    expect(strip?.getAttribute("aria-hidden")).toBe("true");
+    expect(
+      [...(strip?.children ?? [])].map((segment) => segment.className),
+    ).toEqual(["done", "done", "now", "background", "next", "next", "next"]);
+    // The step line stays the readable label.
+    expect(container.querySelector(".brief-fold")?.textContent).toContain(
+      "Step 3 of 7 · Brand check",
+    );
+  });
+});
+
 describe("the chat asks, one thing at a time", () => {
   it("asks a brand question with its count, focuses it and saves the answer", async () => {
     const answerBrandQuestion = vi.fn(async () => asking());

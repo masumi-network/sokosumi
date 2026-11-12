@@ -46,12 +46,20 @@ export function Timeline({ marks }: TimelineProps) {
         ))}
       </ol>
       {current ? (
-        <p className="brief-fold">
-          <span>
-            Step {at + 1} of {marks.length} · <b>{current.label}</b>
-          </span>
-          <span className="muted">{NEXT_LINE[current.id]}</span>
-        </p>
+        <div className="brief-fold">
+          <p className="brief-fold-line">
+            <span>
+              Step {at + 1} of {marks.length} · <b>{current.label}</b>
+            </span>
+            <span className="muted">{NEXT_LINE[current.id]}</span>
+          </p>
+          {/* The step line is the label; the strip only draws it. */}
+          <ol className="brief-fold-strip" aria-hidden="true">
+            {marks.map((mark) => (
+              <li key={mark.id} className={mark.state} />
+            ))}
+          </ol>
+        </div>
       ) : null}
     </>
   );
