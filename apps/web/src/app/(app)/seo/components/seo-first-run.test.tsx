@@ -369,7 +369,7 @@ describe("SEO audit first run", () => {
     expect(steps[1]).toHaveAttribute("aria-current", "step");
   });
 
-  it("keeps keyboard focus on the check button when the check starts to run, and says when it started", () => {
+  it("keeps keyboard focus on the check button when the check starts to run, and says when it started and how far it is", () => {
     const workspace = seoTestWorkspace();
     network(workspace);
     const client = page(setupCard(workspace));
@@ -391,14 +391,112 @@ describe("SEO audit first run", () => {
     expect(document.activeElement).toBe(button);
     expect(button).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("Check running")).toBeVisible();
-    // Core gives a start time and no progress: the card says the first, and invents no share or time left.
-    expect(screen.getByText(copy.setup.checkStartedNow)).toBeVisible();
-    const earlier = seoTestWorkspace();
-    earlier.analyses = [
-      { ...check, createdAt: new Date(Date.now() - 12 * 60_000) },
-    ];
-    view.rerender(page(setupCard(earlier)));
+    // Core gives a start time and no progress. A first full audit of one page has the default time limit
+    // (16 minutes) and the steps after it (5 minutes): the card says the time left, as an estimate.
+    expect(
+      screen.getByText("Started just now. About 21 minutes left (estimate)."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("progressbar", {
+        name: "Progress of the check (estimate)",
+      }),
+    ).toHaveAttribute("aria-valuenow", "0");
+    const at = (minutes: number, kind: "audit_full" | "page_check") => {
+      const earlier = seoTestWorkspace();
+      earlier.analyses = [
+        {
+          ...check,
+          kind,
+          createdAt: new Date(Date.now() - minutes * 60_000),
+        },
+      ];
+      view.rerender(page(setupCard(earlier)));
+    };
+    at(12, "audit_full");
+    expect(
+      screen.getByText(
+        "Started 12 minutes ago. About 9 minutes left (estimate).",
+      ),
+    ).toBeVisible();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "57",
+    );
+    // Past the usual time the bar does not fill and the words promise no time.
+    at(30, "audit_full");
+    expect(
+      screen.getByText("Started 30 minutes ago. It takes longer than usual."),
+    ).toBeVisible();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "95",
+    );
+    // A first page check has no usual time: the card invents no share and no time left.
+    at(12, "page_check");
     expect(screen.getByText("Started 12 minutes ago.")).toBeVisible();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+
+  it("starts no second check while one runs: the press opens no form", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    network(workspace);
+    const view = render(
+      page(<SeoWorkspace workspace={workspace} />, "?tab=actions"),
+    );
+    // Without a check in flight the empty Actions tab opens the check form.
+    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    expect(await screen.findByRole("dialog")).toBeVisible();
+    view.unmount();
+    const running = seoTestWorkspace();
+    running.analyses = [
+      {
+        id: "a1",
+        kind: "audit_full",
+        status: "running",
+        taskId: null,
+        pageIds: running.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date(),
+      },
+    ];
+    network(running);
+    render(page(<SeoWorkspace workspace={running} />, "?tab=actions"));
+    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("shows the runs of the site over the tabs, and the page of an older run on a press", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const run = (observedAt: string, issues: number) => ({
+      observationId: crypto.randomUUID(),
+      kind: "audit_full",
+      observedAt: new Date(observedAt),
+      issues,
+      seconds: 600,
+    });
+    // One run is no choice: no row.
+    workspace.runs = [run("2026-11-12T13:00:00Z", 5)];
+    network(workspace);
+    const view = render(page(<SeoWorkspace workspace={workspace} />));
+    expect(screen.queryByRole("group", { name: "Audit runs" })).toBeNull();
+    view.unmount();
+    workspace.runs.push(run("2026-11-10T09:00:00Z", 6));
+    render(page(<SeoWorkspace workspace={workspace} />));
+    const runs = within(screen.getByRole("group", { name: "Audit runs" }));
+    const newest = runs.getByRole("button", { name: "Nov 12 5 issues" });
+    const older = runs.getByRole("button", { name: "Nov 10 6 issues" });
+    expect(newest).toHaveAttribute("aria-pressed", "true");
+    expect(older).toHaveAttribute("aria-pressed", "false");
+    await user.click(older);
+    await waitFor(() => expect(older).toHaveAttribute("aria-pressed", "true"));
+    expect(newest).toHaveAttribute("aria-pressed", "false");
+    // The row shows the pick: the date fields stay closed.
+    expect(document.getElementById("seo-period-from")).toBeNull();
+    // The newest run is the page without a date.
+    await user.click(newest);
+    await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
   });
 
   it("says why checks are off in the notice, with no setup card that promises a check", async () => {

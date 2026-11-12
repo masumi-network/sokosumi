@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { seoRunAction, seoRunningCheck, seoSetup } from "./seo-setup-model";
+import {
+  seoRunAction,
+  seoRunningCheck,
+  seoRunProgress,
+  seoSetup,
+} from "./seo-setup-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 
 describe("SEO header run action", () => {
@@ -92,6 +97,52 @@ describe("SEO first-run setup", () => {
       },
     ];
     expect(seoSetup(workspace)).toMatchObject({ check: "running", next: null });
+  });
+
+  it("estimates a check in flight from the middle time of the earlier runs of its kind", () => {
+    const workspace = seoTestWorkspace();
+    const now = new Date("2026-01-02T12:10:00Z");
+    expect(seoRunProgress(workspace, now)).toBeNull();
+    workspace.analyses = [
+      {
+        id: "a1",
+        kind: "page_check",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date("2026-01-02T12:00:00Z"),
+      },
+    ];
+    const run = (kind: string, seconds: number | null) => ({
+      observationId: `${kind}:${seconds}`,
+      kind,
+      observedAt: new Date("2026-01-01T12:00:00Z"),
+      issues: 0,
+      seconds,
+    });
+    // Runs of another kind and runs without a request say nothing about this check.
+    workspace.runs = [run("audit_full", 3000), run("page_check", null)];
+    expect(seoRunProgress(workspace, now)).toEqual({
+      share: null,
+      minutesLeft: null,
+      late: false,
+    });
+    // One slow run does not move the middle: 20 minutes is the usual time, and 10 minutes are gone.
+    workspace.runs.push(
+      run("page_check", 600),
+      run("page_check", 1200),
+      run("page_check", 9000),
+    );
+    expect(seoRunProgress(workspace, now)).toEqual({
+      share: 0.5,
+      minutesLeft: 10,
+      late: false,
+    });
+    // A clock behind Core's gives no negative share.
+    expect(
+      seoRunProgress(workspace, new Date("2026-01-02T11:59:00Z")),
+    ).toMatchObject({ share: 0, minutesLeft: 20 });
   });
 
   it("speaks for the whole Audit, so a page, date or channel filter ends it", () => {

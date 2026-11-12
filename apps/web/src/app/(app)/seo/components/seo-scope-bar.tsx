@@ -66,20 +66,23 @@ export function seoScopeControls({
 export function useSeoDateFields({
   filters,
   dates,
+  picked,
 }: {
   filters: SeoWorkspaceModel["filters"];
   dates: boolean;
+  /** The end date is the pick of a run in the row of runs: that row shows it, so the fields stay closed. */
+  picked: boolean;
 }) {
   // The tab the fields were opened on: fields opened elsewhere fold where dates are hidden,
   // but fields in use there stay while a date is cleared mid-edit.
   const [openedOn, setOpenedOn] = useState<{ tab: typeof filters.tab } | null>(
-    filters.from || filters.to ? { tab: filters.tab } : null,
+    (filters.from || filters.to) && !picked ? { tab: filters.tab } : null,
   );
   return {
     // An active date filter always shows, also when a link or Back sets it later.
     open:
       Boolean(openedOn && (dates || openedOn.tab === filters.tab)) ||
-      Boolean(filters.from || filters.to),
+      (Boolean(filters.from || filters.to) && !picked),
     reveal: () => setOpenedOn({ tab: filters.tab }),
   };
 }

@@ -1,5 +1,8 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import type { SeoAnalysisKind } from "./seo-form-model";
+import {
+  defaultFullAuditSeconds,
+  type SeoAnalysisKind,
+} from "./seo-form-model";
 import { seoOverviewModel } from "./seo-overview-model";
 
 /**
@@ -27,6 +30,48 @@ export function seoRunningCheck(workspace: ProjectSeoWorkspace) {
         analysis.status === "requested" || analysis.status === "running",
     ),
   );
+}
+
+/** A full audit ends some minutes after its time limit: the last steps run after it. */
+const SEO_AFTER_LIMIT_SECONDS = 300;
+/** The bar never shows a full share: only the result says that the check is done. */
+const SEO_RUN_SHARE_MAX = 0.95;
+const MINUTE_MS = 60_000;
+
+/**
+ * How far the check in flight is, as an estimate. Core reports no progress and no end time, so the usual time
+ * is the middle time of the earlier runs of the same kind. A first full audit has none: its usual time is the
+ * default time limit of its pages. Another first check has no usual time: no share and no time left.
+ */
+export function seoRunProgress(workspace: ProjectSeoWorkspace, now: Date) {
+  const check = seoRunningCheck(workspace);
+  if (!check) return null;
+  const earlier = (workspace.runs ?? [])
+    .flatMap((run) =>
+      run.kind === check.kind && run.seconds ? [run.seconds] : [],
+    )
+    .sort((a, b) => a - b);
+  const usualSeconds = earlier.length
+    ? earlier[Math.floor(earlier.length / 2)]
+    : check.kind === "audit_full"
+      ? defaultFullAuditSeconds(check.pageIds.length) + SEO_AFTER_LIMIT_SECONDS
+      : null;
+  if (!usualSeconds) return { share: null, minutesLeft: null, late: false };
+  const usual = usualSeconds * 1000;
+  // A clock that runs behind Core's gives a time before the start.
+  const elapsed = Math.max(
+    0,
+    now.getTime() - new Date(check.createdAt).getTime(),
+  );
+  const late = elapsed >= usual;
+  return {
+    share: Math.min(SEO_RUN_SHARE_MAX, elapsed / usual),
+    // To the nearest minute, like the start time beside it, and never "0 minutes".
+    minutesLeft: late
+      ? null
+      : Math.max(1, Math.round((usual - elapsed) / MINUTE_MS)),
+    late,
+  };
 }
 
 /** A check that Core accepted and has not finished. */

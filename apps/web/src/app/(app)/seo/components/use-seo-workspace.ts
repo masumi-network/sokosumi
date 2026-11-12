@@ -33,6 +33,7 @@ import {
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
+import { seoCheckRunning } from "./seo-setup-model";
 import {
   SEO_DEFAULT_STATISTICS_DAYS,
   type SeoStatisticsProvider,
@@ -160,7 +161,17 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [analysisKind, setAnalysisKind] = useState<SeoAnalysisKind | null>(
     null,
   );
+  /**
+   * One check at a time. Every way to the check form goes through here, so a press while a check runs opens
+   * nothing and says why: the buttons, the steps of the Agent tab and the replies in the chat.
+   */
+  function checkInFlight() {
+    if (!seoCheckRunning(data)) return false;
+    toast.info(t("analysis.alreadyRunning"));
+    return true;
+  }
   function setDialog(value: SeoDialog) {
+    if (value === "analysis" && checkInFlight()) return;
     setStatisticsSource(undefined);
     setKeywordDraft(null);
     setAnalysisKind(null);
@@ -168,6 +179,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   }
   /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
   function openAnalysis(kind: SeoAnalysisKind) {
+    if (checkInFlight()) return;
     setAnalysisKind(kind);
     setDialogState("analysis");
   }

@@ -11246,6 +11246,7 @@
         "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
         "submit": "Start check",
         "queued": "Check requested",
+        "alreadyRunning": "A check is running. Wait for its result before you start the next one.",
         "noPermission": "A check cannot be requested for these pages.",
         "running": "Checks in progress",
         "requested": "Requested",
@@ -11558,6 +11559,12 @@
       },
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
+      "runs": {
+        "label": "Audit runs",
+        "running": "Running",
+        "left": "about {minutes} min left",
+        "late": "longer than usual"
+      },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",
       "breakdown": {
@@ -11611,7 +11618,10 @@
         "checkStartedNow": "Started just now.",
         "checkRunningBadge": "Check running",
         "checkFailed": "The last check did not finish. Run it again.",
-        "checkEnded": "The check ended."
+        "checkEnded": "The check ended.",
+        "checkLeft": "About {minutes, plural, one {# minute} other {# minutes}} left (estimate).",
+        "checkLate": "It takes longer than usual.",
+        "checkProgress": "Progress of the check (estimate)"
       },
       "strategy": {
         "title": "Keyword strategy",

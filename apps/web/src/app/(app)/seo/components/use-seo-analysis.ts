@@ -17,7 +17,7 @@ import {
   seoAnalysisRequirements,
   seoMonitorRunCount,
 } from "./seo-form-model";
-import { seoRunAction } from "./seo-setup-model";
+import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
@@ -72,6 +72,11 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
       toast.error(
         t(monitor ? "monitor.unavailable" : "analysis.serviceUnavailable"),
       );
+      return;
+    }
+    // A check can start in another window while this form is open.
+    if (!monitor && seoCheckRunning(model.data)) {
+      toast.info(t("analysis.alreadyRunning"));
       return;
     }
     try {

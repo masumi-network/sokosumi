@@ -11246,6 +11246,7 @@
         "htmlService": "Dieser Prüfdienst unterstützt HTML-Seitenprüfungen. Suchdaten und vollständige Audits sind hier nicht verfügbar.",
         "submit": "Prüfung starten",
         "queued": "Prüfung angefragt",
+        "alreadyRunning": "Eine Prüfung läuft. Warte auf ihr Ergebnis, bevor du die nächste startest.",
         "noPermission": "Für diese Seiten kann keine Prüfung angefragt werden.",
         "running": "Laufende Prüfungen",
         "requested": "Angefragt",
@@ -11558,6 +11559,12 @@
       },
       "scopeFilters": "Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
+      "runs": {
+        "label": "Audit-Läufe",
+        "running": "Läuft",
+        "left": "noch etwa {minutes} Min.",
+        "late": "länger als üblich"
+      },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",
       "breakdown": {
@@ -11611,7 +11618,10 @@
         "checkStartedNow": "Gerade gestartet.",
         "checkRunningBadge": "Prüfung läuft",
         "checkFailed": "Die letzte Prüfung wurde nicht abgeschlossen. Starte sie erneut.",
-        "checkEnded": "Die Prüfung ist beendet."
+        "checkEnded": "Die Prüfung ist beendet.",
+        "checkLeft": "Noch etwa {minutes, plural, one {# Minute} other {# Minuten}} (Schätzung).",
+        "checkLate": "Es dauert länger als üblich.",
+        "checkProgress": "Fortschritt der Prüfung (Schätzung)"
       },
       "strategy": {
         "title": "Keyword-Strategie",

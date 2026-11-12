@@ -6,12 +6,14 @@ import { useFormatter, useNow, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
   type SeoSetup,
   type SeoSetupState,
   seoRunAction,
   seoRunningCheck,
+  seoRunProgress,
 } from "./seo-setup-model";
 import { SEO_GHOST_EDGE_CLASS } from "./seo-shared";
 import { SeoStep, SeoStepList, type SeoStepMark } from "./seo-steps";
@@ -27,8 +29,8 @@ const MARK: Record<SeoSetupState, SeoStepMark> = {
 };
 
 /**
- * A check in flight: its badge, and when it started. Core reports no progress
- * and no end time for a check, so the page states no share and no time left.
+ * A check in flight: its badge, when it started, and how far it is. Core reports no progress and no end time
+ * for a check, so the share and the time left are an estimate from earlier runs, and the words say so.
  */
 export function SeoCheckRunning({
   workspace,
@@ -39,10 +41,11 @@ export function SeoCheckRunning({
   const format = useFormatter();
   const now = useNow({ updateInterval: MINUTE_MS });
   const check = seoRunningCheck(workspace);
-  if (!check) return null;
+  const progress = seoRunProgress(workspace, now);
+  if (!check || !progress) return null;
   const started = new Date(check.createdAt);
   return (
-    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       {/* The agent panel announces a running check; this badge is its picture. */}
       <span aria-hidden>
         <StatusBadge tone="working" live>
@@ -56,8 +59,21 @@ export function SeoCheckRunning({
           : t("setup.checkStarted", {
               when: format.relativeTime(started, now),
             })}
+        {progress.minutesLeft
+          ? ` ${t("setup.checkLeft", { minutes: progress.minutesLeft })}`
+          : progress.late
+            ? ` ${t("setup.checkLate")}`
+            : null}
       </span>
-    </span>
+      {progress.share === null ? null : (
+        // A line of its own under the words, as wide as a short sentence.
+        <Progress
+          aria-label={t("setup.checkProgress")}
+          value={Math.round(progress.share * 100)}
+          className="h-1 max-w-64 basis-full"
+        />
+      )}
+    </div>
   );
 }
 

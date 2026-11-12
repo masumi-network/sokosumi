@@ -11246,6 +11246,7 @@
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",
+        "alreadyRunning": "Hay una comprobación en curso. Espera su resultado antes de iniciar la siguiente.",
         "noPermission": "No se puede solicitar una comprobación para estas páginas.",
         "running": "Comprobaciones en curso",
         "requested": "Solicitada",
@@ -11558,6 +11559,12 @@
       },
       "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
+      "runs": {
+        "label": "Ejecuciones de la auditoría",
+        "running": "En curso",
+        "left": "quedan unos {minutes} min",
+        "late": "más de lo habitual"
+      },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",
       "breakdown": {
@@ -11611,7 +11618,10 @@
         "checkStartedNow": "Iniciada ahora mismo.",
         "checkRunningBadge": "Comprobación en curso",
         "checkFailed": "La última comprobación no terminó. Iníciala de nuevo.",
-        "checkEnded": "La comprobación terminó."
+        "checkEnded": "La comprobación terminó.",
+        "checkLeft": "Quedan unos {minutes, plural, one {# minuto} other {# minutos}} (estimación).",
+        "checkLate": "Tarda más de lo habitual.",
+        "checkProgress": "Progreso de la comprobación (estimación)"
       },
       "strategy": {
         "title": "Estrategia de palabras clave",

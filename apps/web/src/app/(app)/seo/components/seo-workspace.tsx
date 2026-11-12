@@ -63,6 +63,8 @@ import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoRankings } from "./seo-rankings";
+import { SeoRuns } from "./seo-runs";
+import { seoRunDays } from "./seo-runs-model";
 import {
   SeoDateFilterButton,
   SeoPagePicker,
@@ -117,6 +119,7 @@ export function SeoWorkspace({
   const dateFields = useSeoDateFields({
     filters: model.filters,
     dates: controls.dates,
+    picked: seoRunDays(model.data, model.filters).picked,
   });
   // An empty filter block would still add a gap under the header.
   // With a page picker the closed date filter stands beside it, in the header line. Without one it stays under
@@ -395,6 +398,7 @@ export function SeoWorkspace({
         }}
         className="gap-4"
       >
+        <SeoRuns model={model} />
         <div
           ref={tabBar}
           // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track.
