@@ -241,6 +241,11 @@ export function briefAsks(overview: CmoOverview, local: BriefLocal): Ask[] {
   if (stage === "briefing") {
     // The next question waits until a change lands.
     if (strategyRunning(overview)) return [];
+    // Once a plan was approved, the briefing is over on every device: a
+    // newer draft only waits for its approval.
+    if (overview.approvedStrategy) {
+      return [{ kind: "approve", canApprove: overview.viewerCanApprove }];
+    }
     const strategy = overview.strategy as Strategy;
     const asks: Ask[] = [];
     if (!local.briefed.includes("plan")) asks.push({ kind: "briefing-plan" });

@@ -221,6 +221,29 @@ describe("briefAsks", () => {
     expect(briefSteps(overview)).toEqual(["plan", "week", "checks", "ads"]);
   });
 
+  it("skips the whole briefing on any device once a plan was approved", () => {
+    const plan = {
+      ...strategy,
+      pace: { level: "active" as const, why: "One a day", perWeek: 7 },
+      questions: [
+        { id: "pq1", question: "Ship monthly?", statement: "They ship." },
+      ],
+    };
+    // A device with nothing briefed, after approval: Go live, no briefing.
+    expect(
+      kinds(
+        briefAsks(
+          draft({ ...approved, strategy: plan, approvedStrategy: plan }),
+          local(),
+        ),
+      ),
+    ).toEqual(["connect"]);
+    // A newer draft waits for approval: only the approval is asked again.
+    expect(
+      briefAsks(draft({ strategy: plan, approvedStrategy: plan }), local()),
+    ).toEqual([{ kind: "approve", canApprove: true }]);
+  });
+
   it("skips the ads step for a plan without ads", () => {
     expect(briefSteps(draft())).toEqual(["plan", "week"]);
     expect(kinds(briefAsks(draft(), briefed))).toEqual(["approve"]);
