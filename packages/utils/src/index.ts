@@ -493,6 +493,10 @@ export {
   X_PREMIUM_TEXT_LIMIT,
   type XLongPostSubscriptionType,
 } from "./social-post.js";
+export {
+  isStaleSokoBotReply,
+  readSokoBotAttemptAt,
+} from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export {

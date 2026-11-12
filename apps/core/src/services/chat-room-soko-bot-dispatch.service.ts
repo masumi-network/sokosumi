@@ -22,9 +22,8 @@ import {
 import {
   claimMentionForDispatch,
   failSokoBotReplyIfOwned,
-  readSokoBotAttemptAt,
+  openSokoBotReply,
 } from "./chat-room-mention-state";
-import { publishMentionThoughtPlaceholder } from "./chat-room-mention-stream";
 
 /**
  * Fails a Soko Bot mention only where `failSokoBotReplyIfOwned` allows, then
@@ -277,44 +276,45 @@ export async function runSokoBotMentionDispatch(params: {
     // already writing it, and may end at any moment: a reopened "Thinking…"
     // read by a publisher then would land after its outcome.
     if (!holder) {
-      try {
-        replyId = await publishMentionThoughtPlaceholder({
-          placeholderId: replyId,
-          roomId: mention.message.roomId,
-          parentMessageId: mention.message.parentMessageId,
-          sourceMessageId: mention.message.id,
-          mentionId,
-          sokoBotId: bot.id,
-          reasoningSteps: [],
-          thoughtStartedAtMs: Date.now(),
-          sokoBotAttempt: {
-            // A stale reclaim continues the attempt it took over (its give-up
-            // budget and event order); a claim from `pending` (a new message
-            // or an explicit Retry) starts one.
-            at:
-              (claim.reclaimed
-                ? readSokoBotAttemptAt(mention.responseMessage?.metadata)
-                : undefined) ?? claim.stamp.getTime(),
-            claimStamp: claim.stamp,
-          },
-        });
-      } catch (publishError) {
-        console.error("Soko Bot Thought placeholder create failed:", {
-          mentionId,
-          error: publishError,
-        });
-      }
-      if (!replyId) {
-        // The create may have committed with its acknowledgement lost, leaving a
+      const opened = await openSokoBotReply({
+        mentionId,
+        stamp: claim.stamp,
+        reclaimed: claim.reclaimed,
+      }).catch(async (openError: unknown) => {
+        // The open may have committed with its acknowledgement lost, leaving a
         // bubble streaming that this worker never learned the id of. Marking the
         // mention failed without adopting it is how a placeholder outlives every
         // other signal, so look before giving up.
+        console.error("Soko Bot Thought placeholder create failed:", {
+          mentionId,
+          error: openError,
+        });
         const committed = await prisma.chatRoomMention.findUniqueOrThrow({
           where: { id: mentionId },
-          select: { responseMessageId: true },
+          select: { responseMessageId: true, updatedAt: true },
         });
-        replyId = committed.responseMessageId;
-      }
+        // Adopt only a reply this claim opened: the link keeps its stamp.
+        return committed.responseMessageId &&
+          committed.updatedAt.getTime() === claim.stamp.getTime()
+          ? { replyId: committed.responseMessageId, eventType: null }
+          : undefined;
+      });
+      // Another claim, a stale reclaim or Retry owns the mention now: this
+      // worker's attempt is over and writes nothing more.
+      if (opened === null) return;
+      replyId = opened?.replyId ?? null;
+      if (opened?.eventType === "create")
+        await Promise.all([
+          invalidateChatRoomMessageReaders({ roomId: mention.message.roomId }),
+          publishChatRoomMessageRealtimeById(opened.replyId, "create"),
+        ]).catch((publishError: unknown) => {
+          console.error("Soko Bot Thought placeholder publish failed:", {
+            mentionId,
+            error: publishError,
+          });
+        });
+      else if (opened?.eventType === "update")
+        await publishChatRoomMessageRealtimeById(opened.replyId, "update");
     }
     if (!replyId) throw new Error("Could not open the reply");
     const responseMessageId = replyId;

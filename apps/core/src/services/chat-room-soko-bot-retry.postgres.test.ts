@@ -1224,4 +1224,204 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     expect(older(order(failed1), order(answered2))).toBe(true);
     expect(older(order(thinking2), order(answered2))).toBe(true);
   });
+
+  // ---- review 6: fenced reply open and fenced turn writes ----
+
+  /** Every Soko Bot message opened for this mention's source. */
+  async function repliesFor(mentionId: string) {
+    const rows = await db.chatRoomMessage.findMany({
+      where: { roomId, senderSokoBotId: botId },
+    });
+    return rows.filter(
+      (row) =>
+        (row.metadata as { mention_id?: string } | null)?.mention_id ===
+        mentionId,
+    );
+  }
+
+  it.each([{ reclaimerStarts: true }, { reclaimerStarts: false }])(
+    "lets a stale worker resuming before it opens the reply neither take it nor rewind its stamp (reclaimer starts its turn: $reclaimerStarts)",
+    async ({ reclaimerStarts }) => {
+      const m = await pendingMention();
+      // Worker A claims, reads no turn, then stalls before opening the reply.
+      const a = gate();
+      const realFindMany = db.sokoBotTurn.findMany.bind(db.sokoBotTurn);
+      const lookup = vi
+        .spyOn(db.sokoBotTurn, "findMany")
+        .mockImplementationOnce((async (args: never) => {
+          const found = await realFindMany(args);
+          a.reached();
+          await a.released;
+          return found;
+        }) as never);
+      const workerA = publicDispatch(m.mention.id);
+      await a.atHold;
+      // A stalls past the stale window; worker B reclaims and opens its reply.
+      await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
+      const started = reclaimerStarts
+        ? startsRunningTurn(m.mention.id, () => mentionReply(m.mention.id))
+        : [];
+      if (!reclaimerStarts)
+        startTurn.mockResolvedValue({ turnId: randomUUID(), status: "QUEUED" });
+      await publicDispatch(m.mention.id);
+      const afterB = await db.chatRoomMention.findUniqueOrThrow({
+        where: { id: m.mention.id },
+      });
+      expect(afterB.responseMessageId).not.toBeNull();
+
+      a.release();
+      try {
+        await workerA;
+      } finally {
+        lookup.mockRestore();
+      }
+      // A wrote nothing: B's reply stays linked, B's stamp stays, one reply.
+      const afterA = await db.chatRoomMention.findUniqueOrThrow({
+        where: { id: m.mention.id },
+      });
+      expect(afterA.responseMessageId).toBe(afterB.responseMessageId);
+      expect(afterA.updatedAt.getTime()).toBe(afterB.updatedAt.getTime());
+      expect(afterA.status).toBe("sent");
+      expect(await repliesFor(m.mention.id)).toHaveLength(1);
+      expect(startTurn).toHaveBeenCalledTimes(1);
+
+      if (reclaimerStarts) {
+        expect(
+          await completeAndDeliver(started[0], "Three invoices are due."),
+        ).toBe(true);
+        expect(await mentionState(m.mention.id)).toMatchObject({
+          status: "responded",
+          content: "Three invoices are due.",
+        });
+        // No reply left "Thinking…".
+        const replies = await repliesFor(m.mention.id);
+        expect(
+          replies.filter(
+            (row) =>
+              (row.metadata as { streaming?: boolean }).streaming === true,
+          ),
+        ).toEqual([]);
+      }
+    },
+  );
+
+  it("keeps a fresh Retry's answer visible when the old turn's progress lands late", async () => {
+    const { isStaleSokoBotReply, readSokoBotAttemptAt } = await import(
+      "@sokosumi/utils"
+    );
+    const { publishSokoBotChatProgress } = await import(
+      "./soko-bot-chat.service"
+    );
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
+    );
+    const m = await pendingMention();
+    // Every full copy of the reply the room receives, read when published.
+    const copies: { metadata: unknown; content: string }[] = [];
+    publish.mockImplementation(async (id: string) => {
+      const link = await db.chatRoomMention.findUnique({
+        where: { id: m.mention.id },
+        select: { responseMessageId: true },
+      });
+      if (link?.responseMessageId !== id) return;
+      const row = await db.chatRoomMessage.findUniqueOrThrow({ where: { id } });
+      copies.push({ metadata: row.metadata, content: row.content });
+    });
+
+    // Attempt 1 runs.
+    const first = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    await publicDispatch(m.mention.id);
+    const replyId = await mentionReply(m.mention.id);
+    const attempt1 = readSokoBotAttemptAt(
+      (await db.chatRoomMessage.findUniqueOrThrow({ where: { id: replyId } }))
+        .metadata,
+    );
+
+    // Its progress write is delayed at its transaction.
+    const realTx = db.$transaction.bind(db) as typeof db.$transaction;
+    const p = gate();
+    const delayed = vi.spyOn(db, "$transaction").mockImplementationOnce((async (
+      ...args: never[]
+    ) => {
+      p.reached();
+      await p.released;
+      return (realTx as (...a: never[]) => unknown)(...args);
+    }) as never);
+    const oldProgress = publishSokoBotChatProgress(first[0]);
+    await p.atHold;
+
+    // Meanwhile attempt 1 fails and is delivered; the user retries.
+    await db.sokoBotTurn.update({
+      where: { id: first[0] },
+      data: { status: "FAILED", errorDetail: "Gateway refused" },
+    });
+    await db.$transaction((tx) => enqueue(tx, first[0]));
+    const failedDelivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId: first[0] },
+    });
+    expect(await deliverSokoBotDelivery(failedDelivery.id)).toBe(true);
+    const second = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    expect(await retryRoute(m)).toBe(200);
+    expect(second).toHaveLength(1);
+    const attempt2 = readSokoBotAttemptAt(
+      (await db.chatRoomMessage.findUniqueOrThrow({ where: { id: replyId } }))
+        .metadata,
+    );
+
+    // The old progress lands now.
+    p.release();
+    try {
+      await oldProgress;
+    } finally {
+      delayed.mockRestore();
+    }
+    const afterOld = await db.chatRoomMessage.findUniqueOrThrow({
+      where: { id: replyId },
+    });
+    expect(readSokoBotAttemptAt(afterOld.metadata)).toBe(attempt2);
+    expect(
+      (afterOld.metadata as { soko_bot?: { turn_id?: string } }).soko_bot
+        ?.turn_id,
+    ).not.toBe(first[0]);
+
+    // The fresh turn answers through the real outbox.
+    expect(await completeAndDeliver(second[0], "Three invoices are due.")).toBe(
+      true,
+    );
+    const answered = await db.chatRoomMessage.findUniqueOrThrow({
+      where: { id: replyId },
+    });
+    expect(answered.content).toBe("Three invoices are due.");
+    expect(readSokoBotAttemptAt(answered.metadata)).toBe(attempt2);
+    expect(attempt2).toBeGreaterThan(attempt1 as number);
+
+    // The attempt carried by the reply never went down, copy by copy.
+    const stamps = copies.map((copy) => readSokoBotAttemptAt(copy.metadata));
+    expect(stamps.every((at) => typeof at === "number")).toBe(true);
+    for (let i = 1; i < stamps.length; i++)
+      expect(stamps[i] as number).toBeGreaterThanOrEqual(
+        stamps[i - 1] as number,
+      );
+    // Web's decision (`isStaleSokoBotReply`, used by mergeRoomMessages) over
+    // the copies in order, and again with the old attempt's copies arriving
+    // last: the answer stays shown.
+    const show = (order: typeof copies) =>
+      order.reduce<(typeof copies)[number] | undefined>(
+        (shown, copy) =>
+          shown && isStaleSokoBotReply(shown.metadata, copy.metadata)
+            ? shown
+            : copy,
+        undefined,
+      );
+    expect(show(copies)?.content).toBe("Three invoices are due.");
+    const old = copies.filter(
+      (copy) => readSokoBotAttemptAt(copy.metadata) === attempt1,
+    );
+    expect(old.length).toBeGreaterThan(0);
+    expect(show([...copies, ...old])?.content).toBe("Three invoices are due.");
+  });
 });

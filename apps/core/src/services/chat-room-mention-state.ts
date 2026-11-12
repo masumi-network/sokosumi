@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
@@ -161,18 +162,119 @@ export async function releaseFailedTurnForRetry(
   });
 }
 
+/** Lock a mention's row: the lock every claim, Retry reset and reply write takes. */
+async function lockMention(
+  tx: Prisma.TransactionClient,
+  mentionId: string,
+): Promise<{ updatedAt: Date } | undefined> {
+  const [locked] = await tx.$queryRaw<{ updatedAt: Date }[]>`
+    SELECT "updatedAt" FROM "chat_room_mention"
+    WHERE "id" = ${mentionId}::uuid FOR UPDATE`;
+  return locked;
+}
+
 /**
- * The time a Soko Bot reply's attempt started, carried in its metadata by
- * every write to that reply. Web orders full message events by it (newer
- * attempt, then settled over "Thinking…"), and dispatch measures its give-up
- * budget from it, so an explicit Retry starts a fresh budget.
+ * Whether `turnId` still holds the mention, checked under its row lock, so a
+ * reply write in the same transaction belongs to the turn that owns it. A
+ * turn Retry released, or one delayed past its own end, writes nothing.
  */
-export function readSokoBotAttemptAt(metadata: unknown): number | undefined {
-  if (!metadata || typeof metadata !== "object") return undefined;
-  const sokoBot = (metadata as { soko_bot?: unknown }).soko_bot;
-  if (!sokoBot || typeof sokoBot !== "object") return undefined;
-  const at = (sokoBot as { attempt_at?: unknown }).attempt_at;
-  return typeof at === "number" ? at : undefined;
+export async function holdsSokoBotMention(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  mentionId: string,
+): Promise<boolean> {
+  if (!(await lockMention(tx, mentionId))) return false;
+  const holder = await tx.sokoBotTurn.findUnique({
+    where: { chatMentionId: mentionId },
+    select: { id: true },
+  });
+  return holder?.id === turnId;
+}
+
+/**
+ * Opens a Soko Bot reply ("Thinking…") for the claim with this `stamp`, only
+ * while it still owns the mention: no turn holds it and its `updatedAt` is
+ * still the claim's. Check, create or reopen, and link run under the
+ * mention's row lock, so a stale worker can neither take the mention's reply
+ * from a newer claim nor write its old stamp back over it.
+ *
+ * The attempt start (`readSokoBotAttemptAt`) never goes down: a new attempt
+ * (claim from `pending`) starts after the reply's current one; a stale
+ * reclaim continues the attempt it took over. A live empty reply is
+ * reopened; a missing or withdrawn one is replaced by a new reply.
+ * Returns the reply to publish and how, or null when this claim lost.
+ */
+export async function openSokoBotReply(params: {
+  mentionId: string;
+  stamp: Date;
+  reclaimed: boolean;
+}): Promise<{ replyId: string; eventType: "create" | "update" } | null> {
+  const { mentionId, stamp } = params;
+  return prisma.$transaction(async (tx) => {
+    const locked = await lockMention(tx, mentionId);
+    if (locked?.updatedAt.getTime() !== stamp.getTime()) return null;
+    const holder = await tx.sokoBotTurn.findUnique({
+      where: { chatMentionId: mentionId },
+      select: { id: true },
+    });
+    if (holder) return null;
+    const mention = await tx.chatRoomMention.findUniqueOrThrow({
+      where: { id: mentionId },
+      select: {
+        status: true,
+        sokoBotId: true,
+        messageId: true,
+        responseMessage: {
+          select: { id: true, content: true, deletedAt: true, metadata: true },
+        },
+        message: { select: { roomId: true, parentMessageId: true } },
+      },
+    });
+    if (mention.status !== "sent") return null;
+    const current = readSokoBotAttemptAt(mention.responseMessage?.metadata);
+    const attemptAt = params.reclaimed
+      ? (current ?? stamp.getTime())
+      : Math.max(stamp.getTime(), (current ?? 0) + 1);
+    const metadata = {
+      in_reply_to_message_id: mention.messageId,
+      mention_id: mentionId,
+      streaming: true,
+      reasoning: [],
+      thought_timing_ms: { start: Date.now() },
+      soko_bot: { attempt_at: attemptAt },
+    };
+    const reply = mention.responseMessage;
+    if (reply && reply.deletedAt == null) {
+      if (reply.content !== "") return null;
+      await tx.chatRoomMessage.update({
+        where: { id: reply.id },
+        data: { metadata },
+      });
+      return { replyId: reply.id, eventType: "update" as const };
+    }
+    const created = await tx.chatRoomMessage.create({
+      data: {
+        roomId: mention.message.roomId,
+        parentMessageId: mention.message.parentMessageId,
+        senderSokoBotId: mention.sokoBotId,
+        content: "",
+        metadata,
+      },
+    });
+    // Linking writes the mention; it keeps the claim's stamp, which this
+    // claim still owns under the lock.
+    await tx.chatRoomMention.update({
+      where: { id: mentionId },
+      data: { responseMessageId: created.id, updatedAt: stamp },
+    });
+    // The placeholder already counts toward unreadCount; without the bump the
+    // web read overlay keeps the room painted read until the final reply lands.
+    await tx.chatRoom.update({
+      where: { id: mention.message.roomId },
+      data: { updatedAt: new Date() },
+    });
+    return { replyId: created.id, eventType: "create" as const };
+  });
 }
 
 /**
@@ -203,9 +305,7 @@ export async function failSokoBotReplyIfOwned(params: {
 }): Promise<{ replyId: string; eventType: "create" | "update" } | null> {
   const { mentionId } = params;
   return prisma.$transaction(async (tx) => {
-    const [locked] = await tx.$queryRaw<{ updatedAt: Date }[]>`
-      SELECT "updatedAt" FROM "chat_room_mention"
-      WHERE "id" = ${mentionId}::uuid FOR UPDATE`;
+    const locked = await lockMention(tx, mentionId);
     if (!locked) return null;
     const holder = await tx.sokoBotTurn.findUnique({
       where: { chatMentionId: mentionId },

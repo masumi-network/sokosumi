@@ -1,4 +1,5 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
+import { isStaleSokoBotReply } from "@sokosumi/utils";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import {
   isFailedMentionThoughtShell,
@@ -28,40 +29,6 @@ export function applyFullChatRoomMessageEvent(
     return existing.filter((row) => row.id !== event.message.id);
   }
   return mergeRoomMessages(existing, [event.message]);
-}
-
-/**
- * A Soko Bot reply's place in time: its attempt's start (`soko_bot.attempt_at`,
- * which Core carries on every write of the reply), then settled over
- * "Thinking…".
- */
-function sokoBotReplyOrder(message: ChatRoomMessage): [number, number] | null {
-  const metadata = message.metadata as Record<string, unknown> | null;
-  const sokoBot = metadata?.soko_bot as { attempt_at?: unknown } | undefined;
-  const at = sokoBot?.attempt_at;
-  if (typeof at !== "number") return null;
-  return [at, metadata?.streaming === true ? 0 : 1];
-}
-
-/**
- * Whether `incoming` is an older copy of a Soko Bot reply than `known`.
- *
- * Every publisher reads the message and then sends it, so a copy read before
- * a later write can arrive after it: a "Thinking…" read before the turn
- * failed, or an old failed card read before a Retry answered. Taking it would
- * hide Try again or the answer until the next refresh. A fresh Retry's
- * "Thinking…" belongs to a newer attempt and still replaces a failed card.
- */
-export function isStaleSokoBotReply(
-  known: ChatRoomMessage,
-  incoming: ChatRoomMessage,
-): boolean {
-  const current = sokoBotReplyOrder(known);
-  const next = sokoBotReplyOrder(incoming);
-  if (!current || !next) return false;
-  return (
-    next[0] < current[0] || (next[0] === current[0] && next[1] < current[1])
-  );
 }
 
 /**
@@ -175,7 +142,12 @@ export function mergeRoomMessages(
     if (existingById != null && isSameMessage(existingById, message)) {
       continue;
     }
-    if (existingById != null && isStaleSokoBotReply(existingById, message)) {
+    // A delayed older copy of a Soko Bot reply (`isStaleSokoBotReply`) would
+    // hide its Try again or a fresh Retry's answer until the next refresh.
+    if (
+      existingById != null &&
+      isStaleSokoBotReply(existingById.metadata, message.metadata)
+    ) {
       continue;
     }
     byId.set(message.id, message);

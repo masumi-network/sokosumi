@@ -3,6 +3,7 @@ import {
   composeSokoBotIntroduction,
   isSokoBotSilentAnswer,
 } from "@sokosumi/soko-bot";
+import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import {
@@ -18,7 +19,7 @@ import prisma from "@/lib/db/prisma";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
-import { readSokoBotAttemptAt } from "@/services/chat-room-mention-state";
+import { holdsSokoBotMention } from "@/services/chat-room-mention-state";
 
 /**
  * Soko Bot in chat. The bot is a first-class sokoBot member, sender,
@@ -192,11 +193,13 @@ async function loadChatLinkedTurn(
 
 /**
  * The reply's attempt stamp (`readSokoBotAttemptAt`), to carry onto the next
- * write of that reply so Web keeps ordering its events.
+ * write of that reply so Web keeps ordering its events. Read inside the
+ * holder-checked transaction: every writer of a Soko Bot reply is fenced to
+ * the attempt that owns it, so the stamp found there is that attempt's.
  */
 async function readReplyAttemptAt(
   messageId: string,
-  client: Prisma.TransactionClient = prisma,
+  client: Prisma.TransactionClient,
 ): Promise<{ attempt_at?: number }> {
   const reply = await client.chatRoomMessage.findUnique({
     where: { id: messageId },
@@ -226,25 +229,34 @@ export async function publishSokoBotChatProgress(
   if (now - last < PROGRESS_PUBLISH_MIN_INTERVAL_MS) return;
   lastProgressPublishAt.set(turn.chatResponseMessageId, now);
 
-  const attemptAt = await readReplyAttemptAt(turn.chatResponseMessageId);
-  const updated = await prisma.chatRoomMessage.updateMany({
-    where: {
-      id: turn.chatResponseMessageId,
-      content: "",
-      mentionResponseFor: { status: { in: ["pending", "sent"] } },
-    },
-    data: {
-      metadata: {
-        in_reply_to_message_id: turn.mention.messageId,
-        mention_id: turn.mention.id,
-        streaming: true,
-        reasoning: turn.steps.map((text) => ({ type: "reasoning", text })),
-        thought_timing_ms: {
-          start: (turn.startedAt ?? turn.createdAt).getTime(),
-        },
-        soko_bot: { turn_id: turn.id, ...attemptAt },
+  const mention = turn.mention;
+  const replyId = turn.chatResponseMessageId;
+  // Written only while this turn still holds the mention, under its lock: a
+  // progress write delayed past the turn's end and a Retry would otherwise
+  // reopen the fresh attempt's reply as this old turn, with its old attempt.
+  const updated = await prisma.$transaction(async (tx) => {
+    if (!(await holdsSokoBotMention(tx, turn.id, mention.id)))
+      return { count: 0 };
+    const attemptAt = await readReplyAttemptAt(replyId, tx);
+    return tx.chatRoomMessage.updateMany({
+      where: {
+        id: replyId,
+        content: "",
+        mentionResponseFor: { status: { in: ["pending", "sent"] } },
       },
-    },
+      data: {
+        metadata: {
+          in_reply_to_message_id: mention.messageId,
+          mention_id: mention.id,
+          streaming: true,
+          reasoning: turn.steps.map((text) => ({ type: "reasoning", text })),
+          thought_timing_ms: {
+            start: (turn.startedAt ?? turn.createdAt).getTime(),
+          },
+          soko_bot: { turn_id: turn.id, ...attemptAt },
+        },
+      },
+    });
   });
   if (updated.count === 0) return;
   await publishRealtime(turn.chatResponseMessageId, "update");
@@ -425,6 +437,9 @@ export async function persistSokoBotChatTurn(
 ): Promise<void> {
   const turn = await loadChatLinkedTurn(turnId, tx);
   if (!turn?.mention || !turn.chatResponseMessageId) return;
+  // Re-checked under the mention's lock: the read above may predate Retry
+  // releasing this turn to a fresh attempt.
+  if (!(await holdsSokoBotMention(tx, turn.id, turn.mention.id))) return;
   lastProgressPublishAt.delete(turn.chatResponseMessageId);
   const mention = turn.mention;
   const responseMessageId = turn.chatResponseMessageId;

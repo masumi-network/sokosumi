@@ -61,16 +61,14 @@ vi.mock("@/services/soko-bot-chat.service", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publishById,
 }));
-vi.mock("./chat-room-mention-state", async (importOriginal) => ({
-  readSokoBotAttemptAt: (
-    await importOriginal<typeof import("./chat-room-mention-state")>()
-  ).readSokoBotAttemptAt,
+vi.mock("./chat-room-mention-state", () => ({
   claimMentionForDispatch: claim,
+  openSokoBotReply: placeholder,
   markMentionFailed: fail,
   failSokoBotReplyIfOwned: fail,
 }));
-vi.mock("./chat-room-mention-stream", () => ({
-  publishMentionThoughtPlaceholder: placeholder,
+vi.mock("@/helpers/chat-room-message-created-effects", () => ({
+  invalidateChatRoomMessageReaders: vi.fn(async () => undefined),
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   ACTIVE_TURN_STATUSES: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"],
@@ -146,7 +144,7 @@ beforeEach(() => {
   loadRoomContextMessages.mockResolvedValue([]);
   findMember.mockResolvedValue({ id: "member-a" });
   claim.mockResolvedValue({ stamp: CLAIM, reclaimed: false });
-  placeholder.mockResolvedValue("response-a");
+  placeholder.mockResolvedValue({ replyId: "response-a", eventType: "create" });
   startTurn.mockResolvedValue({ turnId: "turn-a", status: "COMPLETED" });
   findMentionTurn.mockResolvedValue([]);
   findOpenDelivery.mockResolvedValue(null);
@@ -554,29 +552,21 @@ describe("a reclaimed mention whose turn already ended", () => {
       expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
   });
-  it("opens a new attempt's reply with its claim stamp, and a reclaim keeps the attempt", async () => {
+  it("opens the reply only through its own claim", async () => {
     await runSokoBotMentionDispatch(input());
-    expect(placeholder).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sokoBotAttempt: { at: CLAIM.getTime(), claimStamp: CLAIM },
-      }),
-    );
-    placeholder.mockClear();
-    const later = new Date(9_000);
-    claim.mockResolvedValue({ stamp: later, reclaimed: true });
-    const base = withReply();
-    await runSokoBotMentionDispatch({
-      ...base,
-      mention: {
-        ...base.mention,
-        responseMessage: { metadata: { soko_bot: { attempt_at: 1_000 } } },
-      },
+    expect(placeholder).toHaveBeenCalledWith({
+      mentionId: "mention-a",
+      stamp: CLAIM,
+      reclaimed: false,
     });
-    expect(placeholder).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sokoBotAttempt: { at: 1_000, claimStamp: later },
-      }),
-    );
+    expect(publishById).toHaveBeenCalledWith("response-a", "create");
+  });
+  it("stops, writing nothing, when its claim lost the reply to another", async () => {
+    placeholder.mockResolvedValue(null);
+    await runSokoBotMentionDispatch(input());
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(fail).not.toHaveBeenCalled();
+    expect(publishById).not.toHaveBeenCalled();
   });
   it("starts a fresh attempt under its own key and fails it under its own claim", async () => {
     findMentionTurn.mockResolvedValue([

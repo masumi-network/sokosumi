@@ -1,5 +1,6 @@
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
+import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import { streamText } from "ai";
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import {
@@ -34,7 +35,6 @@ import {
   markMentionFailed,
   ROOM_COWORKER_STREAM_TIMEOUT,
   ROOM_MENTION_GIVE_UP_MS,
-  readSokoBotAttemptAt,
 } from "./chat-room-mention-state";
 import {
   consumeMentionProviderStream,
