@@ -9,7 +9,12 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
 const PENDING_TASK_ID_PREFIX = "pending:";
-/** Shown when the form has no name and no description line to show. */
+/**
+ * Shown when the form has no name and no description line to show. The
+ * board path in `use-pending-created-tasks.ts` replaces it with the
+ * translated untitled label, so this is only the default for direct
+ * `buildPendingTask` callers.
+ */
 const PENDING_TASK_NAME_FALLBACK = "…";
 /** The length the server cuts a row's plain description to. */
 const PLAIN_DESCRIPTION_LENGTH = 200;
