@@ -86,7 +86,11 @@ import {
 } from "./contact-visuals";
 import { GroupedRadioItems, useStageOptions } from "./contacts-toolbar";
 import { InlineField } from "./inline-field";
-import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
+import {
+  useContactUpdate,
+  useImportanceUpdate,
+  useListToggle,
+} from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
   contactKey,
@@ -245,17 +249,7 @@ function PanelBody({
   const manualLists = lists.filter((list) => list.kind === "manual");
   const [enriching, setEnriching] = useState(false);
 
-  async function toggleList(list: ContactList, on: boolean) {
-    try {
-      await contactsService.changeMembers(
-        list.id,
-        on ? { add: [contact.id] } : { remove: [contact.id] },
-      );
-      await refreshContacts(cache, contact.id);
-    } catch (error) {
-      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
-    }
-  }
+  const toggleList = useListToggle();
 
   async function enrich() {
     setEnriching(true);
@@ -614,7 +608,7 @@ function PanelBody({
                     checked={!!membership}
                     onSelect={(event) => event.preventDefault()}
                     onCheckedChange={(checked) =>
-                      void toggleList(list, checked === true)
+                      void toggleList(contact, list, checked === true)
                     }
                   >
                     <Dot className={LIST_COLOR_DOT[list.color]} />
