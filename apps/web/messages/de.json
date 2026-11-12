@@ -9074,7 +9074,8 @@
         "openLink": "Linkvorschau öffnen: {title}",
         "imageAlt": "Vorschaubild für {title}",
         "remove": "Linkvorschau entfernen: {title}",
-        "removeError": "Die Linkvorschau konnte nicht entfernt werden. Versuche es erneut."
+        "removeError": "Die Linkvorschau konnte nicht entfernt werden. Versuche es erneut.",
+        "restored": "Die Linkvorschau ist wieder an der Nachricht."
       },
       "Message": {
         "delete": "Löschen",

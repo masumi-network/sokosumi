@@ -9074,7 +9074,8 @@
         "openLink": "Abrir vista previa del enlace: {title}",
         "imageAlt": "Imagen de vista previa de {title}",
         "remove": "Quitar vista previa del enlace: {title}",
-        "removeError": "No se pudo quitar la vista previa del enlace. Inténtalo de nuevo."
+        "removeError": "No se pudo quitar la vista previa del enlace. Inténtalo de nuevo.",
+        "restored": "La vista previa del enlace vuelve a estar en el mensaje."
       },
       "Message": {
         "delete": "Eliminar",

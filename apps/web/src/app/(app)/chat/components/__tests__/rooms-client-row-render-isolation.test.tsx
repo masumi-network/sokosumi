@@ -670,7 +670,9 @@ describe("RoomsClient transcript row render isolation", () => {
       await remove("b");
 
       expect(previews()).toEqual(["", "a b c", ""]);
-      expect(toast.error).toHaveBeenCalledWith("Removal refused");
+      expect(toast.error).toHaveBeenCalledWith("Removal refused", {
+        description: "Unfurl.restored",
+      });
 
       // The refused removal is closed: a later answer may hold its card.
       vi.mocked(removeRoomMessageUnfurlAction).mockResolvedValueOnce({
@@ -701,7 +703,12 @@ describe("RoomsClient transcript row render isolation", () => {
       });
 
       expect(previews()).toEqual(["", "b c", ""]);
-      expect(toast.error).toHaveBeenCalledExactlyOnceWith("Unfurl.removeError");
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Unfurl.removeError",
+        {
+          description: "Unfurl.restored",
+        },
+      );
     });
 
     it("puts a refused last card back at the end", async () => {

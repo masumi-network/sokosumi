@@ -9074,7 +9074,8 @@
         "openLink": "Open link preview: {title}",
         "imageAlt": "Preview image for {title}",
         "remove": "Remove link preview: {title}",
-        "removeError": "Could not remove the link preview. Try again."
+        "removeError": "Could not remove the link preview. Try again.",
+        "restored": "The link preview is back on the message."
       },
       "Message": {
         "delete": "Delete",

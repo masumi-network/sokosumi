@@ -315,7 +315,9 @@ export function useRoomMessageMutations({
       .then((result) => {
         openUnfurlRemovals.delete(key);
         if (!result?.ok) {
-          toast.error(result?.error.message ?? t("Unfurl.removeError"));
+          toast.error(result?.error.message ?? t("Unfurl.removeError"), {
+            description: t("Unfurl.restored"),
+          });
           patchMessage(message.id, (row) => {
             const kept = row.unfurls ?? [];
             if (kept.some((unfurl) => unfurl.url === url)) {
