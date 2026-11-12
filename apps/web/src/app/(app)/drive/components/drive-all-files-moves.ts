@@ -1,5 +1,6 @@
 import type { FileCollection, FileResource } from "@sokosumi/core-client";
 import type { Dispatch, SetStateAction } from "react";
+import { toast } from "sonner";
 import {
   deleteDriveUploads,
   deleteFileCollection,
@@ -9,15 +10,24 @@ import {
 
 type SetCollections = Dispatch<SetStateAction<FileCollection[]>>;
 
+/** The failure toasts. The menu is closed by then, so they name the collection. */
+type Say = (
+  key: "collectionRenameFailed" | "collectionDeleteFailed",
+  values: { name: string },
+) => string;
+
 /**
  * Show a collection's new name at once, then save it. Returns false when the
  * save failed; the old name is back by then, unless the name moved on again.
+ * `setRenamingId` marks the collection until the save answers.
  */
 export async function rename(
   store: FileStore,
   collection: FileCollection,
   name: string,
   setCollections: SetCollections,
+  setRenamingId: (id: string | null) => void,
+  t: Say,
 ): Promise<boolean> {
   const swap = (from: string, to: string) =>
     setCollections((list) =>
@@ -28,12 +38,16 @@ export async function rename(
       ),
     );
   swap(collection.name, name);
+  setRenamingId(collection.id);
   try {
     await updateFileCollection({ store, collectionId: collection.id, name });
     return true;
   } catch {
     swap(name, collection.name);
+    toast.error(t("collectionRenameFailed", { name: collection.name }));
     return false;
+  } finally {
+    setRenamingId(null);
   }
 }
 
@@ -47,6 +61,7 @@ export async function remove(
   /** The shelf the reader pressed Delete on, for the place to put it back. */
   collections: readonly FileCollection[],
   setCollections: SetCollections,
+  t: Say,
 ): Promise<boolean> {
   const at = collections.findIndex((entry) => entry.id === collection.id);
   setCollections((list) => list.filter((entry) => entry.id !== collection.id));
@@ -59,6 +74,7 @@ export async function remove(
         ? list
         : [...list.slice(0, at), collection, ...list.slice(at)],
     );
+    toast.error(t("collectionDeleteFailed", { name: collection.name }));
     return false;
   }
 }

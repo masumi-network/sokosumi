@@ -10,6 +10,13 @@ const api = vi.hoisted(() => ({
   deleteDriveUploads: vi.fn(),
 }));
 vi.mock("@/lib/utils/file-search.client", () => api);
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock("sonner", () => ({ toast: { error: toastError } }));
+
+/** The translator, with the values it got spelled out. */
+const t = (key: string, values: { name: string }) => `${key} ${values.name}`;
+/** Nothing marked: for tests about the shelf, not the marker. */
+const unmarked = () => {};
 
 const store: FileStore = { scope: "me" };
 
@@ -52,7 +59,7 @@ describe("renaming a collection", () => {
     api.updateFileCollection.mockReturnValueOnce(save.promise);
     const { box, set } = held(shelf("a", "b"));
 
-    const done = rename(store, box.now[0], "new", set);
+    const done = rename(store, box.now[0], "new", set, unmarked, t);
     expect(box.now.map((entry) => entry.name)).toEqual(["new", "b"]);
     expect(api.updateFileCollection).toHaveBeenCalledWith({
       store,
@@ -69,10 +76,36 @@ describe("renaming a collection", () => {
     api.updateFileCollection.mockRejectedValueOnce(new Error("offline"));
     const { box, set } = held(shelf("a", "b"));
 
-    const saved = await rename(store, box.now[0], "new", set);
+    const saved = await rename(store, box.now[0], "new", set, unmarked, t);
 
     expect(saved).toBe(false);
     expect(box.now.map((entry) => entry.name)).toEqual(["a", "b"]);
+    // The earlier name: the one the shelf shows again.
+    expect(toastError).toHaveBeenCalledWith("collectionRenameFailed a");
+  });
+
+  it("marks the collection as saving until the save answers", async () => {
+    const save = open<void>();
+    api.updateFileCollection.mockReturnValueOnce(save.promise);
+    const { box, set } = held(shelf("a", "b"));
+    const renaming = held<string | null>(null);
+
+    const done = rename(store, box.now[0], "new", set, renaming.set, t);
+    expect(renaming.box.now).toBe("a");
+
+    save.resolve();
+    await done;
+    expect(renaming.box.now).toBeNull();
+  });
+
+  it("drops the mark when the save fails", async () => {
+    api.updateFileCollection.mockRejectedValueOnce(new Error("offline"));
+    const { box, set } = held(shelf("a"));
+    const renaming = held<string | null>(null);
+
+    await rename(store, box.now[0], "new", set, renaming.set, t);
+
+    expect(renaming.box.now).toBeNull();
   });
 
   it("leaves a name that moved on during a failed save", async () => {
@@ -80,7 +113,7 @@ describe("renaming a collection", () => {
     api.updateFileCollection.mockReturnValueOnce(save.promise);
     const { box, set } = held(shelf("a"));
 
-    const done = rename(store, box.now[0], "new", set);
+    const done = rename(store, box.now[0], "new", set, unmarked, t);
     // A reload brought what Core holds now.
     set([{ ...box.now[0], name: "from Core" }]);
     save.reject(new Error("offline"));
@@ -96,7 +129,7 @@ describe("removing a collection", () => {
     api.deleteFileCollection.mockReturnValueOnce(save.promise);
     const { box, set } = held(shelf("a", "b", "c"));
 
-    const done = remove(store, box.now[1], box.now, set);
+    const done = remove(store, box.now[1], box.now, set, t);
     expect(box.now.map((entry) => entry.id)).toEqual(["a", "c"]);
     expect(api.deleteFileCollection).toHaveBeenCalledWith({
       store,
@@ -112,10 +145,11 @@ describe("removing a collection", () => {
     api.deleteFileCollection.mockRejectedValueOnce(new Error("offline"));
     const { box, set } = held(shelf("a", "b", "c"));
 
-    const removed = await remove(store, box.now[1], box.now, set);
+    const removed = await remove(store, box.now[1], box.now, set, t);
 
     expect(removed).toBe(false);
     expect(box.now.map((entry) => entry.id)).toEqual(["a", "b", "c"]);
+    expect(toastError).toHaveBeenCalledWith("collectionDeleteFailed b");
   });
 
   it("does not add a second copy when a reload already brought it back", async () => {
@@ -124,7 +158,7 @@ describe("removing a collection", () => {
     const all = shelf("a", "b");
     const { box, set } = held(all);
 
-    const done = remove(store, all[1], all, set);
+    const done = remove(store, all[1], all, set, t);
     set(all);
     save.reject(new Error("offline"));
 

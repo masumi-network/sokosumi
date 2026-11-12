@@ -10,7 +10,6 @@ import {
   Bookmark,
   FolderInput,
   Link2,
-  MoreHorizontal,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -51,12 +50,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
@@ -75,6 +68,7 @@ import {
 } from "@/lib/utils/file-search.client";
 import * as moves from "./drive-all-files-moves";
 import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
+import { DriveCollectionChip } from "./drive-collection-chip";
 
 /**
  * All files: one search field over filenames, extracted text and confirmed
@@ -230,6 +224,8 @@ export function DriveAllFilesPanel({
     "loading" | "ready" | "failed"
   >("loading");
   const [collectionBusy, setCollectionBusy] = useState(false);
+  /** The collection whose new name has not saved yet. */
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
     null,
   );
@@ -629,10 +625,16 @@ export function DriveAllFilesPanel({
 
     // Still busy during the save, so two renames cannot pass each other.
     setCollectionBusy(true);
-    const saved = await moves.rename(store, collection, name, setCollections);
+    const saved = await moves.rename(
+      store,
+      collection,
+      name,
+      setCollections,
+      setRenamingId,
+      t,
+    );
     // The shelf is in name order, and only Core knows the new place.
     if (saved) await reloadCollections();
-    else toast.error(t("collectionSaveFailed"));
     setCollectionBusy(false);
   }
 
@@ -643,9 +645,11 @@ export function DriveAllFilesPanel({
       collection,
       collections,
       setCollections,
+      t,
     );
-    if (!removed) toast.error(t("collectionDeleteFailed"));
-    else if (activeCollectionId === collection.id) setActiveCollectionId(null);
+    if (removed && activeCollectionId === collection.id) {
+      setActiveCollectionId(null);
+    }
     setCollectionBusy(false);
   }
 
@@ -984,68 +988,25 @@ export function DriveAllFilesPanel({
             </span>
           ) : (
             collections.map((collection) => (
-              <span key={collection.id} className="flex items-center">
-                <Button
-                  size="sm"
-                  variant={
-                    activeCollectionId === collection.id
-                      ? "secondary"
-                      : "outline"
-                  }
-                  disabled={collectionBusy}
-                  onClick={() => {
-                    const definition = collection.definition as Partial<
-                      FileSearchFilterState & { query?: string }
-                    >;
-                    applyFilters({ ...EMPTY_FILE_FILTERS, ...definition });
-                    setQuery(definition.query ?? "");
-                    setAppliedQuery(definition.query ?? "");
-                    setActiveCollectionId(collection.id);
-                  }}
-                >
-                  {collection.name}
-                </Button>
-                {collection.isOwner ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        // 44px on touch, which is the minimum this codebase
-                        // uses elsewhere (`min-h-11`); a 32px target was
-                        // comfortable with a mouse and a miss with a thumb.
-                        // `hit-area` covers a wide container on a narrow
-                        // viewport, where the 32px box applies below md.
-                        className="hit-area size-11 @2xl:size-8"
-                        disabled={collectionBusy}
-                        aria-label={t("collectionActions", {
-                          name: collection.name,
-                        })}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem
-                        onClick={() => void resaveCollection(collection)}
-                      >
-                        {t("collectionResave")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => void renameCollection(collection)}
-                      >
-                        {t("collectionRename")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => void removeCollection(collection)}
-                      >
-                        {t("collectionDelete")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
-              </span>
+              <DriveCollectionChip
+                key={collection.id}
+                collection={collection}
+                active={activeCollectionId === collection.id}
+                disabled={collectionBusy}
+                saving={renamingId === collection.id}
+                onOpen={() => {
+                  const definition = collection.definition as Partial<
+                    FileSearchFilterState & { query?: string }
+                  >;
+                  applyFilters({ ...EMPTY_FILE_FILTERS, ...definition });
+                  setQuery(definition.query ?? "");
+                  setAppliedQuery(definition.query ?? "");
+                  setActiveCollectionId(collection.id);
+                }}
+                onResave={() => void resaveCollection(collection)}
+                onRename={() => void renameCollection(collection)}
+                onDelete={() => void removeCollection(collection)}
+              />
             ))
           )}
         </div>
