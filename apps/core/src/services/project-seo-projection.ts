@@ -568,7 +568,13 @@ export function projectSeoProjection(
       (action) => !action.taskId || fixWork.get(action)!.live,
     );
     const newest = Math.max(...working.map(at));
+    // The newest check that found the issue, a card with a dead Task included: a Task that ended before it did
+    // not hold the fix.
+    const found = Math.max(...group.map(at));
     const later = working.filter((action) => at(action) === newest);
+    // Cards of the reader's own Tasks: an older card has no later card to move to.
+    const own = later.every((card) => Boolean(card.taskId));
+    const moving: ProjectSeoWorkspace["actions"] = [];
     for (const action of working) {
       if (at(action) === newest) continue;
       replaced.add(action);
@@ -583,17 +589,32 @@ export function projectSeoProjection(
         const done = input.tasks.find(
           (task) => task.id === action.taskId,
         )?.completedAt;
-        if (!done || newest > done.getTime()) continue;
+        if (!done || found > done.getTime()) continue;
       }
-      const free = later.filter(
-        (card) => !card.taskId && card.status === "recommended",
-      );
-      const card =
-        free.find((candidate) => candidate.title === action.title) ?? free[0];
-      if (!card) continue;
+      moving.push(action);
+    }
+    const free = () =>
+      later.filter((card) => !card.taskId && card.status === "recommended");
+    const move = (
+      action: ProjectSeoWorkspace["actions"][number],
+      card: ProjectSeoWorkspace["actions"][number] | undefined,
+    ) => {
+      if (!card) return false;
       card.taskId = action.taskId;
       card.status = action.status;
-    }
+      return true;
+    };
+    // The same title first for every Task, then any card left.
+    const unmatched = moving.filter(
+      (action) =>
+        !move(
+          action,
+          free().find((card) => card.title === action.title),
+        ),
+    );
+    // A Task that finds no later card keeps its own card, unless the later cards all carry the reader's Tasks.
+    for (const action of unmatched)
+      if (!move(action, free()[0]) && !own) replaced.delete(action);
   }
   if (replaced.size)
     actions.splice(

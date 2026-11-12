@@ -698,7 +698,59 @@ describe("stored SEO workspace projections", () => {
       ]),
     );
     expect(paired).toHaveLength(once.length + 1);
+    // The later check proposes only the second fix: it takes the Task of the fix with its title, and the first
+    // fix keeps its own card and Task. Neither Task drops out of view.
+    latest.payload = { ...pair, actions: [second] };
+    const kept = projectSeoProjection(input).actions;
+    expect(
+      kept.map(({ id, observationId, taskId }) => ({
+        id,
+        observationId,
+        taskId,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        { id: second.id, observationId: latest.id, taskId: other.id },
+        { id: linked[0].actionId, observationId: original.id, taskId: task.id },
+      ]),
+    );
+    latest.payload = pair;
     original.payload = pair;
+    // A check after the Task ended still finds the issue, and the reader cancelled the Task made from it: the
+    // finished Task did not hold the fix, so the card before it is an open action, not "Implemented".
+    const after = observation(
+      input,
+      parsePublicSeoArtifact(legacyReport()),
+      "2026-11-06T12:00:00Z",
+    );
+    const cancelled = {
+      ...task,
+      id: randomUUID(),
+      status: "CANCELED" as const,
+    };
+    input.observations = [after, latest, original];
+    input.tasks = [
+      { ...task, completedAt: new Date("2026-11-05T12:00:00Z") },
+      cancelled,
+    ];
+    input.actionTasks = [
+      ...linked,
+      {
+        ...linked[0],
+        id: randomUUID(),
+        observationId: after.id,
+        taskId: cancelled.id,
+      },
+    ];
+    expect(
+      projectSeoProjection(input).actions.find(
+        (action) =>
+          action.observationId === latest.id &&
+          action.id === linked[0].actionId,
+      ),
+    ).toMatchObject({ status: "recommended", taskId: null });
+    input.observations = [latest, original];
+    input.actionTasks = linked;
     input.tasks = [task];
     // A check of another Market finds other things: its proposals replace nothing.
     input.actionTasks = [];
