@@ -161,7 +161,7 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                       <SeoState>{t("related")}</SeoState>
                     ) : null}
                   </div>
-                  {name ? <SeoPageLink url={page.url} /> : null}
+                  {name ? <SeoPageLink url={page.url} quiet /> : null}
                   {/* With one primary page the badge says what the page is related to, unless its parent is another page. */}
                   {parent &&
                   (primaryPages > 1 || parent.relationship !== "primary") ? (

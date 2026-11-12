@@ -123,6 +123,19 @@ export function SeoActionCard({
     setMarked(true);
     setShownAction(null);
   }, [shown, setShownAction]);
+  const labels = (
+    <>
+      {/* The severity of the issue it fixes; a suggestion from search data has none. */}
+      {severity ? (
+        <SeoSeverity severity={severity} />
+      ) : (
+        <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
+      )}
+      {action.status !== "recommended" ? (
+        <SeoState>{t(`actions.${action.status}`)}</SeoState>
+      ) : null}
+    </>
+  );
   return (
     <article
       ref={card}
@@ -153,16 +166,15 @@ export function SeoActionCard({
               workspace={model.data}
               strong
             />
-            <span className="flex flex-wrap items-center gap-1 max-sm:mt-1">
-              {/* The severity of the issue it fixes; a suggestion from search data has none. */}
-              {severity ? (
-                <SeoSeverity severity={severity} />
-              ) : (
-                <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
+            {/* On a phone the labels of an open card stand under its page link, so the lines keep the order
+                of the closed row: title, page, labels. */}
+            <span
+              className={cn(
+                "flex flex-wrap items-center gap-1 max-sm:mt-1",
+                open && "max-sm:hidden",
               )}
-              {action.status !== "recommended" ? (
-                <SeoState>{t(`actions.${action.status}`)}</SeoState>
-              ) : null}
+            >
+              {labels}
             </span>
           </span>
         </SeoActionCardHead>
@@ -178,6 +190,9 @@ export function SeoActionCard({
               quiet
             />
           </div>
+          <span className="flex flex-wrap items-center gap-1 sm:hidden">
+            {labels}
+          </span>
           {/* What the check found, where an issue is behind the action; the effect of the fix reads like a spec and waits in the details. Two lines, four on a phone; the open details show all of it. */}
           <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
             {problem

@@ -389,7 +389,12 @@ describe("SEO workspace integration", () => {
     expect(card).toHaveAttribute("aria-current", "true");
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(card).not.toHaveAttribute("aria-current");
-    expect(within(card!).getByText("High impact")).toBeVisible();
+    // An open card holds its labels twice, and the style sheet shows one: in the head on a wide screen,
+    // under the page link on a phone (the order of a closed row: title, page, labels). No style sheet here.
+    const [headLabel, bodyLabel] = within(card!).getAllByText("High impact");
+    expect(headLabel.parentElement).toHaveClass("max-sm:hidden");
+    expect(bodyLabel.parentElement).toHaveClass("sm:hidden");
+    expect(within(card!).getAllByText("High impact")).toHaveLength(2);
     // What the check found is in view; the reasons and the effect of the fix stay closed.
     // The line alone can be a bare count, so the name of its check goes with it.
     expect(
@@ -4905,10 +4910,11 @@ describe("SEO workspace integration", () => {
     expect(issues).toHaveTextContent(/^2/);
     expect(within(issues).getByText("1 high impact")).toBeVisible();
     expect(within(issues).getByText("1 low impact")).toBeVisible();
-    // Tests without a result are part of the total, not hidden.
+    // Tests without a result are part of the total, not hidden. With one kind of them the total says it:
+    // a line "30 tests gave no result" would say 231 minus 201 a second time.
     const tests = screen.getByTestId("seo-summary-tests");
     expect(tests).toHaveTextContent("201 of 231");
-    expect(within(tests).getByText("30 tests gave no result")).toBeVisible();
+    expect(within(tests).queryByText(/gave no result/)).toBeNull();
     // The issues can come from older checks: the tile dates its check.
     expect(tests).toHaveTextContent("Last check Jan 3, 2026");
     expect(screen.queryByTestId("seo-summary-keywords")).toBeNull();

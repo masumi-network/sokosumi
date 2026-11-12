@@ -262,10 +262,16 @@ export function SeoWorkspace({
           ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              {/* On a phone the trigger shows only its icon, so it is as wide as it is tall. */}
-              <Button variant="outline" size="sm" className="max-sm:min-w-10">
+              {/* The trigger shows only its icon, so one worded button stands in the header: the run. An
+                  icon-only control is 40 px below md. */}
+              <Button
+                variant="outline"
+                size="sm"
+                title={t("manage")}
+                className="max-md:min-h-10 max-md:min-w-10"
+              >
                 <MoreHorizontal className="size-4" />
-                <span className="max-sm:sr-only">{t("manage")}</span>
+                <span className="sr-only">{t("manage")}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

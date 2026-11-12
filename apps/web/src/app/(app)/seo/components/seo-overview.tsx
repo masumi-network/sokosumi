@@ -335,14 +335,16 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
               return (
                 <li key={finding.id}>
                   <details className="group text-sm">
-                    <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-start sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                    <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-start sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 group-open:pb-1 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
                       <h3 className="font-medium break-words">
                         {t("overview.failedCheck", {
                           name: checkName(finding.title),
                         })}
                       </h3>
-                      {/* On a phone the impact label is the row's last line: beside the title it broke the title into three lines. */}
-                      <span className="flex max-sm:col-start-1 max-sm:row-start-3">
+                      {/* On a phone the impact label is the row's last line: beside the title it broke the title
+                          into three lines. The open row has it under its page link there, so the lines keep the
+                          order of the closed row: title, page, impact. */}
+                      <span className="flex max-sm:col-start-1 max-sm:row-start-3 max-sm:group-open:hidden">
                         <SeoSeverity severity={finding.severity} />
                       </span>
                       <ChevronDown
@@ -366,6 +368,17 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       </span>
                     </summary>
                     <div className="text-muted-foreground space-y-3 px-4 pb-3">
+                      {/* The page keeps its place under the title, as in an open action card: there it is the link. */}
+                      <div className="flex flex-col items-start gap-0.5">
+                        <SeoPageLink
+                          url={finding.pageUrl}
+                          site={seoSiteUrl(data)}
+                          quiet
+                        />
+                        <span className="flex sm:hidden">
+                          <SeoSeverity severity={finding.severity} />
+                        </span>
+                      </div>
                       {/* The reader opens a row to learn what to do: the fix stands before the proof. */}
                       {fix ? (
                         <button
@@ -396,11 +409,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           </li>
                         ))}
                       </ul>
-                      <div className="flex flex-wrap items-center gap-x-3 text-xs">
-                        <SeoPageLink
-                          url={finding.pageUrl}
-                          site={seoSiteUrl(data)}
-                        />
+                      <p className="text-xs">
                         {/* The date is the link to the check, as on every other line that dates one. */}
                         <SeoSource
                           observationId={finding.observationId}
@@ -408,7 +417,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         >
                           <SeoDate value={finding.observedAt} />
                         </SeoSource>
-                      </div>
+                      </p>
                     </div>
                   </details>
                 </li>

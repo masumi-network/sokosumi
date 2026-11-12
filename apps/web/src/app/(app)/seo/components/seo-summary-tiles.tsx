@@ -220,8 +220,10 @@ export function SeoSummaryTiles({
         >
           {/* No bar: a nearly full bar reads as a health score, and this is a count of tests that ran. */}
           <span className="flex flex-wrap gap-x-3">
-            {/* The same two counts, in the same words, as the row of the check in the Timeline. */}
-            {tests.undecided ? (
+            {/* Tests without a result are the usual case (a page has no such element): alone, "201 of 231"
+                says their count already. A test that could not run is a fault and always shows. With both, the
+                split is news: the same two counts, in the same words, as the row of the check in the Timeline. */}
+            {tests.undecided && tests.unavailable ? (
               <span>
                 {t("summary.testsNoResult", { count: tests.undecided })}
               </span>
