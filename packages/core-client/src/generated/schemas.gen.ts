@@ -17839,12 +17839,12 @@ export const DriveGoogleSheetSchema = {
         },
         pathname: {
             type: 'string',
-            example: 'drive/organizations/org_123/Finance/Model.xlsx',
+            example: 'drive/organizations/org_123/Finance/Model.pdf',
             description: 'The copy\'s Blob pathname'
         },
         name: {
             type: 'string',
-            example: 'Model.xlsx'
+            example: 'Model.pdf'
         },
         url: {
             type: 'string',
