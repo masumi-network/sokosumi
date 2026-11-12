@@ -270,9 +270,6 @@ export function BrandStep({
     (question) => question.answer === "no" && question.corrected === false,
   ).length;
   const lead = corrections > 0 ? undefined : ahead;
-  const hasShot = overview.brandMedia?.pages.some(
-    (page) => page.device === "desktop" && page.label === "Home",
-  );
   const insights = brain.reveal?.insights ?? [];
   const busy = approving || fixing || finishing;
 
@@ -344,9 +341,8 @@ export function BrandStep({
 
       <div className="panel ob-brand-panel">
         <div className="ob-brand-main">
-          <div className={hasShot ? "ob-hero-row has-site" : "ob-hero-row"}>
+          <div className="ob-hero-row">
             <PromiseCard brain={brain} site={site} onSave={onSave} />
-            {hasShot ? <SiteCard overview={overview} host={site} /> : null}
           </div>
 
           {planSlot ? (
@@ -358,7 +354,9 @@ export function BrandStep({
                 />
               </b>
               <span className="ob-small muted">
-                It opens when you say Looks like us.
+                {writing
+                  ? "Cuso started it when the research ended. Looks like us opens it when you are ready."
+                  : "It opens when you say Looks like us."}
               </span>
             </div>
           ) : null}

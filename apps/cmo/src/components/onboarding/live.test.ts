@@ -30,14 +30,14 @@ describe("slow copy", () => {
     });
   });
 
-  it("holds Try again back while the work still moves, so nothing runs twice", () => {
+  it("offers Try again from twice the usual time, even while the work still moves", () => {
     expect(slowCopy(14 * MIN, 7 * MIN, QUIET_SECONDS - 1)).toEqual({
       line: "Taking much longer than usual: 14 min so far, usually about 7 min. Still working.",
-      retry: false,
+      retry: true,
     });
   });
 
-  it("offers Try again from twice the usual time, once the work went quiet", () => {
+  it("says nothing is lost once the work went quiet", () => {
     expect(slowCopy(14 * MIN, 7 * MIN, QUIET_SECONDS)).toEqual({
       line: "Taking much longer than usual: 14 min so far, usually about 7 min. Nothing is lost if you try again.",
       retry: true,
@@ -45,8 +45,7 @@ describe("slow copy", () => {
     expect(slowCopy(14 * MIN - 1, 7 * MIN, QUIET_SECONDS).retry).toBe(false);
   });
 
-  it("offers Try again from twice the usual time when Core can restart the run", () => {
-    // Core replaces a slow run on Try again, so no quiet stretch is needed.
+  it("says nothing is lost from twice the usual time when Core can restart the run", () => {
     expect(slowCopy(14 * MIN, 7 * MIN, 0, true)).toEqual({
       line: "Taking much longer than usual: 14 min so far, usually about 7 min. Nothing is lost if you try again.",
       retry: true,

@@ -588,34 +588,28 @@ describe("Brand", () => {
     expect(html).toContain("The site features product, use-case, pricing");
   });
 
-  it("shows the site with its logo and colours when media exists", () => {
+  it("keeps Your site on Site, not on Brand, once media exists", () => {
     const shot = { url: "/home.jpg", fileId: null, pageUrl: "https://acme.io" };
-    const html = render(
-      draft({
-        brandMedia: {
-          capturedAt: "2026-10-05T09:02:00Z",
-          pages: [
-            { ...shot, label: "Home", device: "desktop" },
-            { ...shot, label: "Home", device: "mobile" },
-          ],
-          competitors: [],
-          pictures: [],
-        },
-        brandVisual: {
-          logoUrl: null,
-          colors: ["a", "b", "c", "d", "e", "f"].map((d) => `#${d.repeat(6)}`),
-          fonts: [],
-          siteName: "Acme",
-          designMdUrl: null,
-          images: [],
-        },
-      }),
-    );
-    expect(html).toContain("Your site");
-    expect(html).toContain("acme.io homepage");
-    expect(html).toContain("acme.io on a phone");
-    expect(html.match(/ob-swatches/g)).toHaveLength(1);
-    expect(html.match(/<li style="background:/g)).toHaveLength(5);
+    const withLook = {
+      brandMedia: {
+        capturedAt: "2026-10-05T09:02:00Z",
+        pages: [
+          { ...shot, label: "Home", device: "desktop" as const },
+          { ...shot, label: "Home", device: "mobile" as const },
+        ],
+        competitors: [],
+        pictures: [],
+      },
+      brandVisual: {
+        logoUrl: null,
+        colors: ["a", "b", "c", "d", "e", "f"].map((d) => `#${d.repeat(6)}`),
+        fonts: [] as string[],
+        siteName: "Acme",
+        designMdUrl: null,
+        images: [],
+      },
+    };
+    expect(render(draft(withLook))).not.toContain("Your site");
     expect(render(draft())).not.toContain("Your site");
   });
 
@@ -655,6 +649,9 @@ describe("Brand while the plan writes", () => {
     );
     expect(html).toContain("ob-plan-slot");
     expect(html).toContain("Writing your plan");
+    expect(html).toContain(
+      "Cuso started it when the research ended. Looks like us opens it when you are ready.",
+    );
     expect(html).toContain("Looks like us");
     expect(html).not.toContain("Finishing up");
   });
@@ -668,6 +665,7 @@ describe("Brand while the plan writes", () => {
       }),
     );
     expect(html).toContain("Your plan is ready");
+    expect(html).toContain("It opens when you say Looks like us.");
   });
 
   it("shows no plan slot when Cuso writes no plan yet", () => {
@@ -1130,7 +1128,7 @@ describe("Competitor map", () => {
       </>,
     );
   const dot = (html: string, name: string) =>
-    new RegExp(`<button[^>]*class="ob-map-dot[^"]*"[^>]*>${name}<`).exec(
+    new RegExp(`<button[^>]*class="ob-map-dot[^"]*"[^>]*>${name}(?:<|$)`).exec(
       html,
     )?.[0];
 
@@ -1145,13 +1143,13 @@ describe("Competitor map", () => {
     expect(html).toContain("For whole teams →");
   });
 
-  it("marks the founder as the one larger dot, not a button", () => {
+  it("marks the founder as the one larger button among the dots", () => {
     const html = competitors(mappedBrain);
     expect(html.match(/ob-map-dot you/g)).toHaveLength(1);
     expect(html).toMatch(
-      /<span class="ob-map-dot you"[^>]*>Acme<span class="ob-sr">, you</,
+      /<button type="button" class="ob-map-dot you"[^>]*>Acme<span class="ob-sr">, you</,
     );
-    expect(dot(html, "Acme")).toBeUndefined();
+    expect(dot(html, "Acme")).toContain("ob-map-dot you");
   });
 
   it("puts a label left of its dot past x 75", () => {

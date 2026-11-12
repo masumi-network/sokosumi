@@ -51,9 +51,10 @@ export interface SlowCopy {
 
 /**
  * The time so far against the usual time. Past the usual time it says so;
- * from twice the usual time it offers Try again: at once when Core restarts
- * a slow run (`restartable`), else once the work has shown no progress for
- * `QUIET_SECONDS`. Never a percentage.
+ * from twice the usual time it offers Try again. Quiet / restartable only
+ * change the line: when Core can restart, or the work has been quiet for
+ * `QUIET_SECONDS`, it says nothing is lost; otherwise it still offers retry
+ * but says the run is still moving. Never a percentage.
  */
 export function slowCopy(
   elapsed: number,
@@ -64,10 +65,10 @@ export function slowCopy(
   const so = elapsedLabel(elapsed);
   const typical = `usually about ${Math.round(usual / 60)} min`;
   if (elapsed >= usual * 2) {
-    const stuck = restartable || quiet >= QUIET_SECONDS;
+    const settled = restartable || quiet >= QUIET_SECONDS;
     return {
-      line: `Taking much longer than usual: ${so}, ${typical}. ${stuck ? "Nothing is lost if you try again." : "Still working."}`,
-      retry: stuck,
+      line: `Taking much longer than usual: ${so}, ${typical}. ${settled ? "Nothing is lost if you try again." : "Still working."}`,
+      retry: true,
     };
   }
   if (elapsed >= usual) {

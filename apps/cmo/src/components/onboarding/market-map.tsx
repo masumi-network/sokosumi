@@ -108,12 +108,7 @@ function Plot({
               bottom: `${clamp(player.y)}%`,
               animationDelay: `${index * 120}ms`,
             };
-            return player.you ? (
-              <span key={player.name} className={className} style={style}>
-                {player.name}
-                <span className="ob-sr">, you</span>
-              </span>
-            ) : (
+            return (
               <button
                 key={player.name}
                 type="button"
@@ -123,6 +118,7 @@ function Plot({
                 onClick={() => onPick(player.name)}
               >
                 {player.name}
+                {player.you ? <span className="ob-sr">, you</span> : null}
               </button>
             );
           })}

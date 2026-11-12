@@ -1193,6 +1193,14 @@ it("picks a rival's row from its dot, and its dot from its row", async () => {
   // A dot named a little longer still finds its row.
   await act(async () => row("Build it")?.click());
   expect(pressed(dot("Build it in house"))).toBe("true");
+
+  // The founder's marker is a button too (name plus ", you" for screen readers).
+  const you = [
+    ...container.querySelectorAll<HTMLButtonElement>("button.ob-map-dot.you"),
+  ].find((candidate) => candidate.textContent?.startsWith("Acme"));
+  expect(you).toBeTruthy();
+  await act(async () => you?.click());
+  expect(pressed(you)).toBe("true");
 });
 
 // Plan: account previews land one at a time while the plan writes.

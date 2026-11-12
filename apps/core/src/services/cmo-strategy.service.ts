@@ -727,20 +727,17 @@ export async function saveCmoStrategy(
         "Pieces fill in the approved strategy; no version is approved yet; until the owner approves, change entries with part patch (only those entries, by id) or the whole month with part calendar",
       );
     }
+    const pieces: CmoCalendarEntry[] = [...(strategy.calendar ?? [])];
     await planMarketingStrategyPosts(db, {
       version: approved,
       workspaceId: cuso.workspaceId,
-      entries: (strategy.calendar ?? []) as CmoCalendarEntry[],
+      entries: pieces,
       creator:
         "sokoBotId" in where
           ? { sokoBotId: cuso.sokoBotId }
           : { userId: where.userId },
     });
-    return keepFileVisuals(
-      db,
-      approved,
-      (strategy.calendar ?? []) as CmoCalendarEntry[],
-    );
+    return keepFileVisuals(db, approved, pieces);
   }
   const own = options.turnId
     ? await db.marketingStrategy.findFirst({
@@ -869,13 +866,13 @@ export function patchPlan(
   const { calendar: entries, changes, ...fields } = sent;
   const old = new Map(before.calendar.map((entry) => [entry.id, entry]));
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  const calendar = [
+  const calendar: CmoCalendarEntry[] = [
     ...before.calendar.map((entry) => {
       const next = byId.get(entry.id);
       return next ? { ...entry, ...next } : entry;
     }),
     ...entries.filter((entry) => !old.has(entry.id)),
-  ] as CmoCalendarEntry[];
+  ];
   // The first time across one turn's saves is how the entry was.
   const patched = new Map(earlier.map((item) => [item.id, item]));
   for (const entry of calendar) {
