@@ -538,13 +538,34 @@ describe("stored SEO workspace projections", () => {
     expect(new Set(once.map((action) => action.observationId))).toEqual(
       new Set([latest.id]),
     );
-    // Work that has a Task stays on its history beside the later proposal.
+    // An older action with a Task and the later proposal are one piece of work: one card, from the later check.
+    // The Task ended before the later check, which still finds the issue: the fix is an open action again.
     input.actionTasks = linked;
-    expect(
-      projectSeoProjection(input).actions.filter(
-        (action) => action.observationId === original.id,
-      ),
-    ).toMatchObject([{ taskId: linked[0].taskId }]);
+    const [task] = input.tasks;
+    const cards = () => {
+      const all = projectSeoProjection(input).actions;
+      expect(
+        all.filter((action) => action.observationId === original.id),
+      ).toHaveLength(0);
+      expect(all).toHaveLength(once.length);
+      return all.find((action) => action.id === linked[0].actionId);
+    };
+    expect(cards()).toMatchObject({ status: "recommended", taskId: null });
+    // The Task ended after the later check: the card says the fix is done and waits for the next check.
+    input.tasks = [{ ...task, completedAt: new Date("2026-11-05T12:00:00Z") }];
+    expect(cards()).toMatchObject({
+      status: "implemented",
+      taskId: task.id,
+      observationId: latest.id,
+    });
+    // The Task is still open: the later card carries it, so no second Task starts for the issue.
+    input.tasks = [{ ...task, status: "RUNNING", completedAt: null }];
+    expect(cards()).toMatchObject({
+      status: "task_created",
+      taskId: task.id,
+      observationId: latest.id,
+    });
+    input.tasks = [task];
     // A check of another Market finds other things: its proposals replace nothing.
     input.actionTasks = [];
     latest.payload = {
@@ -990,6 +1011,28 @@ describe("stored SEO workspace projections", () => {
       id: `metrics:${privateMetric.id}`,
       kind: "metrics",
     });
+  });
+
+  it("shows an action as solved when a later check passes, whatever its Task does", () => {
+    const { input } = actionFixture();
+    const [task] = input.tasks;
+    // The issue is gone while the Task is still open.
+    input.tasks = [{ ...task, status: "RUNNING", completedAt: null }];
+    expect(projectSeoProjection(input).actions).toMatchObject([
+      { status: "verified", taskId: task.id },
+    ]);
+    // A Task that was cancelled, failed or is gone does no work: its action leaves the list like one without a Task.
+    for (const tasks of [
+      [],
+      [{ ...task, status: "CANCELED" }],
+      [{ ...task, status: "FAILED" }],
+    ]) {
+      input.tasks = tasks;
+      expect(
+        projectSeoProjection(input).actions,
+        JSON.stringify(tasks),
+      ).toHaveLength(0);
+    }
   });
 
   it("requires a later compatible explicit pass to verify an implemented action", () => {

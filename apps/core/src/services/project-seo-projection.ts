@@ -160,6 +160,11 @@ export function projectSeoProjection(
     seenMetricGroups = new Set<string>();
   /** The findings that an action of a later check fixes. Rows come newest first. */
   const proposed = new Set<string>();
+  /** Per fix action: the findings it fixes as one key, the time of its check, and whether a Task still works on it. */
+  const fixWork = new Map<
+    ProjectSeoWorkspace["actions"][number],
+    { work: string; observedAt: Date; live: boolean }
+  >();
   const latestChecked = new Map<
     string,
     { id: string; result: "pass" | "fired"; observedAt: Date }
@@ -461,48 +466,110 @@ export function projectSeoProjection(
       const fixed = item.findingIds.map((id) =>
         data.findings.find((candidate) => candidate.id === id),
       );
-      // Keep linked work on its history. An unlinked proposal stops being current when each of its findings
-      // has the fix of a later check, or an exact later pass.
+      // A Task that failed, was cancelled or is gone fixes nothing.
+      const taskStatus = link ? taskStatuses.get(link.taskId) : undefined;
+      const live = Boolean(
+        link && taskStatus && !DEAD_TASK_STATUSES.has(taskStatus),
+      );
+      const identities = fixed.flatMap((finding) =>
+        finding ? [checkIdentity(data, finding)] : [],
+      );
+      /** A later check read the same row on the same device and it passes. */
+      const passedLater = (identity: string, device: string | null) => {
+        if (!device) return false;
+        const latest = latestChecked.get(identity);
+        return latest?.result === "pass" && latest.observedAt > row.observedAt;
+      };
+      // Keep live work on its history. A proposal without live work stops being current when each of its
+      // findings has the fix of a later check, or an exact later pass.
       if (
-        !link &&
+        !live &&
         fixed.length > 0 &&
-        fixed.every((finding) => {
-          if (!finding) return false;
-          const identity = checkIdentity(data, finding);
-          if (proposed.has(identity)) return true;
-          if (!finding.device) return false;
-          const latest = latestChecked.get(identity);
-          return (
-            latest?.result === "pass" && latest.observedAt > row.observedAt
-          );
-        })
+        fixed.every(
+          (finding) =>
+            finding &&
+            (proposed.has(checkIdentity(data, finding)) ||
+              passedLater(checkIdentity(data, finding), finding.device)),
+        )
       )
         continue;
-      // A Task that failed, was cancelled or is gone fixes nothing: its action replaces no older proposal,
-      // so the finding keeps one open fix.
-      const taskStatus = link ? taskStatuses.get(link.taskId) : undefined;
-      if (!link || (taskStatus && !DEAD_TASK_STATUSES.has(taskStatus)))
-        for (const finding of fixed)
-          if (finding) rowProposed.push(checkIdentity(data, finding));
-      actions.push({
+      // An action without live work replaces no older proposal, so the finding keeps one open fix.
+      if (!link || live) rowProposed.push(...identities);
+      const solved =
+        fixed.length > 0 &&
+        fixed.every(
+          (finding) =>
+            finding &&
+            passedLater(checkIdentity(data, finding), finding.device),
+        );
+      const action: ProjectSeoWorkspace["actions"][number] = {
         ...item,
         observationId: row.id,
         findingIds: item.findingIds.map((id) => `${row.id}:${id}`),
         kind: "fix",
         evidence: [],
         taskId: link?.taskId ?? null,
-        status: link
-          ? taskStatuses.get(link.taskId) === "COMPLETED"
+        status: !link
+          ? "recommended"
+          : taskStatus === "COMPLETED"
             ? verifiedAction(input, data, item, link.taskId)
               ? "verified"
               : "implemented"
-            : "task_created"
-          : "recommended",
+            : // The issue is gone while its Task is still open: a later check passes, so the action is solved.
+              live && solved
+              ? "verified"
+              : "task_created",
+      };
+      actions.push(action);
+      fixWork.set(action, {
+        work: [...identities].sort().join("\n"),
+        observedAt: row.observedAt,
+        live,
       });
     }
     // Only a later check replaces a proposal: two actions of one check can fix one finding.
     for (const identity of rowProposed) proposed.add(identity);
   }
+  // One card per issue. A later check that still finds the issue proposes its fix again. An older action with a
+  // live Task for the same findings is the same work: the later card takes its place and, with it, the Task.
+  const again = new Map<string, ProjectSeoWorkspace["actions"][number]>();
+  for (const action of actions) {
+    const work = fixWork.get(action);
+    if (!work?.work || action.status !== "recommended") continue;
+    const known = again.get(work.work);
+    if (!known || fixWork.get(known)!.observedAt < work.observedAt)
+      again.set(work.work, action);
+  }
+  const replaced = new Set<ProjectSeoWorkspace["actions"][number]>();
+  for (const action of actions) {
+    const work = fixWork.get(action);
+    if (
+      !work?.live ||
+      (action.status !== "task_created" && action.status !== "implemented")
+    )
+      continue;
+    const later = again.get(work.work);
+    const laterAt = later && fixWork.get(later)?.observedAt;
+    if (!later || !laterAt || laterAt <= work.observedAt || later.taskId)
+      continue;
+    const done =
+      action.status === "implemented"
+        ? input.tasks.find((task) => task.id === action.taskId)?.completedAt
+        : null;
+    // A check after the finished Task still finds the issue: the fix did not hold, and the later proposal is
+    // an open action again. Before that the Task is the work on the issue.
+    if (!done || laterAt <= done) {
+      later.taskId = action.taskId;
+      later.status = action.status;
+    }
+    replaced.add(action);
+  }
+  if (replaced.size)
+    actions.splice(
+      0,
+      actions.length,
+      ...actions.filter((action) => !replaced.has(action)),
+    );
   for (const choice of input.keywords) {
     if (
       !choice.saved ||
