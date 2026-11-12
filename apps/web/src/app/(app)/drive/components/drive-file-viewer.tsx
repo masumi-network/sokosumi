@@ -9,7 +9,7 @@ import {
   contentUrl,
   effectiveType,
 } from "@/app/drive/components/drive-file-preview";
-import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
+import { DriveSpreadsheet } from "@/app/drive/components/drive-spreadsheet";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,7 +84,12 @@ export function DriveFileViewer({
             {file.displayName}
           </DialogDescription>
           {sheet ? (
-            <SpreadsheetFileView url={url} kind={sheet} />
+            <DriveSpreadsheet
+              resourceId={file.id}
+              store={store}
+              url={url}
+              kind={sheet}
+            />
           ) : (
             <TeamFileView url={url} />
           )}
