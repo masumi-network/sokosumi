@@ -491,8 +491,16 @@ async function run() {
         const deleted = await deleteChannelsOfDeletedRooms();
         if (deleted > 0) log(`${deleted} channel(s) of deleted rooms removed`);
         for (const room of await unlinkedBuzzRooms()) {
-          await syncRoomChannel(room.id);
-          log(`out room ${room.id.slice(0, 8)} → channel`);
+          // One room's trouble (its relay down) must not keep others off Buzz.
+          try {
+            await syncRoomChannel(room.id);
+            log(`out room ${room.id.slice(0, 8)} → channel`);
+          } catch (error) {
+            log(
+              `out room ${room.id.slice(0, 8)} channel failed`,
+              error instanceof Error ? error.message : error,
+            );
+          }
         }
       }
       // Members can change with no message to carry it (someone leaves the

@@ -5,6 +5,7 @@ import { npubEncode } from "nostr-tools/nip19";
 import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
 import { getEnv } from "@/config/env";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import {
   forceRevokeCoworkerWorkspaceAccessByPair,
   notifyWorkspaceApproversOfPendingCoworkerAccess,
@@ -50,6 +51,7 @@ import {
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import { isActiveUser } from "@/middleware/auth-active-user";
+import { isReadOnlyChatRoom } from "@/routes/v1/chats/rooms/read-only-room";
 
 /**
  * Buzz bridge: every chat room of an organization on Buzz is also a Buzz
@@ -636,6 +638,9 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
     try {
       agents = await ownedAgents(relayUrl, [...keys]);
     } catch (error) {
+      // Asked for one person (say for an invite naming a new agent): they
+      // need it to work, so it fails for them, to be retried.
+      if (scope.identityId) throw error;
       unread.add(relayUrl);
       console.error(`Buzz agents on ${relayUrl} not read`, error);
       continue;
@@ -748,24 +753,37 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
             // Granted by the switch that is now off: the agent leaves, and
             // waits for approval like a new one (approval takes a pending
             // request, not a revoked one).
-            const pending = await prisma.$transaction(async (tx) => {
-              await forceRevokeCoworkerWorkspaceAccessByPair(
-                {
-                  coworkerId: coworkerId as string,
-                  workspaceId,
-                  resolvedById: userId,
-                },
-                tx,
-              );
-              return tx.coworkerWorkspaceAccess.update({
-                where,
-                data: {
-                  status: "PENDING",
-                  resolvedById: null,
-                  resolvedAt: null,
-                },
+            const { pending, membershipStatusMessages } =
+              await prisma.$transaction(async (tx) => {
+                const revoked = await forceRevokeCoworkerWorkspaceAccessByPair(
+                  {
+                    coworkerId: coworkerId as string,
+                    workspaceId,
+                    resolvedById: userId,
+                  },
+                  tx,
+                );
+                const pending = await tx.coworkerWorkspaceAccess.update({
+                  where,
+                  data: {
+                    status: "PENDING",
+                    resolvedById: null,
+                    resolvedAt: null,
+                  },
+                });
+                return {
+                  pending,
+                  membershipStatusMessages: revoked.membershipStatusMessages,
+                };
               });
-            });
+            // Committed: open chats learn the agent left its rooms.
+            await publishChatRoomMembershipStatusMessagesBestEffort(
+              membershipStatusMessages,
+              {
+                logContext:
+                  "chat membership status after Buzz agent access switch",
+              },
+            );
             await notifyWorkspaceApproversOfPendingCoworkerAccess({
               coworkerId: pending.coworkerId,
               workspaceId,
@@ -1123,6 +1141,8 @@ const roomForSync = {
   topic: true,
   kind: true,
   archivedAt: true,
+  directKey: true,
+  sharedSokoBot: { select: { archivedAt: true, deletedAt: true } },
   buzzChannel: true,
   userMembers: {
     select: {
@@ -1461,7 +1481,9 @@ export async function syncRoomChannel(roomId: string) {
   // Name, topic and archiving follow the room, after its members. An
   // archived channel takes no edits on Buzz, so it gets only that; reopening
   // sends the rest again.
-  const archived = room.archivedAt !== null;
+  // Read-only in Sokosumi (say a retired shared Soko Bot's room) is archived
+  // on Buzz too: Core would refuse what Buzz took.
+  const archived = room.archivedAt !== null || isReadOnlyChatRoom(room);
   const about = room.topic ?? "";
   const metadataHash = contentHash(
     `${channelName(room)}\n${about}\n${archived}`,

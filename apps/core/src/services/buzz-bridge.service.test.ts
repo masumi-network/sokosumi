@@ -59,7 +59,13 @@ vi.mock("@/lib/db/prisma", () => ({ default: db }));
 const approvers = vi.hoisted(() => ({ notify: vi.fn() }));
 vi.mock("@/helpers/coworker-workspace-access", () => ({
   notifyWorkspaceApproversOfPendingCoworkerAccess: approvers.notify,
-  forceRevokeCoworkerWorkspaceAccessByPair: vi.fn(),
+  forceRevokeCoworkerWorkspaceAccessByPair: vi.fn(async () => ({
+    membershipStatusMessages: [{ roomId: "room" }],
+  })),
+}));
+const realtime = vi.hoisted(() => ({ publish: vi.fn() }));
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMembershipStatusMessagesBestEffort: realtime.publish,
 }));
 const relay = vi.hoisted(() => ({ queryEvents: vi.fn() }));
 vi.mock("@/lib/buzz/relay-client", async (importActual) => ({
@@ -823,6 +829,14 @@ describe("a person's own Buzz agents", () => {
     relay.queryEvents.mockRejectedValue(new Error("relay down"));
     await expect(syncBuzzAgents()).resolves.toEqual([]);
     expect(db.coworker.updateMany).not.toHaveBeenCalled();
+    // Asked for Bob alone (an invite naming a new agent): it fails for him,
+    // so the invite is retried instead of taken for a stranger's.
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      { id: "identity-bob", userId: "user-bob", appPubkey: OWNER_PUBKEY },
+    ]);
+    await expect(
+      syncBuzzAgents({ identityId: "identity-bob" }),
+    ).rejects.toThrow("relay down");
   });
 
   it("asks for approval again when an organization stops letting agents in by itself", async () => {
@@ -909,6 +923,11 @@ describe("a person's own Buzz agents", () => {
       workspaceId: "org-workspace",
       accessId: "access",
     });
+    // Open chats learn it left.
+    expect(realtime.publish).toHaveBeenCalledWith(
+      [{ roomId: "room" }],
+      expect.anything(),
+    );
   });
 
   it("makes a Coworker only of an agent whose profile its owner signed", async () => {
