@@ -1,8 +1,4 @@
-import type {
-  Task,
-  TaskEvent,
-  TaskEventsPaginationMetadata,
-} from "@sokosumi/core-client";
+import type { Task } from "@sokosumi/core-client";
 import { TaskVisibility } from "@sokosumi/core-client";
 import {
   removeTaskContextAttachmentLinks,
@@ -40,6 +36,7 @@ import {
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { taskFormAssigneeId } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
+import { taskActivityFeedFromEvents } from "@/app/tasks/utils/task-activity-feed";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
@@ -57,7 +54,6 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { projectService } from "@/lib/services/project.service";
-import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import {
   buildWorkspaceApprovalReviewHref,
@@ -79,14 +75,6 @@ type MembersResult = Awaited<
 type ProjectResult = Awaited<
   ReturnType<typeof projectService.getProjectById>
 > | null;
-
-interface TaskActivityFeed {
-  events: TaskEvent[];
-  pagination: Pick<
-    TaskEventsPaginationMetadata,
-    "commentCount" | "latestCommentId"
-  >;
-}
 
 interface TaskDetailViewProps {
   task: Task;
@@ -171,6 +159,7 @@ export async function TaskDetailView({
                   : undefined
               }
               backLabel={t("back")}
+              calendarBackLabel={t("backToCalendar")}
               parentLink={
                 <>
                   {parentTask ? (
@@ -268,6 +257,7 @@ export async function TaskDetailView({
               files={task.files ?? []}
               expandLabel={t("expand")}
               collapseLabel={t("collapse")}
+              downloadAllName={task.name}
             />
 
             {task.jobs.length > 0 && (
@@ -508,6 +498,7 @@ async function TaskMetadataSection({
           selectableStatuses: task.selectableStatuses,
           organization: task.organization,
           assignee: task.assignee,
+          runAt: task.runAt?.toISOString() ?? null,
         }}
         project={project ? { id: project.id, name: project.name } : null}
         schedule={
@@ -526,6 +517,7 @@ async function TaskMetadataSection({
           project: t("project"),
           noProject: t("noProject"),
           schedule: t("schedule"),
+          startsAt: tTasks("RunAt.title"),
           assignee: t("assignee"),
           noAssignee: t("noAssignee"),
           memberFallback: t("memberFallback"),
@@ -605,6 +597,7 @@ async function TaskDetailActionsSlot({
     t,
     tTasks,
     tMembersTableHeader,
+    initialDesignMdAttachment,
   ] = await Promise.all([
     coworkersPromise,
     assigneeOptionsPromise,
@@ -616,10 +609,10 @@ async function TaskDetailActionsSlot({
     getTranslations("App.Tasks.Detail"),
     getTranslations("App.Tasks"),
     getTranslations("Components.MembersTable.Header"),
+    sessionPromise.then((session) =>
+      session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
+    ),
   ]);
-  const initialDesignMdAttachment = session?.user.id
-    ? await designMdService.resolveEffectiveDesignMd()
-    : null;
   const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
     task,
     coworkers,
@@ -763,28 +756,22 @@ async function TaskActivitySectionContent({
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
   mentionableUsersPromise: Promise<MentionableUser[]>;
 }) {
-  const [
-    agents,
-    session,
-    viewerPlan,
-    hasAssignedSeat,
-    mentionableUsers,
-    t,
-    activityEvents,
-  ] = await Promise.all([
-    agentsPromise,
-    sessionPromise,
-    currentPlanPromise,
-    hasAssignedSeatPromise,
-    mentionableUsersPromise,
-    getTranslations("App.Tasks.Detail"),
-    // Read-only (admin and developer views): the viewer is outside the task's
-    // workspace, so the workspace-scoped events read 404s. Those payloads
-    // already carry every event.
-    forceReadOnly
-      ? taskActivityFeedFromTask(task)
-      : taskService.listTaskActivityFeed(taskId),
-  ]);
+  const [agents, session, viewerPlan, hasAssignedSeat, mentionableUsers, t] =
+    await Promise.all([
+      agentsPromise,
+      sessionPromise,
+      currentPlanPromise,
+      hasAssignedSeatPromise,
+      mentionableUsersPromise,
+      getTranslations("App.Tasks.Detail"),
+    ]);
+  // The task payload already carries every event, so a second events read
+  // only repeats it. Read-only (admin and developer views) keeps every
+  // comment: the viewer is outside the task's workspace, so the
+  // workspace-scoped read that loads older comments 404s.
+  const activityEvents = taskActivityFeedFromEvents(task.events, {
+    keepAllComments: forceReadOnly,
+  });
   const {
     userById: actorsUserById,
     coworkerById,
@@ -863,17 +850,6 @@ async function TaskActivitySectionContent({
       })}
     />
   );
-}
-
-function taskActivityFeedFromTask(task: Task): TaskActivityFeed {
-  const comments = task.events.filter((event) => event.comment != null);
-  return {
-    events: task.events,
-    pagination: {
-      commentCount: comments.length,
-      latestCommentId: comments.at(-1)?.id ?? null,
-    },
-  };
 }
 
 function buildTaskDetailContext(

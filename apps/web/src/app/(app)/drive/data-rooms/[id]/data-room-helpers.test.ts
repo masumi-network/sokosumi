@@ -19,7 +19,6 @@ function row(path: string, kind: "folder" | "file"): DataRoomTreeRow {
     sizeBytes: null,
     mimeType: null,
     updatedAt: null,
-    isNew: false,
   };
 }
 

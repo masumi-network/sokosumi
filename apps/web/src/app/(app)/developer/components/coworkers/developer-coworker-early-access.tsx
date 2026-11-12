@@ -1,7 +1,6 @@
 "use client";
 
 import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -34,7 +33,6 @@ export function DeveloperCoworkerEarlyAccess({
   accessRows,
 }: DeveloperCoworkerEarlyAccessProps) {
   const t = useTranslations("App.Developer.Coworkers.EarlyAccess");
-  const router = useRouter();
   const [targetType, setTargetType] =
     useState<EarlyAccessTargetType>("organization");
   const [organizationSlug, setOrganizationSlug] = useState("");
@@ -72,7 +70,6 @@ export function DeveloperCoworkerEarlyAccess({
       toast.success(
         result.value.status === "PENDING" ? t("pendingSuccess") : t("success"),
       );
-      router.refresh();
     } finally {
       setIsSubmitting(false);
     }
@@ -88,7 +85,6 @@ export function DeveloperCoworkerEarlyAccess({
       throw new Error(result.error.message ?? "revoke failed");
     }
     toast.success(t("revokeSuccess"));
-    router.refresh();
   }
 
   return (

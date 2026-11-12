@@ -17,6 +17,8 @@ import { loadAnalyticsSearchParams } from "./search-params";
 
 export const instant = false;
 
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
+
 interface NewsletterAnalyticsPageProps {
   searchParams: Promise<SearchParams>;
 }
