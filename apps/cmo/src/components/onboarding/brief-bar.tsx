@@ -176,6 +176,14 @@ function StageSheet({ marks, viewing, onClose, onView }: StageSheetProps) {
       ?.querySelector<HTMLButtonElement>(`[data-stage="${first}"]`)
       ?.focus();
   }, [first]);
+  // The page behind holds still while the sheet is open.
+  useEffect(() => {
+    const before = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = before;
+    };
+  }, []);
   return (
     <>
       {/* The scrim only catches clicks; Close is the sheet's control. */}
@@ -186,9 +194,23 @@ function StageSheet({ marks, viewing, onClose, onView }: StageSheetProps) {
         aria-modal="true"
         aria-label="Your progress"
         onKeyDown={(event) => {
-          if (event.key !== "Escape") return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+            return;
+          }
+          if (event.key !== "Tab") return;
+          // Tab wraps inside the sheet: its live buttons are the only stops.
+          const stops = [
+            ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+              "button:not(:disabled)",
+            ),
+          ];
+          const edge = event.shiftKey ? stops[0] : stops.at(-1);
+          const wrap = event.shiftKey ? stops.at(-1) : stops[0];
+          if (document.activeElement !== edge) return;
           event.preventDefault();
-          onClose();
+          wrap?.focus();
         }}
       >
         <div className="brief-sheet-head">

@@ -976,4 +976,37 @@ describe("looking back along the bar", () => {
       "Your briefing is ready. Does this plan sound right?",
     );
   });
+
+  it("keeps Tab inside the phone sheet and holds the page still while it's open", async () => {
+    await render(draft({ strategy: fullPlan }));
+    const fold = container.querySelector<HTMLButtonElement>(
+      "button.brief-fold-button",
+    );
+    await act(async () => fold?.click());
+    expect(document.body.style.overflow).toBe("hidden");
+
+    const sheet = container.querySelector<HTMLElement>('[role="dialog"]');
+    const live = [
+      ...(sheet?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+    ].filter((button) => !button.disabled);
+    const first = live[0];
+    const last = live.at(-1);
+    expect(first?.getAttribute("aria-label")).toBe("Close");
+    expect(last?.textContent).toContain("Briefing");
+    const tab = (shiftKey: boolean) =>
+      act(async () => {
+        document.activeElement?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true }),
+        );
+      });
+
+    last?.focus();
+    await tab(false);
+    expect(document.activeElement).toBe(first);
+    await tab(true);
+    expect(document.activeElement).toBe(last);
+
+    await act(async () => first?.click());
+    expect(document.body.style.overflow).toBe("");
+  });
 });
