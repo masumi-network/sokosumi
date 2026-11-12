@@ -114,6 +114,7 @@
 
 .brief-more-toggle {
   justify-self: start;
+  text-align: left;
   padding: 0;
   border: 0;
   background: none;
@@ -354,11 +355,13 @@ button.brief-week-row:hover .brief-week-text b {
   padding: 16px 32px 20px;
 }
 
+/* Cuso sits on the bar's top line: half above it, half below. */
 .brief-cuso {
   grid-area: cuso;
   align-self: start;
   width: 96px;
   height: 96px;
+  margin-top: -64px;
 }
 
 .brief-bar-body {
@@ -483,6 +486,11 @@ button.brief-week-row:hover .brief-week-text b {
 
 .brief-bubble:not(.past) {
   box-shadow: var(--shadow-hard);
+}
+
+.brief-question:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 .brief-question {
@@ -654,6 +662,7 @@ button.brief-week-row:hover .brief-week-text b {
   .brief-cuso {
     width: 64px;
     height: 64px;
+    margin-top: -44px;
   }
 
   .brief-cuso .cuso-avatar {
