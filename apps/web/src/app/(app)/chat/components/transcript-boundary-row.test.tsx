@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranscriptBoundaryRow } from "./transcript-boundary-row";
@@ -11,6 +11,7 @@ type ObserverCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
 
 const observers: Array<{
   callback: ObserverCallback;
+  options?: IntersectionObserverInit;
   observe: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
 }> = [];
@@ -22,9 +23,13 @@ beforeEach(() => {
     class {
       observe = vi.fn();
       disconnect = vi.fn();
-      constructor(callback: ObserverCallback) {
+      constructor(
+        callback: ObserverCallback,
+        options?: IntersectionObserverInit,
+      ) {
         observers.push({
           callback,
+          options,
           observe: this.observe,
           disconnect: this.disconnect,
         });
@@ -90,6 +95,50 @@ describe("TranscriptBoundaryRow", () => {
 
     expect(onLoad).toHaveBeenCalledExactlyOnceWith("msg-9");
     expect(observers[0]?.disconnect).toHaveBeenCalled();
+  });
+
+  it("counts as in view one screen before the transcript's scroller shows it", () => {
+    render(
+      <div data-testid="scroller" style={{ overflowY: "auto" }}>
+        <div>
+          <TranscriptBoundaryRow
+            cursorMessageId="msg-9"
+            isGap={false}
+            status="idle"
+            onLoad={vi.fn()}
+          />
+        </div>
+      </div>,
+    );
+
+    expect(observers[0]?.options).toEqual({
+      root: screen.getByTestId("scroller"),
+      rootMargin: "100% 0px",
+    });
+  });
+
+  it("asks on its own once per cursor, so a row kept in place does not ask again", () => {
+    const onLoad = vi.fn();
+    const row = (status: "idle" | "loading", cursor = "msg-9") => (
+      <TranscriptBoundaryRow
+        cursorMessageId={cursor}
+        isGap={false}
+        status={status}
+        onLoad={onLoad}
+      />
+    );
+    const view = render(row("idle"));
+    act(() => observers[0]?.callback([{ isIntersecting: true }]));
+    view.rerender(row("loading"));
+
+    // The page landed, but the transcript still shows this row.
+    view.rerender(row("idle"));
+    expect(observers).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "loadOlder" }));
+    expect(onLoad).toHaveBeenCalledTimes(2);
+
+    view.rerender(row("idle", "msg-3"));
+    expect(observers).toHaveLength(2);
   });
 
   it("ignores taps and visibility while loading", () => {
