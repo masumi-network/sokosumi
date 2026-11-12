@@ -468,10 +468,10 @@ export const driveGoogleSheetSchema = z
       .uuid()
       .openapi({ description: "The copy's file id" }),
     pathname: z.string().openapi({
-      example: "drive/organizations/org_123/Finance/Model.xlsx",
+      example: "drive/organizations/org_123/Finance/Model.pdf",
       description: "The copy's Blob pathname",
     }),
-    name: z.string().openapi({ example: "Model.xlsx" }),
+    name: z.string().openapi({ example: "Model.pdf" }),
     url: z.string().url().openapi({
       example:
         "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",

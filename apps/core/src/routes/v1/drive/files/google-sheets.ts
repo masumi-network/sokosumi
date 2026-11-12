@@ -34,7 +34,7 @@ const linkRoute = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/google-sheets",
     description: [
-      "Copy a Google Sheet into Drive as an .xlsx, read through its share link.",
+      "Save Google's PDF of a Google Sheet into Drive, read through its share link.",
       "The sheet must be shared as 'Anyone with the link can view'. Sokosumi",
       "reads it again every hour and rewrites the copy when it changed.",
     ].join("\n"),
