@@ -333,6 +333,37 @@ describe("TaskFiles download all", () => {
     );
   });
 
+  it("zips a public share's files, which carry no status, by their links", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createTaskFilesArchive).mockResolvedValue({
+      data: new ArrayBuffer(1),
+      included: ["Report 0.pdf", "Report 1.pdf"],
+      missing: [],
+    });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:zip");
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    const files = makeFiles(2).map(({ id, name, fileUrl, mimeType, size }) => ({
+      id,
+      name,
+      fileUrl: fileUrl ?? "",
+      mimeType,
+      size,
+      createdAt: new Date("2026-01-01"),
+    }));
+    render(filesView(files, "task-1", "Shared plan"));
+
+    await user.click(screen.getByRole("button", { name: "Download all" }));
+
+    expect(createTaskFilesArchive).toHaveBeenCalledWith(
+      files.map(({ name, fileUrl }) => ({ name, fileUrl })),
+      expect.any(AbortSignal),
+    );
+    expect(click).toHaveBeenCalledOnce();
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+
   it("says so when no file could be downloaded", async () => {
     const user = userEvent.setup();
     vi.mocked(createTaskFilesArchive).mockResolvedValue({
