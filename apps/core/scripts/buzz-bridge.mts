@@ -477,8 +477,16 @@ async function run() {
     try {
       if (Date.now() - lastRoomSweep > 30_000) {
         lastRoomSweep = Date.now();
-        for (const change of await syncBuzzAgents()) {
-          log(`agent ${change.slice(0, 13)} synced`);
+        // Its trouble must not hold up cleanup and new rooms below.
+        try {
+          for (const change of await syncBuzzAgents()) {
+            log(`agent ${change.slice(0, 13)} synced`);
+          }
+        } catch (error) {
+          log(
+            "agent sync failed",
+            error instanceof Error ? error.message : error,
+          );
         }
         const deleted = await deleteChannelsOfDeletedRooms();
         if (deleted > 0) log(`${deleted} channel(s) of deleted rooms removed`);

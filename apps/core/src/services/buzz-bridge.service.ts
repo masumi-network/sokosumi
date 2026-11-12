@@ -628,11 +628,22 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
     }
   }
   const agentsByOwnerKey = new Map<string, Map<string, FoundAgent>>();
+  // A relay that cannot be read leaves the others to go on; its people keep
+  // the agents they have until it can be read again.
+  const unread = new Set<string>();
   for (const [relayUrl, keys] of keysByRelay) {
-    for (const [pubkey, agent] of await ownedAgents(relayUrl, [...keys])) {
-      const agents = agentsByOwnerKey.get(agent.ownerKey) ?? new Map();
-      agents.set(pubkey, agent);
-      agentsByOwnerKey.set(agent.ownerKey, agents);
+    let agents: Map<string, FoundAgent & { ownerKey: string }>;
+    try {
+      agents = await ownedAgents(relayUrl, [...keys]);
+    } catch (error) {
+      unread.add(relayUrl);
+      console.error(`Buzz agents on ${relayUrl} not read`, error);
+      continue;
+    }
+    for (const [pubkey, agent] of agents) {
+      const owned = agentsByOwnerKey.get(agent.ownerKey) ?? new Map();
+      owned.set(pubkey, agent);
+      agentsByOwnerKey.set(agent.ownerKey, owned);
     }
   }
   const changed: string[] = [];
@@ -788,7 +799,11 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
         }
       }
     }
-    // An agent no longer found is archived and leaves its rooms on Buzz.
+    // An agent no longer found is archived and leaves its rooms on Buzz,
+    // unless a relay of this person's could not be read just now.
+    if (communities.some((community) => unread.has(community.relayUrl))) {
+      continue;
+    }
     const gone = await prisma.coworker.findMany({
       where: {
         archivedAt: null,
@@ -1778,14 +1793,25 @@ export async function reconcileMessage(
         const parentLink = await prisma.buzzMessageLink.findUnique({
           where: { messageId: message.parentMessageId },
         });
-        // Never post a reply as a new thread; the outbox retries it.
-        if (!parentLink) throw new Error("Thread root is not on Buzz yet");
-        // Unless the thread started in a DM since retired: its start is not
-        // in this conversation, so the reply stands on its own here.
-        threadRootEventId =
-          parentLink.channelId && parentLink.channelId !== channel.channelId
-            ? null
-            : parentLink.eventId;
+        if (parentLink) {
+          // A thread started in a DM since retired: its start is not in this
+          // conversation, so the reply stands on its own here.
+          threadRootEventId =
+            parentLink.channelId && parentLink.channelId !== channel.channelId
+              ? null
+              : parentLink.eventId;
+        } else {
+          // Never post a reply as a new thread while its root is on its way;
+          // the outbox retries it. A root deleted before it reached Buzz
+          // never will, so the reply stands on its own.
+          const root = await prisma.chatRoomMessage.findUnique({
+            where: { id: message.parentMessageId },
+            select: { deletedAt: true },
+          });
+          if (root && !root.deletedAt) {
+            throw new Error("Thread root is not on Buzz yet");
+          }
+        }
       }
       const event = signEvent(
         vouched(

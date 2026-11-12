@@ -794,6 +794,37 @@ describe("a person's own Buzz agents", () => {
     expect(core).not.toHaveBeenCalled();
   });
 
+  it("keeps a person's agents while their relay cannot be read", async () => {
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      {
+        id: "identity-bob",
+        userId: "user-bob",
+        appPubkey: OWNER_PUBKEY,
+        user: { name: "Bob" },
+      },
+    ]);
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "member",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: {
+            relayUrl: "wss://acme.example",
+            allowPersonalAgents: true,
+          },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([]);
+    db.vendor.upsert.mockResolvedValue({ id: "vendor" });
+    db.coworker.findMany.mockResolvedValue([{ id: "cw-agent" }]);
+    relay.queryEvents.mockRejectedValue(new Error("relay down"));
+    await expect(syncBuzzAgents()).resolves.toEqual([]);
+    expect(db.coworker.updateMany).not.toHaveBeenCalled();
+  });
+
   it("asks for approval again when an organization stops letting agents in by itself", async () => {
     db.buzzIdentity.findMany.mockResolvedValueOnce([
       {
