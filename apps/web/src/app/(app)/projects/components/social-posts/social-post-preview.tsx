@@ -64,6 +64,22 @@ export function SocialPostPreview({
 }: SocialPostPreviewProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const thread = useTranslations("App.Projects.SocialPosts.thread");
+  const mediaNotices = [
+    ...new Set(
+      [...content.media, ...threadParts.flatMap((part) => part.media)].flatMap(
+        (media) =>
+          "transformation" in media && media.transformation
+            ? [
+                t(`mediaNotice.${media.transformation.code}`, {
+                  provider: socialPostProviderLabel(
+                    media.transformation.provider,
+                  ),
+                }),
+              ]
+            : [],
+      ),
+    ),
+  ];
   return (
     <PreviewFrame
       aria-label={t("label", { provider: socialPostProviderLabel(provider) })}
@@ -116,6 +132,15 @@ export function SocialPostPreview({
       ) : (
         <GenericPreview provider={provider} {...content} />
       )}
+      {mediaNotices.map((notice) => (
+        <p
+          className="text-muted-foreground border-t px-3 py-2 text-xs"
+          data-testid="social-post-media-notice"
+          key={notice}
+        >
+          {notice}
+        </p>
+      ))}
     </PreviewFrame>
   );
 }
