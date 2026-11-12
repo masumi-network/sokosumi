@@ -85,6 +85,7 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
+import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
@@ -739,7 +740,7 @@ async function uploadFileReference(
   });
 }
 
-async function downloadStudioFileReference(
+export async function downloadStudioFileReference(
   workspaceId: string,
   fileId: string,
   actor: FileActor,
@@ -1909,7 +1910,7 @@ async function storeMedia(
   }
 
   try {
-    await insertAsset({
+    const inserted = await insertAsset({
       job: {
         id: job.id,
         projectId: project.id,
@@ -1938,12 +1939,14 @@ async function storeMedia(
       bytes: downloaded.bytes.byteLength,
       checksum,
     });
+    if (!inserted) return;
   } catch (error) {
     if (isUniqueViolation(error)) return; // Another settler won; its asset stands.
     await releaseSettlementLease(job.id, lease);
     throw error;
   }
   // Only the settler that stored the asset gets here, so this runs once per job.
+  if (!video) enqueueAdEval(job.id);
   await publishStudioAssetToFiles({
     jobId: job.id,
     workspaceId: project.workspaceId,
@@ -1998,13 +2001,13 @@ async function insertAsset(input: {
   height: number;
   bytes: number;
   checksum: string;
-}): Promise<void> {
-  await serializableTransaction(async (tx) => {
+}): Promise<boolean> {
+  return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageAsset.findUnique({
       where: { jobId: input.job.id },
       select: { id: true },
     });
-    if (existing) return;
+    if (existing) return false;
 
     let rootId: string | null = null;
     if (input.job.parentAssetId) {
@@ -2118,6 +2121,7 @@ async function insertAsset(input: {
         unreachableSource: null,
       },
     });
+    return true;
   }, "Another image finished in this lineage at the same moment. Try again.");
 }
 

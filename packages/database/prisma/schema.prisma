@@ -188,10 +188,11 @@ model Workspace {
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
 
-  adEvals       AdEval[]
-  adFeedback    AdFeedback[]
-  adEvents      AdEvent[]
-  adDataConsent WorkspaceAdDataConsent?
+  adEvals            AdEval[]
+  adEvalDailyBudgets AdEvalDailyBudget[]
+  adFeedback         AdFeedback[]
+  adEvents           AdEvent[]
+  adDataConsent      WorkspaceAdDataConsent?
 
   fileResources      FileResource[]
   fileEvidenceScopes FileEvidenceScope[]

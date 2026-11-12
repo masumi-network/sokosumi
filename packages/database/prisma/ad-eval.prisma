@@ -35,11 +35,27 @@ model AdEval {
   judgeModel    String?
   overall       Float?
   costUsdMicros BigInt?
+  latencyMs     Int?
   createdAt     DateTime @default(now())
 
   @@unique([assetId, rubricVersion])
   @@index([workspaceId, overall])
   @@map("ad_eval")
+}
+
+/// Cumulative admission cost survives asset deletion; the global scope survives workspace deletion.
+model AdEvalDailyBudget {
+  day           DateTime @db.Date
+  scope         String
+  calls         Int      @default(0)
+  costUsdMicros BigInt   @default(0)
+
+  workspaceId String?    @db.Uuid
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([day, scope])
+  @@index([workspaceId])
+  @@map("ad_eval_daily_budget")
 }
 
 enum AdFeedbackKind {

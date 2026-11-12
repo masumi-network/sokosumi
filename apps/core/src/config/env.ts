@@ -193,6 +193,25 @@ const baseEnvSchema = z.object({
    * read-only view rather than failing a page render.
    */
   FAL_KEY: z.string().min(1).optional(),
+  /** Automatic studio ad evals are opt-in; PAUSED stops new judge calls. */
+  AD_EVALS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AD_EVALS_PAUSED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AD_EVALS_WORKSPACE_DAILY_LIMIT: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(100),
+  AD_EVALS_GLOBAL_DAILY_USD: z.coerce
+    .number()
+    .finite()
+    .nonnegative()
+    .default(10),
   /**
    * Shared secret the image-studio agent signs its grants with. The agent runs
    * outside Core, so a grant is how it names the acting user; Core still
