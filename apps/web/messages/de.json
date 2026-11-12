@@ -2896,6 +2896,14 @@
           "timeout": "Zeitüberschreitung.",
           "missing": "Beitrag konnte nicht geöffnet werden.",
           "mediaUnavailable": "Medien sind im importierten Verlauf noch nicht enthalten.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} fügt Ränder für 4:5 hinzu.",
+            "pad_1_91_1": "{provider} fügt Ränder für 1,91:1 hinzu.",
+            "resize": "{provider} skaliert dieses Bild.",
+            "jpeg": "{provider} konvertiert dieses Bild in JPEG.",
+            "srgb": "{provider} konvertiert dieses Bild in sRGB.",
+            "smaller_file": "{provider} komprimiert dieses Bild."
+          },
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",
