@@ -42,6 +42,12 @@ vi.mock("@/helpers/chat-direct-message-notifications", () => ({
   emitChatDirectMessageNotifications: vi.fn(),
   shouldEmitChatDirectMessageNotifications: () => false,
 }));
+// Notification fan-out goes to Ably, which CI has no key for; the mention
+// rows it reads are still written for real.
+vi.mock("@/helpers/chat-human-mentions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/chat-human-mentions")>()),
+  emitChatMessageNotifications: vi.fn(),
+}));
 vi.mock("@/services/soko-bot-control-plane.service", async (importOriginal) => {
   const actual =
     await importOriginal<
