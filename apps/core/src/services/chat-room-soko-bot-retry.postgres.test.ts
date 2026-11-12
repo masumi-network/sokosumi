@@ -115,7 +115,8 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 vi.mock("@/helpers/chat-room-message-created-effects", () => ({
-  invalidateChatRoomMessageReaders: vi.fn(),
+  // Async like the real helper: callers chain on its Promise.
+  invalidateChatRoomMessageReaders: vi.fn(async () => undefined),
 }));
 vi.mock("@/helpers/chat-mention-notifications", () => ({
   emitChatMentionNotifications: vi.fn(),
@@ -1759,27 +1760,46 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
   });
 
   it("still fails a pending mention, and a stale sent one, that a dispatcher cannot run", async () => {
-    // Pending: the dispatcher claims it, then fails it under that claim.
-    const fresh = await pendingMention();
-    hold.workspace = async () => {
-      throw new Error("workspace lookup failed");
-    };
-    await publicDispatch(fresh.mention.id);
-    expect(await mentionState(fresh.mention.id)).toMatchObject({
-      status: "failed",
-      metadata: { mention_failed: true },
-    });
+    // Anything escaping to the public dispatcher's catch is logged there;
+    // these failures must complete without reaching it.
+    const outerErrors = vi.spyOn(console, "error");
+    try {
+      // Pending: the dispatcher claims it, then fails it under that claim,
+      // creating the failed card and publishing it.
+      const fresh = await pendingMention();
+      hold.workspace = async () => {
+        throw new Error("workspace lookup failed");
+      };
+      await publicDispatch(fresh.mention.id);
+      expect(await mentionState(fresh.mention.id)).toMatchObject({
+        status: "failed",
+        metadata: { mention_failed: true },
+      });
+      expect(publish).toHaveBeenCalledWith(
+        await mentionReply(fresh.mention.id),
+        "create",
+      );
 
-    // Stale sent (its worker died before any turn): reclaimed, then failed.
-    const stale = await staleMention();
-    hold.workspace = async () => {
-      throw new Error("workspace lookup failed");
-    };
-    await publicDispatch(stale.mention.id);
-    expect(await mentionState(stale.mention.id)).toMatchObject({
-      status: "failed",
-      metadata: { mention_failed: true },
-    });
-    expect(startTurn).not.toHaveBeenCalled();
+      // Stale sent (its worker died before any turn): reclaimed, then
+      // failed on its existing reply, which is published as updated.
+      const stale = await staleMention();
+      hold.workspace = async () => {
+        throw new Error("workspace lookup failed");
+      };
+      await publicDispatch(stale.mention.id);
+      expect(await mentionState(stale.mention.id)).toMatchObject({
+        status: "failed",
+        metadata: { mention_failed: true },
+      });
+      expect(publish).toHaveBeenCalledWith(stale.response.id, "update");
+      expect(startTurn).not.toHaveBeenCalled();
+      expect(
+        outerErrors.mock.calls.filter(
+          ([message]) => message === "Room coworker dispatch failed:",
+        ),
+      ).toEqual([]);
+    } finally {
+      outerErrors.mockRestore();
+    }
   });
 });
