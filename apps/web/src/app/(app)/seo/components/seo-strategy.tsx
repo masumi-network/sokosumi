@@ -9,6 +9,7 @@ import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { useClipboard } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
 import { SeoActionCardHead } from "./seo-card-head";
+import { seoPlaces } from "./seo-places-model";
 import {
   SEO_ROW_LIST_CLASS,
   SeoDate,
@@ -264,11 +265,20 @@ function StrategyActionCard({
   action,
   model,
   startOpen,
+  title = action.title,
+  meta,
+  note,
 }: {
   action: ProjectSeoStrategy["actions"][number];
   model: SeoWorkspaceModel;
   /** The one action of a list has nothing to choose from, so it starts open. So does the first action after a row that led here. */
   startOpen: boolean;
+  /** A place row names the place. */
+  title?: string;
+  /** Beside the title instead of the effort. */
+  meta?: string;
+  /** The first line of the open card. */
+  note?: string;
 }) {
   const t = useTranslations("App.Seo");
   // Every card has the same button name; the card's title tells them apart.
@@ -292,12 +302,13 @@ function StrategyActionCard({
               // on the Agent tab.
               className="block min-w-0 text-sm font-medium text-wrap break-words sm:flex-1"
             >
-              {action.title}
+              {title}
             </span>
             {/* Quiet plain text, as the impact of a fix row. Two outlined labels on every row made the list a
                 list of labels, and the title already says what kind of action it is. */}
             <span className="text-muted-foreground block text-xs font-normal whitespace-nowrap max-sm:mt-0.5">
-              {t("actions.effort")}: {t(`priority.${action.effort}`)}
+              {meta ??
+                `${t("actions.effort")}: ${t(`priority.${action.effort}`)}`}
             </span>
           </span>
         </SeoActionCardHead>
@@ -308,6 +319,7 @@ function StrategyActionCard({
           model={model}
           bodyId={bodyId}
           titleId={titleId}
+          note={note}
         />
       ) : null}
     </article>
@@ -320,11 +332,13 @@ function StrategyActionBody({
   model,
   bodyId,
   titleId,
+  note,
 }: {
   action: ProjectSeoStrategy["actions"][number];
   model: SeoWorkspaceModel;
   bodyId: string;
   titleId: string;
+  note?: string;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -348,9 +362,12 @@ function StrategyActionBody({
     new Set(action.targets.map((target) => target.type)).size === 1;
   return (
     <div id={bodyId} className="content-rise space-y-3 px-4 pt-1 pb-4">
-      <p className="text-muted-foreground max-w-prose text-sm break-words">
-        {action.why}
-      </p>
+      {note ? <p className="max-w-prose text-sm font-medium">{note}</p> : null}
+      {action.why ? (
+        <p className="text-muted-foreground max-w-prose text-sm break-words">
+          {action.why}
+        </p>
+      ) : null}
       {action.place ? (
         <p className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-sm font-medium">
@@ -477,6 +494,7 @@ export function SeoStrategyActions({
   const { shownStrategy, setShownStrategy } = model;
   // The list is open on its first paint then, so the group scrolls into view at its full height.
   const [expanded, setExpanded] = useState(shownStrategy);
+  const [placesOpen, setPlacesOpen] = useState(shownStrategy);
   // The reader came for these actions: the first one is open, as the first fix is, so eight equal rows have a
   // lead. The longer group also has room to scroll up to the top of a desktop screen.
   const [led, setLed] = useState(shownStrategy);
@@ -484,52 +502,103 @@ export function SeoStrategyActions({
   useEffect(() => {
     if (!shownStrategy) return;
     setExpanded(true);
+    setPlacesOpen(true);
     setLed(true);
     group.current?.scrollIntoView({ block: "start" });
     group.current?.focus({ preventScroll: true });
     setShownStrategy(false);
   }, [shownStrategy, setShownStrategy]);
-  const actions = model.data.strategy?.actions ?? [];
-  if (!actions.length) return null;
-  const visible = seoFoldCount(
-    actions.length,
-    afterFixes ? SEO_STRATEGY_ACTIONS_AFTER_FIXES : undefined,
+  const { places, rest: actions } = seoPlaces(
+    model.data.strategy?.actions ?? [],
   );
+  if (!actions.length && !places.length) return null;
+  const fold = afterFixes ? SEO_STRATEGY_ACTIONS_AFTER_FIXES : undefined;
+  const visible = seoFoldCount(actions.length, fold);
+  const placesVisible = seoFoldCount(places.length, fold);
   return (
     <div
       ref={group}
       // It takes the focus after such a row, so a screen reader names it.
       role="group"
-      aria-label={t("strategy.actions.title")}
+      aria-label={t("strategy.title")}
       tabIndex={-1}
       // On a phone the app header lies over the top of the scroll area.
-      className="focus-visible:outline-ring scroll-mt-20 rounded-xl focus-visible:outline-2 md:scroll-mt-4"
+      className="focus-visible:outline-ring scroll-mt-20 space-y-5 rounded-xl focus-visible:outline-2 md:scroll-mt-4"
     >
       {/* The title says where the actions come from: a sentence under it said the same. */}
-      <SeoSection title={t("strategy.actions.title")}>
-        <ul role="list" className={SEO_ROW_LIST_CLASS}>
-          {(expanded ? actions : actions.slice(0, visible)).map(
-            (action, index) => (
-              <li key={`${index}:${action.title}`}>
-                <StrategyActionCard
-                  action={action}
-                  model={model}
-                  startOpen={actions.length === 1 || (led && index === 0)}
-                />
-              </li>
-            ),
-          )}
-        </ul>
-        {actions.length > visible ? (
-          <SeoShowMore
-            more={t("strategy.actions.more", {
-              count: actions.length - visible,
-            })}
-            expanded={expanded}
-            onToggle={() => setExpanded((open) => !open)}
-          />
-        ) : null}
-      </SeoSection>
+      {actions.length ? (
+        <SeoSection title={t("strategy.actions.title")}>
+          <ul role="list" className={SEO_ROW_LIST_CLASS}>
+            {(expanded ? actions : actions.slice(0, visible)).map(
+              (action, index) => (
+                <li key={`${index}:${action.title}`}>
+                  <StrategyActionCard
+                    action={action}
+                    model={model}
+                    startOpen={actions.length === 1 || (led && index === 0)}
+                  />
+                </li>
+              ),
+            )}
+          </ul>
+          {actions.length > visible ? (
+            <SeoShowMore
+              more={t("strategy.actions.more", {
+                count: actions.length - visible,
+              })}
+              expanded={expanded}
+              onToggle={() => setExpanded((open) => !open)}
+            />
+          ) : null}
+        </SeoSection>
+      ) : null}
+      {places.length ? (
+        // Communities, lists, directories and stores in one list, easiest first: each is a place to get a link.
+        <SeoSection
+          title={t("strategy.links.title")}
+          description={t("strategy.links.help")}
+        >
+          <ul
+            role="list"
+            className={SEO_ROW_LIST_CLASS}
+            data-testid="seo-strategy-places"
+          >
+            {(placesOpen ? places : places.slice(0, placesVisible)).map(
+              (place, index) => (
+                <li key={place.key}>
+                  <StrategyActionCard
+                    action={place.action}
+                    model={model}
+                    title={place.name}
+                    meta={[
+                      t(`strategy.links.ease.${place.ease}`),
+                      place.reads
+                        ? t("strategy.links.reach", place.reads)
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    note={t(`strategy.links.reason.${place.reason}`)}
+                    startOpen={
+                      places.length === 1 ||
+                      (led && !actions.length && index === 0)
+                    }
+                  />
+                </li>
+              ),
+            )}
+          </ul>
+          {places.length > placesVisible ? (
+            <SeoShowMore
+              more={t("strategy.links.more", {
+                count: places.length - placesVisible,
+              })}
+              expanded={placesOpen}
+              onToggle={() => setPlacesOpen((open) => !open)}
+            />
+          ) : null}
+        </SeoSection>
+      ) : null}
     </div>
   );
 }

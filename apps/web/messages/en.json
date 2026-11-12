@@ -11558,7 +11558,7 @@
       "competitors": {
         "title": "Competitors",
         "checkedBetween": "Position checks {from} to {to}",
-        "nextActions": "{count, plural, one {Next step: # action from the keyword strategy} other {Next step: # actions from the keyword strategy}}",
+        "nextActions": "{count, plural, one {Next step: # item from the keyword strategy} other {Next step: # items from the keyword strategy}}",
         "empty": "No competitors yet",
         "emptyBody": "Run a check for suggested search competitors, or add a competitor to your list.",
         "emptyBodyOff": "A competitor you add is saved here. Its ranks and backlinks need paid search data, which is off in this workspace.",
@@ -11997,7 +11997,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "strategy": "{count, plural, one {# action} other {# actions}} from the keyword strategy"
+          "strategy": "{count, plural, one {# item} other {# items}} from the keyword strategy"
         },
         "prompts": {
           "first": "What should I do first?",
@@ -12181,6 +12181,25 @@
           "copy": "Copy text",
           "copied": "Text copied",
           "copyError": "Could not copy the text"
+        },
+        "links": {
+          "title": "Where to show the product",
+          "help": "Easiest first, then the places that show up in more of the audit's searches.",
+          "ease": {
+            "easy": "Easy",
+            "medium": "Medium",
+            "hard": "Harder"
+          },
+          "reach": "In {seen, plural, one {# search} other {# searches}}",
+          "more": "{count, plural, one {Show # more place} other {Show # more places}}",
+          "reason": {
+            "text": "You post it yourself, and the audit wrote the text.",
+            "self": "You post or submit it yourself.",
+            "answer": "Only as an answer to a question the product solves.",
+            "review": "The store reviews the app before it shows it.",
+            "mention": "The page names the product already: ask for a link.",
+            "author": "The page's author decides."
+          }
         }
       },
       "summary": {

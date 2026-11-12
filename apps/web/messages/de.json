@@ -11558,7 +11558,7 @@
       "competitors": {
         "title": "Mitbewerber",
         "checkedBetween": "Positionsprüfungen {from} bis {to}",
-        "nextActions": "{count, plural, one {Nächster Schritt: # Aktion aus der Keyword-Strategie} other {Nächster Schritt: # Aktionen aus der Keyword-Strategie}}",
+        "nextActions": "{count, plural, one {Nächster Schritt: # Punkt aus der Keyword-Strategie} other {Nächster Schritt: # Punkte aus der Keyword-Strategie}}",
         "empty": "Noch keine Wettbewerber",
         "emptyBody": "Starte eine Prüfung für Vorschläge oder füge einen Mitbewerber hinzu.",
         "emptyBodyOff": "Ein Mitbewerber, den du hinzufügst, wird hier gespeichert. Seine Rankings und Backlinks brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind.",
@@ -11997,7 +11997,7 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "strategy": "{count, plural, one {# Aktion} other {# Aktionen}} aus der Keyword-Strategie"
+          "strategy": "{count, plural, one {# Punkt} other {# Punkte}} aus der Keyword-Strategie"
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
@@ -12181,6 +12181,25 @@
           "copy": "Text kopieren",
           "copied": "Text kopiert",
           "copyError": "Der Text konnte nicht kopiert werden"
+        },
+        "links": {
+          "title": "Wo du das Produkt zeigst",
+          "help": "Die einfachsten zuerst, dann die Orte, die in mehr Suchen des Audits erscheinen.",
+          "ease": {
+            "easy": "Einfach",
+            "medium": "Mittel",
+            "hard": "Schwerer"
+          },
+          "reach": "In {seen, plural, one {# Suche} other {# Suchen}}",
+          "more": "{count, plural, one {# weiteren Ort zeigen} other {# weitere Orte zeigen}}",
+          "reason": {
+            "text": "Du postest selbst, und das Audit hat den Text geschrieben.",
+            "self": "Du postest oder trägst es selbst ein.",
+            "answer": "Nur als Antwort auf eine Frage, die das Produkt löst.",
+            "review": "Der Store prüft die App, bevor er sie zeigt.",
+            "mention": "Die Seite nennt das Produkt schon: bitte um einen Link.",
+            "author": "Die Autorin oder der Autor der Seite entscheidet."
+          }
         }
       },
       "summary": {

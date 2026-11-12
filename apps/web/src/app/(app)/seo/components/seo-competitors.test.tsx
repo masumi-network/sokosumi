@@ -194,7 +194,7 @@ describe("SEO competitor baselines", () => {
     workspace.strategy = seoTestStrategy();
     renderWorkspace(workspace);
     expect(step()).toHaveTextContent(
-      "Next step: 2 actions from the keyword strategy",
+      "Next step: 3 items from the keyword strategy",
     );
     cleanup();
     // Without a site the list is its empty state: a step over it would lead away from nothing.

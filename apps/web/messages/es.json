@@ -11558,7 +11558,7 @@
       "competitors": {
         "title": "Competidores",
         "checkedBetween": "Comprobaciones de posiciones del {from} al {to}",
-        "nextActions": "{count, plural, one {Siguiente paso: # acción de la estrategia de palabras clave} other {Siguiente paso: # acciones de la estrategia de palabras clave}}",
+        "nextActions": "{count, plural, one {Siguiente paso: # punto de la estrategia de palabras clave} other {Siguiente paso: # puntos de la estrategia de palabras clave}}",
         "empty": "Todavía no hay competidores",
         "emptyBody": "Ejecuta una comprobación para ver sugerencias o añade un competidor a tu lista.",
         "emptyBodyOff": "El competidor que añadas se guarda aquí. Sus posiciones y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",
@@ -11997,7 +11997,7 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "strategy": "{count, plural, one {# acción} other {# acciones}} de la estrategia de palabras clave"
+          "strategy": "{count, plural, one {# punto} other {# puntos}} de la estrategia de palabras clave"
         },
         "prompts": {
           "first": "¿Qué debo hacer primero?",
@@ -12181,6 +12181,25 @@
           "copy": "Copiar texto",
           "copied": "Texto copiado",
           "copyError": "No se pudo copiar el texto"
+        },
+        "links": {
+          "title": "Dónde mostrar el producto",
+          "help": "Primero los más fáciles, luego los sitios que aparecen en más búsquedas de la auditoría.",
+          "ease": {
+            "easy": "Fácil",
+            "medium": "Intermedio",
+            "hard": "Más difícil"
+          },
+          "reach": "En {seen, plural, one {# búsqueda} other {# búsquedas}}",
+          "more": "{count, plural, one {Mostrar # sitio más} other {Mostrar # sitios más}}",
+          "reason": {
+            "text": "Lo publicas tú, y la auditoría escribió el texto.",
+            "self": "Lo publicas o lo envías tú.",
+            "answer": "Solo como respuesta a una pregunta que el producto resuelve.",
+            "review": "La tienda revisa la app antes de mostrarla.",
+            "mention": "La página ya nombra el producto: pide un enlace.",
+            "author": "Decide quien escribe la página."
+          }
         }
       },
       "summary": {

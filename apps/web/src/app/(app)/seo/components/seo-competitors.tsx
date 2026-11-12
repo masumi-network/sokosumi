@@ -20,6 +20,7 @@ import {
   type SeoCompetitorSite,
 } from "./seo-competitors-model";
 import { seoDaySpan } from "./seo-day-span";
+import { seoStrategyRows } from "./seo-places-model";
 import { SeoRowMenu } from "./seo-row-menu";
 import {
   SEO_COMPACT_ROWS_CLASS,
@@ -100,7 +101,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       .filter(Boolean)
       .join(" · ");
   // The actions of the keyword strategy come from these results (a list to get on, a forum to post in).
-  const strategyActions = model.data.strategy?.actions.length ?? 0;
+  const strategyActions = seoStrategyRows(model.data.strategy);
   return (
     <SeoSection
       // The switch above names the list, so the title says what the list holds.

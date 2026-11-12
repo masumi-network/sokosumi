@@ -4037,7 +4037,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     // The step is one row that leads to the list: the whole row is the button.
     const step = await screen.findByRole("button", {
-      name: "2 actions from the keyword strategy",
+      name: "3 items from the keyword strategy",
     });
     expect(step.closest("li")).not.toBeNull();
     expect(screen.queryByTestId("seo-agent-strategy")).toBeNull();
@@ -4056,37 +4056,34 @@ describe("SEO workspace integration", () => {
       "aria-selected",
       "true",
     );
-    const card = screen
-      .getByRole("heading", {
-        name: /^Ask to be added to these lists of products/,
-      })
-      .closest("article");
-    if (!card) throw new Error("no card");
-    // The Agent row led here, so the first card is open: the list has a lead. Every other card is one row, the
-    // title and the effort.
-    expect(within(card).getByRole("button", { expanded: true })).toBeVisible();
-    // The effort is plain text, and the title alone says the kind of action: no outlined label on a row.
-    expect(within(card).getByText("Effort: Medium")).not.toHaveAttribute(
-      "data-slot",
-      "badge",
-    );
-    expect(within(card).queryByText("On another site")).toBeNull();
     const page = screen
       .getByRole("heading", { name: /Write a comparison page/ })
       .closest("article");
     if (!page) throw new Error("no page card");
+    // The Agent row led here, so the first card is open: the list has a lead. Every other card is one row.
+    expect(within(page).getByRole("button", { expanded: true })).toBeVisible();
+    // The effort is plain text, and the title alone says the kind of action: no outlined label on a row.
+    expect(within(page).getByText("Effort: High")).not.toHaveAttribute(
+      "data-slot",
+      "badge",
+    );
+    expect(within(page).queryByText("On another site")).toBeNull();
+    expect(within(page).queryByText("Limit")).toBeNull();
+    // Each page of the listing action is a place of its own, with how easy it is in place of the effort.
+    expect(
+      screen.getByRole("heading", { name: "Where to show the product" }),
+    ).toBeVisible();
+    const card = screen
+      .getByRole("heading", { name: /^Best battery apps/ })
+      .closest("article");
+    if (!card) throw new Error("no card");
+    expect(within(card).getByText("Harder")).toBeVisible();
     // A closed card is one row: its body and its button are not on the page.
     expect(
-      within(page).queryByRole("button", { name: "Draft a plan" }),
+      within(card).queryByRole("button", { name: "Draft a plan" }),
     ).toBeNull();
-    await user.click(within(page).getByRole("button", { expanded: false }));
-    expect(within(page).queryByText("Limit")).toBeNull();
-    // Both buttons have one name; each card's title tells them apart.
-    expect(
-      within(page).getByRole("button", { name: "Draft a plan" }),
-    ).toHaveAccessibleDescription(
-      "Write a comparison page for “battery app alternative”",
-    );
+    await user.click(within(card).getByRole("button", { expanded: false }));
+    expect(within(card).getByText("The page's author decides.")).toBeVisible();
     expect(
       within(card).getByText("Ask on the product's merits only."),
     ).toBeVisible();
@@ -4095,12 +4092,27 @@ describe("SEO workspace integration", () => {
     expect(list.closest("li")).toHaveTextContent(
       "List of products · Does not name the product",
     );
-    // A type and a state without a label add no note.
+    // The reason about all the lists stays off the row of one list.
     expect(
-      within(card)
+      within(card).queryByText("2 lists of products are in the top 10."),
+    ).toBeNull();
+    // A type and a state without a label add no note.
+    const other = screen
+      .getByRole("heading", { name: /^https:\/\/other\.example\/page/ })
+      .closest("article");
+    if (!other) throw new Error("no other card");
+    await user.click(within(other).getByRole("button", { expanded: false }));
+    expect(
+      within(other)
         .getByRole("link", { name: "https://other.example/page" })
         .closest("li"),
     ).not.toHaveTextContent("·");
+    // Both buttons have one name; each card's title tells them apart.
+    expect(
+      within(page).getByRole("button", { name: "Draft a plan" }),
+    ).toHaveAccessibleDescription(
+      "Write a comparison page for “battery app alternative”",
+    );
     // An action without a limit and without places asks for neither.
     await user.click(
       within(page).getByRole("button", { name: "Draft a plan" }),
@@ -4114,12 +4126,12 @@ describe("SEO workspace integration", () => {
     await user.click(
       within(card).getByRole("button", { name: "Draft a plan" }),
     );
-    // The limit goes with the question: the agent may not have this action in its evidence.
-    // The chat field keeps the question that was not sent, and the new one follows it.
+    // The limit goes with the question: the agent may not have this action in its evidence. The question names the
+    // one place of the row. The chat field keeps the question that was not sent, and the new one follows it.
     expect(
       within(await screen.findByRole("dialog")).getByLabelText("Your question"),
     ).toHaveValue(
-      "The site audit recommends: “Write a comparison page for “battery app alternative””. Draft a plan with the steps in order.\n\nThe site audit recommends: “Ask to be added to these lists of products”. Draft a plan with the steps in order. Keep to this limit: Ask on the product's merits only. The places: https://lists.example/best and https://other.example/page",
+      "The site audit recommends: “Write a comparison page for “battery app alternative””. Draft a plan with the steps in order.\n\nThe site audit recommends: “Ask to be added to these lists of products”. Draft a plan with the steps in order. Keep to this limit: Ask on the product's merits only. The place: https://lists.example/best",
     );
     expect(asked).toEqual([]);
   });
@@ -4156,7 +4168,7 @@ describe("SEO workspace integration", () => {
     first.unmount();
     const strategy = seoTestStrategy();
     strategy.actions = Array.from({ length: 5 }, (_, index) => ({
-      ...strategy.actions[0],
+      ...strategy.actions[1],
       title: `Strategy action ${index + 1}`,
     }));
     workspace.strategy = strategy;
@@ -4209,7 +4221,7 @@ describe("SEO workspace integration", () => {
     const third = renderWorkspace(workspace, "?tab=agent");
     await userEvent.setup().click(
       await screen.findByRole("button", {
-        name: "5 actions from the keyword strategy",
+        name: "5 items from the keyword strategy",
       }),
     );
     const group = await screen.findByRole("heading", {
@@ -4235,7 +4247,7 @@ describe("SEO workspace integration", () => {
       .click(screen.getByRole("button", { name: "Competitors" }));
     await userEvent.setup().click(
       screen.getByRole("button", {
-        name: "Next step: 5 actions from the keyword strategy",
+        name: "Next step: 5 items from the keyword strategy",
       }),
     );
     await waitFor(() => expect(rows()).toHaveLength(5));
@@ -4248,7 +4260,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByRole("button", { name: /more actions/ })).toBeNull();
   });
 
-  it("does not repeat a type that every place of an action shares", async () => {
+  it("does not repeat a type that every thread of a place shares", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const strategy = seoTestStrategy();
@@ -4256,9 +4268,16 @@ describe("SEO workspace integration", () => {
     strategy.actions = [
       {
         ...action,
+        kind: "promote",
+        title: "Present the product in r/macapps",
+        place: {
+          name: "r/macapps",
+          url: "https://www.reddit.com/r/macapps/",
+          form: "community",
+        },
         targets: action.targets.map((target) => ({
           ...target,
-          type: "listicle",
+          type: "forum",
         })),
       },
     ];
@@ -4272,9 +4291,9 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     await user.click(await screen.findByRole("tab", { name: "Actions" }));
     const list = await screen.findByRole("link", { name: "Best battery apps" });
-    // The state still tells the places apart. The type is the same on each line, and the title names it.
+    // The state still tells the threads apart. The type is the same on each line, and the place names it.
     expect(list.closest("li")).toHaveTextContent("Does not name the product");
-    expect(screen.queryByText(/List of products/)).toBeNull();
+    expect(list.closest("li")).not.toHaveTextContent("Forum");
   });
 
   it("shows a promotion action's place as a link and its text with a copy button; the question names the place", async () => {

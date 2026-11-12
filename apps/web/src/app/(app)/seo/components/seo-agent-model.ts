@@ -1,5 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
+import { seoStrategyRows } from "./seo-places-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 import { lastRuleCheck } from "./seo-summary-model";
 
@@ -49,9 +50,9 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
     .map((action) => ({ kind: "action", action }));
   // The audit's strategy actions are one step that opens their list. It has no end,
   // so it comes after the work that has one.
-  const strategyActions = workspace.strategy?.actions ?? [];
-  if (strategyActions.length)
-    steps.push({ kind: "strategy", count: strategyActions.length });
+  // One row per place: the list it opens has that many rows.
+  const strategyRows = seoStrategyRows(workspace.strategy);
+  if (strategyRows) steps.push({ kind: "strategy", count: strategyRows });
   if (refresh && (staleSearch || !workspace.searchQueries))
     steps.push({
       kind: "refresh",
