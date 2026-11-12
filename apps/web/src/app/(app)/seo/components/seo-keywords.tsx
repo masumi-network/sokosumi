@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 import { seoDaySpan } from "./seo-day-span";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
@@ -43,13 +41,13 @@ import {
 import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
-  SEO_ROW_BUTTON_CLASS,
   SEO_SEARCH_MIN_ROWS,
   SeoAddButton,
   SeoBarNumber,
   SeoDate,
   SeoEmpty,
   SeoMetaLine,
+  SeoNextStepRow,
   SeoPageText,
   SeoPeriod,
   type SeoRankingsSection,
@@ -218,6 +216,7 @@ export function SeoKeywords({
             model.data.availableActions.canEdit ? (
               <SeoAddButton
                 label={t("keywords.addButton")}
+                lead={!rows.length}
                 onClick={() => model.setDialog("keyword")}
               />
             ) : null
@@ -278,22 +277,13 @@ export function SeoKeywords({
             />
           ) : null}
           {fixes ? (
-            <button
-              type="button"
-              // The fill of a row and no outline: the table under it has the one frame of the card.
-              className={cn(
-                SEO_ROW_BUTTON_CLASS,
-                "border-0 px-4 py-2.5 text-sm",
-              )}
+            <SeoNextStepRow
               onClick={() => {
                 void model.setFilters({ tab: "actions" });
               }}
             >
-              <span className="min-w-0 flex-1 font-medium">
-                {t("keywords.nextFixes", { count: fixes })}
-              </span>
-              <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-            </button>
+              {t("keywords.nextFixes", { count: fixes })}
+            </SeoNextStepRow>
           ) : null}
           {rows.length ? (
             <div className={HOLDER_ITEM_CLASS}>

@@ -13,8 +13,9 @@ export function SeoConversionCell({
   const t = useTranslations("App.Seo");
   return (
     <TableCell
-      // A phone row is its values on one line: an estimate the check did not make takes no place in it.
-      className={cn("whitespace-normal", !conversion && "max-sm:hidden!")}
+      // An estimate the check did not make shows nothing: the cell is empty on a desktop, and a phone row hides
+      // an empty cell. "Not available" was a line without information, on one viewport only.
+      className="whitespace-normal"
       // The level does not name itself: "High" needs its label on a phone too.
       data-label={t("keywords.conversion.title")}
     >
@@ -33,9 +34,7 @@ export function SeoConversionCell({
             </p>
           ) : null}
         </>
-      ) : (
-        <span className="text-muted-foreground">{t("none")}</span>
-      )}
+      ) : null}
     </TableCell>
   );
 }

@@ -27,6 +27,7 @@ import {
   SeoDate,
   SeoEmpty,
   SeoFoldSummary,
+  SeoNextStepRow,
   SeoPageLink,
   SeoSection,
   SeoShowMore,
@@ -98,6 +99,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     ]
       .filter(Boolean)
       .join(" · ");
+  // The actions of the keyword strategy come from these results (a list to get on, a forum to post in).
+  const strategyActions = model.data.strategy?.actions.length ?? 0;
   return (
     <SeoSection
       // The switch above names the list, so the title says what the list holds.
@@ -108,6 +111,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         model.data.availableActions.canEdit ? (
           <SeoAddButton
             label={t("competitors.add")}
+            lead={!rows.length}
             onClick={() => model.setDialog("competitor")}
           />
         ) : null
@@ -184,6 +188,12 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             </dd>
           ))}
         </dl>
+      ) : null}
+      {/* A list of sites alone had no next step. The row opens the strategy actions, as the Agent row does. */}
+      {rows.length && strategyActions ? (
+        <SeoNextStepRow onClick={model.showStrategy}>
+          {t("competitors.nextActions", { count: strategyActions })}
+        </SeoNextStepRow>
       ) : null}
       {rows.length ? (
         <div className={HOLDER_ITEM_CLASS}>

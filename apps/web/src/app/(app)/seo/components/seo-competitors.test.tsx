@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 import { SeoCompetitors } from "./seo-competitors";
-import { seoTestWorkspace } from "./seo-test-fixture";
+import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -167,6 +167,41 @@ describe("SEO competitor baselines", () => {
       ).toBeVisible();
     },
   );
+
+  it("leads to the strategy actions only where the audit has some and the list has a site", () => {
+    const workspace = seoTestWorkspace();
+    workspace.competitors = [
+      {
+        id: "saved-competitor",
+        url: "https://competitor.example/",
+        role: "competitor",
+        confirmed: true,
+        source: "saved",
+        rank: null,
+        backlinks: 12,
+        referringDomains: null,
+        observedAt: null,
+        observationId: null,
+        version: 1,
+        canConfirm: true,
+        exclusionReason: null,
+      },
+    ];
+    const step = () => screen.queryByRole("button", { name: /^Next step/ });
+    renderWorkspace(workspace);
+    expect(step()).toBeNull();
+    cleanup();
+    workspace.strategy = seoTestStrategy();
+    renderWorkspace(workspace);
+    expect(step()).toHaveTextContent(
+      "Next step: 2 actions from the keyword strategy",
+    );
+    cleanup();
+    // Without a site the list is its empty state: a step over it would lead away from nothing.
+    workspace.competitors = [];
+    renderWorkspace(workspace);
+    expect(step()).toBeNull();
+  });
 
   it("shows only the measured numbers of the reader's page, and no line for backlinks no check reads", () => {
     const workspace = seoTestWorkspace();

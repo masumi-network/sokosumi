@@ -267,7 +267,7 @@ function StrategyActionCard({
 }: {
   action: ProjectSeoStrategy["actions"][number];
   model: SeoWorkspaceModel;
-  /** The one action of a list has nothing to choose from, so it starts open. */
+  /** The one action of a list has nothing to choose from, so it starts open. So does the first action after a row that led here. */
   startOpen: boolean;
 }) {
   const t = useTranslations("App.Seo");
@@ -290,7 +290,11 @@ function StrategyActionCard({
               id={titleId}
               // Plain wrap: a heading balances its lines, so the same title broke at another word here than
               // on the Agent tab.
-              className="block min-w-0 text-sm font-semibold text-wrap break-words sm:flex-1"
+              className={cn(
+                "block min-w-0 text-sm text-wrap break-words sm:flex-1",
+                // A closed row is one step lighter than an open card, so the open card and the group titles lead.
+                open ? "font-semibold" : "font-medium",
+              )}
             >
               {action.title}
             </span>
@@ -450,14 +454,18 @@ export function SeoStrategyActions({
   afterFixes?: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  // The Agent row "8 actions from the keyword strategy" leads here: the reader sees the count the row named.
+  // A row that names these actions (Agent tab, Competitors list) leads here: the reader sees the count it named.
   const { shownStrategy, setShownStrategy } = model;
   // The list is open on its first paint then, so the group scrolls into view at its full height.
   const [expanded, setExpanded] = useState(shownStrategy);
+  // The reader came for these actions: the first one is open, as the first fix is, so eight equal rows have a
+  // lead. The longer group also has room to scroll up to the top of a desktop screen.
+  const [led, setLed] = useState(shownStrategy);
   const group = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!shownStrategy) return;
     setExpanded(true);
+    setLed(true);
     group.current?.scrollIntoView({ block: "start" });
     group.current?.focus({ preventScroll: true });
     setShownStrategy(false);
@@ -471,7 +479,7 @@ export function SeoStrategyActions({
   return (
     <div
       ref={group}
-      // It takes the focus after the Agent row, so a screen reader names it.
+      // It takes the focus after such a row, so a screen reader names it.
       role="group"
       aria-label={t("strategy.actions.title")}
       tabIndex={-1}
@@ -487,7 +495,7 @@ export function SeoStrategyActions({
                 <StrategyActionCard
                   action={action}
                   model={model}
-                  startOpen={actions.length === 1}
+                  startOpen={actions.length === 1 || (led && index === 0)}
                 />
               </li>
             ),

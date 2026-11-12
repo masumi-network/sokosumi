@@ -11083,6 +11083,7 @@
       "competitors": {
         "title": "Mitbewerber",
         "checkedBetween": "Positionsprüfungen {from} bis {to}",
+        "nextActions": "{count, plural, one {Nächster Schritt: # Aktion aus der Keyword-Strategie} other {Nächster Schritt: # Aktionen aus der Keyword-Strategie}}",
         "empty": "Noch keine Wettbewerber",
         "emptyBody": "Starte eine Prüfung für Vorschläge oder füge einen Mitbewerber hinzu.",
         "emptyBodyOff": "Ein Mitbewerber, den du hinzufügst, wird hier gespeichert. Seine Rankings und Backlinks brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind.",

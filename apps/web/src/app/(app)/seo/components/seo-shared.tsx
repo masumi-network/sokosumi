@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { ArrowUpRight, ChevronDown, Plus } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Fragment, type ReactNode } from "react";
@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 
+/** A column header names its column: it is quiet and in the weight of body text, so the rows lead. */
+const SEO_QUIET_HEADERS_CLASS =
+  "[&_th]:text-muted-foreground [&_th]:font-normal";
+
 /**
  * Below the sm breakpoint a table's rows stack as cards, so no column scrolls
  * out of view. The header row hides, and each cell names its column from its
@@ -22,6 +26,7 @@ import { cn } from "@/lib/utils";
  * full line.
  */
 export const SEO_STACKED_TABLE_CLASS = [
+  SEO_QUIET_HEADERS_CLASS,
   "max-sm:[&_thead]:hidden",
   // Two columns of label-above-value, like the page cards' numbers.
   "max-sm:[&_tbody_tr]:grid max-sm:[&_tbody_tr]:grid-cols-2 max-sm:[&_tbody_tr]:gap-x-4 max-sm:[&_tbody_tr]:gap-y-2 max-sm:[&_tbody_tr]:px-3 max-sm:[&_tbody_tr]:py-3",
@@ -37,10 +42,11 @@ export const SEO_STACKED_TABLE_CLASS = [
  * them: one line per value made a row 121 to 150 px high. No dot stands between
  * two values: when the second value went to the next line, the dot ended the
  * first line. A value that does not name
- * itself keeps its label before it.
+ * itself keeps its label before it. On a desktop the column headers are quiet.
  */
 export const SEO_COMPACT_ROWS_CLASS = [
   "max-sm:[&_thead]:hidden",
+  SEO_QUIET_HEADERS_CLASS,
   "max-sm:[&_tbody_tr]:flex max-sm:[&_tbody_tr]:flex-wrap max-sm:[&_tbody_tr]:items-start max-sm:[&_tbody_tr]:gap-x-2 max-sm:[&_tbody_tr]:gap-y-0.5 max-sm:[&_tbody_tr]:px-3 max-sm:[&_tbody_tr]:py-3",
   "max-sm:[&_td]:order-3 max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal max-sm:[&_td:empty]:hidden",
   // A row of one cell (a chart under a keyword) keeps the full width.
@@ -520,12 +526,19 @@ export function SeoPageText({
   );
 }
 
-/** The button that adds a row to a list. It is quiet, so the filled button of a tab stays the next step; a phone shows the plus alone. */
+/**
+ * The button that adds a row to a list. It is quiet, so the filled button of a tab stays the next step; a phone
+ * shows the plus alone. With its label it rests in the quiet colour, so the rows and the next step of the list
+ * are the brighter parts; the pointer and the keyboard focus make it bright.
+ */
 export function SeoAddButton({
   label,
+  lead = false,
   onClick,
 }: {
   label: string;
+  /** The list is empty: the button is its only action and stays bright. */
+  lead?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -534,7 +547,10 @@ export function SeoAddButton({
       variant="ghost"
       aria-label={label}
       // The plus alone keeps the 40 px width of an icon button.
-      className="max-sm:min-w-10"
+      className={cn(
+        "max-sm:min-w-10",
+        !lead && "sm:text-muted-foreground sm:focus-visible:text-foreground",
+      )}
       onClick={onClick}
     >
       <Plus className="size-4" />
@@ -623,6 +639,29 @@ export const SEO_ROW_BUTTON_CLASS = cn(
   HOLDER_ITEM_HOVER_CLASS,
   SEO_ROW_CONTROL_CLASS,
 );
+
+/**
+ * The next step of a list on Rankings: one row over the table that leads to the Actions tab.
+ * The fill of a row and no outline: the table under it has the one frame of the card.
+ */
+export function SeoNextStepRow({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(SEO_ROW_BUTTON_CLASS, "border-0 px-4 py-2.5 text-sm")}
+      onClick={onClick}
+    >
+      <span className="min-w-0 flex-1 font-medium">{children}</span>
+      <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+    </button>
+  );
+}
 
 /** The same row inside a row that has an outline: a quiet fill and no outline of its own, so frames do not nest. */
 export const SEO_ROW_FILLED_CLASS = cn(

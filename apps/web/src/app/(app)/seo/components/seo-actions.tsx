@@ -111,7 +111,8 @@ export function SeoActionCard({
               title={action.title}
               pageUrl={open ? null : action.pageUrl}
               workspace={model.data}
-              strong
+              // A closed row is one step lighter, so the open card and the group titles lead.
+              strong={open}
             />
             {/* On a phone the labels of an open card stand under its page link, so the lines keep the order
                 of the closed row: title, page, labels. */}

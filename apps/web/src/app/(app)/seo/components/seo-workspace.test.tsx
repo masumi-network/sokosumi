@@ -4056,14 +4056,9 @@ describe("SEO workspace integration", () => {
       })
       .closest("article");
     if (!card) throw new Error("no card");
-    // With more than one action each card starts as one row: the title and the effort.
-    expect(
-      within(card).queryByRole("button", { name: "Draft a plan" }),
-    ).toBeNull();
-    expect(
-      within(card).queryByText("Ask on the product's merits only."),
-    ).toBeNull();
-    await user.click(within(card).getByRole("button", { expanded: false }));
+    // The Agent row led here, so the first card is open: the list has a lead. Every other card is one row, the
+    // title and the effort.
+    expect(within(card).getByRole("button", { expanded: true })).toBeVisible();
     // The effort is plain text, and the title alone says the kind of action: no outlined label on a row.
     expect(within(card).getByText("Effort: Medium")).not.toHaveAttribute(
       "data-slot",
@@ -4074,6 +4069,10 @@ describe("SEO workspace integration", () => {
       .getByRole("heading", { name: /Write a comparison page/ })
       .closest("article");
     if (!page) throw new Error("no page card");
+    // A closed card is one row: its body and its button are not on the page.
+    expect(
+      within(page).queryByRole("button", { name: "Draft a plan" }),
+    ).toBeNull();
     await user.click(within(page).getByRole("button", { expanded: false }));
     expect(within(page).queryByText("Limit")).toBeNull();
     // Both buttons have one name; each card's title tells them apart.
@@ -4184,6 +4183,23 @@ describe("SEO workspace integration", () => {
     // The Agent row names the count of the strategy actions: it lands on their group, with every row in view.
     // With a finished check the Agent tab shows its steps.
     workspace.observations = [seoTestObservation(workspace)];
+    workspace.competitors = [
+      {
+        id: "saved-competitor",
+        url: "https://competitor.example/",
+        role: "competitor",
+        confirmed: true,
+        source: "saved",
+        rank: null,
+        backlinks: 12,
+        referringDomains: null,
+        observedAt: null,
+        observationId: null,
+        version: 1,
+        canConfirm: true,
+        exclusionReason: null,
+      },
+    ];
     const third = renderWorkspace(workspace, "?tab=agent");
     await userEvent.setup().click(
       await screen.findByRole("button", {
@@ -4195,10 +4211,29 @@ describe("SEO workspace integration", () => {
     });
     await waitFor(() => expect(rows()).toHaveLength(5));
     await waitFor(() => expect(group.closest("[role='group']")).toHaveFocus());
+    // Five equal rows have no lead: the first action is open on this landing, the others are closed.
+    const head = (title: string) => screen.getByText(title).closest("button");
+    expect(head("Strategy action 1")).toHaveAttribute("aria-expanded", "true");
+    expect(head("Strategy action 2")).toHaveAttribute("aria-expanded", "false");
     // The landing is for one press: opened by its tab again, the group starts with three rows.
     await userEvent.setup().click(screen.getByRole("tab", { name: "Agent" }));
     await userEvent.setup().click(screen.getByRole("tab", { name: "Actions" }));
     await waitFor(() => expect(rows()).toHaveLength(3));
+    expect(head("Strategy action 1")).toHaveAttribute("aria-expanded", "false");
+    // The list of sites in the results has the same way to the group.
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: "Rankings" }));
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Competitors" }));
+    await userEvent.setup().click(
+      screen.getByRole("button", {
+        name: "Next step: 5 actions from the keyword strategy",
+      }),
+    );
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    expect(head("Strategy action 1")).toHaveAttribute("aria-expanded", "true");
     third.unmount();
     // Alone on the tab the list is the page: it shows every row.
     workspace.actions = [];
@@ -4780,7 +4815,9 @@ describe("SEO workspace integration", () => {
       await screen.findByRole("tab", { name: "Rankings" }),
     ).toHaveAttribute("aria-selected", "true");
     expect(screen.getAllByText("charge timer").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: /^Next step:/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Next step: \d+ fix/ }),
+    ).toBeNull();
     cleanup();
     // No keyword in the results and no fix to offer: a row to an empty list would be the dead end again.
     workspace.keywords[0] = {
@@ -4796,7 +4833,9 @@ describe("SEO workspace integration", () => {
       await screen.findByRole("tab", { name: "Rankings" }),
     ).toHaveAttribute("aria-selected", "true");
     expect(screen.getAllByText("charge timer").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: /^Next step:/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Next step: \d+ fix/ }),
+    ).toBeNull();
   });
 
   it("shows one fix as a card on the Agent tab and each later fix as a row that opens it on the Actions tab", async () => {

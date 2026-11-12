@@ -11083,6 +11083,7 @@
       "competitors": {
         "title": "Competidores",
         "checkedBetween": "Comprobaciones de posiciones del {from} al {to}",
+        "nextActions": "{count, plural, one {Siguiente paso: # acción de la estrategia de palabras clave} other {Siguiente paso: # acciones de la estrategia de palabras clave}}",
         "empty": "Todavía no hay competidores",
         "emptyBody": "Ejecuta una comprobación para ver sugerencias o añade un competidor a tu lista.",
         "emptyBodyOff": "El competidor que añadas se guarda aquí. Sus posiciones y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",

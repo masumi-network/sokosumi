@@ -867,7 +867,7 @@ describe("Keywords after a check", () => {
       },
     ];
     renderWorkspace(workspace);
-    // Only the Ideas list has an estimate: the Keywords list gets no column of "Not available".
+    // Only the Ideas list has an estimate: the Keywords list gets no empty column.
     expect(
       screen.getAllByRole("columnheader", { name: "Chance to convert" }),
     ).toHaveLength(1);
@@ -885,7 +885,11 @@ describe("Keywords after a check", () => {
     // The feature names itself: "High 80% charge limit" would read as one value.
     expect(first).toHaveTextContent("Feature: Low battery alerts");
     expect(within(second).getByText("battery widget")).toBeVisible();
-    expect(within(second).getByText("Not available")).toBeVisible();
+    // An estimate the check did not make shows nothing, on a desktop as on a phone.
+    expect(within(second).queryByText("Not available")).toBeNull();
+    expect(within(second).getAllByRole("cell")).toHaveLength(
+      within(first).getAllByRole("cell").length,
+    );
   });
 
   it("shows the estimate of a checked keyword, and its daily positions still span every column", async () => {

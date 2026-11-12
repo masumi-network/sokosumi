@@ -11083,6 +11083,7 @@
       "competitors": {
         "title": "Competitors",
         "checkedBetween": "Position checks {from} to {to}",
+        "nextActions": "{count, plural, one {Next step: # action from the keyword strategy} other {Next step: # actions from the keyword strategy}}",
         "empty": "No competitors yet",
         "emptyBody": "Run a check for suggested search competitors, or add a competitor to your list.",
         "emptyBodyOff": "A competitor you add is saved here. Its ranks and backlinks need paid search data, which is off in this workspace.",

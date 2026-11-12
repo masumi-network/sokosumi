@@ -265,7 +265,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setShownAction(seoActionKey(action));
     void setFilters({ tab: "actions" });
   }
-  // The Agent row for the strategy actions leads to their group. The group opens in full and takes the focus once.
+  // A row that names the strategy actions (Agent tab, Competitors list) leads to their group. The group opens in
+  // full and takes the focus once.
   const [shownStrategy, setShownStrategy] = useState(false);
   function showStrategy() {
     setShownStrategy(true);
