@@ -1870,6 +1870,11 @@
         "authenticate": "Authenticate",
         "expand": "Expand",
         "collapse": "Show less",
+        "downloadAll": {
+          "button": "Download all",
+          "failed": "Couldn't download the files. Try again, or open them one by one.",
+          "partial": "Downloaded {included} of {total} files. Not included: {names}{more, plural, =0 {} one { and # more} other { and # more}}. Open them one by one."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "User",
         "actorSokoBot": "Assistant",

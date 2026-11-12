@@ -1869,6 +1869,11 @@
         "authenticate": "Autenticar",
         "expand": "Expandir",
         "collapse": "Contraer",
+        "downloadAll": {
+          "button": "Descargar todo",
+          "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
+          "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
         "actorSokoBot": "Asistente",

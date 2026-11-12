@@ -1869,6 +1869,11 @@
         "authenticate": "Authentifizieren",
         "expand": "Ausklappen",
         "collapse": "Weniger anzeigen",
+        "downloadAll": {
+          "button": "Alle herunterladen",
+          "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
+          "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
         "actorSokoBot": "Assistent",
