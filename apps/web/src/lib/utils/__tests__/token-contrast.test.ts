@@ -26,6 +26,15 @@ const PAIRS: [string, string, number][] = [
   ["background-muted", "foreground", TEXT],
   ["input", "background", NON_TEXT],
   ["ring", "background", NON_TEXT],
+  ...[
+    "status-warning",
+    "status-info",
+    "status-success",
+    "status-destructive",
+  ].flatMap((token): [string, string, number][] => [
+    [token, "background", TEXT],
+    [token, "muted", TEXT],
+  ]),
 ];
 
 describe("token contrast", () => {

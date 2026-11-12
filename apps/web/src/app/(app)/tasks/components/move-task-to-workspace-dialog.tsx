@@ -85,7 +85,6 @@ export function MoveTaskToWorkspaceDialog({
         });
         toast.success(t("moveToWorkspaceSuccess"));
         onOpenChange(false);
-        router.refresh();
         router.push("/tasks");
       } catch (error) {
         const message =
