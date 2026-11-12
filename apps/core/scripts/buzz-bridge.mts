@@ -240,7 +240,14 @@ async function run() {
     retries.add(timer);
   };
 
-  const apply = (communityId: string, event: Event, attempt: number) => {
+  // `attempt` counts tries to apply the event; `failedAnswers`, Coworker
+  // answers that failed once started, which have their own limit.
+  const apply = (
+    communityId: string,
+    event: Event,
+    attempt: number,
+    failedAnswers = 0,
+  ) => {
     if (stopping) return;
     inbound = inbound.then(async () => {
       const finalAttempt = attempt + 1 >= TARGET_ATTEMPTS;
@@ -271,7 +278,7 @@ async function run() {
               log(`in  ${id} answer not recorded`, error),
             );
           }
-          if (ok || attempt + 1 >= ANSWER_ATTEMPTS) {
+          if (ok || failedAnswers + 1 >= ANSWER_ATTEMPTS) {
             if (!ok)
               log(`in  kind ${event.kind} ${id} answer failed, giving up`);
             finish(communityId, event);
@@ -279,8 +286,8 @@ async function run() {
           }
           log(`in  kind ${event.kind} ${id} answer failed, asking again`);
           retryLater(
-            () => apply(communityId, event, attempt + 1),
-            Math.min(2_000 * 2 ** attempt, 5 * 60_000),
+            () => apply(communityId, event, attempt, failedAnswers + 1),
+            Math.min(2_000 * 2 ** failedAnswers, 5 * 60_000),
           );
         });
       } catch (error) {
@@ -303,7 +310,10 @@ async function run() {
           );
         const delay = Math.min(2_000 * 2 ** attempt, 5 * 60_000);
         if (targetInFlight) {
-          retryLater(() => apply(communityId, event, attempt), delay);
+          retryLater(
+            () => apply(communityId, event, attempt, failedAnswers),
+            delay,
+          );
           return;
         }
         if (!waiting) {
@@ -312,7 +322,10 @@ async function run() {
             reason,
           );
         }
-        retryLater(() => apply(communityId, event, attempt + 1), delay);
+        retryLater(
+          () => apply(communityId, event, attempt + 1, failedAnswers),
+          delay,
+        );
       }
     });
   };

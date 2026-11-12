@@ -147,6 +147,9 @@ model BuzzReactionLink {
   pendingEvent Json?
   /// Set when the person's own app key signed it: Sokosumi cannot take it back.
   signerPubkey String?
+  /// Such a reaction removed in Sokosumi: kept so a replay of its event, still
+  /// on Buzz, does not put it back.
+  removedAt  DateTime?
   createdAt  DateTime     @default(now())
 
   @@unique([messageId, identityId, emoji])

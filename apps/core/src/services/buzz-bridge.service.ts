@@ -1208,10 +1208,12 @@ async function ensureOperatorProfile(relayUrl: string) {
  */
 export async function syncRoomChannel(roomId: string) {
   const config = requireConfig();
-  const room = await prisma.chatRoom.findUniqueOrThrow({
+  const room = await prisma.chatRoom.findUnique({
     where: { id: roomId },
     select: roomForSync,
   });
+  // Deleted meanwhile: nothing to sync; its channel goes with the sweep.
+  if (!room) return null;
   const community = await buzzCommunityForRoom(room.id);
   if (!community) return null;
   const relayUrl = community.relayUrl;
@@ -1823,7 +1825,7 @@ async function reconcileReactions(input: {
   reactions: { userId: string; emoji: string }[];
 }) {
   let links = await prisma.buzzReactionLink.findMany({
-    where: { messageId: input.messageId },
+    where: { messageId: input.messageId, removedAt: null },
     include: { identity: true },
   });
 
@@ -1850,7 +1852,7 @@ async function reconcileReactions(input: {
     }
   }
   links = await prisma.buzzReactionLink.findMany({
-    where: { messageId: input.messageId },
+    where: { messageId: input.messageId, removedAt: null },
     include: { identity: true },
   });
 
@@ -1873,6 +1875,15 @@ async function reconcileReactions(input: {
       ),
       identitySecretKey(identity),
     );
+    // Added again after it was removed on its own key: that is history now.
+    await prisma.buzzReactionLink.deleteMany({
+      where: {
+        messageId: input.messageId,
+        identityId: identity.id,
+        emoji: reaction.emoji,
+        removedAt: { not: null },
+      },
+    });
     let linkId: string;
     try {
       linkId = (
@@ -1904,9 +1915,13 @@ async function reconcileReactions(input: {
 
   for (const link of links) {
     if (wanted.has(key(link.identity.userId, link.emoji))) continue;
-    // Their own app key's reaction: only they can take it back on Buzz.
+    // Their own app key's reaction: only they can take it back on Buzz. Its
+    // event stays there, so the link stays as a tombstone.
     if (link.signerPubkey) {
-      await prisma.buzzReactionLink.delete({ where: { id: link.id } });
+      await prisma.buzzReactionLink.update({
+        where: { id: link.id },
+        data: { removedAt: new Date() },
+      });
       continue;
     }
     const event = signEvent(
@@ -2735,6 +2750,13 @@ export async function applyInboundEvent(
         }
         // Our own take-back of a reaction Sokosumi already removed.
         if (isBeingRemoved(reactionLink)) continue;
+        // Taken back on Buzz too, after Sokosumi removed it: done with it.
+        if (reactionLink.removedAt) {
+          await prisma.buzzReactionLink.deleteMany({
+            where: { id: reactionLink.id },
+          });
+          continue;
+        }
         if (reactionLink.identityId !== author.id) continue;
         const message = await prisma.chatRoomMessage.findUnique({
           where: { id: reactionLink.messageId },
@@ -2771,7 +2793,11 @@ export async function applyInboundEvent(
           },
         },
       });
-      if (existing) return "echo";
+      if (existing && !existing.removedAt) return "echo";
+      // A new reaction where one was removed: the tombstone is history.
+      if (existing) {
+        await prisma.buzzReactionLink.delete({ where: { id: existing.id } });
+      }
       await sendAs(core, author, {
         method: "PUT",
         path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,

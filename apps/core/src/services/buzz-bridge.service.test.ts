@@ -75,6 +75,7 @@ import {
   linkBuzzApp,
   OUTBOX_SETTLE_MS,
   syncBuzzAgents,
+  syncRoomChannel,
   vouched,
 } from "./buzz-bridge.service";
 
@@ -192,6 +193,51 @@ describe("applyInboundEvent", () => {
       applyInboundEvent(nostrEvent({ content: "x" }), core),
     ).resolves.toBe("ignored");
     expect(core).not.toHaveBeenCalled();
+  });
+
+  it("takes a new Buzz reaction where one was removed in Sokosumi, but not a replay of that one", async () => {
+    const reaction = (content: string, more: string[][] = []) =>
+      nostrEvent({
+        kind: 7,
+        tags: [["h", CHANNEL], ["e", "f".repeat(64)], ...more],
+        content,
+      });
+    const removed = reaction("👍");
+    const tombstone = {
+      id: "tombstone",
+      eventId: removed.id,
+      removedAt: new Date(),
+    };
+    // Its link is a tombstone: found by the removed event's id, and by what
+    // it was (message, person, emoji).
+    db.buzzReactionLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === undefined || where.eventId === removed.id
+          ? tombstone
+          : null,
+    );
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === "f".repeat(64)
+          ? { messageId: "message", message: { roomId: "room" } }
+          : null,
+    );
+    await expect(applyInboundEvent(removed, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+
+    // The same emoji reacted again on Buzz: a new event, applied.
+    await expect(
+      applyInboundEvent(reaction("👍", [["p", BOB_PUBKEY]]), core),
+    ).resolves.toBe("reacted");
+    expect(db.buzzReactionLink.delete).toHaveBeenCalledWith({
+      where: { id: "tombstone" },
+    });
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PUT",
+        path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
+      }),
+    );
   });
 
   it("posts a Buzz reply as its author into the thread's root, with mentions", async () => {
@@ -1160,6 +1206,13 @@ describe("a Direct question whose answer failed", () => {
     const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: null }));
     await expect(applyInboundEvent(event, core)).resolves.toBe("echo");
     expect(core).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncRoomChannel", () => {
+  it("skips a room deleted since its sync was queued, so the job ends", async () => {
+    db.chatRoom.findUnique.mockResolvedValue(null);
+    await expect(syncRoomChannel("gone")).resolves.toBeNull();
   });
 });
 
