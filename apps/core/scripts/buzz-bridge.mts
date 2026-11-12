@@ -74,7 +74,7 @@ async function status() {
   ]);
   console.table(
     communities.map((c) => ({
-      organization: c.organization.name,
+      organization: c.organization?.name ?? "(deleted)",
       relay: c.relayUrl,
       channels: c._count.channels,
       members: c._count.members,
@@ -246,25 +246,37 @@ async function run() {
       // A target still on its way in (say Core is down and it keeps
       // retrying) is worth waiting for however long that takes.
       try {
+        let answer: Promise<boolean> | undefined;
         const result = await applyInboundEvent(event, core, {
           finalAttempt,
-          onTurnFailed: () => {
-            const id = event.id.slice(0, 8);
-            if (attempt + 1 >= ANSWER_ATTEMPTS) {
-              log(`in  kind ${event.kind} ${id} answer failed, giving up`);
-              return;
-            }
-            log(`in  kind ${event.kind} ${id} answer failed, asking again`);
-            retryLater(
-              () => apply(communityId, event, attempt + 1),
-              Math.min(2_000 * 2 ** attempt, 5 * 60_000),
-            );
+          onTurnStarted: (finished) => {
+            answer = finished;
           },
         });
+        const id = event.id.slice(0, 8);
         if (result !== "echo" && result !== "ignored") {
-          log(`in  kind ${event.kind} ${event.id.slice(0, 8)} → ${result}`);
+          log(`in  kind ${event.kind} ${id} → ${result}`);
         }
-        finish(communityId, event);
+        if (!answer) {
+          finish(communityId, event);
+          return;
+        }
+        // A Coworker's answer is still streaming: the event stays unfinished
+        // (so is the saved cursor) until it ends, and is asked again if it
+        // fails.
+        void answer.then((ok) => {
+          if (ok || attempt + 1 >= ANSWER_ATTEMPTS) {
+            if (!ok)
+              log(`in  kind ${event.kind} ${id} answer failed, giving up`);
+            finish(communityId, event);
+            return;
+          }
+          log(`in  kind ${event.kind} ${id} answer failed, asking again`);
+          retryLater(
+            () => apply(communityId, event, attempt + 1),
+            Math.min(2_000 * 2 ** attempt, 5 * 60_000),
+          );
+        });
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         // Core said no for good (the message is gone, the reaction too

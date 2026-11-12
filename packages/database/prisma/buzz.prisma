@@ -1,10 +1,11 @@
 /// An organization's Buzz community: the relay its chats live on, so members
 /// can use Sokosumi or any Buzz client. One relay serves many communities, each
-/// on its own host.
+/// on its own host. A deleted organization leaves its community, without one,
+/// until its channels are deleted on Buzz.
 model BuzzCommunity {
-  id             String       @id @default(uuid(7)) @db.Uuid
-  organizationId String       @unique
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String        @id @default(uuid(7)) @db.Uuid
+  organizationId String?       @unique
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   /// `ws(s)://<community host>`; the host selects the community on the relay.
   relayUrl       String
   /// `created_at` (unix seconds) up to which every inbound event has been

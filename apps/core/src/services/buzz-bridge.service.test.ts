@@ -1083,7 +1083,7 @@ describe("a Direct question whose answer failed", () => {
     room: { kind: "direct", coworkerMembers: [{ coworkerId: "coworker" }] },
   });
 
-  it("asks again when the answer fails after it started", async () => {
+  it("hands the worker the answer that is still streaming", async () => {
     setUpDirect();
     db.buzzMessageLink.findUnique.mockResolvedValue(null);
     db.chatRoomMessage.findFirst
@@ -1094,33 +1094,51 @@ describe("a Direct question whose answer failed", () => {
       body: null,
       finished: Promise.resolve(false),
     }));
-    const onTurnFailed = vi.fn();
+    const onTurnStarted = vi.fn<(finished: Promise<boolean>) => void>();
     await expect(
-      applyInboundEvent(nostrEvent({ content: "hi" }), core, { onTurnFailed }),
+      applyInboundEvent(nostrEvent({ content: "hi" }), core, { onTurnStarted }),
     ).resolves.toBe("posted");
-    await vi.waitFor(() => expect(onTurnFailed).toHaveBeenCalledOnce());
+    expect(onTurnStarted).toHaveBeenCalledOnce();
+    await expect(onTurnStarted.mock.calls[0]?.[0]).resolves.toBe(false);
   });
 
-  it("asks again for a linked question that has no answer, not for an answered one", async () => {
+  it("asks again for a linked question whose next message is not its answer", async () => {
     setUpDirect();
     const event = nostrEvent({ content: "hi" });
+    const question = {
+      id: "stored",
+      ...storedQuestion(event.id),
+      parentMessageId: null,
+    };
     db.buzzMessageLink.findUnique.mockResolvedValue({ messageId: "stored" });
-    db.chatRoomMessage.findUnique.mockResolvedValue(storedQuestion(event.id));
-    // No answer yet; the question is stored; still none after it.
+    db.chatRoomMessage.findUnique.mockResolvedValue(question);
+    // Next after it: the person's next question (a later answer is that
+    // one's); then the stored question itself, still with no answer.
     db.chatRoomMessage.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "stored", createdAt: new Date() })
-      .mockResolvedValueOnce(null)
-      .mockResolvedValue({ id: "stored", createdAt: new Date() });
+      .mockResolvedValueOnce({ senderCoworkerId: null })
+      .mockResolvedValueOnce(question)
+      .mockResolvedValueOnce({ senderCoworkerId: null })
+      .mockResolvedValue(question);
     const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: null }));
     await expect(applyInboundEvent(event, core)).resolves.toBe("posted");
     expect(core).toHaveBeenCalledWith(
       expect.objectContaining({ path: "/v1/chats/rooms/direct/stream" }),
     );
+    expect(db.chatRoomMessage.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          parentMessageId: null,
+          id: { not: "stored" },
+        }),
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      }),
+    );
 
     core.mockClear();
     db.chatRoomMessage.findFirst.mockReset();
-    db.chatRoomMessage.findFirst.mockResolvedValue({ id: "answer" });
+    db.chatRoomMessage.findFirst.mockResolvedValue({
+      senderCoworkerId: "coworker",
+    });
     await expect(applyInboundEvent(event, core)).resolves.toBe("echo");
     expect(core).not.toHaveBeenCalled();
   });

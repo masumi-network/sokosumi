@@ -339,13 +339,13 @@ async function communitiesOf(userId: string) {
       allowPersonalAgents: organization.buzzCommunity.allowPersonalAgents,
     });
   }
-  for (const community of viaRooms) {
-    if (byOrganization.has(community.organization.id)) continue;
-    byOrganization.set(community.organization.id, {
+  for (const { organization, ...community } of viaRooms) {
+    if (!organization || byOrganization.has(organization.id)) continue;
+    byOrganization.set(organization.id, {
       communityId: community.id,
       allowPersonalAgents: community.allowPersonalAgents,
-      organizationId: community.organization.id,
-      organizationName: community.organization.name,
+      organizationId: organization.id,
+      organizationName: organization.name,
       relayUrl: community.relayUrl,
     });
   }
@@ -2141,6 +2141,7 @@ async function unansweredDirectQuestion(messageId: string, eventId: string) {
     where: { id: messageId },
     select: {
       roomId: true,
+      parentMessageId: true,
       createdAt: true,
       clientMessageId: true,
       room: {
@@ -2158,15 +2159,30 @@ async function unansweredDirectQuestion(messageId: string, eventId: string) {
   ) {
     return false;
   }
-  const answer = await prisma.chatRoomMessage.findFirst({
+  return !(await isAnswered({ id: messageId, ...message }));
+}
+
+/**
+ * A Direct takes one turn at a time, so a question's answer is the message
+ * right after it in its thread; a later answer to another question is not.
+ */
+async function isAnswered(question: {
+  id: string;
+  roomId: string;
+  parentMessageId: string | null;
+  createdAt: Date;
+}) {
+  const next = await prisma.chatRoomMessage.findFirst({
     where: {
-      roomId: message.roomId,
-      senderCoworkerId: { not: null },
-      createdAt: { gt: message.createdAt },
+      roomId: question.roomId,
+      parentMessageId: question.parentMessageId,
+      id: { not: question.id },
+      createdAt: { gte: question.createdAt },
     },
-    select: { id: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { senderCoworkerId: true },
   });
-  return !answer;
+  return Boolean(next?.senderCoworkerId);
 }
 
 /**
@@ -2185,7 +2201,7 @@ async function postToCoworkerDirect(input: {
   eventId: string;
   signerPubkey: string | null;
   channelId: string;
-  onTurnFailed?: () => void;
+  onTurnStarted?: (finished: Promise<boolean>) => void;
 }): Promise<InboundResult> {
   const stored = () =>
     prisma.chatRoomMessage.findFirst({
@@ -2194,20 +2210,16 @@ async function postToCoworkerDirect(input: {
         clientMessageId: input.clientMessageId,
         senderUserId: input.author.userId,
       },
-      select: { id: true, createdAt: true },
+      select: {
+        id: true,
+        roomId: true,
+        parentMessageId: true,
+        createdAt: true,
+      },
     });
   let message = await stored();
   // Answered already (a worker that stopped before linking): only link.
-  const answered =
-    message &&
-    (await prisma.chatRoomMessage.findFirst({
-      where: {
-        roomId: input.roomId,
-        senderCoworkerId: { not: null },
-        createdAt: { gt: message.createdAt },
-      },
-      select: { id: true },
-    }));
+  const answered = message && (await isAnswered(message));
   if (!answered) {
     // Core stores the message (once: same client id) and starts the turn;
     // the call returns when the answer has begun streaming. A turn that
@@ -2231,11 +2243,10 @@ async function postToCoworkerDirect(input: {
             : {}),
         },
       });
-      // The answer can still fail once it has started; the event is then
-      // asked again, and its question is unanswered, so not an echo.
-      void response.finished?.then((ok) => {
-        if (!ok) input.onTurnFailed?.();
-      });
+      // The answer can still fail once it has started: the event is done
+      // only when it ends well, and a replay of it is not an echo while its
+      // question has no answer.
+      if (response.finished) input.onTurnStarted?.(response.finished);
     } catch (error) {
       // Another answer is still streaming in this room: ask again later.
       if (error instanceof CoreRejectedError && error.status === 409) {
@@ -2434,8 +2445,11 @@ export async function applyInboundEvent(
   core: CoreRequest,
   options: {
     finalAttempt?: boolean;
-    /** A Coworker's answer to this event failed after it started: ask again. */
-    onTurnFailed?: () => void;
+    /**
+     * A Coworker's answer to this event has started streaming; it settles
+     * true once it ended well. Until then the event is not done.
+     */
+    onTurnStarted?: (finished: Promise<boolean>) => void;
   } = {},
 ): Promise<InboundResult> {
   const config = requireConfig();
@@ -2554,7 +2568,7 @@ export async function applyInboundEvent(
           eventId: event.id,
           signerPubkey,
           channelId: channel.channelId,
-          onTurnFailed: options.onTurnFailed,
+          onTurnStarted: options.onTurnStarted,
         });
       }
       const response = await sendAs(core, author, {
@@ -2834,9 +2848,10 @@ export async function linkedBuzzRooms() {
 }
 
 /**
- * Deletes the Buzz group of each room deleted in Sokosumi (the room's
- * channel outlives it for this), so what was said there leaves Buzz too.
- * The channel is forgotten only once the relay took the deletion.
+ * Deletes the Buzz group of each room deleted in Sokosumi, alone or with its
+ * organization (the channel and community outlive them for this), so what
+ * was said there leaves Buzz too. The channel is forgotten only once the
+ * relay took the deletion.
  */
 export async function deleteChannelsOfDeletedRooms() {
   const orphaned = await prisma.buzzChannel.findMany({
@@ -2863,6 +2878,10 @@ export async function deleteChannelsOfDeletedRooms() {
     }
     await prisma.buzzChannel.delete({ where: { id: channel.id } });
   }
+  // An organization's community goes once its channels are gone from Buzz.
+  await prisma.buzzCommunity.deleteMany({
+    where: { organizationId: null, channels: { none: {} } },
+  });
   return orphaned.length;
 }
 
