@@ -5,11 +5,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChangeableRun } from "./run-change";
 import { applyRunChange, useRunChanges } from "./use-run-changes";
 
-const { changeRunMock, reportFailureMock } = vi.hoisted(() => ({
-  changeRunMock: vi.fn(),
-  reportFailureMock: vi.fn(),
-}));
+const { changeRunMock, reportFailureMock, toastSuccessMock } = vi.hoisted(
+  () => ({
+    changeRunMock: vi.fn(),
+    reportFailureMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
+  }),
+);
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+vi.mock("sonner", () => ({ toast: { success: toastSuccessMock } }));
 vi.mock("./run-change", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./run-change")>()),
   changeRun: changeRunMock,
@@ -81,6 +88,7 @@ describe("useRunChanges", () => {
   beforeEach(() => {
     changeRunMock.mockReset();
     reportFailureMock.mockReset();
+    toastSuccessMock.mockReset();
     changeRunMock.mockReturnValueOnce(
       new Promise((resolve) => {
         answerFirst = resolve;
@@ -133,6 +141,27 @@ describe("useRunChanges", () => {
 
     await act(async () => answerFirst({ ok: true, value: { revision: 4 } }));
     expect(sentRevisions()).toEqual([READ_REVISION, 4]);
+  });
+
+  it("offers Undo once a skip is accepted and moves the Run back with the revision the skip left", async () => {
+    const skipped = changeable("skipped");
+    const { result } = renderHook(() => useRunChanges([skipped]));
+    await act(async () => {
+      result.current[1](skipped, { action: "skip" });
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    await act(async () => answerFirst({ ok: true, value: { revision: 7 } }));
+    const [, options] = toastSuccessMock.mock.calls[0] as [
+      string,
+      { action: { onClick: () => void } },
+    ];
+    await act(async () => options.action.onClick());
+
+    expect(changeRunMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "skipped", scheduleRevision: 7 }),
+      { action: "move", scheduledAt: RULE_TIME },
+    );
   });
 
   it("sends the second change the read revision when Core refused the first", async () => {
