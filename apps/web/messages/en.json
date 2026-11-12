@@ -1106,6 +1106,25 @@
       "empty": "This sheet is empty.",
       "truncated": "Showing the first {rows} rows and 50 columns. Download the file to see the rest."
     },
+    "CapTableView": {
+      "loading": "Loading cap table",
+      "failed": "This cap table file can't be shown. Check that it is a valid cap table file.",
+      "title": "{company} cap table",
+      "asOf": "As of {date}",
+      "ownership": "Ownership, fully diluted",
+      "holder": "Holder",
+      "class": "Class",
+      "shares": "Shares",
+      "issued": "Issued",
+      "fullyDiluted": "Fully diluted",
+      "optionPool": "Option pool",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} granted, {available} available",
+      "total": "Total",
+      "issuedShares": "Issued shares",
+      "authorizedShares": "Authorized shares",
+      "parValue": "Par value"
+    },
     "TeamView": {
       "loading": "Loading team",
       "failed": "This team file can't be shown. Check that it is a valid team file.",
