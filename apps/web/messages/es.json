@@ -1099,6 +1099,34 @@
     "ConnectLink": {
       "error": "No se pudo iniciar la conexión."
     },
+    "SpreadsheetView": {
+      "loading": "Cargando hoja de cálculo",
+      "failed": "No se pudo abrir esta hoja de cálculo.",
+      "sheet": "Hoja {number}",
+      "empty": "Esta hoja está vacía.",
+      "truncated": "Se muestran las primeras {rows} filas y 50 columnas. Descarga el archivo para ver el resto."
+    },
+    "CapTableView": {
+      "loading": "Cargando tabla de capitalización",
+      "failed": "No se puede mostrar este archivo de tabla de capitalización. Comprueba que sea válido.",
+      "title": "Tabla de capitalización de {company}",
+      "asOf": "A {date}",
+      "ownership": "Participación, totalmente diluida",
+      "holder": "Titular",
+      "class": "Clase",
+      "shares": "Acciones",
+      "issued": "Emitidas",
+      "fullyDiluted": "Totalmente diluida",
+      "optionPool": "Pool de opciones",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} concedidas, {available} disponibles",
+      "total": "Total",
+      "issuedShares": "Acciones emitidas",
+      "reservedShares": "Reservadas para el plan de acciones",
+      "unallocatedShares": "Ni emitidas ni reservadas",
+      "authorizedShares": "Acciones autorizadas",
+      "parValue": "Valor nominal"
+    },
     "TeamView": {
       "loading": "Cargando equipo",
       "failed": "No se puede mostrar este archivo de equipo. Comprueba que sea un archivo de equipo válido.",
@@ -1664,7 +1692,24 @@
         "MyDay": {
           "title": "Mi día",
           "more": "{count, plural, one {Mostrar # más} other {Mostrar # más}}",
-          "error": "No se pudieron cargar más. Inténtalo de nuevo."
+          "error": "No se pudieron cargar más. Inténtalo de nuevo.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {Mover # vencida} other {Mover # vencidas}}",
+            "label": "{count, plural, one {Mover # tarea vencida a} other {Mover # tareas vencidas a}}",
+            "targets": {
+              "today": "Hoy",
+              "tomorrow": "Mañana",
+              "nextMonday": "El próximo lunes"
+            },
+            "moved": "{count, plural, one {# tarea movida al {date}} other {# tareas movidas al {date}}}",
+            "movedPartly": "{count} de {total} tareas movidas al {date}. Las demás cambiaron o no puedes editarlas.",
+            "nothingMoved": "No se movió nada. Esas tareas cambiaron o no puedes editarlas.",
+            "error": "No se pudieron mover tus tareas vencidas. Inténtalo de nuevo.",
+            "undo": "Deshacer",
+            "undone": "{count, plural, one {# tarea devuelta} other {# tareas devueltas}}",
+            "undonePartly": "{count} de {total} tareas devueltas. Las demás cambiaron desde entonces.",
+            "undoError": "No se pudo deshacer el cambio. Inténtalo de nuevo."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1816,6 +1861,7 @@
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
         "parentTask": "Padre:",
@@ -1852,6 +1898,11 @@
         "authenticate": "Autenticar",
         "expand": "Expandir",
         "collapse": "Contraer",
+        "downloadAll": {
+          "button": "Descargar todo",
+          "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
+          "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
         "actorSokoBot": "Asistente",
@@ -3535,7 +3586,20 @@
           }
         },
         "Calendar": {
-          "title": "Calendario"
+          "title": "Calendario",
+          "nextIssue": "Próxima edición",
+          "nothingScheduled": "Aún no hay nada programado. Programa una edición y aparecerá aquí.",
+          "openFullCalendar": "Abrir en el calendario",
+          "emptyTitle": "Aún no hay ediciones",
+          "emptyDescription": "Escribe una edición y aparecerá aquí por fecha.",
+          "goToIssues": "Ir a ediciones",
+          "groups": {
+            "scheduled": "Programadas",
+            "unscheduled": "Sin programar",
+            "sent": "Enviadas"
+          },
+          "count": "{count, plural, one {# edición} other {# ediciones}}",
+          "newestOnly": "Se muestran las {count} ediciones más recientes. Abre el calendario para ver las anteriores."
         },
         "Issues": {
           "title": "Ediciones",
@@ -3566,6 +3630,7 @@
           "previewText": "Texto de vista previa",
           "status": "Estado",
           "sentAt": "Enviada el {date}",
+          "sentTo": "Enviada el {date} a {count, plural, one {# suscriptor} other {# suscriptores}}",
           "firstPage": "Primera página",
           "nextPage": "Página siguiente",
           "results": "{count, plural, one {# edición} other {# ediciones}}",
@@ -3748,10 +3813,10 @@
           "Image": {
             "width": "Ancho",
             "widths": {
-              "100": "Ancho completo",
-              "75": "Tres cuartos",
+              "25": "Un cuarto",
               "50": "Mitad",
-              "25": "Un cuarto"
+              "75": "Tres cuartos",
+              "100": "Ancho completo"
             },
             "align": "Alineación",
             "aligns": {
@@ -9491,6 +9556,30 @@
       "createFolderDialogTitle": "Crear nueva carpeta",
       "createFolderDialogDescription": "Escribe un nombre para la nueva carpeta",
       "createFolderDialogConfirm": "Crear",
+      "GoogleSheet": {
+        "button": "Vincular Google Sheet",
+        "dialogTitle": "Vincular una hoja de Google",
+        "dialogDescription": "Pega el enlace de la hoja. En Google Sheets, en Compartir → Acceso general, elige «Cualquier persona con el enlace». Sokosumi guarda aquí una copia y la actualiza cada hora.",
+        "linkLabel": "Enlace de Google Sheets",
+        "link": "Vincular",
+        "linking": "Vinculando…",
+        "cancel": "Cancelar",
+        "linked": "{name} vinculado",
+        "notALink": "Ese no es un enlace de Google Sheets. Cópialo de la barra de direcciones de la hoja.",
+        "notShared": "Sokosumi no puede abrir esa hoja. Cambia su acceso general a «Cualquier persona con el enlace» y vuelve a intentarlo.",
+        "nameTaken": "Ya hay un archivo con el nombre de esta hoja en esta carpeta.",
+        "failed": "Google Sheets no responde. Inténtalo de nuevo en un minuto.",
+        "source": "Hoja de Google",
+        "updated": "actualizada {when}",
+        "refresh": "Actualizar",
+        "refreshing": "Actualizando…",
+        "open": "Abrir en Google Sheets",
+        "error": {
+          "not_shared": "La última actualización falló: la hoja ya no se comparte por enlace. Esta copia es anterior.",
+          "too_large": "La última actualización falló: la hoja es demasiado grande. Esta copia es anterior.",
+          "failed": "La última actualización falló. Esta copia es anterior."
+        }
+      },
       "deleteFolderDialogTitle": "Eliminar carpeta",
       "deleteFolderAction": "Eliminar carpeta",
       "deleteFolderDialogDescription": "¿Seguro que quieres eliminar {folderName} y todo su contenido? Esta acción no se puede deshacer.",
@@ -10400,6 +10489,8 @@
         "moveRun": "Mover ejecución",
         "skipRun": "Omitir ejecución",
         "restoreRun": "Restaurar ejecución",
+        "runSkipped": "Se omitió la ejecución de {name}.",
+        "undo": "Deshacer",
         "openSchedule": "Abrir programación",
         "allDay": "Todo el día",
         "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",
@@ -10444,7 +10535,10 @@
         "showing": "Horas en {zone}"
       },
       "empty": {
-        "title": "Nada programado coincide con estos filtros.",
+        "title": "{view, select, month {No hay nada programado este mes} week {No hay nada programado esta semana} other {No hay nada próximo}}",
+        "filtered": "Nada programado coincide con estos filtros.",
+        "hint": "Aquí aparecen las tareas con hora de inicio, las ejecuciones de programaciones y las publicaciones con fecha.",
+        "createHint": "{view, select, agenda {Usa «Programar una tarea» para añadir una.} other {Usa «Programar una tarea» o haz clic en un día para empezar en esa fecha.}}",
         "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
@@ -10790,7 +10884,7 @@
       },
       "toolbar": {
         "search": "Buscar contactos",
-        "searchPlaceholder": "Buscar nombre, empresa, correo…",
+        "searchPlaceholder": "Buscar nombre, empresa, correo, lugar…",
         "me": "Yo",
         "clearFilter": "Quitar el filtro {filter}",
         "export": "Exportar CSV",
@@ -10905,6 +10999,7 @@
         "channelTaken": "Alguien de tu equipo ya tiene a esta persona en Contactos.",
         "openExisting": "Abrir contacto",
         "failed": "El contacto no se guardó. Inténtalo de nuevo.",
+        "listFailed": "El contacto está guardado, pero aún no está en la lista. Inténtalo de nuevo para añadirlo.",
         "cancel": "Cancelar",
         "submit": "Añadir contacto"
       },
@@ -10996,6 +11091,8 @@
         "addToList": "Añadir a una lista",
         "manualLists": "Listas",
         "noManualLists": "Todavía no hay listas.",
+        "newList": "Nueva lista…",
+        "newListAddFailed": "{list} está creada, pero {name} aún no está en ella.",
         "empty": "Añadir…",
         "location": "Ubicación",
         "nextStepTitle": "Próximo paso",

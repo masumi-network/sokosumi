@@ -1099,6 +1099,34 @@
     "ConnectLink": {
       "error": "Die Verbindung konnte nicht gestartet werden."
     },
+    "SpreadsheetView": {
+      "loading": "Tabelle wird geladen",
+      "failed": "Diese Tabelle konnte nicht geöffnet werden.",
+      "sheet": "Blatt {number}",
+      "empty": "Dieses Blatt ist leer.",
+      "truncated": "Es werden die ersten {rows} Zeilen und 50 Spalten angezeigt. Lade die Datei herunter, um den Rest zu sehen."
+    },
+    "CapTableView": {
+      "loading": "Cap Table wird geladen",
+      "failed": "Diese Cap-Table-Datei kann nicht angezeigt werden. Prüfe, ob es eine gültige Cap-Table-Datei ist.",
+      "title": "Cap Table von {company}",
+      "asOf": "Stand {date}",
+      "ownership": "Beteiligung, voll verwässert",
+      "holder": "Inhaber",
+      "class": "Gattung",
+      "shares": "Anteile",
+      "issued": "Ausgegeben",
+      "fullyDiluted": "Voll verwässert",
+      "optionPool": "Optionspool",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} zugeteilt, {available} verfügbar",
+      "total": "Gesamt",
+      "issuedShares": "Ausgegebene Anteile",
+      "reservedShares": "Für Mitarbeiterbeteiligung reserviert",
+      "unallocatedShares": "Weder ausgegeben noch reserviert",
+      "authorizedShares": "Genehmigte Anteile",
+      "parValue": "Nennwert"
+    },
     "TeamView": {
       "loading": "Team wird geladen",
       "failed": "Diese Team-Datei kann nicht angezeigt werden. Prüfe, ob sie eine gültige Team-Datei ist.",
@@ -1664,7 +1692,24 @@
         "MyDay": {
           "title": "Mein Tag",
           "more": "{count, plural, one {# weitere anzeigen} other {# weitere anzeigen}}",
-          "error": "Konnte nicht mehr laden. Versuche es erneut."
+          "error": "Konnte nicht mehr laden. Versuche es erneut.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {# Überfällige verschieben} other {# Überfällige verschieben}}",
+            "label": "{count, plural, one {# überfällige Aufgabe verschieben auf} other {# überfällige Aufgaben verschieben auf}}",
+            "targets": {
+              "today": "Heute",
+              "tomorrow": "Morgen",
+              "nextMonday": "Nächsten Montag"
+            },
+            "moved": "{count, plural, one {# Aufgabe auf {date} verschoben} other {# Aufgaben auf {date} verschoben}}",
+            "movedPartly": "{count} von {total} Aufgaben auf {date} verschoben. Die anderen haben sich geändert oder du darfst sie nicht bearbeiten.",
+            "nothingMoved": "Nichts verschoben. Diese Aufgaben haben sich geändert oder du darfst sie nicht bearbeiten.",
+            "error": "Deine überfälligen Aufgaben konnten nicht verschoben werden. Versuch es noch einmal.",
+            "undo": "Rückgängig",
+            "undone": "{count, plural, one {# Aufgabe zurückgesetzt} other {# Aufgaben zurückgesetzt}}",
+            "undonePartly": "{count} von {total} Aufgaben zurückgesetzt. Die anderen haben sich inzwischen geändert.",
+            "undoError": "Das Verschieben konnte nicht rückgängig gemacht werden. Versuch es noch einmal."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1816,6 +1861,7 @@
       },
       "Detail": {
         "back": "Zurück zu Tasks",
+        "backToCalendar": "Zurück zum Kalender",
         "privateBadge": "Privat",
         "visibility": "Sichtbarkeit",
         "parentTask": "Übergeordnet:",
@@ -1852,6 +1898,11 @@
         "authenticate": "Authentifizieren",
         "expand": "Ausklappen",
         "collapse": "Weniger anzeigen",
+        "downloadAll": {
+          "button": "Alle herunterladen",
+          "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
+          "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
         "actorSokoBot": "Assistent",
@@ -3535,7 +3586,20 @@
           }
         },
         "Calendar": {
-          "title": "Kalender"
+          "title": "Kalender",
+          "nextIssue": "Nächste Ausgabe",
+          "nothingScheduled": "Noch nichts geplant. Plane eine Ausgabe, dann erscheint sie hier.",
+          "openFullCalendar": "Im Kalender öffnen",
+          "emptyTitle": "Noch keine Ausgaben",
+          "emptyDescription": "Schreibe eine Ausgabe, dann erscheint sie hier nach Datum.",
+          "goToIssues": "Zu den Ausgaben",
+          "groups": {
+            "scheduled": "Geplant",
+            "unscheduled": "Nicht geplant",
+            "sent": "Gesendet"
+          },
+          "count": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
+          "newestOnly": "Es werden die neuesten {count} Ausgaben angezeigt. Öffne den Kalender für ältere."
         },
         "Issues": {
           "title": "Ausgaben",
@@ -3566,6 +3630,7 @@
           "previewText": "Vorschautext",
           "status": "Status",
           "sentAt": "Gesendet am {date}",
+          "sentTo": "Gesendet am {date} an {count, plural, one {# Abonnent} other {# Abonnenten}}",
           "firstPage": "Erste Seite",
           "nextPage": "Nächste Seite",
           "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
@@ -3748,10 +3813,10 @@
           "Image": {
             "width": "Breite",
             "widths": {
-              "100": "Volle Breite",
-              "75": "Drei Viertel",
+              "25": "Viertel",
               "50": "Halb",
-              "25": "Viertel"
+              "75": "Drei Viertel",
+              "100": "Volle Breite"
             },
             "align": "Ausrichtung",
             "aligns": {
@@ -9491,6 +9556,30 @@
       "createFolderDialogTitle": "Neuen Ordner erstellen",
       "createFolderDialogDescription": "Gib einen Namen für den neuen Ordner ein",
       "createFolderDialogConfirm": "Erstellen",
+      "GoogleSheet": {
+        "button": "Google Sheet verknüpfen",
+        "dialogTitle": "Google Sheet verknüpfen",
+        "dialogDescription": "Füge den Link zum Sheet ein. Stelle in Google Sheets unter Teilen → Allgemeiner Zugriff „Jeder, der über den Link verfügt“ ein. Sokosumi speichert hier eine Kopie und aktualisiert sie stündlich.",
+        "linkLabel": "Google-Sheets-Link",
+        "link": "Verknüpfen",
+        "linking": "Wird verknüpft…",
+        "cancel": "Abbrechen",
+        "linked": "{name} verknüpft",
+        "notALink": "Das ist kein Google-Sheets-Link. Kopiere ihn aus der Adresszeile des Sheets.",
+        "notShared": "Sokosumi kann das Sheet nicht öffnen. Stelle den allgemeinen Zugriff auf „Jeder, der über den Link verfügt“ und versuche es erneut.",
+        "nameTaken": "In diesem Ordner gibt es schon eine Datei mit dem Namen dieses Sheets.",
+        "failed": "Google Sheets antwortet nicht. Versuche es in einer Minute erneut.",
+        "source": "Google Sheet",
+        "updated": "aktualisiert {when}",
+        "refresh": "Aktualisieren",
+        "refreshing": "Wird aktualisiert…",
+        "open": "In Google Sheets öffnen",
+        "error": {
+          "not_shared": "Die letzte Aktualisierung ist fehlgeschlagen: Das Sheet ist nicht mehr per Link freigegeben. Diese Kopie ist älter.",
+          "too_large": "Die letzte Aktualisierung ist fehlgeschlagen: Das Sheet ist zu groß. Diese Kopie ist älter.",
+          "failed": "Die letzte Aktualisierung ist fehlgeschlagen. Diese Kopie ist älter."
+        }
+      },
       "deleteFolderDialogTitle": "Ordner löschen",
       "deleteFolderAction": "Ordner löschen",
       "deleteFolderDialogDescription": "Möchtest du wirklich {folderName} und alle darin enthaltenen Dateien löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
@@ -10400,6 +10489,8 @@
         "moveRun": "Lauf verschieben",
         "skipRun": "Lauf überspringen",
         "restoreRun": "Lauf wiederherstellen",
+        "runSkipped": "Lauf von {name} übersprungen.",
+        "undo": "Rückgängig",
         "openSchedule": "Zeitplan öffnen",
         "allDay": "Ganztägig",
         "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
@@ -10444,7 +10535,10 @@
         "showing": "Zeiten in {zone}"
       },
       "empty": {
-        "title": "Nichts Geplantes entspricht diesen Filtern.",
+        "title": "{view, select, month {Diesen Monat ist nichts geplant} week {Diese Woche ist nichts geplant} other {Nichts steht an}}",
+        "filtered": "Nichts Geplantes entspricht diesen Filtern.",
+        "hint": "Tasks mit Startzeit, Läufe von Zeitplänen und datierte Beiträge erscheinen hier.",
+        "createHint": "{view, select, agenda {Mit „Task planen“ fügst du einen hinzu.} other {Mit „Task planen“ oder einem Klick auf einen Tag startest du an diesem Datum.}}",
         "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {
@@ -10790,7 +10884,7 @@
       },
       "toolbar": {
         "search": "Kontakte durchsuchen",
-        "searchPlaceholder": "Name, Firma, E-Mail suchen…",
+        "searchPlaceholder": "Name, Firma, E-Mail, Ort suchen…",
         "me": "Ich",
         "clearFilter": "Filter {filter} entfernen",
         "export": "CSV exportieren",
@@ -10905,6 +10999,7 @@
         "channelTaken": "Diese Person ist in deinem Team bereits ein Kontakt.",
         "openExisting": "Kontakt öffnen",
         "failed": "Der Kontakt wurde nicht gespeichert. Versuch es noch einmal.",
+        "listFailed": "Der Kontakt ist gespeichert, aber noch nicht auf der Liste. Versuch es noch einmal, um ihn hinzuzufügen.",
         "cancel": "Abbrechen",
         "submit": "Kontakt hinzufügen"
       },
@@ -10996,6 +11091,8 @@
         "addToList": "Zu einer Liste hinzufügen",
         "manualLists": "Listen",
         "noManualLists": "Noch keine Listen.",
+        "newList": "Neue Liste…",
+        "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",

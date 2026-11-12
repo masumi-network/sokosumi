@@ -1278,7 +1278,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getByText("empty.title")).toBeInTheDocument();
+    expect(screen.getByText("empty.filtered")).toBeInTheDocument();
   });
 
   it("links a Project Calendar to that Project's schedules", () => {
