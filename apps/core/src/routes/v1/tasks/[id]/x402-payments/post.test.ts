@@ -203,12 +203,16 @@ interface TxMock {
   };
   taskX402PaymentAction: { createMany: ReturnType<typeof vi.fn> };
   taskEvent: { create: ReturnType<typeof vi.fn> };
+  // The refund's own Transaction (createCompensatingRefund).
+  transaction: { create: ReturnType<typeof vi.fn> };
   task: { updateMany: ReturnType<typeof vi.fn> };
   agent: {
     findFirst: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
   };
 }
+
+const PROJECT_ID = "project_1";
 
 function createTask(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -217,6 +221,7 @@ function createTask(overrides: Partial<Record<string, unknown>> = {}) {
     assigneeId: COWORKER_ID,
     ownerId: USER_ID,
     organizationId: null,
+    projectId: PROJECT_ID,
     ...overrides,
   };
 }
@@ -506,6 +511,7 @@ function createTxMock(): TxMock {
       createMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     taskEvent: { create: vi.fn().mockResolvedValue({ id: "evt_charge_1" }) },
+    transaction: { create: vi.fn().mockResolvedValue({ id: "refund_txn_1" }) },
     task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     agent: {
       findFirst: vi.fn().mockResolvedValue(createAgentRow()),
@@ -604,6 +610,7 @@ describe("POST /{id}/x402-payments", () => {
       assignee: { name: "Test coworker" },
       project: null,
       owner: { notificationsOptIn: true },
+      events: [],
     });
   });
 
@@ -1348,6 +1355,7 @@ describe("POST /{id}/x402-payments", () => {
             amount: CENTS_FOR_DEMAND * -1n,
             userId: USER_ID,
             organizationId: null,
+            creditConsumptions: [],
           },
         });
 
@@ -1962,10 +1970,12 @@ describe("POST /{id}/x402-payments", () => {
         payTo: PAY_TO,
       });
 
-      // Charge: the exact floored CAIP-19 conversion, from the task owner.
+      // Charge: the exact floored CAIP-19 conversion, from the task owner,
+      // with the Task's Project.
       expect(createTaskEventTransactionMock).toHaveBeenCalledWith({
         userId: USER_ID,
         organizationId: null,
+        projectId: PROJECT_ID,
         cents: CENTS_FOR_DEMAND,
         tx,
       });
@@ -2382,6 +2392,7 @@ describe("POST /{id}/x402-payments", () => {
             amount: CENTS_FOR_DEMAND * -1n,
             userId: USER_ID,
             organizationId: null,
+            creditConsumptions: [],
           },
         });
     });
@@ -2430,6 +2441,21 @@ describe("POST /{id}/x402-payments", () => {
           failureReason: "node_refused_operational",
         },
       });
+      expect(tx.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amount: CENTS_FOR_DEMAND,
+            sourceCreditBucket: {
+              create: expect.objectContaining({
+                amount: CENTS_FOR_DEMAND,
+                referenceId: `task-x402-payment:${PAYMENT_ID}`,
+                referenceType: "REFUND",
+                expiresAt: null,
+              }),
+            },
+          }),
+        }),
+      );
       expect(tx.taskX402Payment.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: PAYMENT_ID },
@@ -2437,19 +2463,7 @@ describe("POST /{id}/x402-payments", () => {
             // Labelled at the mint: this refund is the AUTOMATED node-refusal
             // one, never an operator quality signal in the admin rollup.
             refundKind: "NODE_REFUSAL",
-            refundTransaction: {
-              create: expect.objectContaining({
-                amount: CENTS_FOR_DEMAND,
-                sourceCreditBucket: {
-                  create: expect.objectContaining({
-                    amount: CENTS_FOR_DEMAND,
-                    referenceId: `task-x402-payment:${PAYMENT_ID}`,
-                    referenceType: "REFUND",
-                    expiresAt: null,
-                  }),
-                },
-              }),
-            },
+            refundTransaction: { connect: { id: "refund_txn_1" } },
           }),
         }),
       );
@@ -3557,6 +3571,7 @@ describe("POST /{id}/x402-payments", () => {
         assignee: { name: "Test coworker" },
         assigneeSokoBot: null,
         project: null,
+        events: [],
       });
       const app = createApp(COWORKER_AGENT_CONTEXT);
 

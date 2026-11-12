@@ -55,7 +55,7 @@ const NEWSLETTER: Newsletter = {
   updatedAt: new Date(),
 };
 
-function renderForm(newsletter: Newsletter | null = null) {
+function renderForm(newsletter: Newsletter | null = null, readOnly = false) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
       <NewsletterSettingsForm
@@ -63,6 +63,7 @@ function renderForm(newsletter: Newsletter | null = null) {
         projectName="Launch"
         projectLogo="https://example.com/project.png"
         newsletter={newsletter}
+        readOnly={readOnly}
       />
     </NextIntlClientProvider>,
   );
@@ -74,6 +75,19 @@ beforeEach(() => {
 });
 
 describe("NewsletterSettingsForm", () => {
+  it("shows saved settings without editing controls on a CMO Project", () => {
+    renderForm(NEWSLETTER, true);
+
+    expect(screen.getAllByText(NEWSLETTER.senderName).length).toBeGreaterThan(
+      0,
+    );
+    expect(
+      screen.getAllByText("Here is your weekly news.").length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
   it("places the sending domain above Save and outside the settings form", async () => {
     const user = userEvent.setup();
     render(
@@ -289,7 +303,7 @@ describe("NewsletterSettingsForm", () => {
       }),
     );
     expect(mocks.success).toHaveBeenCalledWith("Newsletter settings saved");
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
     expect(
       screen.queryByRole("heading", { name: "Set up your newsletter" }),
     ).not.toBeInTheDocument();

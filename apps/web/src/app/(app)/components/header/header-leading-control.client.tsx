@@ -24,7 +24,8 @@ import { SokosumiIcon } from "@/components/masumi-logos";
  * Mobile header leading slot (`md:hidden` size-10):
  * - Welcome home + chats + bottom-nav tab roots → Sokosumi icon Link to `/`
  * - chat room → back to `/chat`
- * - nested tasks → back to stored list URL (view/filters) when present
+ * - nested tasks → back to stored list URL (view/filters) when present; a
+ *   task opened from the Calendar → back to that Calendar view
  * - other nested list pages → back to list root
  * - non-tab hub roots → back to chats
  * - otherwise → back to chats
@@ -36,7 +37,9 @@ export function HeaderLeadingControl(): React.ReactElement {
   const t = useTranslations("App.Channels.MobileNav");
   const surface = classifyChatChromeSurface(pathname, searchParams);
   const appBack = resolveMobileAppBackTarget(pathname, searchParams);
-  const tasksReturnPath = useTasksReturnPath();
+  // Only a task's own page goes back to the Calendar it was opened from.
+  const allowCalendar = isTaskDetailPathname(pathname);
+  const tasksReturnPath = useTasksReturnPath({ allowCalendar });
   const agentUnavailable = useIsAgentUnavailable(
     getAgentJobsPathAgentId(pathname),
   );
@@ -77,7 +80,11 @@ export function HeaderLeadingControl(): React.ReactElement {
       // Read storage at click time: header stays mounted across list→detail,
       // so href state can lag behind TaskDetailLink writing the return path.
       event.preventDefault();
-      router.push(getStoredTasksReturnPath());
+      router.push(
+        getStoredTasksReturnPath({
+          taskPath: allowCalendar ? pathname : undefined,
+        }),
+      );
     }
 
     return (
@@ -101,6 +108,10 @@ export function HeaderLeadingControl(): React.ReactElement {
       <ChevronLeft className="size-5" aria-hidden />
     </Link>
   );
+}
+
+function isTaskDetailPathname(pathname: string) {
+  return /^\/tasks\/[^/]+$/.test(pathname) && pathname !== "/tasks/archived";
 }
 
 /** Suspense fallback while search params resolve — brand link, never hamburger. */

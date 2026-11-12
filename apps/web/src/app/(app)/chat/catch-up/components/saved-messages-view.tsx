@@ -75,25 +75,35 @@ export function SavedMessagesView({
   }, [initialPage]);
 
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [removingId, setRemovingId] = useState<string | null>(null);
+  // Saves with an unsave on its way to Core. They are off the list at once
+  // and return, in place, when the write fails.
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
   // Live rooms are the reader's access now: a row whose room left the
   // sidebar (membership lost) goes at once, before Core is asked again.
-  const visibleItems = sawLiveRooms.current
-    ? items.filter((item) => roomsById.has(item.message.roomId))
-    : items;
+  const visibleItems = items.filter(
+    (item) =>
+      !removing.has(item.messageId) &&
+      (!sawLiveRooms.current || roomsById.has(item.message.roomId)),
+  );
 
   async function handleRemove(messageId: string) {
-    setRemovingId(messageId);
-    const result = await unsaveRoomMessageAction(messageId);
-    setRemovingId(null);
-    if (!result.ok) {
-      toast.error(result.error.message);
-      return;
+    setRemoving((current) => new Set(current).add(messageId));
+    // A rejected call is a failed write too: the row must not stay off the
+    // list when Core never removed the save.
+    const result = await unsaveRoomMessageAction(messageId).catch(() => null);
+    if (result?.ok) {
+      setItems((current) =>
+        current.filter((item) => item.messageId !== messageId),
+      );
+      toast.success(t("removed"));
+    } else {
+      toast.error(result?.error.message ?? t("removeError"));
     }
-    setItems((current) =>
-      current.filter((item) => item.messageId !== messageId),
-    );
-    toast.success(t("removed"));
+    setRemoving((current) => {
+      const next = new Set(current);
+      next.delete(messageId);
+      return next;
+    });
   }
 
   async function handleLoadOlder() {
@@ -190,8 +200,13 @@ export function SavedMessagesView({
                       className="text-muted-foreground relative z-[1] size-10 shrink-0 md:size-8"
                       aria-label={t("remove")}
                       title={t("remove")}
-                      loading={removingId === messageId}
-                      onClick={() => void handleRemove(messageId)}
+                      onClick={(event) => {
+                        // The rows below move up when this one leaves. The
+                        // second click of a double-click would land on the
+                        // next row's button and remove that save too.
+                        if (event.detail > 1) return;
+                        void handleRemove(messageId);
+                      }}
                     >
                       <BookmarkX className="size-4" aria-hidden />
                     </Button>

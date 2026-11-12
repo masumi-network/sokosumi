@@ -48,6 +48,10 @@ const updateBoardFollowingByIdRoute = createRoute({
   path: "/{sokoBotId}/board-following",
   operationId: "updateSokoBotBoardFollowing",
   request: { body, params: sokoBotIdParams },
+  responses: {
+    ...spec.responses,
+    409: jsonErrorResponse("CMO project is read-only"),
+  },
 });
 
 /** Configuring needs only access: any member may change a shared bot's. */

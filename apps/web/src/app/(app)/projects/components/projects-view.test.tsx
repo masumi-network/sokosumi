@@ -76,6 +76,7 @@ const labels = {
   created: "Created",
   pinned: "Pinned",
   closed: "Closed",
+  cmo: "CMO",
   actions: {
     moreActions: "More actions",
     close: "Close",

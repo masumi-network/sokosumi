@@ -341,7 +341,6 @@ import { DrivePageClient } from "@/app/drive/drive-page-client";
 import {
   type FilesViewMode,
   parseFilesViewModeCookieHeader,
-  resolveFilesViewModeFromClientCookie,
 } from "@/lib/ui-preferences/files-view-mode";
 
 function createDriveQueryClient() {
@@ -1027,7 +1026,7 @@ describe("DrivePage files view mode", () => {
         }),
     );
 
-    renderDrive(resolveFilesViewModeFromClientCookie(document.cookie));
+    renderDrive(parseFilesViewModeCookieHeader(document.cookie) ?? "list");
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-skeleton-grid")).toBeVisible();
@@ -1094,7 +1093,7 @@ describe("DrivePage files view mode", () => {
     useIsMobileMock.mockReturnValue(true);
     document.cookie = "files_view_mode=grid; path=/";
 
-    renderDrive(resolveFilesViewModeFromClientCookie(document.cookie));
+    renderDrive(parseFilesViewModeCookieHeader(document.cookie) ?? "list");
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-list")).toBeVisible();

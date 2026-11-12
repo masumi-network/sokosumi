@@ -121,6 +121,7 @@ const CMO_TOKEN: AuthenticationContext = {
   role: "user",
   authenticationMethod: "oauth",
   firstPartyClient: true,
+  oauthClientId: "cmo-oauth-client",
 };
 
 function createApp(auth: AuthenticationContext = CMO_TOKEN) {

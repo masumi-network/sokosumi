@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -11,7 +10,6 @@ import { reactivateSokoBotAction } from "@/lib/actions/soko-bot/action";
 /** Brings an archived shared bot back. Only a viewer who may manage it sees this. */
 export function ReactivateSharedBotButton({ botId }: { botId: string }) {
   const t = useTranslations("App.SokoBots.Shared.Archived");
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   return (
@@ -26,7 +24,6 @@ export function ReactivateSharedBotButton({ botId }: { botId: string }) {
             return;
           }
           toast.success(t("reactivated"));
-          router.refresh();
         })
       }
     >

@@ -29,6 +29,7 @@ function bot(overrides: Partial<SharedSokoBotSummary>): SharedSokoBotSummary {
     archivedAt: null,
     sharedRoomId: "room-1",
     viewerCanManage: false,
+    cuso: false,
     ...overrides,
   };
 }

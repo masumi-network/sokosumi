@@ -56,6 +56,15 @@ export interface SokoBotPayer {
   /** Personal owner; null for a shared bot, which only the organization pays for. */
   userId: string | null;
   organizationId: string | null;
+  /** The bot's Project (Cuso's): its Project credits pay first (ADR 0067). */
+  projectId?: string | null;
+}
+
+/** The credit scope a bot's charges and gates read: its Project, or none. */
+function payerProjectScope(payer: SokoBotPayer | null): {
+  projectId: string | null;
+} {
+  return { projectId: payer?.projectId ?? null };
 }
 
 /**
@@ -69,10 +78,18 @@ async function sokoBotPayer(
 ): Promise<SokoBotPayer | null> {
   const bot = await client.sokoBot.findUnique({
     where: { id: sokoBotId },
-    select: { userId: true, workspace: { select: { organizationId: true } } },
+    select: {
+      userId: true,
+      projectId: true,
+      workspace: { select: { organizationId: true } },
+    },
   });
   return bot
-    ? { userId: bot.userId, organizationId: bot.workspace.organizationId }
+    ? {
+        userId: bot.userId,
+        organizationId: bot.workspace.organizationId,
+        projectId: bot.projectId,
+      }
     : null;
 }
 
@@ -80,7 +97,7 @@ async function sokoBotPayer(
 export function sokoBotPayerKey(payer: SokoBotPayer): string {
   return isPersonalSokoBot(payer)
     ? `${payer.userId}:${payer.organizationId ?? ""}`
-    : `org:${payer.organizationId ?? ""}`;
+    : `org:${payer.organizationId ?? ""}${payer.projectId ? `:${payer.projectId}` : ""}`;
 }
 
 /**
@@ -93,12 +110,14 @@ async function sokoBotPayerBalance(payer: SokoBotPayer): Promise<bigint> {
       payer.userId,
       payer.organizationId,
       prisma,
+      payerProjectScope(payer),
     );
   }
   if (payer.organizationId === null) return 0n;
   return await creditBucketRepository.getOrganizationPoolBalance(
     payer.organizationId,
     prisma,
+    payerProjectScope(payer),
   );
 }
 
@@ -119,6 +138,7 @@ export async function notifySokoBotOutOfCredits(
     where: { id: sokoBotId },
     select: {
       userId: true,
+      projectId: true,
       workspace: {
         select: {
           organizationId: true,
@@ -131,6 +151,7 @@ export async function notifySokoBotOutOfCredits(
   const payer: SokoBotPayer = {
     userId: bot.userId,
     organizationId: bot.workspace.organizationId,
+    projectId: bot.projectId,
   };
   if (isSharedSokoBot(payer)) {
     const outOfCredits = await sokoBotIdsOutOfCredits([
@@ -262,6 +283,7 @@ export async function requireSokoBotTurnFunding(
     userId,
     organizationId,
     prisma,
+    payerProjectScope(payer),
   );
   if (balance < shortfallCents) {
     throw new SokoBotBillingAccessError(
@@ -409,12 +431,14 @@ async function chargeSokoBotUsage(
     };
   }
 
-  const organizationId =
-    (await sokoBotPayer(input.sokoBotId, tx))?.organizationId ?? null;
+  const payer = await sokoBotPayer(input.sokoBotId, tx);
+  const organizationId = payer?.organizationId ?? null;
+  const projectScope = payerProjectScope(payer);
   const balance = await creditBucketRepository.getBalance(
     input.userId,
     organizationId,
     tx,
+    projectScope,
   );
   const chargedCents = balance < expectedCents ? balance : expectedCents;
   if (chargedCents <= 0n) {
@@ -425,6 +449,7 @@ async function chargeSokoBotUsage(
     organizationId,
     chargedCents,
     tx,
+    projectScope,
   );
   const transaction = await tx.transaction.create({
     data: {

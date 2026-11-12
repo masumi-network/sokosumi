@@ -338,12 +338,12 @@ now commits instantly. Verify:
 - **Side effects still fire.** A deferred `redirect()` or `notFound()` still
   happens at request time. Confirm unauthorized and missing-record behavior.
   If the route must preserve an HTTP status, account for [streaming status-code
-  behavior](https://nextjs.org/docs/app/guides/streaming#status-codes).
+behavior](https://nextjs.org/docs/app/guides/streaming#status-codes).
 - **Supported viewports reach the real UI** after the stream.
 - **Client state survives.** Because the layout UI is hoisted into the stable
   shell rather than swapped on resolve, open menus, scroll position, focus,
   and input state persist across the stream. See [Preserving UI
-  state](https://nextjs.org/docs/app/guides/preserving-ui-state).
+state](https://nextjs.org/docs/app/guides/preserving-ui-state).
 - **Pre-existing failures stay separate.** If the route errors after the
   change, reproduce it on the base branch. The same failure there is an
   environment or data problem, not an optimizer regression.
@@ -372,10 +372,10 @@ PR-specific items:
 - [ ] **Differential shown**: RED without the fix, GREEN with it, runs linked.
 - [ ] **Parity confirmed (E)**: same content, redirects, and state.
 - [ ] **Mutations verified when applicable**: after populating any cache whose
-  data can be updated, a mutation test confirms the next read returns the
-  expected data.
+      data can be updated, a mutation test confirms the next read returns the
+      expected data.
 - [ ] **Freshness preserved**: new cache scopes follow the data's existing or
-  explicitly chosen lifetime.
+      explicitly chosen lifetime.
 - [ ] **Existing loading UI reused (D1)**: no new page-mirroring skeleton.
 - [ ] **Shell matches the real render at supported viewports (D2)**.
 - [ ] **Baseline removed**: only the locked test from C remains.
@@ -393,7 +393,7 @@ three hold, you are not done.
 - With parallel routes, only the slots that change re-render on a soft
   navigation; client-rendered navigation UI does not re-render at all. Do not
   chase a slot the navigation never touches. See [Loading and Error UI with
-  Parallel Routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
+Parallel Routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
 
 ## Files
 

@@ -419,6 +419,26 @@ describe("write a caption", () => {
     },
   );
 
+  it("offers no caption, regenerate or refine without their handlers (a CMO Project)", () => {
+    render(
+      <StudioLightbox
+        assets={[ASSET]}
+        catalog={TEST_CATALOG}
+        creditsByAssetId={{}}
+        elapsedByAssetId={{}}
+        labels={TEST_LABELS}
+        onCaptionChange={vi.fn()}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        siblings={[ASSET]}
+      />,
+    );
+
+    for (const name of ["writeCaption", "regenerate", "refine"]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+  });
+
   it("offers no caption in compare mode", () => {
     const assets = [ASSET, { ...ASSET, id: "asset-2", version: 2 }];
     render(

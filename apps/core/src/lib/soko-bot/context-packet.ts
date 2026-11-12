@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
+import { taskOwnerLabel } from "@/helpers/soko-bot-owner";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import prisma from "@/lib/db/prisma";
@@ -545,6 +546,8 @@ export class ContextPacketBuilder {
       userId: input.userId,
       organizationId,
       referenceId,
+      // The bot's Project (Cuso's): its Project credits count (ADR 0067).
+      projectId: input.sharedScope?.projectId,
       tx: prisma,
     });
     // Only routes that can hire carry the marketplace; the count still goes in.
@@ -642,6 +645,8 @@ export class ContextPacketBuilder {
               name: true,
               description: true,
               status: true,
+              ownerId: true,
+              owner: { select: { name: true } },
               projectId: true,
               assigneeId: true,
               assigneeSokoBotId: true,
@@ -983,6 +988,7 @@ export class ContextPacketBuilder {
         name: sanitizeText(task.name, TEXT_LIMITS.name),
         summary: sanitizeText(task.description, TEXT_LIMITS.summary),
         status: task.status,
+        owner: taskOwnerLabel(task, input.userId),
         priority: null,
         dueAt: null,
         runAt: task.runAt?.toISOString() ?? null,

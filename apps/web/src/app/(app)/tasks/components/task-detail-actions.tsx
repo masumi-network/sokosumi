@@ -1,6 +1,10 @@
 "use client";
 
-import type { MemberWithOrganization, TaskShare } from "@sokosumi/core-client";
+import type {
+  ChatRoom,
+  MemberWithOrganization,
+  TaskShare,
+} from "@sokosumi/core-client";
 import {
   type TaskLink,
   TaskLinkRelation,
@@ -26,6 +30,7 @@ import {
   ListX,
   Loader2,
   LucideSquareMousePointer,
+  MessageSquareShare,
   OctagonMinus,
   Pencil,
   Repeat,
@@ -39,7 +44,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
@@ -47,10 +52,12 @@ import {
   markTaskArchived,
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
+import { chatRoomsForTask } from "@/app/tasks/utils/task-chat-share";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,6 +101,7 @@ import {
   type TaskScheduleBlueprintPrefill,
   TaskScheduleDialog,
 } from "./task-schedule-dialog";
+import { TaskSendToChatDialog } from "./task-send-to-chat-dialog";
 import { TaskShareButton } from "./task-share-button";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
@@ -157,6 +165,12 @@ interface TaskDetailActionsProps {
    * the Task itself is never changed.
    */
   taskBlueprint?: TaskScheduleBlueprintPrefill;
+  /**
+   * "Send to chat": post the Task's link into a chat room. Omitted for
+   * private Tasks and read-only views; Core re-checks both at send time and
+   * the link never grants access.
+   */
+  sendToChat?: { currentUserId: string };
 }
 
 export function TaskDetailActions({
@@ -184,6 +198,7 @@ export function TaskDetailActions({
   taskOwnerId,
   hasAssignedSeat = false,
   taskBlueprint,
+  sendToChat,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -199,6 +214,7 @@ export function TaskDetailActions({
   const [isRemoveRelatedPending, startRemoveRelatedTransition] =
     useTransition();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
   const [isMarkAsSectionOpen, setIsMarkAsSectionOpen] = useState(false);
@@ -228,6 +244,8 @@ export function TaskDetailActions({
     projectOptions: ProjectFilterOption[];
   } | null>(null);
   const [isRepeatLoading, startRepeatTransition] = useTransition();
+  const [chatRooms, setChatRooms] = useState<ChatRoom[] | null>(null);
+  const [isChatRoomsLoading, startChatRoomsTransition] = useTransition();
 
   const newTaskWizard = useOptionalNewTaskWizard();
   // A copy carries the brief, assignee and tags only: no Run at, due date,
@@ -257,6 +275,20 @@ export function TaskDetailActions({
         console.error("Failed to load Task Schedule options", error);
         toast.error(tDetailActions("repeatError"));
       }
+    });
+  };
+
+  const handleSendToChat = () => {
+    if (!sendToChat) return;
+    startChatRoomsTransition(async () => {
+      const result = await listOrganizationChatRoomsAction();
+      if (!result.ok) {
+        toast.error(tDetailActions("sendToChat.loadError"));
+        return;
+      }
+      setChatRooms(
+        chatRoomsForTask(result.value.rooms, currentOrganizationId ?? null),
+      );
     });
   };
 
@@ -327,6 +359,7 @@ export function TaskDetailActions({
   const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
     taskBlueprint !== undefined ||
+    sendToChat !== undefined ||
     statusActions.length > 0 ||
     canEdit ||
     canManageRelations ||
@@ -421,7 +454,6 @@ export function TaskDetailActions({
           reportStatusRejection(result.error.kind);
           return;
         }
-        router.refresh();
         toast.success(tDetailActions("updateStatusSuccess"));
       } catch (error) {
         console.error("Failed to update task status", error);
@@ -454,7 +486,6 @@ export function TaskDetailActions({
         }
         setIsReopenDialogOpen(false);
         setReopenComment("");
-        router.refresh();
         toast.success(tDetailActions("updateStatusSuccess"));
       } catch (error) {
         console.error("Failed to reopen task", error);
@@ -517,7 +548,6 @@ export function TaskDetailActions({
         });
         setIsTaskPickerOpen(false);
         setSelectedTaskPickerOption(null);
-        router.refresh();
         toast.success(tDetailActions("linkTaskSuccess"));
       } catch (error) {
         console.error("Failed to create task link", error);
@@ -539,7 +569,6 @@ export function TaskDetailActions({
             linkId: link.id,
           });
         }
-        router.refresh();
         toast.success(tDetailActions("removeParentSuccess"));
       } catch (error) {
         console.error("Failed to remove parent task link", error);
@@ -557,7 +586,6 @@ export function TaskDetailActions({
           taskId,
           linkId: link.id,
         });
-        router.refresh();
         toast.success(tDetailActions("removeRelatedSuccess"));
       } catch (error) {
         console.error("Failed to remove related task link", error);
@@ -606,6 +634,7 @@ export function TaskDetailActions({
         >
           <DropdownMenuTrigger asChild>
             <Button
+              ref={menuTriggerRef}
               type="button"
               variant="outline"
               size="icon"
@@ -655,6 +684,23 @@ export function TaskDetailActions({
               >
                 <CopyPlus className="size-4" aria-hidden />
                 {tDetailActions("duplicate")}
+              </DropdownMenuItem>
+            ) : null}
+
+            {sendToChat ? (
+              <DropdownMenuItem
+                disabled={actionsDisabled || isChatRoomsLoading}
+                onSelect={handleSendToChat}
+              >
+                {isChatRoomsLoading ? (
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                    aria-hidden
+                  />
+                ) : (
+                  <MessageSquareShare className="size-4" aria-hidden />
+                )}
+                {tDetailActions("sendToChat.menuItem")}
               </DropdownMenuItem>
             ) : null}
 
@@ -1021,6 +1067,21 @@ export function TaskDetailActions({
         />
       ) : null}
 
+      {sendToChat && chatRooms ? (
+        <TaskSendToChatDialog
+          taskId={taskId}
+          rooms={chatRooms}
+          currentUserId={sendToChat.currentUserId}
+          onClose={() => setChatRooms(null)}
+          // The dialog opens from a menu item, which is gone by then; return
+          // to the Actions button the user opened it from.
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            menuTriggerRef.current?.focus();
+          }}
+        />
+      ) : null}
+
       {taskBlueprint && repeatOptions ? (
         <TaskScheduleDialog
           initialBlueprint={taskBlueprint}
@@ -1125,7 +1186,6 @@ export function TaskDetailActions({
               setSelectedCreateRelatedOption(null);
             }}
             onCreated={() => {
-              router.refresh();
               toast.success(tDetailActions("createRelatedSuccess"));
             }}
             onSuccess={(createdTask) => {

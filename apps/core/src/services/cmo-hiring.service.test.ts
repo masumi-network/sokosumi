@@ -25,6 +25,7 @@ import {
   projectDelete,
   resetCmoServiceMocks,
   sokoBotFindUnique,
+  sokoBotUpdateMany,
   startTurn,
   turnFindFirst,
   userFindUnique,
@@ -392,14 +393,17 @@ describe("startCmoOnboarding", () => {
     funding.requireMemberFunding.mockReset();
   });
 
-  it("gives every hire's organization starter credits, once per Project", async () => {
+  it("gives every hire's Project its starter credits, once per Project", async () => {
     await startCmoOnboarding(input);
     expect(grantFreeCredits).toHaveBeenCalledWith({
       target: { targetType: "organization", targetId: "org-1" },
+      projectId: "project-1",
       credits: 10_000,
       ttlDays: null,
       referenceNote: "CMO.xyz starter credits (project project-1)",
+      tx: expect.anything(),
     });
+    expect(grantFreeCredits).toHaveBeenCalledTimes(1);
 
     // A second hire by the same person brings its own grant.
     grantFreeCredits.mockClear();
@@ -408,15 +412,23 @@ describe("startCmoOnboarding", () => {
     expect(grantFreeCredits).toHaveBeenCalledWith(
       expect.objectContaining({
         target: { targetType: "organization", targetId: "org-team" },
+        projectId: "project-2",
         referenceNote: "CMO.xyz starter credits (project project-2)",
       }),
     );
 
-    // The same Project's grant does not repeat.
+    // The same Project's grant, found by its reference note, does not repeat.
     grantFreeCredits.mockClear();
     creditBucketFindFirst.mockResolvedValue({ id: "bucket-1" });
     await startCmoOnboarding(input);
     expect(grantFreeCredits).not.toHaveBeenCalled();
+    expect(creditBucketFindFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          referenceNote: "CMO.xyz starter credits (project project-2)",
+        }),
+      }),
+    );
   });
 
   it("hires Cuso into a new organization named after the website", async () => {
@@ -573,6 +585,30 @@ describe("startCmoOnboarding", () => {
     expect(grantFreeCredits).not.toHaveBeenCalled();
     expect(createBot).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("locks the live Cuso's row before it dedupes and grants, in one transaction", async () => {
+    await startCmoOnboarding(input);
+    expect(sokoBotUpdateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        projectId: "project-1",
+        archivedAt: null,
+        deletedAt: null,
+      }),
+      data: { updatedAt: expect.any(Date) },
+    });
+    const lock = sokoBotUpdateMany.mock.invocationCallOrder[0];
+    expect(lock).toBeLessThan(
+      creditBucketFindFirst.mock.invocationCallOrder[0],
+    );
+    expect(lock).toBeLessThan(grantFreeCredits.mock.invocationCallOrder[0]);
+  });
+
+  it("grants nothing when Cuso was started over before the grant", async () => {
+    sokoBotUpdateMany.mockResolvedValue({ count: 0 });
+    await startCmoOnboarding(input);
+    expect(grantFreeCredits).not.toHaveBeenCalled();
+    expect(creditBucketFindFirst).not.toHaveBeenCalled();
   });
 
   it("leaves no starter credits when Cuso provisioning fails", async () => {

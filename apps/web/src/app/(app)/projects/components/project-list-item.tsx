@@ -26,6 +26,8 @@ interface ProjectListItemLabels {
   /** Read out beside a Pinned card's name; the mark itself is an icon. */
   pinned: string;
   closed: string;
+  /** The "CMO" badge on a CMO Project. */
+  cmo: string;
   /** The project menu without Edit: a card opens the project to edit it. */
   actions: Omit<ProjectDetailActionsLabels, "edit">;
 }
@@ -89,6 +91,15 @@ export function ProjectListItem({
           <span className="text-foreground line-clamp-1 min-w-0 text-sm font-medium">
             {project.name}
           </span>
+          {project.cmo ? (
+            <Badge
+              variant="outline"
+              data-testid="project-cmo-badge"
+              className="shrink-0"
+            >
+              {labels.cmo}
+            </Badge>
+          ) : null}
           {isPinned ? (
             <span
               data-testid="project-pinned-mark"
@@ -141,6 +152,7 @@ export function ProjectListItem({
           isClosingOrClosed={project.closingAt != null}
           isHidden={hidden}
           isPinned={isPinned}
+          readOnly={project.cmo}
           labels={labels.actions}
           triggerClassName={cn(
             "text-muted-foreground hover:text-foreground absolute end-2 top-2 size-8 rounded-full md:size-8",

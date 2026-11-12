@@ -118,6 +118,10 @@ _Avoid_: Workspace switcher (that is Sokosumi's), Cuso switcher, Business picker
 CMO's flow after identity onboarding, from the start form (website, main goal, and a new or an existing organization) until the person finishes it and CMO opens on the chat. Every hire creates a new Project. It reuses what identity onboarding already learned instead of asking again.
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
+**Starter credits**:
+The 10,000 credits each Hiring Cuso grants. They are Project credits of his Project, never expire, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
+_Avoid_: Free credits (that is any admin grant), Cuso's credits (the Project's work spends them, not only Cuso), welcome credits
+
 **Marketing strategy**:
 A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
 _Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
@@ -444,6 +448,10 @@ _Avoid_: License, slot (unless a UI label), workstation, treating a Seat as a pe
 Credits owned by an Organization. Free period grant is the free monthly amount (250), shared by every member. Paid self-serve period grant is purchased seats × credits per seat, spent by assigned Seats. Enterprise keeps its own shared pool. OTC/admin grants sit in the same pool. Distinct from personal credits.
 _Avoid_: Org balance (ambiguous with Stripe), member credits, seat credits (that reads as a private per-member grant), scaling the free 250 by member count
 
+**Project credits**:
+Organization credits only a charge for one Project may spend, drawn before the Organization credit pool. Seats still gate them. Left out of the organization's balance. Starter credits are the only kind so far.
+_Avoid_: Project balance (it also includes the pool), project budget, project wallet
+
 **Personal credits**:
 Credits owned by a User with no Organization. Spent only in a personal workspace.
 _Avoid_: Account credits, default credits, treating these as spendable in an organization workspace
@@ -573,6 +581,10 @@ _Avoid_: Announcement (a use of this), pinned room, thread pin
 **Saved message**:
 A room message one reader saved for later, on their private Saved list (Catch up's Saved tab). Any message they can read, in a Channel, Direct or Thread. Nobody else sees it. The list reads each message live, so a deleted message or a room they left drops out. Distinct from a Pinned message, which is shared, and from Send to yourself, which copies the message.
 _Avoid_: Bookmark, starred message
+
+**Decisions list**:
+Catch up's Decisions tab: every message Jev read as a decision made (chat signals, readers' corrections applied) in the rooms the reader's sidebar lists, newest first. Read or unread, muted rooms and Thread replies included, because muting silences alerts, not access. A deleted message or a room they left drops out. Distinct from a room's decision log (one room, in its header) and from the Catch up overview, which covers unread decisions only. A detected decision, not a formal approval.
+_Avoid_: Decision register, approvals
 
 ### Chat reactions
 

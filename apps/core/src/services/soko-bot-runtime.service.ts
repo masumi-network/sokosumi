@@ -149,6 +149,7 @@ import {
   sokoBotAuthorLabel,
   sokoBotTurnAudience,
   sokoBotTurnReaderOf,
+  taskOwnerLabel,
 } from "@/helpers/soko-bot-owner";
 import { loadSokoBotTurnAuthContext } from "@/helpers/soko-bot-turn-auth-context";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
@@ -451,6 +452,7 @@ import {
   createSocialPost,
   getSocialPost,
   listSocialPosts,
+  prepareSocialPostMutationMedia,
   requireMonthPostPicture,
   scheduleSocialPost,
   updateSocialPost,
@@ -2197,6 +2199,29 @@ export class SokoBotRuntimeService {
           name: sokoBotDisplayName({ name: sokoBot.name }),
         })),
       });
+      // A chat turn's answer already appears where it was asked, in the thread
+      // when it was asked in one. Posting it into that room as well put the
+      // same answer in the thread and in the channel. A post that summons a
+      // Coworker or another assistant is a message of its own and still goes.
+      if (
+        !input.via &&
+        authorized.turn.source === "CHAT" &&
+        authorized.turn.chainDepth === 0 &&
+        mentionedCoworkerIds.length === 0 &&
+        mentionedSokoBotIds.length === 0
+      ) {
+        const asked = await tx.sokoBotTurn.findUnique({
+          where: { id: authorized.turn.id },
+          select: {
+            chatMention: { select: { message: { select: { roomId: true } } } },
+          },
+        });
+        if (asked?.chatMention?.message.roomId === room.id) {
+          throw new SokoBotRuntimeValidationError(
+            "Your answer to this message is posted for you in this chat, in the thread when you were asked in one, so write it as your answer. Post here yourself only to tag a Coworker or another assistant.",
+          );
+        }
+      }
       // Queue unreadable content and inert mentions. The outbox activates both
       // only after rechecking the exact audience at the publication boundary.
       let replayedPublication = false;
@@ -4355,6 +4380,8 @@ export class SokoBotRuntimeService {
           name: true,
           status: true,
           updatedAt: true,
+          ownerId: true,
+          owner: { select: { name: true } },
           assignee: { select: { name: true } },
           assigneeUser: { select: { name: true } },
           assigneeSokoBot: { select: { name: true } },
@@ -4383,6 +4410,7 @@ export class SokoBotRuntimeService {
           id: task.id,
           name: task.name,
           status: task.status,
+          owner: taskOwnerLabel(task, authorized.turn.actingUserId),
           assignee: task.assignee
             ? { kind: "coworker", name: task.assignee.name }
             : task.assigneeUser
@@ -4445,6 +4473,7 @@ export class SokoBotRuntimeService {
         status: true,
         archivedAt: true,
         updatedAt: true,
+        owner: { select: { name: true } },
         assignee: { select: { id: true, name: true } },
         assigneeSokoBot: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
@@ -4460,6 +4489,7 @@ export class SokoBotRuntimeService {
             userId: true,
             sokoBotId: true,
             sokoBot: { select: SOKO_BOT_OWNER_NAME_SELECT },
+            user: { select: { name: true } },
           },
         },
         files: {
@@ -4511,7 +4541,9 @@ export class SokoBotRuntimeService {
         : event.coworkerId
           ? "coworker"
           : event.userId
-            ? event.userId === task.ownerId
+            ? // The bot's owner, not the Task's: a teammate commenting on
+              // their own Task is not the person this bot works for.
+              event.userId === ownerId
               ? "owner"
               : "teammate"
             : "system";
@@ -4519,6 +4551,7 @@ export class SokoBotRuntimeService {
       id: task.id,
       name: task.name,
       ownerId: task.ownerId,
+      owner: taskOwnerLabel(task, ownerId),
       requesterUserId: task.creatorUserId,
       assigneeUserId: task.assigneeUserId,
       assigneeCoworkerId: task.assigneeId,
@@ -4547,7 +4580,9 @@ export class SokoBotRuntimeService {
           ? {
               byName: sokoBotAuthorLabel(event.sokoBot),
             }
-          : {}),
+          : event.user && event.userId !== ownerId
+            ? { byName: event.user.name }
+            : {}),
         status: event.status,
         comment: event.comment,
       })),
@@ -7506,7 +7541,7 @@ export class SokoBotRuntimeService {
       case "cancel_social_post": {
         // Resolved before the transaction: it reads the blob store, and a
         // serializable transaction should not wait on the network.
-        const { media, threadParts } =
+        let { media, threadParts } =
           input.capability === "create_social_post" ||
           input.capability === "update_social_post"
             ? await this.resolveSocialPostMedia(
@@ -7516,6 +7551,26 @@ export class SokoBotRuntimeService {
                 ),
               )
             : { media: undefined, threadParts: undefined };
+        if (
+          input.capability === "create_social_post" ||
+          input.capability === "update_social_post" ||
+          input.capability === "schedule_social_post"
+        ) {
+          const params = SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
+            input.input,
+          );
+          const workspace = await this.requireSocialAccess(authorized);
+          const prepared = await prepareSocialPostMutationMedia({
+            ...params,
+            workspaceId,
+            userId,
+            organizationId: workspace.organizationId,
+            media,
+            threadParts,
+          });
+          media = prepared.media;
+          threadParts = prepared.threadParts;
+        }
         return serializableTransaction(async (tx) => {
           await this.requireMutationAuthority(
             tx,
@@ -7579,6 +7634,7 @@ export class SokoBotRuntimeService {
                   {
                     ...params,
                     ...scope,
+                    media,
                     scheduledAt: new Date(params.scheduledAt),
                   },
                   tx,
@@ -9347,6 +9403,9 @@ export class SokoBotRuntimeService {
           },
           creator: { kind: "soko_bot", sokoBotId: decision.sokoBotId },
           agentInput: hire,
+          // A bot's Project pays (ADR 0067), whatever Project the hire names; a
+          // bot without one leaves the Job's own Project to pay.
+          creditProjectId: activeBot.projectId ?? undefined,
           beforeSellerStart: async () => {
             sellerReservationMarker = createSellerReservationMarker(
               "hire_agent",

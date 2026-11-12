@@ -63,9 +63,10 @@ export function NotificationsPageContent() {
           data-notification-frame=""
           className={cn(HOLDER_ITEM_CLASS, "overflow-hidden")}
         >
-          <NotificationCenterViewFilter />
-          <NotificationNeedsYouRequests variant="page" />
-          <NotificationCenterList />
+          <NotificationCenterViewFilter>
+            <NotificationNeedsYouRequests variant="page" />
+            <NotificationCenterList />
+          </NotificationCenterViewFilter>
         </div>
       </div>
     </div>
