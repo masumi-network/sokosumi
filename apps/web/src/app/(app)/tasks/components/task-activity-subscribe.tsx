@@ -1,7 +1,6 @@
 "use client";
 
 import type { TaskParticipant } from "@sokosumi/core-client";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -39,11 +38,11 @@ export function TaskActivitySubscribeControl({
   canComment,
 }: TaskActivitySubscribeControlProps) {
   const t = useTranslations("App.Tasks.Detail");
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // Committed state, not `useOptimistic`. An optimistic value is discarded
   // when the async transition ends and falls back to `participants` until
-  // `router.refresh()` lands — so Subscribe briefly snaps back to Unsubscribe.
+  // the action's own render lands — so Subscribe briefly snaps back to
+  // Unsubscribe.
   const [visibleParticipants, setVisibleParticipants] = useState(participants);
   const [serverParticipants, setServerParticipants] = useState(participants);
   if (serverParticipants !== participants) {
@@ -109,7 +108,6 @@ export function TaskActivitySubscribeControl({
           return;
         }
       }
-      router.refresh();
     });
   }
 

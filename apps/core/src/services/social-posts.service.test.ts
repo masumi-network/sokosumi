@@ -18,10 +18,13 @@ import prisma from "@/lib/db/prisma";
 
 const {
   projectFindFirstMock,
+  workspaceFindUniqueOrThrowMock,
   socialConnectionFindFirstMock,
   socialAccountPostFindFirstMock,
   socialPostCreateMock,
   socialPostFindFirstMock,
+  socialPostFindUniqueMock,
+  prepareSocialPostMediaMock,
   socialPostFindManyMock,
   socialPostCountMock,
   socialPostUpdateManyMock,
@@ -32,10 +35,13 @@ const {
   resolveXSubscriptionTypeMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
+  workspaceFindUniqueOrThrowMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
   socialAccountPostFindFirstMock: vi.fn(),
   socialPostCreateMock: vi.fn(),
   socialPostFindFirstMock: vi.fn(),
+  socialPostFindUniqueMock: vi.fn(),
+  prepareSocialPostMediaMock: vi.fn(async (_scope, _provider, media) => media),
   socialPostFindManyMock: vi.fn(),
   socialPostCountMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
@@ -50,10 +56,18 @@ vi.mock("@/services/x-subscription-tier.service", () => ({
   resolveXSubscriptionType: resolveXSubscriptionTypeMock,
 }));
 
+vi.mock("@/services/social-post-media-preparation.service", () => ({
+  prepareSocialPostMedia: prepareSocialPostMediaMock,
+  requirePreparedSocialPostProvider: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
     projectSocialQueueSlot: { findMany: queueSlotFindManyMock },
+    workspace: {
+      findUniqueOrThrow: workspaceFindUniqueOrThrowMock,
+    },
     $queryRaw: queryRawMock,
     project: {
       findFirst: projectFindFirstMock,
@@ -62,6 +76,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
     socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
     socialPost: {
+      findUnique: socialPostFindUniqueMock,
       create: socialPostCreateMock,
       findFirst: socialPostFindFirstMock,
       findMany: socialPostFindManyMock,
@@ -215,15 +230,72 @@ describe("social posts service", () => {
     );
     queryRawMock.mockResolvedValue([{ id: PROJECT_ID }]);
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    workspaceFindUniqueOrThrowMock.mockResolvedValue({ organizationId: null });
     socialConnectionFindFirstMock.mockResolvedValue(activeConnection);
     socialPostFindManyMock.mockImplementation(async ({ where }) =>
       where.quotedPostId ? [] : [draftPost],
     );
     socialPostCountMock.mockResolvedValue(1);
     socialPostFindFirstMock.mockResolvedValue(draftPost);
+    socialPostFindUniqueMock.mockResolvedValue(draftPost);
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
   });
+
+  it.each(["x", "instagram"] as const)(
+    "prepares the original image before scheduling onto %s",
+    async (provider) => {
+      const padded = {
+        ...JPEG_REF,
+        pathname: JPEG_REF.pathname.replace("launch.jpg", "padded.jpg"),
+        fileUrl: JPEG_REF.fileUrl.replace("launch.jpg", "padded.jpg"),
+        transformation: {
+          provider: "instagram" as const,
+          code: "pad_4_5" as const,
+          notice: "Instagram will pad this image to 4:5.",
+          original: JPEG_REF,
+        },
+      };
+      const storedMedia = provider === "x" ? padded : JPEG_REF;
+      const preparedMedia = provider === "x" ? JPEG_REF : padded;
+      const stored = {
+        ...draftPost,
+        provider: provider === "x" ? "instagram" : "x",
+        media: [storedMedia],
+        revision: 1,
+      };
+      socialPostFindUniqueMock.mockResolvedValue(stored);
+      socialPostFindFirstMock.mockResolvedValue(stored);
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider,
+      });
+      prepareSocialPostMediaMock.mockResolvedValueOnce([preparedMedia]);
+      const { scheduleSocialPost } = await loadService();
+      await scheduleSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 1,
+        scheduledAt: FUTURE,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      });
+      expect(prepareSocialPostMediaMock).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationId: null }),
+        provider,
+        [storedMedia],
+      );
+      expect(
+        prepareSocialPostMediaMock.mock.invocationCallOrder[0],
+      ).toBeLessThan(transactionMock.mock.invocationCallOrder[0]);
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ media: [preparedMedia], provider }),
+        }),
+      );
+    },
+  );
 
   describe("queue uses the scheduling path", () => {
     beforeEach(() => {

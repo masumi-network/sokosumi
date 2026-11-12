@@ -328,6 +328,7 @@ vi.mock("@/services/social-account-statistics.service", () => ({
   refreshSocialAccountStatistics: social.refreshAccountStatistics,
 }));
 vi.mock("@/services/social-posts.service", () => ({
+  prepareSocialPostMutationMedia: vi.fn(async (input) => input),
   listSocialPosts: social.list,
   getSocialPost: social.get,
   createSocialPost: social.create,

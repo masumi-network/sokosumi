@@ -10,10 +10,16 @@ interface TaskRunAtBadgeProps {
   /** ISO Run at of a Queued Task. */
   runAt: string;
   className?: string;
+  /** Off where the row already draws the clock. */
+  showIcon?: boolean;
 }
 
 /** When a Queued Task starts, relative while it is close. */
-export function TaskRunAtBadge({ runAt, className }: TaskRunAtBadgeProps) {
+export function TaskRunAtBadge({
+  runAt,
+  className,
+  showIcon = true,
+}: TaskRunAtBadgeProps) {
   const t = useTranslations("App.Tasks.RunAt.badge");
   const formatter = useFormatter();
   const date = new Date(runAt);
@@ -25,7 +31,9 @@ export function TaskRunAtBadge({ runAt, className }: TaskRunAtBadgeProps) {
         className,
       )}
     >
-      <CalendarClock className="size-3.5 shrink-0" aria-hidden />
+      {showIcon ? (
+        <CalendarClock className="size-3.5 shrink-0" aria-hidden />
+      ) : null}
       {/* The relative label depends on the clock, which differs by render. */}
       <time
         dateTime={runAt}
