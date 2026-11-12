@@ -19,6 +19,8 @@ import { NewsletterSignupDesigner } from "./signup-form-designer";
 
 export const instant = false;
 
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
+
 interface NewsletterSignupFormPageProps {
   searchParams: Promise<SearchParams>;
 }
