@@ -11082,6 +11082,7 @@
       },
       "competitors": {
         "title": "Mitbewerber",
+        "checkedBetween": "Positionsprüfungen vom {from} bis {to}",
         "empty": "Noch keine Wettbewerber",
         "emptyBody": "Starte eine Prüfung für Vorschläge oder füge einen Mitbewerber hinzu.",
         "emptyBodyOff": "Ein Mitbewerber, den du hinzufügst, wird hier gespeichert. Seine Rankings und Backlinks brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind.",

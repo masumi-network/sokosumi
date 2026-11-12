@@ -475,7 +475,7 @@ describe("SEO competitor baselines", () => {
     expect(screen.queryByText(/^Last position check$/)).toBeNull();
   });
 
-  it("dates the list with the newest check, and a row of an older check under its name", () => {
+  it("dates the rows of several checks once, with the days of the oldest and the newest check", () => {
     const workspace = seoTestWorkspace();
     const row = {
       id: "older",
@@ -502,21 +502,61 @@ describe("SEO competitor baselines", () => {
         observationId: "second-check",
       },
     ];
+    const check = (
+      id: string,
+    ): ProjectSeoWorkspace["observations"][number] => ({
+      id,
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt: row.observedAt,
+      pageIds: [],
+      scopeVersion: 2,
+      sourceTaskId: `${id}-task`,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "v1",
+      artifactHash: "hash",
+      issues: 0,
+      coverage: { checked: 0, skipped: 0, failed: 0 },
+    });
+    workspace.observations = [check("first-check"), check("second-check")];
     renderWorkspace(workspace);
-    // One line dates the newest check. A column with a date on every row said the same on most rows.
-    expect(screen.getByText(/^Last position check/)).toHaveTextContent(
-      "Last position check Feb 3, 2026",
-    );
+    // One date alone would give the older check's rows the newer date: the line names both days.
+    // It opens the results of the newest check.
+    expect(
+      screen.getByRole("link", {
+        name: /^Position checks from Jan 3, 2026 to Feb 3, 2026 ?, View results$/,
+      }),
+    ).toHaveAttribute("href", "/tasks/second-check-task");
+    expect(screen.queryByText(/^Last position check/)).toBeNull();
+    // No date on each row: it stood on most rows of a list.
     expect(
       screen.queryByRole("columnheader", { name: "Last checked" }),
     ).toBeNull();
-    // The line's date is not the date of the older check's row, so that row says its own.
-    expect(screen.getByText("older.example").closest("td")).toHaveTextContent(
-      "Last checked: Jan 3, 2026",
-    );
+    expect(screen.queryByText(/Last checked/)).toBeNull();
+    cleanup();
+    // A further page of a site shows its position too, so its check is in the range.
+    workspace.competitors.push({
+      ...row,
+      id: "further",
+      url: "https://newer.example/guide",
+      rank: 9,
+      observedAt: new Date("2025-12-03T12:00:00Z"),
+      observationId: "zero-check",
+    });
+    renderWorkspace(workspace);
     expect(
-      screen.getByText("newer.example").closest("td"),
-    ).not.toHaveTextContent("Last checked");
+      screen.getByText("Position checks from Dec 3, 2025 to Feb 3, 2026"),
+    ).toBeVisible();
+    cleanup();
+    // Two checks of one day are one day: the line stays the one date.
+    workspace.competitors.pop();
+    workspace.competitors[0].observedAt = new Date("2026-02-03T08:00:00Z");
+    renderWorkspace(workspace);
+    expect(screen.getByText(/^Last position check/)).toHaveTextContent(
+      "Last position check Feb 3, 2026",
+    );
   });
 
   it("keeps the results link of your page when another check found the competitors", () => {

@@ -50,21 +50,23 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     expanded || model.competitorSearch ? sites : sites.slice(0, visible);
   const number = (value: number | null) =>
     value === null ? t("none") : format.number(value);
-  // The newest check is said once above the table, not in a column of every row. A row of an older check
-  // carries its date under its name. A competitor the reader added comes from no check.
+  // The checks are dated once above the table, not on every row. A date on each row stood on 10 of 11 rows when
+  // one check found one new site. The rows can come from several checks, so the line names the day of the
+  // oldest and of the newest: one date alone would give an older row the newer date.
+  // A competitor the reader added comes from no check, and a row without a date cannot date the line.
   // The whole list counts, not the rows of a search: the line stands over the search field, and a line that
   // comes and goes while the reader types moves the field.
-  // A row without a date cannot date the line.
   const time = (value: string | Date | null) =>
     value ? new Date(value).getTime() : 0;
-  // Only the first page of a site carries a date of its own, so only these rows count.
-  const newest = competitorSites(
-    model.data.competitors.filter((row) => row.role !== "page"),
-  )
-    .sites.map((site) => site.lead)
-    .filter((row) => row.observationId && row.observedAt)
-    .sort((a, b) => time(b.observedAt) - time(a.observedAt))
-    .at(0);
+  // No row carries a date, so every row counts: the further pages of a site and the other sites in the
+  // results show positions too.
+  const dated = model.data.competitors
+    .filter((row) => row.role !== "page" && row.observationId && row.observedAt)
+    .sort((a, b) => time(b.observedAt) - time(a.observedAt));
+  const newest = dated.at(0);
+  const day = (value: string | Date | null) =>
+    value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
+  const firstDay = day(dated.at(-1)?.observedAt ?? null);
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     rank: all.some((row) => row.rank !== null),
@@ -110,14 +112,23 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       }
     >
       {newest ? (
-        // The date opens the results of the check. It stands under the title, at the place and in the size of the
-        // meta line on Keywords, so the line holds its place when the switch changes the list.
+        // The date opens the results of the newest check. It stands under the title, at the place and in the
+        // size of the meta line on Keywords, so the line holds its place when the switch changes the list.
         <p className="text-muted-foreground px-2 pb-1 text-sm">
           <SeoSource
             workspace={model.data}
             observationId={newest.observationId}
           >
-            {t("keywords.readOn")} <SeoDate day value={newest.observedAt} />
+            {firstDay === day(newest.observedAt) ? (
+              <>
+                {t("keywords.readOn")} <SeoDate day value={newest.observedAt} />
+              </>
+            ) : (
+              t("competitors.checkedBetween", {
+                from: firstDay,
+                to: day(newest.observedAt),
+              })
+            )}
           </SeoSource>
         </p>
       ) : null}
@@ -215,13 +226,6 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       </p>
                       {/* The site is the line above: the page shows as its path. */}
                       <SeoPageLink url={row.url} site={row.url} clamp quiet />
-                      {/* The line above the table dates the newest check; a row of an older one carries its date. */}
-                      {row.observedAt &&
-                      row.observationId !== newest?.observationId ? (
-                        <p className="text-muted-foreground mt-1 text-xs">
-                          {t("observed")}: <SeoDate value={row.observedAt} />
-                        </p>
-                      ) : null}
                       {mixed && !chosen(row) ? (
                         <div className="mt-1">
                           <SeoState>{t("competitors.suggested")}</SeoState>

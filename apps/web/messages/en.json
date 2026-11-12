@@ -11082,6 +11082,7 @@
       },
       "competitors": {
         "title": "Competitors",
+        "checkedBetween": "Position checks from {from} to {to}",
         "empty": "No competitors yet",
         "emptyBody": "Run a check for suggested search competitors, or add a competitor to your list.",
         "emptyBodyOff": "A competitor you add is saved here. Its ranks and backlinks need paid search data, which is off in this workspace.",
