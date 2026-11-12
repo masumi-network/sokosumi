@@ -628,7 +628,7 @@ function TableWorkspace({
   async function runMove(
     slot: string,
     preview: () => void,
-    send: () => Promise<unknown>,
+    send: (slot: string) => Promise<unknown>,
   ) {
     if (moveInFlight.current || pending) return;
     if (retryAction) {
@@ -640,7 +640,7 @@ function TableWorkspace({
     try {
       await run(async () => {
         try {
-          await send();
+          await send(slot);
         } catch (error) {
           await refresh();
           throw error;
@@ -992,8 +992,8 @@ function TableWorkspace({
                     hideRows(cache, rowsKey, selected);
                     setSelected([]);
                   },
-                  () =>
-                    saveArchive(t, patch, mutate, (body) =>
+                  (slot) =>
+                    saveArchive(t, slot, patch, mutate, (body) =>
                       dataTableService.batch(table.id, body),
                     ),
                 );

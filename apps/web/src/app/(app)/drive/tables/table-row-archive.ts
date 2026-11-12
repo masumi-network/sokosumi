@@ -11,12 +11,6 @@ type Translate = NonNullable<Parameters<typeof tableError>[1]> &
     values: { count: number; reason: string },
   ) => string);
 
-/**
- * The mutation slot of an archive or restore. The editor passes the same slot
- * to `runMove`, which looks it up to offer Retry.
- */
-const ARCHIVE_ROWS = "archive-rows";
-
 /** The batch patch that archives or restores the selected rows of a page. */
 export function archivePatch(
   page: Pick<Page, "rows"> | undefined,
@@ -49,18 +43,21 @@ export function hideRows(cache: QueryClient, key: QueryKey, ids: string[]) {
 /**
  * Sends an archive or restore. A rejected one did not commit, and the refresh
  * after it puts the rows back: its message counts them before it gives the
- * reason. A failure that may have committed keeps its own message and Retry.
+ * reason. A failure that may have committed keeps its own message and Retry,
+ * and so does a missing table or row, which does not come back. `slot` is the
+ * one `runMove` looks up to offer Retry.
  */
 export async function saveArchive<R>(
   t: Translate,
+  slot: string,
   patch: Patch,
   mutate: ReturnType<typeof createTableMutations>,
   send: (body: { patch: Patch; key: string }) => Promise<R>,
 ) {
   try {
-    return await mutate(ARCHIVE_ROWS, { patch }, send);
+    return await mutate(slot, { patch }, send);
   } catch (error) {
-    if (!isTableRejection(error)) throw error;
+    if (!isTableRejection(error) || isMissing(error)) throw error;
     const key = patch[0]?.archived
       ? "errors.archiveRows"
       : "errors.restoreRows";
@@ -68,4 +65,13 @@ export async function saveArchive<R>(
       t(key, { count: patch.length, reason: tableError(error, t) }),
     );
   }
+}
+
+function isMissing(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "error" in error &&
+    error.error === "NotFound"
+  );
 }
