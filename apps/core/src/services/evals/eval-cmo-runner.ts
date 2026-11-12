@@ -13,9 +13,11 @@ import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import {
   approveMarketingStrategy,
+  isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
+import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
 import { SETTLED_TURN_STATUSES } from "@/services/soko-bot-lab-scenario.service";
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
 import type {
@@ -334,6 +336,17 @@ async function pollMonth(
   });
   const plan = parseMarketingPlan(version.plan) as MarketingStrategyPlan | null;
   const pieces = plan?.calendar.length ?? 0;
+  const files = await Promise.all(
+    (plan?.calendar ?? []).filter(isMarketingFilePiece).map(async (entry) => {
+      const text = await readMarketingPieceText(
+        { id: strategyId },
+        entry.id,
+      ).catch(() => null);
+      return text
+        ? `${entry.id} (${entry.channel}/${entry.format}): ${text}`
+        : null;
+    }),
+  );
   const written = posts.filter((post) => {
     const planning = post.planning as { brief?: unknown; title?: unknown };
     return post.text !== planning?.brief && post.text !== planning?.title;
@@ -397,6 +410,7 @@ async function pollMonth(
           (post) =>
             `${post.provider}${Array.isArray(post.media) && post.media.length ? " (with media)" : ""}: ${post.text}`,
         ),
+        files: files.filter((file) => file !== null),
       },
       turnIds: turns.map((turn) => turn.id),
     },
