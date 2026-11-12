@@ -174,6 +174,9 @@ export function FeatureBadgesProvider({
   );
 }
 
+/** Campaigns this new are not read again by a returning tab or a navigation. */
+const CAMPAIGNS_STALE_MS = 60_000;
+
 /** Pills and the visit observer share one user-scoped background read. */
 function useCampaigns(value: FeatureBadgesValue) {
   const initial = use(value.campaigns);
@@ -182,7 +185,7 @@ function useCampaigns(value: FeatureBadgesValue) {
     initialData: initial,
     // Campaigns change rarely: a returning tab reads them again once they
     // are a minute old, and an open one every ten minutes.
-    staleTime: 60_000,
+    staleTime: CAMPAIGNS_STALE_MS,
     refetchInterval: 10 * 60_000,
     queryFn: async ({ signal }) => {
       const response = await fetchBackgroundJson(
@@ -229,9 +232,12 @@ function MarkSeenOnOpen() {
   useEffect(() => {
     if (lastPathname.current !== pathname) {
       lastPathname.current = pathname;
-      void refetch();
+      // A navigation reads again only when the campaigns are a minute old,
+      // like a returning tab. A read on every page change cost a Core round
+      // trip each time.
+      if (Date.now() - dataUpdatedAt >= CAMPAIGNS_STALE_MS) void refetch();
     }
-  }, [pathname, refetch]);
+  }, [pathname, refetch, dataUpdatedAt]);
   const { markSeen, seenIds, latestCampaigns } = value;
   useEffect(() => {
     latestCampaigns.current = resolved;

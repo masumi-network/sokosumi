@@ -19,7 +19,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "patch",
     path: "/{id}",
     description:
-      "Change a data room's settings: title, logo, allowed email domains, when it closes, downloads, watermark and first-visit notices.",
+      "Change a data room's settings: title, welcome note, logo, allowed email domains, when it closes, downloads, watermark and first-visit notices.",
     tags: ["Drive"],
     request: {
       params: z.object({ id: z.string().uuid() }),
