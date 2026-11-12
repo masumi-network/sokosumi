@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
+import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
@@ -107,7 +108,13 @@ function HolderSection({
  * One schedule: name, when, what it does and when it runs next. A built-in
  * rhythm says what it does in a line; the bot's own schedules show their prompt.
  */
-function ScheduleRow({ schedule }: { schedule: ChatSchedule }) {
+function ScheduleRow({
+  schedule,
+  readOnly,
+}: {
+  schedule: ChatSchedule;
+  readOnly: boolean;
+}) {
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
   const rhythm = schedule.systemKey
@@ -115,6 +122,10 @@ function ScheduleRow({ schedule }: { schedule: ChatSchedule }) {
         (entry) => entry.key === schedule.systemKey,
       )
     : undefined;
+  // A schedule being deleted leaves the list at once and comes back when
+  // the delete fails.
+  const [removed, setRemoved] = useState(false);
+  if (removed) return null;
   return (
     <li className="space-y-1.5 px-3 py-3">
       <div className="flex items-start justify-between gap-2">
@@ -134,11 +145,14 @@ function ScheduleRow({ schedule }: { schedule: ChatSchedule }) {
             {describeSchedule(schedule)}
           </p>
         </div>
-        <ScheduleRowActions
-          scheduleId={schedule.id}
-          enabled={schedule.enabled}
-          deletable={!schedule.systemKey}
-        />
+        {readOnly ? null : (
+          <ScheduleRowActions
+            scheduleId={schedule.id}
+            enabled={schedule.enabled}
+            deletable={!schedule.systemKey}
+            onRemovedChange={setRemoved}
+          />
+        )}
       </div>
       <p className="text-muted-foreground line-clamp-2 text-xs">
         {rhythm?.description ?? schedule.prompt}
@@ -191,6 +205,12 @@ export interface SokoBotConsoleProps {
   botId: string | null;
   /** Core's `viewerCanManage`: archive, delete and memory reset. */
   canManage: boolean;
+  /**
+   * Cuso's CMO Project, or null for any other bot. CMO runs Cuso, so his
+   * name, schedules, memory and proactivity change only there (ADR 0066);
+   * chat stays open.
+   */
+  cmoProjectId?: string | null;
   /** A shared bot's room, which every member shares; null for one's own. */
   sharedRoomId: string | null;
   /**
@@ -220,10 +240,13 @@ export function SokoBotConsole({
   integrationOutcome,
   paidByOrganization,
   botId,
-  canManage,
+  canManage: viewerCanManage,
+  cmoProjectId = null,
   sharedRoomId,
   ads,
 }: SokoBotConsoleProps) {
+  const isCuso = cmoProjectId !== null;
+  const canManage = viewerCanManage && !isCuso;
   const consoleRoute = sokoBotConsoleRoute(botId);
   const t = useTranslations("App.SokoBot");
   const adsBlock = ads ? (
@@ -272,7 +295,6 @@ export function SokoBotConsole({
       setPickedAvatar(null);
       setEditingPicture(false);
       await refresh();
-      router.refresh();
     });
   }
 
@@ -301,6 +323,9 @@ export function SokoBotConsole({
       <AssistantSeedContext.Provider value={seed}>
         <AssistantImageContext.Provider value={bot.avatarImageUrl}>
           <div className="w-full space-y-6 py-2">
+            {cmoProjectId ? (
+              <CmoProjectBanner projectId={cmoProjectId} />
+            ) : null}
             <header className="flex flex-col items-center gap-4 py-6 text-center">
               <BotProfileAvatar
                 name={botName}
@@ -514,19 +539,25 @@ export function SokoBotConsole({
                       {canManage ? (
                         <RenameSokoBotForm initial={state.bot.name ?? ""} />
                       ) : null}
-                      <ProactiveSettings
-                        initial={{
-                          paused: bot.proactivePaused,
-                          dailyLimit: bot.proactiveDailyLimit,
-                          timezone: bot.ingestTimezone,
-                        }}
-                        usedToday={stats?.proactive.usedToday ?? null}
-                        paidByOrganization={paidByOrganization}
-                      />
-                      <FollowBoardToggle
-                        initial={bot.followWholeBoard ?? false}
-                      />
-                      <MailAutoReadToggle initial={bot.mailAutoRead ?? false} />
+                      {isCuso ? null : (
+                        <>
+                          <ProactiveSettings
+                            initial={{
+                              paused: bot.proactivePaused,
+                              dailyLimit: bot.proactiveDailyLimit,
+                              timezone: bot.ingestTimezone,
+                            }}
+                            usedToday={stats?.proactive.usedToday ?? null}
+                            paidByOrganization={paidByOrganization}
+                          />
+                          <FollowBoardToggle
+                            initial={bot.followWholeBoard ?? false}
+                          />
+                          <MailAutoReadToggle
+                            initial={bot.mailAutoRead ?? false}
+                          />
+                        </>
+                      )}
                       {canManage ? (
                         <div className="space-y-2">
                           <p className="text-sm font-medium">
@@ -587,6 +618,7 @@ export function SokoBotConsole({
                     <ToolConnectors
                       integrations={integrations}
                       focusProvider={connectProvider}
+                      readOnly={isCuso}
                     />
                   </HolderSection>
                 ) : null}
@@ -607,6 +639,7 @@ export function SokoBotConsole({
                             <ScheduleRow
                               key={schedule.id}
                               schedule={schedule}
+                              readOnly={isCuso}
                             />
                           ))}
                         </ul>
@@ -615,7 +648,9 @@ export function SokoBotConsole({
                           {t("Schedules.empty")}
                         </p>
                       )}
-                      <ScheduleForm timezone={bot.ingestTimezone} />
+                      {isCuso ? null : (
+                        <ScheduleForm timezone={bot.ingestTimezone} />
+                      )}
                     </div>
                   </HolderPanel>
                 </HolderSection>

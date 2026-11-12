@@ -1,3 +1,4 @@
+import { TaskScheduleState } from "@sokosumi/core-client";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 
@@ -56,6 +57,21 @@ export async function SchedulesPageContent({
     state,
     limit: TASK_SCHEDULES_PAGE_LIMIT,
   });
+  // An empty filter says what the other tabs hold, counted by Core.
+  const otherStateCounts =
+    state && schedules.length === 0
+      ? await Promise.all(
+          Object.values(TaskScheduleState)
+            .filter((other) => other !== state)
+            .map(async (other) => ({
+              state: other,
+              count: await taskScheduleService.countSchedules({
+                projectId,
+                state: other,
+              }),
+            })),
+        )
+      : [];
 
   return (
     <div className="w-full pb-6">
@@ -65,6 +81,7 @@ export async function SchedulesPageContent({
         defaultViewMode={defaultViewMode}
         schedules={schedules}
         nextCursor={nextCursor}
+        otherStateCounts={otherStateCounts}
         coworkerOptions={assigneeOptions.selectableOptions}
         assigneeDisplayOptions={assigneeOptions.displayOptions}
         projectOptions={projectOptions}

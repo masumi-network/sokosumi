@@ -9,6 +9,7 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
+import type { CreditBucketProjectOption } from "@sokosumi/database/helpers";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 import {
   type JobWithListSummaryRelations,
@@ -69,13 +70,16 @@ export interface JobContext {
 }
 
 /**
- * Validates that user or organization has sufficient credit balance
+ * Validates that user or organization has sufficient credit balance.
+ * `projectId` is the Project the charge will carry: its Project credits
+ * count, then the pool. None sees only the pool (ADR 0067).
  */
 async function validateCreditBalance(
   userId: string | null,
   organizationId: string | null,
   costCents: bigint,
   tx: Prisma.TransactionClient,
+  options: CreditBucketProjectOption = {},
 ): Promise<void> {
   if (costCents <= 0) {
     return;
@@ -85,11 +89,22 @@ async function validateCreditBalance(
     userId,
     organizationId,
     tx,
+    options,
   );
 
   if (centsBalance < costCents) {
     throw badRequest("Insufficient balance");
   }
+}
+
+/** The Project a Job charges with: the explicit one, else the Job's own. */
+function resolveCreditProjectId(input: {
+  projectId?: string | null;
+  creditProjectId?: string | null;
+}): string | null {
+  return input.creditProjectId === undefined
+    ? (input.projectId ?? null)
+    : input.creditProjectId;
 }
 
 /** The Job's Creator (ADR 0057). */
@@ -120,6 +135,8 @@ async function createPaidJob(
     inputSchema: InputSchemaSchemaType;
     name: string | null;
     projectId?: string | null;
+    /** See `CreateAgentJobInput.creditProjectId`. */
+    creditProjectId?: string | null;
     taskId?: string | null;
   },
   cost: AgentCost,
@@ -140,6 +157,7 @@ async function createPaidJob(
     input.organizationId,
     cost.cents,
     tx,
+    { projectId: resolveCreditProjectId(input) },
   );
 
   const job = await tx.job.create({
@@ -310,6 +328,12 @@ interface CreateAgentJobInput {
   taskContext?: {
     taskId: string;
   };
+  /**
+   * The Project whose credits pay for the Job, ahead of the pool (ADR 0067).
+   * A Soko Bot's hire passes its bot's Project, even for a Job with none.
+   * Undefined charges with the Job's own `projectId`; null sees only the pool.
+   */
+  creditProjectId?: string | null;
   /**
    * Runs after all local pricing, Agent, project, and buyer-cap validation but
    * immediately before the seller-side start request. Callers use this
@@ -594,8 +618,10 @@ export async function createAgentJobForUser(
     inputData: agentInput.inputData,
     inputSchema: agentInput.inputSchema,
     projectId: agentInput.projectId,
+    creditProjectId: input.creditProjectId,
     taskId: taskContext?.taskId,
   };
+  const creditProjectId = resolveCreditProjectId(jobInput);
 
   // Complete fallible local preflight before seller dispatch. Final balance
   // validation still runs in Job creation transaction to close spend races.
@@ -608,6 +634,7 @@ export async function createAgentJobForUser(
           owner.organizationId,
           cost.cents,
           tx,
+          { projectId: creditProjectId },
         ),
       "Balance preflight conflicted with a concurrent credit update. Please retry.",
     );
@@ -873,6 +900,7 @@ export async function createAgentJobForUser(
       owner.organizationId,
       cost.cents,
       tx,
+      { projectId: creditProjectId },
     );
 
     let createdJob: JobWithListSummaryRelations;
@@ -1061,17 +1089,21 @@ export async function getUserJobs(
   };
 
   const takePlusOne = take + 1;
-  const jobs = await tx.job.findMany({
-    where,
-    take: takePlusOne,
-    skip,
-    cursor: cursor ? { id: cursor } : undefined,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    include: {
-      ...jobListSummaryInclude,
-    },
-  });
-  const count = await tx.job.count({ where });
+  // Both callers read through `prisma`. On an interactive transaction these
+  // would have to run one after the other.
+  const [jobs, count] = await Promise.all([
+    tx.job.findMany({
+      where,
+      take: takePlusOne,
+      skip,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        ...jobListSummaryInclude,
+      },
+    }),
+    tx.job.count({ where }),
+  ]);
   return {
     jobs: jobs.slice(0, take).map(flattenJob),
     count,

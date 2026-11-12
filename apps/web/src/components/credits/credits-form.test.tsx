@@ -192,6 +192,10 @@ describe("CreditsForm", () => {
     expect(
       screen.getByText("paidSubscriptionRequiredHint"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "seePlans" })).toHaveAttribute(
+      "href",
+      "?tab=subscription",
+    );
     expect(
       screen.queryByRole("spinbutton", {
         name: "creditsLabel",

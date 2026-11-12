@@ -5,6 +5,8 @@ import { ProjectDetailPinButton } from "@/app/projects/components/project-detail
 import { projectService } from "@/lib/services/project.service";
 
 interface ProjectHeaderActionsProps {
+  /** A CMO Project: no Edit or Close. */
+  cmo?: boolean;
   closedAt?: Date | string | null;
   closingAt?: Date | string | null;
   projectId: string;
@@ -17,6 +19,7 @@ interface ProjectHeaderActionsProps {
  * header does not change when the reader switches tabs.
  */
 export async function ProjectHeaderActions({
+  cmo = false,
   closedAt,
   closingAt,
   projectId,
@@ -50,6 +53,7 @@ export async function ProjectHeaderActions({
         projectRevision={projectRevision}
         isClosingOrClosed={isClosingOrClosed}
         isHidden={isHidden}
+        readOnly={cmo}
         labels={{
           moreActions: t("actions.moreActions"),
           edit: t("actions.edit"),

@@ -193,7 +193,10 @@ export {
   normalizeContactChannelValue,
   updateContactSchema,
 } from "./contacts.js";
-export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
+export {
+  CORE_API_ERROR_KINDS,
+  type CoreApiErrorKind,
+} from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -501,7 +504,7 @@ export {
   STUDIO_LOGO_MIME_TYPES,
 } from "./studio-logo-upload.js";
 export { productBrief } from "./studio-product-brief.js";
-export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,
@@ -516,6 +519,13 @@ export {
   descriptionIncludesTaskAttachmentLink,
   formatTaskAttachmentMarkdown,
 } from "./task-attachments.js";
+export {
+  type TaskChatMessageTask,
+  type TaskChatRoomAudience,
+  type TaskChatRoomRefusal,
+  taskChatMessage,
+  taskChatRoomRefusal,
+} from "./task-chat-share.js";
 export {
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,

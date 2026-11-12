@@ -324,6 +324,7 @@ vi.mock("@/services/social-account-statistics.service", () => ({
   refreshSocialAccountStatistics: social.refreshAccountStatistics,
 }));
 vi.mock("@/services/social-posts.service", () => ({
+  prepareSocialPostMutationMedia: vi.fn(async (input) => input),
   listSocialPosts: social.list,
   getSocialPost: social.get,
   createSocialPost: social.create,
@@ -1665,6 +1666,56 @@ describe("SokoBotRuntimeService authorization", () => {
       byName: "Lili, Albina's assistant",
     });
 
+    // A teammate's Task and comment are theirs, not this bot's owner's.
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      ownerId: "user_2",
+      owner: { name: "Patrick" },
+      events: [
+        {
+          id: "event-3",
+          status: null,
+          comment: "Implement the proposals, then merge.",
+          createdAt: new Date(0),
+          coworkerId: null,
+          userId: "user_2",
+          sokoBotId: null,
+          sokoBot: null,
+          user: { name: "Patrick" },
+        },
+        {
+          id: "event-4",
+          status: null,
+          comment: "Looks good.",
+          createdAt: new Date(1),
+          coworkerId: null,
+          userId: SCOPE.userId,
+          sokoBotId: null,
+          sokoBot: null,
+          user: { name: "Sandro" },
+        },
+      ],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const teammateRead = await service["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+      } as never,
+      "task_1",
+    );
+    expect(teammateRead?.owner).toBe("Patrick, a teammate (not your owner)");
+    expect(teammateRead?.events).toMatchObject([
+      { by: "owner" },
+      { by: "teammate", byName: "Patrick" },
+    ]);
+    expect(teammateRead?.events[0]).not.toHaveProperty("byName");
+
     // A shared assistant has no owner to be named with.
     taskFindFirstMock.mockResolvedValue({
       id: "task_1",
@@ -1964,6 +2015,8 @@ describe("SokoBotRuntimeService authorization", () => {
         name: "Launch announcement copy",
         status: "DRAFT",
         updatedAt,
+        ownerId: "user_2",
+        owner: { name: "Patrick" },
         assignee: null,
         assigneeUser: null,
         assigneeSokoBot: null,
@@ -1991,6 +2044,7 @@ describe("SokoBotRuntimeService authorization", () => {
           id: "task-1",
           name: "Launch announcement copy",
           status: "DRAFT",
+          owner: "Patrick, a teammate (not your owner)",
           assignee: null,
           project: null,
           idleDays: 5,
@@ -3880,6 +3934,46 @@ describe("SokoBotRuntimeService hire decisions", () => {
     );
   });
 
+  it("charges a hire with its bot's Project, though the hire names none", async () => {
+    // Cuso's Project credits pay for his hires (ADR 0067).
+    botFindFirstMock.mockResolvedValue(botRow({ projectId: "project_cuso" }));
+
+    await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creditProjectId: "project_cuso",
+        agentInput: expect.not.objectContaining({
+          projectId: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("charges a personal bot's hire with the Job's own Project", async () => {
+    // Only a bot's own Project overrides the Job's (SOKD-179, SOKD-180).
+    const JOB_PROJECT_ID = "01960001-0001-7001-8001-0000000000b1";
+    decisionFindFirstMock.mockResolvedValue({
+      ...hireDecision(),
+      proposal: { ...hireDecision().proposal, projectId: JOB_PROJECT_ID },
+    });
+
+    await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    const input = createAgentJobForUserMock.mock.calls[0]?.[0];
+    expect(input?.agentInput.projectId).toBe(JOB_PROJECT_ID);
+    // undefined, not null: null would charge the pool only.
+    expect(input?.creditProjectId).toBeUndefined();
+  });
+
   it("never returns a hire to PENDING after seller-side execution starts", async () => {
     decisionUpdateMock.mockRejectedValueOnce(
       new Error("database connection lost after Job creation"),
@@ -5465,6 +5559,45 @@ describe("post_chat chain depth", () => {
       content: "@jarvis the date is confirmed",
     });
 
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+  });
+
+  it("refuses to post its answer a second time into the chat it was asked in", async () => {
+    // Asked in a thread, the bot answered there and posted the same text into
+    // the channel with post_chat.
+    armPostChat(0);
+    const authorized = {
+      turn: { ...SCOPE_TURN, chainDepth: 0, source: "CHAT" },
+    } as never;
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        toolCallId: "call_1",
+        roomId: "room_1",
+        content: "Yes, X posts can include GIFs.",
+      }),
+    ).rejects.toThrow(/posted for you in this chat/i);
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+
+    // Summoning a Coworker there is a message of its own.
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_2",
+      roomId: "room_1",
+      content: "@jarvis can you check the upload?",
+    });
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+
+    // So is a post into another room.
+    transactionChatMessageCreateMock.mockClear();
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
+      chatMention: { message: { roomId: "room_asked_in" } },
+    });
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_3",
+      roomId: "room_1",
+      content: "Sharing the answer here.",
+    });
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
   });
 

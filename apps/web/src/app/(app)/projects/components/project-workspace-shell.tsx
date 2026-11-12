@@ -13,6 +13,7 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
+import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,8 @@ export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabel
 
 interface ProjectWorkspaceShellProps {
   actions?: React.ReactNode;
+  /** A CMO Project: the "Managed by CMO" banner leads the page. */
+  cmo?: boolean;
   children: React.ReactNode;
   labels: ProjectWorkspaceLabels;
   /** Formatted by the page, which already holds a formatter. */
@@ -96,6 +99,7 @@ interface ProjectWorkspaceShellProps {
  */
 export function ProjectWorkspaceShell({
   actions,
+  cmo = false,
   children,
   labels,
   createdAt,
@@ -150,6 +154,7 @@ export function ProjectWorkspaceShell({
     // The app's 16px main padding alone puts the name against the header
     // rule; the extra top space gives the page a clear start.
     <div className={cn(TASK_DETAIL_SHELL_CLASS, "pt-2 md:pt-6")}>
+      {cmo ? <CmoProjectBanner className="mb-6" projectId={projectId} /> : null}
       {/* Rows sit 16px apart: on a wide screen that joins the name to its
           tabs, and in one column it joins the name to its Properties. The
           tabs block adds 16px in one column, so the Properties close their

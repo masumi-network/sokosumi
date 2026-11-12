@@ -68,6 +68,8 @@ interface AdsCampaignsProps {
   projectId: string;
   provider: ProjectAdProvider;
   range: RangeParam;
+  /** A CMO Project: CMO runs its ads, so they are only read (ADR 0066). */
+  readOnly?: boolean;
 }
 
 export async function AdsCampaigns({
@@ -77,6 +79,7 @@ export async function AdsCampaigns({
   projectId,
   provider,
   range,
+  readOnly = false,
 }: AdsCampaignsProps) {
   const t = await getTranslations("App.Ads.campaigns");
   const tObjectives = await getTranslations("App.Ads.newCampaign.objectives");
@@ -191,15 +194,17 @@ export async function AdsCampaigns({
                   </div>
                 ))}
               </dl>
-              <div className="relative z-10 col-start-2 row-start-1 lg:col-start-3">
-                <AdsCampaignActions
-                  accountId={accountId}
-                  campaign={campaign}
-                  currency={currency}
-                  projectId={projectId}
-                  provider={provider}
-                />
-              </div>
+              {readOnly ? null : (
+                <div className="relative z-10 col-start-2 row-start-1 lg:col-start-3">
+                  <AdsCampaignActions
+                    accountId={accountId}
+                    campaign={campaign}
+                    currency={currency}
+                    projectId={projectId}
+                    provider={provider}
+                  />
+                </div>
+              )}
             </li>
           );
         })}

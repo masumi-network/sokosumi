@@ -235,6 +235,7 @@ export function OrganizationSubscriptionSection({
       isDisabled:
         pendingPlan !== null || isCurrentPlan || !isCheckoutSeatsValid,
       isPlanPending: pendingPlan === plan.name,
+      seats: isCheckoutSeatsValid ? checkoutSeats : null,
     };
   }
 

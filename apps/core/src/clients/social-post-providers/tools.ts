@@ -3,10 +3,12 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 
 import {
   ComposioApiError,
+  composioXImageUploadFailure,
   projectComposioFetch,
   projectComposioResponse,
   projectResponseError,
   record,
+  recordComposioResponseFailure,
 } from "@/clients/composio.client";
 import type { SocialPostMediaBytes } from "@/clients/social-post-providers/types";
 
@@ -160,11 +162,28 @@ export async function executeComposioTool(input: {
   const toolResult = record(result.data);
   const providerResult = record(toolResult?.data) ?? toolResult;
   const toolError = result.error ?? toolResult?.error;
-  if (toolError || result.successful === false) {
+  const isXImageUpload = input.context === "upload X image";
+  if (
+    toolError ||
+    result.successful === false ||
+    (isXImageUpload && toolResult?.successful === false)
+  ) {
+    const providerStatus = toolErrorStatus(toolError);
+    const imageFailure = isXImageUpload
+      ? composioXImageUploadFailure(result, providerStatus)
+      : null;
+    if (imageFailure) {
+      recordComposioResponseFailure(
+        response,
+        input.context,
+        result,
+        "tool_error",
+      );
+    }
     throw new ComposioToolError({
-      message: input.refused,
-      providerMessage: toolErrorMessage(toolError),
-      providerStatus: toolErrorStatus(toolError),
+      message: imageFailure?.message ?? input.refused,
+      providerMessage: imageFailure?.reason ?? toolErrorMessage(toolError),
+      providerStatus: imageFailure?.status ?? providerStatus,
     });
   }
   return record(providerResult?.data) ?? providerResult;
@@ -209,7 +228,7 @@ export async function stageSocialPublishFile(input: {
   file: SocialPostMediaBytes;
   signal?: AbortSignal;
 }): Promise<string> {
-  const name = input.file.name ?? "attachment";
+  const name = input.file.name || "attachment";
   const stagingResponse = await projectComposioFetch(
     "/api/v3.1/files/upload/request",
     {
