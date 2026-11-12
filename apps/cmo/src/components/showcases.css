@@ -337,3 +337,75 @@ img.sl-card-image {
 .ss-sponsored {
   font-weight: 600;
 }
+
+/*
+ * October's grid: cards at least 300px wide, in the brand's fills. Without a
+ * real brand colour they stay ink in both themes, under their white text.
+ */
+.ob-showcases {
+  --brand: var(--mark-black);
+  --brand-2: var(--mark-black);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  align-items: start;
+}
+
+.ob-showcase {
+  min-width: 0;
+  animation: ob-showcase-land 350ms ease-out both;
+}
+
+@keyframes ob-showcase-land {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+
+/* An ad the plan has not written yet. */
+.ss-writing {
+  display: grid;
+  gap: 8px;
+}
+
+.ss-writing-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ss-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--foreground);
+  animation: ss-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ss-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.ss-bar {
+  width: 80%;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.ss-bar.short {
+  width: 95%;
+  height: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-showcase,
+  .ss-pulse {
+    animation: none;
+  }
+}

@@ -25800,6 +25800,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -25878,6 +25900,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -25956,6 +26000,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26034,6 +26100,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26112,6 +26200,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26190,6 +26300,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26268,6 +26400,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26346,6 +26500,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26424,6 +26600,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26502,6 +26700,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26580,6 +26800,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26658,6 +26900,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26736,6 +27000,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26814,6 +27100,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26892,6 +27200,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26970,6 +27300,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -27321,6 +27673,28 @@ export const BrandBrainSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        fix: {
+                            type: 'object',
+                            properties: {
+                                note: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                at: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                fixed: {
+                                    type: 'boolean'
+                                }
+                            },
+                            required: [
+                                'note',
+                                'at',
+                                'fixed'
+                            ]
                         }
                     },
                     required: [
@@ -27736,6 +28110,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -27814,6 +28210,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -27892,6 +28310,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -27970,6 +28410,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28048,6 +28510,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28126,6 +28610,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28204,6 +28710,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28282,6 +28810,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28360,6 +28910,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28438,6 +29010,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28516,6 +29110,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28594,6 +29210,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28672,6 +29310,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28750,6 +29410,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28828,6 +29510,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28906,6 +29610,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -29257,6 +29983,28 @@ export const BrandBrainRequestSchema = {
                     },
                     maxItems: 6,
                     default: []
+                },
+                fix: {
+                    type: 'object',
+                    properties: {
+                        note: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        at: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        fixed: {
+                            type: 'boolean'
+                        }
+                    },
+                    required: [
+                        'note',
+                        'at',
+                        'fixed'
+                    ]
                 }
             },
             required: [
@@ -30140,6 +30888,37 @@ export const MarketingStrategySchema = {
                                             'shared'
                                         ]
                                     },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    basedOn: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            enum: [
+                                                'company',
+                                                'offer',
+                                                'problems',
+                                                'customers',
+                                                'buyers',
+                                                'value',
+                                                'pricing',
+                                                'positioning',
+                                                'competition',
+                                                'sales',
+                                                'marketing',
+                                                'content',
+                                                'proof',
+                                                'reputation',
+                                                'momentum',
+                                                'opportunities'
+                                            ]
+                                        },
+                                        minItems: 1,
+                                        maxItems: 2
+                                    },
                                     plays: {
                                         type: 'array',
                                         items: {
@@ -30491,6 +31270,15 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    entryIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 64
+                                        },
+                                        maxItems: 3
                                     }
                                 },
                                 required: [
@@ -30745,6 +31533,15 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    questionIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 3
                                     }
                                 },
                                 required: [
@@ -30806,6 +31603,289 @@ export const MarketingStrategySchema = {
                                 maxLength: 400
                             },
                             maxItems: 10,
+                            default: []
+                        },
+                        patched: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    was: {
+                                        type: [
+                                            'object',
+                                            'null'
+                                        ],
+                                        properties: {
+                                            id: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 64
+                                            },
+                                            date: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                            },
+                                            time: {
+                                                type: 'string',
+                                                pattern: '^\\d{2}:\\d{2}$'
+                                            },
+                                            channel: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            title: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            format: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            status: {
+                                                type: 'string',
+                                                enum: [
+                                                    'idea',
+                                                    'draft',
+                                                    'scheduled',
+                                                    'published',
+                                                    'skipped'
+                                                ]
+                                            },
+                                            hook: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            brief: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 2000
+                                            },
+                                            draft: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 4000
+                                            },
+                                            why: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            socialPostId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            visual: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 2000
+                                            },
+                                            visualFileIds: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    maxLength: 100
+                                                },
+                                                maxItems: 3
+                                            },
+                                            slides: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                maxItems: 10
+                                            },
+                                            story: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            imageFileId: {
+                                                type: 'string',
+                                                maxLength: 100
+                                            },
+                                            slideFileIds: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    maxLength: 100
+                                                },
+                                                maxItems: 10
+                                            },
+                                            fileId: {
+                                                type: 'string',
+                                                maxLength: 100
+                                            },
+                                            searchAd: {
+                                                type: 'object',
+                                                properties: {
+                                                    keywords: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 80
+                                                        },
+                                                        minItems: 1,
+                                                        maxItems: 20
+                                                    },
+                                                    headlines: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 30
+                                                        },
+                                                        minItems: 3,
+                                                        maxItems: 15
+                                                    },
+                                                    descriptions: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 90
+                                                        },
+                                                        minItems: 2,
+                                                        maxItems: 4
+                                                    },
+                                                    negativeKeywords: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 80
+                                                        },
+                                                        maxItems: 30
+                                                    },
+                                                    maxCpc: {
+                                                        type: 'number',
+                                                        exclusiveMinimum: 0,
+                                                        maximum: 1000
+                                                    },
+                                                    finalUrl: {
+                                                        type: 'string',
+                                                        maxLength: 2048,
+                                                        format: 'uri'
+                                                    },
+                                                    path1: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 15
+                                                    },
+                                                    path2: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 15
+                                                    },
+                                                    location: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 80
+                                                    },
+                                                    language: {
+                                                        type: 'string',
+                                                        pattern: '^[a-z]{2}$'
+                                                    },
+                                                    callouts: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 25
+                                                        },
+                                                        maxItems: 10
+                                                    }
+                                                },
+                                                required: [
+                                                    'keywords',
+                                                    'headlines',
+                                                    'descriptions',
+                                                    'finalUrl'
+                                                ]
+                                            },
+                                            adCampaign: {
+                                                type: 'object',
+                                                properties: {
+                                                    accountId: {
+                                                        type: 'string',
+                                                        format: 'uuid'
+                                                    },
+                                                    campaignId: {
+                                                        type: 'string',
+                                                        maxLength: 64
+                                                    }
+                                                },
+                                                required: [
+                                                    'accountId',
+                                                    'campaignId'
+                                                ]
+                                            },
+                                            taskId: {
+                                                type: 'string',
+                                                maxLength: 100
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 64
+                                            },
+                                            approach: {
+                                                type: 'string',
+                                                enum: [
+                                                    'educational',
+                                                    'thought-leadership',
+                                                    'problem-solution',
+                                                    'product-led',
+                                                    'social-proof',
+                                                    'people-led',
+                                                    'community-led',
+                                                    'entertainment',
+                                                    'research-led',
+                                                    'promotional'
+                                                ]
+                                            },
+                                            pillar: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            questionIds: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                maxItems: 3
+                                            }
+                                        },
+                                        required: [
+                                            'id',
+                                            'date',
+                                            'channel',
+                                            'title',
+                                            'format',
+                                            'status'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'was'
+                                ]
+                            },
+                            maxItems: 120,
                             default: []
                         }
                     },
@@ -31585,6 +32665,37 @@ export const MarketingStrategyRequestSchema = {
                                     'shared'
                                 ]
                             },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            basedOn: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    enum: [
+                                        'company',
+                                        'offer',
+                                        'problems',
+                                        'customers',
+                                        'buyers',
+                                        'value',
+                                        'pricing',
+                                        'positioning',
+                                        'competition',
+                                        'sales',
+                                        'marketing',
+                                        'content',
+                                        'proof',
+                                        'reputation',
+                                        'momentum',
+                                        'opportunities'
+                                    ]
+                                },
+                                minItems: 1,
+                                maxItems: 2
+                            },
                             plays: {
                                 type: 'array',
                                 items: {
@@ -31936,6 +33047,15 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            entryIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 64
+                                },
+                                maxItems: 3
                             }
                         },
                         required: [
@@ -32190,6 +33310,15 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            questionIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 3
                             }
                         },
                         required: [
@@ -32251,6 +33380,289 @@ export const MarketingStrategyRequestSchema = {
                         maxLength: 400
                     },
                     maxItems: 10,
+                    default: []
+                },
+                patched: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            was: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    date: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    time: {
+                                        type: 'string',
+                                        pattern: '^\\d{2}:\\d{2}$'
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    format: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'idea',
+                                            'draft',
+                                            'scheduled',
+                                            'published',
+                                            'skipped'
+                                        ]
+                                    },
+                                    hook: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    brief: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    draft: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 4000
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    socialPostId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    visual: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    visualFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 3
+                                    },
+                                    slides: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        maxItems: 10
+                                    },
+                                    story: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    imageFileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    slideFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 10
+                                    },
+                                    fileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    searchAd: {
+                                        type: 'object',
+                                        properties: {
+                                            keywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                minItems: 1,
+                                                maxItems: 20
+                                            },
+                                            headlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 30
+                                                },
+                                                minItems: 3,
+                                                maxItems: 15
+                                            },
+                                            descriptions: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 90
+                                                },
+                                                minItems: 2,
+                                                maxItems: 4
+                                            },
+                                            negativeKeywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                maxItems: 30
+                                            },
+                                            maxCpc: {
+                                                type: 'number',
+                                                exclusiveMinimum: 0,
+                                                maximum: 1000
+                                            },
+                                            finalUrl: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            path1: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 15
+                                            },
+                                            path2: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 15
+                                            },
+                                            location: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 80
+                                            },
+                                            language: {
+                                                type: 'string',
+                                                pattern: '^[a-z]{2}$'
+                                            },
+                                            callouts: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 25
+                                                },
+                                                maxItems: 10
+                                            }
+                                        },
+                                        required: [
+                                            'keywords',
+                                            'headlines',
+                                            'descriptions',
+                                            'finalUrl'
+                                        ]
+                                    },
+                                    adCampaign: {
+                                        type: 'object',
+                                        properties: {
+                                            accountId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'accountId',
+                                            'campaignId'
+                                        ]
+                                    },
+                                    taskId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    approach: {
+                                        type: 'string',
+                                        enum: [
+                                            'educational',
+                                            'thought-leadership',
+                                            'problem-solution',
+                                            'product-led',
+                                            'social-proof',
+                                            'people-led',
+                                            'community-led',
+                                            'entertainment',
+                                            'research-led',
+                                            'promotional'
+                                        ]
+                                    },
+                                    pillar: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    questionIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 3
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'date',
+                                    'channel',
+                                    'title',
+                                    'format',
+                                    'status'
+                                ]
+                            }
+                        },
+                        required: [
+                            'id',
+                            'was'
+                        ]
+                    },
+                    maxItems: 120,
                     default: []
                 }
             },
@@ -42202,6 +43614,9 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        research: {
+            $ref: '#/components/schemas/CmoResearch'
+        },
         brandVisual: {
             anyOf: [
                 {
@@ -42578,6 +43993,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -42656,6 +44093,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -42734,6 +44193,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -42812,6 +44293,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -42890,6 +44393,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -42968,6 +44493,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43046,6 +44593,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43124,6 +44693,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43202,6 +44793,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43280,6 +44893,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43358,6 +44993,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43436,6 +45093,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43514,6 +45193,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43592,6 +45293,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43670,6 +45393,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -43748,6 +45493,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -44099,6 +45866,28 @@ export const CmoOverviewSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        fix: {
+                            type: 'object',
+                            properties: {
+                                note: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                at: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                fixed: {
+                                    type: 'boolean'
+                                }
+                            },
+                            required: [
+                                'note',
+                                'at',
+                                'fixed'
+                            ]
                         }
                     },
                     required: [
@@ -44356,6 +46145,7 @@ export const CmoOverviewSchema = {
         'subscriptionActive',
         'viewerCanApprove',
         'work',
+        'research',
         'brandVisual',
         'projectLogo',
         'onboardingStep',
@@ -44395,6 +46185,21 @@ export const CmoWorkSchema = {
                 'research',
                 'strategy'
             ]
+        },
+        change: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'fix',
+                        'patch'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A strategy turn that fixes Brand Brain sections or patches the plan\'s entries; null for a whole plan.'
         },
         status: {
             type: 'string',
@@ -44524,6 +46329,95 @@ export const CmoWorkStepSchema = {
         'url',
         'status',
         'at'
+    ]
+} as const;
+
+export const CmoResearchSchema = {
+    type: 'object',
+    properties: {
+        groups: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    sections: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'company',
+                                'offer',
+                                'problems',
+                                'customers',
+                                'buyers',
+                                'value',
+                                'pricing',
+                                'positioning',
+                                'competition',
+                                'sales',
+                                'marketing',
+                                'content',
+                                'proof',
+                                'reputation',
+                                'momentum',
+                                'opportunities'
+                            ]
+                        },
+                        description: 'The Brand Brain sections this group researches.'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'running',
+                            'done'
+                        ]
+                    }
+                },
+                required: [
+                    'key',
+                    'label',
+                    'sections',
+                    'state'
+                ]
+            },
+            description: 'The research in six groups of Brand Brain sections, in the order Cuso saves them; done once every section in a group is saved, or the essentials are.'
+        },
+        preview: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        line: {
+                            type: 'string'
+                        },
+                        facts: {
+                            type: 'array',
+                            items: {
+                                type: 'string'
+                            }
+                        }
+                    },
+                    required: [
+                        'line',
+                        'facts'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The quick look from the homepage alone, until the essentials replace it. The plan never reads it.'
+        }
+    },
+    required: [
+        'groups',
+        'preview'
     ]
 } as const;
 
@@ -45515,6 +47409,37 @@ export const CmoPlanSchema = {
                             'shared'
                         ]
                     },
+                    why: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    basedOn: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'company',
+                                'offer',
+                                'problems',
+                                'customers',
+                                'buyers',
+                                'value',
+                                'pricing',
+                                'positioning',
+                                'competition',
+                                'sales',
+                                'marketing',
+                                'content',
+                                'proof',
+                                'reputation',
+                                'momentum',
+                                'opportunities'
+                            ]
+                        },
+                        minItems: 1,
+                        maxItems: 2
+                    },
                     plays: {
                         type: 'array',
                         items: {
@@ -45866,6 +47791,15 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    entryIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 64
+                        },
+                        maxItems: 3
                     }
                 },
                 required: [
@@ -46120,6 +48054,15 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    questionIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        maxItems: 3
                     }
                 },
                 required: [
@@ -46181,6 +48124,289 @@ export const CmoPlanSchema = {
                 maxLength: 400
             },
             maxItems: 10,
+            default: []
+        },
+        patched: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 64
+                    },
+                    was: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            id: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            date: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            time: {
+                                type: 'string',
+                                pattern: '^\\d{2}:\\d{2}$'
+                            },
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            title: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            format: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            status: {
+                                type: 'string',
+                                enum: [
+                                    'idea',
+                                    'draft',
+                                    'scheduled',
+                                    'published',
+                                    'skipped'
+                                ]
+                            },
+                            hook: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            brief: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            draft: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 4000
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            socialPostId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            visual: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            visualFileIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    maxLength: 100
+                                },
+                                maxItems: 3
+                            },
+                            slides: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                maxItems: 10
+                            },
+                            story: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            imageFileId: {
+                                type: 'string',
+                                maxLength: 100
+                            },
+                            slideFileIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    maxLength: 100
+                                },
+                                maxItems: 10
+                            },
+                            fileId: {
+                                type: 'string',
+                                maxLength: 100
+                            },
+                            searchAd: {
+                                type: 'object',
+                                properties: {
+                                    keywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        minItems: 1,
+                                        maxItems: 20
+                                    },
+                                    headlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 30
+                                        },
+                                        minItems: 3,
+                                        maxItems: 15
+                                    },
+                                    descriptions: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 90
+                                        },
+                                        minItems: 2,
+                                        maxItems: 4
+                                    },
+                                    negativeKeywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        maxItems: 30
+                                    },
+                                    maxCpc: {
+                                        type: 'number',
+                                        exclusiveMinimum: 0,
+                                        maximum: 1000
+                                    },
+                                    finalUrl: {
+                                        type: 'string',
+                                        maxLength: 2048,
+                                        format: 'uri'
+                                    },
+                                    path1: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 15
+                                    },
+                                    path2: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 15
+                                    },
+                                    location: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 80
+                                    },
+                                    language: {
+                                        type: 'string',
+                                        pattern: '^[a-z]{2}$'
+                                    },
+                                    callouts: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 25
+                                        },
+                                        maxItems: 10
+                                    }
+                                },
+                                required: [
+                                    'keywords',
+                                    'headlines',
+                                    'descriptions',
+                                    'finalUrl'
+                                ]
+                            },
+                            adCampaign: {
+                                type: 'object',
+                                properties: {
+                                    accountId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    }
+                                },
+                                required: [
+                                    'accountId',
+                                    'campaignId'
+                                ]
+                            },
+                            taskId: {
+                                type: 'string',
+                                maxLength: 100
+                            },
+                            campaignId: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            approach: {
+                                type: 'string',
+                                enum: [
+                                    'educational',
+                                    'thought-leadership',
+                                    'problem-solution',
+                                    'product-led',
+                                    'social-proof',
+                                    'people-led',
+                                    'community-led',
+                                    'entertainment',
+                                    'research-led',
+                                    'promotional'
+                                ]
+                            },
+                            pillar: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            questionIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 3
+                            }
+                        },
+                        required: [
+                            'id',
+                            'date',
+                            'channel',
+                            'title',
+                            'format',
+                            'status'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'was'
+                ]
+            },
+            maxItems: 120,
             default: []
         }
     },
@@ -46673,12 +48899,81 @@ export const CmoAdBudgetRequestSchema = {
     ]
 } as const;
 
+export const CmoBrandFixStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        queued: {
+            type: 'boolean',
+            description: 'Cuso is busy: the fix is kept on its section and starts when his current turn ends.'
+        }
+    },
+    required: [
+        'turnId',
+        'queued'
+    ]
+} as const;
+
+export const CmoBrandFixRequestSchema = {
+    type: 'object',
+    properties: {
+        section: {
+            type: 'string',
+            enum: [
+                'company',
+                'offer',
+                'problems',
+                'customers',
+                'buyers',
+                'value',
+                'pricing',
+                'positioning',
+                'competition',
+                'sales',
+                'marketing',
+                'content',
+                'proof',
+                'reputation',
+                'momentum',
+                'opportunities'
+            ],
+            description: 'The section that is wrong. Left out, the note is a general correction: Cuso rewrites every section it changes.'
+        },
+        note: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400,
+            description: 'What is true instead, in the owner\'s words.'
+        }
+    },
+    required: [
+        'note'
+    ]
+} as const;
+
 export const CmoStrategyRequestSchema = {
     type: 'object',
     properties: {
         note: {
             type: 'string',
             maxLength: 1000
+        },
+        patch: {
+            type: 'boolean',
+            description: 'With a note: Cuso changes only the entries the note touches (a no, the pace) in a short turn, instead of writing a new plan.'
+        },
+        restart: {
+            type: 'boolean',
+            description: 'Try again: replaces a plan running past twice the usual time. Otherwise a plan being written is returned as it is.'
         }
     }
 } as const;

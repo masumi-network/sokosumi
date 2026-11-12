@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { SignInProblem } from "../../components/sign-in-problem";
 import { getAuth } from "../../lib/auth";
+import { KEPT_WEBSITE_COOKIE, keptWebsite } from "../../lib/kept-website";
 import { CMO_SIGN_IN_ERROR } from "../../lib/sign-in-errors";
-import { signIn } from "../actions";
+import { createAccountAgain, signIn } from "../actions";
 
 /** Unlinked while the home page is the waitlist site; kept out of search. */
 export const metadata: Metadata = {
@@ -30,5 +31,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   // Home sends a session Core refuses here; sending it home again would loop.
   if (session && error !== CMO_SIGN_IN_ERROR.signedOut) redirect("/");
   if (!error) redirect("/signin");
-  return <SignInProblem error={error} signIn={signIn} />;
+  // A sign up from /start that did not finish: Create account again, with
+  // its website. An ended session only asks to sign in again.
+  const website =
+    error === CMO_SIGN_IN_ERROR.signedOut
+      ? undefined
+      : keptWebsite((await cookies()).get(KEPT_WEBSITE_COOKIE)?.value);
+  return (
+    <SignInProblem
+      error={error}
+      signIn={website ? createAccountAgain : signIn}
+      website={website}
+    />
+  );
 }

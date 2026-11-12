@@ -24,8 +24,10 @@ import {
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
+  type CmoResearch,
   type CmoWork,
   cmoLearningState,
+  cmoResearch,
   cmoWork,
 } from "@/services/cmo-hiring.service";
 import {
@@ -103,6 +105,8 @@ export interface CmoOverview {
   learning: CmoLearningState;
   /** Cuso's latest research or strategy work, step by step. */
   work: CmoWork | null;
+  /** The research in six groups, with the quick look until the essentials. */
+  research: CmoResearch;
   /** The Project's logo and DESIGN.md, with the research pictures. */
   brandVisual: CmoBrandVisual | null;
   /** Brand research screenshots and pictures, the Project's files. */
@@ -380,6 +384,7 @@ export async function getCmoOverview(
     media,
     learning,
     work,
+    research: cmoResearch(cuso.brandBrain, brandBrain),
     brandVisual,
     brandMedia,
     projectLogo: project.logo,

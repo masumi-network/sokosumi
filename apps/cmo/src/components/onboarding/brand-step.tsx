@@ -2,8 +2,8 @@
 
 import "./onboarding.css";
 import type { CmoBrandMedia, CmoOverview } from "@sokosumi/core-client";
-import { ArrowRight, Loader2 } from "lucide-react";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   BRAND_SECTIONS,
@@ -18,7 +18,6 @@ import { channelLabel } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { joinNames } from "../../lib/names";
-import { CompetitorCards, SiteShowcase } from "../brand-media";
 import {
   Accounts,
   AskForm,
@@ -27,20 +26,17 @@ import {
   firstSentence,
   hostOf,
   Offers,
-  RivalFacts,
   SectionEditor,
   Voice,
 } from "../brand-profile";
-import { BusinessMark } from "../business-mark";
 import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
-import { type Answer, QuestionCard, useAnswers } from "./questions";
-import { Refusal } from "./refusal";
+import { Competitors } from "./market-map";
 import { SidePanel, Tile } from "./tiles";
 
 /** Brand colours the site card shows, at most. */
-const MAX_COLORS = 5;
+const _MAX_COLORS = 5;
 
 /** Insights "What I noticed" lists, at most. */
 const MAX_INSIGHTS = 3;
@@ -148,29 +144,7 @@ export function brandTiles(
       value: `${rivals.length} compared`,
       detail: short(rivals.map((rival) => rival.name).join(", ")),
       section: "competition",
-      body: (
-        <>
-          {media && media.competitors.length > 0 ? (
-            <CompetitorCards brain={brain} media={media} />
-          ) : (
-            <ul className="ob-list">
-              {rivals.map((rival) => (
-                <li key={rival.name}>
-                  {rival.url ? (
-                    <a href={rival.url} target="_blank" rel="noreferrer">
-                      {rival.name}
-                    </a>
-                  ) : (
-                    rival.name
-                  )}
-                  {rival.note ? ` · ${rival.note}` : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-          <RivalFacts competitors={brain.competitors} />
-        </>
-      ),
+      body: <Competitors brain={brain} media={media} />,
     });
   }
   if (brain.channels.length > 0) {
@@ -189,28 +163,25 @@ interface BrandStepProps {
   overview: CmoOverview;
   messages: CusoMessage[];
   onCorrect: (text: string) => Promise<void>;
+  /** Sends a fix to one section; without it a fix goes to the chat. */
+  onFix?: (section: BrandSectionKey, note: string) => Promise<void>;
   onSave: (brain: BrandBrain) => Promise<void>;
-  /** Approves the Brand Brain and asks for the plan; a refusal comes back as text. Without it the step only shows the Brand Brain. */
-  onApprove?: () => Promise<string | null>;
-  /** Without it the open questions are not asked here. */
-  onAnswer?: (
-    questionId: string,
-    answer: Answer,
-    note?: string,
-  ) => Promise<void>;
-  /** Set when the founder opened this step again: leads on to where they were. */
-  ahead?: { label: string; onClick: () => void };
+  /** Renders the heading itself; inside a page with its own H1 it does not. */
+  titled?: boolean;
 }
 
-/** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
+/**
+ * What Cuso learned, as the founder's brand: a promise, six tiles, a side
+ * panel with the sources and a way to fix each part. The app's Brand Brain
+ * page and the brand check's See more show it.
+ */
 export function BrandStep({
   overview,
   messages,
   onCorrect,
+  onFix,
   onSave,
-  onApprove,
-  onAnswer,
-  ahead,
+  titled = true,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -221,9 +192,6 @@ export function BrandStep({
     /** Cuso's last message when it was sent; a new one is his answer. */
     after: string | null;
   } | null>(null);
-  const [approving, startApproving] = useTransition();
-  const [refusal, setRefusal] = useState<string | null>(null);
-  const [asking, setAsking] = useState(false);
   const lastWord = [...messages].reverse().find((message) => message.fromCuso);
   // A correction is applied once Cuso answers after it; until then the
   // founder sees what they asked for and that he is on it.
@@ -244,8 +212,6 @@ export function BrandStep({
     return () => window.clearTimeout(timer);
   }, [sent, answered, idle]);
   const fixing = sent !== null && !answered && !stale;
-  // Right after research Cuso is still wrapping up his turn for a few seconds.
-  const finishing = !fixing && !stale && overview.botStatus === "RUNNING";
 
   async function ask(text: string) {
     setSent({ text, after: lastWord?.id ?? null });
@@ -260,129 +226,44 @@ export function BrandStep({
   const tiles = brandTiles(brain, onSave, overview.brandMedia);
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;
-
-  const [shownQuestions, answer] = useAnswers(
-    brain.questions ?? [],
-    onAnswer ?? (async () => {}),
-  );
-  const questions = onAnswer ? shownQuestions : [];
-  const left = questions.filter((question) => !question.answer);
-  const openQuestion = questions.findIndex((question) => !question.answer);
-  const current = questions[openQuestion];
-  // A no waits for Cuso to rewrite its section; opened again after the plan,
-  // the founder sends him to fix it instead of moving on.
-  const corrections = questions.filter(
-    (question) => question.answer === "no" && question.corrected === false,
-  ).length;
-  const lead = corrections > 0 ? undefined : ahead;
-  const hasShot = overview.brandMedia?.pages.some(
-    (page) => page.device === "desktop" && page.label === "Home",
-  );
   const insights = brain.reveal?.insights ?? [];
-  const busy = approving || fixing || finishing;
 
   return (
     <section className="ob-brand">
       <div className="ob-title-row">
         <CusoAvatar pose="thinking" size={48} />
         <div className="ob-title-copy">
-          <h1 className="ob-h1">Here's {site} as I see it.</h1>
+          {titled ? (
+            <h1 className="ob-h1">Here's {site} as I see it.</h1>
+          ) : null}
           <p className="muted">
             {AGENT_NAME} · tap any tile to see the source or fix it
           </p>
-        </div>
-        <div className="ob-title-action">
-          {lead ? (
-            <button type="button" className="button" onClick={lead.onClick}>
-              Continue to {lead.label}
-              <ArrowRight size={16} aria-hidden="true" />
-            </button>
-          ) : onApprove ? (
-            <button
-              type="button"
-              className="button"
-              disabled={busy}
-              onClick={() =>
-                startApproving(async () => {
-                  try {
-                    setRefusal(await onApprove());
-                  } catch {
-                    setRefusal(
-                      "That didn't go through. Try again in a moment.",
-                    );
-                  }
-                })
-              }
-            >
-              {approving ? (
-                "Starting…"
-              ) : fixing || finishing ? (
-                <>
-                  <Loader2 size={16} className="spin" aria-hidden="true" />
-                  {fixing ? `${AGENT_NAME} is updating` : "Finishing up"}
-                </>
-              ) : (
-                <>
-                  Looks like us
-                  <ArrowRight size={16} aria-hidden="true" />
-                </>
-              )}
-            </button>
-          ) : null}
           {fixing ? (
-            <p className="ob-small muted">
-              Updating your Brand Brain. About half a minute.
+            <p className="ob-small muted" aria-live="polite">
+              <Loader2 size={12} className="spin" aria-hidden="true" /> Updating
+              your Brand Brain.
             </p>
           ) : stale && !answered ? (
             <p className="ob-small muted">
-              That change didn't come through. Ask again, or approve this
-              version.
+              That change didn't come through. Ask again.
             </p>
           ) : null}
         </div>
       </div>
-      {refusal ? (
-        <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
-      ) : null}
 
       <div className="panel ob-brand-panel">
         <div className="ob-brand-main">
-          <div className={hasShot ? "ob-hero-row has-site" : "ob-hero-row"}>
+          <div className="ob-hero-row">
             <PromiseCard brain={brain} site={site} onSave={onSave} />
-            {hasShot ? <SiteCard overview={overview} host={site} /> : null}
           </div>
-
-          {left.length > 0 ? (
-            <div className="card card-focus ob-left">
-              <p>
-                {left.length} {left.length === 1 ? "question" : "questions"}{" "}
-                left
-              </p>
-              <button
-                type="button"
-                className="button button-ghost button-small"
-                onClick={() => setAsking(!asking)}
-              >
-                {asking ? "Hide them" : "Answer them"}
-              </button>
-            </div>
-          ) : null}
-          {asking && current ? (
-            <QuestionCard
-              key={current.id}
-              topic={BRAND_SECTIONS[current.section].title}
-              question={current}
-              index={openQuestion}
-              answered={questions.map((question) => Boolean(question.answer))}
-              onAnswer={(value, note) => answer(current.id, value, note)}
-            />
-          ) : null}
 
           <div className="ob-tiles">
             {tiles.map((tile) => (
               <Tile
                 key={tile.id}
                 label={tile.label}
+                mark={fixMark(tile.section ? profile[tile.section] : undefined)}
                 value={tile.value}
                 detail={tile.detail}
                 source={`Source: ${sourceHost(tileSource(tile, profile, overview.websiteUrl))}`}
@@ -441,7 +322,15 @@ export function BrandStep({
                 inputId="ob-tell"
                 cta="Send"
                 placeholder="Say what to fix"
-                onAsk={ask}
+                {...(shown.section && onFix
+                  ? {
+                      sentNote: overview.strategy
+                        ? `Sent. ${AGENT_NAME} rewrites this part, then fits your plan to it.`
+                        : `Sent. ${AGENT_NAME} rewrites this part.`,
+                      onAsk: (text: string) =>
+                        onFix(shown.section as BrandSectionKey, text),
+                    }
+                  : { onAsk: ask })}
               />
             </div>
             {sent && answered && lastWord ? (
@@ -454,6 +343,12 @@ export function BrandStep({
       </div>
     </section>
   );
+}
+
+/** Whether the founder's fix on a section is in, or Cuso is still on it. */
+function fixMark(section: BrandSection | undefined): string | undefined {
+  if (!section?.fix) return undefined;
+  return section.fix.fixed ? "Fixed by you" : `${AGENT_NAME} is fixing this`;
 }
 
 interface TileDetailProps {
@@ -521,34 +416,6 @@ function TileDetail({ section, body, onSave }: TileDetailProps) {
         </button>
       ) : null}
     </>
-  );
-}
-
-interface SiteCardProps {
-  overview: CmoOverview;
-  host: string;
-}
-
-/** The homepage as visitors see it, with the brand's logo and colours. */
-function SiteCard({ overview, host }: SiteCardProps) {
-  const colors = (overview.brandVisual?.colors ?? []).slice(0, MAX_COLORS);
-  return (
-    <div className="card ob-sitecard">
-      <h2>Your site</h2>
-      <SiteShowcase media={overview.brandMedia} host={host} />
-      <div className="ob-brandmark">
-        <BusinessMark overview={overview} size={36} wide />
-        {colors.length > 0 ? (
-          <ul className="ob-swatches" aria-label="Brand colours">
-            {colors.map((color) => (
-              <li key={color} style={{ background: color }}>
-                <span className="ob-sr">{color}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    </div>
   );
 }
 

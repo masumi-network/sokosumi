@@ -30,8 +30,8 @@ export type EvalCase =
       /** The lane's personal Soko Bot, or its Cuso. */
       bot: "soko-bot" | "cuso";
       scenario: SokoBotScenario;
-      /** What the lane needs before the turn: comments on a published post. */
-      prepare?: "cmo-comments";
+      /** What the lane needs before the turn: comments on a published post, or a plan to change. */
+      prepare?: "cmo-comments" | "cmo-plan";
     })
   | (EvalCaseCommon & CmoEvalCase);
 
@@ -120,7 +120,12 @@ export const EVAL_CASES: readonly EvalCase[] = [
     scenarioCase(scenario, "soko-bot", SOKO_BOT_AREAS[scenario.id] ?? "Other"),
   ),
   ...CMO_EVAL_CASES,
-  ...CMO_SCENARIOS.map((scenario) => scenarioCase(scenario, "cmo", "Chat")),
+  ...CMO_SCENARIOS.map((scenario) => ({
+    ...scenarioCase(scenario, "cmo", "Chat"),
+    ...(scenario.id === "cmo-change-request"
+      ? { prepare: "cmo-plan" as const }
+      : {}),
+  })),
   {
     ...scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies"),
     prepare: "cmo-comments",

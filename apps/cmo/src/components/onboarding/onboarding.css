@@ -1,6 +1,6 @@
 /*
- * First run, four steps. Follows design-system.md: white page, gray panel,
- * outlined cards; a 1px ink line on what you act on, one hard shadow on the
+ * The parts Brief me and the app share (brief.css lays out Brief me).
+ * Follows design-system.md: white page, gray panel, outlined cards; a 1px ink line on what you act on, one hard shadow on the
  * primary action and the focused card, Iris for now. Tokens only; they come
  * from globals.css.
  */
@@ -18,7 +18,7 @@ body:has(.ob) .site-header {
   line-height: 1.125rem;
 }
 
-/* ── Header: logo, four step markers, the site ── */
+/* ── Header: logo and the site ── */
 .ob-top {
   position: sticky;
   top: 0;
@@ -30,59 +30,6 @@ body:has(.ob) .site-header {
   padding: 14px 32px;
   background: var(--background);
   border-bottom: 1px solid var(--border);
-}
-
-.ob-steps {
-  display: flex;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ob-step > span,
-.ob-step > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.ob-step > button {
-  cursor: pointer;
-  transition:
-    background-color 150ms,
-    border-color 150ms;
-}
-
-.ob-step > button:hover {
-  background: var(--surface);
-}
-
-.ob-step > button:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
-}
-
-.ob-step.done > span,
-.ob-step.done > button {
-  border-color: var(--line);
-  color: var(--foreground);
-}
-
-.ob-step.now > span,
-.ob-step.now > button {
-  border-color: var(--line);
-  background: var(--primary);
-  color: var(--primary-foreground);
 }
 
 .ob-who {
@@ -185,20 +132,6 @@ body:has(.ob) .site-header {
   max-width: 1376px;
 }
 
-.ob-main:has(> .ob-launch) {
-  max-width: 760px;
-}
-
-.ob-main:has(> .ob-launch-done) {
-  max-width: 1080px;
-}
-
-.ob-foot {
-  display: flex;
-  justify-content: center;
-  padding: 0 32px 32px;
-}
-
 /* ── Type ── */
 .ob-display {
   font-size: 4.5rem;
@@ -220,13 +153,6 @@ body:has(.ob) .site-header {
   font-weight: 300;
   letter-spacing: -0.01em;
   text-wrap: balance;
-}
-
-.ob-value {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: 300;
-  letter-spacing: -0.005em;
 }
 
 .ob-small {
@@ -266,13 +192,6 @@ body:has(.ob) .site-header {
 }
 
 /* ── Shared pieces ── */
-.ob-says {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 24px;
-}
 
 .ob-textarea {
   width: 100%;
@@ -287,21 +206,9 @@ body:has(.ob) .site-header {
   resize: vertical;
 }
 
-.ob-textarea:focus-visible,
-.ob-note-form input:focus-visible,
-.ob-change-row input:focus-visible,
-.ob-hire-row input:focus-visible {
+.ob-textarea:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
-}
-
-.ob-retry {
-  display: grid;
-  gap: 8px;
-}
-
-.ob-wide {
-  width: 100%;
 }
 
 .ob-checklist {
@@ -372,38 +279,6 @@ body:has(.ob) .site-header {
   }
 }
 
-.ob-found-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ob-found-list li {
-  display: grid;
-  gap: 2px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-}
-
-.ob-found-list b {
-  font-weight: 500;
-}
-
-.ob-found-list .ob-tile-source {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.ob-skeletons {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-}
-
 .ob-skeleton {
   display: grid;
   gap: 8px;
@@ -420,35 +295,6 @@ body:has(.ob) .site-header {
 
 .ob-skeleton span:last-child {
   width: 60%;
-}
-
-.ob-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 24px;
-  margin: 0;
-  padding: 0;
-}
-
-.ob-stats > div {
-  display: grid;
-  align-content: start;
-  gap: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.ob-stats dt {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: 300;
-}
-
-.ob-stats dd {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1rem;
 }
 
 /* The goal: an ink block that inverts again in dark. */
@@ -641,86 +487,6 @@ body:has(.ob) .site-header {
   outline-offset: 2px;
 }
 
-/* Plan wait: the live plan as Cuso saves idea, channels and pillars. */
-.ob-feed {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-panel);
-  background: var(--surface);
-  padding: 6px;
-  width: 100%;
-  text-align: left;
-}
-
-.ob-feed-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 8px 10px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.ob-live {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--muted);
-}
-
-.ob-live.on {
-  border: 1px solid var(--line);
-  background: var(--ok);
-}
-
-.ob-feed-empty {
-  margin: 0;
-  padding: 24px 10px;
-  color: var(--muted);
-}
-
-.ob-feed-list {
-  display: grid;
-  gap: 2px;
-  max-height: 320px;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.ob-feed-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 16px;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: var(--radius-control);
-  background: var(--background);
-  border: 1px solid var(--border);
-}
-
-.ob-feed-item.done .ob-feed-state,
-.ob-feed-item.failed .ob-feed-state {
-  color: var(--foreground);
-}
-
-.ob-feed-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ob-feed-item.wrap .ob-feed-label {
-  white-space: normal;
-}
-
-.ob-feed-state {
-  display: grid;
-  color: var(--muted);
-}
-
 .ob-side-body {
   display: grid;
   gap: 16px;
@@ -734,193 +500,7 @@ body:has(.ob) .site-header {
   line-height: 0.875rem;
 }
 
-/* The assumption chip: panel fill, a yellow "!", Yes and the alternative. */
-.ob-chip {
-  display: grid;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: var(--radius-control);
-  background: var(--surface);
-}
-
-.ob-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-
-.ob-chip-question {
-  flex: 1;
-  min-width: 200px;
-}
-
-.ob-chip-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.ob-chip .ob-note-form {
-  grid-column: 1 / -1;
-}
-
-.ob-note-form {
-  display: flex;
-  gap: 8px;
-}
-
-.ob-note-form input,
-.ob-change-row input,
-.ob-hire-row input {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--card);
-  color: var(--foreground);
-  font: inherit;
-  font-size: 1rem;
-}
-
-.ob-note-form input {
-  min-height: 32px;
-  padding: 0 12px;
-  font-size: 1rem;
-}
-
-/* ── Question card ── */
-.ob-question {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-}
-
-.ob-question-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.ob-question-title {
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.ob-question-count {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.ob-progress {
-  display: flex;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ob-progress li {
-  flex: 1;
-  height: 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-mark);
-}
-
-.ob-progress li.done {
-  border-color: var(--foreground);
-  background: var(--foreground);
-}
-
-.ob-progress li.now {
-  border-color: var(--line);
-  background: var(--primary);
-}
-
-.ob-question-topic {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.ob-question-text {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: 300;
-  letter-spacing: -0.005em;
-}
-
-.ob-answers {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.ob-question-said {
-  color: var(--muted);
-}
-
-.ob-skip {
-  align-self: flex-start;
-}
-
-/* ── Step 1: Site ── */
-.ob-hire {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  gap: 32px;
-  align-items: stretch;
-}
-
-.ob-hire-copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 24px;
-}
-
-.ob-intro {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.ob-hire-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ob-hire-row input {
-  flex: 1 1 220px;
-}
-
-.ob-hire-stage {
-  display: flex;
-}
-
-/* The art is painted on light Iris, so it fills the stage in both themes. */
-.ob-stage {
-  position: relative;
-  flex: 1;
-  /* The canvas Site board's height; phones drop to 320px below. */
-  min-height: 560px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--primary-hover);
-}
-
-.ob-stage-art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 100%;
-}
+/* ── The hero stage's labels (the design-system page) ── */
 
 .ob-tilt {
   position: absolute;
@@ -933,11 +513,6 @@ body:has(.ob) .site-header {
   font-size: 1rem;
   font-weight: 600;
   white-space: nowrap;
-}
-
-.ob-tilt-ink {
-  background: var(--foreground);
-  color: var(--background);
 }
 
 .ob-tilt-a {
@@ -958,82 +533,8 @@ body:has(.ob) .site-header {
   transform: rotate(-2deg);
 }
 
-/*
- * Cuso announces the labels: once the hero plays, each pops out of his
- * megaphone while he shouts (onboarding.tsx aims them). The one entrance
- * longer than 150ms; transform only, and none under reduced motion.
- */
-@media (prefers-reduced-motion: no-preference) {
-  .ob-stage .ob-tilt {
-    animation: ob-announce 500ms cubic-bezier(0.45, 0, 0.3, 1.3) backwards
-      paused;
-  }
+/* ── The Brand Brain (the brand check's See more, the app's page) ── */
 
-  .ob-stage .ob-tilt-a {
-    animation-delay: 2.4s;
-  }
-
-  .ob-stage .ob-tilt-b {
-    animation-delay: 2.9s;
-  }
-
-  .ob-stage .ob-tilt-c {
-    animation-delay: 3.4s;
-  }
-
-  .ob-stage-live .ob-tilt {
-    animation-play-state: running;
-  }
-}
-
-@keyframes ob-announce {
-  from {
-    translate: var(--from-x, 0) var(--from-y, 0);
-    scale: 0;
-  }
-}
-
-/* Reading and asking: the read on the left, the question on the right. */
-.ob-site {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  align-items: start;
-}
-
-.ob-site-left,
-.ob-site-right {
-  display: grid;
-  gap: 12px;
-}
-
-.ob-reading {
-  display: grid;
-  justify-items: start;
-  gap: 16px;
-  padding: 24px;
-}
-
-.ob-reading :is(img, video) {
-  width: 168px;
-  height: 168px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  object-fit: cover;
-}
-
-.ob-found {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-}
-
-.ob-found-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.ob-found h2,
 .ob-noticed h2,
 .ob-promise h2,
 .ob-checks h2,
@@ -1045,7 +546,6 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-/* ── Step 2: Brand ── */
 .ob-title-row {
   display: flex;
   flex-wrap: wrap;
@@ -1059,13 +559,6 @@ body:has(.ob) .site-header {
   flex: 1;
   gap: 4px;
   min-width: 260px;
-}
-
-.ob-title-action {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
 }
 
 .ob-brand-panel {
@@ -1085,15 +578,13 @@ body:has(.ob) .site-header {
 }
 
 .ob-promise,
-.ob-noticed,
-.ob-left {
+.ob-noticed {
   display: grid;
   gap: 12px;
   padding: 20px;
 }
 
-.ob-promise-head,
-.ob-left {
+.ob-promise-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1126,11 +617,7 @@ body:has(.ob) .site-header {
   gap: 2px;
 }
 
-/* ── Step 3: Plan ── */
-/* The waiting card fills its panel, like every other card on the page. */
-.ob-wait {
-  display: grid;
-}
+/* ── The plan, read-only (See more, the app's Strategy page) ── */
 
 .ob-plan-body {
   display: grid;
@@ -1146,41 +633,6 @@ body:has(.ob) .site-header {
   margin-bottom: 12px;
 }
 
-.ob-change {
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  border-color: var(--line);
-}
-
-.ob-change label {
-  font-weight: 500;
-}
-
-.ob-change-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ob-change-row input {
-  flex: 1 1 260px;
-}
-
-.ob-ideas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ob-replanning {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  padding: 32px 16px;
-  text-align: center;
-}
-
 .ob-changed {
   display: grid;
   gap: 8px;
@@ -1191,21 +643,6 @@ body:has(.ob) .site-header {
   display: grid;
   gap: 8px;
   padding: 16px;
-}
-
-.ob-budget {
-  display: grid;
-  gap: 12px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-}
-
-.ob-budget-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
 }
 
 .ob-approved {
@@ -1220,12 +657,6 @@ body:has(.ob) .site-header {
   padding: 10px 12px;
   border-radius: var(--radius-control);
   background: var(--surface);
-}
-
-.ob-pace {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
 }
 
 .ob-tabs {
@@ -1482,98 +913,12 @@ body:has(.ob) .site-header {
   color: var(--muted);
 }
 
-/* ── Step 4: Launch ── */
-.ob-launch {
-  display: grid;
-  justify-items: start;
-  gap: 16px;
-}
-
-.ob-launch .panel {
-  width: 100%;
-}
-
-.ob-celebration-panel {
-  width: 100%;
-}
-
-.ob-networks {
-  display: grid;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ob-network {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-}
-
-.ob-network + .ob-network {
-  border-top: 1px solid var(--border);
-}
-
-.ob-network-text {
-  display: grid;
-  flex: 1;
-  gap: 2px;
-  min-width: 0;
-}
-
-.ob-network-name {
-  font-weight: 500;
-}
-
 .ob-connected {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-size: 0.75rem;
   font-weight: 500;
-}
-
-.ob-later {
-  display: grid;
-  gap: 8px;
-}
-
-.ob-later-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ob-launch > .ob-small {
-  justify-self: center;
-}
-
-.ob-launch-done {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  align-items: center;
-  gap: 32px;
-  justify-items: stretch;
-}
-
-.ob-celebration-copy {
-  display: grid;
-  justify-items: start;
-  gap: 16px;
-}
-
-.ob-celebration {
-  width: 100%;
-  aspect-ratio: 1;
-  border-color: var(--line);
-}
-
-.ob-celebration :is(img, video) {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .ob-summary {
@@ -1602,25 +947,15 @@ body:has(.ob) .site-header {
   text-align: right;
 }
 
-/* ── Small screens: one column, labels only on the current step, sheet ── */
+/* ── Small screens: one column, the side panel as a sheet ── */
 @media (max-width: 768px) {
   .ob-top {
     grid-template-columns: auto 1fr;
     padding: 12px 16px;
   }
 
-  .ob-steps {
-    order: 3;
-    grid-column: 1 / -1;
-    justify-content: space-between;
-  }
-
   .ob-main {
     padding: 16px 16px 48px;
-  }
-
-  .ob-foot {
-    padding: 0 16px 24px;
   }
 
   .ob-display {
@@ -1628,29 +963,10 @@ body:has(.ob) .site-header {
     line-height: 2.75rem;
   }
 
-  .ob-stage {
-    min-height: 320px;
-  }
-
-  /* A screen's own buttons span the width on a phone; the primary leads. */
-  .ob-title-action {
-    width: 100%;
-  }
-
-  .ob-title-action > *,
   .ob-main .button:not(.button-small):not(.button-ghost) {
     flex: 1 1 100%;
     width: 100%;
     justify-content: center;
-  }
-
-  .ob-title-action > .button:not(.button-secondary) {
-    order: -1;
-  }
-
-  /* The action comes first: the question card, or the finished card. */
-  .ob-site-right {
-    order: -1;
   }
 
   .ob-brand-panel:has(.ob-side) {
@@ -1666,10 +982,6 @@ body:has(.ob) .site-header {
     z-index: 30;
     max-height: 70dvh;
     border-radius: var(--radius-card) var(--radius-card) 0 0;
-  }
-
-  .ob-answers {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .ob-goal-facts {
@@ -1723,16 +1035,6 @@ body:has(.ob) .site-header {
   .ob-rules li > svg {
     display: none;
   }
-
-  .ob-network {
-    flex-wrap: wrap;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ob-step > button {
-    transition: none;
-  }
 }
 
 /* The goal is the headline: short, two lines at most; the sentence under it. */
@@ -1763,41 +1065,6 @@ body:has(.ob) .site-header {
 
 .ob-hero-row.has-site {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-}
-
-.ob-sitecard {
-  display: grid;
-  gap: 12px;
-  padding: 20px;
-}
-
-.ob-sitecard h2 {
-  margin: 0;
-  font-size: 1rem;
-  line-height: 1.25rem;
-  font-weight: 600;
-}
-
-.ob-brandmark {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.ob-swatches {
-  display: flex;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ob-swatches li {
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-mark);
 }
 
 /* Side panel: a summary line, findings in hairline rows, one labelled field. */
@@ -1872,6 +1139,318 @@ body:has(.ob) .site-header {
 .ob-more > summary:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+/* ── Typing ── */
+
+/* The caret on text that is typing in; typing is off under reduced motion. */
+.type-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.125em;
+  background: var(--foreground);
+  animation: blink 1s steps(1) infinite;
+}
+
+/* ── Research you can watch: the six groups ── */
+
+/* The research groups: the checklist's boxes, in one row. */
+.ob-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ob-chips li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.ob-chips li.done,
+.ob-chips li.working {
+  color: var(--foreground);
+}
+
+/* A patched entry: its old words struck through above the new ones. */
+.ob-was {
+  display: block;
+  color: var(--muted);
+}
+
+.ob-tile-mark {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Competitors: where the business sits among its rivals, over the rival rows. */
+.ob-map {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.ob-map-plot {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.ob-map-plot::before,
+.ob-map-plot::after {
+  content: "";
+  position: absolute;
+}
+
+.ob-map-plot::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px dashed var(--muted);
+}
+
+.ob-map-plot::after {
+  top: 50%;
+  right: 0;
+  left: 0;
+  border-top: 1px dashed var(--muted);
+}
+
+/* Players sit inside a margin, so a dot at 0 or 100 keeps its label in view. */
+.ob-map-field {
+  position: absolute;
+  inset: 32px 24px;
+}
+
+.ob-map-axis,
+.ob-map-x {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+}
+
+.ob-map-axis {
+  position: absolute;
+  left: 12px;
+  white-space: nowrap;
+}
+
+.ob-map-axis.top {
+  top: 8px;
+}
+
+.ob-map-axis.bottom {
+  bottom: 8px;
+}
+
+.ob-map-x {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* The dot is the label's marker; the label is part of the button. */
+.ob-map-dot {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-mark);
+  /* The plot's own fill, so a centre line never runs through a name. */
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  white-space: nowrap;
+  translate: -6px 50%;
+  animation: ob-map-pop 350ms ease-out both;
+}
+
+.ob-map-dot::before {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+button.ob-map-dot {
+  cursor: pointer;
+}
+
+button.ob-map-dot:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ob-map-dot[aria-pressed="true"] {
+  z-index: 2;
+  font-weight: 700;
+}
+
+.ob-map-dot[aria-pressed="true"]::before {
+  background: var(--foreground);
+}
+
+.ob-map-dot.flip {
+  flex-direction: row-reverse;
+  translate: calc(-100% + 6px) 50%;
+}
+
+.ob-map-dot.you {
+  z-index: 3;
+  font-size: 0.875rem;
+  font-weight: 700;
+  translate: -9px 50%;
+}
+
+.ob-map-dot.you.flip {
+  translate: calc(-100% + 9px) 50%;
+}
+
+.ob-map-dot.you::before {
+  width: 18px;
+  height: 18px;
+  background: var(--primary);
+}
+
+@keyframes ob-map-pop {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+
+.ob-rivals {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The link column stays when a rival has no site, so the rows line up. */
+.ob-rivals li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 4px;
+}
+
+.ob-rival {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ob-rival[aria-pressed="true"] {
+  box-shadow: var(--shadow-hard);
+}
+
+.ob-rival img,
+.ob-rival-blank {
+  flex: 0 0 56px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-mark);
+  background: var(--surface);
+  object-fit: cover;
+  object-position: top;
+}
+
+.ob-rival-blank {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ob-rival-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ob-rival-text b {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ob-rival-text span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.ob-rival-link {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+}
+
+.ob-rival-link:hover {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-map-dot {
+    animation: none;
+  }
+}
+
+/* Your month: what the founder's accounts will look like, under week one. */
+.ob-previews {
+  display: grid;
+  gap: 16px;
+}
+
+.ob-previews-head {
+  display: grid;
+  gap: 4px;
+}
+
+.ob-previews-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ob-previews-head p {
+  margin: 0;
 }
 
 /* ── Cuso picker ── */

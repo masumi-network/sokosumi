@@ -32,6 +32,7 @@ const forProject = Object.fromEntries(
     "finalizeCmoAdsForProject",
     "finalizeCmoMeasurementForProject",
     "finalizeCmoSocialConnectionForProject",
+    "fixCmoBrandSectionForProject",
     "getCmoCalendarEntryTextForProject",
     "initiateCmoSocialConnectionForProject",
     "launchCmoSearchAdForProject",
@@ -67,6 +68,7 @@ vi.mock("next/headers", () => ({
     get: (name: string) =>
       cookieJar.has(name) ? { name, value: cookieJar.get(name) } : undefined,
     set: setCookie,
+    delete: (name: string) => cookieJar.delete(name),
   }),
 }));
 
@@ -109,6 +111,7 @@ const {
   loadState,
   pauseEntry,
   requestStrategy,
+  restartStrategy,
   retryLearning,
   revertUpdate,
   saveBrandBrain,
@@ -119,6 +122,7 @@ const {
   connectSetupChannel,
   finalizeChannel,
   finishAccounts,
+  fixBrandSection,
   loadCusos,
   loadOverview,
   onboard,
@@ -182,6 +186,27 @@ describe("onboard", () => {
       "project-9",
       expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 24 * 365 }),
     );
+  });
+
+  it("forgets the website kept through sign in once reading starts", async () => {
+    cookieJar.set("cmo-website", "https://acme.io/");
+
+    await expect(onboard(EMPTY, form("acme.io"))).rejects.toThrow(
+      "redirect /?project=",
+    );
+
+    expect(cookieJar.has("cmo-website")).toBe(false);
+  });
+
+  it("forgets the kept website even when Core refuses, so a reload cannot hire twice", async () => {
+    cookieJar.set("cmo-website", "https://acme.io/");
+    startCmoOnboarding.mockResolvedValue({ error: { message: "nope" } });
+
+    const state = await onboard(EMPTY, form("acme.io"));
+
+    expect(cookieJar.has("cmo-website")).toBe(false);
+    // The form keeps what was typed, so Start again is one press.
+    expect(state.websiteUrl).toBe("acme.io");
   });
 
   it("keeps what was typed and names the website when it is not one", async () => {
@@ -311,6 +336,24 @@ describe("social accounts", () => {
     );
   });
 
+  it("ends a connect in a popup on the page that tells the opener", async () => {
+    forProject.initiateCmoSocialConnectionForProject.mockResolvedValue({
+      data: { data: { redirectUrl: "https://connect.example/x" } },
+    });
+
+    await connectSetupChannel("project-1", "x", "popup");
+    expect(
+      forProject.initiateCmoSocialConnectionForProject,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          callbackUrl:
+            "https://app.cmo.xyz/connect/callback?from=popup&project=project-1",
+        }),
+      }),
+    );
+  });
+
   it("finishes the connection on Cuso's Project", async () => {
     forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
       data: {},
@@ -393,6 +436,33 @@ describe("addMailingList", () => {
       overview: null,
       error: "No email addresses found in that text",
     });
+  });
+});
+
+describe("brand fixes", () => {
+  it("sends a fix to its section", async () => {
+    forProject.fixCmoBrandSectionForProject?.mockResolvedValue({
+      error: undefined,
+    });
+    expect(await fixBrandSection("project-2", "offer", "From $19")).toBeNull();
+    expect(forProject.fixCmoBrandSectionForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { projectId: "project-2" },
+        body: { section: "offer", note: "From $19" },
+      }),
+    );
+  });
+
+  it("sends a general correction without a section", async () => {
+    forProject.fixCmoBrandSectionForProject?.mockResolvedValue({
+      error: undefined,
+    });
+    expect(
+      await fixBrandSection("project-2", null, "We sell to agencies too"),
+    ).toBeNull();
+    expect(forProject.fixCmoBrandSectionForProject).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { note: "We sell to agencies too" } }),
+    );
   });
 });
 
@@ -480,6 +550,17 @@ describe("start over", () => {
     expect(redirect).toHaveBeenCalledWith("/?cusos=1");
   });
 
+  it("forgets a kept website, so the hiring form does not start on its own", async () => {
+    cookieJar.set("cmo-website", "https://acme.io/");
+    startCmoOverForProject.mockResolvedValue({
+      data: { data: { startedOver: true, projectId: null } },
+    });
+
+    await expect(startOver("project-2")).rejects.toThrow("redirect /");
+
+    expect(cookieJar.has("cmo-website")).toBe(false);
+  });
+
   it("says why when Core refuses", async () => {
     startCmoOverForProject.mockResolvedValue({
       error: { message: "Only an organization owner or admin can archive" },
@@ -531,6 +612,11 @@ describe("the Cuso on screen", () => {
     [
       "requestStrategy",
       () => requestStrategy("project-2", "more"),
+      "requestCmoStrategyForProject",
+    ],
+    [
+      "restartStrategy",
+      () => restartStrategy("project-2"),
       "requestCmoStrategyForProject",
     ],
     [
@@ -667,6 +753,13 @@ describe("the Cuso on screen", () => {
       );
     },
   );
+
+  it("restartStrategy asks Core to replace a slow plan", async () => {
+    await restartStrategy("project-2");
+    expect(forProject.requestCmoStrategyForProject).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { restart: true } }),
+    );
+  });
 
   it("reads and writes the chat of the Cuso on screen", async () => {
     const chatInBeta = {

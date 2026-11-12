@@ -62,8 +62,9 @@ import {
 } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { EmbedTexts } from "@/lib/embeddings";
+import { findRepeats } from "@/lib/repeats";
 import {
-  nearDuplicatePost,
   socialPostFormattingError,
   stackedCaveatsProblem,
   tagOwnLinks,
@@ -648,9 +649,8 @@ async function cmoLinkTags(
 }
 
 /**
- * A Soko Bot's post in a marketing month says its own thing with its own
- * pictures: a month once repeated four messages across 45 posts, and one
- * picture went on three of them.
+ * A Soko Bot's post in a marketing month carries its own pictures (one
+ * picture once went on three posts) and states its facts plainly.
  */
 async function requireOwnInMonth(
   tx: Prisma.TransactionClient,
@@ -663,7 +663,7 @@ async function requireOwnInMonth(
       id: { not: post.id },
       status: { not: "CANCELED" },
     },
-    select: { id: true, text: true, media: true, planning: true },
+    select: { id: true, text: true, media: true },
   });
   for (const item of change.media) {
     const holder = siblings.find((sibling) =>
@@ -679,16 +679,48 @@ async function requireOwnInMonth(
   if (change.text === null) return;
   const caveats = stackedCaveatsProblem(change.text);
   if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
+}
+
+/**
+ * Why a Soko Bot's new text for a post in a marketing month says what
+ * another post of the month says (a month once repeated four messages
+ * across 45 posts), or null, with what comparing cost. It waits on the
+ * embedding model, so callers run it before the save's transaction.
+ */
+export async function ownMessageProblem(
+  input: { postId: string; workspaceId: string; text: string },
+  embed?: EmbedTexts,
+): Promise<{ problem: string | null; costUsd: number }> {
+  const post = await prisma.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true },
+  });
+  if (!post?.marketingStrategyId) return { problem: null, costUsd: 0 };
+  const siblings = await prisma.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      status: { not: "CANCELED" },
+    },
+    select: { text: true, planning: true },
+  });
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
     const planning = sibling.planning as { brief?: unknown; title?: unknown };
     return sibling.text !== planning?.brief && sibling.text !== planning?.title;
   });
-  const repeated = nearDuplicatePost(change.text, written);
-  if (repeated)
-    throw badRequest(
-      `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`,
-    );
+  const { repeats, costUsd } = await findRepeats(
+    [...written.map((sibling) => sibling.text), input.text],
+    "post",
+    embed,
+  );
+  const repeated = written[repeats.at(-1) ?? -1];
+  return {
+    problem: repeated
+      ? `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`
+      : null,
+    costUsd,
+  };
 }
 
 /**

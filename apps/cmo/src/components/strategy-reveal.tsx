@@ -16,11 +16,19 @@ import {
 } from "../lib/channels";
 import { joinNames } from "../lib/names";
 import { ChannelIcon } from "./channel-icon";
-import { planPieces } from "./phone-feeds";
 import { withoutLabel } from "./showcases";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
+
+/** Every piece of the plan, earliest first, skipped ones left out. */
+export function planPieces(calendar: Entry[]): Entry[] {
+  return calendar
+    .filter((entry) => entry.status !== "skipped")
+    .sort((a, b) =>
+      `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`),
+    );
+}
 const EASE = [0.25, 1, 0.5, 1] as const;
 
 type Approach = NonNullable<Strategy["mix"]>[number]["approach"];

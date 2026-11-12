@@ -3,10 +3,12 @@ export {
   CMO_MEASUREMENT_SOURCES,
   CMO_PRODUCTION_MEDIA_PER_RUN,
   CMO_PRODUCTION_TURN_PREFIX,
+  CMO_RESEARCH_GROUPS,
   type CmoMeasurementSource,
   type CmoReportUpdateInput,
   type CmoSaveBrandBrainInput,
   type CmoStrategySave,
+  type CmoStrategySavePart,
   type CmoSystemSchedule,
   cmoBrandQuestionsPatchSchema,
   cmoMayExecute,
@@ -20,6 +22,7 @@ export {
   SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_CMO_SCHEDULES,
 } from "./cmo.js";
+export { CMO_PLAN_HARD_RULES } from "./cmo-plan-rules.js";
 export {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,

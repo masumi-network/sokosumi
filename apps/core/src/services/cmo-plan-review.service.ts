@@ -1,10 +1,10 @@
 import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
+import { CMO_PLAN_HARD_RULES } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
-import {
-  bannedCopyProblems,
-  nearDuplicatePost,
-} from "@/lib/social-post-writing";
+import type { EmbedTexts } from "@/lib/embeddings";
+import { findRepeats } from "@/lib/repeats";
+import { bannedCopyProblems } from "@/lib/social-post-writing";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
 /** What the evaluator said about the main offer; "skipped" when it was not asked. */
@@ -12,20 +12,28 @@ export type CmoPlanOfferVerdict = "ok" | "drift" | "unavailable" | "skipped";
 
 /** One save's review, kept in the save_strategy result for the admin view. */
 export interface CmoPlanReview {
-  /** Which save_strategy call of the turn this was, from 1. */
+  /** Which save of the turn that landed this was, from 1. */
   save: number;
+  /** The save was part calendar: calendar saves have their own reviews. */
+  calendar: boolean;
   mainOffer: CmoPlanOfferVerdict;
   problems: string[];
 }
 
-/** Saves in one planning turn the review answers; past them Cuso finishes as he is. */
+/** Plan saves that land in one planning turn the review answers; past them Cuso finishes as he is. */
 export const CMO_PLAN_REVIEWS_PER_TURN = 4;
+/**
+ * Calendar saves the review answers in one turn: the first calendar and its
+ * fix. Each round resends the whole calendar, a model step of 30 to 90 s; a
+ * begin.is plan took five.
+ */
+export const CMO_CALENDAR_REVIEWS_PER_TURN = 2;
 
-const MIN_PIECES = 16;
+const MIN_PIECES = CMO_PLAN_HARD_RULES.minPieces;
 const MIN_FORMATS = 6;
-const MAX_SUMMARY_WORDS = 20;
+const MAX_SUMMARY_WORDS = CMO_PLAN_HARD_RULES.maxSummaryWords;
 /** How far, in points, the calendar's shares may stray from the mix and the pillars. */
-export const CMO_SHARE_TOLERANCE = 7;
+export const CMO_SHARE_TOLERANCE = CMO_PLAN_HARD_RULES.shareTolerance;
 /** Videos a month: each costs about four pictures, and a plan once asked for eight. */
 export const CMO_MAX_VIDEOS_PER_MONTH = 4;
 
@@ -40,16 +48,44 @@ function isVideoFormat(entry: { channel: string; format: string }): boolean {
 }
 
 /**
- * What a saved plan breaks of the strategy skill's hard rules, in words Cuso
- * can act on. Calendar rules wait until a calendar is saved.
+ * The hard rules a save must keep, or nothing is saved: each problem names
+ * its rule, so Cuso fixes it in the same turn. Calendar rules wait until a
+ * calendar is saved, so the plan part can save first.
+ */
+export function cmoPlanRuleProblems(strategy: MarketingStrategyPlan): string[] {
+  const problems: string[] = [];
+  const rule = (name: string, problem: string) =>
+    problems.push(`Rule "${name}": ${problem}`);
+  const words = strategy.summary.trim().split(/\s+/).length;
+  if (words > MAX_SUMMARY_WORDS)
+    rule(
+      `${MAX_SUMMARY_WORDS}-word summary`,
+      `the summary has ${words} words; keep it to ${MAX_SUMMARY_WORDS}.`,
+    );
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  if (pieces.length === 0) return problems;
+  if (pieces.length < MIN_PIECES)
+    rule(
+      `${MIN_PIECES} pieces`,
+      `the calendar has ${pieces.length} pieces; plan at least ${MIN_PIECES} for four weeks.`,
+    );
+  for (const problem of [
+    ...mixProblems(strategy.mix, pieces),
+    ...pillarProblems(strategy.pillars, pieces),
+  ])
+    rule(`shares within ${CMO_SHARE_TOLERANCE} points`, problem);
+  return problems;
+}
+
+/**
+ * What a saved plan breaks of the strategy skill's other rules, in words Cuso
+ * can act on. The hard rules are kept at save time (cmoPlanRuleProblems).
+ * Calendar rules wait until a calendar is saved.
  */
 export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
   const problems: string[] = [];
-  const words = strategy.summary.trim().split(/\s+/).length;
-  if (words > MAX_SUMMARY_WORDS)
-    problems.push(
-      `summary has ${words} words; keep it to ${MAX_SUMMARY_WORDS}.`,
-    );
   if (strategy.mix.length === 0)
     problems.push("mix is empty; give two to four approaches.");
   problems.push(...pillarListProblems(strategy.pillars));
@@ -103,10 +139,6 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
     (entry) => entry.status !== "skipped",
   );
   if (pieces.length > 0) {
-    if (pieces.length < MIN_PIECES)
-      problems.push(
-        `calendar has ${pieces.length} pieces; plan at least ${MIN_PIECES} for four weeks.`,
-      );
     const formats = new Set(
       pieces.map((entry) => `${entry.channel}/${entry.format}`),
     );
@@ -118,8 +150,6 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       problems.push(
         "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
-    problems.push(...mixProblems(strategy.mix, pieces));
-    problems.push(...pillarProblems(strategy.pillars, pieces));
     const hedged = pieces.filter((entry) =>
       /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
         entry.title,
@@ -159,19 +189,23 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
 
 const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
 
-/** LinkedIn rewards one real story; a month without them read as generic tips. */
+/**
+ * LinkedIn rewards one real story, and proof without one is a vague "a
+ * reviewer liked it"; a month without them read as generic tips.
+ */
 function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
   const missing = pieces.filter(
-    (entry) => entry.channel === "linkedin" && !entry.story,
+    (entry) =>
+      (entry.channel === "linkedin" || entry.approach === "social-proof") &&
+      !entry.story,
   );
   if (missing.length === 0) return [];
   return [
-    `${missing.length} LinkedIn pieces have no story (${missing
-      .slice(0, 3)
+    `${missing.length} LinkedIn or social-proof pieces have no story (${missing
       .map((entry) => entry.id)
       .join(
         ", ",
-      )}); give each the one real customer, launch, number or decision from the Brand Brain it tells.`,
+      )}); give each the one real customer, launch, number or decision from the Brand Brain it tells. A social-proof piece the Brand Brain has no story for takes another approach.`,
   ];
 }
 
@@ -227,12 +261,14 @@ function opening(draft: string): string {
 
 /**
  * The made month's drafts against the production skill's copy rules: no two
- * open the same way, and none uses a banned line. Cuso rewrites what it
- * names; a handful at a time, so one save never floods him.
+ * open the same way, none says what another says, and none uses a banned
+ * line. Cuso rewrites what it names; a handful at a time, so one save never
+ * floods him.
  */
-export function cmoDraftProblems(
+export async function cmoDraftProblems(
   calendar: MarketingStrategyPlan["calendar"],
-): string[] {
+  embed?: EmbedTexts,
+): Promise<{ problems: string[]; costUsd: number }> {
   const drafted = calendar.filter(
     (entry) => entry.draft && entry.status !== "skipped",
   );
@@ -258,24 +294,86 @@ export function cmoDraftProblems(
   problems.push(
     ...repeatedPhrases(drafted, (entry) => entry.draft ?? "", 5, "drafts"),
   );
-  problems.push(...nearDuplicates(drafted));
-  return problems.slice(0, MAX_DRAFT_PROBLEMS);
+  const { repeats, costUsd } = await findRepeats(
+    drafted.map((entry) => entry.draft ?? ""),
+    "post",
+    embed,
+  );
+  repeats.forEach((earlier, index) => {
+    const repeated = earlier === null ? undefined : drafted[earlier];
+    if (repeated)
+      problems.push(
+        `${drafted[index]?.id} says nearly what ${repeated.id} says; give it its own message from its pillar.`,
+      );
+  });
+  return { problems: problems.slice(0, MAX_DRAFT_PROBLEMS), costUsd };
 }
 
-/** Drafts that say nearly what an earlier draft of the month says. */
-function nearDuplicates(drafted: MarketingStrategyPlan["calendar"]): string[] {
-  const written = drafted.map((entry) => ({
-    id: entry.id,
-    text: entry.draft ?? "",
-  }));
-  return written.flatMap((entry, index) => {
-    const repeated = nearDuplicatePost(entry.text, written.slice(0, index));
-    return repeated
-      ? [
-          `${entry.id} says nearly what ${repeated.id} says; give it its own message from its pillar.`,
-        ]
-      : [];
+/** Entries whose texts say one thing, by meaning: each group in calendar order. */
+async function sameMessage(
+  entries: MarketingStrategyPlan["calendar"],
+  text: (entry: MarketingStrategyPlan["calendar"][number]) => string,
+  embed?: EmbedTexts,
+): Promise<{ groups: MarketingStrategyPlan["calendar"][]; costUsd: number }> {
+  const { repeats, costUsd } = await findRepeats(
+    entries.map(text),
+    "title",
+    embed,
+  );
+  // Each text joins the message of the earlier text it repeats.
+  const message = entries.map((_, index) => index);
+  repeats.forEach((earlier, index) => {
+    if (earlier !== null) message[index] = message[earlier] ?? earlier;
   });
+  const groups = new Map<number, MarketingStrategyPlan["calendar"]>();
+  entries.forEach((entry, index) => {
+    const first = message[index] ?? index;
+    groups.set(first, [...(groups.get(first) ?? []), entry]);
+  });
+  return { groups: [...groups.values()], costUsd };
+}
+
+/** Pieces one story may carry ("Use each story in at most two pieces"). */
+const MAX_STORY_PIECES = 2;
+
+/**
+ * Calendar entries whose title says what an earlier title says in other
+ * words ("Pick a CRM by the team that uses it", "Start your CRM choice with
+ * your team"): one piece twice. And stories told in more than two pieces: a
+ * begin.is month told one customer's eSIM four times. Every repeat is named
+ * in one review, a line per message, since each fix round resends the whole
+ * calendar.
+ */
+export async function cmoCalendarRepeats(
+  calendar: MarketingStrategyPlan["calendar"],
+  embed?: EmbedTexts,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const planned = calendar.filter((entry) => entry.status !== "skipped");
+  const [titles, stories] = await Promise.all([
+    sameMessage(planned, (entry) => entry.title, embed),
+    sameMessage(
+      planned.filter((entry) => entry.story?.trim()),
+      (entry) => entry.story ?? "",
+      embed,
+    ),
+  ]);
+  const ids = (entries: MarketingStrategyPlan["calendar"]) =>
+    entries.map((entry) => entry.id).join(", ");
+  const problems = [
+    ...titles.groups
+      .filter((entries) => entries.length > 1)
+      .map(
+        (entries) =>
+          `${ids(entries)} say one thing (${entries.map((entry) => `"${entry.title}"`).join(", ")}); keep ${entries[0]?.id} and give the others their own message from their pillar.`,
+      ),
+    ...stories.groups
+      .filter((entries) => entries.length > MAX_STORY_PIECES)
+      .map(
+        (entries) =>
+          `${ids(entries)} tell one story ("${entries[0]?.story}"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.`,
+      ),
+  ];
+  return { problems, costUsd: titles.costUsd + stories.costUsd };
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */

@@ -3,59 +3,6 @@ import { ArrowUpRight } from "lucide-react";
 import { AGENT_NAME } from "../lib/agent";
 import type { BrandBrain } from "../lib/brand-sections";
 
-type Page = CmoBrandMedia["pages"][number];
-
-/** The homepage as visitors see it: a browser window with the phone in front. */
-export function SiteShowcase({
-  media,
-  host,
-}: {
-  media: CmoBrandMedia | null;
-  host: string;
-}) {
-  const desktop = media?.pages.find(
-    (page) => page.device === "desktop" && page.label === "Home",
-  );
-  const phone = media?.pages.find((page) => page.device === "mobile");
-  if (!desktop) {
-    return media ? null : (
-      <div className="bm-show bm-pending" aria-hidden="true">
-        <Browser host={host} />
-      </div>
-    );
-  }
-  return (
-    <div className="bm-show">
-      <Browser host={host} page={desktop} />
-      {phone ? (
-        <div className="bm-phone">
-          <img src={phone.url} alt={`${host} on a phone`} loading="lazy" />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function Browser({ host, page }: { host: string; page?: Page }) {
-  return (
-    <figure className="bm-browser">
-      <div className="bm-bar">
-        <span className="bm-dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
-        <span className="bm-address">{host}</span>
-      </div>
-      {page ? (
-        <img src={page.url} alt={`${host} homepage`} loading="lazy" />
-      ) : (
-        <div className="bm-shot-empty">Taking screenshots of {host}…</div>
-      )}
-    </figure>
-  );
-}
-
 /**
  * The material research found on the brand's own site: its key pages and the
  * pictures on them (products, screens, people). Cuso uses them in posts; each

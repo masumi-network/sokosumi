@@ -34,6 +34,60 @@ describe("CMO version", () => {
     );
   });
 
+  it("keeps cmo-v1's strategy skill word for word and gives cmo-v2 the plan in pieces", () => {
+    const v1 = composeSystemPrompt(getSokoBotVersion("cmo-v1"));
+    const v2 = composeSystemPrompt(getSokoBotVersion("cmo-v2"));
+    expect(getSokoBotVersion("cmo-v2").id).toBe("cmo-v2");
+    expect(v1).toContain(
+      "Every entry has approach, pillar, date, time (HH:MM, a sensible slot for that channel's audience), channel, format, title, brief",
+    );
+    expect(v1).not.toMatch(/part patch|weeks two to four are titles/);
+    expect(v2).toMatch(/weeks two to four are titles/);
+    expect(v2).toMatch(/with part patch/);
+    expect(v2).toMatch(/refuses a save that breaks a hard rule/);
+    // Titles-only weeks are still the whole month, and a new cadence moves
+    // the calendar, not just its label.
+    expect(v2).toMatch(
+      /still hold every piece the pace and each channel's cadence call for/,
+    );
+    expect(v2).toMatch(/skip or move that channel's extra entries/);
+    expect(v2).toMatch(/never by changing the mix/);
+    expect(v1).not.toMatch(/still hold every piece|never by changing the mix/);
+    // A new audience reaches every part that names the old one; titles make
+    // their own point; a holiday needs a real reason.
+    expect(v2).toMatch(/A change to the audience or focus rewrites every part/);
+    expect(v2).toMatch(/Every title makes its own point/);
+    expect(v2).toMatch(
+      /only when the business has a real reason for that date/,
+    );
+    // Only the strategy skill differs.
+    const one = getSokoBotVersion("cmo-v1");
+    const two = getSokoBotVersion("cmo-v2");
+    expect(two.systemPrompt).toBe(one.systemPrompt);
+    expect(two.capabilities).toEqual(one.capabilities);
+    expect(two.model).toBe(one.model);
+    expect(two.skills).toEqual(
+      one.skills.map((skill) =>
+        skill === "cmo-brand-brain"
+          ? "cmo-brand-brain-groups"
+          : skill === "cmo-strategy"
+            ? "cmo-strategy-patches"
+            : skill,
+      ),
+    );
+  });
+
+  it("asks cmo-v2, not cmo-v1, to link pieces to questions and ground each funnel stage", () => {
+    const v1 = composeSystemPrompt(getSokoBotVersion("cmo-v1"));
+    const v2 = composeSystemPrompt(getSokoBotVersion("cmo-v2"));
+    expect(v2).toMatch(
+      /also has questionIds: the ids of up to three questions/,
+    );
+    expect(v2).toMatch(/Never set entryIds on a question/);
+    expect(v2).toMatch(/basedOn: the one or two Brand Brain sections/);
+    expect(v1).not.toMatch(/questionIds|entryIds|basedOn/);
+  });
+
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
@@ -216,6 +270,70 @@ describe("CMO strategy and rhythms", () => {
     expect(strategy.previews).toEqual([]);
   });
 
+  it("links a piece to up to three plan questions, and grounds a funnel stage in up to two sections", () => {
+    const stage = {
+      stage: "consideration",
+      name: "Compare us",
+      goal: "Buyers weigh us against agencies",
+      metric: "Demo requests",
+    };
+    const plan = (question: object, extra: object, piece: object = {}) =>
+      marketingStrategyPlanSchema.safeParse({
+        month: "2026-10",
+        summary: "Grow LinkedIn reach with founder-led posts.",
+        goals: ["More demo requests"],
+        pillars: ["Product stories"],
+        channels: [],
+        calendar: [
+          {
+            id: "w1-thu",
+            date: "2026-10-08",
+            channel: "linkedin",
+            title: "What Florian Haller told us",
+            format: "post",
+            status: "idea",
+            ...piece,
+          },
+        ],
+        questions: [
+          {
+            id: "q1",
+            question: "Can I quote Florian Haller?",
+            statement: "Florian Haller agreed to be quoted",
+            ...question,
+          },
+        ],
+        funnel: [{ ...stage, ...extra }],
+      });
+
+    const linked = plan(
+      {},
+      { why: "Buyers compare before they book", basedOn: ["buyers"] },
+      { questionIds: ["q1"] },
+    );
+    expect(linked.success && linked.data.calendar[0]?.questionIds).toEqual([
+      "q1",
+    ]);
+    expect(linked.success && linked.data.funnel[0]).toMatchObject({
+      why: "Buyers compare before they book",
+      basedOn: ["buyers"],
+    });
+    // Older plans carry none of them and still read.
+    const older = plan({}, {});
+    expect(
+      older.success && older.data.calendar[0]?.questionIds,
+    ).toBeUndefined();
+    expect(older.success && older.data.funnel[0]?.basedOn).toBeUndefined();
+
+    expect(plan({}, {}, { questionIds: ["a", "b", "c", "d"] }).success).toBe(
+      false,
+    );
+    expect(plan({}, { basedOn: ["buyers", "pricing", "proof"] }).success).toBe(
+      false,
+    );
+    expect(plan({}, { basedOn: ["weather"] }).success).toBe(false);
+  });
+
   it("gives the pillars of an older plan equal shares", () => {
     const pillars = (value: unknown) =>
       marketingStrategyPlanSchema.shape.pillars.parse(value);
@@ -300,6 +418,36 @@ describe("CMO strategy and rhythms", () => {
     });
     expect(planOnly.summary).toBe("Grow.");
     expect("calendar" in planOnly).toBe(false);
+  });
+
+  it("takes from a patch only the entries and fields it really sent", () => {
+    const entry = {
+      id: "a",
+      date: "2026-10-05",
+      channel: "linkedin",
+      title: "One",
+      format: "post",
+      status: "idea",
+    };
+    const patch = parseCmoStrategySave({
+      part: "patch",
+      strategy: {
+        pace: { level: "active", why: "The owner asked.", perWeek: 5 },
+        mix: [],
+        funnel: [],
+        calendar: [entry],
+      },
+    });
+    expect(Object.keys(patch).sort()).toEqual(["calendar", "pace"]);
+    expect(patch.calendar).toHaveLength(1);
+  });
+
+  it("drops a patch field sent without a value, so it never wipes the plan's", () => {
+    const patch = parseCmoStrategySave({
+      part: "patch",
+      strategy: { summary: "Grow.", channels: undefined, calendar: undefined },
+    });
+    expect(Object.keys(patch)).toEqual(["summary"]);
   });
 
   it("proposes only channels Cuso runs that the plan leaves out", () => {

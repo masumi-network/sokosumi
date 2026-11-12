@@ -378,6 +378,33 @@ describe("cmoProductionMessage", () => {
     );
   });
 
+  it("makes the whole month from a short plan: titled weeks like week one", () => {
+    // The first plan writes week one in full and weeks two to four as titles.
+    const calendar = Array.from({ length: 16 }, (_, index) =>
+      entry({
+        id: `e${index + 1}`,
+        date: `2026-11-${String(5 + index).padStart(2, "0")}`,
+        title: `Piece ${index + 1}`,
+        ...(index < 4 ? { brief: `What piece ${index + 1} shows.` } : {}),
+      }),
+    );
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy(calendar),
+      pending: calendar.map((item) => piece(item)),
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+
+    expect(message).toContain("Pieces (16):");
+    for (const item of calendar) expect(message).toContain(`- ${item.id} ·`);
+    expect(message).toContain("brief: What piece 1 shows.");
+    expect(message).toContain(
+      '"Piece 16" · (no brief: write it from its title, approach and pillar)',
+    );
+  });
+
   it("tells a top-up run the month is already made", () => {
     const message = cmoProductionMessage({
       businessName: "Acme",
