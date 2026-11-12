@@ -64,8 +64,6 @@ import {
   countActiveFileFilters,
   createFileCollection,
   decideSuggestion,
-  deleteDriveUploads,
-  deleteFileCollection,
   EMPTY_FILE_FILTERS,
   type FileSearchFilterState,
   type FileStore,
@@ -75,6 +73,7 @@ import {
   fetchWorkspaceLabels,
   updateFileCollection,
 } from "@/lib/utils/file-search.client";
+import * as moves from "./drive-all-files-moves";
 import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
 
 /**
@@ -275,6 +274,8 @@ export function DriveAllFilesPanel({
   const sequenceRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const lastSelectedIndexRef = useRef<number | null>(null);
+  /** Runs the search the list shows now, not the one a late caller saw. */
+  const reloadRef = useRef(async (_keepSelection?: boolean) => {});
 
   /**
    * A stable identity for the active store, used as an effect dependency
@@ -375,7 +376,9 @@ export function DriveAllFilesPanel({
   }, SEARCH_DEBOUNCE_MS);
 
   useEffect(() => {
-    void runSearch({ query: appliedQuery, filters });
+    reloadRef.current = (keepSelection) =>
+      runSearch({ query: appliedQuery, filters, keepSelection });
+    void reloadRef.current();
     // `reloadToken` is a signal, not an input: the same query and filters run
     // again because the files under them changed.
   }, [appliedQuery, filters, runSearch, reloadToken]);
@@ -624,28 +627,26 @@ export function DriveAllFilesPanel({
       ?.trim();
     if (!name || name === collection.name) return;
 
+    // Still busy during the save, so two renames cannot pass each other.
     setCollectionBusy(true);
-    try {
-      await updateFileCollection({ store, collectionId: collection.id, name });
-      await reloadCollections();
-    } catch {
-      toast.error(t("collectionSaveFailed"));
-    } finally {
-      setCollectionBusy(false);
-    }
+    const saved = await moves.rename(store, collection, name, setCollections);
+    // The shelf is in name order, and only Core knows the new place.
+    if (saved) await reloadCollections();
+    else toast.error(t("collectionSaveFailed"));
+    setCollectionBusy(false);
   }
 
   async function removeCollection(collection: FileCollection) {
     setCollectionBusy(true);
-    try {
-      await deleteFileCollection({ store, collectionId: collection.id });
-      if (activeCollectionId === collection.id) setActiveCollectionId(null);
-      await reloadCollections();
-    } catch {
-      toast.error(t("collectionDeleteFailed"));
-    } finally {
-      setCollectionBusy(false);
-    }
+    const removed = await moves.remove(
+      store,
+      collection,
+      collections,
+      setCollections,
+    );
+    if (!removed) toast.error(t("collectionDeleteFailed"));
+    else if (activeCollectionId === collection.id) setActiveCollectionId(null);
+    setCollectionBusy(false);
   }
 
   // The folder is the trail's job, not a filter chip's, so it does not count.
@@ -669,31 +670,30 @@ export function DriveAllFilesPanel({
   async function deleteSelected() {
     const targets = deletableSelection;
     if (targets.length === 0) return;
+    // The list loads again only after a failure, when a search open now or
+    // started during the delete can bring rows back, or when no row is left.
+    const noRowLeft = targets.length === state.items.length;
+    const mustReload = state.loading || noRowLeft;
+    // Not the empty state: files that are not loaded yet can be behind it.
+    if (noRowLeft) setState((current) => ({ ...current, loading: true }));
+    const searchAtStart = sequenceRef.current;
     setBulkBusy(true);
+    setConfirmDeleteOpen(false);
+    setSelectedIds([]);
     try {
-      const failedPathnames = await deleteDriveUploads(
-        targets.flatMap((item) => (item.pathname ? [item.pathname] : [])),
-      );
-      const deleted = targets.length - failedPathnames.length;
-      if (failedPathnames.length === 0) {
+      const failedIds = await moves.deleteUploads(targets, setState);
+      const deleted = targets.length - failedIds.length;
+      if (failedIds.length === 0) {
         toast.success(t("bulkDeleted", { count: deleted }));
-        setSelectedIds([]);
+        if (!mustReload && sequenceRef.current === searchAtStart) return;
       } else {
         toast.warning(
-          t("bulkDeletePartial", {
-            deleted,
-            failed: failedPathnames.length,
-          }),
+          t("bulkDeletePartial", { deleted, failed: failedIds.length }),
         );
         // The failed rows stay selected, so trying again is one click.
-        setSelectedIds(
-          targets
-            .filter((item) => failedPathnames.includes(item.pathname ?? ""))
-            .map((item) => item.id),
-        );
+        setSelectedIds((now) => [...new Set([...now, ...failedIds])]);
       }
-      setConfirmDeleteOpen(false);
-      await runSearch({ query: appliedQuery, filters, keepSelection: true });
+      await reloadRef.current(true);
     } finally {
       setBulkBusy(false);
     }
