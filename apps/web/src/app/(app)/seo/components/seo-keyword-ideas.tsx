@@ -128,7 +128,8 @@ export function SeoKeywordIdeas({
                     )}
                   </TableCell>
                 ) : null}
-                <TableCell className="whitespace-normal">
+                {/* On a phone the reason follows the number on one line: muted, so the two do not read as one phrase. */}
+                <TableCell className="max-sm:text-muted-foreground whitespace-normal">
                   {format.list(
                     SEO_IDEA_SOURCES.filter((source) =>
                       sources.includes(source),

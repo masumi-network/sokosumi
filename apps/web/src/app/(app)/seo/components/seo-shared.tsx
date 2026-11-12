@@ -33,8 +33,10 @@ export const SEO_STACKED_TABLE_CLASS = [
 /**
  * The stacked rows of a list with one button per row (keywords, ideas,
  * competitors). Below the sm breakpoint the name and the button share the first
- * line, and the values follow on one line that wraps, with a dot between them:
- * one line per value made a row 121 to 150 px high. A value that does not name
+ * line, and the values follow on one line that wraps, with a wide gap between
+ * them: one line per value made a row 121 to 150 px high. No dot stands between
+ * two values: when the second value went to the next line, the dot ended the
+ * first line. A value that does not name
  * itself keeps its label before it.
  */
 export const SEO_COMPACT_ROWS_CLASS = [
@@ -50,11 +52,11 @@ export const SEO_COMPACT_ROWS_CLASS = [
   // An empty item of full width ends the first line, so the values start a line of their own.
   // The item is a line too, so the row gap counts twice between the name and the values.
   "max-sm:[&_tbody_tr]:after:order-2 max-sm:[&_tbody_tr]:after:basis-full max-sm:[&_tbody_tr]:after:content-['']",
-  // A value can be several paragraphs (a position per device): the label, the paragraphs and the dot are items of one line.
+  // A value can be several paragraphs (a position per device): the label and the paragraphs are items of one line.
   "max-sm:[&_td:not(:first-child):not(:last-child):not(:empty)]:flex max-sm:[&_td:not(:first-child):not(:last-child):not(:empty)]:flex-wrap max-sm:[&_td:not(:first-child):not(:last-child):not(:empty)]:items-baseline max-sm:[&_td:not(:first-child):not(:last-child):not(:empty)]:gap-x-2",
   "max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
-  // The dot stands after a value that another value follows, so no line starts with one.
-  "max-sm:[&_td:not(:first-child):not(:empty):has(~td:not(:last-child):not(:empty))]:after:text-muted-foreground max-sm:[&_td:not(:first-child):not(:empty):has(~td:not(:last-child):not(:empty))]:after:content-['·']",
+  // The space stands after a value that another value follows, so a value that starts a line has no indent.
+  "max-sm:[&_td:not(:first-child):not(:empty):has(~td:not(:last-child):not(:empty))]:me-2",
 ].join(" ");
 
 /** "US", "en" read as "United States · English" in the reader's language; an unknown code stays as written. */
@@ -401,7 +403,12 @@ export function SeoSource({
   );
 }
 
-/** Facts of one list as one line of running text, with a dot between them: the line breaks where the text does. */
+/**
+ * Facts of one list on one line that wraps, with a dot between them. The dot
+ * stands in the space before the fact after it. A fact that starts a line has
+ * that space outside the start edge of the line, where it is cut off: no line
+ * ends or starts with a dot.
+ */
 export function SeoMetaLine({
   items,
   className,
@@ -415,12 +422,20 @@ export function SeoMetaLine({
   );
   return shown.length ? (
     <p className={cn("text-muted-foreground", className)}>
-      {shown.map(([name, fact], index) => (
-        <Fragment key={name}>
-          {index ? " · " : null}
-          {fact}
-        </Fragment>
-      ))}
+      {/* The cut is 4 px before the text, so a link that starts a line has room for its focus ring. */}
+      <span className="-mx-1 flex flex-wrap items-baseline gap-x-4 overflow-x-clip px-1">
+        {shown.map(([name, fact], index) => (
+          <span key={name} className="relative -ms-4 ps-4">
+            {/* The first fact always starts a line. The dot is a mark for the eye, not a word to read out. */}
+            {index ? (
+              <span aria-hidden className="absolute start-0 w-4 text-center">
+                ·
+              </span>
+            ) : null}
+            {fact}
+          </span>
+        ))}
+      </span>
     </p>
   ) : null;
 }

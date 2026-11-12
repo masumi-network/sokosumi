@@ -117,22 +117,24 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                         : [];
                     })
                   : [];
+              const named = Boolean(page.label && page.label !== page.url);
               return (
                 <li key={page.id} className="space-y-1 px-4 py-3">
+                  {/* The badge shares the first line, so the address under a name has the width of the row. */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-1">
-                      {page.label && page.label !== page.url ? (
-                        <h3 className="text-sm font-medium break-words">
-                          {page.label}
-                        </h3>
-                      ) : null}
+                    {named ? (
+                      <h3 className="min-w-0 text-sm font-medium break-words">
+                        {page.label}
+                      </h3>
+                    ) : (
                       <SeoPageLink url={page.url} />
-                    </div>
+                    )}
                     {/* The badge marks the page that differs: a page added beside the primary page. */}
                     {page.relationship !== "primary" ? (
                       <SeoState>{t("related")}</SeoState>
                     ) : null}
                   </div>
+                  {named ? <SeoPageLink url={page.url} /> : null}
                   {/* With one primary page the badge says what the page is related to, unless its parent is another page. */}
                   {parent &&
                   (primaryPages > 1 || parent.relationship !== "primary") ? (
