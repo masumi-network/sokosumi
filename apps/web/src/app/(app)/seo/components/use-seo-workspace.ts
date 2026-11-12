@@ -32,7 +32,7 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
-import type { SeoAnalysisKind } from "./seo-form-model";
+import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import {
   SEO_DEFAULT_STATISTICS_DAYS,
   type SeoStatisticsProvider,
@@ -322,10 +322,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
         keyword: row.keyword,
         countryCode: row.countryCode,
         languageCode: row.languageCode,
-        pageId:
-          row.version > 0
-            ? row.targetPageId
-            : (data.pages.find((page) => page.url === row.pageUrl)?.id ?? null),
+        pageId: seoKeywordTargetPageId(row, data.pages),
         priority: row.priority,
         saved: !row.saved,
         ...(row.version > 0 ? { expectedVersion: row.version } : {}),

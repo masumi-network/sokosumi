@@ -358,6 +358,80 @@ describe("stored SEO workspace projections", () => {
     });
   });
 
+  it("tracks a keyword a check read from the start and leaves an idea to the reader", () => {
+    const input = fixture();
+    const report = legacyReport();
+    // An idea the check found the page for has a position: it is a read keyword.
+    // A read keyword the save schema refuses (over 200 characters): "Stop tracking" could not be stored.
+    const tooLong = "k".repeat(201);
+    report.keywordOpportunities.list.push(
+      Object.assign({}, report.keywordOpportunities.list[0], {
+        keyword: "ranked idea",
+        position: 7,
+      }),
+      Object.assign({}, report.keywordOpportunities.list[0], {
+        keyword: tooLong,
+        position: 3,
+      }),
+    );
+    input.observations = [
+      observation(
+        input,
+        parsePublicSeoArtifact(report),
+        "2026-11-01T12:00:00Z",
+      ),
+    ];
+    const tracked = () =>
+      Object.fromEntries(
+        projectSeoProjection(input).keywords.map((row) => [
+          row.keyword,
+          [row.saved, row.version],
+        ]),
+      );
+    // No choice is stored (version 0).
+    expect(tracked()).toEqual({
+      example: [true, 0],
+      "ranked term": [true, 0],
+      "ranked idea": [true, 0],
+      [tooLong]: [false, 0],
+      "gap term": [false, 0],
+      opportunity: [false, 0],
+    });
+    // The choice of the reader wins over the start value.
+    input.keywords = [
+      {
+        id: randomUUID(),
+        projectId: input.project.id,
+        auditId: null,
+        countryCode: "US",
+        languageCode: "en",
+        pageId: null,
+        priority: "medium",
+        keyword: "gap term",
+        keywordKey: "gap term",
+        saved: true,
+        version: 1,
+        updatedAt: now,
+      },
+    ];
+    expect(tracked()["gap term"]).toEqual([true, 1]);
+    // A check without a Market tracks nothing: a choice is stored per Market.
+    input.keywords = [];
+    const noMarket = legacyReport();
+    Object.assign(noMarket.header, { market: null });
+    input.observations = [
+      observation(
+        input,
+        parsePublicSeoArtifact(noMarket),
+        "2026-11-01T12:00:00Z",
+      ),
+    ];
+    expect(tracked()).toMatchObject({
+      example: [false, 0],
+      "ranked term": [false, 0],
+    });
+  });
+
   it("keeps the saved keyword target distinct from the page observed in search", () => {
     const { input } = actionFixture();
     const target = {

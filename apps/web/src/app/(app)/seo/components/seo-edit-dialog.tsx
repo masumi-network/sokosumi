@@ -17,6 +17,7 @@ import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_NO_RELATED_PAGE,
   SEO_NO_TARGET_PAGE,
+  seoKeywordTargetPageId,
   seoMainPageId,
 } from "./seo-form-model";
 import { useSeoEdit } from "./use-seo-edit";
@@ -203,7 +204,12 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                   id="seo-edit-target"
                   name="pageId"
                   defaultValue={
-                    editingKeyword?.targetPageId ??
+                    (editingKeyword
+                      ? seoKeywordTargetPageId(
+                          editingKeyword,
+                          form.workspace.pages,
+                        )
+                      : null) ??
                     model.keywordDraft?.pageId ??
                     SEO_NO_TARGET_PAGE
                   }

@@ -148,7 +148,10 @@ describe("Saved keyword edits", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Stop tracking" }));
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Stablecoins" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Stop tracking" }));
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({
         command: {
@@ -161,6 +164,106 @@ describe("Saved keyword edits", () => {
         },
       }),
     );
+  });
+
+  it("gives a keyword tracked from its check one quiet menu, and a stopped keyword the way back", async () => {
+    const user = userEvent.setup();
+    const { workspace, pricingPage } = savedKeywordWorkspace();
+    const [stored] = workspace.keywords.filter(
+      (row) => row.id === "saved-keyword",
+    );
+    workspace.keywords.push(
+      // Tracked from its check: no choice of the reader is stored (version 0).
+      {
+        ...stored,
+        id: "from-check",
+        keyword: "usdc",
+        source: "focus",
+        targetPageId: null,
+        saved: true,
+        version: 0,
+      },
+      // The reader stopped tracking it.
+      {
+        ...stored,
+        id: "stopped",
+        keyword: "dai",
+        source: "focus",
+        saved: false,
+        version: 2,
+      },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    // No button and no state label on a tracked row: the list asks for nothing.
+    expect(screen.queryByRole("button", { name: "Stop tracking" })).toBeNull();
+    // The stopped keyword has the way back as its one action, and no menu.
+    expect(screen.getAllByRole("button", { name: "Track" })).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Actions for dai" }),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Actions for usdc" }));
+    // Edit stores the first choice of the reader: the priority, the target page.
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
+    await user.click(screen.getByRole("menuitem", { name: "Stop tracking" }));
+    const { body } = mutate.mock.calls[0][0].command;
+    // The first choice of the reader: the page the check read, and no version to expect.
+    expect(body).toMatchObject({
+      keyword: "usdc",
+      pageId: pricingPage.id,
+      saved: false,
+    });
+    expect(body).not.toHaveProperty("expectedVersion");
+  });
+
+  it("stores the first choice of a keyword tracked from its check with the page the check read", async () => {
+    const user = userEvent.setup();
+    const { workspace, pricingPage } = savedKeywordWorkspace();
+    const [stored] = workspace.keywords.filter(
+      (row) => row.id === "saved-keyword",
+    );
+    // No choice of the reader is stored (version 0, no target page). The check read the pricing page.
+    workspace.keywords = [
+      {
+        ...stored,
+        id: "from-check",
+        keyword: "usdc",
+        source: "focus",
+        targetPageId: null,
+        version: 0,
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Actions for usdc" }));
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit keyword" });
+    // The same page "Stop tracking" would store: not "No target page".
+    expect(
+      within(dialog).getByRole("combobox", { name: "Target page" }),
+    ).toHaveTextContent("Pricing");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Priority" }),
+    );
+    await user.click(screen.getByRole("option", { name: "High" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    const { body } = mutate.mock.calls[0][0].command;
+    expect(body).toMatchObject({
+      keyword: "usdc",
+      pageId: pricingPage.id,
+      saved: true,
+      priority: "high",
+    });
+    // Nothing is stored yet, so there is no version to expect: Core refuses a version 0.
+    expect(body).not.toHaveProperty("expectedVersion");
   });
 
   it("saves while the session loads without a read the server would refuse", async () => {
@@ -179,7 +282,10 @@ describe("Saved keyword edits", () => {
     mutate.mockResolvedValue({ ok: true, value: null });
     viewer.userId = null;
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Stop tracking" }));
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Stablecoins" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Stop tracking" }));
     await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
     await act(async () => {});
     // A read without the viewer is refused (409); it waits for the session.
@@ -332,7 +438,10 @@ describe("Saved keyword edits", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     const view = renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Stablecoins" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit keyword" });
     expect(within(dialog).getByLabelText("Keyword")).toHaveAttribute(
       "readonly",
@@ -583,9 +692,9 @@ describe("Keywords after a check", () => {
       // The same words as the keyword tile of the Agent tab.
       screen.getByText(/Results read per keyword: 16 to 17$/),
     ).toBeVisible();
-    // What a click on "Track" gives stands once, between the result and the rows with the buttons.
-    // Once per list (Keywords and Ideas); one list shows at a time.
-    expect(screen.getAllByText(/^Track a keyword to see/)).toHaveLength(2);
+    // A keyword of a check is tracked from the start: its list asks for nothing and explains no button.
+    // What a click on "Track" gives stands on the Ideas list alone, where the rows carry the button.
+    expect(screen.getAllByText(/^Track a keyword to see/)).toHaveLength(1);
     // The market shows once, in the result line, not once per row.
     expect(screen.getAllByText(/^United States · English/)).toHaveLength(1);
     expect(
@@ -889,16 +998,39 @@ describe("Search Console queries", () => {
             { date: "2026-10-01", clicks: 1, impressions: 6, position: 3.2 },
           ],
         },
+        // The sync read it and Search Console had no impressions.
+        { keyword: "frax", points: [] },
       ],
     };
-    workspace.keywords.push({
-      ...workspace.keywords[0],
-      id: "later-keyword",
-      keyword: "usdt",
-    });
+    workspace.keywords.push(
+      {
+        ...workspace.keywords[0],
+        id: "later-keyword",
+        keyword: "usdt",
+      },
+      // Tracked from their check, with no choice of the reader: one the sync did not read, one it read empty.
+      {
+        ...workspace.keywords[0],
+        id: "check-keyword",
+        keyword: "dai",
+        version: 0,
+      },
+      {
+        ...workspace.keywords[0],
+        id: "check-keyword-empty",
+        keyword: "frax",
+        version: 0,
+        positionStatus: "ranked",
+        position: 4,
+      },
+    );
     renderWorkspace(workspace);
-    // A keyword the last sync did not read says so.
-    expect(screen.getByText(/^Not read in the last sync\./)).toBeVisible();
+    expect(
+      screen.queryByText("No Search Console impressions in any country"),
+    ).toBeNull();
+    // A keyword the reader chose says that the last sync did not read it. A keyword tracked from its
+    // check says nothing: the same line on every row of a check would be noise.
+    expect(screen.getAllByText(/^Not read in the last sync\./)).toHaveLength(1);
     const toggle = screen.getByRole("button", { name: "Daily positions" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     await user.click(toggle);

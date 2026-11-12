@@ -125,6 +125,10 @@ export interface TrackedKeyword {
   saved: boolean;
   priority: keyof typeof PRIORITY_RANK;
   countryCode: string;
+  /** 0 while the reader stored no choice: a keyword of a check, tracked from the start. */
+  version: number;
+  /** Why the workspace lists the row; "focus" is a keyword a check set out to read. */
+  source: string;
 }
 /** Keywords read together, filtered to searchers in one country. */
 export interface TrackedKeywordGroup {
@@ -142,8 +146,11 @@ function keywordExpression(keywords: string[]): string {
 }
 
 /**
- * Saved keywords, one per normalized key and country at its highest priority,
- * ordered by priority then key. At most 25 fit, in at most 3 countries, each
+ * Saved keywords, one per normalized key and country at its highest priority.
+ * The reader's own choices come first, so the keywords a check tracks from the
+ * start never take their place; then priority, then the keywords a check set out
+ * to read, then key. Only the reader's own keywords are named as left out.
+ * At most 25 fit, in at most 3 countries, each
  * country's set within the filter expression limit. A country Search Console
  * cannot name is left out.
  */
@@ -153,7 +160,13 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
 } {
   const best = new Map<
     string,
-    { key: string; countryCode: string; rank: number }
+    {
+      key: string;
+      countryCode: string;
+      rank: number;
+      own: boolean;
+      focus: boolean;
+    }
   >();
   for (const row of keywords) {
     const key = normalizeSeoQuery(row.keyword);
@@ -161,19 +174,26 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
     const identity = JSON.stringify([row.countryCode, key]);
     const rank = PRIORITY_RANK[row.priority];
     const known = best.get(identity);
-    if (!known || rank < known.rank)
-      best.set(identity, { key, countryCode: row.countryCode, rank });
+    best.set(identity, {
+      key,
+      countryCode: row.countryCode,
+      rank: Math.min(rank, known?.rank ?? rank),
+      own: row.version > 0 || known?.own === true,
+      focus: row.source === "focus" || known?.focus === true,
+    });
   }
   const ordered = [...best.values()].sort(
     (a, b) =>
+      Number(b.own) - Number(a.own) ||
       a.rank - b.rank ||
+      Number(b.focus) - Number(a.focus) ||
       a.key.localeCompare(b.key) ||
       a.countryCode.localeCompare(b.countryCode),
   );
   const groups = new Map<string, string[]>();
   const leftOut: string[] = [];
   let chosen = 0;
-  for (const { key, countryCode } of ordered) {
+  for (const { key, countryCode, own } of ordered) {
     const group = groups.get(countryCode) ?? [];
     if (
       chosen < SEO_KEYWORD_SERIES_MAX_KEYWORDS &&
@@ -185,7 +205,8 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
       group.push(key);
       groups.set(countryCode, group);
       chosen++;
-    } else leftOut.push(`${key} (${countryCode})`);
+      // A note that names keywords the reader never chose would be noise on every sync.
+    } else if (own) leftOut.push(`${key} (${countryCode})`);
   }
   return {
     groups: [...groups].map(([countryCode, chosenKeys]) => ({

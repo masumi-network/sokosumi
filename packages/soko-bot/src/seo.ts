@@ -270,7 +270,7 @@ export const SOKO_BOT_SEO_DESCRIPTIONS = {
   save_seo_scope:
     "Create or update an SEO page group: a named collection of related pages within the selected Sokosumi project. When updating, pass the page group's last-read expectedVersion. Membership changes affect future requests only; historical observations retain their frozen scope.",
   save_seo_keyword:
-    "Save, un-save or prioritize one keyword in its Market, optionally with a target page. This is the owner's choice, separate from observed ranking data. Reuse the last-read expectedVersion when editing.",
+    "Save, un-save or prioritize one keyword in its Market, optionally with a target page. This is the owner's choice, separate from observed ranking data. A keyword with saved true and version 0 is tracked from a check and the owner did not choose it: never add it to a paid analysis unless the owner names it. Omit expectedVersion when the last-read version is 0; reuse the last-read expectedVersion when editing a stored choice.",
   save_seo_competitor:
     "Confirm or dismiss a suggested Competitor, preserving its source evidence. A search result is a candidate, not automatically a business competitor. Do not confirm unresolved redirect URLs. Reuse the last-read expectedVersion when editing.",
   import_seo_audit:

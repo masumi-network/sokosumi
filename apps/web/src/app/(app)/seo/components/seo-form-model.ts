@@ -5,6 +5,19 @@ import type {
 } from "@sokosumi/core-client";
 import type { SeoCommand } from "@/lib/actions/seo/types";
 
+/**
+ * The target page of a keyword's choice. A keyword tracked from its check has no stored choice
+ * (version 0): its first choice takes the page the check read, from the menu and from the edit dialog alike.
+ */
+export function seoKeywordTargetPageId(
+  row: Pick<ProjectSeoKeyword, "version" | "targetPageId" | "pageUrl">,
+  pages: readonly Pick<ProjectSeoWorkspace["pages"][number], "id" | "url">[],
+): string | null {
+  return row.version > 0
+    ? row.targetPageId
+    : (pages.find((page) => page.url === row.pageUrl)?.id ?? null);
+}
+
 export const SEO_COUNTRIES = [
   "US",
   "GB",

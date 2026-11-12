@@ -285,16 +285,17 @@ export function SeoSummaryTiles({
             {/* The issues can come from older checks too; the tests are of this one. The date opens its results:
                 a page row of this check, under the tile, repeats no link to them. */}
             <span>
-              <SeoSource
-                observationId={tests.observationId}
-                workspace={workspace}
-              >
-                {t("agent.lastCheckOn")}{" "}
-                {/* The date moves to the next line as one piece: a year alone on a line reads as a value. */}
-                <span className="whitespace-nowrap">
+              {t("agent.lastCheckOn")}{" "}
+              {/* The date alone is the link: a link that broke into two underlined lines read as two links.
+                  It moves to the next line as one piece: a year alone on a line reads as a value. */}
+              <span className="whitespace-nowrap">
+                <SeoSource
+                  observationId={tests.observationId}
+                  workspace={workspace}
+                >
                   <SeoDate day value={tests.observedAt} />
-                </span>
-              </SeoSource>
+                </SeoSource>
+              </span>
             </span>
           </span>
         </Tile>

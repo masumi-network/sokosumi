@@ -3,10 +3,11 @@ import type {
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
 import { formLines, SEO_COUNTRIES, seoScopePage } from "./seo-form-model";
+import { seoKeywordOwn } from "./seo-keyword-rows-model";
 
 export type SeoAnalysisSavedKeyword = Pick<
   ProjectSeoKeyword,
-  "keyword" | "saved" | "countryCode" | "languageCode"
+  "keyword" | "saved" | "countryCode" | "languageCode" | "version"
 >;
 export interface SeoAnalysisMarketState {
   countryCode: string;
@@ -82,7 +83,9 @@ export function initialSeoAnalysisMarket(
   keywords: readonly SeoAnalysisSavedKeyword[],
   fallback: SeoMarket = { countryCode: "", languageCode: "" },
 ): SeoAnalysisMarketState {
-  const first = keywords.find((row) => row.saved);
+  // Only the reader's own keywords: the keywords a check tracks from the start never fill a check
+  // by themselves, or every check would grow with the last one.
+  const first = keywords.find(seoKeywordOwn);
   return {
     countryCode: first?.countryCode ?? fallback.countryCode,
     languageCode: first?.languageCode ?? fallback.languageCode,
@@ -106,7 +109,7 @@ export function seoAnalysisKeywordDraft(
     keywords
       .filter(
         (row) =>
-          row.saved &&
+          seoKeywordOwn(row) &&
           row.countryCode === state.countryCode &&
           row.languageCode === state.languageCode,
       )

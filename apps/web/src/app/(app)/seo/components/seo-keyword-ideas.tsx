@@ -63,8 +63,8 @@ export function SeoKeywordIdeas({
       title={t("keywords.ideas.title", { count: ideas.length })}
       // The three lists of the switch start with a title of one size.
       strong
-      // The one Track sentence, in the words and under the rule of the Keywords list:
-      // it names the next position check, so it has no place where none can run.
+      // The one Track sentence: it names the next position check, so it has no place where none can run.
+      // The Keywords list has none, because a check tracks its keywords from the start.
       description={
         model.data.availableActions.canEdit &&
         model.data.availableActions.canUsePaidSearchData === true

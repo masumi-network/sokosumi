@@ -20,6 +20,7 @@ import {
   projectSeoWorkspaceSchema,
   type SeoIndexedPage,
   type SeoWorkspaceQuery,
+  saveSeoKeywordSchema,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
 
@@ -69,6 +70,8 @@ interface ProjectionInput {
 }
 /** Severities that name a problem; notes, tests and measurements do not. */
 const SEO_ISSUE_SEVERITIES = new Set(["critical", "major", "minor"]);
+/** Why a check lists a keyword it did not set out to read. The SEO tab shows these as ideas (web: SEO_IDEA_SOURCES). */
+const IDEA_SOURCES = new Set(["gap", "opportunity"]);
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 const priority = z.enum(["low", "medium", "high"]);
 
@@ -352,6 +355,13 @@ export function projectSeoProjection(
         observationId: row.id,
       });
     }
+    // A choice is stored per Market. A check without a Market the save schema takes tracks nothing:
+    // "Stop tracking" on its keywords could never be stored.
+    const trackable =
+      saveSeoKeywordSchema.shape.countryCode.safeParse(data.countryCode)
+        .success &&
+      saveSeoKeywordSchema.shape.languageCode.safeParse(data.languageCode)
+        .success;
     for (const item of data.keywords) {
       if (!selectedUrls.has(normalizeSeoUrl(item.pageUrl))) continue;
       const identity = key(
@@ -378,7 +388,18 @@ export function projectSeoProjection(
         observationId: row.id,
         countryCode: data.countryCode,
         languageCode: data.languageCode,
-        saved: choice?.saved ?? false,
+        // No choice of the reader yet: a keyword the check read, or set out to read, is tracked.
+        // An idea the check only lists waits for the reader.
+        saved:
+          choice?.saved ??
+          (trackable &&
+            // The same holds for a keyword the save schema refuses or stores under another spelling.
+            saveSeoKeywordSchema.shape.keyword.safeParse(item.keyword).data ===
+              item.keyword &&
+            !(
+              IDEA_SOURCES.has(item.source ?? "") &&
+              item.positionStatus === "unavailable"
+            )),
         targetPageId: choice?.pageId ?? null,
         priority: priority.parse(choice?.priority ?? "medium"),
         version: choice?.version ?? 0,

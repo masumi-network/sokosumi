@@ -13,30 +13,35 @@ const KEYWORDS = [
     countryCode: "DE",
     languageCode: "de",
     saved: true,
+    version: 1,
   },
   {
     keyword: "AKKU   ZUSTAND",
     countryCode: "DE",
     languageCode: "de",
     saved: true,
+    version: 1,
   },
   {
     keyword: "battery health",
     countryCode: "US",
     languageCode: "en",
     saved: true,
+    version: 1,
   },
   {
     keyword: "battery charge",
     countryCode: "US",
     languageCode: "en",
     saved: false,
+    version: 1,
   },
   {
     keyword: "Akkuzustand",
     countryCode: "US",
     languageCode: "de",
     saved: true,
+    version: 1,
   },
 ];
 
@@ -53,6 +58,7 @@ describe("SEO analysis keyword market drafts", () => {
         countryCode: "US",
         languageCode: "en",
         saved: true,
+        version: 1,
       },
     ];
     expect(seoAnalysisKeywordDraft(us, saved)).toBe(
@@ -111,6 +117,30 @@ describe("SEO analysis keyword market drafts", () => {
     );
     expect(seoAnalysisKeywordDraft(initial, KEYWORDS)).toBe("Akku Zustand");
     expect(initial.drafts.size).toBe(0);
+  });
+
+  it("leaves the keywords a check tracks from the start out of the next check", () => {
+    // No choice of the reader is stored (version 0).
+    const fromCheck = KEYWORDS.map((row) => ({ ...row, version: 0 }));
+    const initial = initialSeoAnalysisMarket(fromCheck, {
+      countryCode: "US",
+      languageCode: "en",
+    });
+    expect(initial).toMatchObject({ countryCode: "US", languageCode: "en" });
+    expect(seoAnalysisKeywordDraft(initial, fromCheck)).toBe("");
+    // The reader's own keyword of the market still fills the field.
+    expect(
+      seoAnalysisKeywordDraft(initial, [
+        ...fromCheck,
+        {
+          keyword: "battery wear",
+          countryCode: "US",
+          languageCode: "en",
+          saved: true,
+          version: 3,
+        },
+      ]),
+    ).toBe("battery wear");
   });
 
   it("does not infer a market from unsaved measurements", () => {

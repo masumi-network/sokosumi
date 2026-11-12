@@ -1413,7 +1413,7 @@ describe("SEO workspace integration", () => {
       // The date of the tests tile opens the results of the last check, with or without a Timeline.
       expect(
         within(screen.getByTestId("seo-summary-tests")).getByRole("link", {
-          name: /^Last check /,
+          name: /, View results$/,
         }),
       ).toHaveAttribute("href", "/tasks/check-task");
       // A Timeline row links the results of its check.
@@ -1584,13 +1584,19 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-summary-tests")).toHaveTextContent(
       "Last check Jan 4, 2026",
     );
-    // The date of the tile is the one link to the results of its check.
-    const dated = screen.getAllByRole("link", {
-      name: /^Last check Jan 4, 2026/,
-    });
+    // The date of the tile is the one link to the results of its check. The words before it are text:
+    // one underlined piece, also where the line breaks before the date.
+    const dated = within(screen.getByTestId("seo-summary-tests")).getAllByRole(
+      "link",
+    );
     expect(dated).toHaveLength(1);
-    expect(screen.getByTestId("seo-summary-tests")).toContainElement(dated[0]);
+    // The words before the date are no part of the link.
+    expect(dated[0]).toHaveAccessibleName(/^Jan 4, 2026\b.*View results$/);
     expect(dated[0]).toHaveAttribute("href", "/tasks/task-4-15");
+    // A page row of that day repeats no date.
+    expect(
+      screen.queryByRole("link", { name: /^Last check Jan 4, 2026/ }),
+    ).toBeNull();
     // The home page's check is the one the tile dates: its row shows the result as text. An underlined count
     // reads as "show these issues", and the link under it opened the results the tile opens.
     // The guide's check is another one of the same day: its row links the result, and repeats no date.
@@ -4190,8 +4196,7 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace, "?tab=rankings");
     expect(await screen.findByText("Stablecoins")).toBeVisible();
-    // Every row is tracked, paid columns can never fill, and no Analytics data exists.
-    expect(screen.queryByText("Tracked")).toBeNull();
+    // Paid columns can never fill, and no Analytics data exists.
     expect(screen.queryByText(/Search volume/)).toBeNull();
     expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();

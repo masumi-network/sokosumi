@@ -1,15 +1,8 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +19,7 @@ import {
   competitorSites,
   type SeoCompetitorSite,
 } from "./seo-competitors-model";
+import { SeoRowMenu } from "./seo-row-menu";
 import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
@@ -302,50 +296,37 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     <TableCell className="text-right">
                       {/* One menu per row: two buttons made the table wider than its card. No action, no trigger. */}
                       {compare || toggle ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              // Ten bright marks read as ten equal choices: the mark is quiet until the row is in use.
-                              className="text-muted-foreground hover:text-foreground min-w-10"
-                              aria-label={t("competitors.rowActions", {
-                                url: row.url,
-                              })}
+                        <SeoRowMenu
+                          label={t("competitors.rowActions", { url: row.url })}
+                        >
+                          {compare ? (
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                model.openChat(
+                                  t("competitors.compareDraft", {
+                                    url: row.url,
+                                  }),
+                                )
+                              }
                             >
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {compare ? (
-                              <DropdownMenuItem
-                                onSelect={() =>
-                                  model.openChat(
-                                    t("competitors.compareDraft", {
-                                      url: row.url,
-                                    }),
-                                  )
-                                }
-                              >
-                                {t("competitors.compare")}
-                              </DropdownMenuItem>
-                            ) : null}
-                            {toggle ? (
-                              <DropdownMenuItem
-                                disabled={model.pending}
-                                onSelect={() => {
-                                  void model.toggleCompetitor(row);
-                                }}
-                              >
-                                {t(
-                                  row.confirmed
-                                    ? "competitors.unconfirm"
-                                    : "competitors.confirm",
-                                )}
-                              </DropdownMenuItem>
-                            ) : null}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              {t("competitors.compare")}
+                            </DropdownMenuItem>
+                          ) : null}
+                          {toggle ? (
+                            <DropdownMenuItem
+                              disabled={model.pending}
+                              onSelect={() => {
+                                void model.toggleCompetitor(row);
+                              }}
+                            >
+                              {t(
+                                row.confirmed
+                                  ? "competitors.unconfirm"
+                                  : "competitors.confirm",
+                              )}
+                            </DropdownMenuItem>
+                          ) : null}
+                        </SeoRowMenu>
                       ) : null}
                     </TableCell>
                   </TableRow>

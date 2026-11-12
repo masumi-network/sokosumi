@@ -212,9 +212,46 @@ describe("SEO keyword rows", () => {
     ]);
   });
 
-  it("cuts the list after the tracked keywords, so they never push every read out of view", () => {
+  it("cuts the keywords of a check, tracked from the start, and keeps the reader's choices over the cut", () => {
+    const fromCheck = Array.from({ length: 12 }, (_, index) =>
+      row({
+        keyword: `check ${index}`,
+        saved: true,
+        positionStatus: "ranked",
+        position: index + 2,
+      }),
+    );
+    const { checked } = keywordGroups([
+      ...fromCheck,
+      // The reader stopped tracking the best ranked keyword: it goes last.
+      row({
+        keyword: "stopped",
+        version: 2,
+        positionStatus: "ranked",
+        position: 1,
+      }),
+      row({ keyword: "own", source: "saved", saved: true, version: 1 }),
+    ]);
+    expect(checked[0].lead.keyword).toBe("own");
+    expect(checked.at(-1)?.lead.keyword).toBe("stopped");
+    const page = keywordPage(checked, 10);
+    // The stopped keyword stays in view, at the end: its "Track" is the way back.
+    expect(page.rows.map((group) => group.lead.keyword)).toEqual([
+      "own",
+      ...fromCheck.slice(0, 10).map((item) => item.keyword),
+      "stopped",
+    ]);
+    expect(page.more).toBe(2);
+  });
+
+  it("cuts the list after the reader's keywords, so they never push every read out of view", () => {
     const tracked = Array.from({ length: 10 }, (_, index) =>
-      row({ keyword: `tracked ${index}`, source: "saved", saved: true }),
+      row({
+        keyword: `tracked ${index}`,
+        source: "saved",
+        saved: true,
+        version: 1,
+      }),
     );
     const read = Array.from({ length: 12 }, (_, index) =>
       row({

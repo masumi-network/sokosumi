@@ -150,11 +150,27 @@ describe("tracked keyword daily rows", () => {
       saved: true,
       priority: (i === 29 ? "high" : "medium") as "high" | "medium",
       countryCode: "US",
+      version: 1,
+      source: "saved",
     }));
     const { groups, leftOut } = selectTrackedKeywords([
       ...keywords,
-      { keyword: "KW  29", saved: true, priority: "low", countryCode: "US" },
-      { keyword: "unsaved", saved: false, priority: "high", countryCode: "US" },
+      {
+        keyword: "KW  29",
+        saved: true,
+        priority: "low",
+        countryCode: "US",
+        version: 1,
+        source: "saved",
+      },
+      {
+        keyword: "unsaved",
+        saved: false,
+        priority: "high",
+        countryCode: "US",
+        version: 1,
+        source: "saved",
+      },
     ]);
     expect(groups).toHaveLength(1);
     const chosen = groups[0].keywords;
@@ -174,12 +190,51 @@ describe("tracked keyword daily rows", () => {
     expect(note).not.toMatch(/[–—]/);
   });
 
+  it("reads the reader's own keywords before the keywords tracked from a check", () => {
+    // A check tracks its keywords from the start, with no stored choice (version 0).
+    const fromCheck = Array.from({ length: 26 }, (_, i) => ({
+      keyword: `check ${String(i).padStart(2, "0")}`,
+      saved: true,
+      priority: "high" as const,
+      countryCode: "US",
+      version: 0,
+      // The last one is a keyword the check set out to read; the others it found on the way.
+      source: i === 25 ? "focus" : "ranked",
+    }));
+    const own = {
+      keyword: "own",
+      saved: true,
+      priority: "low" as const,
+      countryCode: "US",
+      version: 2,
+      source: "saved",
+    };
+    const { groups, leftOut } = selectTrackedKeywords([
+      ...fromCheck,
+      own,
+      // The same keyword in a second language of the country, there without a choice: the choice holds.
+      { ...own, keyword: "OWN", version: 0, source: "ranked" },
+    ]);
+    // The reader's keyword keeps its place, at the lowest priority and after 26 others.
+    // Then the keyword the check set out to read, then the others by name.
+    expect(groups[0].keywords.slice(0, 3)).toEqual([
+      "own",
+      "check 25",
+      "check 00",
+    ]);
+    expect(groups[0].keywords).toHaveLength(25);
+    // Two keywords of the check did not fit. The reader did not choose them, so no note names them.
+    expect(leftOut).toEqual([]);
+  });
+
   it("reads one keyword per country and at most 3 countries", () => {
     const tracked = (keyword: string, countryCode: string) => ({
       keyword,
       saved: true,
       priority: "medium" as const,
       countryCode,
+      version: 1,
+      source: "saved",
     });
     const { groups, leftOut } = selectTrackedKeywords([
       tracked("battery", "DE"),
@@ -205,6 +260,8 @@ describe("tracked keyword daily rows", () => {
       saved: true,
       priority: "medium" as const,
       countryCode: "US",
+      version: 1,
+      source: "saved",
     }));
     const { groups, leftOut } = selectTrackedKeywords(keywords);
     expect(leftOut.length).toBeGreaterThan(0);

@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,7 @@ import {
   SeoKeywordTrendToggle,
 } from "./seo-keyword-trend";
 import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
+import { SeoRowMenu } from "./seo-row-menu";
 import {
   keywordSuggestions,
   keywordTrend,
@@ -53,7 +55,6 @@ import {
   SeoSection,
   SeoShowMore,
   SeoSource,
-  SeoState,
   seoMarketName,
   seoSectionClass,
 } from "./seo-shared";
@@ -149,8 +150,6 @@ export function SeoKeywords({
   );
   // Without paid search data these columns can never fill, so nothing names them.
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
-  // A state label only helps when the list mixes tracked and found keywords.
-  const mixed = new Set(checked.map((group) => group.lead.saved)).size > 1;
   const manyPages = model.data.scope.pageIds.length > 1;
   // One keyword's daily positions open at a time, in a full-width row under it.
   const [trendOpen, setTrendOpen] = useState<string | null>(null);
@@ -169,7 +168,7 @@ export function SeoKeywords({
   );
   const groupOf = seoStrategyGroupOf(model.data.strategy);
   // A check that found no page in the results is the worst result of the tab. The fixes the agent proposes are
-  // the one next step it can offer, so the card leads to them. "Track" on a row does not answer the result.
+  // the one next step it can offer, so the card leads to them.
   const fixes =
     summary.read > 0 && summary.found === 0
       ? seoOpenFixes(seoOverviewModel(model.data)).length
@@ -259,7 +258,11 @@ export function SeoKeywords({
           {fixes ? (
             <button
               type="button"
-              className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5 text-sm")}
+              // The fill of a row and no outline: the table under it has the one frame of the card.
+              className={cn(
+                SEO_ROW_BUTTON_CLASS,
+                "border-0 px-4 py-2.5 text-sm",
+              )}
               onClick={() => {
                 void model.setFilters({ tab: "actions" });
               }}
@@ -270,14 +273,6 @@ export function SeoKeywords({
               <ChevronRight className="text-muted-foreground size-4 shrink-0" />
             </button>
           ) : null}
-          {paidOff ||
-          !rows.length ||
-          !model.data.availableActions.canEdit ? null : (
-            // Under the result and over the rows that carry the buttons: what a click on "Track" gives.
-            <p className="text-muted-foreground px-2 pb-1 text-sm">
-              {t("keywords.help")}
-            </p>
-          )}
           {rows.length ? (
             <div className={HOLDER_ITEM_CLASS}>
               <Table className={SEO_COMPACT_ROWS_CLASS}>
@@ -323,13 +318,20 @@ export function SeoKeywords({
                       ? undefined
                       : averages?.get(normalizeQuery(row.keyword));
                     // Daily positions are read for tracked keywords only.
-                    const trend = row.saved
+                    const read = row.saved
                       ? keywordTrend(queries, row.keyword, row.countryCode)
                       : ({ state: "absent" } as const);
+                    // A keyword tracked from its check, with no choice of the reader, shows its daily positions and
+                    // no line about a sync: "not read in the last sync" or "no impressions" on every row of a
+                    // check would be noise.
+                    const trend =
+                      read.state !== "measured" && row.version === 0
+                        ? ({ state: "absent" } as const)
+                        : read;
                     const trendId = `seo-keyword-trend-${row.id}`;
                     // Without a rank or a listed average, the position cell says "no impressions"; the line under the keyword would repeat it.
                     const cellSaysEmpty =
-                      trend.state === "empty" &&
+                      read.state === "empty" &&
                       !reads.length &&
                       Boolean(queries) &&
                       !average?.averagePosition;
@@ -381,17 +383,6 @@ export function SeoKeywords({
                                 )
                               }
                             />
-                            {mixed ? (
-                              <div className="mt-1">
-                                <SeoState>
-                                  {t(
-                                    row.saved
-                                      ? "keywords.saved"
-                                      : "keywords.discovered",
-                                  )}
-                                </SeoState>
-                              </div>
-                            ) : null}
                           </TableCell>
                           {shown.market ? (
                             <TableCell data-label={t("keywords.market")}>
@@ -528,31 +519,45 @@ export function SeoKeywords({
                           ) : null}
                           <TableCell>
                             {model.data.availableActions.canEdit ? (
-                              <div className="flex flex-wrap justify-end gap-2 max-sm:flex-col max-sm:items-end">
-                                {row.version > 0 ? (
+                              <div className="flex justify-end">
+                                {row.saved ? (
+                                  // A tracked keyword asks for nothing. One quiet menu holds its rare actions:
+                                  // a button on every row was a question the reader did not have.
+                                  <SeoRowMenu
+                                    label={t("keywords.rowActions", {
+                                      keyword: row.keyword,
+                                    })}
+                                  >
+                                    <DropdownMenuItem
+                                      disabled={model.pending}
+                                      onSelect={() =>
+                                        model.openKeywordEdit(row)
+                                      }
+                                    >
+                                      {t("edit")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      disabled={model.pending}
+                                      onSelect={() => {
+                                        void model.toggleKeyword(row);
+                                      }}
+                                    >
+                                      {t("keywords.unsave")}
+                                    </DropdownMenuItem>
+                                  </SeoRowMenu>
+                                ) : (
+                                  // The reader stopped tracking it: the way back is the one action of the row.
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     disabled={model.pending}
-                                    onClick={() => model.openKeywordEdit(row)}
+                                    onClick={() => {
+                                      void model.toggleKeyword(row);
+                                    }}
                                   >
-                                    {t("edit")}
+                                    {t("keywords.save")}
                                   </Button>
-                                ) : null}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={model.pending}
-                                  onClick={() => {
-                                    void model.toggleKeyword(row);
-                                  }}
-                                >
-                                  {t(
-                                    row.saved
-                                      ? "keywords.unsave"
-                                      : "keywords.save",
-                                  )}
-                                </Button>
+                                )}
                               </div>
                             ) : null}
                           </TableCell>

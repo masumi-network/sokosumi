@@ -8,14 +8,14 @@ export const SEO_FIRST_PAGE_RANK = 10;
 
 const DEVICE_ORDER: Record<string, number> = { mobile: 0, desktop: 1 };
 
-/** Why a check lists a keyword it read no position for. Every other source is a keyword the check set out to read. */
+/** Why a check lists a keyword it read no position for. Every other source is a keyword the check read or set out to read. */
 export const SEO_IDEA_SOURCES = ["gap", "opportunity"] as const;
 
 /** The order of the estimate in the Ideas list. A keyword without an estimate shares the place of "low": not judged is not worse than low. */
 const CONVERSION_ORDER = { high: 0, medium: 1, low: 2 } as const;
 
 export type SeoKeywordGroup = {
-  /** Carries the row actions and the Search Console fallback; all rows of a group share one tracked state. */
+  /** Carries the row actions and the Search Console fallback: the tracked row of the group, else its first read. */
   lead: Keyword;
   /** One position read per device, mobile first; a read without a device stands alone. Empty for an idea. */
   reads: Keyword[];
@@ -29,6 +29,15 @@ export type SeoKeywordGroup = {
   /** The product feature the keyword is about, in the words of the check. */
   feature: string | null;
 };
+
+/**
+ * A keyword the reader chose to track. The keywords of a check are tracked from the start, with no
+ * stored choice (version 0): they are the list, so they lead nothing, the cut applies to them, and
+ * they never fill a paid check by themselves.
+ */
+export const seoKeywordOwn = (row: Pick<Keyword, "saved" | "version">) =>
+  row.saved && row.version > 0;
+const chosen = (group: SeoKeywordGroup) => seoKeywordOwn(group.lead);
 
 /**
  * A check reports one keyword once per device, and again as a competitor gap or an idea.
@@ -87,9 +96,11 @@ export function keywordGroups(rows: Keyword[]) {
       feature: estimated?.feature ?? null,
     };
   });
-  // Tracked keywords first, so a keyword the reader just tracked never hides behind "Show more".
-  // Then the best rank, then the most searched: the keywords nearest to visitors lead.
+  // The reader's own choices first, so a keyword the reader just tracked never hides behind "Show more".
+  // A keyword the reader stopped tracking goes last. Between them the best rank, then the most searched:
+  // the keywords nearest to visitors lead.
   const byReach = (left: SeoKeywordGroup, right: SeoKeywordGroup) =>
+    Number(chosen(right)) - Number(chosen(left)) ||
     Number(right.lead.saved) - Number(left.lead.saved) ||
     (left.best ?? Number.POSITIVE_INFINITY) -
       (right.best ?? Number.POSITIVE_INFINITY) ||
@@ -127,14 +138,16 @@ export function keywordReadFailed(
 }
 
 /**
- * The first rows of the checked list: every tracked keyword, then the first "size" of the others.
- * The cut never hides a tracked keyword, and tracked keywords without a read never push every read out of view.
+ * The first rows of the checked list: every keyword with a stored choice of the reader, then the first "size" of
+ * the others. The cut never hides a choice of the reader: not a tracked keyword, and not a keyword the reader
+ * stopped tracking, whose "Track" is the way back. Choices without a read never push every read out of view.
  */
 export function keywordPage(checked: SeoKeywordGroup[], size: number) {
-  const rest = checked.filter((group) => !group.lead.saved);
+  const decided = (group: SeoKeywordGroup) => group.lead.version > 0;
+  const rest = checked.filter((group) => !decided(group));
   const kept = new Set(rest.slice(0, size));
   return {
-    rows: checked.filter((group) => group.lead.saved || kept.has(group)),
+    rows: checked.filter((group) => decided(group) || kept.has(group)),
     more: Math.max(0, rest.length - size),
   };
 }
