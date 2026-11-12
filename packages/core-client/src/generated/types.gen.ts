@@ -10938,6 +10938,7 @@ export type ProjectSeoStrategy = {
             url: string;
             title: string | null;
             type: string;
+            serps?: number | null;
             state: string | null;
         }>;
     }>;

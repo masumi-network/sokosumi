@@ -41513,6 +41513,13 @@ export const ProjectSeoStrategySchema = {
                                     type: 'string',
                                     maxLength: 100
                                 },
+                                serps: {
+                                    type: [
+                                        'integer',
+                                        'null'
+                                    ],
+                                    minimum: 0
+                                },
                                 state: {
                                     type: [
                                         'string',

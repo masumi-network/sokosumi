@@ -53,6 +53,8 @@ const source = z.object({
               url: z.string(),
               title: z.string().nullable(),
               type: z.string(),
+              // Core kept no count before, so a count it cannot read loses the count, not the target.
+              serps: z.number().int().nonnegative().nullish().catch(undefined),
               state: z.string().optional(),
             }),
           ),
@@ -157,7 +159,16 @@ export function publicSeoStrategy(raw: unknown): {
           expectedEffect: whatToExpect,
           targets: targets.flatMap((target) => {
             const url = webAddress(target.url);
-            return url ? [{ ...target, url, state: target.state ?? null }] : [];
+            return url
+              ? [
+                  {
+                    ...target,
+                    url,
+                    serps: target.serps ?? null,
+                    state: target.state ?? null,
+                  },
+                ]
+              : [];
           }),
         };
       },

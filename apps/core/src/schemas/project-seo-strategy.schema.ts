@@ -58,6 +58,8 @@ export const seoStrategyPayloadSchema = z.object({
               url,
               title: text.nullable(),
               type: label,
+              /** How many of the audit's SERP reads list the page. Older rows have none. */
+              serps: z.number().int().nonnegative().nullable().optional(),
               state: label.nullable(),
             }),
           )
