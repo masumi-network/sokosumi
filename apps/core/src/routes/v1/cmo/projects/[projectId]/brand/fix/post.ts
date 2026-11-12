@@ -17,7 +17,7 @@ const route = createRoute({
   operationId: "fixCmoBrandSectionForProject",
   tags: ["CMO"],
   description:
-    "The owner says one Brand Brain section is wrong. Cuso rewrites only that section in a short turn, and patches the plan it touches. While he is busy the fix waits on its section.",
+    "The owner says one Brand Brain section is wrong, or, with no section, what is true in their own words. Cuso rewrites only that section (or every section the note changes) in a short turn, and patches the plan it touches. While he is busy the fix waits.",
   request: {
     params: cmoProjectParamsSchema,
     body: {

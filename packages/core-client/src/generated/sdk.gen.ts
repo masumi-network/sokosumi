@@ -5694,7 +5694,7 @@ export const applyCmoPlanAnswersForProject = <ThrowOnError extends boolean = fal
 });
 
 /**
- * The owner says one Brand Brain section is wrong. Cuso rewrites only that section in a short turn, and patches the plan it touches. While he is busy the fix waits on its section.
+ * The owner says one Brand Brain section is wrong, or, with no section, what is true in their own words. Cuso rewrites only that section (or every section the note changes) in a short turn, and patches the plan it touches. While he is busy the fix waits.
  */
 export const fixCmoBrandSectionForProject = <ThrowOnError extends boolean = false>(options: Options<FixCmoBrandSectionForProjectData, ThrowOnError>): RequestResult<FixCmoBrandSectionForProjectResponses, FixCmoBrandSectionForProjectErrors, ThrowOnError> => (options.client ?? client).post<FixCmoBrandSectionForProjectResponses, FixCmoBrandSectionForProjectErrors, ThrowOnError>({
     responseTransformer: fixCmoBrandSectionForProjectResponseTransformer,

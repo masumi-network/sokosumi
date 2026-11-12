@@ -130,6 +130,8 @@ export async function saveBrandBrain(
     const essentials = base
       ? {
           ...base,
+          // The owner's general correction is Core's, like a section's fix.
+          fix: before?.fix,
           ...(reveal ? { reveal } : {}),
           ...(marketingToday ? { marketingToday } : {}),
           questions,
@@ -222,44 +224,76 @@ function withCorrections(
 
 /**
  * The owner says one section is wrong: the fix waits on that section until
- * Cuso (or a member) rewrites its answer. A second fix before then adds to
- * the first. The other sections are not touched.
+ * Cuso (or a member) rewrites its answer. Without a section the note is a
+ * general correction on the Brand Brain, for every section it changes. A
+ * second fix before then adds to the first. Nothing else is touched.
  */
 export async function requestBrandBrainFix(
   projectId: string,
-  input: { section: CmoBrandSectionKey; note: string; at?: Date },
+  input: { section?: CmoBrandSectionKey; note: string; at?: Date },
 ): Promise<BrandBrain> {
   return prisma.$transaction(async (tx) => {
     const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
-    const section = brain?.profile[input.section];
-    if (!brain || !section) {
+    const section = input.section && brain?.profile[input.section];
+    if (!brain || (input.section && !section)) {
       throw notFound("That section is not in the Brand Brain");
     }
-    const open = section.fix && !section.fix.fixed ? section.fix.note : null;
+    const held = section ? section.fix : brain.fix;
+    const open = held && !held.fixed ? held.note : null;
     const fix = {
       note: (open ? `${open} ${input.note}` : input.note).slice(0, 400),
       at: (input.at ?? new Date()).toISOString(),
       fixed: false,
     };
-    const fixed = {
-      ...brain,
-      profile: { ...brain.profile, [input.section]: { ...section, fix } },
-    };
+    const fixed =
+      input.section && section
+        ? {
+            ...brain,
+            profile: { ...brain.profile, [input.section]: { ...section, fix } },
+          }
+        : { ...brain, fix };
     await tx.brandBrain.update({ where: { projectId }, data: { body: fixed } });
     return fixed;
   });
 }
 
-/** The sections the owner fixed that Cuso has not rewritten yet. */
+/**
+ * A general correction is done once a fix turn was sent it (up to `sent`,
+ * the newest fix the turn carried): it had its go, so it never runs again.
+ * One asked later stays open.
+ */
+export async function closeBrandBrainFix(
+  projectId: string,
+  sent: number,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
+    const fix = brain?.fix;
+    if (!brain || !fix || fix.fixed || Date.parse(fix.at) > sent) return;
+    await tx.brandBrain.update({
+      where: { projectId },
+      data: { body: { ...brain, fix: { ...fix, fixed: true } } },
+    });
+  });
+}
+
+/**
+ * The fixes Cuso has not made yet: each section the owner fixed and he has
+ * not rewritten, and the general correction (section null) no turn was sent.
+ */
 export function brandBrainOpenFixes(
   brain: BrandBrain,
-): { section: CmoBrandSectionKey; note: string; at: string }[] {
-  return CMO_BRAND_SECTION_KEYS.flatMap((key) => {
-    const fix = brain.profile[key]?.fix;
-    return fix && !fix.fixed
-      ? [{ section: key, note: fix.note, at: fix.at }]
-      : [];
-  });
+): { section: CmoBrandSectionKey | null; note: string; at: string }[] {
+  const general = brain.fix && !brain.fix.fixed ? [brain.fix] : [];
+  return [
+    ...CMO_BRAND_SECTION_KEYS.flatMap((key) => {
+      const fix = brain.profile[key]?.fix;
+      return fix && !fix.fixed
+        ? [{ section: key, note: fix.note, at: fix.at }]
+        : [];
+    }),
+    ...general.map((fix) => ({ section: null, note: fix.note, at: fix.at })),
+  ];
 }
 
 /** The answers whose sections still say what the owner said is not true. */
@@ -489,5 +523,7 @@ export function compactBrandBrain(
   );
   // An answered question already lives in its section as a finding.
   const questions = brain.questions.filter((question) => !question.answer);
-  return { ...brain, profile, questions };
+  // Like a section's fix, the general correction reaches Cuso in its turn.
+  const { fix: _fix, ...rest } = brain;
+  return { ...rest, profile, questions };
 }

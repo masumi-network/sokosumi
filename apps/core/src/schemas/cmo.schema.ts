@@ -145,7 +145,12 @@ export const cmoProjectParamsSchema = z.object({
 
 export const cmoBrandFixRequestSchema = z
   .object({
-    section: z.enum(CMO_BRAND_SECTION_KEYS),
+    section: z
+      .enum(CMO_BRAND_SECTION_KEYS)
+      .optional()
+      .describe(
+        "The section that is wrong. Left out, the note is a general correction: Cuso rewrites every section it changes.",
+      ),
     note: z
       .string()
       .trim()

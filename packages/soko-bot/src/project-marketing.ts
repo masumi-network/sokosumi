@@ -52,6 +52,13 @@ export const cmoBrandFindingSchema = z.object({
 });
 export type CmoBrandFinding = z.infer<typeof cmoBrandFindingSchema>;
 
+const cmoBrandFixSchema = z.object({
+  note: shortText,
+  /** When the owner asked, as an ISO time. */
+  at: z.string().max(40),
+  fixed: z.boolean(),
+});
+
 export const cmoBrandSectionSchema = z.object({
   /** The answer at a glance, at most eight words. */
   headline: z.string().trim().min(1).max(80).optional(),
@@ -66,14 +73,7 @@ export const cmoBrandSectionSchema = z.object({
    * whether the section was rewritten to match it. Set by Core; anything a
    * save sends here is ignored.
    */
-  fix: z
-    .object({
-      note: shortText,
-      /** When the owner asked, as an ISO time. */
-      at: z.string().max(40),
-      fixed: z.boolean(),
-    })
-    .optional(),
+  fix: cmoBrandFixSchema.optional(),
 });
 export type CmoBrandSection = z.infer<typeof cmoBrandSectionSchema>;
 
@@ -220,10 +220,16 @@ export const cmoBrandQuestionSchema = z.object({
 export type CmoBrandQuestion = z.infer<typeof cmoBrandQuestionSchema>;
 
 /** A yes/no check of one plan assumption, answered after the plan; a no changes it. */
-export const cmoPlanQuestionSchema = cmoBrandQuestionSchema.omit({
-  section: true,
-  corrected: true,
-});
+export const cmoPlanQuestionSchema = cmoBrandQuestionSchema
+  .omit({ section: true, corrected: true })
+  .extend({
+    /**
+     * The calendar entries a no would change; empty when the question is
+     * about the plan as a whole. Not checked against the calendar: the plan
+     * part is saved before its pieces.
+     */
+    entryIds: z.array(z.string().trim().min(1).max(64)).max(3).optional(),
+  });
 export type CmoPlanQuestion = z.infer<typeof cmoPlanQuestionSchema>;
 
 const cmoCompanyLinkSchema = z.object({
@@ -311,6 +317,12 @@ export const brandBrainSchema = z.object({
    * asks.
    */
   questions: z.array(cmoBrandQuestionSchema).max(6).default([]),
+  /**
+   * The owner's correction that names no section: Cuso rewrites every
+   * section it changes. fixed turns true once a fix turn was sent it. Set by
+   * Core; anything a save sends here is ignored.
+   */
+  fix: cmoBrandFixSchema.optional(),
 });
 export type BrandBrain = z.infer<typeof brandBrainSchema>;
 
@@ -686,6 +698,14 @@ const strategyPlanShape = {
         target: shortText.optional(),
         /** Who moves this stage; the owner's stages come with improvements. */
         owner: z.enum(CMO_STAGE_OWNERS).optional(),
+        /** Why this stage matters for this buyer. */
+        why: shortText.optional(),
+        /** The Brand Brain sections the stage rests on. */
+        basedOn: z
+          .array(z.enum(CMO_BRAND_SECTION_KEYS))
+          .min(1)
+          .max(2)
+          .optional(),
         /** What each channel does at this stage, and how often. */
         plays: z
           .array(
