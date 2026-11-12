@@ -38,6 +38,7 @@ const db = vi.hoisted(() => {
     chatRoomMessage: model(),
     buzzCommunityMember: model(),
     buzzUndoneEvent: model(),
+    apikey: model(),
     coworker: model(),
     vendor: model(),
     workspace: model(),
@@ -1557,6 +1558,18 @@ describe("linkBuzzApp", () => {
     });
     expect(db.buzzCommunityMember.deleteMany).toHaveBeenCalledWith({
       where: { identityId: "identity-bob" },
+    });
+    // Connecting replaces the key the bridge posts with (one deleted under
+    // API keys would otherwise keep failing).
+    expect(db.apikey.deleteMany).toHaveBeenCalledWith({
+      where: {
+        referenceId: "user-bob",
+        metadata: { contains: '"purpose":"buzz-bridge"' },
+      },
+    });
+    expect(db.buzzIdentity.update).toHaveBeenCalledWith({
+      where: { id: "identity-bob" },
+      data: { encryptedApiKey: null },
     });
   });
 

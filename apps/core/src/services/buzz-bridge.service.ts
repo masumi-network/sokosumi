@@ -961,10 +961,13 @@ export async function linkBuzzApp(userId: string, input: string) {
   if (identity.appPubkey === owner) {
     // Linked already: new invites, so a join that was interrupted resumes.
     const invites = await invitesTo(communities);
-    await prisma.buzzIdentity.update({
-      where: { id: identity.id },
-      data: { appAuthTag: tag as string[] },
-    });
+    await prisma.$transaction([
+      prisma.buzzIdentity.update({
+        where: { id: identity.id },
+        data: { appAuthTag: tag as string[] },
+      }),
+      ...replaceBridgeKey(identity),
+    ]);
     return invites;
   }
   const taken = await prisma.buzzIdentity.findFirst({
@@ -994,6 +997,7 @@ export async function linkBuzzApp(userId: string, input: string) {
     prisma.buzzCommunityMember.deleteMany({
       where: { identityId: identity.id },
     }),
+    ...replaceBridgeKey(identity),
   ]);
   if (linked.count === 0) throw otherLinked;
   await resyncRoomsOf(userId);
@@ -1001,6 +1005,26 @@ export async function linkBuzzApp(userId: string, input: string) {
     console.error("Buzz agent sync failed", error),
   );
   return invites;
+}
+
+/**
+ * Connecting (again) replaces the key the bridge posts with: one the person
+ * deleted under API keys is not kept failing, and is replaced only when they
+ * ask for it by connecting.
+ */
+function replaceBridgeKey(identity: BuzzIdentity) {
+  return [
+    prisma.apikey.deleteMany({
+      where: {
+        referenceId: identity.userId as string,
+        metadata: { contains: '"purpose":"buzz-bridge"' },
+      },
+    }),
+    prisma.buzzIdentity.update({
+      where: { id: identity.id },
+      data: { encryptedApiKey: null },
+    }),
+  ];
 }
 
 /** Forgets the person's own app key; their channels drop it within a minute. */

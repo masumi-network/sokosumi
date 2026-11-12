@@ -394,14 +394,27 @@ async function run() {
       },
     });
     live.set(slot, { key, subscription });
-    subscription.ready.then(
-      () => {
-        reconnect.delete(slot);
-        log(
-          `listening on ${community.relayUrl} as ${reader.readerId === "operator" ? "operator" : "a DM member"} (${reader.channelIds.length} channels, ${missed.length} caught up)`,
-        );
-      },
-      () => {},
+    // Live only once the relay let it in: until then the slot is still
+    // opening, so the community's cursor waits. One that stalls is closed
+    // and tried again.
+    try {
+      await Promise.race([
+        subscription.ready,
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("subscription not ready in 20s")),
+            20_000,
+          ),
+        ),
+      ]);
+    } catch (error) {
+      live.delete(slot);
+      subscription.close();
+      throw error;
+    }
+    reconnect.delete(slot);
+    log(
+      `listening on ${community.relayUrl} as ${reader.readerId === "operator" ? "operator" : "a DM member"} (${reader.channelIds.length} channels, ${missed.length} caught up)`,
     );
   }
 
