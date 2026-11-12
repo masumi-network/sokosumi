@@ -2128,6 +2128,7 @@
         "noStatusMatches": "Ningún estado coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
+        "createError": "No se pudo crear «{name}». Tus datos siguen en el formulario.",
         "back": "Atrás",
         "uploadFile": "Subir archivo",
         "uploadFileError": "No se pudo subir el archivo",
