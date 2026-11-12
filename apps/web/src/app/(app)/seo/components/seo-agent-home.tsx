@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Play } from "lucide-react";
+import { ArrowDown, ChevronDown, ChevronRight, Play } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,8 @@ function SeoAgentPanel({
   // The button that started the check leaves with the setup card. Focus that
   // fell to the page moves to the result; focus anywhere else is left alone.
   const verdict = useRef<HTMLParagraphElement>(null);
+  // On a phone the steps start more than one screen under the headline: an arrow beside the headline leads there.
+  const stepList = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (checkSeen && !checkRunning && document.activeElement === document.body)
       verdict.current?.focus();
@@ -253,11 +255,42 @@ function SeoAgentPanel({
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
       ) : (
-        <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
+        <div
+          className={cn(
+            HOLDER_ITEM_CLASS,
+            "content-rise relative space-y-2 p-4",
+          )}
+        >
+          {primary === -1 ? null : (
+            <Button
+              variant="ghost"
+              size="sm"
+              // In the corner of the card; the headline leaves it room on a phone.
+              className="text-muted-foreground absolute end-1 top-1 min-w-10 sm:hidden"
+              aria-label={t("agent.toSteps")}
+              onClick={() => {
+                stepList.current?.scrollIntoView({
+                  block: "start",
+                  behavior: window.matchMedia(
+                    "(prefers-reduced-motion: reduce)",
+                  ).matches
+                    ? "auto"
+                    : "smooth",
+                });
+                // A screen reader goes on from the steps, not from this button.
+                stepList.current?.focus({ preventScroll: true });
+              }}
+            >
+              <ArrowDown />
+            </Button>
+          )}
           <p
             ref={verdict}
             tabIndex={-1}
-            className="focus-visible:outline-ring rounded-sm text-lg font-semibold text-balance focus-visible:outline-2"
+            className={cn(
+              "focus-visible:outline-ring rounded-sm text-lg font-semibold text-balance focus-visible:outline-2",
+              primary !== -1 && "max-sm:pe-8",
+            )}
             data-testid="seo-agent-verdict"
             // The search numbers alone name no period; the line under them does.
             aria-describedby={trafficLead ? periodId : undefined}
@@ -350,7 +383,13 @@ function SeoAgentPanel({
       )}
       {(setup || banner) && !steps.length ? null : (
         <div className="space-y-2">
-          <h3 className="px-2 text-sm font-semibold">{t("agent.nextTitle")}</h3>
+          <h3
+            ref={stepList}
+            tabIndex={-1}
+            className="focus-visible:outline-ring scroll-mt-20 rounded-sm px-2 text-sm font-semibold focus-visible:outline-2"
+          >
+            {t("agent.nextTitle")}
+          </h3>
           {steps.length ? (
             <ul role="list" className={SEO_ROW_LIST_CLASS}>
               {shown.slice(0, split).map(stepItem)}
@@ -393,17 +432,17 @@ function SeoAgentPanel({
               aria-expanded={showAllSteps}
               onClick={() => setShowAllSteps((open) => !open)}
             >
+              {showAllSteps
+                ? t("overview.showLess")
+                : t("agent.moreSteps", {
+                    count: steps.length - SEO_AGENT_VISIBLE_STEPS,
+                  })}
               <ChevronDown
                 className={cn(
                   "transition-transform duration-150 ease-out motion-reduce:transition-none",
                   showAllSteps && "rotate-180",
                 )}
               />
-              {showAllSteps
-                ? t("overview.showLess")
-                : t("agent.moreSteps", {
-                    count: steps.length - SEO_AGENT_VISIBLE_STEPS,
-                  })}
             </Button>
           ) : null}
         </div>

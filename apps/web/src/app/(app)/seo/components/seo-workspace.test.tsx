@@ -1397,13 +1397,82 @@ describe("SEO workspace integration", () => {
       expect(screen.queryByRole("heading", { name: "Timeline" }) !== null).toBe(
         shown,
       );
-      // The link to the results is on the Timeline row, or the date of a page row when the Timeline is hidden.
+      // The link to the results is on the Timeline row, or on a page row when the Timeline is hidden: the row's
+      // date, or its result alone when the check is of the day the tests tile names.
       expect(
-        screen.getAllByRole("link", { name: /^(View results$|Last check )/ })
-          .length,
+        screen.getAllByRole("link", {
+          name: /^(View results$|Last check |(\d+|no) issues?\b)/,
+        }).length,
       ).toBeGreaterThan(0);
     },
   );
+
+  it("dates a Health page row only when its check is of another day than the tests tile", () => {
+    const workspace = seoTestWorkspace();
+    workspace.findings = [];
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/blog",
+      label: "Blog",
+    });
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/guide",
+      label: "Guide",
+    });
+    const [home, blog, guide] = workspace.pages.map((page) => page.id);
+    workspace.scope.pageIds = [home, blog, guide];
+    // Newest first: the last check read the home page alone; the guide's last check is of the same day, hours
+    // before; the blog's last check is of the day before.
+    workspace.observations = [
+      { day: 4, hour: 15, pageIds: [home] },
+      { day: 4, hour: 9, pageIds: [home, guide] },
+      { day: 3, hour: 12, pageIds: [home, blog, guide] },
+    ].map(({ day, hour, pageIds }) => ({
+      id: `check-${day}-${hour}`,
+      kind: "page_check" as const,
+      source: "seo_coworker" as const,
+      observedAt: new Date(Date.UTC(2026, 0, day, hour)),
+      pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "check-task",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "html-v1",
+      artifactHash: `hash-${day}-${hour}`,
+      issues: 0,
+      coverage: {
+        checked: 2,
+        skipped: 0,
+        failed: 0,
+        modules: { notRequested: 0, failed: 0 },
+      },
+    }));
+    workspace.timeline = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    expect(screen.getByTestId("seo-summary-tests")).toHaveTextContent(
+      "Last check Jan 4, 2026",
+    );
+    // The home page's check is the one the tile dates, and the guide's check is another one of the same day:
+    // both rows link the result and repeat no date.
+    expect(screen.getAllByRole("link", { name: /^no issues\b/ })).toHaveLength(
+      2,
+    );
+    expect(
+      screen.queryByRole("link", { name: /^Last check Jan 4, 2026/ }),
+    ).toBeNull();
+    // The blog's check is older: its row keeps the date, and the date is the link.
+    expect(
+      screen.getByRole("link", { name: /^Last check Jan 3, 2026/ }),
+    ).toBeVisible();
+  });
 
   it.each([false, true])(
     "distinguishes an empty Actions tab when checked evidence exists: %s",
@@ -4252,7 +4321,7 @@ describe("SEO workspace integration", () => {
     expect(run).not.toHaveAttribute("aria-disabled");
     // The position result leads the Agent tab.
     expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
-      "1 of 21 on the first pageResults read per keyword: 20Open rankings",
+      /^1 of 21 on the first pageResults read per keyword: 20$/,
     );
     expect(screen.getByText("The title is missing")).not.toBeVisible();
     await user.click(screen.getByText("Why, and the evidence"));
@@ -4582,7 +4651,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     // "0 of 2" is no "not in Google": the tile names the results the check read.
     expect(await screen.findByTestId("seo-summary-keywords")).toHaveTextContent(
-      "0 of 2Results read per keyword: 20 to 100Open rankings",
+      /^0 of 2Results read per keyword: 20 to 100$/,
     );
     // The line that dates the check shows the day: two reads of one check differ by minutes.
     expect(screen.getAllByText("Jan 3, 2026").length).toBeGreaterThan(0);
@@ -4644,7 +4713,7 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     expect(await screen.findByTestId("seo-summary-keywords")).toHaveTextContent(
-      "0 of 1Open rankings",
+      /^0 of 1$/,
     );
     // The Health tile splits the tests without a result the way the Timeline row of the check does.
     await userEvent.click(screen.getByRole("tab", { name: "Health" }));
@@ -4802,11 +4871,8 @@ describe("SEO workspace integration", () => {
     expect(tests).toHaveTextContent("Last check Jan 3, 2026");
     expect(screen.queryByTestId("seo-summary-keywords")).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Agent" }));
-    await user.click(
-      within(screen.getByTestId("seo-summary-keywords")).getByRole("button", {
-        name: "Open rankings",
-      }),
-    );
+    // The keyword tile is the way to the Rankings tab: one button covers the tile.
+    await user.click(screen.getByRole("button", { name: "Open rankings" }));
     expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
       "aria-selected",
       "true",

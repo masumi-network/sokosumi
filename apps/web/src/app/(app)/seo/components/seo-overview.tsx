@@ -349,7 +349,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         aria-hidden
                         className="text-muted-foreground mt-0.5 size-4 shrink-0 group-open:rotate-180"
                       />
-                      <span className="text-muted-foreground col-span-2 text-xs [overflow-wrap:anywhere] sm:col-span-3">
+                      <span className="text-muted-foreground col-span-2 text-xs [overflow-wrap:anywhere] max-sm:truncate sm:col-span-3">
                         {/* Both devices is the usual case and says nothing; one device does. */}
                         {finding.devices.length === 1
                           ? t(`analysis.${finding.devices[0]}`)
@@ -366,6 +366,26 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       </span>
                     </summary>
                     <div className="text-muted-foreground space-y-3 px-4 pb-3">
+                      {/* The reader opens a row to learn what to do: the fix stands before the proof. */}
+                      {fix ? (
+                        <button
+                          type="button"
+                          className={cn(
+                            SEO_ROW_BUTTON_CLASS,
+                            "text-foreground px-3 py-2",
+                          )}
+                          onClick={() => model.showAction(fix.action)}
+                        >
+                          <span className="min-w-0 flex-1 break-words">
+                            {fix.named
+                              ? t("overview.fixNamed", {
+                                  name: fix.action.title,
+                                })
+                              : t("overview.seeFix")}
+                          </span>
+                          <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+                        </button>
+                      ) : null}
                       <ul className="list-inside list-disc space-y-1">
                         {finding.evidence.map((evidence, index) => (
                           <li
@@ -389,25 +409,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           <SeoDate value={finding.observedAt} />
                         </SeoSource>
                       </div>
-                      {fix ? (
-                        <button
-                          type="button"
-                          className={cn(
-                            SEO_ROW_BUTTON_CLASS,
-                            "text-foreground px-3 py-2",
-                          )}
-                          onClick={() => model.showAction(fix.action)}
-                        >
-                          <span className="min-w-0 flex-1 break-words">
-                            {fix.named
-                              ? t("overview.fixNamed", {
-                                  name: fix.action.title,
-                                })
-                              : t("overview.seeFix")}
-                          </span>
-                          <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-                        </button>
-                      ) : null}
                     </div>
                   </details>
                 </li>
@@ -450,7 +451,8 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
         </SeoSection>
       ) : null}
       <SeoTimeline
-        // With several pages each page card gives its last check: day, issues and results link.
+        // With several pages each page row gives its last check: its issues and the results link, and its day when
+        // the day is not the one the tests tile names.
         // With one page only the Timeline row links the results.
         summarized={data.pages.length > 1}
         workspace={data}

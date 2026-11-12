@@ -1,8 +1,10 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { ChevronRight } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { HOLDER_ITEM_HOVER_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SEO_SEVERITY_MARK_CLASS, SeoDate } from "./seo-shared";
 import { seoSummary } from "./seo-summary-model";
@@ -35,6 +37,7 @@ function Tile({
   bar,
   children,
   testId,
+  open,
 }: {
   label: string;
   value: string;
@@ -43,10 +46,29 @@ function Tile({
   bar?: ReactNode;
   children?: ReactNode;
   testId: string;
+  /** The tile leads to the list behind its number: the whole tile is the press target, with an arrow at its end. */
+  open?: { label: string; onOpen: () => void };
 }) {
   return (
-    <div className="bg-background min-w-0 space-y-1 rounded-lg border p-2.5 sm:space-y-1.5 sm:p-3">
-      <dt className="text-muted-foreground text-xs">{label}</dt>
+    <div
+      className={cn(
+        "bg-background min-w-0 space-y-1 rounded-lg border p-2.5 sm:space-y-1.5 sm:p-3",
+        open && cn("relative", HOLDER_ITEM_HOVER_CLASS),
+      )}
+    >
+      <dt className="text-muted-foreground flex items-start justify-between gap-2 text-xs">
+        {label}
+        {open ? (
+          <button
+            type="button"
+            aria-label={open.label}
+            className="focus-visible:after:ring-ring cursor-pointer outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2"
+            onClick={open.onOpen}
+          >
+            <ChevronRight aria-hidden className="size-4" />
+          </button>
+        ) : null}
+      </dt>
       <dd className="flex flex-col gap-1.5" data-testid={testId}>
         <p className="text-xl leading-tight font-semibold tabular-nums sm:text-2xl">
           {value}
@@ -98,16 +120,8 @@ export function SeoSummaryTiles({
           label={t("summary.issues")}
           value={format.number(issues.total)}
           testId="seo-summary-issues"
-          bar={
-            <Bar
-              parts={issues.parts.map((part) => ({
-                key: part.severity,
-                count: part.count,
-                className: SEO_SEVERITY_MARK_CLASS[part.severity],
-              }))}
-            />
-          }
         >
+          {/* No bar: the two counts under the number and the rows under the tile already show the split. */}
           {issues.parts.length ? (
             <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
               {issues.parts.map((part) => (
@@ -137,6 +151,11 @@ export function SeoSummaryTiles({
           value={format.number(keywords.found)}
           rest={t("summary.of", { total: format.number(keywords.read) })}
           testId="seo-summary-keywords"
+          open={
+            onOpenRankings
+              ? { label: t("agent.openRankings"), onOpen: onOpenRankings }
+              : undefined
+          }
           // No keyword found: an all-grey bar reads as a bar that still loads.
           bar={
             keywords.found ? (
@@ -172,15 +191,6 @@ export function SeoSummaryTiles({
                     keywords.depth.min === keywords.depth.max ? "yes" : "no",
                 })}
               </span>
-            ) : null}
-            {onOpenRankings ? (
-              <button
-                type="button"
-                className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-                onClick={onOpenRankings}
-              >
-                {t("agent.openRankings")}
-              </button>
             ) : null}
           </span>
         </Tile>
@@ -226,7 +236,11 @@ export function SeoSummaryTiles({
             )}
             {/* The issues can come from older checks too; the tests are of this one. */}
             <span>
-              {t("agent.lastCheckOn")} <SeoDate day value={tests.observedAt} />
+              {t("agent.lastCheckOn")}{" "}
+              {/* The date moves to the next line as one piece: a year alone on a line reads as a value. */}
+              <span className="whitespace-nowrap">
+                <SeoDate day value={tests.observedAt} />
+              </span>
             </span>
           </span>
         </Tile>

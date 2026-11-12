@@ -20,6 +20,7 @@ import {
   latestSeoMeasurements,
   seoReportedPeriod,
 } from "./seo-statistics-model";
+import { seoSummary } from "./seo-summary-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Saved selections and page rankings only help when there are pages to compare. */
@@ -35,6 +36,21 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const summaries = seoPageSummaries(model.data);
+  // The day as the reader sees it (the text of a date line), so two checks compare the way their dates read.
+  const seoDay = (value: Date | string | null | undefined) =>
+    value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : null;
+  // The tests tile over this list dates the last check. A row repeats a date only when its check is of another day.
+  const tileDay = seoDay(seoSummary(model.data).tests?.observedAt);
+  // Known issues stay visible; an incomplete check adds its note.
+  const pageResult = (summary: { issues: number; incomplete: boolean }) =>
+    [
+      summary.incomplete && !summary.issues
+        ? t("pages.checkIncomplete")
+        : t("pages.issues", { count: summary.issues }),
+      summary.incomplete && summary.issues ? t("pages.checkIncomplete") : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
   const scopePages = model.data.scope.pageIds;
   const search = latestSeoMeasurements(model.data.metrics).filter(
     (metric) => metric.source === "search_console",
@@ -143,26 +159,29 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                     </p>
                   ) : null}
                   {summary ? (
-                    // The result of the page's last check; its date opens the results.
+                    // The result of the page's last check; its date, or the result alone, opens the results.
                     <p className="text-muted-foreground text-sm">
                       {summary.checkedAt ? (
-                        <>
+                        seoDay(summary.checkedAt) === tileDay ? (
                           <SeoSource
                             observationId={summary.checkId}
                             workspace={model.data}
                           >
-                            {t("pages.lastCheck")}{" "}
-                            <SeoDate day value={summary.checkedAt} />
+                            {pageResult(summary)}
                           </SeoSource>
-                          {" · "}
-                          {/* Known issues stay visible; an incomplete check adds its note. */}
-                          {summary.incomplete && !summary.issues
-                            ? t("pages.checkIncomplete")
-                            : t("pages.issues", { count: summary.issues })}
-                          {summary.incomplete && summary.issues
-                            ? ` · ${t("pages.checkIncomplete")}`
-                            : null}
-                        </>
+                        ) : (
+                          <>
+                            <SeoSource
+                              observationId={summary.checkId}
+                              workspace={model.data}
+                            >
+                              {t("pages.lastCheck")}{" "}
+                              <SeoDate day value={summary.checkedAt} />
+                            </SeoSource>
+                            {" · "}
+                            {pageResult(summary)}
+                          </>
+                        )
                       ) : (
                         // Checks outside the date filter are not in view.
                         t(

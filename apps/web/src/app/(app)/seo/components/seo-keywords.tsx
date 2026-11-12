@@ -325,6 +325,7 @@ export function SeoKeywords({
                                   url={row.pageUrl}
                                   workspace={model.data}
                                   skipPrimary
+                                  oneLine
                                 />
                               ) : null
                             ) : (

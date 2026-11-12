@@ -11066,7 +11066,7 @@
           "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
           "why": "Warum es gelistet ist",
           "source": {
-            "gap": "Wettbewerber ranken dafür",
+            "gap": "Von Wettbewerbern",
             "opportunity": "Verwandte Suche"
           },
           "short": "Ideen",
@@ -11539,6 +11539,7 @@
         "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
         "openTraffic": "Zugriffe öffnen",
         "openRankings": "Rankings öffnen",
+        "toSteps": "Zum ersten Schritt",
         "draftFix": "Agent um Korrektur bitten",
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# weitere Korrektur} other {# weitere Korrekturen}}} other {{count, plural, one {# weitere Aktion} other {# weitere Aktionen}}}}",

@@ -61,6 +61,8 @@ export function SeoKeywordIdeas({
   return (
     <SeoSection
       title={t("keywords.ideas.title", { count: ideas.length })}
+      // The three lists of the switch start with a title of one size.
+      strong
       // The one Track sentence, in the words and under the rule of the Keywords list:
       // it names the next position check, so it has no place where none can run.
       description={
@@ -112,6 +114,7 @@ export function SeoKeywordIdeas({
                       url={lead.pageUrl}
                       workspace={model.data}
                       skipPrimary
+                      oneLine
                     />
                   ) : null}
                 </TableCell>
@@ -140,8 +143,8 @@ export function SeoKeywordIdeas({
                     feature={feature}
                   />
                 ) : null}
-                {/* On a phone the reason follows the number or the estimate on one line: muted, so the two do not read as one phrase. */}
-                <TableCell className="max-sm:text-muted-foreground whitespace-normal">
+                {/* The reason is quieter than the keyword and its values. On a phone it follows the number or the estimate on one line. */}
+                <TableCell className="text-muted-foreground whitespace-normal">
                   {format.list(
                     SEO_IDEA_SOURCES.filter((source) =>
                       sources.includes(source),

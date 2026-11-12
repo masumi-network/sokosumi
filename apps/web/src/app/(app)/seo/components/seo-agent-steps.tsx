@@ -175,7 +175,8 @@ export function SeoStepRow({
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full",
           banner
-            ? "bg-semantic-warning text-semantic-warning-foreground"
+            ? // On a phone the title and the button need the width of the mark to share one row.
+              "bg-semantic-warning text-semantic-warning-foreground max-sm:hidden"
             : "bg-quinary text-muted-foreground",
         )}
       >
@@ -184,7 +185,12 @@ export function SeoStepRow({
       {/* A control that wraps starts on the text edge, not under the icon. */}
       {/* A control with a note or an error has its own line: beside the text it would squeeze the text. */}
       <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="max-w-prose min-w-0 flex-1 basis-48 space-y-0.5">
+        <div
+          className={cn(
+            "max-w-prose min-w-0 flex-1 basis-48 space-y-0.5",
+            banner && "max-sm:basis-24",
+          )}
+        >
           {banner ? <h3 className="text-sm font-semibold">{banner}</h3> : null}
           {/* The text and the error share one cell, so the row keeps the height of the taller one. */}
           <div className="grid">

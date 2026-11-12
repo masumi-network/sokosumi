@@ -49,6 +49,10 @@ export const SEO_COMPACT_ROWS_CLASS = [
   // A name of one line stands at the middle of its button, not over an empty line.
   "max-sm:[&_td:first-child:not(:last-child)]:self-center",
   "max-sm:[&_td:last-child:not(:first-child)]:order-2 max-sm:[&_td:last-child:not(:first-child)]:shrink-0",
+  // The button is 40 px high for a finger and the name line is 20 px: the button hangs 8 px over the line at
+  // both sides, so no empty band stands between the name and its values (a row was 89 px, it is 73 px). At 8 px
+  // the focus ring of the first row's button ends at the edge of the list, which clips.
+  "max-sm:[&_td:last-child:not(:first-child)]:-my-2",
   // An empty item of full width ends the first line, so the values start a line of their own.
   // The item is a line too, so the row gap counts twice between the name and the values.
   "max-sm:[&_tbody_tr]:after:order-2 max-sm:[&_tbody_tr]:after:basis-full max-sm:[&_tbody_tr]:after:content-['']",
@@ -183,13 +187,13 @@ export function SeoShowMore({
         aria-expanded={expanded}
         onClick={onToggle}
       >
+        {expanded ? t("overview.showLess") : more}
         <ChevronDown
           className={cn(
             "transition-transform duration-150 ease-out motion-reduce:transition-none",
             expanded && "rotate-180",
           )}
         />
-        {expanded ? t("overview.showLess") : more}
       </Button>
     </div>
   );
@@ -464,10 +468,10 @@ export function SeoBarNumber({
       {max > 0 ? (
         <span
           aria-hidden
-          className="bg-tertiary block h-1 w-16 rounded-full max-sm:hidden"
+          className="bg-quaternary block h-1 w-16 rounded-full max-sm:hidden"
         >
           <span
-            className="bg-foreground block h-1 rounded-full"
+            className="bg-chart-5 block h-1 rounded-full"
             style={{
               width: `${value > 0 ? Math.max(SEO_BAR_MIN_PERCENT, Math.round((value / max) * 100)) : 0}%`,
             }}
@@ -483,11 +487,14 @@ export function SeoPageText({
   url,
   workspace,
   skipPrimary = false,
+  oneLine = false,
 }: {
   url: string;
   workspace: ProjectSeoWorkspace;
   /** A list where most rows belong to the one primary page names only the other pages. */
   skipPrimary?: boolean;
+  /** On a phone the path is one line, cut with dots. Only for a row that its name tells apart: the cut hides the end of the path. */
+  oneLine?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const primary = workspace.pages.filter(
@@ -497,7 +504,12 @@ export function SeoPageText({
     return null;
   }
   return (
-    <bdi className="text-muted-foreground block text-xs [overflow-wrap:anywhere]">
+    <bdi
+      className={cn(
+        "text-muted-foreground block text-xs [overflow-wrap:anywhere]",
+        oneLine && "max-sm:truncate",
+      )}
+    >
       {seoPageName(url, seoSiteUrl(workspace), t("pages.home"))}
     </bdi>
   );

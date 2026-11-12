@@ -2,16 +2,15 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import {
+  SEGMENTED_CONTROL_CLASS_NAME,
+  SEGMENTED_CONTROL_ITEM_CLASS_NAME,
+} from "@/components/ui/segmented-control-classes";
 import { cn } from "@/lib/utils";
 import { SeoCompetitors } from "./seo-competitors";
 import { keywordGroups } from "./seo-keyword-rows-model";
 import { SeoKeywords, SeoQueryFilter } from "./seo-keywords";
-import {
-  SEO_CHOSEN_CLASS,
-  type SeoRankingsSection,
-  seoSectionClass,
-} from "./seo-shared";
+import { type SeoRankingsSection, seoSectionClass } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /**
@@ -41,23 +40,30 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
     <div className="space-y-6">
       {/* The switch and the filter of its list share one line; on a phone the filter is the line under it. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <fieldset className="flex gap-1 max-sm:w-full">
+        {/* One control with three parts: three framed buttons read as three things. The look is the app's
+            segmented control; the parts stay buttons with a pressed state, so a hidden list is not a hidden panel. */}
+        <fieldset
+          className={cn(
+            SEGMENTED_CONTROL_CLASS_NAME,
+            "max-sm:flex max-sm:w-full",
+          )}
+        >
           <legend className="sr-only">{t("tabs.rankings")}</legend>
           {sections.map(({ id, label }) => (
-            <Button
+            <button
               key={id}
               type="button"
-              variant="outline"
-              size="sm"
               aria-pressed={section === id}
+              data-state={section === id ? "on" : "off"}
+              // 40 px for a finger on a phone, as the other controls of the tab.
               className={cn(
-                "min-h-10 min-w-0 flex-1 sm:flex-none sm:px-4",
-                section === id && SEO_CHOSEN_CLASS,
+                SEGMENTED_CONTROL_ITEM_CLASS_NAME,
+                "max-sm:h-10 sm:flex-none sm:px-4",
               )}
               onClick={() => setSection(id)}
             >
               {label}
-            </Button>
+            </button>
           ))}
         </fieldset>
         {/* One filter for keywords and ideas: the lists show a keyword once, so it counts keywords, not device rows. */}

@@ -101,6 +101,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     <SeoSection
       // The switch above names the list, so the title says what the list holds.
       title={t("competitors.help")}
+      // The three lists of the switch start with a title of one size.
+      strong
       actions={
         model.data.availableActions.canEdit ? (
           <SeoAddButton

@@ -595,7 +595,7 @@ describe("Keywords after a check", () => {
     ).toBeVisible();
     expect(screen.getByText("idea 9")).toBeVisible();
     expect(screen.queryByText("idea 10")).toBeNull();
-    expect(screen.getAllByText("Competitors rank for it")).toHaveLength(5);
+    expect(screen.getAllByText("From competitors")).toHaveLength(5);
     const more = screen.getByRole("button", { name: "Show 2 more ideas" });
     await user.click(more);
     expect(screen.getByText("idea 11")).toBeVisible();

@@ -57,7 +57,8 @@ export function SeoDemandChart({
         </span>
       </figcaption>
       <div>
-        <ol role="list">
+        {/* A phone shows the three most searched keywords: five bars were one screen before the first step. */}
+        <ol role="list" className="max-sm:[&>li:nth-child(n+4)]:hidden">
           {demand.rows.map((row) => {
             const volume = format.number(row.volume);
             const position =
@@ -71,7 +72,7 @@ export function SeoDemandChart({
                   row.countryCode,
                   row.languageCode,
                 ])}
-                className={cn(ROW_CLASS, "group text-sm")}
+                className={cn(ROW_CLASS, "text-sm")}
                 title={[
                   `${row.keyword}: ${volume} ${t("keywords.volumeUnit", { count: row.volume })}`,
                   position,
@@ -105,7 +106,8 @@ export function SeoDemandChart({
                   <span
                     aria-hidden
                     data-testid="seo-demand-bar"
-                    className="bg-chart-5 absolute inset-y-2 left-0 rounded-r-sm opacity-90 transition-opacity duration-150 ease-out group-hover:opacity-100 motion-reduce:transition-none"
+                    // A quiet neutral: the number after the bar is the bright part.
+                    className="bg-tertiary absolute inset-y-2 left-0 rounded-r-sm"
                     style={{
                       width: `${Math.max(BAR_MIN_PERCENT, percent(row.volume))}%`,
                     }}

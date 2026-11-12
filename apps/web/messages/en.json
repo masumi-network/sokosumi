@@ -11066,7 +11066,7 @@
           "title": "{count, plural, one {# keyword idea} other {# keyword ideas}}",
           "why": "Why it is listed",
           "source": {
-            "gap": "Competitors rank for it",
+            "gap": "From competitors",
             "opportunity": "Related search"
           },
           "short": "Ideas",
@@ -11539,6 +11539,7 @@
         "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
         "openTraffic": "Open traffic",
         "openRankings": "Open rankings",
+        "toSteps": "Go to the first step",
         "draftFix": "Ask the agent for a fix",
         "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
