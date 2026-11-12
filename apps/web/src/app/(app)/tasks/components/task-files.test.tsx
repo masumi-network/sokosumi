@@ -2,9 +2,23 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { Activity, StrictMode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createTaskFilesArchive } from "@/app/tasks/utils/task-files-archive";
+import en from "../../../../../messages/en.json";
 import { type TaskFileListItem, TaskFiles } from "./task-files";
+
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), warning: vi.fn() },
+}));
+
+vi.mock("@/app/tasks/utils/task-files-archive", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/app/tasks/utils/task-files-archive")
+  >()),
+  createTaskFilesArchive: vi.fn(),
+}));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
   FileChipWithMetadata: ({
@@ -35,7 +49,11 @@ function makeFiles(count: number): TaskFileListItem[] {
   }));
 }
 
-function filesView(files: TaskFileListItem[], taskId = "task-1") {
+function filesView(
+  files: TaskFileListItem[],
+  taskId = "task-1",
+  downloadAllName?: string,
+) {
   return (
     <NextIntlClientProvider
       locale="en"
@@ -43,6 +61,11 @@ function filesView(files: TaskFileListItem[], taskId = "task-1") {
         Components: {
           Tasks: {
             TaskFileStatusBadge: { pending: "Pending", failed: "Failed" },
+          },
+        },
+        App: {
+          Tasks: {
+            Detail: { downloadAll: en.App.Tasks.Detail.downloadAll },
           },
         },
       }}
@@ -53,6 +76,7 @@ function filesView(files: TaskFileListItem[], taskId = "task-1") {
         files={files}
         expandLabel="Expand"
         collapseLabel="Show less"
+        downloadAllName={downloadAllName}
       />
       <button type="button">After files</button>
     </NextIntlClientProvider>
@@ -241,5 +265,200 @@ describe("TaskFiles", () => {
     await user.click(screen.getByRole("button", { name: "Expand" }));
     expect(screen.getAllByRole("link")).toHaveLength(5);
     expect(screen.queryByText("Pending")).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskFiles download all", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  it("offers it only on the Task page and only for two or more ready files", () => {
+    const { rerender } = render(filesView(makeFiles(2)));
+    expect(
+      screen.queryByRole("button", { name: "Download all" }),
+    ).not.toBeInTheDocument();
+
+    const [ready, pending] = makeFiles(2);
+    rerender(
+      filesView(
+        [ready, { ...pending, status: "PENDING" }],
+        "task-1",
+        "Launch plan",
+      ),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Download all" }),
+    ).not.toBeInTheDocument();
+
+    rerender(filesView(makeFiles(2), "task-1", "Launch plan"));
+    expect(
+      screen.getByRole("button", { name: "Download all" }),
+    ).toBeInTheDocument();
+  });
+
+  it("saves one zip of the ready files and names the ones left out", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createTaskFilesArchive).mockResolvedValue({
+      data: new ArrayBuffer(1),
+      included: ["Report 0.pdf"],
+      missing: ["Report 1.pdf"],
+    });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:zip");
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        expect(this.download).toBe("Launch- plan.zip");
+        expect(this.href).toBe("blob:zip");
+      });
+    const [a, b, c] = makeFiles(3);
+    render(
+      filesView([a, b, { ...c, status: "FAILED" }], "task-1", "Launch/ plan"),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Download all" }));
+
+    expect(createTaskFilesArchive).toHaveBeenCalledWith(
+      [
+        { name: a.name, fileUrl: a.fileUrl },
+        { name: b.name, fileUrl: b.fileUrl },
+      ],
+      expect.any(AbortSignal),
+    );
+    expect(click).toHaveBeenCalledOnce();
+    expect(toast.warning).toHaveBeenCalledWith(
+      "Downloaded 1 of 2 files. Not included: Report 1.pdf. Open them one by one.",
+      { duration: 15_000 },
+    );
+  });
+
+  it("zips a public share's files, which carry no status, by their links", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createTaskFilesArchive).mockResolvedValue({
+      data: new ArrayBuffer(1),
+      included: ["Report 0.pdf", "Report 1.pdf"],
+      missing: [],
+    });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:zip");
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    const files = makeFiles(2).map(({ id, name, fileUrl, mimeType, size }) => ({
+      id,
+      name,
+      fileUrl: fileUrl ?? "",
+      mimeType,
+      size,
+      createdAt: new Date("2026-01-01"),
+    }));
+    render(filesView(files, "task-1", "Shared plan"));
+
+    await user.click(screen.getByRole("button", { name: "Download all" }));
+
+    expect(createTaskFilesArchive).toHaveBeenCalledWith(
+      files.map(({ name, fileUrl }) => ({ name, fileUrl })),
+      expect.any(AbortSignal),
+    );
+    expect(click).toHaveBeenCalledOnce();
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+
+  it("says so when no file could be downloaded", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createTaskFilesArchive).mockResolvedValue({
+      data: null,
+      included: [],
+      missing: ["Report 0.pdf", "Report 1.pdf"],
+    });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click");
+    render(filesView(makeFiles(2), "task-1", "Launch plan"));
+
+    await user.click(screen.getByRole("button", { name: "Download all" }));
+
+    expect(click).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "Couldn't download the files. Try again, or open them one by one.",
+    );
+  });
+
+  function RetainedTask({ mode }: { mode: "hidden" | "visible" }) {
+    return (
+      <Activity mode={mode}>
+        {filesView(makeFiles(2), "task-1", "Launch plan")}
+      </Activity>
+    );
+  }
+
+  /** Each call waits until the test settles it, or its signal is aborted. */
+  function pendingArchives() {
+    const calls: Array<{
+      signal: AbortSignal;
+      settle: (
+        archive: Awaited<ReturnType<typeof createTaskFilesArchive>>,
+      ) => void;
+    }> = [];
+    vi.mocked(createTaskFilesArchive).mockImplementation(
+      (_files, signal) =>
+        new Promise((resolve, reject) => {
+          if (!signal) throw new Error("expected a signal");
+          calls.push({ signal, settle: resolve });
+          signal.addEventListener("abort", () => reject(signal.reason));
+        }),
+    );
+    return calls;
+  }
+
+  it("cancels a running download when the page is left and lets it start again on return", async () => {
+    const user = userEvent.setup();
+    const calls = pendingArchives();
+    const { rerender } = render(<RetainedTask mode="visible" />);
+    await user.click(screen.getByRole("button", { name: "Download all" }));
+    expect(
+      screen.getByRole("button", { name: "Download all" }),
+    ).toHaveAttribute("aria-busy", "true");
+
+    rerender(<RetainedTask mode="hidden" />);
+    expect(calls[0].signal.aborted).toBe(true);
+    rerender(<RetainedTask mode="visible" />);
+    const button = screen.getByRole("button", { name: "Download all" });
+    expect(button).not.toHaveAttribute("aria-busy");
+
+    await user.click(button);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].signal.aborted).toBe(false);
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("saves nothing and says nothing when the zip finishes after the page was left", async () => {
+    const user = userEvent.setup();
+    const calls = pendingArchives();
+    vi.mocked(createTaskFilesArchive).mockImplementationOnce(
+      (_files, signal) =>
+        new Promise((resolve) => {
+          if (!signal) throw new Error("expected a signal");
+          // Like JSZip: generation ignores the signal and still resolves.
+          calls.push({ signal, settle: resolve });
+        }),
+    );
+    const createObjectURL = vi.spyOn(URL, "createObjectURL");
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click");
+    const { rerender } = render(<RetainedTask mode="visible" />);
+    await user.click(screen.getByRole("button", { name: "Download all" }));
+
+    rerender(<RetainedTask mode="hidden" />);
+    calls[0].settle({
+      data: new ArrayBuffer(1),
+      included: ["Report 0.pdf"],
+      missing: ["Report 1.pdf"],
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(click).not.toHaveBeenCalled();
+    expect(toast.warning).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });
