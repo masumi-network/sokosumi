@@ -5562,6 +5562,45 @@ describe("post_chat chain depth", () => {
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
   });
 
+  it("refuses to post its answer a second time into the chat it was asked in", async () => {
+    // Asked in a thread, the bot answered there and posted the same text into
+    // the channel with post_chat.
+    armPostChat(0);
+    const authorized = {
+      turn: { ...SCOPE_TURN, chainDepth: 0, source: "CHAT" },
+    } as never;
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        toolCallId: "call_1",
+        roomId: "room_1",
+        content: "Yes, X posts can include GIFs.",
+      }),
+    ).rejects.toThrow(/already appears in this chat/i);
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+
+    // Summoning a Coworker there is a message of its own.
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_2",
+      roomId: "room_1",
+      content: "@jarvis can you check the upload?",
+    });
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+
+    // So is a post into another room.
+    transactionChatMessageCreateMock.mockClear();
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
+      chatMention: { message: { roomId: "room_asked_in" } },
+    });
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_3",
+      roomId: "room_1",
+      content: "Sharing the answer here.",
+    });
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+  });
+
   it("never summons itself", async () => {
     const authorized = armPostChat(0);
     chatCoworkerMemberFindManyMock.mockResolvedValue([]);

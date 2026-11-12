@@ -2199,6 +2199,29 @@ export class SokoBotRuntimeService {
           name: sokoBotDisplayName({ name: sokoBot.name }),
         })),
       });
+      // A chat turn's answer already appears where it was asked, in the thread
+      // when it was asked in one. Posting it into that room as well put the
+      // same answer in the thread and in the channel. A post that summons a
+      // Coworker or another assistant is a message of its own and still goes.
+      if (
+        !input.via &&
+        authorized.turn.source === "CHAT" &&
+        authorized.turn.chainDepth === 0 &&
+        mentionedCoworkerIds.length === 0 &&
+        mentionedSokoBotIds.length === 0
+      ) {
+        const asked = await tx.sokoBotTurn.findUnique({
+          where: { id: authorized.turn.id },
+          select: {
+            chatMention: { select: { message: { select: { roomId: true } } } },
+          },
+        });
+        if (asked?.chatMention?.message.roomId === room.id) {
+          throw new SokoBotRuntimeValidationError(
+            "Your answer to this message already appears in this chat, in the thread when you were asked in one. Write what you want to say as your answer and do not post it here as well.",
+          );
+        }
+      }
       // Queue unreadable content and inert mentions. The outbox activates both
       // only after rechecking the exact audience at the publication boundary.
       let replayedPublication = false;
