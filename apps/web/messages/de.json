@@ -9045,7 +9045,9 @@
         "messageRequired": "Nachricht ist erforderlich.",
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
-        "unpinError": "Nachricht konnte nicht gelöst werden."
+        "unpinError": "Nachricht konnte nicht gelöst werden.",
+        "statePinned": "Die Nachricht ist angeheftet.",
+        "stateUnpinned": "Die Nachricht ist nicht angeheftet."
       },
       "SavedMessages": {
         "save": "Für später speichern",

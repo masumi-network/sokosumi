@@ -254,6 +254,7 @@ function renderRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  isSaving,
   coworkersById = new Map(),
   usersById,
   isPinned,
@@ -283,6 +284,7 @@ function renderRow({
   onCancelEdit?: () => void;
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  isSaving?: boolean;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, { id: string; name: string }>;
 } = {}) {
@@ -312,6 +314,7 @@ function renderRow({
       onCancelEdit={onCancelEdit}
       onSaveEdit={onSaveEdit}
       isSavingEdit={isSavingEdit}
+      isSaving={isSaving}
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
       isPinned={isPinned}
@@ -526,6 +529,17 @@ describe("ChatMessageRow", () => {
     expect(article).toHaveClass("mt-0");
     expect(article).not.toHaveClass("mt-2");
     expect(article).not.toHaveClass("mt-3");
+  });
+
+  it("marks the row as saving only while a change waits for Core", () => {
+    renderRow({ isSaving: true });
+    expect(screen.getByRole("article")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("article")).toHaveClass("opacity-60");
+
+    cleanup();
+    renderRow();
+    expect(screen.getByRole("article")).not.toHaveAttribute("aria-busy");
+    expect(screen.getByRole("article")).not.toHaveClass("opacity-60");
   });
 
   it("exposes message id for quote jump targets", () => {
