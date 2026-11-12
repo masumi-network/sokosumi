@@ -46,8 +46,12 @@ const db = vi.hoisted(() => {
     member: model(),
     user: model(),
     sokoBot: model(),
-    $transaction: vi.fn(async (operations: unknown[]) =>
-      Promise.all(operations),
+    // Both forms: a list of operations, or a function given the client.
+    $transaction: vi.fn(
+      async (operations: unknown): Promise<unknown> =>
+        typeof operations === "function"
+          ? operations(db)
+          : Promise.all(operations as unknown[]),
     ),
   };
 });
@@ -55,6 +59,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: db }));
 const approvers = vi.hoisted(() => ({ notify: vi.fn() }));
 vi.mock("@/helpers/coworker-workspace-access", () => ({
   notifyWorkspaceApproversOfPendingCoworkerAccess: approvers.notify,
+  forceRevokeCoworkerWorkspaceAccessByPair: vi.fn(),
 }));
 const relay = vi.hoisted(() => ({ queryEvents: vi.fn() }));
 vi.mock("@/lib/buzz/relay-client", async (importActual) => ({
@@ -787,6 +792,92 @@ describe("a person's own Buzz agents", () => {
     );
     await expect(applyInboundEvent(reaction, core)).resolves.toBe("ignored");
     expect(core).not.toHaveBeenCalled();
+  });
+
+  it("asks for approval again when an organization stops letting agents in by itself", async () => {
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      {
+        id: "identity-bob",
+        userId: "user-bob",
+        appPubkey: OWNER_PUBKEY,
+        user: { name: "Bob" },
+      },
+    ]);
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "member",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: {
+            relayUrl: "wss://acme.example",
+            allowPersonalAgents: false,
+          },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([
+      { id: "org-workspace", userId: null, organizationId: "org" },
+    ]);
+    db.vendor.upsert.mockResolvedValue({ id: "vendor" });
+    // Bob's agent, let in while the switch was on.
+    db.buzzIdentity.findUnique.mockResolvedValue({
+      pubkey: AGENT_PUBKEY,
+      ownerIdentityId: "identity-bob",
+      coworkerId: "cw-agent",
+      coworker: {
+        name: "Claude Code (personal agent)",
+        image: null,
+        vendorId: "vendor",
+        archivedAt: null,
+      },
+    });
+    db.coworkerWorkspaceAccess.findUnique.mockResolvedValue({
+      status: "GRANTED",
+      resolvedById: null,
+    });
+    db.coworkerWorkspaceAccess.update.mockResolvedValue({
+      id: "access",
+      coworkerId: "cw-agent",
+    });
+    db.coworker.findMany.mockResolvedValue([]);
+    db.buzzChannel.findMany.mockResolvedValue([]);
+    relay.queryEvents
+      .mockResolvedValueOnce([
+        finalizeEvent(
+          {
+            kind: 30177,
+            created_at: 1,
+            tags: [["d", AGENT_PUBKEY]],
+            content: "{}",
+          },
+          OWNER_KEY,
+        ),
+      ])
+      .mockResolvedValueOnce([
+        finalizeEvent(
+          {
+            kind: 0,
+            created_at: 2,
+            tags: [ownerAuthTag(OWNER_KEY, AGENT_PUBKEY)],
+            content: '{"name":"Claude Code"}',
+          },
+          AGENT_KEY,
+        ),
+      ]);
+    await expect(syncBuzzAgents()).resolves.toContain("pending:cw-agent");
+    // Out of its rooms, and waiting for an owner or admin, who is told.
+    expect(db.coworkerWorkspaceAccess.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: "PENDING", resolvedById: null, resolvedAt: null },
+      }),
+    );
+    expect(approvers.notify).toHaveBeenCalledWith({
+      coworkerId: "cw-agent",
+      workspaceId: "org-workspace",
+      accessId: "access",
+    });
   });
 
   it("makes a Coworker only of an agent whose profile its owner signed", async () => {

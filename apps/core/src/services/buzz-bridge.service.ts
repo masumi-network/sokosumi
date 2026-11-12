@@ -734,8 +734,10 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
             existingAccess.status === "GRANTED" &&
             bySwitch
           ) {
-            // Granted by the switch that is now off: the agent leaves.
-            await prisma.$transaction(async (tx) => {
+            // Granted by the switch that is now off: the agent leaves, and
+            // waits for approval like a new one (approval takes a pending
+            // request, not a revoked one).
+            const pending = await prisma.$transaction(async (tx) => {
               await forceRevokeCoworkerWorkspaceAccessByPair(
                 {
                   coworkerId: coworkerId as string,
@@ -744,13 +746,22 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
                 },
                 tx,
               );
-              await tx.coworkerWorkspaceAccess.update({
+              return tx.coworkerWorkspaceAccess.update({
                 where,
-                data: { resolvedById: null },
+                data: {
+                  status: "PENDING",
+                  resolvedById: null,
+                  resolvedAt: null,
+                },
               });
             });
+            await notifyWorkspaceApproversOfPendingCoworkerAccess({
+              coworkerId: pending.coworkerId,
+              workspaceId,
+              accessId: pending.id,
+            });
             await resyncRoomsWithCoworkers([coworkerId as string]);
-            changed.push(`revoked:${coworkerId}`);
+            changed.push(`pending:${coworkerId}`);
           }
           continue;
         }
