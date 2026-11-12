@@ -201,7 +201,7 @@ export function SeoWorkspace({
   return (
     // Phone buttons and fields are at least 40 px tall; the tab row keeps its 36 px bar.
     // The space under the last row keeps it clear of the floating button.
-    <div className="space-y-6 pb-16 max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
+    <div className="space-y-6 pb-16 [&_details[open]>:not(summary)]:content-rise max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
       {/* On a phone the actions sit on the title row and the URL has its own row, so the header is as tall on every tab. */}
       <div className="flex flex-wrap items-end justify-between gap-3 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-y-1">
         <div className="min-w-0 space-y-1 max-sm:contents max-sm:space-y-0">

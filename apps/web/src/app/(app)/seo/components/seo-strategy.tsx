@@ -290,11 +290,7 @@ function StrategyActionCard({
               id={titleId}
               // Plain wrap: a heading balances its lines, so the same title broke at another word here than
               // on the Agent tab.
-              className={cn(
-                "block min-w-0 text-sm text-wrap break-words sm:flex-1",
-                // A closed row is one step lighter than an open card, so the open card and the group titles lead.
-                open ? "font-semibold" : "font-medium",
-              )}
+              className="block min-w-0 text-sm font-medium text-wrap break-words sm:flex-1"
             >
               {action.title}
             </span>
@@ -351,7 +347,7 @@ function StrategyActionBody({
     action.targets.length > 1 &&
     new Set(action.targets.map((target) => target.type)).size === 1;
   return (
-    <div id={bodyId} className="space-y-3 px-4 pt-1 pb-4">
+    <div id={bodyId} className="content-rise space-y-3 px-4 pt-1 pb-4">
       <p className="text-muted-foreground max-w-prose text-sm break-words">
         {action.why}
       </p>

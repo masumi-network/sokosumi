@@ -111,8 +111,9 @@ export function SeoActionCard({
               title={action.title}
               pageUrl={open ? null : action.pageUrl}
               workspace={model.data}
-              // A closed row is one step lighter, so the open card and the group titles lead.
-              strong={open}
+              // A row is one step lighter than the card that stays open. The weight does not change with a
+              // press: bolder words are wider and can move to the next line.
+              strong={fixed}
             />
             {/* On a phone the labels of an open card stand under its page link, so the lines keep the order
                 of the closed row: title, page, labels. */}
@@ -128,7 +129,11 @@ export function SeoActionCard({
         </SeoActionCardHead>
       </h3>
       {open ? (
-        <div id={bodyId} className="space-y-2 px-4 pb-4">
+        <div
+          id={bodyId}
+          // The card that stays open is part of the page; a body that a press opens rises in.
+          className={cn("space-y-2 px-4 pb-4", !fixed && "content-rise")}
+        >
           {/* The page stays near the title: the closed row names it there, the open card links it under the
               head. The link is no part of the head: a press on it opens the page, not the card. */}
           <div className="flex">
@@ -231,7 +236,8 @@ export function SeoActionCard({
           ) : model.data.availableActions.canEdit ? (
             <Button
               size="sm"
-              variant={primary ? "primary" : "outline"}
+              // One look on every card: the button does the same thing on each.
+              variant="primary"
               loading={model.pending}
               onClick={() => {
                 void model.createActionTask(action);

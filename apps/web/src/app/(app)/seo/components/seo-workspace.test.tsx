@@ -5075,6 +5075,16 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getAllByRole("button", { name: "Create draft task" }),
     ).toHaveLength(1);
+    // A card that a press opens has the same filled button: the button does the same thing on each card.
+    const second = screen
+      .getByRole("heading", { name: /^Write a description/ })
+      .closest("article");
+    await user.click(within(second!).getByRole("button", { expanded: false }));
+    const creates = screen.getAllByRole("button", {
+      name: "Create draft task",
+    });
+    expect(creates).toHaveLength(2);
+    for (const create of creates) expect(create).toHaveClass("bg-primary");
     served = {
       ...workspace,
       actions: [
@@ -5086,7 +5096,7 @@ describe("SEO workspace integration", () => {
         workspace.actions[1],
       ],
     };
-    await user.click(screen.getByRole("button", { name: "Create draft task" }));
+    await user.click(creates[0]);
     // The Task exists: the filled button moves to the next action, and its card opens to show it.
     const next = screen
       .getByRole("heading", { name: /^Write a description/ })

@@ -364,7 +364,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       </span>
                       <ChevronDown
                         aria-hidden
-                        className="text-muted-foreground mt-0.5 size-4 shrink-0 group-open:rotate-180"
+                        className="text-muted-foreground mt-0.5 size-4 shrink-0 transition-transform duration-150 ease-out group-open:rotate-180 motion-reduce:transition-none"
                       />
                       <span className="text-muted-foreground col-span-2 text-xs [overflow-wrap:anywhere] max-sm:truncate sm:col-span-3">
                         {/* Both devices is the usual case and says nothing; one device does. */}
@@ -511,7 +511,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
             ) : null}
             <ChevronDown
               aria-hidden
-              className="text-muted-foreground size-4 shrink-0 group-open/details:rotate-180"
+              className="text-muted-foreground size-4 shrink-0 transition-transform duration-150 ease-out group-open/details:rotate-180 motion-reduce:transition-none"
             />
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>

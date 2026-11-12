@@ -31,7 +31,11 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   const demand = seoKeywordDemand(model.data, DEMAND_ROWS);
   if (!clicks && !demand.rows.length) return null;
   return (
-    <div className="space-y-2" data-testid="seo-agent-graphics">
+    // The last picture takes the height that the tiles beside it leave.
+    <div
+      className="flex flex-col gap-2 [&>figure:last-child]:flex-1"
+      data-testid="seo-agent-graphics"
+    >
       {clicks ? (
         // The chart is a figure with its own name.
         <div className="bg-background rounded-lg border p-3">
