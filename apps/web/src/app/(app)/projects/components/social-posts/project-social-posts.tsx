@@ -630,8 +630,8 @@ export function ProjectSocialPosts({
     // Follow the post to the list that still shows it. A failed or missed
     // post that just left that list should not yank the page to the calendar
     // while other posts still need attention.
-    // Calendar entries are server-rendered, so refresh after every save.
-    router.refresh();
+    // Calendar entries are server-rendered. Every save is an action that
+    // revalidates, so its response carries them: no router.refresh() here.
     const nextSection = sectionOf(post);
     const previous = posts.find((candidate) => candidate.id === post.id);
     const attentionRemains = posts.some(
