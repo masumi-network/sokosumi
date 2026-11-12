@@ -457,7 +457,7 @@ export async function cmoPlanDrift(input: {
         mainOffer: brain.reveal?.positioning ?? brain.summary,
         products: brain.products,
         plan: {
-          coreOffer: strategy.ladder?.core.what,
+          coreOffer: strategy.ladder?.core.what ?? strategy.offer?.what,
           idea: strategy.idea?.sentence,
           summary: strategy.summary,
           offer: strategy.offer?.what,
@@ -469,7 +469,7 @@ export async function cmoPlanDrift(input: {
         sellsMainOffer: {
           type: "boolean",
           instructions:
-            "Does the plan's core offer match the business's main product or service, rather than a narrower side product or feature? A trial, demo or introductory call is a valid entry offer when it leads to that core offer; do not treat the entry offer alone as product drift.",
+            "Is the plan built around the business's main product or service, rather than a narrower side product or feature? A trial, demo or introductory call is a valid entry offer when it leads to that product; do not treat the entry offer alone as drift.",
         },
       },
       timeoutMs: 15_000,

@@ -51,10 +51,10 @@ export function strategyChecks(
       strategy,
       checks: [{ label: "Strategy saved", pass: false, actual: "none" }],
     };
+  // The core offer, the summary, the entry offer and the pillars: what the
+  // plan sells. Its positioning names the category whatever it sells.
   const head = [
     strategy.ladder?.core.what ?? "",
-    strategy.idea?.sentence ?? "",
-    strategy.positioning ?? "",
     strategy.summary,
     strategy.offer?.what ?? "",
     ...strategy.pillars.map((pillar) => pillar.name),

@@ -5766,6 +5766,10 @@ export class SokoBotRuntimeService {
     const saves = await prisma.sokoBotToolCall.count({
       where: { turnId: authorized.turn.id, capability: "save_strategy" },
     });
+    // Jev reads the first saves only; the rule checks cost nothing and run on
+    // a few more, so a late save still hears about a repeated title. Past
+    // that the review stops, so a plan that cannot be fixed still ends.
+    if (saves > 2 * CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
     if (saves > CMO_PLAN_REVIEWS_PER_TURN) {
       return { save: saves, mainOffer: "skipped", problems };

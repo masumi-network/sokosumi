@@ -24,26 +24,23 @@ function checks(name: string, patch: Partial<MarketingStrategyPlan> = {}) {
 }
 
 describe("strategyChecks", () => {
-  it.each([
-    { ladder: { core: { what: "Custom AI CoWorker" } } },
-    {
-      idea: {
-        who: "Teams",
-        position: "Finish work",
-        attract: "Search",
-        offer: "A demo",
-        sentence: "Try a custom AI CoWorker in your workflow.",
-      },
-    },
-    { positioning: "Custom AI CoWorkers for recurring work" },
-  ])(
-    "recognizes the main product outside a generic entry offer: %j",
-    (patch) => {
-      expect(checks("utxo.ag", patch)).toContainEqual(
-        expect.objectContaining({ label: "Sells the main offer", pass: true }),
-      );
-    },
-  );
+  it("recognizes the main product in the core offer beside a generic entry offer", () => {
+    expect(
+      checks("utxo.ag", { ladder: { core: { what: "Custom AI CoWorker" } } }),
+    ).toContainEqual(
+      expect.objectContaining({ label: "Sells the main offer", pass: true }),
+    );
+  });
+
+  it("does not take the positioning's category for what the plan sells", () => {
+    expect(
+      checks("utxo.ag", {
+        positioning: "Custom AI CoWorkers for recurring work",
+      }),
+    ).toContainEqual(
+      expect.objectContaining({ label: "Sells the main offer", pass: false }),
+    );
+  });
 
   it("rejects a side product in the core offer despite a generic trial", () => {
     const result = checks("utxo.ag", {

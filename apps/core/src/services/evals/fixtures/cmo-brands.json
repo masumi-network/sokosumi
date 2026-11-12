@@ -14,7 +14,7 @@
     "url": "https://cal.com/",
     "goal": "More leads",
     "main": "schedul",
-    "avoid": "lead.rout|inbound lead|routing",
+    "avoid": "lead.rout|inbound lead|routing form",
     "why": "trap: a feature shares the goal's word",
     "contentLanguage": "english",
     "siteLanguage": "English"

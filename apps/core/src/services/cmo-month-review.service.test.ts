@@ -401,11 +401,15 @@ describe("cmoCountedProblems", () => {
       '**Link from:** /pricing, on "routing"',
     ])
       expect(cmoCountedProblems("seo", "article", article + links)).toEqual([]);
-    expect(
-      cmoCountedProblems("seo", "article", `${article}Link from:`),
-    ).toEqual([
-      "it has no Link from: line naming the pages that should link to it",
-    ]);
+    for (const empty of [
+      "Link from:",
+      "**Link from:**",
+      "## Link from:",
+      "Link from:\n\n## Next steps\nBook a demo.",
+    ])
+      expect(cmoCountedProblems("seo", "article", article + empty)).toEqual([
+        "it has no Link from: line naming the pages that should link to it",
+      ]);
   });
 
   it("counts a Meta ad's visible point and headline, and a display ad's fields", () => {

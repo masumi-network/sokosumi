@@ -187,7 +187,7 @@ async function requestStrategyForCuso(
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
               ...(siteLanguage
                 ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another. This instruction sets only contentLanguage. Keep the summary, offer, pillar names, calendar titles and briefs in the owner's language; do not translate the plan into the site's language.`,
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the plan itself (summary, goals, why, briefs) stays in the owner's language.`,
                   ]
                 : []),
               ...ownerAnswers(brain),

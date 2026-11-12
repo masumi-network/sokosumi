@@ -180,8 +180,14 @@ describe("the copy rules code checks", () => {
       bannedCopyProblems("Fresh rye today. Like if you agree"),
     ).toHaveLength(1);
     expect(
-      bannedCopyProblems("We would like to know if you prefer rye."),
-    ).toEqual([]);
+      bannedCopyProblems("Fresh rye is back: like if this is your loaf"),
+    ).toHaveLength(1);
+    for (const fine of [
+      "We would like to know if you prefer rye.",
+      "Share your screen if you want help with setup.",
+      "It feels like if you had a barista at home.",
+    ])
+      expect(bannedCopyProblems(fine)).toEqual([]);
     expect(bannedCopyProblems("Let's delve into fees.")).toHaveLength(1);
     expect(bannedCopyProblems("We cut our fees to 3%.")).toEqual([]);
   });

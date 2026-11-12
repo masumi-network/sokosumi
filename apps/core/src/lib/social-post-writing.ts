@@ -73,7 +73,8 @@ const BANNED_COPY: readonly { pattern: RegExp; problem: string }[] = [
     problem: "asks people to tag someone, which networks treat as bait",
   },
   {
-    pattern: /(^|[.!?]\s+)(like|share|comment)\b[^.!?\n]{0,20}\bif you\b/im,
+    pattern:
+      /(^|[.!?:;]\s+)(like|share|comment|repost)( (this|it|below|the post|this post))? if\b/im,
     problem:
       'asks for a like, share or comment in exchange ("Like if you agree"), which networks treat as bait',
   },

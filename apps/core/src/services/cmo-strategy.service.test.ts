@@ -204,10 +204,7 @@ describe("requestCmoStrategy", () => {
     expect(detectSiteLanguage).not.toHaveBeenCalled();
     const message = JSON.stringify(startTurn.mock.lastCall);
     expect(message).toContain("set contentLanguage to English");
-    expect(message).toContain("This instruction sets only contentLanguage.");
-    expect(message).toContain(
-      "do not translate the plan into the site's language",
-    );
+    expect(message).toContain("This sets only contentLanguage");
     expect(message).toContain(
       "Write acme.io's marketing strategy for the four weeks",
     );

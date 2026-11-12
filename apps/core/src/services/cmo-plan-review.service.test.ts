@@ -342,7 +342,7 @@ describe("cmoPlanDrift", () => {
       questions: {
         sellsMainOffer: {
           instructions: expect.stringContaining(
-            "A trial, demo or introductory call is a valid entry offer when it leads to that core offer",
+            "A trial, demo or introductory call is a valid entry offer when it leads to that product",
           ),
         },
       },

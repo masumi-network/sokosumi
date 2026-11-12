@@ -272,7 +272,7 @@ export function cmoCountedProblems(
                   "120 to 155",
                 ),
                 /^# \S/m.test(text) ? null : "it has no # title",
-                /^(#+ )?\**Link from\**:\**\s*\S/im.test(text)
+                namesLinkingPages(text)
                   ? null
                   : "it has no Link from: line naming the pages that should link to it",
               ]
@@ -330,6 +330,18 @@ function passes(
   return answer?.type === "boolean"
     ? answer.probability >= PASS_PROBABILITY
     : null;
+}
+
+/**
+ * Whether an article names the pages that should link to it: after a
+ * "Link from:" label, on its line or as the block under it, up to the next
+ * heading.
+ */
+function namesLinkingPages(text: string): boolean {
+  const label = /^(?:#+ )?\**Link from\**:\**[ \t]*(.*)$/im.exec(text);
+  if (!label) return false;
+  const block = text.slice(label.index + label[0].length).split(/^#/m)[0];
+  return /[\p{L}\p{N}/]/u.test(`${label[1]}\n${block}`);
 }
 
 /**
