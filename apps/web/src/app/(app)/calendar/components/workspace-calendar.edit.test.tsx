@@ -21,6 +21,7 @@ interface FullCalendarProps {
   borderless?: boolean;
   dateClick?: (info: { date: Date }) => void;
   dayCellClass?: string;
+  defaultTimedEventDuration?: number;
   editable?: boolean;
   eventAllow?: (
     span: Record<string, never>,
@@ -378,6 +379,13 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.dateClick).toEqual(expect.any(Function));
     expect(props.editable).toBe(false);
     expect(props.plugins).toContain(interactionPluginMock);
+  });
+
+  it("keeps a late entry inside its own day cell", () => {
+    renderCalendar();
+
+    const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
+    expect(props.defaultTimedEventDuration).toBe(0);
   });
 
   it("colors the actual day cell on hover without an overlay", () => {
@@ -791,7 +799,7 @@ describe("WorkspaceCalendar editing", () => {
       });
       await request.promise;
     });
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("rolls a refused drop back and says why", async () => {
@@ -877,7 +885,7 @@ describe("WorkspaceCalendar editing", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("closes the move dialog and refreshes when the Run changed meanwhile", async () => {
@@ -919,8 +927,42 @@ describe("WorkspaceCalendar editing", () => {
         action: "skip",
       }),
     );
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["a planned Run", ITEM],
+    ["a moved Run, keeping its move", MOVED_ITEM],
+  ])(
+    "offers Undo after skipping %s, back at its time before the skip",
+    async (_name, item) => {
+      const user = userEvent.setup();
+      renderCalendar({ items: [item] });
+
+      await openEventMenu(user);
+      await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
+
+      await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledOnce());
+      const [message, options] = toastSuccessMock.mock.calls[0] as [
+        string,
+        { action: { label: string; onClick: () => void } },
+      ];
+      expect(message).toBe("event.runSkipped");
+      expect(options.action.label).toBe("event.undo");
+
+      options.action.onClick();
+
+      await waitFor(() =>
+        expect(changeTaskScheduleRunMock).toHaveBeenLastCalledWith({
+          scheduleId: "schedule-1",
+          runId: item.id,
+          expectedRevision: 4,
+          action: "move",
+          scheduledAt: item.scheduledAt,
+        }),
+      );
+    },
+  );
 
   it("restores a moved Run to the rule's time", async () => {
     const user = userEvent.setup();
@@ -939,7 +981,7 @@ describe("WorkspaceCalendar editing", () => {
         action: "restore",
       }),
     );
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("offers restore only on a moved Run", async () => {
@@ -1041,10 +1083,10 @@ describe("WorkspaceCalendar editing", () => {
       request.resolve({ ok: true, value: { id: "post-1" } });
       await request.promise;
     });
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("reports quotes moved by a drag and refreshes the calendar", async () => {
+  it("reports quotes moved by a drag without a second page render", async () => {
     const request = createDeferred<{
       ok: true;
       value: { id: string; movedQuotes: { id: string; scheduledAt: Date }[] };
@@ -1090,8 +1132,10 @@ describe("WorkspaceCalendar editing", () => {
       });
       await request.promise;
     });
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-    expect(toastSuccessMock).toHaveBeenCalledWith("movedQuotes");
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith("movedQuotes"),
+    );
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("retires a confirmed social move when fresh server items arrive", async () => {
@@ -1140,7 +1184,7 @@ describe("WorkspaceCalendar editing", () => {
       request.resolve({ ok: true, value: { id: "post-1" } });
       await request.promise;
     });
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(renderedStart()).toBe(droppedAt.toISOString());
 
     rerender(calendar({ ...SOCIAL_POST }));

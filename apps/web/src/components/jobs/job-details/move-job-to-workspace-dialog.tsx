@@ -2,7 +2,6 @@
 
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { User } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -52,7 +51,6 @@ export function MoveJobToWorkspaceDialog({
   personalWorkspaceLabel,
 }: MoveJobToWorkspaceDialogProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Header.Actions");
-  const router = useRouter();
   const [selectedValue, setSelectedValue] = useState<string>("");
   const [isPending, startTransition] = useTransition();
 
@@ -90,7 +88,6 @@ export function MoveJobToWorkspaceDialog({
         });
         toast.success(t("moveToWorkspaceSuccess"));
         onOpenChange(false);
-        router.refresh();
       } catch (error) {
         const message =
           error instanceof Error && error.message
