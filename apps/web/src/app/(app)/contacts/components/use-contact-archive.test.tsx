@@ -80,6 +80,10 @@ describe("useContactArchive", () => {
     });
     expect(f.toastSuccess).not.toHaveBeenCalled();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: CONTACTS_KEY });
+    // The toast says the contact is back, so it waits for the reload.
+    expect(invalidate.mock.invocationCallOrder[0]).toBeLessThan(
+      f.toastError.mock.invocationCallOrder[0],
+    );
   });
 
   it("keeps the answer of a page load that was under way off the grid", async () => {

@@ -46,9 +46,12 @@ export function useContactArchive() {
       await contactsService.archive(contact.id);
       toast.success(t("panel.archived", { name: contact.name }));
     } catch (error) {
+      // After the reload, so the contact is back when the toast says it is.
+      await refreshContacts(cache, contact.id);
       toast.error(t("panel.archiveFailed", { name: contact.name }), {
         description: coreErrorOf(error).message,
       });
+      return;
     }
     await refreshContacts(cache, contact.id);
   };
