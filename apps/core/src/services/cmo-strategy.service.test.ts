@@ -187,6 +187,28 @@ describe("requestCmoStrategy", () => {
     }
   });
 
+  it("plans from the owner's general correction and closes it, so no fix turn repeats it", async () => {
+    const fix = {
+      note: "We moved from Zurich to Basel.",
+      at: "2026-11-10T10:00:00.000Z",
+      fixed: false,
+    };
+    const pending = { ...brandBrain, fix };
+    cusoFind.mockResolvedValue({ ...cuso, brandBrain: pending });
+    brainFindUnique.mockResolvedValue({ body: pending });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+
+    const message = JSON.stringify(startTurn.mock.lastCall);
+    expect(message).toContain("First correct the Brand Brain");
+    expect(message).toContain("We moved from Zurich to Basel.");
+    expect(brainUpdate.mock.lastCall?.[0].data.body.fix).toEqual({
+      ...fix,
+      fixed: true,
+    });
+  });
+
   it("posts in the language the website is written in", async () => {
     cusoFind.mockResolvedValue(cuso);
     startTurn.mockResolvedValue({ turnId: "turn-9" });
@@ -1323,6 +1345,64 @@ describe("changes after the plan", () => {
     expect(message()).not.toContain("- company:");
     expect(message()).toContain("sections holding only these sections");
     expect(message()).toContain("part patch");
+  });
+
+  it("takes a fix with no section as a general correction: every section it changes, then the plan, once", async () => {
+    // The stored brain follows each write, so the close reads the open fix.
+    brainFindUnique.mockImplementation(async () => ({
+      body: brainUpdate.mock.lastCall?.[0].data.body ?? essentials,
+    }));
+    seedStrategy(wholePlan());
+
+    await fixCmoBrandSection(
+      {
+        projectId: "project-1",
+        userId: "user-1",
+        note: "We moved from Zurich to Basel.",
+      },
+      now,
+    );
+
+    expect(startTurn.mock.lastCall?.[0]).toMatchObject({
+      clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:fix:/),
+    });
+    expect(message()).toContain("We moved from Zurich to Basel.");
+    expect(message()).toContain("every section this correction changes");
+    expect(message()).toContain("do not research again");
+    expect(message()).toContain("part patch");
+    // The turn sent it had its go: it is closed, so it never runs again.
+    const body = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(body.fix).toMatchObject({
+      note: "We moved from Zurich to Basel.",
+      fixed: true,
+    });
+    cusoFind.mockResolvedValue({ ...cuso, brandBrain: body });
+    turnFindFirst.mockResolvedValue(turn("fix", 1, "COMPLETED"));
+    startTurn.mockClear();
+    await expect(
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("queues a general correction while the plan is written and starts it when the plan ends", async () => {
+    const asked = new Date(now.getTime() - 60_000).toISOString();
+    cusoFind.mockResolvedValue({
+      ...cuso,
+      brandBrain: {
+        ...essentials,
+        fix: { note: "No more catering.", at: asked, fixed: false },
+      },
+    });
+    turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
+
+    await expect(
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+    ).resolves.toEqual({ turnId: "turn-9" });
+    expect(message()).toContain("No more catering.");
+    expect(startTurn.mock.lastCall?.[0].clientTurnId).toMatch(
+      new RegExp(`:fix:\\d+:${Date.parse(asked)}$`),
+    );
   });
 
   it("queues a fix while the plan is written and starts it when the plan ends", async () => {

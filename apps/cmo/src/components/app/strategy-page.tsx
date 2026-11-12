@@ -101,12 +101,6 @@ export function StrategyPage({
     <div className="plan">
       <PlanReview
         overview={overview}
-        readOnly
-        onRequest={async () => null}
-        onSetAds={async () => null}
-        onAnswer={async () => {}}
-        onUpdate={async () => null}
-        onApprove={async () => {}}
         onConnectMeasurement={connectMeasurement}
       />
       <div className="panel">

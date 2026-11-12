@@ -97,7 +97,6 @@ describe("findRepeats", () => {
   });
 
   it("skips the check when the embedding model fails", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const failing: EmbedTexts = async () => {
       throw new Error("Gateway timeout");
     };
@@ -109,11 +108,6 @@ describe("findRepeats", () => {
     );
 
     expect(result).toEqual({ repeats: [null, null], costUsd: 0 });
-    expect(warn).toHaveBeenCalledWith(
-      "[repeats] embedding failed; check skipped",
-      expect.any(Error),
-    );
-    warn.mockRestore();
   });
 
   it("skips the check when the embedding model is slow, and keeps what it returns later", async () => {

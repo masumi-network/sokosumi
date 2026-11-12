@@ -290,7 +290,6 @@ export async function Home({ searchParams, view }: HomeProps) {
         key={projectId}
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
-        initialStep={step === "results" ? "results" : undefined}
         skipped={await skippedSteps(overview.projectId)}
         actions={{
           loadState: loadState.bind(null, projectId),

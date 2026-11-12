@@ -239,56 +239,9 @@ describe("CusoAvatar", () => {
 });
 
 describe("hire screen", () => {
-  it("plays the hero first and the avatar once it ends", async () => {
+  it("plays Cuso in the bar at once, beside the website question", async () => {
     await render(<Onboarding onboard={vi.fn()} />);
-    const hero = video(".ob-stage-art");
-    const avatar = video(".cuso-avatar video");
-    expect(played).toEqual([hero]);
-
-    await end(hero);
-
-    expect(played).toEqual([hero, avatar]);
-  });
-
-  it("plays the avatar when the hero's autoplay is refused", async () => {
-    vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(function (
-      this: HTMLMediaElement,
-    ) {
-      played.push(this);
-      return Promise.reject(new Error("NotAllowedError"));
-    });
-    await render(<Onboarding onboard={vi.fn()} />);
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const hero = video(".ob-stage-art");
-    const avatar = video(".cuso-avatar video");
-    expect(played).toEqual([hero, avatar]);
-    expect(
-      host.querySelector(".ob-stage")?.classList.contains("ob-stage-live"),
-    ).toBe(true);
-  });
-
-  it("lets Cuso announce the stage labels once the hero starts", async () => {
-    vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(
-      () => new Promise(() => {}),
-    );
-    await render(<Onboarding onboard={vi.fn()} />);
-    const stage = host.querySelector(".ob-stage");
-    expect(stage?.classList.contains("ob-stage-live")).toBe(false);
-
-    vi.mocked(HTMLMediaElement.prototype.play).mockResolvedValue();
-    await act(async () => root.render(null));
-    await render(<Onboarding onboard={vi.fn()} />);
-
-    expect(
-      host.querySelector(".ob-stage")?.classList.contains("ob-stage-live"),
-    ).toBe(true);
-    for (const label of host.querySelectorAll<HTMLElement>(".ob-tilt")) {
-      expect(label.style.getPropertyValue("--from-x")).toMatch(/px$/);
-      expect(label.style.getPropertyValue("--from-y")).toMatch(/px$/);
-    }
+    const avatar = video(".brief-cuso .cuso-avatar video");
+    expect(played).toEqual([avatar]);
   });
 });

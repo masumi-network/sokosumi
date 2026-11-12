@@ -494,14 +494,15 @@ export async function requestStrategy(
  */
 export async function fixBrandSection(
   projectId: string,
-  section: BrandSectionKey,
+  section: BrandSectionKey | null,
   note: string,
 ): Promise<string | null> {
   const core = await requireCore();
   const { error } = await fixCmoBrandSectionForProject({
     ...core,
     path: { projectId },
-    body: { section, note },
+    // No section: a general correction, Cuso rewrites what it changes.
+    body: section ? { section, note } : { note },
   });
   return error ? errorText(error, "Could not send that fix") : null;
 }

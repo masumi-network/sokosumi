@@ -119,8 +119,9 @@ export async function findRepeats(
         );
       }),
     ]);
-  } catch (error) {
-    console.warn("[repeats] embedding failed; check skipped", error);
+  } catch {
+    // A failed embedding is a quality skip, not a save failure: let the text
+    // through and try again on the next check once the model answers.
     return none;
   } finally {
     clearTimeout(timer);

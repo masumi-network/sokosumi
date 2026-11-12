@@ -22,6 +22,7 @@ export {
   SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_CMO_SCHEDULES,
 } from "./cmo.js";
+export { CMO_PLAN_HARD_RULES } from "./cmo-plan-rules.js";
 export {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,

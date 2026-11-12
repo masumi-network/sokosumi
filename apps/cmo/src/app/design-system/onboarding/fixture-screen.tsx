@@ -4,7 +4,13 @@ import { NameSetup } from "../../../components/name-setup";
 import { Onboarding } from "../../../components/onboarding";
 import { inertOnboardingActions } from "../../../components/onboarding/actions";
 import { OnboardingFlow } from "../../../components/onboarding/flow";
-import { type Screen, screenOverview } from "./fixtures";
+import {
+  type Screen,
+  screenBriefed,
+  screenLaunched,
+  screenMessages,
+  screenOverview,
+} from "./fixtures";
 
 interface FixtureScreenProps {
   screen: Screen;
@@ -34,9 +40,10 @@ export function FixtureScreen({ screen }: FixtureScreenProps) {
   return (
     <OnboardingFlow
       overview={overview}
-      messages={[]}
-      // The Brand screen shows its questions-left line when they were skipped.
-      skipped={screen.startsWith("brand") ? ["questions"] : []}
+      messages={screenMessages(screen)}
+      briefed={screenBriefed(screen)}
+      launched={screenLaunched(screen)}
+      welcome={screen === "away"}
       actions={inertOnboardingActions(overview)}
     />
   );

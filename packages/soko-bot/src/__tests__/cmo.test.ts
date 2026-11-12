@@ -77,6 +77,14 @@ describe("CMO version", () => {
     );
   });
 
+  it("asks cmo-v2, not cmo-v1, to link questions to pieces and ground each funnel stage", () => {
+    const v1 = composeSystemPrompt(getSokoBotVersion("cmo-v1"));
+    const v2 = composeSystemPrompt(getSokoBotVersion("cmo-v2"));
+    expect(v2).toMatch(/entryIds: the ids of up to three calendar entries/);
+    expect(v2).toMatch(/basedOn: the one or two Brand Brain sections/);
+    expect(v1).not.toMatch(/entryIds|basedOn/);
+  });
+
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
@@ -257,6 +265,55 @@ describe("CMO strategy and rhythms", () => {
       cadence: "3 posts a week",
     });
     expect(strategy.previews).toEqual([]);
+  });
+
+  it("links a plan question to up to three pieces, and grounds a funnel stage in up to two sections", () => {
+    const stage = {
+      stage: "consideration",
+      name: "Compare us",
+      goal: "Buyers weigh us against agencies",
+      metric: "Demo requests",
+    };
+    const plan = (question: object, extra: object) =>
+      marketingStrategyPlanSchema.safeParse({
+        month: "2026-10",
+        summary: "Grow LinkedIn reach with founder-led posts.",
+        goals: ["More demo requests"],
+        pillars: ["Product stories"],
+        channels: [],
+        calendar: [],
+        questions: [
+          {
+            id: "q1",
+            question: "Can I quote Florian Haller?",
+            statement: "Florian Haller agreed to be quoted",
+            ...question,
+          },
+        ],
+        funnel: [{ ...stage, ...extra }],
+      });
+
+    const linked = plan(
+      { entryIds: ["w1-thu"] },
+      { why: "Buyers compare before they book", basedOn: ["buyers"] },
+    );
+    expect(linked.success && linked.data.questions[0]?.entryIds).toEqual([
+      "w1-thu",
+    ]);
+    expect(linked.success && linked.data.funnel[0]).toMatchObject({
+      why: "Buyers compare before they book",
+      basedOn: ["buyers"],
+    });
+    // Older plans carry none of them and still read.
+    const older = plan({}, {});
+    expect(older.success && older.data.questions[0]?.entryIds).toBeUndefined();
+    expect(older.success && older.data.funnel[0]?.basedOn).toBeUndefined();
+
+    expect(plan({ entryIds: ["a", "b", "c", "d"] }, {}).success).toBe(false);
+    expect(plan({}, { basedOn: ["buyers", "pricing", "proof"] }).success).toBe(
+      false,
+    );
+    expect(plan({}, { basedOn: ["weather"] }).success).toBe(false);
   });
 
   it("gives the pillars of an older plan equal shares", () => {
