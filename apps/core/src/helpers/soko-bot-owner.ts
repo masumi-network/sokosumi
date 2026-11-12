@@ -95,6 +95,20 @@ export function sokoBotAuthorLabel(
   return `${name}, ${bot.user?.name ?? "another person"}'s assistant`;
 }
 
+/**
+ * Whose Task a bot is reading. A personal bot sees its team's Tasks beside
+ * its owner's; unlabelled, it reported a teammate's work as its owner's.
+ */
+export function taskOwnerLabel(
+  task: { ownerId: string | null; owner: { name: string } | null },
+  actingUserId: string | null,
+): string | null {
+  if (!task.ownerId) return null;
+  if (task.ownerId === actingUserId) return "your owner";
+  const name = task.owner?.name ?? "another person";
+  return actingUserId === null ? name : `${name}, a teammate (not your owner)`;
+}
+
 /** The fields {@link sokoBotOwnerName} and {@link sokoBotAuthorLabel} read. */
 export const SOKO_BOT_OWNER_NAME_SELECT = {
   name: true,
