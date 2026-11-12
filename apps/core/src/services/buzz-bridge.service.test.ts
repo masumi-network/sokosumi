@@ -709,6 +709,44 @@ describe("a person's own Buzz agents", () => {
     );
   });
 
+  it("writes a person an agent mentions as their user token, which Core reads from a Coworker", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOB_PUBKEY,
+        appPubkey: null,
+        userId: "user-bob",
+        user: { name: "Bob Builder" },
+      },
+    ]);
+    core.mockResolvedValueOnce({
+      status: 201,
+      body: { data: { id: "agent-message" } },
+    });
+    await applyInboundEvent(
+      nostrEvent(
+        {
+          content: `hi nostr:${npubEncode(BOB_PUBKEY)}`,
+          tags: [
+            ["h", CHANNEL],
+            ["p", BOB_PUBKEY],
+          ],
+        },
+        AGENT_KEY,
+      ),
+      core,
+    );
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ content: "hi @user-bob" }),
+      }),
+    );
+  });
+
   it("ignores an agent's reactions, which Core does not take from a Coworker", async () => {
     db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
     const reaction = nostrEvent(

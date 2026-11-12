@@ -4,7 +4,6 @@ import { chatMessageTextWithNames, readChatMentionKeys } from "@sokosumi/utils";
 import { npubEncode } from "nostr-tools/nip19";
 import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
-
 import { getEnv } from "@/config/env";
 import {
   forceRevokeCoworkerWorkspaceAccessByPair,
@@ -49,6 +48,7 @@ import {
   hashApiKey,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
+import { isActiveUser } from "@/middleware/auth-active-user";
 
 /**
  * Buzz bridge: every chat room of an organization on Buzz is also a Buzz
@@ -1075,11 +1075,14 @@ const roomForSync = {
   name: true,
   topic: true,
   kind: true,
+  archivedAt: true,
   buzzChannel: true,
   userMembers: {
     select: {
       userId: true,
-      user: { select: { name: true, image: true } },
+      user: {
+        select: { name: true, image: true, banned: true, banExpires: true },
+      },
     },
   },
   sokoBotMembers: {
@@ -1220,6 +1223,9 @@ export async function syncRoomChannel(roomId: string) {
 
   const members: { identity: BuzzIdentity; role: "member" | "bot" }[] = [];
   for (const member of room.userMembers) {
+    // Banned: Core turns them away, so Buzz must not keep showing them the
+    // room either (a ban leaves memberships in place).
+    if (!isActiveUser(member.user)) continue;
     const identity = await ensureIdentity({ userId: member.userId });
     await ensureCommunityMember(community.id, relayUrl, identity);
     await ensureProfile(relayUrl, identity, {
@@ -1323,6 +1329,22 @@ export async function syncRoomChannel(roomId: string) {
     });
   }
   if (isDirect(channel)) return { channel, relayUrl };
+
+  const archived = room.archivedAt !== null;
+  if (channel.archived !== archived) {
+    await publish(relayUrl, config.operatorSecretKey, {
+      kind: BUZZ_KIND.editChannel,
+      content: "",
+      tags: [
+        ["h", channel.channelId],
+        ["archived", String(archived)],
+      ],
+    });
+    channel = await prisma.buzzChannel.update({
+      where: { id: channel.id },
+      data: { archived },
+    });
+  }
 
   const wanted = new Map(
     members.flatMap((member) =>
@@ -2076,16 +2098,39 @@ async function applyMemberChange(
       await syncBuzzAgents({ identityId: author.id });
     }
   }
-  // Whatever happens below, the room's members are checked against Buzz
-  // again: a change Sokosumi does not take (someone else invited, an agent
-  // not allowed) is put back instead of lingering.
-  await prisma.buzzChannel.update({
-    where: { id: channel.id },
-    data: { membersHash: null },
-  });
-  await prisma.buzzOutbox.create({
-    data: { roomId: channel.roomId, messageId: null },
-  });
+  // Once Sokosumi has decided, the room's members are checked against Buzz
+  // again: a change it does not take (someone else invited, an agent not
+  // allowed) is put back instead of lingering. Not while Core is merely
+  // unreachable: putting it back then would lose the change on the retry.
+  const roomId = channel.roomId;
+  const recheck = async () => {
+    await prisma.buzzChannel.update({
+      where: { id: channel.id },
+      data: { membersHash: null },
+    });
+    await prisma.buzzOutbox.create({ data: { roomId, messageId: null } });
+  };
+  try {
+    const result = await applyAgentMembership(change, author, core, {
+      roomId,
+      relayUrl: channel.community.relayUrl,
+      channelId: channel.channelId,
+    });
+    await recheck();
+    return result;
+  } catch (error) {
+    if (error instanceof CoreRejectedError && error.terminal) await recheck();
+    throw error;
+  }
+}
+
+/** Adds or removes the author's own agents named in a Buzz member change. */
+async function applyAgentMembership(
+  change: { added: boolean; pubkeys: string[] },
+  author: BuzzIdentity,
+  core: CoreRequest,
+  channel: { roomId: string; relayUrl: string; channelId: string },
+): Promise<InboundResult> {
   const agents = await prisma.buzzIdentity.findMany({
     where: {
       pubkey: { in: change.pubkeys },
@@ -2098,7 +2143,7 @@ async function applyMemberChange(
   // A replayed invite or removal (the worker reads back after a restart)
   // must not undo a later change: only what the channel still shows applies.
   const current = await channelMemberPubkeys(
-    channel.community.relayUrl,
+    channel.relayUrl,
     channel.channelId,
   );
   const coworkerIds = agents.flatMap((agent) =>
@@ -2583,7 +2628,10 @@ export async function applyInboundEvent(
       });
       const names = new Map(
         mentioned.flatMap((identity) => {
+          // An agent posts as its Coworker, whose mentions Core reads only
+          // from `@userId` tokens; a person's post names them and passes ids.
           const name =
+            (agent ? identity.userId : null) ??
             identity.user?.name ??
             (identity.sokoBot ? sokoBotDisplayName(identity.sokoBot) : null) ??
             identity.coworker?.name ??
