@@ -224,6 +224,8 @@ describe("native audit chat inference boundary", () => {
       languageCode: "en",
       source: "rank_refresh",
       volume: 100,
+      difficulty: null,
+      clicks: null,
       intent: null,
       conversion: null,
       feature: null,

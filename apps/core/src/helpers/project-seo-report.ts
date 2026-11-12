@@ -10,6 +10,7 @@ import {
 } from "@/schemas/project-seo.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
+import { legacyReportKeywords } from "./project-seo-report-keywords";
 import { publicSeoStrategy } from "./project-seo-strategy";
 
 const text = z.string().max(20_000);
@@ -17,6 +18,15 @@ const nullableNumber = z.number().finite().nullable();
 const observedAt = z.string().datetime();
 const source = z.object({ sourceRef: text, observedAt });
 const FEATURE_CHARS = 200;
+// DataForSEO keyword_difficulty: 0 to 100. A value Core cannot read is dropped: it must not fail the import.
+const difficulty = z
+  .number()
+  .finite()
+  .min(0)
+  .max(100)
+  .nullable()
+  .optional()
+  .catch(undefined);
 const finding = source.extend({
   id: text,
   pageUrl: seoUrlSchema,
@@ -34,6 +44,7 @@ const keyword = source.extend({
   positionStatus: z.enum(["ranked", "not_in_range", "unavailable"]),
   checkedResults: z.number().int().nullable(),
   volume: nullableNumber.optional(),
+  difficulty,
   intent: text.nullable().optional(),
   conversion: seoConversionSchema.nullable().optional(),
   feature: z.string().max(FEATURE_CHARS).nullable().optional(),
@@ -408,6 +419,7 @@ const legacy = z.object({
                   keyword: text.nullable(),
                   position: nullableNumber,
                   volume: nullableNumber,
+                  difficulty,
                   intent: text.nullable(),
                 }),
               ),
@@ -432,12 +444,24 @@ const legacy = z.object({
     })
     .passthrough()
     .nullable(),
+  // The Target keyword's own facts: its difficulty when no ranked or idea row holds the keyword.
+  keywordData: z
+    .object({
+      facts: z.object({
+        keyword: text.nullable(),
+        keyword_difficulty: difficulty,
+      }),
+    })
+    .nullable()
+    .optional()
+    .catch(null),
   keywordOpportunities: z
     .object({
       list: z.array(
         z.object({
           keyword: text,
           volume: z.number().finite(),
+          difficulty,
           position: nullableNumber,
           intent: text.nullable(),
           ...estimate,
@@ -458,6 +482,8 @@ const legacy = z.object({
     .max(10000),
   couldNotSee: z.array(z.object({ item: text, reason: text })).max(1000),
 });
+/** The SEO bot's own Report JSON, as far as Core reads it. */
+export type LegacySeoReport = z.infer<typeof legacy>;
 const numberAt = (value: unknown, keys: string[]): number | null => {
   let current = value;
   for (const key of keys) current = object(current)?.[key];
@@ -565,81 +591,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       observedAt: at,
     })),
   );
-  const keywords: z.infer<typeof keyword>[] =
-    result.header.focusKeywords.flatMap((row) =>
-      ["mobile", "desktop"].map((device) => {
-        const d = seoDeviceSchema.parse(device),
-          position = row.position[d],
-          note = row.positionNote[d];
-        return {
-          keyword: row.keyword,
-          pageUrl,
-          device: d,
-          position,
-          positionStatus:
-            position !== null
-              ? ("ranked" as const)
-              : note?.startsWith("not in the top")
-                ? ("not_in_range" as const)
-                : ("unavailable" as const),
-          checkedResults: note?.match(/top (\d+)/)?.[1]
-            ? Number(note.match(/top (\d+)/)?.[1])
-            : null,
-          volume: row.volume,
-          intent: row.intent,
-          conversion: row.conversion,
-          feature: row.feature,
-          source: "focus",
-          sourceRef: result.snapshotId,
-          observedAt: at,
-        };
-      }),
-    );
-  for (const row of result.rankingData?.page?.ranked?.rows ?? [])
-    if (row.keyword)
-      keywords.push({
-        keyword: row.keyword,
-        pageUrl,
-        device: null,
-        position: row.position,
-        positionStatus: row.position === null ? "unavailable" : "ranked",
-        checkedResults: null,
-        volume: row.volume,
-        intent: row.intent,
-        source: "ranked",
-        sourceRef: result.snapshotId,
-        observedAt: at,
-      });
-  for (const row of result.rankingData?.gaps ?? [])
-    keywords.push({
-      keyword: row.keyword,
-      pageUrl,
-      device: null,
-      position: null,
-      positionStatus: "unavailable",
-      checkedResults: null,
-      volume: row.bestVolume,
-      intent: null,
-      source: "gap",
-      sourceRef: result.snapshotId,
-      observedAt: at,
-    });
-  for (const row of result.keywordOpportunities?.list ?? [])
-    keywords.push({
-      keyword: row.keyword,
-      pageUrl,
-      device: null,
-      position: row.position,
-      positionStatus: row.position === null ? "unavailable" : "ranked",
-      checkedResults: null,
-      volume: row.volume,
-      intent: row.intent,
-      conversion: row.conversion,
-      feature: row.feature,
-      source: "opportunity",
-      sourceRef: result.snapshotId,
-      observedAt: at,
-    });
+  const keywords = legacyReportKeywords(result, pageUrl, at);
   const competitors: z.infer<typeof competitor>[] = (
     result.rankingData?.competitors ?? []
   ).map((row) => ({

@@ -130,6 +130,8 @@ function savedKeywordWorkspace() {
     source: "saved",
     volume: null,
     intent: null,
+    difficulty: null,
+    clicks: null,
     conversion: null,
     feature: null,
     device: null,
@@ -855,6 +857,8 @@ describe("Keywords after a check", () => {
         keyword: "low battery alert",
         source: "opportunity",
         volume: 50,
+        difficulty: null,
+        clicks: null,
         conversion: "high",
         feature: "Low battery alerts",
       },
@@ -910,6 +914,8 @@ describe("Keywords after a check", () => {
     };
     workspace.keywords[0] = {
       ...workspace.keywords[0],
+      difficulty: null,
+      clicks: null,
       conversion: "medium",
       feature: "Yield tracker",
     };

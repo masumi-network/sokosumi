@@ -298,6 +298,20 @@ export const seoKeywordSchema = z
     languageCode: z.string(),
     source: z.string(),
     volume: z.number().nullable(),
+    /** DataForSEO keyword difficulty, 0 to 100: how hard a top 10 place is, from the link profiles of the top 10. */
+    difficulty: z.number().nullable(),
+    /**
+     * Estimated organic clicks a month now and at places 10, 3 and 1: volume times a published click-through
+     * rate per place (AWR, July 2026). An estimate, not a measurement. Null without a volume.
+     */
+    clicks: z
+      .object({
+        now: z.number().int(),
+        top10: z.number().int(),
+        top3: z.number().int(),
+        top1: z.number().int(),
+      })
+      .nullable(),
     intent: z.string().nullable(),
     conversion: seoConversionSchema.nullable(),
     /** The product feature the keyword is about, in the words of the check. */

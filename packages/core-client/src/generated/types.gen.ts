@@ -10745,6 +10745,13 @@ export type ProjectSeoKeyword = {
     languageCode: string;
     source: string;
     volume: number | null;
+    difficulty: number | null;
+    clicks: {
+        now: number;
+        top10: number;
+        top3: number;
+        top1: number;
+    } | null;
     intent: string | null;
     conversion: 'high' | 'medium' | 'low' | null;
     feature: string | null;

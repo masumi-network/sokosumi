@@ -66,6 +66,8 @@ function keyword(
     source: "focus",
     volume: null,
     intent: null,
+    difficulty: null,
+    clicks: null,
     conversion: null,
     feature: null,
     device: "desktop",

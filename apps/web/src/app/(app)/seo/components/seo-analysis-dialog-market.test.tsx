@@ -44,6 +44,8 @@ function savedKeyword(
     source: "saved",
     volume: null,
     intent: null,
+    difficulty: null,
+    clicks: null,
     conversion: null,
     feature: null,
     device: null,

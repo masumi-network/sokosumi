@@ -1,4 +1,3 @@
-import { z } from "@hono/zod-openapi";
 import type {
   ProjectSeoActionTask,
   ProjectSeoAnalysis,
@@ -24,6 +23,10 @@ import {
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
 
+import {
+  observedSeoKeyword,
+  savedSeoKeyword,
+} from "./project-seo-keyword-rows";
 import {
   projectSearchEvidence,
   type SearchEvidenceSource,
@@ -70,10 +73,7 @@ interface ProjectionInput {
 }
 /** Severities that name a problem; notes, tests and measurements do not. */
 const SEO_ISSUE_SEVERITIES = new Set(["critical", "major", "minor"]);
-/** Why a check lists a keyword it did not set out to read. The SEO tab shows these as ideas (web: SEO_IDEA_SOURCES). */
-const IDEA_SOURCES = new Set(["gap", "opportunity"]);
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
-const priority = z.enum(["low", "medium", "high"]);
 /** A Task in one of these states does no work on its action any more. */
 const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
 
@@ -413,33 +413,15 @@ export function projectSeoProjection(
         ),
       );
       if (choice) observedKeywordChoices.add(choice.id);
-      keywords.push({
-        ...item,
-        id: `${row.id}:keyword:${keywords.length}`,
-        observationId: row.id,
-        countryCode: data.countryCode,
-        languageCode: data.languageCode,
-        // No choice of the reader yet: a keyword the check read, or set out to read, is tracked.
-        // An idea the check only lists waits for the reader.
-        saved:
-          choice?.saved ??
-          (trackable &&
-            // The same holds for a keyword the save schema refuses or stores under another spelling.
-            saveSeoKeywordSchema.shape.keyword.safeParse(item.keyword).data ===
-              item.keyword &&
-            !(
-              IDEA_SOURCES.has(item.source ?? "") &&
-              item.positionStatus === "unavailable"
-            )),
-        targetPageId: choice?.pageId ?? null,
-        priority: priority.parse(choice?.priority ?? "medium"),
-        version: choice?.version ?? 0,
-        source: item.source ?? "rank_refresh",
-        volume: item.volume ?? null,
-        intent: item.intent ?? null,
-        conversion: item.conversion ?? null,
-        feature: item.feature ?? null,
-      });
+      keywords.push(
+        observedSeoKeyword(item, choice, {
+          id: `${row.id}:keyword:${keywords.length}`,
+          observationId: row.id,
+          countryCode: data.countryCode,
+          languageCode: data.languageCode,
+          trackable,
+        }),
+      );
     }
     for (const item of data.competitors) {
       if (
@@ -629,29 +611,12 @@ export function projectSeoProjection(
       observedKeywordChoices.has(choice.id)
     )
       continue;
-    keywords.push({
-      id: choice.id,
-      keyword: choice.keyword,
-      pageUrl:
+    keywords.push(
+      savedSeoKeyword(
+        choice,
         input.pages.find((page) => page.id === choice.pageId)?.url ?? null,
-      targetPageId: choice.pageId,
-      saved: choice.saved,
-      countryCode: choice.countryCode,
-      languageCode: choice.languageCode,
-      source: "saved",
-      volume: null,
-      intent: null,
-      conversion: null,
-      feature: null,
-      device: null,
-      position: null,
-      positionStatus: "unavailable",
-      checkedResults: null,
-      observedAt: null,
-      observationId: null,
-      priority: priority.parse(choice.priority),
-      version: choice.version,
-    });
+      ),
+    );
   }
   for (const choice of input.competitors)
     if (!competitors.some((row) => row.id === choice.id))

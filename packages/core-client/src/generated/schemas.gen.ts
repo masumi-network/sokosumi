@@ -40436,6 +40436,38 @@ export const ProjectSeoKeywordSchema = {
                 'null'
             ]
         },
+        difficulty: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        clicks: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                now: {
+                    type: 'integer'
+                },
+                top10: {
+                    type: 'integer'
+                },
+                top3: {
+                    type: 'integer'
+                },
+                top1: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'now',
+                'top10',
+                'top3',
+                'top1'
+            ]
+        },
         intent: {
             type: [
                 'string',
@@ -40539,6 +40571,8 @@ export const ProjectSeoKeywordSchema = {
         'languageCode',
         'source',
         'volume',
+        'difficulty',
+        'clicks',
         'intent',
         'conversion',
         'feature',

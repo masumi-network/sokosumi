@@ -24,6 +24,8 @@ function row(patch: Partial<Keyword>): Keyword {
     source: "focus",
     volume: null,
     intent: null,
+    difficulty: null,
+    clicks: null,
     conversion: null,
     feature: null,
     device: null,
@@ -108,6 +110,8 @@ describe("SEO keyword rows", () => {
       idea("low", { volume: 500, conversion: "low" }),
       idea("high small", {
         volume: 50,
+        difficulty: null,
+        clicks: null,
         conversion: "high",
         feature: "Low battery alerts",
       }),
@@ -122,6 +126,8 @@ describe("SEO keyword rows", () => {
         keyword: "rank 8",
         positionStatus: "ranked",
         position: 8,
+        difficulty: null,
+        clicks: null,
         conversion: "high",
       }),
       row({ keyword: "rank 3", positionStatus: "ranked", position: 3 }),
@@ -135,10 +141,14 @@ describe("SEO keyword rows", () => {
       "low",
     ]);
     expect(ideas[1]).toMatchObject({
+      difficulty: null,
+      clicks: null,
       conversion: "high",
       feature: "Low battery alerts",
     });
     expect(ideas[2]).toMatchObject({
+      difficulty: null,
+      clicks: null,
       conversion: "medium",
       feature: null,
       sources: ["gap", "opportunity"],

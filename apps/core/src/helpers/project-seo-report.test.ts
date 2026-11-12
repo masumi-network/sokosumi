@@ -137,6 +137,65 @@ describe("public SEO report trust boundary", () => {
     );
   });
 
+  it("keeps each keyword's difficulty, gives a focus keyword and a gap the one another row holds, and drops one out of range", () => {
+    const fixture = legacyReport();
+    const report = parsePublicSeoArtifact({
+      ...fixture,
+      rankingData: {
+        ...fixture.rankingData,
+        page: {
+          ...fixture.rankingData.page,
+          ranked: {
+            rows: [
+              {
+                keyword: "ranked term",
+                position: 12,
+                volume: 50,
+                difficulty: 30,
+                intent: null,
+              },
+              // Another spelling of the focus keyword: it gives the focus rows their difficulty.
+              {
+                keyword: "Example",
+                position: 40,
+                volume: 90,
+                difficulty: 55,
+                intent: null,
+              },
+            ],
+          },
+        },
+      },
+      keywordOpportunities: {
+        list: [
+          {
+            keyword: "opportunity",
+            volume: 20,
+            difficulty: 140,
+            position: null,
+            intent: null,
+          },
+        ],
+      },
+      keywordData: { facts: { keyword: "gap term", keyword_difficulty: 12 } },
+    });
+    const difficulty = (keyword: string) =>
+      report.keywords
+        .filter((row) => row.keyword === keyword)
+        .map((row) => row.difficulty);
+    expect(difficulty("example")).toEqual([55, 55]);
+    expect(difficulty("ranked term")).toEqual([30]);
+    expect(difficulty("gap term")).toEqual([12]);
+    // 140 is no difficulty: the row stays, without one.
+    expect(difficulty("opportunity")).toEqual([null]);
+    // A report from before difficulty has none.
+    expect(
+      parsePublicSeoArtifact(fixture).keywords.every(
+        (row) => row.difficulty === null,
+      ),
+    ).toBe(true);
+  });
+
   it("imports a focused result that carries an estimate, and does not read the estimate", () => {
     const fixture = focusedReport();
     const report = parsePublicSeoArtifact({
