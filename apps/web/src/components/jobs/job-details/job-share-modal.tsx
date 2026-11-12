@@ -131,6 +131,9 @@ export default function JobShareModal({
     }
 
     setIsLoading(true);
+    // The box shows the choice at once and goes back if the save fails.
+    const chosen = { ...jobShare, allowSearchIndexing: checked };
+    setJobShare(chosen);
     try {
       const nextJobShare = await coreClient.putJobShare(job.id, {
         allowSearchIndexing: checked,
@@ -138,6 +141,9 @@ export default function JobShareModal({
       syncJobShare(nextJobShare);
       toast.success(t("Success.share"));
     } catch (error) {
+      // Only the choice goes back: what Core answered, or a removed share,
+      // stays.
+      setJobShare((now) => (now === chosen ? jobShare : now));
       handleShareError(error);
     } finally {
       setIsLoading(false);

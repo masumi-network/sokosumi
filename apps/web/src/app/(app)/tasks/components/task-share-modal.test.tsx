@@ -127,6 +127,66 @@ describe("TaskShareModal", () => {
     expect(routerRefreshMock).toHaveBeenCalled();
   });
 
+  it("shows the indexing choice at once and takes it back when the save fails", async () => {
+    let fail = (_: unknown) => {};
+    putTaskShareMock.mockReturnValueOnce(
+      new Promise((_, reject) => void (fail = reject)),
+    );
+    render(
+      <TaskShareModal
+        open
+        onOpenChange={vi.fn()}
+        taskId="task-1"
+        share={{
+          id: "share-1",
+          taskId: "task-1",
+          token: "public-token",
+          allowSearchIndexing: true,
+          createdAt: new Date("2026-03-30T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+    fail(new Error("offline"));
+    await waitFor(() => expect(screen.getByRole("checkbox")).toBeChecked());
+    expect(toastErrorMock).toHaveBeenCalledWith("Error.share");
+  });
+
+  it("keeps what Core saved when a step after the save throws", async () => {
+    putTaskShareMock.mockResolvedValueOnce({
+      id: "share-1",
+      taskId: "task-1",
+      token: "public-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+    });
+    routerRefreshMock.mockImplementationOnce(() => {
+      throw new Error("refresh failed");
+    });
+    render(
+      <TaskShareModal
+        open
+        onOpenChange={vi.fn()}
+        taskId="task-1"
+        share={{
+          id: "share-1",
+          taskId: "task-1",
+          token: "public-token",
+          allowSearchIndexing: true,
+          createdAt: new Date("2026-03-30T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox"));
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled());
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+  });
+
   it("removes public task sharing", async () => {
     deleteTaskShareMock.mockResolvedValue(undefined);
 

@@ -120,6 +120,9 @@ export function TaskShareModal({
     }
 
     setIsLoading(true);
+    // The box shows the choice at once and goes back if the save fails.
+    const chosen = { ...taskShare, allowSearchIndexing: value === true };
+    setTaskShare(chosen);
     try {
       const nextTaskShare = await coreClient.putTaskShare(taskId, {
         allowSearchIndexing: value === true,
@@ -127,6 +130,9 @@ export function TaskShareModal({
       syncTaskShare(nextTaskShare);
       toast.success(t("Success.share"));
     } catch (error) {
+      // Only the choice goes back: what Core answered, or a removed share,
+      // stays.
+      setTaskShare((now) => (now === chosen ? taskShare : now));
       handleShareError(error);
     } finally {
       setIsLoading(false);
