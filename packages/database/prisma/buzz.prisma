@@ -150,13 +150,20 @@ model BuzzReactionLink {
   pendingEvent Json?
   /// Set when the person's own app key signed it: Sokosumi cannot take it back.
   signerPubkey String?
-  /// Such a reaction removed in Sokosumi: kept so a replay of its event, still
-  /// on Buzz, does not put it back.
-  removedAt  DateTime?
   createdAt  DateTime     @default(now())
 
   @@unique([messageId, identityId, emoji])
   @@map("buzz_reaction_link")
+}
+
+/// A Buzz event Sokosumi undid but cannot take back on Buzz (a reaction the
+/// person's own app key signed, removed in Sokosumi): a replay of it is
+/// ignored instead of applied again.
+model BuzzUndoneEvent {
+  eventId   String   @id
+  createdAt DateTime @default(now())
+
+  @@map("buzz_undone_event")
 }
 
 /// Messages whose Buzz copy may be stale. Core writes one row per change; the

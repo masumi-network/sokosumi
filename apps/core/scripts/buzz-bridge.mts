@@ -11,7 +11,7 @@ import type { Event } from "nostr-tools/pure";
 import { getEnv } from "@/config/env";
 import { INBOUND_KINDS } from "@/lib/buzz/events";
 import {
-  queryEvents,
+  queryAllEvents,
   type RelaySubscription,
   subscribe,
 } from "@/lib/buzz/relay-client";
@@ -134,64 +134,24 @@ function chronological(events: Event[]): Event[] {
   );
 }
 
-/**
- * Every stored event from `since` on, paged backwards (the relay answers
- * newest-first and caps a page), so a long outage loses nothing.
- */
+/** Every stored event from `since` on, so a long outage loses nothing. */
 async function backlog(input: {
   relayUrl: string;
   secretKey: Uint8Array;
   channelIds: string[];
   since: number;
 }): Promise<Event[]> {
-  const PAGE = 500;
-  const found = new Map<string, Event>();
-  let until = Math.floor(Date.now() / 1000);
-  // `until` only moves back, so this ends; no page cap, which would skip
-  // the oldest of a long outage.
-  for (;;) {
-    const events = await queryEvents({
+  return chronological(
+    await queryAllEvents({
       relayUrl: input.relayUrl,
       secretKey: input.secretKey,
-      filters: [
-        {
-          kinds: INBOUND_KINDS,
-          "#h": input.channelIds,
-          since: input.since,
-          until,
-          limit: PAGE,
-        },
-      ],
-    });
-    for (const event of events) found.set(event.id, event);
-    if (events.length < PAGE) break;
-    const oldest = Math.min(...events.map((event) => event.created_at));
-    if (oldest === until) {
-      // A whole page in one second: read that second in full, then go on
-      // before it, so no event in a crowded second is skipped.
-      for (const event of await queryEvents({
-        relayUrl: input.relayUrl,
-        secretKey: input.secretKey,
-        filters: [
-          {
-            kinds: INBOUND_KINDS,
-            "#h": input.channelIds,
-            since: oldest,
-            until: oldest,
-            limit: 50_000,
-          },
-        ],
-      })) {
-        found.set(event.id, event);
-      }
-      until = oldest - 1;
-    } else {
-      // Inclusive, so events sharing the oldest second are read again.
-      until = oldest;
-    }
-    if (until < input.since) break;
-  }
-  return chronological([...found.values()]);
+      filter: {
+        kinds: INBOUND_KINDS,
+        "#h": input.channelIds,
+        since: input.since,
+      },
+    }),
+  );
 }
 
 async function run() {

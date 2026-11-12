@@ -174,6 +174,57 @@ export async function queryEvents(input: {
   return Array.isArray(events) ? (events as Event[]) : [];
 }
 
+/** The most events the Buzz relay returns for one query. */
+const RELAY_MAX_LIMIT = 1_000;
+
+/**
+ * Every stored event matching `filter` (from its `since` on), paged backwards:
+ * the relay answers newest-first and caps a page, so one query can miss some.
+ */
+export async function queryAllEvents(input: {
+  relayUrl: string;
+  secretKey: Uint8Array;
+  filter: NostrFilter;
+  fetchImpl?: typeof fetch;
+}): Promise<Event[]> {
+  const PAGE = 500;
+  const since = input.filter.since ?? 0;
+  const found = new Map<string, Event>();
+  const query = (filter: NostrFilter) =>
+    queryEvents({
+      relayUrl: input.relayUrl,
+      secretKey: input.secretKey,
+      filters: [{ ...input.filter, ...filter }],
+      fetchImpl: input.fetchImpl,
+    });
+  let until = Math.floor(Date.now() / 1000);
+  // `until` only moves back, so this ends.
+  for (;;) {
+    const events = await query({ until, limit: PAGE });
+    for (const event of events) found.set(event.id, event);
+    if (events.length < PAGE) break;
+    const oldest = Math.min(...events.map((event) => event.created_at));
+    if (oldest === until) {
+      // A whole page in one second: read that second in full, then go on
+      // before it, so no event in a crowded second is skipped. (The relay
+      // clamps a query at 1,000; a second holding more cannot be read whole.)
+      for (const event of await query({
+        since: oldest,
+        until: oldest,
+        limit: RELAY_MAX_LIMIT,
+      })) {
+        found.set(event.id, event);
+      }
+      until = oldest - 1;
+    } else {
+      // Inclusive, so events sharing the oldest second are read again.
+      until = oldest;
+    }
+    if (until < since) break;
+  }
+  return [...found.values()];
+}
+
 export interface RelaySubscription {
   close(): void;
   /** Resolves once AUTH is accepted and the REQ is sent. */

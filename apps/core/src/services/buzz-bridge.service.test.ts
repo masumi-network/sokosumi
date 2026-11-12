@@ -37,6 +37,7 @@ const db = vi.hoisted(() => {
     buzzChannel: model(),
     chatRoomMessage: model(),
     buzzCommunityMember: model(),
+    buzzUndoneEvent: model(),
     coworker: model(),
     vendor: model(),
     workspace: model(),
@@ -59,6 +60,17 @@ const relay = vi.hoisted(() => ({ queryEvents: vi.fn() }));
 vi.mock("@/lib/buzz/relay-client", async (importActual) => ({
   ...(await importActual<typeof import("@/lib/buzz/relay-client")>()),
   queryEvents: relay.queryEvents,
+  // One page here: paging itself is the relay client's to test.
+  queryAllEvents: (input: {
+    relayUrl: string;
+    secretKey: Uint8Array;
+    filter: object;
+  }) =>
+    relay.queryEvents({
+      relayUrl: input.relayUrl,
+      secretKey: input.secretKey,
+      filters: [input.filter],
+    }),
 }));
 
 import { contentHash } from "@/lib/buzz/events";
@@ -195,49 +207,41 @@ describe("applyInboundEvent", () => {
     expect(core).not.toHaveBeenCalled();
   });
 
-  it("takes a new Buzz reaction where one was removed in Sokosumi, but not a replay of that one", async () => {
-    const reaction = (content: string, more: string[][] = []) =>
+  it("ignores replays of a reaction undone in Sokosumi, however often it was added again", async () => {
+    const reaction = (more: string[][] = []) =>
       nostrEvent({
         kind: 7,
         tags: [["h", CHANNEL], ["e", "f".repeat(64)], ...more],
-        content,
+        content: "👍",
       });
-    const removed = reaction("👍");
-    const tombstone = {
-      id: "tombstone",
-      eventId: removed.id,
-      removedAt: new Date(),
-    };
-    // Its link is a tombstone: found by the removed event's id, and by what
-    // it was (message, person, emoji).
-    db.buzzReactionLink.findUnique.mockImplementation(
-      async ({ where }: { where: { eventId?: string } }) =>
-        where.eventId === undefined || where.eventId === removed.id
-          ? tombstone
-          : null,
+    const first = reaction();
+    db.buzzUndoneEvent.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId: string } }) =>
+        where.eventId === first.id ? { eventId: first.id } : null,
     );
+    await expect(applyInboundEvent(first, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+
+    // The same emoji again, a new event: applied.
     db.buzzMessageLink.findUnique.mockImplementation(
       async ({ where }: { where: { eventId?: string } }) =>
         where.eventId === "f".repeat(64)
           ? { messageId: "message", message: { roomId: "room" } }
           : null,
     );
-    await expect(applyInboundEvent(removed, core)).resolves.toBe("echo");
-    expect(core).not.toHaveBeenCalled();
-
-    // The same emoji reacted again on Buzz: a new event, applied.
     await expect(
-      applyInboundEvent(reaction("👍", [["p", BOB_PUBKEY]]), core),
+      applyInboundEvent(reaction([["p", BOB_PUBKEY]]), core),
     ).resolves.toBe("reacted");
-    expect(db.buzzReactionLink.delete).toHaveBeenCalledWith({
-      where: { id: "tombstone" },
-    });
     expect(core).toHaveBeenCalledWith(
       expect.objectContaining({
         method: "PUT",
         path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
       }),
     );
+    // The first one replayed after that: still undone.
+    core.mockClear();
+    await expect(applyInboundEvent(first, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
   });
 
   it("posts a Buzz reply as its author into the thread's root, with mentions", async () => {
@@ -824,8 +828,23 @@ describe("a person's own Buzz agents", () => {
         { kind: 0, created_at: 2, tags, content: '{"name":"Claude Code"}' },
         key,
       );
+    // Someone else claims Bob's agent too, after him: a claim alone is
+    // nothing, and must not hide the one the agent's profile attests.
+    const counterClaim = finalizeEvent(
+      {
+        kind: 30177,
+        created_at: 2,
+        tags: [["d", AGENT_PUBKEY]],
+        content: JSON.stringify({ name: "Mine" }),
+      },
+      STRANGER_KEY,
+    );
     relay.queryEvents
-      .mockResolvedValueOnce([record(AGENT_PUBKEY), record(STRANGER)])
+      .mockResolvedValueOnce([
+        record(AGENT_PUBKEY),
+        record(STRANGER),
+        counterClaim,
+      ])
       .mockResolvedValueOnce([
         profile(AGENT_KEY, [ownerAuthTag(OWNER_KEY, AGENT_PUBKEY)]),
         // Claims Bob as owner with a signature for another key.

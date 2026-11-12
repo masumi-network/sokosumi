@@ -37,6 +37,7 @@ import {
   BuzzRelayRejectedError,
   nip98Header,
   publishSignedEvent,
+  queryAllEvents,
   queryEvents,
   relayHttpOrigin,
   signEvent,
@@ -495,25 +496,27 @@ type FoundAgent = { name: string; picture: string | null; relayUrl: string };
 async function ownedAgents(relayUrl: string, ownerKeys: string[]) {
   const secretKey = requireConfig().operatorSecretKey;
   const found = new Map<string, FoundAgent & { ownerKey: string }>();
-  const records = await queryEvents({
+  // Every page: an agent missed here would be taken for deleted.
+  const records = await queryAllEvents({
     relayUrl,
     secretKey,
-    filters: [{ kinds: [BUZZ_KIND.agentRecord], authors: ownerKeys }],
+    filter: { kinds: [BUZZ_KIND.agentRecord], authors: ownerKeys },
   });
-  const recorded = new Map<string, { ownerKey: string; name?: string }>();
+  // Per agent, each owner key that claims it: anyone can claim a key, so the
+  // claim that counts is the one the agent's own profile attests.
+  const claims = new Map<string, Map<string, string | undefined>>();
   for (const record of records) {
     const pubkey = record.tags.find((tag) => tag[0] === "d")?.[1];
     if (!pubkey || !HEX_64.test(pubkey)) continue;
-    recorded.set(pubkey, {
-      ownerKey: record.pubkey,
-      name: readJson(record.content).name,
-    });
+    const owners = claims.get(pubkey) ?? new Map();
+    owners.set(record.pubkey, readJson(record.content).name);
+    claims.set(pubkey, owners);
   }
-  if (recorded.size === 0) return found;
-  const profiles = await queryEvents({
+  if (claims.size === 0) return found;
+  const profiles = await queryAllEvents({
     relayUrl,
     secretKey,
-    filters: [{ kinds: [BUZZ_KIND.profile], authors: [...recorded.keys()] }],
+    filter: { kinds: [BUZZ_KIND.profile], authors: [...claims.keys()] },
   });
   const newest = new Map<string, Event>();
   for (const profile of profiles) {
@@ -523,15 +526,16 @@ async function ownedAgents(relayUrl: string, ownerKeys: string[]) {
     }
   }
   for (const [pubkey, profile] of newest) {
-    const record = recorded.get(pubkey);
-    if (!record || !verifyEvent(profile)) continue;
-    if (attestedOwner(profile) !== record.ownerKey) continue;
+    if (!verifyEvent(profile)) continue;
+    const ownerKey = attestedOwner(profile);
+    const owners = claims.get(pubkey);
+    if (!ownerKey || !owners?.has(ownerKey)) continue;
     const content = readJson(profile.content);
     found.set(pubkey, {
-      name: content.name ?? record.name ?? "Buzz agent",
+      name: content.name ?? owners.get(ownerKey) ?? "Buzz agent",
       picture: content.picture ?? null,
       relayUrl,
-      ownerKey: record.ownerKey,
+      ownerKey,
     });
   }
   return found;
@@ -1865,7 +1869,7 @@ async function reconcileReactions(input: {
   reactions: { userId: string; emoji: string }[];
 }) {
   let links = await prisma.buzzReactionLink.findMany({
-    where: { messageId: input.messageId, removedAt: null },
+    where: { messageId: input.messageId },
     include: { identity: true },
   });
 
@@ -1892,7 +1896,7 @@ async function reconcileReactions(input: {
     }
   }
   links = await prisma.buzzReactionLink.findMany({
-    where: { messageId: input.messageId, removedAt: null },
+    where: { messageId: input.messageId },
     include: { identity: true },
   });
 
@@ -1915,15 +1919,6 @@ async function reconcileReactions(input: {
       ),
       identitySecretKey(identity),
     );
-    // Added again after it was removed on its own key: that is history now.
-    await prisma.buzzReactionLink.deleteMany({
-      where: {
-        messageId: input.messageId,
-        identityId: identity.id,
-        emoji: reaction.emoji,
-        removedAt: { not: null },
-      },
-    });
     let linkId: string;
     try {
       linkId = (
@@ -1956,12 +1951,16 @@ async function reconcileReactions(input: {
   for (const link of links) {
     if (wanted.has(key(link.identity.userId, link.emoji))) continue;
     // Their own app key's reaction: only they can take it back on Buzz. Its
-    // event stays there, so the link stays as a tombstone.
+    // event stays there, so it is remembered as undone, for good.
     if (link.signerPubkey) {
-      await prisma.buzzReactionLink.update({
-        where: { id: link.id },
-        data: { removedAt: new Date() },
-      });
+      await prisma.$transaction([
+        prisma.buzzUndoneEvent.upsert({
+          where: { eventId: link.eventId },
+          create: { eventId: link.eventId },
+          update: {},
+        }),
+        prisma.buzzReactionLink.delete({ where: { id: link.id } }),
+      ]);
       continue;
     }
     const event = signEvent(
@@ -2571,11 +2570,12 @@ export async function applyInboundEvent(
   if (change.type === "ignore") return "ignored";
 
   // Our own events are linked before they are sent.
-  const [messageEcho, reactionEcho] = await Promise.all([
+  const [messageEcho, reactionEcho, undone] = await Promise.all([
     prisma.buzzMessageLink.findUnique({ where: { eventId: event.id } }),
     prisma.buzzReactionLink.findUnique({ where: { eventId: event.id } }),
+    prisma.buzzUndoneEvent.findUnique({ where: { eventId: event.id } }),
   ]);
-  if (reactionEcho) return "echo";
+  if (reactionEcho || undone) return "echo";
   if (
     messageEcho &&
     (messageEcho.answeredAt ||
@@ -2815,20 +2815,17 @@ export async function applyInboundEvent(
           where: { eventId: targetEventId },
         });
         if (!reactionLink) {
-          if (!options.finalAttempt) {
+          // Undone in Sokosumi already: taking it back on Buzz changes nothing.
+          const undoneTarget = await prisma.buzzUndoneEvent.findUnique({
+            where: { eventId: targetEventId },
+          });
+          if (!undoneTarget && !options.finalAttempt) {
             throw new BuzzTargetPendingError(targetEventId);
           }
           continue;
         }
         // Our own take-back of a reaction Sokosumi already removed.
         if (isBeingRemoved(reactionLink)) continue;
-        // Taken back on Buzz too, after Sokosumi removed it: done with it.
-        if (reactionLink.removedAt) {
-          await prisma.buzzReactionLink.deleteMany({
-            where: { id: reactionLink.id },
-          });
-          continue;
-        }
         if (reactionLink.identityId !== author.id) continue;
         const message = await prisma.chatRoomMessage.findUnique({
           where: { id: reactionLink.messageId },
@@ -2865,11 +2862,7 @@ export async function applyInboundEvent(
           },
         },
       });
-      if (existing && !existing.removedAt) return "echo";
-      // A new reaction where one was removed: the tombstone is history.
-      if (existing) {
-        await prisma.buzzReactionLink.delete({ where: { id: existing.id } });
-      }
+      if (existing) return "echo";
       await sendAs(core, author, {
         method: "PUT",
         path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,

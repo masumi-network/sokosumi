@@ -6,6 +6,7 @@ import {
   BuzzRelayRejectedError,
   nip98Header,
   publishSignedEvent,
+  queryAllEvents,
   relayHttpOrigin,
   signEvent,
 } from "./relay-client";
@@ -105,5 +106,40 @@ describe("secret box", () => {
     const [v, iv, tag, body] = sealed.split(".");
     const flipped = `${v}.${iv}.${tag}.${body.slice(0, -2)}AA`;
     expect(() => openSecret(flipped, "s".repeat(32))).toThrow();
+  });
+});
+
+describe("queryAllEvents", () => {
+  it("reads past the relay's page cap, a crowded second included", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    // 1,200 events, 600 of them in one second: more than two capped pages.
+    const stored = Array.from({ length: 1200 }, (_, i) => ({
+      id: `e${i}`,
+      created_at: i < 600 ? now - 10 : now - 10 - (i - 599),
+    }));
+    // Like the relay: newest first, `since`/`until` inclusive, clamped at 1,000.
+    const fetchImpl = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const [filter] = JSON.parse(String(init?.body)) as {
+        since?: number;
+        until?: number;
+        limit?: number;
+      }[];
+      const page = stored
+        .filter(
+          (event) =>
+            event.created_at >= (filter.since ?? 0) &&
+            event.created_at <= (filter.until ?? Number.POSITIVE_INFINITY),
+        )
+        .sort((a, b) => b.created_at - a.created_at)
+        .slice(0, Math.min(filter.limit ?? 1000, 1000));
+      return Response.json(page);
+    }) as unknown as typeof fetch;
+    const events = await queryAllEvents({
+      relayUrl: "ws://relay",
+      secretKey,
+      filter: { kinds: [7] },
+      fetchImpl,
+    });
+    expect(new Set(events.map((event) => event.id)).size).toBe(1200);
   });
 });
