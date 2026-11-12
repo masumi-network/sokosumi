@@ -538,6 +538,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       name: "Filter Fresh",
       stage: "PROSPECT",
       organization: "Filterworks",
+      location: "Zürich, Switzerland",
     });
     await log(asBob, fresh.contact.id, days(2));
     const query = (filter: Parameters<typeof listContacts>[1]["filter"]) =>
@@ -556,6 +557,8 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(await query({ hasChannel: "GITHUB" })).toEqual(["Filter Stale"]);
     expect(await query({ search: "filterstale" })).toEqual(["Filter Stale"]);
     expect(await query({ search: "filterworks" })).toEqual(["Filter Fresh"]);
+    expect(await query({ search: "zurich" })).toEqual(["Filter Fresh"]);
+    expect(await query({ search: "ZÜRICH, SWITZ" })).toEqual(["Filter Fresh"]);
     expect(await query({ createdWithinDays: 1 })).toEqual([
       "Filter Fresh",
       "Filter Stale",

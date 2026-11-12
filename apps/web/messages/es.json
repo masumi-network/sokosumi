@@ -10782,7 +10782,7 @@
       },
       "toolbar": {
         "search": "Buscar contactos",
-        "searchPlaceholder": "Buscar nombre, empresa, correo…",
+        "searchPlaceholder": "Buscar nombre, empresa, correo, lugar…",
         "me": "Yo",
         "clearFilter": "Quitar el filtro {filter}",
         "export": "Exportar CSV",
@@ -10989,6 +10989,8 @@
         "addToList": "Añadir a una lista",
         "manualLists": "Listas",
         "noManualLists": "Todavía no hay listas.",
+        "newList": "Nueva lista…",
+        "newListAddFailed": "{list} está creada, pero {name} aún no está en ella.",
         "empty": "Añadir…",
         "location": "Ubicación",
         "nextStepTitle": "Próximo paso",

@@ -574,6 +574,7 @@ export function ContactsWorkspace({
                     loadingMore={isFetchingNextPage}
                     onLoadMore={loadMore}
                     footer={t("showing", { shown: contacts.length, total })}
+                    search={search}
                   />
                 </div>
               </>

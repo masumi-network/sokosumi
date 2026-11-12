@@ -10782,7 +10782,7 @@
       },
       "toolbar": {
         "search": "Search contacts",
-        "searchPlaceholder": "Search name, company, email…",
+        "searchPlaceholder": "Search name, company, email, place…",
         "me": "Me",
         "clearFilter": "Clear {filter} filter",
         "export": "Export CSV",
@@ -10989,6 +10989,8 @@
         "addToList": "Add to a list",
         "manualLists": "Lists",
         "noManualLists": "No lists yet.",
+        "newList": "New list…",
+        "newListAddFailed": "{list} is ready, but {name} isn't on it yet.",
         "empty": "Add…",
         "location": "Location",
         "nextStepTitle": "Next step",

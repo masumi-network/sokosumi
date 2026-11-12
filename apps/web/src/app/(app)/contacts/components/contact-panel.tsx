@@ -74,6 +74,7 @@ import {
 import { contactsService } from "@/lib/services/contacts.client";
 import { cn } from "@/lib/utils";
 import { ChannelTypeSelect } from "./channel-type-select";
+import { ContactListDialog } from "./contact-list-dialog";
 import {
   ChannelIcon,
   ContactAvatar,
@@ -244,6 +245,28 @@ function PanelBody({
     teammates.find((person) => person.id === contact.createdByUserId) ?? null;
   const manualLists = lists.filter((list) => list.kind === "manual");
   const [enriching, setEnriching] = useState(false);
+  const [creatingList, setCreatingList] = useState(false);
+
+  /**
+   * Puts this person on a list just made from their panel. On failure the
+   * list stays, so trying again only adds them: never a second list.
+   */
+  async function addToNewList(list: ContactList) {
+    try {
+      await contactsService.changeMembers(list.id, { add: [contact.id] });
+    } catch {
+      toast.error(
+        t("panel.newListAddFailed", { list: list.name, name: contact.name }),
+        {
+          action: {
+            label: t("panel.retry"),
+            onClick: () => void addToNewList(list),
+          },
+        },
+      );
+    }
+    await refreshContacts(cache, contact.id);
+  }
 
   async function toggleList(list: ContactList, on: boolean) {
     try {
@@ -632,8 +655,22 @@ function PanelBody({
                   {t("panel.noManualLists")}
                 </p>
               ) : null}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setCreatingList(true)}>
+                <Plus aria-hidden className="size-4" />
+                {t("panel.newList")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {creatingList ? (
+            <ContactListDialog
+              onClose={() => setCreatingList(false)}
+              onSaved={(list) => {
+                setCreatingList(false);
+                void addToNewList(list);
+              }}
+            />
+          ) : null}
         </Property>
         <Property label={t("columns.organization")}>
           <InlineField

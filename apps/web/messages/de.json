@@ -10782,7 +10782,7 @@
       },
       "toolbar": {
         "search": "Kontakte durchsuchen",
-        "searchPlaceholder": "Name, Firma, E-Mail suchen…",
+        "searchPlaceholder": "Name, Firma, E-Mail, Ort suchen…",
         "me": "Ich",
         "clearFilter": "Filter {filter} entfernen",
         "export": "CSV exportieren",
@@ -10989,6 +10989,8 @@
         "addToList": "Zu einer Liste hinzufügen",
         "manualLists": "Listen",
         "noManualLists": "Noch keine Listen.",
+        "newList": "Neue Liste…",
+        "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",

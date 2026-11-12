@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   type ContactActor,
   contactFilterWhere,
   normalizeChannels,
   parseSmartFilter,
 } from "./contacts.service";
+
+const { queryRaw } = vi.hoisted(() => ({ queryRaw: vi.fn() }));
+vi.mock("@/lib/db/prisma", () => ({ default: { $queryRaw: queryRaw } }));
 
 const actor: ContactActor = {
   workspaceId: "0199f1c2-7a3b-7c1d-9e2f-000000000001",
@@ -57,9 +60,9 @@ describe("normalizeChannels", () => {
 describe("contactFilterWhere", () => {
   const now = new Date("2026-10-22T15:30:00.000Z");
 
-  it("reads 'me' as the actor and relative days from now", () => {
+  it("reads 'me' as the actor and relative days from now", async () => {
     expect(
-      contactFilterWhere(
+      await contactFilterWhere(
         actor,
         {
           knownByMe: true,
@@ -77,8 +80,9 @@ describe("contactFilterWhere", () => {
     ]);
   });
 
-  it("searches name, organization and channel values without case", () => {
-    const [search] = contactFilterWhere(actor, { search: "acme" }, now);
+  it("searches name, organization, channel values and location without case", async () => {
+    queryRaw.mockResolvedValueOnce([{ id: "contact_zurich" }]);
+    const [search] = await contactFilterWhere(actor, { search: "acme" }, now);
     expect(search).toEqual({
       OR: [
         { name: { contains: "acme", mode: "insensitive" } },
@@ -88,12 +92,13 @@ describe("contactFilterWhere", () => {
             some: { value: { contains: "acme", mode: "insensitive" } },
           },
         },
+        { id: { in: ["contact_zurich"] } },
       ],
     });
   });
 
-  it("is empty for an empty filter", () => {
-    expect(contactFilterWhere(actor, {}, now)).toEqual([]);
+  it("is empty for an empty filter", async () => {
+    expect(await contactFilterWhere(actor, {}, now)).toEqual([]);
   });
 });
 

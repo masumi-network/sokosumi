@@ -82,21 +82,53 @@ export function contactQuery(view: ContactView): ContactQuery {
   return query;
 }
 
-/** The rows Core's `search` would keep, judged on the client: name, organization or any channel value. */
+/** Lowercased and without accents, as Core compares a location. */
+function foldForSearch(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+/**
+ * Where `search` sits in `text`, ignoring case and accents ("zurich" in
+ * "Zürich, Switzerland"), as [start, end) offsets into `text`, or null.
+ */
+export function searchMatchRange(
+  text: string,
+  search: string,
+): [number, number] | null {
+  const needle = foldForSearch(search.trim());
+  if (!needle) return null;
+  let folded = "";
+  // The index in `text` each folded character came from.
+  const source: number[] = [];
+  for (let index = 0; index < text.length; index++) {
+    const part = foldForSearch(text[index]);
+    folded += part;
+    for (let count = 0; count < part.length; count++) source.push(index);
+  }
+  const at = folded.indexOf(needle);
+  if (at < 0) return null;
+  return [source[at], source[at + needle.length - 1] + 1];
+}
+
+/** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. */
 export function matchesContactSearch(
   contact: {
     name: string;
     organization: string | null;
+    location: string | null;
     channels: ContactChannel[];
   },
   search: string,
 ): boolean {
   const needle = search.trim().toLowerCase();
-  return [
-    contact.name,
-    contact.organization,
-    ...contact.channels.map((channel) => channel.value),
-  ].some((value) => value?.toLowerCase().includes(needle));
+  return (
+    [
+      contact.name,
+      contact.organization,
+      ...contact.channels.map((channel) => channel.value),
+    ].some((value) => value?.toLowerCase().includes(needle)) ||
+    (!!contact.location && !!searchMatchRange(contact.location, search))
+  );
 }
 
 /**

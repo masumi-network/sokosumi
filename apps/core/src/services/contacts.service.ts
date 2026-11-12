@@ -1166,12 +1166,34 @@ export async function findDuplicateContacts(
   });
 }
 
+/** Ids a filter may carry as bound parameters (Postgres allows 65535). */
+const MAX_FILTER_IDS = 50_000;
+
+/**
+ * Contacts whose location holds `search`, ignoring case and accents, so
+ * "zurich" finds "Zürich". Prisma's `contains` cannot unaccent.
+ */
+async function locationSearchWhere(
+  workspaceId: string,
+  search: string,
+): Promise<Prisma.ContactWhereInput> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>(PrismaRaw.sql`
+    SELECT "id" FROM "contact"
+    WHERE "workspaceId" = ${workspaceId}::uuid
+      AND unaccent("location") ILIKE unaccent(${literalSubstringPattern(search)}) ESCAPE '\\'
+    LIMIT ${MAX_FILTER_IDS + 1}`);
+  // ponytail: past the bound-parameter budget, fall back to an accent-sensitive match.
+  if (rows.length > MAX_FILTER_IDS)
+    return { location: { contains: search, mode: "insensitive" } };
+  return { id: { in: rows.map((row) => row.id) } };
+}
+
 /** The query a contact filter stands for, as seen by `actor`. */
-export function contactFilterWhere(
+export async function contactFilterWhere(
   actor: ContactActor,
   filter: ContactFilter,
   now: Date = new Date(),
-): Prisma.ContactWhereInput[] {
+): Promise<Prisma.ContactWhereInput[]> {
   const days = (count: number) => new Date(now.getTime() - count * 86_400_000);
   const and: Prisma.ContactWhereInput[] = [];
   if (filter.search) {
@@ -1185,6 +1207,7 @@ export function contactFilterWhere(
             some: { value: { contains: search, mode: "insensitive" } },
           },
         },
+        await locationSearchWhere(actor.workspaceId, search),
       ],
     });
   }
@@ -1267,7 +1290,7 @@ export async function contactFilterWhereResolved(
   filter: ContactFilter,
   options: { archived?: boolean } = {},
 ): Promise<Prisma.ContactWhereInput[]> {
-  const and = contactFilterWhere(actor, filter);
+  const and = await contactFilterWhere(actor, filter);
   const company = await companiesWhere(
     actor.workspaceId,
     filter.company ? [filter.company] : [],
@@ -1276,9 +1299,6 @@ export async function contactFilterWhereResolved(
   if (company) and.push(company);
   return and;
 }
-
-/** Ids a filter may carry as bound parameters (Postgres allows 65535). */
-const MAX_COMPANY_MEMBERS = 50_000;
 
 /**
  * The people at every one of these companies, as one predicate (several
@@ -1298,7 +1318,7 @@ async function companiesWhere(
     ids = kept ? members.filter((id) => kept.has(id)) : members;
   }
   if (ids === null) return null;
-  if (ids.length > MAX_COMPANY_MEMBERS)
+  if (ids.length > MAX_FILTER_IDS)
     throw unprocessableEntity(
       `That company has ${ids.length} contacts; filter by organization instead`,
     );
@@ -1338,7 +1358,7 @@ export async function contactListWhere(
     "filter" | "listId" | "company" | "archived"
   >,
 ): Promise<Prisma.ContactWhereInput> {
-  const and = contactFilterWhere(actor, options.filter);
+  const and = await contactFilterWhere(actor, options.filter);
   const companies = [options.filter.company, options.company];
   if (options.listId) {
     const list = await prisma.contactList.findFirst({
@@ -1347,7 +1367,7 @@ export async function contactListWhere(
     if (!list) throw notFound("List not found");
     const smart = parseSmartFilter(list.smartFilter);
     if (smart) {
-      and.push(...contactFilterWhere(actor, smart));
+      and.push(...(await contactFilterWhere(actor, smart)));
       companies.push(smart.company);
     } else and.push({ listMemberships: { some: { listId: list.id } } });
   }

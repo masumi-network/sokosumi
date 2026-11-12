@@ -15,6 +15,7 @@ import {
   matchesContactSearch,
   primaryEmail,
   STAGE_DOT,
+  searchMatchRange,
   smartFilterOf,
   sortChannels,
 } from "./contacts-view";
@@ -239,6 +240,7 @@ describe("matchesContactSearch", () => {
   const ada = {
     name: "Ada Lovelace",
     organization: "Analytical Engines",
+    location: "Zürich, Switzerland",
     channels: [{ value: "ada@engines.test" }],
   } as Parameters<typeof matchesContactSearch>[0];
 
@@ -247,6 +249,25 @@ describe("matchesContactSearch", () => {
     expect(matchesContactSearch(ada, " engines ")).toBe(true);
     expect(matchesContactSearch(ada, "ada@")).toBe(true);
     expect(matchesContactSearch(ada, "babbage")).toBe(false);
+  });
+
+  it("matches the location without accents", () => {
+    expect(matchesContactSearch(ada, "zurich")).toBe(true);
+    expect(matchesContactSearch(ada, "ZÜRICH")).toBe(true);
+    expect(matchesContactSearch({ ...ada, location: null }, "zurich")).toBe(
+      false,
+    );
+  });
+});
+
+describe("searchMatchRange", () => {
+  it("finds the match in the original text, accents and case aside", () => {
+    expect(searchMatchRange("Zürich, Switzerland", "zurich")).toEqual([0, 6]);
+    expect(searchMatchRange("Zürich, Switzerland", " switz")).toEqual([8, 13]);
+    // Decomposed ü: the combining mark stays inside the match.
+    expect(searchMatchRange("Zu\u0308rich", "zurich")).toEqual([0, 7]);
+    expect(searchMatchRange("Basel", "zurich")).toBeNull();
+    expect(searchMatchRange("Basel", "  ")).toBeNull();
   });
 });
 
