@@ -9,6 +9,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
   deleteRoomMessageAction,
@@ -368,26 +369,31 @@ export function useRoomMessageMutations({
       .then((result) => {
         if (!result?.ok) {
           // Core's own tombstone before a lost answer keeps the row deleted;
-          // that case still gets this toast.
-          toast.error(result?.error.message ?? t("Message.deleteError"), {
-            description: t("Message.restored"),
+          // that case still gets this toast, but without the line that says
+          // the message is back. flushSync runs the updaters now, so the flag
+          // holds what they found.
+          let restored = false;
+          flushSync(() => {
+            patchMessage(message.id, (row) => {
+              if (row.deletedAt !== tombstone.deletedAt) return row;
+              restored = true;
+              return {
+                ...row,
+                content: message.content,
+                deletedAt: message.deletedAt,
+                editedAt: message.editedAt,
+                mentions: message.mentions,
+                reactions: message.reactions,
+                metadata: message.metadata,
+                quote: message.quote,
+                membership: message.membership,
+                unfurls: message.unfurls,
+              };
+            });
           });
-          patchMessage(message.id, (row) =>
-            row.deletedAt === tombstone.deletedAt
-              ? {
-                  ...row,
-                  content: message.content,
-                  deletedAt: message.deletedAt,
-                  editedAt: message.editedAt,
-                  mentions: message.mentions,
-                  reactions: message.reactions,
-                  metadata: message.metadata,
-                  quote: message.quote,
-                  membership: message.membership,
-                  unfurls: message.unfurls,
-                }
-              : row,
-          );
+          toast.error(result?.error.message ?? t("Message.deleteError"), {
+            description: restored ? t("Message.restored") : undefined,
+          });
           return;
         }
         if (!isStillSelectedRoom(roomId)) {

@@ -897,6 +897,11 @@ describe("RoomsClient transcript row render isolation", () => {
       });
 
       expect(rows()).toEqual(["false:body m1", "false:body m3"]);
+      // The row stays deleted, so the toast does not say it is back.
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Message.deleteError",
+        { description: undefined },
+      );
     });
 
     it("keeps a newer realtime update when the delete then fails", async () => {
@@ -930,6 +935,10 @@ describe("RoomsClient transcript row render isolation", () => {
         "false:edited m2",
         "false:body m3",
       ]);
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Message.deleteError",
+        { description: undefined },
+      );
     });
   });
 
