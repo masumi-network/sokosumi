@@ -20,7 +20,10 @@ import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-a
 import { createFormats } from "@/i18n/time-format";
 import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import messages from "../../../../../messages/en.json";
-import { SocialPostCalendarEvent } from "./social-post-calendar-event";
+import {
+  SocialPostCalendarEvent,
+  SocialPostStatusDot,
+} from "./social-post-calendar-event";
 
 const { openPreview } = vi.hoisted(() => ({
   openPreview: { current: null as null | ReturnType<typeof vi.fn> },
@@ -501,6 +504,63 @@ describe("Social post calendar event", () => {
   });
 
   describe("Social calendar chips", () => {
+    it.each([
+      ["DRAFT", "Draft", "status-done"],
+      ["NEEDS_APPROVAL", "Needs approval", "status-warning"],
+      ["SCHEDULED", "Scheduled", "status-info"],
+      ["PUBLISHING", "Publishing", "status-info"],
+      ["PUBLISHED", "Published", "status-success"],
+      ["FAILED", "Failed", "status-destructive"],
+      ["MISSED", "Missed", "status-warning"],
+      ["CANCELED", "Canceled", "status-done"],
+    ] as const)(
+      "keeps %s consistent across calendar densities",
+      (status, label, token) => {
+        for (const variant of [
+          "month",
+          "week",
+          "compact",
+          "preview",
+        ] as const) {
+          const { unmount } = renderCard({ status }, variant);
+          const badge = screen.getByTestId(`social-post-status-${status}`);
+          expect(badge.querySelector("svg")).toHaveClass(`text-${token}`);
+          expect(
+            screen.getByTestId("calendar-social-post"),
+          ).toHaveAccessibleName(new RegExp(label));
+          if (variant === "month" || variant === "week") {
+            expect(screen.getByTestId("calendar-social-post-rail")).toHaveClass(
+              `bg-${token}`,
+            );
+          }
+          unmount();
+        }
+        render(<SocialPostStatusDot status={status} />);
+        expect(screen.getByTestId("calendar-social-post-dot")).toHaveClass(
+          `bg-${token}`,
+        );
+      },
+    );
+
+    it.each([
+      { partiallyPublished: true },
+      { waitingForQuotedPost: true },
+      { partiallyPublished: true, waitingForQuotedPost: true },
+    ])("matches override badges, rails and mobile dots for %j", (display) => {
+      const { unmount } = renderCard(display, "month");
+      expect(screen.getByTestId("calendar-social-post-rail")).toHaveClass(
+        "bg-status-warning",
+      );
+      expect(
+        screen.getByTestId("social-post-status-SCHEDULED").querySelector("svg"),
+      ).toHaveClass("text-status-warning");
+      unmount();
+      render(<SocialPostStatusDot status="SCHEDULED" {...display} />);
+      expect(screen.getByTestId("calendar-social-post-dot")).toHaveClass(
+        "bg-status-warning",
+      );
+    });
+
     it("draws the month chip as status, platform, time and first words", () => {
       renderCard({}, "month");
       const chip = screen.getByTestId("calendar-social-post");
