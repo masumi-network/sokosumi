@@ -9935,6 +9935,8 @@
         },
         "Settings": {
           "titleLabel": "Título",
+          "welcomeLabel": "Nota de bienvenida",
+          "welcomeHint": "Se muestra en la página de bienvenida al abrir la sala. Se mantienen los saltos de línea.",
           "logoLabel": "Logo",
           "noLogo": "Sin logo",
           "logoHint": "Una imagen de esta sala, junto al título.",
@@ -11396,8 +11398,6 @@
       "signOut": "Cerrar sesión",
       "empty": "Todavía no hay nada en esta sala de datos.",
       "indexLabel": "Contenido",
-      "pickFile": "Elige un archivo para abrirlo.",
-      "new": "Nuevo",
       "download": "Descargar",
       "watermarkNote": "Las páginas e imágenes que abres llevan tu correo y la hora.",
       "downloadToOpen": "Este archivo no se puede mostrar aquí. Descárgalo para abrirlo.",
@@ -11409,7 +11409,11 @@
       "awaitingAnswer": "Esperando respuesta",
       "askLabel": "Pregunta sobre este documento",
       "ask": "Preguntar",
-      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo."
+      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo.",
+      "welcome": "Bienvenida",
+      "welcomeTitle": "Te damos la bienvenida a {title}",
+      "contents": "{files, plural, one {# documento} other {# documentos}}{folders, plural, =0 {} one { en # carpeta} other { en # carpetas}}",
+      "openFirst": "Abrir {name}"
     }
   },
   "NotFound": {

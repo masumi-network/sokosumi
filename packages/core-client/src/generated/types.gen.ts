@@ -4702,6 +4702,7 @@ export type DataRoom = {
      */
     token: string;
     title: string | null;
+    welcomeNote: string | null;
     logoFileId: string | null;
     allowedDomains: Array<string>;
     expiresAt: string | null;
@@ -4768,7 +4769,6 @@ export type DataRoomTreeRow = {
     sizeBytes: number | null;
     mimeType: string | null;
     updatedAt: string | null;
-    isNew: boolean;
 };
 
 export type DataRoomColleague = {
@@ -4784,6 +4784,7 @@ export type UpdateDataRoomRequest = {
     scope: 'me' | 'org';
     organizationId?: string;
     title?: string | null;
+    welcomeNote?: string | null;
     logoFileId?: string | null;
     allowedDomains?: Array<string>;
     expiresAt?: Date | null;
@@ -11080,6 +11081,7 @@ export type DriveShareDownload = {
 export type DataRoomView = {
     state: 'in' | 'out' | 'closed' | 'expired';
     title: string;
+    welcomeNote: string | null;
     hasLogo: boolean;
     allowDownload: boolean;
     watermark: boolean;
