@@ -28,6 +28,7 @@ vi.mock("next-intl/server", () => ({
 }));
 vi.mock("./components/my-day", () => ({
   loadMyDay: (today: string) => loadMyDay(today),
+  countOverdue: () => Promise.resolve(0),
   MyDay: (props: unknown) => {
     myDay(props);
     return <div>my day</div>;

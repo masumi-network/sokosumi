@@ -39,3 +39,16 @@ export const DUE_DAY_FORMAT = {
   day: "numeric",
   timeZone: "UTC",
 } as const;
+
+/** The calendar day `days` after `day` (negative goes back), as `YYYY-MM-DD`. */
+export function shiftDay(day: string, days: number): string {
+  const date = dueDayDate(day);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** The first Monday after `day`; a week on when `day` is a Monday. */
+export function nextMonday(day: string): string {
+  const weekday = dueDayDate(day).getUTCDay();
+  return shiftDay(day, (8 - weekday) % 7 || 7);
+}

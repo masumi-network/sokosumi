@@ -159,4 +159,37 @@ describe("useApiKeys", () => {
       expect(listMock.mock.calls.length).toBeGreaterThan(initialListCallCount);
     });
   });
+
+  it("flips the status at once, drops a second click, and restores on failure", async () => {
+    listMock.mockResolvedValue({
+      data: { apiKeys: [makeApiKey("key-1")], total: 1 },
+      error: null,
+    });
+    let finishUpdate: (value: unknown) => void = () => {};
+    updateMock.mockImplementationOnce(
+      () => new Promise((resolve) => (finishUpdate = resolve)),
+    );
+
+    const { result } = renderHook(() => useApiKeys());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    let first: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      first = result.current.update({ keyId: "key-1", enabled: false });
+      void result.current.update({ keyId: "key-1", enabled: false });
+    });
+
+    expect(result.current.apiKeys[0]?.enabled).toBe(false);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finishUpdate({ data: null, error: { message: "update failed" } });
+      await first;
+    });
+
+    expect(result.current.apiKeys[0]?.enabled).toBe(true);
+    expect(toast.error).toHaveBeenCalledWith("update failed");
+  });
 });
