@@ -3,7 +3,7 @@
 import type { BuzzConnection } from "@sokosumi/core-client";
 import { getBuzzConnectionResponseTransformer } from "@sokosumi/core-client/transformers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Download, KeyRound, Link2, UserPlus } from "lucide-react";
+import { Check, Copy, Download, Link2, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useState } from "react";
 
@@ -23,9 +23,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useClipboard } from "@/hooks/use-clipboard";
-import { authorizeBuzzApp, linkBuzzApp } from "@/lib/actions/buzz/action";
+import { linkBuzzApp } from "@/lib/actions/buzz/action";
 import { cn } from "@/lib/utils";
 
+/** Buzz's own page for authorizing another app's key. */
+const BUZZ_SECURITY_URL = "buzz://settings?section=security";
 /** Where Buzz is downloaded: the app's own releases. */
 const BUZZ_DOWNLOAD_URL = "https://github.com/block/buzz-app/releases/latest";
 const POLL_MS = 3000;
@@ -36,7 +38,6 @@ type Step =
   | "choose"
   | "new-get"
   | "new-create"
-  | "link-key"
   | "link-join"
   | "authorize"
   | "done";
@@ -45,18 +46,11 @@ const NEW_PATH: Step[] = [
   "choose",
   "new-get",
   "new-create",
-  "link-key",
-  "link-join",
   "authorize",
+  "link-join",
   "done",
 ];
-const HAVE_PATH: Step[] = [
-  "choose",
-  "link-key",
-  "link-join",
-  "authorize",
-  "done",
-];
+const HAVE_PATH: Step[] = ["choose", "authorize", "link-join", "done"];
 
 type Invite = { organizationName: string; joinUrl: string; inviteUrl: string };
 
@@ -67,10 +61,10 @@ export async function fetchBuzzConnection(): Promise<BuzzConnection> {
 }
 
 /**
- * Connect Buzz, one step at a time. New to Buzz: get the app, save your key,
- * sign in with it, say hello (which is how we know it worked). Already on
- * Buzz: give us your Buzz key and join with the invite; your Buzz identity is
- * then yours here too.
+ * Connect Buzz, one step at a time. New to Buzz: get the app and make an
+ * identity there. Then, for everyone: authorize Sokosumi in Buzz and paste
+ * the proof back (it names their Buzz key, so nothing else is asked), and
+ * join with the invite. Their private key never leaves Buzz.
  */
 export function BuzzConnectDialog({
   open,
@@ -115,9 +109,6 @@ function BuzzConnectFlow({
   );
   const [step, setStep] = useState<Step>(resume ? "authorize" : "choose");
   const [isNew, setIsNew] = useState(false);
-  const [publicKey, setPublicKey] = useState("");
-  const [keyError, setKeyError] = useState<string | null>(null);
-  const [linking, setLinking] = useState(false);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [proof, setProof] = useState("");
   const [proofError, setProofError] = useState<string | null>(null);
@@ -135,7 +126,7 @@ function BuzzConnectFlow({
   });
   const data = connection.data;
   if (step === "link-join" && data?.app?.status === "linked") {
-    setStep("authorize");
+    setStep("done");
   }
 
   const hosts = [
@@ -146,26 +137,10 @@ function BuzzConnectFlow({
     node?.focus({ preventScroll: true });
   }, []);
 
-  async function link() {
-    setLinking(true);
-    setKeyError(null);
-    const result = await linkBuzzApp({ publicKey });
-    setLinking(false);
-    if (!result.ok) {
-      setKeyError(result.error.message);
-      return;
-    }
-    setInvites(result.value.invites);
-    await queryClient.invalidateQueries({
-      queryKey: BUZZ_CONNECTION_QUERY_KEY,
-    });
-    setStep("link-join");
-  }
-
   async function authorize() {
     setAuthorizing(true);
     setProofError(null);
-    const result = await authorizeBuzzApp({ proof });
+    const result = await linkBuzzApp({ proof });
     setAuthorizing(false);
     if (!result.ok) {
       setProofError(result.error.message);
@@ -174,7 +149,9 @@ function BuzzConnectFlow({
     await queryClient.invalidateQueries({
       queryKey: BUZZ_CONNECTION_QUERY_KEY,
     });
-    setStep("done");
+    // An identity already linked needs no invite.
+    setInvites(result.value.invites);
+    setStep(result.value.invites.length > 0 ? "link-join" : "done");
   }
 
   function finish() {
@@ -222,7 +199,7 @@ function BuzzConnectFlow({
                   description={t("choose.haveDescription")}
                   onSelect={() => {
                     setIsNew(false);
-                    setStep("link-key");
+                    setStep("authorize");
                   }}
                 />
               </div>
@@ -280,56 +257,8 @@ function BuzzConnectFlow({
                 </Instruction>
               </ol>
               <p className="text-muted-foreground mx-auto mt-4 max-w-[40ch] text-xs text-balance">
-                {t.rich("create.otherIdentity", { b: label })}
+                {t("create.otherIdentity")}
               </p>
-            </Stage>
-          )}
-
-          {step === "link-key" && (
-            <Stage
-              hero={
-                <BuzzIconTile>
-                  <KeyRound />
-                </BuzzIconTile>
-              }
-              title={t("have.title")}
-              subtitle={t.rich("have.subtitle", { b: label })}
-              headingRef={focusHeading}
-            >
-              <form
-                id="buzz-connect-key"
-                className="mx-auto w-full max-w-sm text-left"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void link();
-                }}
-              >
-                <Input
-                  value={publicKey}
-                  onChange={(event) => {
-                    setPublicKey(event.target.value);
-                    setKeyError(null);
-                  }}
-                  placeholder="npub1…"
-                  aria-label={t("have.label")}
-                  aria-invalid={keyError ? true : undefined}
-                  aria-describedby={
-                    keyError ? "buzz-connect-key-error" : undefined
-                  }
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="h-11 font-mono text-sm"
-                />
-                {keyError ? (
-                  <p
-                    id="buzz-connect-key-error"
-                    role="alert"
-                    className="text-destructive mt-2 text-sm"
-                  >
-                    {keyError}
-                  </p>
-                ) : null}
-              </form>
             </Stage>
           )}
 
@@ -381,7 +310,20 @@ function BuzzConnectFlow({
             >
               <ol className="bg-card mx-auto w-full max-w-sm divide-y overflow-hidden rounded-xl border text-left text-sm">
                 <Instruction n={1}>
-                  {t.rich("authorize.open", { b: label })}
+                  <span className="block">
+                    {t.rich("authorize.open", { b: label })}
+                  </span>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 h-8 rounded-full"
+                  >
+                    <a href={BUZZ_SECURITY_URL}>
+                      <BuzzLogo className="size-4 rounded-sm" />
+                      {t("authorize.openButton")}
+                    </a>
+                  </Button>
                 </Instruction>
                 <Instruction n={2}>
                   <span className="block">
@@ -449,7 +391,7 @@ function BuzzConnectFlow({
 
       {/* Footer: one filled action at a time, Back on the left. */}
       <div className="bg-background relative flex min-h-20 items-center justify-between gap-3 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8">
-        {step === "authorize" ? (
+        {step === "authorize" && resume ? (
           <Button
             variant="ghost"
             className="text-muted-foreground h-11 px-4"
@@ -501,20 +443,6 @@ function BuzzConnectFlow({
             onClick={next}
           >
             {t("create.next")}
-          </Button>
-        )}
-        {step === "link-key" && (
-          <Button
-            type="submit"
-            form="buzz-connect-key"
-            variant="primary"
-            size="lg"
-            style={BUZZ_ACTION_STYLE}
-            className="rounded-full h-11 px-6"
-            loading={linking}
-            disabled={!publicKey.trim()}
-          >
-            {t("next")}
           </Button>
         )}
         {step === "authorize" && (

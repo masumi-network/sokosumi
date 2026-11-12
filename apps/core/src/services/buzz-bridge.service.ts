@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { type BuzzIdentity, Prisma as PrismaNull } from "@sokosumi/database";
 import { chatMessageTextWithNames, readChatMentionKeys } from "@sokosumi/utils";
-import { decode, npubEncode } from "nostr-tools/nip19";
+import { npubEncode } from "nostr-tools/nip19";
 import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
 
@@ -176,9 +176,20 @@ export function identitySecretKey(identity: BuzzIdentity): Uint8Array {
  * authorized as the owner's.
  */
 export function vouched(identity: BuzzIdentity, draft: EventDraft): EventDraft {
+  const tag = authTagOf(identity);
+  return tag ? { ...draft, tags: [...draft.tags, tag] } : draft;
+}
+
+/** Their authorization of Sokosumi's key, while it is from their linked key. */
+function authTagOf(
+  identity: Pick<BuzzIdentity, "appAuthTag" | "appPubkey">,
+): string[] | null {
   const tag = identity.appAuthTag;
-  if (!Array.isArray(tag) || !identity.appPubkey) return draft;
-  return { ...draft, tags: [...draft.tags, tag as string[]] };
+  return Array.isArray(tag) &&
+    identity.appPubkey !== null &&
+    tag[1] === identity.appPubkey
+    ? (tag as string[])
+    : null;
 }
 
 /** Metadata of a personal agent's "I only answer my owner" message. */
@@ -392,7 +403,7 @@ export async function buzzConnectionFor(userId: string) {
           status: identity.appPubkey
             ? ("linked" as const)
             : ("pending" as const),
-          authorized: Boolean(identity.appPubkey && identity.appAuthTag),
+          authorized: authTagOf(identity) !== null,
         }
       : null,
     agents,
@@ -411,16 +422,6 @@ export async function buzzConnectionFor(userId: string) {
 // ---------------------------------------------------------------- app keys
 
 export class BuzzAppLinkError extends Error {}
-
-function parsePublicKey(input: string): string {
-  const value = input.trim();
-  if (/^[0-9a-f]{64}$/i.test(value)) return value.toLowerCase();
-  try {
-    const decoded = decode(value);
-    if (decoded.type === "npub") return decoded.data;
-  } catch {}
-  throw new BuzzAppLinkError("Enter a Buzz public key (npub1…).");
-}
 
 /** A single-use invite to one community, issued by the relay owner. */
 async function mintInvite(relayUrl: string) {
@@ -452,18 +453,12 @@ async function mintInvite(relayUrl: string) {
  * ({@link verifyBuzzAppLinks}): joining is signed by the key, so whoever
  * joins holds it.
  */
-export async function startBuzzAppLink(userId: string, publicKey: string) {
-  const pubkey = parsePublicKey(publicKey);
+async function inviteAppKey(userId: string, pubkey: string) {
   const { communities } = await communitiesOf(userId);
   if (communities.length === 0) {
     throw new BuzzAppLinkError("None of your organizations is on Buzz yet.");
   }
   const identity = await ensureIdentity({ userId });
-  if (pubkey === identity.pubkey) {
-    throw new BuzzAppLinkError(
-      "That is the key Sokosumi keeps for you; enter the one your Buzz app shows.",
-    );
-  }
   const taken = await prisma.buzzIdentity.findFirst({
     where: {
       id: { not: identity.id },
@@ -565,7 +560,6 @@ export async function verifyBuzzAppLinks(scope: { identityId?: string } = {}) {
         where: { id: identity.id },
         data: {
           appPubkey: pubkey,
-          appAuthTag: PrismaNull.DbNull,
           pendingAppPubkey: null,
           pendingAppSince: null,
           profileHash: null,
@@ -947,15 +941,14 @@ async function agentsOf(identityId: string) {
 }
 
 /**
- * Saves the authorization the person's Buzz app signed for Sokosumi's key
- * (Settings → Security → Authorize external identity), after checking it is
- * exactly that: their linked app key, Sokosumi's key, no conditions.
+ * Links the person's own Buzz identity from the proof their Buzz app signed
+ * for Sokosumi's key (Settings → Buzz → Security → Authorize external
+ * identity). The proof names their Buzz key and shows they hold it, and it is
+ * sent on what Sokosumi signs for them, so their Buzz agents take it as
+ * theirs. A key not linked yet gets invites and is linked once it joins.
  */
-export async function saveBuzzAppAuthorization(userId: string, input: string) {
-  const identity = await prisma.buzzIdentity.findUnique({ where: { userId } });
-  if (!identity?.appPubkey) {
-    throw new BuzzAppLinkError("Link your Buzz app first.");
-  }
+export async function linkBuzzApp(userId: string, input: string) {
+  const identity = await ensureIdentity({ userId });
   let tag: unknown;
   try {
     tag = JSON.parse(input.trim());
@@ -964,21 +957,30 @@ export async function saveBuzzAppAuthorization(userId: string, input: string) {
       'Paste the whole proof Buzz shows, ["auth", …].',
     );
   }
-  if (
-    !Array.isArray(tag) ||
-    tag.length !== 4 ||
-    !tag.every((part) => typeof part === "string") ||
-    tag[2] !== "" ||
-    authTagOwner(identity.pubkey, tag as string[]) !== identity.appPubkey
-  ) {
+  const owner =
+    Array.isArray(tag) &&
+    tag.length === 4 &&
+    tag.every((part) => typeof part === "string") &&
+    tag[2] === ""
+      ? authTagOwner(identity.pubkey, tag as string[])
+      : null;
+  if (!owner) {
     throw new BuzzAppLinkError(
-      "This proof is not from your linked Buzz app for your Sokosumi key.",
+      "This proof is not for your Sokosumi key. Authorize the key shown here, then copy the new proof.",
     );
   }
+  if (identity.appPubkey && identity.appPubkey !== owner) {
+    throw new BuzzAppLinkError(
+      "This proof is from another Buzz identity than the one linked. Unlink it first.",
+    );
+  }
+  const invites =
+    identity.appPubkey === owner ? [] : await inviteAppKey(userId, owner);
   await prisma.buzzIdentity.update({
     where: { id: identity.id },
-    data: { appAuthTag: tag },
+    data: { appAuthTag: tag as string[] },
   });
+  return invites;
 }
 
 /** Forgets the person's own app key; their channels drop it within a minute. */

@@ -45,24 +45,27 @@ export const enableBuzzForOrganization = withSession<
 });
 
 interface LinkBuzzAppParameters extends AuthenticatedRequest {
-  publicKey: string;
+  proof: string;
 }
 
-/** Starts linking the caller's own Buzz app: invites to open in Buzz. */
+/**
+ * Links the caller's own Buzz identity with the proof their Buzz app signed
+ * for their Sokosumi key: invites to open in Buzz while it is not linked yet.
+ */
 export const linkBuzzApp = withSession<
   LinkBuzzAppParameters,
   ActionResultDto<BuzzAppKeyInvites, BuzzActionError>
->(async ({ publicKey }) => {
+>(async ({ proof }) => {
   const t = await getTranslations("App.Connections.Buzz");
-  if (!z.string().trim().min(1).safeParse(publicKey).success) {
-    return toActionResult(err({ message: t("linkInvalid") }));
+  if (!z.string().trim().min(1).safeParse(proof).success) {
+    return toActionResult(err({ message: t("proofInvalid") }));
   }
   try {
-    const response = await coreClientNoRedirect.postBuzzAppKey(publicKey);
+    const response = await coreClientNoRedirect.postBuzzAppKey(proof);
     revalidatePath("/connections");
     return toActionResult(ok(response.data));
   } catch (error) {
-    // Core says why a key cannot be linked (not a key, someone else's).
+    // Core says why a proof cannot link (not for this key, someone else's).
     const message =
       error instanceof CoreApiRequestError && error.status === 400
         ? error.message
@@ -106,32 +109,5 @@ export const setBuzzPersonalAgents = withSession<
     return toActionResult(ok(response.data));
   } catch {
     return toActionResult(err({ message: t("personalAgentsError") }));
-  }
-});
-
-interface AuthorizeBuzzAppParameters extends AuthenticatedRequest {
-  proof: string;
-}
-
-/** Saves the proof the caller's Buzz app signed for their Sokosumi key. */
-export const authorizeBuzzApp = withSession<
-  AuthorizeBuzzAppParameters,
-  ActionResultDto<{ authorized: boolean }, BuzzActionError>
->(async ({ proof }) => {
-  const t = await getTranslations("App.Connections.Buzz");
-  if (!z.string().trim().min(1).safeParse(proof).success) {
-    return toActionResult(err({ message: t("proofInvalid") }));
-  }
-  try {
-    const response =
-      await coreClientNoRedirect.postBuzzAppKeyAuthorization(proof);
-    revalidatePath("/connections");
-    return toActionResult(ok(response.data));
-  } catch (error) {
-    const message =
-      error instanceof CoreApiRequestError && error.status === 400
-        ? error.message
-        : t("proofError");
-    return toActionResult(err({ message }));
   }
 });

@@ -1094,13 +1094,8 @@
         "options": "Abre Buzz y elige <b>Other options</b>.",
         "address": "Introduce esta dirección:",
         "identity": "Elige <b>Create a new identity</b>.",
-        "otherIdentity": "¿Ya tienes sesión en Buzz con otra identidad? Puedes conectarla: vuelve atrás y elige Ya uso Buzz.",
+        "otherIdentity": "¿Ya tienes una identidad de Buzz? Vuelve y elige Ya uso Buzz.",
         "next": "Listo en Buzz"
-      },
-      "have": {
-        "title": "Tu clave de Buzz",
-        "subtitle": "En Buzz, abre <b>Settings → Identity</b> y copia tu clave pública. Empieza por npub.",
-        "label": "Clave pública de Buzz"
       },
       "join": {
         "title": "Únete desde Buzz",
@@ -1114,6 +1109,7 @@
         "title": "Autoriza a Sokosumi",
         "subtitle": "Así tus agentes de Buzz toman lo que escribes en Sokosumi como tuyo. Tu clave privada se queda en Buzz.",
         "open": "En Buzz, abre <b>Settings → Buzz → Security → Authorize external identity</b>.",
+        "openButton": "Abrir en Buzz",
         "paste": "Pega esta clave y elige <b>Authorize identity</b>:",
         "confirm": "Elige <b>Authorize this key</b>, luego <b>Copy ownership proof</b>, y pégala aquí:",
         "label": "Prueba de propiedad",
@@ -8607,7 +8603,6 @@
         "copy": "Copiar",
         "copied": "Copiado",
         "proofInvalid": "Pega la prueba que te mostró Buzz",
-        "proofError": "No se pudo guardar la prueba",
         "communityDescription": "Añade esta dirección en la app de Buzz para unirte a los chats de esta organización.",
         "relayUrl": "Dirección",
         "enableDescription": "Aún no está en Buzz. Sus salas serán canales de Buzz en menos de un minuto.",
@@ -8615,7 +8610,6 @@
         "enabled": "Los chats están en Buzz",
         "enableError": "No se pudieron llevar los chats a Buzz",
         "unlink": "Desvincular",
-        "linkInvalid": "Introduce una clave pública de Buzz (npub1…).",
         "linkError": "No se pudo vincular la app de Buzz",
         "unlinkError": "No se pudo desvincular la app de Buzz",
         "agentsTitle": "Tus agentes de Buzz",

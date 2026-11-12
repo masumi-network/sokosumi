@@ -1094,13 +1094,8 @@
         "options": "Open Buzz and choose <b>Other options</b>.",
         "address": "Enter this address:",
         "identity": "Choose <b>Create a new identity</b>.",
-        "otherIdentity": "Signed in to Buzz as someone else? You can connect that identity instead: go back and choose I already use Buzz.",
+        "otherIdentity": "Already have a Buzz identity? Go back and choose I already use Buzz.",
         "next": "Done in Buzz"
-      },
-      "have": {
-        "title": "Your Buzz key",
-        "subtitle": "In Buzz, open <b>Settings → Identity</b> and copy your public key. It starts with npub.",
-        "label": "Buzz public key"
       },
       "join": {
         "title": "Join from Buzz",
@@ -1114,6 +1109,7 @@
         "title": "Authorize Sokosumi",
         "subtitle": "Then your Buzz agents take what you write in Sokosumi as yours. Your private key stays in Buzz.",
         "open": "In Buzz, open <b>Settings → Buzz → Security → Authorize external identity</b>.",
+        "openButton": "Open in Buzz",
         "paste": "Paste this key and choose <b>Authorize identity</b>:",
         "confirm": "Choose <b>Authorize this key</b>, then <b>Copy ownership proof</b>, and paste it here:",
         "label": "Ownership proof",
@@ -8652,7 +8648,6 @@
         "copy": "Copy",
         "copied": "Copied",
         "proofInvalid": "Paste the proof Buzz showed you",
-        "proofError": "Failed to save the proof",
         "communityDescription": "Add this address in the Buzz app to join this organization's chats.",
         "relayUrl": "Address",
         "enableDescription": "Not on Buzz yet. Its rooms become Buzz channels within a minute.",
@@ -8660,7 +8655,6 @@
         "enabled": "Chats are on Buzz",
         "enableError": "Failed to put chats on Buzz",
         "unlink": "Unlink",
-        "linkInvalid": "Enter a Buzz public key (npub1…).",
         "linkError": "Failed to link the Buzz app",
         "unlinkError": "Failed to unlink the Buzz app",
         "agentsTitle": "Your Buzz agents",

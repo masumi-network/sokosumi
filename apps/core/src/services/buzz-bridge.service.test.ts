@@ -70,9 +70,8 @@ import {
   type CoreRequest,
   drainBuzzOutbox,
   enqueueBuzzSync,
+  linkBuzzApp,
   OUTBOX_SETTLE_MS,
-  saveBuzzAppAuthorization,
-  startBuzzAppLink,
   syncBuzzAgents,
   verifyBuzzAppLinks,
   vouched,
@@ -618,16 +617,6 @@ describe("own Buzz app key", () => {
     expect(db.buzzMessageLink.upsert).not.toHaveBeenCalled();
   });
 
-  it("refuses to link the key Sokosumi already keeps for the person", async () => {
-    db.buzzIdentity.findUnique.mockResolvedValue({ ...bob, appPubkey: null });
-    await expect(startBuzzAppLink("user-bob", BOB_PUBKEY)).rejects.toThrow(
-      "That is the key Sokosumi keeps for you",
-    );
-    await expect(startBuzzAppLink("user-bob", "npub1nope")).rejects.toThrow(
-      "Enter a Buzz public key",
-    );
-  });
-
   it("links a pending key once it joined a community after the link was asked for", async () => {
     const since = new Date("2026-11-11T10:00:00Z");
     db.buzzIdentity.findMany.mockResolvedValue([
@@ -1145,7 +1134,7 @@ describe("buzzContentOf", () => {
   });
 });
 
-describe("saveBuzzAppAuthorization", () => {
+describe("linkBuzzApp", () => {
   const APP_KEY = generateSecretKey();
   const APP_PUBKEY = getPublicKey(APP_KEY);
   const SOKOSUMI_PUBKEY = BOB_PUBKEY;
@@ -1156,31 +1145,41 @@ describe("saveBuzzAppAuthorization", () => {
     userId: "user-bob",
   };
 
-  it("keeps the linked app's vouch for the person's Sokosumi key", async () => {
+  it("keeps the linked Buzz identity's proof for the person's Sokosumi key", async () => {
     db.buzzIdentity.findUnique.mockResolvedValue(identity);
     const tag = ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY);
-    await saveBuzzAppAuthorization("user-bob", JSON.stringify(tag));
+    await expect(linkBuzzApp("user-bob", JSON.stringify(tag))).resolves.toEqual(
+      [],
+    );
     expect(db.buzzIdentity.update).toHaveBeenCalledWith({
       where: { id: "identity-bob" },
       data: { appAuthTag: tag },
     });
   });
 
-  it("refuses a vouch from another key, for another key, or with conditions", async () => {
+  it("refuses a proof for another key, with conditions, or that is not one", async () => {
     db.buzzIdentity.findUnique.mockResolvedValue(identity);
     const stranger = generateSecretKey();
     for (const tag of [
-      ownerAuthTag(stranger, SOKOSUMI_PUBKEY),
       ownerAuthTag(APP_KEY, getPublicKey(stranger)),
       ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY, "kind=9"),
     ]) {
       await expect(
-        saveBuzzAppAuthorization("user-bob", JSON.stringify(tag)),
-      ).rejects.toThrow("not from your linked Buzz app");
+        linkBuzzApp("user-bob", JSON.stringify(tag)),
+      ).rejects.toThrow("not for your Sokosumi key");
     }
-    await expect(saveBuzzAppAuthorization("user-bob", "nope")).rejects.toThrow(
+    await expect(linkBuzzApp("user-bob", "nope")).rejects.toThrow(
       "Paste the whole proof",
     );
+    expect(db.buzzIdentity.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses another Buzz identity's proof while one is linked", async () => {
+    db.buzzIdentity.findUnique.mockResolvedValue(identity);
+    const other = ownerAuthTag(generateSecretKey(), SOKOSUMI_PUBKEY);
+    await expect(
+      linkBuzzApp("user-bob", JSON.stringify(other)),
+    ).rejects.toThrow("another Buzz identity");
     expect(db.buzzIdentity.update).not.toHaveBeenCalled();
   });
 });
@@ -1201,8 +1200,11 @@ describe("vouched", () => {
     ]);
   });
 
-  it("sends nothing extra without an authorization or a linked app", () => {
+  it("sends nothing extra without an authorization from the linked key", () => {
     expect(vouched({ ...identity, appAuthTag: null }, draft)).toBe(draft);
     expect(vouched({ ...identity, appPubkey: null }, draft)).toBe(draft);
+    expect(vouched({ ...identity, appPubkey: "c".repeat(64) }, draft)).toBe(
+      draft,
+    );
   });
 });

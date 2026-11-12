@@ -1094,13 +1094,8 @@
         "options": "Öffne Buzz und wähle <b>Other options</b>.",
         "address": "Gib diese Adresse ein:",
         "identity": "Wähle <b>Create a new identity</b>.",
-        "otherIdentity": "In Buzz schon als jemand anderes angemeldet? Du kannst diese Identität verbinden: Geh zurück und wähle Ich nutze Buzz schon.",
+        "otherIdentity": "Schon eine Buzz-Identität? Geh zurück und wähle Ich nutze Buzz schon.",
         "next": "Fertig in Buzz"
-      },
-      "have": {
-        "title": "Dein Buzz-Schlüssel",
-        "subtitle": "Öffne in Buzz <b>Settings → Identity</b> und kopiere deinen öffentlichen Schlüssel. Er beginnt mit npub.",
-        "label": "Öffentlicher Buzz-Schlüssel"
       },
       "join": {
         "title": "In Buzz beitreten",
@@ -1114,6 +1109,7 @@
         "title": "Sokosumi autorisieren",
         "subtitle": "Dann nehmen deine Buzz-Agenten, was du in Sokosumi schreibst, als deins an. Dein privater Schlüssel bleibt in Buzz.",
         "open": "Öffne in Buzz <b>Settings → Buzz → Security → Authorize external identity</b>.",
+        "openButton": "In Buzz öffnen",
         "paste": "Füge diesen Schlüssel ein und wähle <b>Authorize identity</b>:",
         "confirm": "Wähle <b>Authorize this key</b>, dann <b>Copy ownership proof</b>, und füge ihn hier ein:",
         "label": "Eigentumsnachweis",
@@ -8607,7 +8603,6 @@
         "copy": "Kopieren",
         "copied": "Kopiert",
         "proofInvalid": "Füge den Nachweis ein, den Buzz dir angezeigt hat",
-        "proofError": "Nachweis konnte nicht gespeichert werden",
         "communityDescription": "Füge diese Adresse in der Buzz-App hinzu, um den Chats dieser Organisation beizutreten.",
         "relayUrl": "Adresse",
         "enableDescription": "Noch nicht auf Buzz. Ihre Räume werden innerhalb einer Minute zu Buzz-Kanälen.",
@@ -8615,7 +8610,6 @@
         "enabled": "Chats sind auf Buzz",
         "enableError": "Chats konnten nicht auf Buzz gebracht werden",
         "unlink": "Trennen",
-        "linkInvalid": "Gib einen öffentlichen Buzz-Schlüssel ein (npub1…).",
         "linkError": "Buzz-App konnte nicht verknüpft werden",
         "unlinkError": "Buzz-App konnte nicht getrennt werden",
         "agentsTitle": "Deine Buzz-Agenten",
