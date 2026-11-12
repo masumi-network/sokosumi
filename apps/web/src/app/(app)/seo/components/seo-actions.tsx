@@ -238,7 +238,7 @@ export function SeoActionCard({
                 {t("actions.effort")}: {t(`priority.${action.effort}`)}
               </p>
               {action.evidence.length ? (
-                <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs">
+                <ul className="text-muted-foreground list-disc space-y-1 ps-4 text-xs">
                   {action.evidence.map((line, index) => (
                     <li key={`${index}:${line}`} className="break-words">
                       {line}

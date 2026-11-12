@@ -114,7 +114,7 @@ export function SeoStrategyCard({ model }: { model: SeoWorkspaceModel }) {
           <div className="text-muted-foreground max-w-prose space-y-2 pt-1">
             <p>{t("strategy.reachHelp")}</p>
             {reason.details.length ? (
-              <ul className="list-inside list-disc space-y-1">
+              <ul className="list-disc space-y-1 ps-4">
                 {reason.details.map((line, index) => (
                   <li key={`${index}:${line}`} className="break-words">
                     {line}

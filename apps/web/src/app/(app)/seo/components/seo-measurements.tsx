@@ -450,7 +450,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
             {t(
               connected
                 ? "overview.trafficSyncBody"
-                : "agent.steps.connect.search_console",
+                : "overview.trafficSetupBody",
             )}
           </p>
           {canSync ? (

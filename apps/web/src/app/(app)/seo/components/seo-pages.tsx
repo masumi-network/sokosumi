@@ -153,13 +153,15 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                     ) : (
                       <SeoPageLink url={page.url} />
                     )}
-                    {/* The badge marks the page that differs: a page added beside the primary page. */}
-                    {page.relationship !== "primary" ? (
+                    {/* With one primary page the names tell the pages apart. With more, the badge marks a page
+                        that was added beside one of them, and the line under it names which. */}
+                    {page.relationship !== "primary" && primaryPages > 1 ? (
                       <SeoState>{t("related")}</SeoState>
                     ) : null}
                   </div>
                   {name ? <SeoPageLink url={page.url} quiet /> : null}
-                  {/* With one primary page the badge says what the page is related to, unless its parent is another page. */}
+                  {/* With one primary page the line shows only for a page whose parent is another related page:
+                      the names alone do not say which page it belongs to. */}
                   {parent &&
                   (primaryPages > 1 || parent.relationship !== "primary") ? (
                     <p className="text-muted-foreground text-sm">

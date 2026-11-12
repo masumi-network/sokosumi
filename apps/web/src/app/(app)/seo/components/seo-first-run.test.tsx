@@ -318,9 +318,13 @@ describe("SEO audit first run", () => {
     const workspace = seoTestWorkspace();
     network(workspace);
     renderWorkspace(workspace, "?tab=traffic");
+    // The sentence names the button under it ("Set up statistics"), not the button of the Agent banner.
     expect(
-      await screen.findByText(copy.agent.steps.connect.search_console),
+      await screen.findByText(copy.overview.trafficSetupBody),
     ).toBeVisible();
+    expect(
+      screen.queryByText(copy.agent.steps.connect.search_console),
+    ).toBeNull();
     // The answer "not connected" is in, so the text below is not the text of a pending read.
     await waitFor(() =>
       expect(

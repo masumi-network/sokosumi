@@ -80,34 +80,45 @@ function Tile({
           <button
             type="button"
             aria-label={open.label}
-            className="focus-visible:after:ring-ring cursor-pointer outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2"
+            className="focus-visible:after:ring-ring cursor-pointer outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 max-sm:absolute max-sm:inset-0"
             onClick={open.onOpen}
           >
-            <ChevronRight aria-hidden className="size-4" />
+            {/* On a phone the arrow stands on the number line: in a column beside the label it wraps the label
+                to a third line, and the two tiles of a row then hold their numbers at two heights. The button has
+                no content there, so it takes the box of the tile: a screen reader needs a box to point at. */}
+            <ChevronRight aria-hidden className="size-4 max-sm:hidden" />
           </button>
         ) : null}
       </dt>
       <dd className="flex flex-col gap-1.5" data-testid={testId}>
-        <p
-          className={cn(
-            "text-xl leading-tight font-semibold tabular-nums sm:text-2xl",
-            quiet && "text-muted-foreground",
-          )}
-        >
-          {value}
-          {rest ? (
-            // The space is outside the unit: in a narrow tile the unit moves to the next line as one piece.
-            <>
-              {" "}
-              <span
-                title={restHint}
-                className="text-muted-foreground text-sm font-normal whitespace-nowrap"
-              >
-                {rest}
-              </span>
-            </>
+        <div className="flex items-center justify-between gap-2">
+          <p
+            className={cn(
+              "min-w-0 text-xl leading-tight font-semibold tabular-nums sm:text-2xl",
+              quiet && "text-muted-foreground",
+            )}
+          >
+            {value}
+            {rest ? (
+              // The space is outside the unit: in a narrow tile the unit moves to the next line as one piece.
+              <>
+                {" "}
+                <span
+                  title={restHint}
+                  className="text-muted-foreground text-sm font-normal whitespace-nowrap"
+                >
+                  {rest}
+                </span>
+              </>
+            ) : null}
+          </p>
+          {open ? (
+            <ChevronRight
+              aria-hidden
+              className="text-muted-foreground size-4 shrink-0 sm:hidden"
+            />
           ) : null}
-        </p>
+        </div>
         {bar}
         {children ? (
           <div className="text-muted-foreground text-xs">{children}</div>

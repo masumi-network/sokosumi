@@ -414,7 +414,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           <ChevronRight className="text-muted-foreground size-4 shrink-0" />
                         </button>
                       ) : null}
-                      <ul className="list-inside list-disc space-y-1">
+                      <ul className="list-disc space-y-1 ps-4">
                         {finding.evidence.map((evidence, index) => (
                           <li
                             key={`${index}:${evidence}`}
@@ -620,7 +620,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       ? t("overview.references", { count: references.length })
                       : t("overview.rulesOnly")}
                 </SeoFoldSummary>
-                <ul className="list-inside list-disc space-y-1 pt-1">
+                <ul className="list-disc space-y-1 ps-4 pt-1">
                   {references.map((reference) => (
                     <li key={reference.line} className="break-words">
                       {reference.names.length

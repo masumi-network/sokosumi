@@ -1112,7 +1112,7 @@ describe("SEO workspace integration", () => {
     ).toBeTruthy();
   });
 
-  it("puts a badge only on a page that is not the primary page", () => {
+  it("puts no badge on a page while the Audit has one primary page", () => {
     const workspace = seoTestWorkspace();
     workspace.pages.push({
       ...workspace.pages[0],
@@ -1136,8 +1136,11 @@ describe("SEO workspace integration", () => {
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByText("https://example.com/")).toBeVisible();
     expect(within(rows[0]).queryByText(/page$/)).toBeNull();
-    expect(within(rows[1]).getByText("Related page")).toBeVisible();
-    // One primary page: the badge says what the page is related to.
+    // One primary page: the names tell the two pages apart, so no badge and no "Related to" line.
+    expect(
+      within(rows[1]).getByRole("heading", { name: "Blog" }),
+    ).toBeVisible();
+    expect(within(rows[1]).queryByText("Related page")).toBeNull();
     expect(within(rows[1]).queryByText(/^Related to/)).toBeNull();
   });
 
@@ -1645,7 +1648,7 @@ describe("SEO workspace integration", () => {
         relationship: "related",
         relatedToPageId: workspace.pages[0].id,
       });
-      // With one primary page the badge "Related page" says it all; a second one makes the parent a fact.
+      // A second primary page makes the parent a fact: the badge marks the page, the line names the parent.
       workspace.pages.push({
         ...workspace.pages[0],
         id: crypto.randomUUID(),
@@ -1660,6 +1663,7 @@ describe("SEO workspace integration", () => {
       renderWorkspace(workspace, "tab=health");
       const row = screen.getByRole("heading", { name: "Blog" }).closest("li");
       if (!row) throw new Error("Related page row missing");
+      expect(within(row).getByText("Related page")).toBeVisible();
       expect(within(row).getByText(expected)).toBeVisible();
     },
   );

@@ -280,6 +280,32 @@ describe("SEO competitor baselines", () => {
     expect(screen.queryByText("No competitors yet")).toBeNull();
   });
 
+  it("keeps the date of the check over the list while a search matches no site", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.competitors = Array.from({ length: 12 }, (_, index) => ({
+      id: `competitor-${index}`,
+      url: `https://rival-${index}.example/`,
+      role: "competitor" as const,
+      confirmed: false,
+      source: "search",
+      rank: index + 1,
+      backlinks: null,
+      referringDomains: null,
+      observedAt: new Date("2026-11-11T01:26:00Z"),
+      observationId: "check",
+      version: 0,
+      canConfirm: true,
+      exclusionReason: null,
+    }));
+    renderWorkspace(workspace);
+    expect(screen.getByText(/^Last position check$/)).toBeVisible();
+    // The line stands over the search field: if it left with the rows, the field would move under the reader's text.
+    await user.type(screen.getByRole("searchbox", { name: "Search" }), "zzz");
+    expect(screen.getByText("No competitor matches this search")).toBeVisible();
+    expect(screen.getByText(/^Last position check$/)).toBeVisible();
+  });
+
   it("leaves the actions cell empty when a row has no button", () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canEdit = false;

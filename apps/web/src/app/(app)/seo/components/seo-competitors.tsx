@@ -59,13 +59,16 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     value === null ? t("none") : format.number(value);
   // One check for every row is said once above the table, not in two columns of every row.
   // A competitor the reader added comes from no check.
+  // The whole list counts, not the rows of a search: the line stands over the search field, and a line that
+  // comes and goes while the reader types moves the field.
+  const everySite = model.data.competitors.filter((row) => row.role !== "page");
   const checks = new Set(
-    all.flatMap((row) => (row.observationId ? [row.observationId] : [])),
+    everySite.flatMap((row) => (row.observationId ? [row.observationId] : [])),
   );
   // A row without a date cannot date the line.
   const oneCheck =
     checks.size === 1
-      ? all.find((row) => row.observationId && row.observedAt)
+      ? everySite.find((row) => row.observationId && row.observedAt)
       : undefined;
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
@@ -112,6 +115,18 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         ) : null
       }
     >
+      {oneCheck ? (
+        // The date opens the results of the check. It stands under the title, at the place and in the size of the
+        // meta line on Keywords, so the line holds its place when the switch changes the list.
+        <p className="text-muted-foreground px-2 pb-1 text-sm">
+          <SeoSource
+            workspace={model.data}
+            observationId={oneCheck.observationId}
+          >
+            {t("keywords.readOn")} <SeoDate day value={oneCheck.observedAt} />
+          </SeoSource>
+        </p>
+      ) : null}
       {/* A list that shows every site needs no filter. */}
       {sites.length > SEO_LIST_PAGE_SIZE || model.competitorSearch ? (
         <div className="px-2 pb-3">
@@ -158,17 +173,6 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             </dd>
           ))}
         </dl>
-      ) : null}
-      {oneCheck ? (
-        // The date opens the results of the check.
-        <p className="text-muted-foreground px-2 pb-2 text-xs">
-          <SeoSource
-            workspace={model.data}
-            observationId={oneCheck.observationId}
-          >
-            {t("keywords.readOn")} <SeoDate day value={oneCheck.observedAt} />
-          </SeoSource>
-        </p>
       ) : null}
       {rows.length ? (
         <div className={HOLDER_ITEM_CLASS}>
@@ -234,8 +238,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                         </p>
                       ) : null}
                       {pages.length > 1 ? (
-                        <details className="text-muted-foreground text-sm">
-                          <SeoFoldSummary className="py-1.5">
+                        <details className="text-muted-foreground text-xs">
+                          <SeoFoldSummary className="py-2">
                             {t("competitors.morePages", {
                               count: pages.length - 1,
                             })}
@@ -249,9 +253,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                                   quiet
                                 />
                                 {facts(page) ? (
-                                  <p className="text-xs tabular-nums">
-                                    {facts(page)}
-                                  </p>
+                                  <p className="tabular-nums">{facts(page)}</p>
                                 ) : null}
                               </li>
                             ))}

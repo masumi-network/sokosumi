@@ -113,7 +113,8 @@ export function SeoDemandChart({
                     }}
                   />
                   <span
-                    className="absolute top-1/2 -translate-y-1/2 pl-1.5 text-xs whitespace-nowrap tabular-nums"
+                    // The number stands on the surface of the card: a scale line behind it would cross its digits.
+                    className="bg-background absolute top-1/2 -translate-y-1/2 pr-1 pl-1.5 text-xs whitespace-nowrap tabular-nums"
                     style={{
                       left: `${Math.max(BAR_MIN_PERCENT, percent(row.volume))}%`,
                     }}
