@@ -993,6 +993,49 @@ describe("personal agents", () => {
     });
   });
 
+  it("puts Buzz back when Core refuses an agent invite, and only once Core has answered", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      id: "channel",
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      { pubkey: AGENT, coworkerId: "cw-agent" },
+    ]);
+    relay.queryEvents.mockResolvedValue([
+      { kind: 39002, created_at: 1, tags: [["p", AGENT]] },
+    ]);
+    const invite = () =>
+      nostrEvent({
+        kind: 9000,
+        tags: [
+          ["h", CHANNEL],
+          ["p", AGENT],
+        ],
+      });
+    // Core unreachable: Buzz is left as it is, so the retry still applies it.
+    core.mockResolvedValueOnce({ status: 503, body: {} });
+    await expect(applyInboundEvent(invite(), core)).rejects.toBeInstanceOf(
+      CoreRejectedError,
+    );
+    expect(db.buzzOutbox.create).not.toHaveBeenCalled();
+    // A guest's agent: Core says no for good, and Buzz is put back.
+    core.mockResolvedValueOnce({ status: 403, body: {} });
+    await expect(applyInboundEvent(invite(), core)).resolves.toBe("ignored");
+    expect(db.buzzChannel.update).toHaveBeenCalledWith({
+      where: { id: "channel" },
+      data: { membersHash: null },
+    });
+    expect(db.buzzOutbox.create).toHaveBeenCalledWith({
+      data: { roomId: "room", messageId: null },
+    });
+  });
+
   it("looks for the owner's agents first when an invite names a key it does not know yet", async () => {
     db.buzzMessageLink.findUnique.mockResolvedValue(null);
     db.buzzReactionLink.findUnique.mockResolvedValue(null);

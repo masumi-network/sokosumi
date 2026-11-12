@@ -1096,7 +1096,21 @@ const roomForSync = {
     where: { coworker: { archivedAt: null } },
     select: {
       coworkerId: true,
-      coworker: { select: { name: true, image: true } },
+      coworker: {
+        select: {
+          name: true,
+          image: true,
+          buzzIdentity: {
+            select: {
+              ownerIdentity: {
+                select: {
+                  user: { select: { banned: true, banExpires: true } },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   },
 } as const;
@@ -1248,6 +1262,10 @@ export async function syncRoomChannel(roomId: string) {
     members.push({ identity, role: "bot" });
   }
   for (const member of room.coworkerMembers) {
+    // A personal agent of a banned person: its key is in their Buzz app, so
+    // it would read on for them. Back when the ban ends.
+    const owner = member.coworker.buzzIdentity?.ownerIdentity;
+    if (owner && !isActiveUser(owner.user)) continue;
     const identity = await ensureIdentity({ coworkerId: member.coworkerId });
     await ensureCommunityMember(community.id, relayUrl, identity);
     await ensureProfile(relayUrl, identity, {
@@ -2120,6 +2138,12 @@ async function applyMemberChange(
     return result;
   } catch (error) {
     if (error instanceof CoreRejectedError && error.terminal) await recheck();
+    // A 403 is Core's answer too (say a guest bringing an agent): put Buzz
+    // back and be done; retrying cannot change it.
+    if (error instanceof CoreRejectedError && error.status === 403) {
+      await recheck();
+      return "ignored";
+    }
     throw error;
   }
 }
@@ -2885,7 +2909,15 @@ export async function buzzSubscriptions() {
           room: {
             select: {
               userMembers: {
-                select: { user: { select: { buzzIdentity: true } } },
+                select: {
+                  user: {
+                    select: {
+                      buzzIdentity: true,
+                      banned: true,
+                      banExpires: true,
+                    },
+                  },
+                },
                 orderBy: { createdAt: "asc" },
               },
             },
@@ -2902,8 +2934,10 @@ export async function buzzSubscriptions() {
     for (const channel of community.channels) {
       if (!channel.room) continue;
       const readerId = isDirect(channel)
-        ? (channel.room.userMembers.find((m) => m.user.buzzIdentity)?.user
-            .buzzIdentity?.id ?? null)
+        ? // Someone who is in the DM: a banned person was left out of it.
+          (channel.room.userMembers.find(
+            (m) => m.user.buzzIdentity && isActiveUser(m.user),
+          )?.user.buzzIdentity?.id ?? null)
         : "operator";
       if (!readerId) continue;
       const reader = readers.get(readerId) ?? { readerId, channelIds: [] };
