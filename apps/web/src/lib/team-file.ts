@@ -3,7 +3,8 @@ import { z } from "zod";
 /**
  * A team file: people, their roles and who reports to whom, as JSON named
  * `*.team.json`. Drive and data rooms render it as an org chart with a
- * profile per person instead of raw JSON.
+ * profile per person instead of raw JSON; a file of one person is that
+ * person's profile page.
  *
  * Photos are inline `data:image/…` URIs only, so opening the file never
  * fetches from another host (a data room viewer's address stays private).
