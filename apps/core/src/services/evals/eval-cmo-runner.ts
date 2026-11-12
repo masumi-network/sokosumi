@@ -18,6 +18,7 @@ import {
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { SETTLED_TURN_STATUSES } from "@/services/soko-bot-lab-scenario.service";
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
 import type {
@@ -107,15 +108,26 @@ async function connectPlanChannels(
   }
 }
 
+/**
+ * A turn past its deadline is dead, and a preview has no cron to end it; left
+ * alone it would hold the lane for the rest of the run.
+ */
 async function cusoIsBusy(lane: EvalLaneRecord) {
-  return (
-    (await prisma.sokoBotTurn.count({
-      where: {
-        sokoBotId: lane.cusoBotId,
-        status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
-      },
-    })) > 0
-  );
+  const active = await prisma.sokoBotTurn.findMany({
+    where: {
+      sokoBotId: lane.cusoBotId,
+      status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+    },
+    select: { id: true, deadlineAt: true },
+  });
+  const now = Date.now();
+  const dead = active.filter((turn) => turn.deadlineAt.getTime() <= now);
+  await Promise.all(dead.map((turn) => endTurn(turn.id)));
+  return active.length > dead.length;
+}
+
+function endTurn(turnId: string) {
+  return sokoBotControlPlane.expireTurn(turnId).catch(() => undefined);
 }
 
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
@@ -441,6 +453,7 @@ export async function pollCmoCase(
   if (!SETTLED_TURN_STATUSES.includes(turn.status)) {
     if (Date.now() - context.startedAt.getTime() < CMO_TURN_TIMEOUT_MS)
       return { kind: "waiting" };
+    await endTurn(result.turnId);
     return {
       kind: "done",
       outcome: {

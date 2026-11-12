@@ -7,7 +7,7 @@ const prisma = vi.hoisted(() => {
     project: { update: ok() },
     marketingStrategy: { deleteMany: ok() },
     sokoBotTurn: {
-      count: vi.fn().mockResolvedValue(0),
+      findMany: vi.fn().mockResolvedValue([]),
       findUniqueOrThrow: vi
         .fn()
         .mockResolvedValue({ status: "COMPLETED", finalAnswer: "Ready" }),
@@ -23,6 +23,11 @@ const prisma = vi.hoisted(() => {
 vi.mock("@/lib/db/prisma", () => ({ default: prisma }));
 vi.mock("@/services/cmo-cuso.service", () => ({
   findCusoForBot: vi.fn().mockResolvedValue({ id: "cuso-1" }),
+}));
+
+const expireTurn = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  sokoBotControlPlane: { expireTurn },
 }));
 
 vi.mock("@/services/cmo-strategy.service", async (importOriginal) => ({
@@ -70,6 +75,43 @@ describe("strategy eval cases", () => {
       projectId: "project-1",
       siteLanguage: "English",
     });
+  });
+
+  it("waits for a turn that is still inside its deadline", async () => {
+    prisma.sokoBotTurn.findMany.mockResolvedValueOnce([
+      { id: "turn-0", deadlineAt: new Date(Date.now() + 60_000) },
+    ]);
+    expect(await startCmoCase(evalCase, lane, context)).toEqual({
+      kind: "busy",
+    });
+    expect(expireTurn).not.toHaveBeenCalled();
+  });
+
+  it("ends a turn past its deadline instead of waiting on it", async () => {
+    prisma.sokoBotTurn.findMany.mockResolvedValueOnce([
+      { id: "turn-0", deadlineAt: new Date(Date.now() - 60_000) },
+    ]);
+    expect(await startCmoCase(evalCase, lane, context)).toMatchObject({
+      kind: "started",
+    });
+    expect(expireTurn).toHaveBeenCalledWith("turn-0");
+  });
+
+  it("ends the turn of a case that timed out, so the lane is free", async () => {
+    prisma.sokoBotTurn.findUniqueOrThrow.mockResolvedValueOnce({
+      status: "RUNNING",
+    });
+    const result = await pollCmoCase(
+      evalCase,
+      lane,
+      { turnId: "turn-9", state: {} },
+      { ...context, startedAt: new Date(Date.now() - 46 * 60_000) },
+    );
+    expect(result).toMatchObject({
+      kind: "done",
+      outcome: { status: "ERROR" },
+    });
+    expect(expireTurn).toHaveBeenCalledWith("turn-9");
   });
 
   it.each(["Email and SMS marketing plans", null])(
