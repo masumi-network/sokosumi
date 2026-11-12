@@ -29,10 +29,19 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values?.name ? `${key}:${values.name}` : key,
-}));
+vi.mock("next-intl", async () => {
+  const { createTestFormatter } = await import("@/test/intl-formatter");
+  const formatter = createTestFormatter({ locale: "en-US", timeZone: "UTC" });
+  return {
+    useFormatter: () => formatter,
+    useTranslations: () => (key: string, values?: Record<string, string>) =>
+      values?.name
+        ? `${key}:${values.name}`
+        : values?.datetime
+          ? `${key}:${values.datetime}`
+          : key,
+  };
+});
 
 vi.mock("@/components/aurora-orb", () => ({
   AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
@@ -83,6 +92,7 @@ const baseLabels = {
   project: "Project",
   noProject: "No project",
   schedule: "Schedule",
+  startsAt: "Start time",
   assignee: "Assignee",
   noAssignee: "No assignee",
   memberFallback: "Member",
@@ -151,6 +161,32 @@ function renderTaskMetadata(
 }
 
 describe("TaskMetadata", () => {
+  it("shows when a Scheduled task starts, and nothing once it runs", () => {
+    const runAt = "2030-01-15T15:00:00.000Z";
+    const { rerender } = renderTaskMetadata({
+      task: { ...createTask({ status: TaskStatus.QUEUED }), runAt },
+    });
+
+    const row = screen.getByRole("group", { name: "Start time" });
+    expect(within(row).getByText(/^at:/)).toHaveAttribute("datetime", runAt);
+
+    rerender(
+      <TaskMetadata
+        title="Properties"
+        taskId="task-1"
+        editable={false}
+        task={{ ...createTask(), runAt }}
+        project={null}
+        labels={baseLabels}
+        statusFieldLabels={baseStatusFieldLabels}
+        priorityLabels={basePriorityLabels}
+      />,
+    );
+    expect(
+      screen.queryByRole("group", { name: "Start time" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders Properties as a quiet section heading above metadata", () => {
     renderTaskMetadata({ task: createTask() });
 
