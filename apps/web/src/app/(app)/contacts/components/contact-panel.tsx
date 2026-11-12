@@ -33,7 +33,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   channelHref,
@@ -246,6 +246,7 @@ function PanelBody({
   const manualLists = lists.filter((list) => list.kind === "manual");
   const [enriching, setEnriching] = useState(false);
   const [creatingList, setCreatingList] = useState(false);
+  const listsTrigger = useRef<HTMLButtonElement>(null);
 
   /**
    * Puts this person on a list just made from their panel. On failure the
@@ -605,6 +606,7 @@ function PanelBody({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                ref={listsTrigger}
                 type="button"
                 aria-label={t("panel.changeLists")}
                 className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
@@ -664,6 +666,11 @@ function PanelBody({
           </DropdownMenu>
           {creatingList ? (
             <ContactListDialog
+              onCloseAutoFocus={(event) => {
+                // Back to the Lists button, which opened it through its menu.
+                event.preventDefault();
+                listsTrigger.current?.focus();
+              }}
               onClose={() => setCreatingList(false)}
               onSaved={(list) => {
                 setCreatingList(false);

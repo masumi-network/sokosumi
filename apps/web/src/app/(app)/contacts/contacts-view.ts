@@ -9,6 +9,7 @@ import type {
 } from "@sokosumi/core-client";
 import type { ContactQuery } from "@/lib/services/contacts.client";
 import { isUuidString } from "@/lib/utils/uuid";
+import { UNACCENT_RULES } from "./unaccent-rules";
 
 /** The smart presets at the top of the rail, as list query params (design.md). */
 export const CONTACT_PRESETS = {
@@ -82,32 +83,53 @@ export function contactQuery(view: ContactView): ContactQuery {
   return query;
 }
 
-/** Lowercased and without accents, as Core compares a location. */
-function foldForSearch(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+const UNACCENT = new Map(
+  UNACCENT_RULES.split("\n").map((line) => {
+    const [from = "", to = ""] = line.split("\t");
+    return [from, to];
+  }),
+);
+
+/** One character as Core's `lower(unaccent(…))` reads it: "Æ" is "ae". */
+function foldForSearch(char: string): string {
+  return (UNACCENT.get(char) ?? char).toLowerCase();
 }
 
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
 /**
- * Where `search` sits in `text`, ignoring case and accents ("zurich" in
- * "Zürich, Switzerland"), as [start, end) offsets into `text`, or null.
+ * Where `search` sits in `text`, as Core's location search compares them
+ * (case and accents aside: "zurich" in "Zürich", "aero" in "Ærø"), as
+ * [start, end) offsets into `text` widened to whole characters as seen, or null.
  */
 export function searchMatchRange(
   text: string,
   search: string,
 ): [number, number] | null {
-  const needle = foldForSearch(search.trim());
+  const needle = Array.from(search.trim(), foldForSearch).join("");
   if (!needle) return null;
   let folded = "";
-  // The index in `text` each folded character came from.
+  // The offset in `text` each folded unit came from.
   const source: number[] = [];
-  for (let index = 0; index < text.length; index++) {
-    const part = foldForSearch(text[index]);
+  let offset = 0;
+  for (const char of text) {
+    const part = foldForSearch(char);
     folded += part;
-    for (let count = 0; count < part.length; count++) source.push(index);
+    for (let unit = 0; unit < part.length; unit++) source.push(offset);
+    offset += char.length;
   }
   const at = folded.indexOf(needle);
   if (at < 0) return null;
-  return [source[at], source[at + needle.length - 1] + 1];
+  const first = source[at] ?? 0;
+  const last = source[at + needle.length - 1] ?? first;
+  let start = 0;
+  let end = text.length;
+  // A match inside "Æ" or before a combining accent marks the whole letter.
+  for (const { index, segment } of GRAPHEMES.segment(text)) {
+    if (index <= first) start = index;
+    if (index <= last) end = index + segment.length;
+  }
+  return [start, end];
 }
 
 /** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. */

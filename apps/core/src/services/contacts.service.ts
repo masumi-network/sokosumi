@@ -1166,26 +1166,62 @@ export async function findDuplicateContacts(
   });
 }
 
-/** Ids a filter may carry as bound parameters (Postgres allows 65535). */
+/**
+ * Values one contact query may bind (Postgres allows 65535), leaving room for
+ * the filter's other parameters. Id and value lists count against it together.
+ */
 const MAX_FILTER_IDS = 50_000;
 
 /**
  * Contacts whose location holds `search`, ignoring case and accents, so
- * "zurich" finds "Zürich". Prisma's `contains` cannot unaccent.
+ * "zurich" finds "Zürich". Prisma's `contains` cannot unaccent, so plain
+ * matches stay a column predicate and only places that need the accents
+ * folded are looked up: as their distinct spellings, not one id per contact.
  */
 async function locationSearchWhere(
   workspaceId: string,
   search: string,
 ): Promise<Prisma.ContactWhereInput> {
-  const rows = await prisma.$queryRaw<{ id: string }[]>(PrismaRaw.sql`
-    SELECT "id" FROM "contact"
+  const pattern = literalSubstringPattern(search);
+  const rows = await prisma.$queryRaw<{ location: string }[]>(PrismaRaw.sql`
+    SELECT DISTINCT "location" FROM "contact"
     WHERE "workspaceId" = ${workspaceId}::uuid
-      AND unaccent("location") ILIKE unaccent(${literalSubstringPattern(search)}) ESCAPE '\\'
+      AND "mergedIntoId" IS NULL
+      AND unaccent("location") ILIKE unaccent(${pattern}) ESCAPE '\\'
+      AND "location" NOT ILIKE ${pattern} ESCAPE '\\'
     LIMIT ${MAX_FILTER_IDS + 1}`);
-  // ponytail: past the bound-parameter budget, fall back to an accent-sensitive match.
-  if (rows.length > MAX_FILTER_IDS)
-    return { location: { contains: search, mode: "insensitive" } };
-  return { id: { in: rows.map((row) => row.id) } };
+  const plain: Prisma.ContactWhereInput = {
+    location: { contains: search, mode: "insensitive" },
+  };
+  if (!rows.length) return plain;
+  return { OR: [plain, { location: { in: rows.map((row) => row.location) } }] };
+}
+
+/** How many list values (`in`, `notIn`) a where binds, at any depth. */
+export function boundListValues(where: unknown): number {
+  if (Array.isArray(where))
+    return where.reduce((total, item) => total + boundListValues(item), 0);
+  if (!where || typeof where !== "object") return 0;
+  return Object.entries(where).reduce(
+    (total, [key, value]) =>
+      total +
+      ((key === "in" || key === "notIn") && Array.isArray(value)
+        ? value.length
+        : boundListValues(value)),
+    0,
+  );
+}
+
+/**
+ * Refuses a composed contact query whose lists would overflow Postgres's
+ * bound parameters, instead of failing in the driver or answering less.
+ */
+export function assertFilterBudget<Where>(where: Where): Where {
+  if (boundListValues(where) > MAX_FILTER_IDS)
+    throw unprocessableEntity(
+      "This search matches too many places or people at once; add more letters or a filter",
+    );
+  return where;
 }
 
 /** The query a contact filter stands for, as seen by `actor`. */
@@ -1297,7 +1333,7 @@ export async function contactFilterWhereResolved(
     options.archived,
   );
   if (company) and.push(company);
-  return and;
+  return assertFilterBudget(and);
 }
 
 /**
@@ -1377,12 +1413,12 @@ export async function contactListWhere(
     options.archived,
   );
   if (company) and.push(company);
-  return {
+  return assertFilterBudget({
     workspaceId: actor.workspaceId,
     mergedIntoId: null,
     archivedAt: options.archived ? { not: null } : null,
     AND: and,
-  };
+  });
 }
 
 function contactOrderBy(

@@ -65,7 +65,7 @@ vi.mock("next-intl", () => ({
   useNow: () => new Date("2026-11-12T08:00:00.000Z"),
 }));
 
-async function createListFromPanel() {
+function renderPanel() {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <ContactPanel
@@ -78,9 +78,23 @@ async function createListFromPanel() {
       />
     </QueryClientProvider>,
   );
-  const trigger = await screen.findByRole("button", {
-    name: "panel.changeLists",
-  });
+  return screen.findByRole("button", { name: "panel.changeLists" });
+}
+
+/** Opens New list from the Lists menu with the keyboard only. */
+async function openNewListByKeyboard() {
+  const trigger = await renderPanel();
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: "Enter" });
+  const item = await screen.findByRole("menuitem", { name: "panel.newList" });
+  item.focus();
+  fireEvent.keyDown(item, { key: "Enter" });
+  const dialog = await screen.findByRole("dialog", { name: "createTitle" });
+  return { trigger, dialog };
+}
+
+async function createListFromPanel() {
+  const trigger = await renderPanel();
   fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
   expect(await screen.findByText("panel.noManualLists")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("menuitem", { name: "panel.newList" }));
@@ -91,6 +105,7 @@ async function createListFromPanel() {
     target: { value: "Q1 outreach" },
   });
   fireEvent.click(within(dialog).getByRole("button", { name: "create" }));
+  return trigger;
 }
 
 describe("ContactPanel lists menu", () => {
@@ -102,7 +117,7 @@ describe("ContactPanel lists menu", () => {
   });
 
   it("makes a new list from the panel and puts this person on it", async () => {
-    await createListFromPanel();
+    const trigger = await createListFromPanel();
     await waitFor(() =>
       expect(changeMembers).toHaveBeenCalledWith("l-1", { add: ["c-1"] }),
     );
@@ -114,6 +129,28 @@ describe("ContactPanel lists menu", () => {
       screen.queryByRole("dialog", { name: "createTitle" }),
     ).not.toBeInTheDocument();
     expect(toastError).not.toHaveBeenCalled();
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("moves focus into the dialog and back to Lists on Escape", async () => {
+    const { trigger, dialog } = await openNewListByKeyboard();
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("name")).toHaveFocus(),
+    );
+    fireEvent.keyDown(document.activeElement ?? dialog, { key: "Escape" });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "createTitle" }),
+      ).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(createList).not.toHaveBeenCalled();
+  });
+
+  it("returns focus to Lists when the dialog is cancelled", async () => {
+    const { trigger, dialog } = await openNewListByKeyboard();
+    fireEvent.click(within(dialog).getByRole("button", { name: "cancel" }));
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("retries only the membership when adding to the new list fails", async () => {
