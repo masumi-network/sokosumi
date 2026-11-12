@@ -321,13 +321,19 @@ function Moves({
   strategy: Strategy;
 }) {
   const [shown, setShown] = useState<string | null>(null);
+  const id = useId();
   const stages = (strategy.funnel ?? []).slice(0, 3);
   if (stages.length === 0) return null;
+  // Core does not check basedOn: only a section the Brand Brain saved is a source.
+  const profile = overview.brandBrain ? brandProfile(overview.brandBrain) : {};
   return (
     <ol className="brief-moves">
       {stages.map((stage, index) => {
         const play = stage.plays?.[0];
-        const sections = overview.brandBrain ? (stage.basedOn ?? []) : [];
+        const sections = (stage.basedOn ?? []).filter(
+          (section) => profile[section],
+        );
+        const cardId = `${id}-${stage.stage}`;
         const open = sections.find(
           (section) => shown === `${stage.stage}:${section}`,
         );
@@ -354,6 +360,7 @@ function Moves({
                         type="button"
                         className="brief-source brief-source-link"
                         aria-expanded={shown === key}
+                        aria-controls={cardId}
                         onClick={() => setShown(shown === key ? null : key)}
                       >
                         Brand Brain · {BRAND_SECTIONS[section].title}
@@ -362,9 +369,11 @@ function Moves({
                   })}
                 </p>
               ) : null}
-              {open ? (
-                <SectionResult overview={overview} section={open} />
-              ) : null}
+              <div id={cardId}>
+                {open ? (
+                  <SectionResult overview={overview} section={open} />
+                ) : null}
+              </div>
             </div>
           </li>
         );

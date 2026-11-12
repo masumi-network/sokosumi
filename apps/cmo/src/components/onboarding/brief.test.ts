@@ -243,6 +243,20 @@ describe("briefAsks", () => {
     expect(
       briefAsks(draft({ strategy: plan, approvedStrategy: plan }), local()),
     ).toEqual([{ kind: "approve", canApprove: true }]);
+    // Unless a no on it is not fitted yet: that patch comes first.
+    const unfitted = {
+      ...plan,
+      changes: [],
+      questions: [{ ...plan.questions[0]!, answer: "no" as const }],
+    };
+    expect(
+      kinds(
+        briefAsks(
+          draft({ strategy: unfitted, approvedStrategy: plan }),
+          local(),
+        ),
+      ),
+    ).toEqual(["plan-apply"]);
   });
 
   it("skips the ads step for a plan without ads", () => {

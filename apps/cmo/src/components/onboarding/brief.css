@@ -543,8 +543,7 @@ button.brief-week-row:hover .brief-week-text b {
   color: var(--background);
 }
 
-.brief-answers,
-.brief-sections {
+.brief-answers {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -560,11 +559,6 @@ button.brief-week-row:hover .brief-week-text b {
 
 .brief-primary:hover:not(:disabled) {
   background: var(--primary-hover);
-}
-
-.brief-fix {
-  display: grid;
-  gap: 8px;
 }
 
 .brief-note {

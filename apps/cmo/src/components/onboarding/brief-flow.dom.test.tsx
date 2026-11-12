@@ -441,7 +441,7 @@ describe("briefing", () => {
             metric: "Profile visits",
             plays: [{ channel: "x", what: "Daily launch clips" }],
             why: "Buyers trust what they see done.",
-            basedOn: ["customers"],
+            basedOn: ["customers", "opportunities"],
           },
           {
             stage: "consideration",
@@ -468,6 +468,8 @@ describe("briefing", () => {
     expect(text()).toContain("Buyers trust what they see done.");
     // A move without a reason keeps its first play instead.
     expect(text()).toContain("Comparison articles");
+    // A section the Brand Brain never saved is no source.
+    expect(text()).not.toContain("Constraints and opportunities");
     const source = button("Brand Brain · Target customers");
     expect(source.getAttribute("aria-expanded")).toBe("false");
     await act(async () => source.click());
