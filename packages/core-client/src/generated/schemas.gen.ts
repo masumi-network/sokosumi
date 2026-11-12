@@ -11069,11 +11069,16 @@ export const BuzzConnectionSchema = {
                         'linked'
                     ],
                     description: 'pending until the key joins a community with the invite Sokosumi issued for it.'
+                },
+                authorized: {
+                    type: 'boolean',
+                    description: 'Whether the caller\'s Buzz app authorized their Sokosumi key, so their Buzz agents take what they write in Sokosumi as theirs.'
                 }
             },
             required: [
                 'npub',
-                'status'
+                'status',
+                'authorized'
             ],
             description: 'The caller\'s own Buzz app key, when they linked one instead of importing Sokosumi\'s.'
         },
@@ -11170,19 +11175,6 @@ export const BuzzConnectionSchema = {
         'lastActiveOnBuzzAt',
         'canEnable',
         'communities'
-    ]
-} as const;
-
-export const BuzzSecretKeySchema = {
-    type: 'object',
-    properties: {
-        nsec: {
-            type: 'string',
-            description: 'The caller\'s Nostr secret key, to import into a Buzz client. Anyone holding it can write as the caller.'
-        }
-    },
-    required: [
-        'nsec'
     ]
 } as const;
 

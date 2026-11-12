@@ -88,9 +88,12 @@ export function EnableBuzzButton({
 export function BuzzConnectButton({
   variant = "primary",
   label,
+  resume = false,
 }: {
   variant?: "primary" | "outline";
   label: string;
+  /** Opens at the Authorize step. */
+  resume?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -106,7 +109,7 @@ export function BuzzConnectButton({
       >
         {label}
       </Button>
-      <BuzzConnectDialog open={open} onOpenChange={setOpen} />
+      <BuzzConnectDialog open={open} onOpenChange={setOpen} resume={resume} />
     </>
   );
 }

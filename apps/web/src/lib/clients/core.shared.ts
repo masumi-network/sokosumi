@@ -434,7 +434,7 @@ import {
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postBuzzAppKey as corePostBuzzAppKey,
-  postBuzzConnectionSecretKey as corePostBuzzConnectionSecretKey,
+  postBuzzAppKeyAuthorization as corePostBuzzAppKeyAuthorization,
   postBuzzOrganizationsByOrganizationId as corePostBuzzOrganizationsByOrganizationId,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
   postChatsInvitationsByIdAccept as corePostChatsInvitationsByIdAccept,
@@ -1001,15 +1001,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function postBuzzConnectionSecretKey() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostBuzzConnectionSecretKey({ client, cache: "no-store" }),
-      "Failed to reveal the Buzz key",
-    );
-  }
-
   async function postBuzzAppKey(publicKey: string) {
     return executeCoreOperation(
       getClient,
@@ -1020,6 +1011,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to link the Buzz app",
+    );
+  }
+
+  async function postBuzzAppKeyAuthorization(proof: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostBuzzAppKeyAuthorization({
+          client,
+          body: { proof },
+          cache: "no-store",
+        }),
+      "Failed to save the Buzz proof",
     );
   }
 
@@ -7303,8 +7307,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPublicNewslettersByPublicSlugIssuesByIssueSlug,
     getNewsletterAvailability,
     getBuzzConnection,
-    postBuzzConnectionSecretKey,
     postBuzzAppKey,
+    postBuzzAppKeyAuthorization,
     deleteBuzzAppKey,
     postBuzzOrganization,
     patchBuzzOrganization,

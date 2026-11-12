@@ -3004,6 +3004,10 @@ export type BuzzConnection = {
          * pending until the key joins a community with the invite Sokosumi issued for it.
          */
         status: 'pending' | 'linked';
+        /**
+         * Whether the caller's Buzz app authorized their Sokosumi key, so their Buzz agents take what they write in Sokosumi as theirs.
+         */
+        authorized: boolean;
     } | null;
     /**
      * The caller's Buzz agents, usable as Coworkers in their rooms.
@@ -3039,13 +3043,6 @@ export type BuzzConnection = {
          */
         canManage: boolean;
     }>;
-};
-
-export type BuzzSecretKey = {
-    /**
-     * The caller's Nostr secret key, to import into a Buzz client. Anyone holding it can write as the caller.
-     */
-    nsec: string;
 };
 
 export type BuzzAppKeyInvites = {
@@ -23302,79 +23299,6 @@ export type GetBuzzConnectionResponses = {
 
 export type GetBuzzConnectionResponse = GetBuzzConnectionResponses[keyof GetBuzzConnectionResponses];
 
-export type PostBuzzConnectionSecretKeyData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/buzz/connection/secret-key';
-};
-
-export type PostBuzzConnectionSecretKeyErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Buzz is not configured
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostBuzzConnectionSecretKeyError = PostBuzzConnectionSecretKeyErrors[keyof PostBuzzConnectionSecretKeyErrors];
-
-export type PostBuzzConnectionSecretKeyResponses = {
-    /**
-     * Secret key
-     */
-    200: {
-        data: BuzzSecretKey;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostBuzzConnectionSecretKeyResponse = PostBuzzConnectionSecretKeyResponses[keyof PostBuzzConnectionSecretKeyResponses];
-
 export type DeleteBuzzAppKeyData = {
     body?: never;
     path?: never;
@@ -23542,6 +23466,101 @@ export type PostBuzzAppKeyResponses = {
 };
 
 export type PostBuzzAppKeyResponse = PostBuzzAppKeyResponses[keyof PostBuzzAppKeyResponses];
+
+export type PostBuzzAppKeyAuthorizationData = {
+    body?: {
+        /**
+         * The NIP-OA auth tag Buzz shows, ["auth", owner, "", signature].
+         */
+        proof: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/buzz/app-key/authorization';
+};
+
+export type PostBuzzAppKeyAuthorizationErrors = {
+    /**
+     * Not a proof for this key
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Buzz is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostBuzzAppKeyAuthorizationError = PostBuzzAppKeyAuthorizationErrors[keyof PostBuzzAppKeyAuthorizationErrors];
+
+export type PostBuzzAppKeyAuthorizationResponses = {
+    /**
+     * Saved
+     */
+    200: {
+        data: {
+            authorized: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostBuzzAppKeyAuthorizationResponse = PostBuzzAppKeyAuthorizationResponses[keyof PostBuzzAppKeyAuthorizationResponses];
 
 export type PatchBuzzOrganizationsByOrganizationIdData = {
     body?: {

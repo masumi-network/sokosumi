@@ -19,7 +19,7 @@ import {
   buzzConfig,
   buzzConnectionFor,
   enableBuzzForOrganization,
-  exportBuzzSecretKey,
+  saveBuzzAppAuthorization,
   setAllowPersonalAgents,
   startBuzzAppLink,
   unlinkBuzzApp,
@@ -51,6 +51,10 @@ const connectionSchema = z
         status: z.enum(["pending", "linked"]).openapi({
           description:
             "pending until the key joins a community with the invite Sokosumi issued for it.",
+        }),
+        authorized: z.boolean().openapi({
+          description:
+            "Whether the caller's Buzz app authorized their Sokosumi key, so their Buzz agents take what they write in Sokosumi as theirs.",
         }),
       })
       .nullable()
@@ -103,29 +107,6 @@ const getConnection = createRoute({
   responses: {
     200: jsonSuccessResponse(connectionSchema, "Buzz connection"),
     401: jsonErrorResponse("Unauthorized"),
-  },
-});
-
-const secretKeySchema = z
-  .object({
-    nsec: z.string().openapi({
-      description:
-        "The caller's Nostr secret key, to import into a Buzz client. Anyone holding it can write as the caller.",
-    }),
-  })
-  .openapi("BuzzSecretKey");
-
-const exportSecretKey = createRoute({
-  method: "post",
-  path: "/connection/secret-key",
-  tags: ["Buzz"],
-  description:
-    "Reveal the caller's Buzz secret key to sign in to a Buzz client. Interactive sessions only.",
-  responses: {
-    200: jsonSuccessResponse(secretKeySchema, "Secret key"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    503: jsonErrorResponse("Buzz is not configured"),
   },
 });
 
@@ -211,6 +192,35 @@ const unlinkAppKey = createRoute({
   },
 });
 
+const authorizeAppKey = createRoute({
+  method: "post",
+  path: "/app-key/authorization",
+  tags: ["Buzz"],
+  description:
+    "Save the proof the caller's Buzz app signed for their Sokosumi key (Settings → Buzz → Security → Authorize external identity). Interactive sessions only.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            proof: z.string().openapi({
+              description:
+                'The NIP-OA auth tag Buzz shows, ["auth", owner, "", signature].',
+            }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(z.object({ authorized: z.boolean() }), "Saved"),
+    400: jsonErrorResponse("Not a proof for this key"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
 const updateOrganization = createRoute({
   method: "patch",
   path: "/organizations/{organizationId}",
@@ -262,12 +272,6 @@ app.openapi(getConnection, async (c) => {
   );
 });
 
-app.openapi(exportSecretKey, async (c) => {
-  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
-  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
-  return ok(c, { nsec: await exportBuzzSecretKey(userId) });
-});
-
 app.openapi(linkAppKey, async (c) => {
   const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
   if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
@@ -285,6 +289,19 @@ app.openapi(unlinkAppKey, async (c) => {
   if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
   await unlinkBuzzApp(userId);
   return ok(c, { unlinked: true });
+});
+
+app.openapi(authorizeAppKey, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  const { proof } = c.req.valid("json");
+  try {
+    await saveBuzzAppAuthorization(userId, proof);
+  } catch (error) {
+    if (error instanceof BuzzAppLinkError) throw badRequest(error.message);
+    throw error;
+  }
+  return ok(c, { authorized: true });
 });
 
 app.openapi(updateOrganization, async (c) => {

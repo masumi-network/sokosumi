@@ -38,13 +38,28 @@ function conditionsHold(conditions: string, event: Event): boolean {
 /** The owner an event's single `auth` tag proves, or null. */
 export function attestedOwner(event: Event): string | null {
   const tags = event.tags.filter((tag) => tag[0] === "auth");
-  if (tags.length !== 1 || tags[0].length !== 4) return null;
-  const [, owner, conditions, signature] = tags[0];
+  if (tags.length !== 1) return null;
+  if (!conditionsHold(tags[0][2] ?? "", event)) return null;
+  return authTagOwner(event.pubkey, tags[0]);
+}
+
+/** The owner an `auth` tag names for `agentPubkey`, if its signature holds. */
+export function authTagOwner(
+  agentPubkey: string,
+  tag: string[],
+): string | null {
+  if (tag.length !== 4 || tag[0] !== "auth") return null;
+  const [, owner, conditions, signature] = tag;
   if (!HEX_64.test(owner) || !HEX_128.test(signature)) return null;
-  if (owner === event.pubkey) return null;
-  if (!conditionsHold(conditions, event)) return null;
+  if (owner === agentPubkey) return null;
+  if (
+    conditions !== "" &&
+    !conditions.split("&").every((c) => CLAUSE.test(c))
+  ) {
+    return null;
+  }
   const message = sha256(
-    utf8ToBytes(`nostr:agent-auth:${event.pubkey}:${conditions}`),
+    utf8ToBytes(`nostr:agent-auth:${agentPubkey}:${conditions}`),
   );
   try {
     return schnorr.verify(hexToBytes(signature), message, hexToBytes(owner))

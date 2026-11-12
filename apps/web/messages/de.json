@@ -1078,9 +1078,9 @@
       "subtitle": "Deine Räume, Leute und Agenten, auch in der Buzz-App. Wie möchtest du starten?",
       "choose": {
         "newTitle": "Ich bin neu bei Buzz",
-        "newDescription": "Buzz holen und dich als du anmelden.",
+        "newDescription": "Hol dir Buzz und erstelle deine Buzz-Identität.",
         "haveTitle": "Ich nutze Buzz schon",
-        "haveDescription": "Deine Buzz-Identität zu Sokosumi bringen."
+        "haveDescription": "Verbinde deine bestehende Buzz-Identität."
       },
       "get": {
         "title": "Buzz holen",
@@ -1088,33 +1088,19 @@
         "download": "Buzz herunterladen",
         "next": "Ich habe Buzz"
       },
-      "key": {
-        "title": "Schlüssel speichern",
-        "subtitle": "Buzz meldet dich mit einem Schlüssel statt eines Passworts an. Diese Datei enthält deinen.",
-        "save": "Schlüsseldatei speichern",
-        "saved": "Gespeichert",
-        "warning": "Wer diese Datei hat, kann als du schreiben. Importiere sie in Buzz und lösche sie danach."
-      },
-      "signin": {
-        "title": "In Buzz anmelden",
-        "subtitle": "Öffne Buzz und folge diesen Schritten.",
-        "open": "Öffne Buzz.",
-        "options": "Wähle auf dem ersten Bildschirm <b>Other options</b>.",
+      "create": {
+        "title": "Erstelle deine Buzz-Identität",
+        "subtitle": "Folge in Buzz diesen Schritten. Wenn Buzz nach einer Einladung fragt, komm hierher zurück.",
+        "options": "Öffne Buzz und wähle <b>Other options</b>.",
         "address": "Gib diese Adresse ein:",
-        "key": "Wähle <b>Use an existing key</b> und zieh die Datei hinein.",
-        "otherIdentity": "In Buzz als jemand anderes angemeldet? Wähle in Buzz zuerst <b>Settings → Identity → Remove from device</b>.",
-        "next": "Ich bin angemeldet"
-      },
-      "hello": {
-        "title": "Sag hallo",
-        "subtitle": "Schreib in Buzz eine Nachricht in einem beliebigen Raum. Sobald sie hier ankommt, bist du verbunden.",
-        "waiting": "Warte auf deine Nachricht…"
+        "identity": "Wähle <b>Create a new identity</b>.",
+        "otherIdentity": "In Buzz schon als jemand anderes angemeldet? Du kannst diese Identität verbinden: Geh zurück und wähle Ich nutze Buzz schon.",
+        "next": "Fertig in Buzz"
       },
       "have": {
         "title": "Dein Buzz-Schlüssel",
         "subtitle": "Öffne in Buzz <b>Settings → Identity</b> und kopiere deinen öffentlichen Schlüssel. Er beginnt mit npub.",
-        "label": "Öffentlicher Buzz-Schlüssel",
-        "agentsNote": "Deine Buzz-Agenten antworten dann nur auf das, was du in Buzz schreibst. Um sie auch aus Sokosumi zu nutzen, wähle „Ich bin neu bei Buzz“ und melde dich als du an."
+        "label": "Öffentlicher Buzz-Schlüssel"
       },
       "join": {
         "title": "In Buzz beitreten",
@@ -1124,11 +1110,19 @@
         "copyInvite": "Einladungslink kopieren",
         "waiting": "Warte auf Buzz…"
       },
+      "authorize": {
+        "title": "Sokosumi autorisieren",
+        "subtitle": "Dann nehmen deine Buzz-Agenten, was du in Sokosumi schreibst, als deins an. Dein privater Schlüssel bleibt in Buzz.",
+        "open": "Öffne in Buzz <b>Settings → Buzz → Security → Authorize external identity</b>.",
+        "paste": "Füge diesen Schlüssel ein und wähle <b>Authorize identity</b>:",
+        "confirm": "Wähle <b>Authorize this key</b>, dann <b>Copy ownership proof</b>, und füge ihn unten ein.",
+        "label": "Eigentumsnachweis",
+        "placeholder": "[\"auth\", …]",
+        "save": "Autorisieren"
+      },
       "done": {
         "title": "Du bist auf Buzz",
-        "subtitle": "Deine Räume sind jetzt in Buzz. Agenten, die du in Buzz erstellst, erscheinen hier als deine persönlichen Agenten.",
-        "appTitle": "Buzz ist verknüpft",
-        "appSubtitle": "Was du in Buzz schreibst, erscheint hier jetzt als du.",
+        "subtitle": "Deine Räume sind in Buzz, und deine Buzz-Agenten antworten auch auf das, was du hier schreibst.",
         "close": "Fertig"
       },
       "back": "Zurück",
@@ -8612,7 +8606,8 @@
         "description": "Chatte in den Räumen deiner Organisation auch aus einer Buzz-App. Gleiche Räume, gleiche Personen, gleiche Nachrichten.",
         "copy": "Kopieren",
         "copied": "Kopiert",
-        "revealError": "Geheimer Schlüssel konnte nicht angezeigt werden",
+        "proofInvalid": "Füge den Nachweis ein, den Buzz dir angezeigt hat",
+        "proofError": "Nachweis konnte nicht gespeichert werden",
         "communityDescription": "Füge diese Adresse in der Buzz-App hinzu, um den Chats dieser Organisation beizutreten.",
         "relayUrl": "Adresse",
         "enableDescription": "Noch nicht auf Buzz. Ihre Räume werden innerhalb einer Minute zu Buzz-Kanälen.",
@@ -8634,8 +8629,10 @@
         "statusNotConnected": "Noch nicht verbunden. Chatte aus der Buzz-App in denselben Räumen.",
         "statusConnected": "Verbunden. Du bist als du auf Buzz.",
         "statusLinked": "Mit deiner Buzz-Identität {npub} verknüpft.",
+        "statusUnauthorized": "Mit deiner Buzz-Identität {npub} verknüpft. Autorisiere Sokosumi, damit deine Buzz-Agenten auf das antworten, was du hier schreibst.",
         "connect": "Buzz verbinden",
-        "connectAgain": "Erneut verbinden"
+        "connectAgain": "Erneut verbinden",
+        "authorize": "Autorisieren"
       }
     },
     "Coworkers": {

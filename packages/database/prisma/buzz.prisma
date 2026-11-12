@@ -51,6 +51,10 @@ model BuzzIdentity {
   /// with an invite Sokosumi issued for it. What they write from Buzz with it
   /// is theirs in Sokosumi; Sokosumi still signs with `pubkey`.
   appPubkey          String?   @unique
+  /// The person's own app key vouching for `pubkey` (a NIP-OA `auth` tag their
+  /// Buzz app signed), sent on what Sokosumi signs for them so their Buzz
+  /// agents take it as theirs.
+  appAuthTag         Json?
   /// A key the person asked to link, until it joins with that invite.
   pendingAppPubkey   String?
   pendingAppSince    DateTime?

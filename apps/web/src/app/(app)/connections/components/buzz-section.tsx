@@ -32,9 +32,13 @@ export async function BuzzSection() {
   }
 
   const linked = connection.app?.status === "linked";
+  const authorized = connection.app?.authorized === true;
   const connected = linked || connection.lastActiveOnBuzzAt !== null;
+  const npub = `${connection.app?.npub.slice(0, 16)}…`;
   const status = linked
-    ? t("statusLinked", { npub: `${connection.app?.npub.slice(0, 16)}…` })
+    ? authorized
+      ? t("statusLinked", { npub })
+      : t("statusUnauthorized", { npub })
     : connection.lastActiveOnBuzzAt
       ? t("statusConnected")
       : t("statusNotConnected");
@@ -54,8 +58,13 @@ export async function BuzzSection() {
                 <h3 className="text-sm font-semibold">{t("statusTitle")}</h3>
                 <p className="text-muted-foreground text-sm">{status}</p>
               </div>
-              {connection.app?.status === "linked" ? (
-                <BuzzUnlinkButton />
+              {linked ? (
+                <div className="flex items-center gap-2">
+                  {authorized ? null : (
+                    <BuzzConnectButton label={t("authorize")} resume />
+                  )}
+                  <BuzzUnlinkButton />
+                </div>
               ) : (
                 <BuzzConnectButton
                   variant={connected ? "outline" : "primary"}

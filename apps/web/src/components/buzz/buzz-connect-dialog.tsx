@@ -9,8 +9,8 @@ import {
   Download,
   KeyRound,
   Link2,
-  LogIn,
-  MessageCircle,
+  ShieldCheck,
+  UserPlus,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useState } from "react";
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useClipboard } from "@/hooks/use-clipboard";
-import { linkBuzzApp, revealBuzzSecretKey } from "@/lib/actions/buzz/action";
+import { authorizeBuzzApp, linkBuzzApp } from "@/lib/actions/buzz/action";
 import { cn } from "@/lib/utils";
 
 /** Where Buzz is downloaded: the app's own releases. */
@@ -43,22 +43,28 @@ export const BUZZ_CONNECTION_QUERY_KEY = ["buzz-connection"] as const;
 type Step =
   | "choose"
   | "new-get"
-  | "new-key"
-  | "new-signin"
-  | "new-hello"
-  | "have-key"
-  | "have-join"
+  | "new-create"
+  | "link-key"
+  | "link-join"
+  | "authorize"
   | "done";
 
 const NEW_PATH: Step[] = [
   "choose",
   "new-get",
-  "new-key",
-  "new-signin",
-  "new-hello",
+  "new-create",
+  "link-key",
+  "link-join",
+  "authorize",
   "done",
 ];
-const HAVE_PATH: Step[] = ["choose", "have-key", "have-join", "done"];
+const HAVE_PATH: Step[] = [
+  "choose",
+  "link-key",
+  "link-join",
+  "authorize",
+  "done",
+];
 
 type Invite = { organizationName: string; joinUrl: string; inviteUrl: string };
 
@@ -78,11 +84,14 @@ export function BuzzConnectDialog({
   open,
   onOpenChange,
   onNotNow,
+  resume = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Offered on the first screen when the dialog came from a reminder. */
   onNotNow?: () => void;
+  /** Linked but not yet authorized: start at the last step. */
+  resume?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,6 +99,7 @@ export function BuzzConnectDialog({
         <BuzzConnectFlow
           onClose={() => onOpenChange(false)}
           onNotNow={onNotNow}
+          resume={resume}
         />
       ) : null}
     </Dialog>
@@ -99,9 +109,11 @@ export function BuzzConnectDialog({
 function BuzzConnectFlow({
   onClose,
   onNotNow,
+  resume,
 }: {
   onClose: () => void;
   onNotNow?: () => void;
+  resume: boolean;
 }) {
   const t = useTranslations("Components.BuzzConnect");
   const queryClient = useQueryClient();
@@ -109,19 +121,19 @@ function BuzzConnectFlow({
   const label = (chunks: ReactNode) => (
     <strong className="text-foreground font-semibold">{chunks}</strong>
   );
-  const [step, setStep] = useState<Step>("choose");
-  const [openedAt] = useState(() => Date.now());
-  const [keySaved, setKeySaved] = useState(false);
-  const [savingKey, setSavingKey] = useState(false);
+  const [step, setStep] = useState<Step>(resume ? "authorize" : "choose");
+  const [isNew, setIsNew] = useState(false);
   const [publicKey, setPublicKey] = useState("");
   const [keyError, setKeyError] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [invites, setInvites] = useState<Invite[]>([]);
-  const [via, setVia] = useState<"sokosumi" | "app">("sokosumi");
+  const [proof, setProof] = useState("");
+  const [proofError, setProofError] = useState<string | null>(null);
+  const [authorizing, setAuthorizing] = useState(false);
 
-  const path = step.startsWith("have") || via === "app" ? HAVE_PATH : NEW_PATH;
+  const path = isNew ? NEW_PATH : HAVE_PATH;
   const index = path.indexOf(step);
-  const waiting = step === "new-hello" || step === "have-join";
+  const waiting = step === "link-join";
 
   // Polled only while a step waits on Buzz; it ends the wait on its own.
   const connection = useQuery({
@@ -130,16 +142,8 @@ function BuzzConnectFlow({
     refetchInterval: waiting ? POLL_MS : false,
   });
   const data = connection.data;
-  const lastActive = data?.lastActiveOnBuzzAt
-    ? new Date(data.lastActiveOnBuzzAt).getTime()
-    : null;
-  if (step === "new-hello" && lastActive !== null && lastActive >= openedAt) {
-    setVia("sokosumi");
-    setStep("done");
-  }
-  if (step === "have-join" && data?.app?.status === "linked") {
-    setVia("app");
-    setStep("done");
+  if (step === "link-join" && data?.app?.status === "linked") {
+    setStep("authorize");
   }
 
   const hosts = [
@@ -149,20 +153,6 @@ function BuzzConnectFlow({
   const focusHeading = useCallback((node: HTMLHeadingElement | null) => {
     node?.focus({ preventScroll: true });
   }, []);
-
-  async function saveKeyFile() {
-    setSavingKey(true);
-    const result = await revealBuzzSecretKey({});
-    setSavingKey(false);
-    if (!result.ok) return;
-    const file = new Blob([result.value.nsec], { type: "text/plain" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(file);
-    link.download = "sokosumi-buzz-key.txt";
-    link.click();
-    URL.revokeObjectURL(link.href);
-    setKeySaved(true);
-  }
 
   async function link() {
     setLinking(true);
@@ -177,7 +167,22 @@ function BuzzConnectFlow({
     await queryClient.invalidateQueries({
       queryKey: BUZZ_CONNECTION_QUERY_KEY,
     });
-    setStep("have-join");
+    setStep("link-join");
+  }
+
+  async function authorize() {
+    setAuthorizing(true);
+    setProofError(null);
+    const result = await authorizeBuzzApp({ proof });
+    setAuthorizing(false);
+    if (!result.ok) {
+      setProofError(result.error.message);
+      return;
+    }
+    await queryClient.invalidateQueries({
+      queryKey: BUZZ_CONNECTION_QUERY_KEY,
+    });
+    setStep("done");
   }
 
   function finish() {
@@ -216,7 +221,7 @@ function BuzzConnectFlow({
                   title={t("choose.newTitle")}
                   description={t("choose.newDescription")}
                   onSelect={() => {
-                    setVia("sokosumi");
+                    setIsNew(true);
                     setStep("new-get");
                   }}
                 />
@@ -224,8 +229,8 @@ function BuzzConnectFlow({
                   title={t("choose.haveTitle")}
                   description={t("choose.haveDescription")}
                   onSelect={() => {
-                    setVia("app");
-                    setStep("have-key");
+                    setIsNew(false);
+                    setStep("link-key");
                   }}
                 />
               </div>
@@ -254,88 +259,41 @@ function BuzzConnectFlow({
                   {t("get.download")}
                 </a>
               </Button>
-              <p className="text-muted-foreground mx-auto mt-4 max-w-[40ch] text-xs text-balance">
-                {t.rich("signin.otherIdentity", { b: label })}
-              </p>
             </Stage>
           )}
 
-          {step === "new-key" && (
+          {step === "new-create" && (
             <Stage
               hero={
                 <BuzzIconTile>
-                  {keySaved ? <Check strokeWidth={2.5} /> : <KeyRound />}
+                  <UserPlus />
                 </BuzzIconTile>
               }
-              title={t("key.title")}
-              subtitle={t("key.subtitle")}
-              headingRef={focusHeading}
-            >
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-11 rounded-full"
-                loading={savingKey}
-                onClick={saveKeyFile}
-              >
-                {keySaved ? (
-                  <Check className="size-4" />
-                ) : (
-                  <Download className="size-4" />
-                )}
-                {keySaved ? t("key.saved") : t("key.save")}
-              </Button>
-              <p className="text-muted-foreground mx-auto mt-4 max-w-[40ch] text-sm text-balance">
-                {t("key.warning")}
-              </p>
-            </Stage>
-          )}
-
-          {step === "new-signin" && (
-            <Stage
-              hero={
-                <BuzzIconTile>
-                  <LogIn />
-                </BuzzIconTile>
-              }
-              title={t("signin.title")}
-              subtitle={t("signin.subtitle")}
+              title={t("create.title")}
+              subtitle={t("create.subtitle")}
               headingRef={focusHeading}
             >
               <ol className="bg-card mx-auto w-full max-w-sm divide-y overflow-hidden rounded-xl border text-left text-sm">
-                <Instruction n={1}>{t("signin.open")}</Instruction>
-                <Instruction n={2}>
-                  {t.rich("signin.options", { b: label })}
+                <Instruction n={1}>
+                  {t.rich("create.options", { b: label })}
                 </Instruction>
-                <Instruction n={3}>
-                  <span className="block">{t("signin.address")}</span>
+                <Instruction n={2}>
+                  <span className="block">{t("create.address")}</span>
                   {hosts.map((host) => (
                     <CopyChip key={host} value={host} />
                   ))}
                 </Instruction>
-                <Instruction n={4}>
-                  {t.rich("signin.key", { b: label })}
+                <Instruction n={3}>
+                  {t.rich("create.identity", { b: label })}
                 </Instruction>
               </ol>
+              <p className="text-muted-foreground mx-auto mt-4 max-w-[40ch] text-xs text-balance">
+                {t.rich("create.otherIdentity", { b: label })}
+              </p>
             </Stage>
           )}
 
-          {step === "new-hello" && (
-            <Stage
-              hero={
-                <BuzzIconTile>
-                  <MessageCircle />
-                </BuzzIconTile>
-              }
-              title={t("hello.title")}
-              subtitle={t("hello.subtitle")}
-              headingRef={focusHeading}
-            >
-              <Waiting label={t("hello.waiting")} />
-            </Stage>
-          )}
-
-          {step === "have-key" && (
+          {step === "link-key" && (
             <Stage
               hero={
                 <BuzzIconTile>
@@ -380,13 +338,10 @@ function BuzzConnectFlow({
                   </p>
                 ) : null}
               </form>
-              <p className="text-muted-foreground mx-auto mt-4 max-w-[40ch] text-xs text-balance">
-                {t("have.agentsNote")}
-              </p>
             </Stage>
           )}
 
-          {step === "have-join" && (
+          {step === "link-join" && (
             <Stage
               hero={
                 <BuzzIconTile>
@@ -425,6 +380,70 @@ function BuzzConnectFlow({
             </Stage>
           )}
 
+          {step === "authorize" && (
+            <Stage
+              hero={
+                <BuzzIconTile>
+                  <ShieldCheck />
+                </BuzzIconTile>
+              }
+              title={t("authorize.title")}
+              subtitle={t("authorize.subtitle")}
+              headingRef={focusHeading}
+            >
+              <ol className="bg-card mx-auto w-full max-w-sm divide-y overflow-hidden rounded-xl border text-left text-sm">
+                <Instruction n={1}>
+                  {t.rich("authorize.open", { b: label })}
+                </Instruction>
+                <Instruction n={2}>
+                  <span className="block">
+                    {t.rich("authorize.paste", { b: label })}
+                  </span>
+                  {data?.identity ? (
+                    <CopyChip value={data.identity.pubkey} />
+                  ) : null}
+                </Instruction>
+                <Instruction n={3}>
+                  {t.rich("authorize.confirm", { b: label })}
+                </Instruction>
+              </ol>
+              <form
+                id="buzz-connect-proof"
+                className="mx-auto mt-4 w-full max-w-sm text-left"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void authorize();
+                }}
+              >
+                <Input
+                  value={proof}
+                  onChange={(event) => {
+                    setProof(event.target.value);
+                    setProofError(null);
+                  }}
+                  placeholder={t("authorize.placeholder")}
+                  aria-label={t("authorize.label")}
+                  aria-invalid={proofError ? true : undefined}
+                  aria-describedby={
+                    proofError ? "buzz-connect-proof-error" : undefined
+                  }
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="h-11 font-mono text-sm"
+                />
+                {proofError ? (
+                  <p
+                    id="buzz-connect-proof-error"
+                    role="alert"
+                    className="text-destructive mt-2 text-sm"
+                  >
+                    {proofError}
+                  </p>
+                ) : null}
+              </form>
+            </Stage>
+          )}
+
           {step === "done" && (
             <Stage
               hero={
@@ -432,10 +451,8 @@ function BuzzConnectFlow({
                   <Check strokeWidth={2.5} />
                 </BuzzIconTile>
               }
-              title={via === "app" ? t("done.appTitle") : t("done.title")}
-              subtitle={
-                via === "app" ? t("done.appSubtitle") : t("done.subtitle")
-              }
+              title={t("done.title")}
+              subtitle={t("done.subtitle")}
               headingRef={focusHeading}
             />
           )}
@@ -444,7 +461,15 @@ function BuzzConnectFlow({
 
       {/* Footer: one filled action at a time, Back on the left. */}
       <div className="bg-background relative flex min-h-20 items-center justify-between gap-3 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8">
-        {step !== "choose" && step !== "done" ? (
+        {step === "authorize" ? (
+          <Button
+            variant="ghost"
+            className="text-muted-foreground h-11 px-4"
+            onClick={finish}
+          >
+            {t("later")}
+          </Button>
+        ) : step !== "choose" && step !== "done" ? (
           <Button
             variant="ghost"
             className="text-muted-foreground h-11 px-4"
@@ -479,19 +504,7 @@ function BuzzConnectFlow({
             {t("get.next")}
           </Button>
         )}
-        {step === "new-key" && (
-          <Button
-            variant="primary"
-            size="lg"
-            style={BUZZ_ACTION_STYLE}
-            className="rounded-full h-11 px-6"
-            onClick={next}
-            disabled={!keySaved}
-          >
-            {t("next")}
-          </Button>
-        )}
-        {step === "new-signin" && (
+        {step === "new-create" && (
           <Button
             variant="primary"
             size="lg"
@@ -499,10 +512,10 @@ function BuzzConnectFlow({
             className="rounded-full h-11 px-6"
             onClick={next}
           >
-            {t("signin.next")}
+            {t("create.next")}
           </Button>
         )}
-        {step === "have-key" && (
+        {step === "link-key" && (
           <Button
             type="submit"
             form="buzz-connect-key"
@@ -514,6 +527,20 @@ function BuzzConnectFlow({
             disabled={!publicKey.trim()}
           >
             {t("next")}
+          </Button>
+        )}
+        {step === "authorize" && (
+          <Button
+            type="submit"
+            form="buzz-connect-proof"
+            variant="primary"
+            size="lg"
+            style={BUZZ_ACTION_STYLE}
+            className="rounded-full h-11 px-6"
+            loading={authorizing}
+            disabled={!proof.trim()}
+          >
+            {t("authorize.save")}
           </Button>
         )}
         {waiting && (

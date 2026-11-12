@@ -21,20 +21,6 @@ import {
 
 type BuzzActionError = { message: string };
 
-/** Shows the caller's Buzz secret key once, to import into a Buzz client. */
-export const revealBuzzSecretKey = withSession<
-  AuthenticatedRequest,
-  ActionResultDto<{ nsec: string }, BuzzActionError>
->(async () => {
-  const t = await getTranslations("App.Connections.Buzz");
-  try {
-    const response = await coreClientNoRedirect.postBuzzConnectionSecretKey();
-    return toActionResult(ok({ nsec: response.data.nsec }));
-  } catch {
-    return toActionResult(err({ message: t("revealError") }));
-  }
-});
-
 interface EnableBuzzParameters extends AuthenticatedRequest {
   organizationId: string;
 }
@@ -120,5 +106,32 @@ export const setBuzzPersonalAgents = withSession<
     return toActionResult(ok(response.data));
   } catch {
     return toActionResult(err({ message: t("personalAgentsError") }));
+  }
+});
+
+interface AuthorizeBuzzAppParameters extends AuthenticatedRequest {
+  proof: string;
+}
+
+/** Saves the proof the caller's Buzz app signed for their Sokosumi key. */
+export const authorizeBuzzApp = withSession<
+  AuthorizeBuzzAppParameters,
+  ActionResultDto<{ authorized: boolean }, BuzzActionError>
+>(async ({ proof }) => {
+  const t = await getTranslations("App.Connections.Buzz");
+  if (!z.string().trim().min(1).safeParse(proof).success) {
+    return toActionResult(err({ message: t("proofInvalid") }));
+  }
+  try {
+    const response =
+      await coreClientNoRedirect.postBuzzAppKeyAuthorization(proof);
+    revalidatePath("/connections");
+    return toActionResult(ok(response.data));
+  } catch (error) {
+    const message =
+      error instanceof CoreApiRequestError && error.status === 400
+        ? error.message
+        : t("proofError");
+    return toActionResult(err({ message }));
   }
 });

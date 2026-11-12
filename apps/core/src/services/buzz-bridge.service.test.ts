@@ -71,9 +71,11 @@ import {
   drainBuzzOutbox,
   enqueueBuzzSync,
   OUTBOX_SETTLE_MS,
+  saveBuzzAppAuthorization,
   startBuzzAppLink,
   syncBuzzAgents,
   verifyBuzzAppLinks,
+  vouched,
 } from "./buzz-bridge.service";
 
 const CHANNEL = "6f7c1b2e-0000-4000-8000-000000000001";
@@ -1140,5 +1142,67 @@ describe("buzzContentOf", () => {
   it("leaves a message without mentions alone", async () => {
     await expect(buzzContentOf("plain")).resolves.toBe("plain");
     expect(db.buzzIdentity.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveBuzzAppAuthorization", () => {
+  const APP_KEY = generateSecretKey();
+  const APP_PUBKEY = getPublicKey(APP_KEY);
+  const SOKOSUMI_PUBKEY = BOB_PUBKEY;
+  const identity = {
+    id: "identity-bob",
+    pubkey: SOKOSUMI_PUBKEY,
+    appPubkey: APP_PUBKEY,
+    userId: "user-bob",
+  };
+
+  it("keeps the linked app's vouch for the person's Sokosumi key", async () => {
+    db.buzzIdentity.findUnique.mockResolvedValue(identity);
+    const tag = ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY);
+    await saveBuzzAppAuthorization("user-bob", JSON.stringify(tag));
+    expect(db.buzzIdentity.update).toHaveBeenCalledWith({
+      where: { id: "identity-bob" },
+      data: { appAuthTag: tag },
+    });
+  });
+
+  it("refuses a vouch from another key, for another key, or with conditions", async () => {
+    db.buzzIdentity.findUnique.mockResolvedValue(identity);
+    const stranger = generateSecretKey();
+    for (const tag of [
+      ownerAuthTag(stranger, SOKOSUMI_PUBKEY),
+      ownerAuthTag(APP_KEY, getPublicKey(stranger)),
+      ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY, "kind=9"),
+    ]) {
+      await expect(
+        saveBuzzAppAuthorization("user-bob", JSON.stringify(tag)),
+      ).rejects.toThrow("not from your linked Buzz app");
+    }
+    await expect(saveBuzzAppAuthorization("user-bob", "nope")).rejects.toThrow(
+      "Paste the whole proof",
+    );
+    expect(db.buzzIdentity.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("vouched", () => {
+  const draft = { kind: 9, content: "hi", tags: [["h", CHANNEL]] };
+  const identity = {
+    id: "identity-bob",
+    pubkey: BOB_PUBKEY,
+    appPubkey: "a".repeat(64),
+    appAuthTag: ["auth", "a".repeat(64), "", "b".repeat(128)],
+  } as unknown as Parameters<typeof vouched>[0];
+
+  it("carries the person's Buzz authorization on what Sokosumi signs for them", () => {
+    expect(vouched(identity, draft).tags).toEqual([
+      ["h", CHANNEL],
+      ["auth", "a".repeat(64), "", "b".repeat(128)],
+    ]);
+  });
+
+  it("sends nothing extra without an authorization or a linked app", () => {
+    expect(vouched({ ...identity, appAuthTag: null }, draft)).toBe(draft);
+    expect(vouched({ ...identity, appPubkey: null }, draft)).toBe(draft);
   });
 });

@@ -49,8 +49,9 @@ export function BuzzConnectCard() {
     state !== "collapsed" &&
     data?.available === true &&
     data.identity !== null &&
-    data.lastActiveOnBuzzAt === null &&
-    data.app?.status !== "linked";
+    data.app?.authorized !== true &&
+    // On Buzz with the key Sokosumi keeps: nothing left to set up.
+    !(data.lastActiveOnBuzzAt !== null && data.app === null);
 
   return (
     <>
@@ -92,6 +93,7 @@ export function BuzzConnectCard() {
       <BuzzConnectDialog
         open={open}
         onOpenChange={setOpen}
+        resume={data?.app?.status === "linked"}
         onNotNow={() => {
           dismiss();
           setOpen(false);
