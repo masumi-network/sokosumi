@@ -1,7 +1,6 @@
 "use client";
 
 import { CalendarPlus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -32,7 +31,6 @@ export function TaskMetadataDueField({
   status,
 }: TaskMetadataDueFieldProps) {
   const t = useTranslations("App.Tasks.Due");
-  const router = useRouter();
   const inputId = useId();
   const hintId = useId();
   const [current, setCurrent] = useState(dueOn);
@@ -54,7 +52,6 @@ export function TaskMetadataDueField({
           toast.error(t("updateError"));
           return;
         }
-        router.refresh();
       } catch (error) {
         console.error("Failed to update task due date", error);
         setCurrent(previous);

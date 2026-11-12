@@ -33,7 +33,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   channelHref,
@@ -74,6 +74,7 @@ import {
 import { contactsService } from "@/lib/services/contacts.client";
 import { cn } from "@/lib/utils";
 import { ChannelTypeSelect } from "./channel-type-select";
+import { ContactListDialog } from "./contact-list-dialog";
 import {
   ChannelIcon,
   ContactAvatar,
@@ -219,7 +220,7 @@ function PanelBody({
 }: Omit<Props, "contactId"> & { contact: ContactDetail }) {
   const t = useTranslations("App.Contacts");
   const format = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 60_000 });
   const cache = useQueryClient();
   const update = useContactUpdate();
   const save = (fields: Parameters<typeof update>[1], optimistic = {}) =>
@@ -245,6 +246,29 @@ function PanelBody({
     teammates.find((person) => person.id === contact.createdByUserId) ?? null;
   const manualLists = lists.filter((list) => list.kind === "manual");
   const [enriching, setEnriching] = useState(false);
+  const [creatingList, setCreatingList] = useState(false);
+  const listsTrigger = useRef<HTMLButtonElement>(null);
+
+  /**
+   * Puts this person on a list just made from their panel. On failure the
+   * list stays, so trying again only adds them: never a second list.
+   */
+  async function addToNewList(list: ContactList) {
+    try {
+      await contactsService.changeMembers(list.id, { add: [contact.id] });
+    } catch {
+      toast.error(
+        t("panel.newListAddFailed", { list: list.name, name: contact.name }),
+        {
+          action: {
+            label: t("panel.retry"),
+            onClick: () => void addToNewList(list),
+          },
+        },
+      );
+    }
+    await refreshContacts(cache, contact.id);
+  }
 
   async function toggleList(list: ContactList, on: boolean) {
     try {
@@ -574,6 +598,7 @@ function PanelBody({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                ref={listsTrigger}
                 type="button"
                 aria-label={t("panel.changeLists")}
                 className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
@@ -624,8 +649,27 @@ function PanelBody({
                   {t("panel.noManualLists")}
                 </p>
               ) : null}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setCreatingList(true)}>
+                <Plus aria-hidden className="size-4" />
+                {t("panel.newList")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {creatingList ? (
+            <ContactListDialog
+              onCloseAutoFocus={(event) => {
+                // Back to the Lists button, which opened it through its menu.
+                event.preventDefault();
+                listsTrigger.current?.focus();
+              }}
+              onClose={() => setCreatingList(false)}
+              onSaved={(list) => {
+                setCreatingList(false);
+                void addToNewList(list);
+              }}
+            />
+          ) : null}
         </Property>
         <Property label={t("columns.organization")}>
           <InlineField
@@ -887,6 +931,7 @@ function ChannelsSection({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
+                    role="img"
                     tabIndex={0}
                     aria-label={t("panel.channelSource", {
                       type: t(`channelTypes.${channel.type}`),
@@ -1187,7 +1232,7 @@ function activityText(
 function ActivitySection({ contact }: { contact: ContactDetail }) {
   const t = useTranslations("App.Contacts");
   const format = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 60_000 });
   const activity = useInfiniteQuery({
     queryKey: ["contact-timeline", contact.id, "activity"],
     queryFn: ({ pageParam }) =>
@@ -1220,7 +1265,14 @@ function ActivitySection({ contact }: { contact: ContactDetail }) {
                 </span>
                 {" · "}
                 <time dateTime={new Date(entry.createdAt).toISOString()}>
-                  {format.relativeTime(new Date(entry.createdAt), now)}
+                  {/* An edit made since `now` last ticked reads "now", not "in 8 seconds". */}
+                  {format.relativeTime(
+                    Math.min(
+                      new Date(entry.createdAt).getTime(),
+                      now.getTime(),
+                    ),
+                    now,
+                  )}
                 </time>
                 <WebSource url={webSourceUrl(entry)} />
               </span>
