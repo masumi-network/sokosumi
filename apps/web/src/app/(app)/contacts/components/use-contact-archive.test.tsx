@@ -12,7 +12,8 @@ const f = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
 }));
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    [key, ...Object.values(values ?? {})].join(" "),
 }));
 vi.mock("sonner", () => ({
   toast: { error: f.toastError, success: f.toastSuccess },
@@ -74,7 +75,9 @@ describe("useContactArchive", () => {
     f.archive.mockRejectedValueOnce({ message: "No access" });
     const { archive, invalidate } = setup();
     await act(() => archive(ada, () => {}));
-    expect(f.toastError).toHaveBeenCalledOnce();
+    expect(f.toastError).toHaveBeenCalledWith("panel.archiveFailed Ada", {
+      description: "No access",
+    });
     expect(f.toastSuccess).not.toHaveBeenCalled();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: CONTACTS_KEY });
   });

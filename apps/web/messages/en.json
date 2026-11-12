@@ -10983,6 +10983,7 @@
         "linkCopied": "Link copied",
         "archive": "Archive contact",
         "archived": "{name} archived",
+        "archiveFailed": "Could not archive {name}. The contact is back in your list.",
         "changeStage": "Stage: {stage}. Change stage",
         "changeLists": "Change lists",
         "addToList": "Add to a list",
