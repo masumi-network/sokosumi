@@ -218,7 +218,7 @@ function PanelBody({
 }: Omit<Props, "contactId"> & { contact: ContactDetail }) {
   const t = useTranslations("App.Contacts");
   const format = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 60_000 });
   const cache = useQueryClient();
   const update = useContactUpdate();
   const save = (fields: Parameters<typeof update>[1], optimistic = {}) =>
@@ -895,6 +895,7 @@ function ChannelsSection({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
+                    role="img"
                     tabIndex={0}
                     aria-label={t("panel.channelSource", {
                       type: t(`channelTypes.${channel.type}`),
@@ -1195,7 +1196,7 @@ function activityText(
 function ActivitySection({ contact }: { contact: ContactDetail }) {
   const t = useTranslations("App.Contacts");
   const format = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 60_000 });
   const activity = useInfiniteQuery({
     queryKey: ["contact-timeline", contact.id, "activity"],
     queryFn: ({ pageParam }) =>
@@ -1228,7 +1229,14 @@ function ActivitySection({ contact }: { contact: ContactDetail }) {
                 </span>
                 {" · "}
                 <time dateTime={new Date(entry.createdAt).toISOString()}>
-                  {format.relativeTime(new Date(entry.createdAt), now)}
+                  {/* An edit made since `now` last ticked reads "now", not "in 8 seconds". */}
+                  {format.relativeTime(
+                    Math.min(
+                      new Date(entry.createdAt).getTime(),
+                      now.getTime(),
+                    ),
+                    now,
+                  )}
                 </time>
                 <WebSource url={webSourceUrl(entry)} />
               </span>

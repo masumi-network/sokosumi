@@ -445,7 +445,8 @@ export function ContactsGrid({
         const types = [...new Set(channels.map((channel) => channel.type))];
         return {
           text: channels.map(channelLabel).join(", "),
-          node: (
+          // An image needs a name: with no other channels, show the dash.
+          node: types.length ? (
             <span
               data-fit
               role="img"
@@ -458,6 +459,8 @@ export function ContactsGrid({
                 <ChannelIcon key={type} type={type} />
               ))}
             </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
           ),
         };
       }

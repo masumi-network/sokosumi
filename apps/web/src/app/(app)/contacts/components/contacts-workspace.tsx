@@ -596,6 +596,7 @@ export function ContactsWorkspace({
       ) : null}
       {dialog?.kind === "add" ? (
         <AddContactDialog
+          listId={viewList?.kind === "manual" ? viewList.id : undefined}
           onClose={() => setDialog(null)}
           onCreated={(id) => {
             setDialog(null);

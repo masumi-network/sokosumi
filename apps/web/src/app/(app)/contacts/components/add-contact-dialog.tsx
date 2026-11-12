@@ -36,12 +36,16 @@ function newChannel(type: ContactChannelType = "EMAIL"): ChannelDraft {
 /**
  * A name and/or any ways to reach someone. A channel the team already has
  * is never duplicated: Core answers 409 with that contact, offered here.
+ * Added from an open list, the new person joins that list.
  */
 export function AddContactDialog({
+  listId,
   onClose,
   onCreated,
   onOpenExisting,
 }: {
+  /** The manual list on screen, if any. */
+  listId?: string;
   onClose: () => void;
   onCreated: (id: string) => void;
   onOpenExisting: (id: string) => void;
@@ -93,6 +97,10 @@ export function AddContactDialog({
         })),
         upsert: false,
       });
+      if (listId)
+        await contactsService.changeMembers(listId, {
+          add: [result.contact.id],
+        });
       await refreshContacts(cache);
       onCreated(result.contact.id);
     } catch (caught) {
