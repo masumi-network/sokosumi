@@ -157,7 +157,6 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
         recoveryAttemptsRef.current[activeRecoveryAction] = null;
         setRecoveryAction(null);
         toast.success(t("recovery.success"));
-        router.refresh();
       } catch {
         router.refresh();
         toast.error(t("recovery.error"), { duration: Infinity });

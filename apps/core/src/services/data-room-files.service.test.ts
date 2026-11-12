@@ -5,6 +5,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 import {
   buildDataRoomTree,
   type DataRoomFile,
+  viewableInRoom,
 } from "./data-room-files.service";
 
 function file(
@@ -95,5 +96,34 @@ describe("buildDataRoomTree", () => {
       member: { folderPaths: [], previousVisitAt: null },
     });
     expect(rows.some((row) => row.isNew)).toBe(false);
+  });
+});
+
+describe("viewableInRoom", () => {
+  it("lets a viewer open a spreadsheet even when downloads are off", () => {
+    expect(
+      viewableInRoom({
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        name: "Model.xlsx",
+      }),
+    ).toBe(true);
+    expect(viewableInRoom({ mimeType: null, name: "Model.XLSX" })).toBe(true);
+    expect(
+      viewableInRoom({ mimeType: "text/csv", name: "Cap table.csv" }),
+    ).toBe(true);
+  });
+
+  it("still keeps other office files download-only", () => {
+    expect(
+      viewableInRoom({
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        name: "Memo.docx",
+      }),
+    ).toBe(false);
+    expect(
+      viewableInRoom({ mimeType: "application/vnd.ms-excel", name: "Old.xls" }),
+    ).toBe(false);
   });
 });

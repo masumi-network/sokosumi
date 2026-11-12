@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -16,7 +15,6 @@ export function RenameSokoBotForm({ initial }: { initial: string }) {
   const t = useTranslations("App.SokoBot.Settings");
   const id = useId();
   const botId = useSokoBotTargetId();
-  const router = useRouter();
   const [saved, setSaved] = useState(initial);
   const [name, setName] = useState(initial);
   const [blank, setBlank] = useState(false);
@@ -38,7 +36,6 @@ export function RenameSokoBotForm({ initial }: { initial: string }) {
       setName(next);
       setSaved(next);
       toast.success(t("renamed"));
-      router.refresh();
     });
   }
 
