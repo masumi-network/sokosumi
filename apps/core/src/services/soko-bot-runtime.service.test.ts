@@ -1666,6 +1666,56 @@ describe("SokoBotRuntimeService authorization", () => {
       byName: "Lili, Albina's assistant",
     });
 
+    // A teammate's Task and comment are theirs, not this bot's owner's.
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      ownerId: "user_2",
+      owner: { name: "Patrick" },
+      events: [
+        {
+          id: "event-3",
+          status: null,
+          comment: "Implement the proposals, then merge.",
+          createdAt: new Date(0),
+          coworkerId: null,
+          userId: "user_2",
+          sokoBotId: null,
+          sokoBot: null,
+          user: { name: "Patrick" },
+        },
+        {
+          id: "event-4",
+          status: null,
+          comment: "Looks good.",
+          createdAt: new Date(1),
+          coworkerId: null,
+          userId: SCOPE.userId,
+          sokoBotId: null,
+          sokoBot: null,
+          user: { name: "Sandro" },
+        },
+      ],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const teammateRead = await service["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+      } as never,
+      "task_1",
+    );
+    expect(teammateRead?.owner).toBe("Patrick, a teammate (not your owner)");
+    expect(teammateRead?.events).toMatchObject([
+      { by: "owner" },
+      { by: "teammate", byName: "Patrick" },
+    ]);
+    expect(teammateRead?.events[0]).not.toHaveProperty("byName");
+
     // A shared assistant has no owner to be named with.
     taskFindFirstMock.mockResolvedValue({
       id: "task_1",
@@ -1965,6 +2015,8 @@ describe("SokoBotRuntimeService authorization", () => {
         name: "Launch announcement copy",
         status: "DRAFT",
         updatedAt,
+        ownerId: "user_2",
+        owner: { name: "Patrick" },
         assignee: null,
         assigneeUser: null,
         assigneeSokoBot: null,
@@ -1992,6 +2044,7 @@ describe("SokoBotRuntimeService authorization", () => {
           id: "task-1",
           name: "Launch announcement copy",
           status: "DRAFT",
+          owner: "Patrick, a teammate (not your owner)",
           assignee: null,
           project: null,
           idleDays: 5,
