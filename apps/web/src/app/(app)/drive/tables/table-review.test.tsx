@@ -249,7 +249,7 @@ it("F4: workspace rejection does not clear an unrelated cell retry", async () =>
         .getAllByRole("alert")
         .map((item) => item.textContent)
         .join(" "),
-    ).toContain("errors.forbidden"),
+    ).toContain("errors.archiveRows"),
   );
   f.batch.mockResolvedValueOnce({ rows: [] });
   fireEvent.click(screen.getByRole("button", { name: "addRow" }));
@@ -1339,7 +1339,7 @@ describe("archive rows", () => {
     f.batch.mockRejectedValue({ error: "Forbidden", message: "No" });
     archive();
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent("errors.forbidden"),
+      expect(screen.getByRole("alert")).toHaveTextContent("errors.archiveRows"),
     );
     expect(f.invalidate).toHaveBeenCalledWith({
       queryKey: ["table-rows", f.column.tableId],

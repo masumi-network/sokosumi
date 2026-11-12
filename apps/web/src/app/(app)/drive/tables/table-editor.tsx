@@ -101,7 +101,7 @@ import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
-import { archivePatch, hideRows } from "./table-row-archive";
+import { archivePatch, hideRows, saveArchive } from "./table-row-archive";
 import {
   parseTableInput,
   tableError,
@@ -993,7 +993,7 @@ function TableWorkspace({
                     setSelected([]);
                   },
                   () =>
-                    mutate("archive-rows", { patch }, (body) =>
+                    saveArchive(t, patch, mutate, (body) =>
                       dataTableService.batch(table.id, body),
                     ),
                 );

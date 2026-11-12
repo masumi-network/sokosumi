@@ -1,7 +1,21 @@
 import type { TableRow } from "@sokosumi/core-client";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import { type createTableMutations, isTableRejection } from "./table-mutations";
+import { tableError } from "./table-value";
 
 type Page = { rows: TableRow[]; total: number };
+type Patch = ReturnType<typeof archivePatch>;
+type Translate = NonNullable<Parameters<typeof tableError>[1]> &
+  ((
+    key: "errors.archiveRows" | "errors.restoreRows",
+    values: { count: number; reason: string },
+  ) => string);
+
+/**
+ * The mutation slot of an archive or restore. The editor passes the same slot
+ * to `runMove`, which looks it up to offer Retry.
+ */
+const ARCHIVE_ROWS = "archive-rows";
 
 /** The batch patch that archives or restores the selected rows of a page. */
 export function archivePatch(
@@ -30,4 +44,28 @@ export function hideRows(cache: QueryClient, key: QueryKey, ids: string[]) {
       total: page.total - (page.rows.length - rows.length),
     };
   });
+}
+
+/**
+ * Sends an archive or restore. A rejected one did not commit, and the refresh
+ * after it puts the rows back: its message counts them before it gives the
+ * reason. A failure that may have committed keeps its own message and Retry.
+ */
+export async function saveArchive<R>(
+  t: Translate,
+  patch: Patch,
+  mutate: ReturnType<typeof createTableMutations>,
+  send: (body: { patch: Patch; key: string }) => Promise<R>,
+) {
+  try {
+    return await mutate(ARCHIVE_ROWS, { patch }, send);
+  } catch (error) {
+    if (!isTableRejection(error)) throw error;
+    const key = patch[0]?.archived
+      ? "errors.archiveRows"
+      : "errors.restoreRows";
+    throw new Error(
+      t(key, { count: patch.length, reason: tableError(error, t) }),
+    );
+  }
 }
