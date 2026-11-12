@@ -1,4 +1,6 @@
 export const TASKS_RETURN_PATH_SESSION_KEY = "sokosumi.tasks.returnPath";
+/** The task a stored Calendar return belongs to (`/tasks/<id>`). */
+export const TASKS_RETURN_TASK_SESSION_KEY = "sokosumi.tasks.returnTask";
 
 export function isTasksRootPath(pathname: string) {
   return pathname === "/tasks";
@@ -15,18 +17,23 @@ export function isCalendarReturnPath(path: string) {
 
 /**
  * Remember the board, or the Calendar with its view, period and filters,
- * before opening a task, without reopening the board's create flow.
+ * before opening a task, without reopening the board's create flow. The
+ * Calendar is remembered for `taskPath` only: another task reached later
+ * (a notification, a pasted link) goes back to the board.
  */
-export function storeTasksReturnPath() {
+export function storeTasksReturnPath(taskPath?: string) {
   if (typeof window === "undefined") {
     return;
   }
   const { pathname, search } = window.location;
   if (pathname === "/calendar") {
-    window.sessionStorage.setItem(
-      TASKS_RETURN_PATH_SESSION_KEY,
-      `/calendar${search}`,
-    );
+    if (taskPath) {
+      window.sessionStorage.setItem(
+        TASKS_RETURN_PATH_SESSION_KEY,
+        `/calendar${search}`,
+      );
+      window.sessionStorage.setItem(TASKS_RETURN_TASK_SESSION_KEY, taskPath);
+    }
     return;
   }
   if (!isTasksRootPath(pathname)) {
@@ -44,10 +51,15 @@ export function storeTasksReturnPath() {
 }
 
 /**
- * Where a task's Back goes. Only a task's own page returns to the Calendar;
- * other task pages (archived, edit) go back to the board.
+ * Where a task's Back goes. Only the task opened from the Calendar
+ * (`taskPath`, its page's pathname) returns there; every other page goes
+ * back to the board.
  */
-export function getStoredTasksReturnPath({ allowCalendar = false } = {}) {
+export function getStoredTasksReturnPath({
+  taskPath,
+}: {
+  taskPath?: string;
+} = {}) {
   if (typeof window === "undefined") {
     return "/tasks";
   }
@@ -59,7 +71,10 @@ export function getStoredTasksReturnPath({ allowCalendar = false } = {}) {
   if (
     storedPath &&
     (isReturnPathFor(storedPath, "/tasks") ||
-      (allowCalendar && isCalendarReturnPath(storedPath)))
+      (taskPath !== undefined &&
+        isCalendarReturnPath(storedPath) &&
+        window.sessionStorage.getItem(TASKS_RETURN_TASK_SESSION_KEY) ===
+          taskPath))
   ) {
     return storedPath;
   }

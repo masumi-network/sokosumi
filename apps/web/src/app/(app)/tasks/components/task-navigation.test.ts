@@ -5,6 +5,7 @@ import {
   isTasksRootPath,
   storeTasksReturnPath,
   TASKS_RETURN_PATH_SESSION_KEY,
+  TASKS_RETURN_TASK_SESSION_KEY,
 } from "@/app/tasks/components/task-navigation";
 
 describe("task-navigation", () => {
@@ -36,28 +37,45 @@ describe("task-navigation", () => {
       window.history.replaceState(null, "", "/");
     });
 
-    it("stores the Calendar with its view, period and filters", () => {
-      window.history.replaceState(
-        null,
-        "",
+    function openFromCalendar(calendar: string, taskPath: string) {
+      window.history.replaceState(null, "", calendar);
+      storeTasksReturnPath(taskPath);
+    }
+
+    it("returns the task opened from the Calendar to its view, period and filters", () => {
+      openFromCalendar(
+        "/calendar?date=2026-11-19&view=week&status=QUEUED",
+        "/tasks/task-a",
+      );
+
+      expect(getStoredTasksReturnPath({ taskPath: "/tasks/task-a" })).toBe(
         "/calendar?date=2026-11-19&view=week&status=QUEUED",
       );
-      storeTasksReturnPath();
+      // A page that isn't a task's own (archived, edit) stays on the board.
+      expect(getStoredTasksReturnPath()).toBe("/tasks");
+    });
 
-      expect(getStoredTasksReturnPath({ allowCalendar: true })).toBe(
-        "/calendar?date=2026-11-19&view=week&status=QUEUED",
+    it("sends an unrelated task reached later back to the board", () => {
+      // Calendar → task A, then a notification or pasted link opens task B.
+      openFromCalendar("/calendar?view=week", "/tasks/task-a");
+      window.history.replaceState(null, "", "/chat");
+
+      expect(getStoredTasksReturnPath({ taskPath: "/tasks/task-b" })).toBe(
+        "/tasks",
+      );
+      // A again (refresh, browser Back) still returns to the Calendar.
+      expect(getStoredTasksReturnPath({ taskPath: "/tasks/task-a" })).toBe(
+        "/calendar?view=week",
       );
     });
 
-    it("returns the Calendar only where a page allows it", () => {
-      window.sessionStorage.setItem(
-        TASKS_RETURN_PATH_SESSION_KEY,
-        "/calendar?view=month",
-      );
+    it("forgets the Calendar once a task is opened from the board", () => {
+      openFromCalendar("/calendar?view=week", "/tasks/task-a");
+      window.history.replaceState(null, "", "/tasks?view=list");
+      storeTasksReturnPath();
 
-      expect(getStoredTasksReturnPath()).toBe("/tasks");
-      expect(getStoredTasksReturnPath({ allowCalendar: true })).toBe(
-        "/calendar?view=month",
+      expect(getStoredTasksReturnPath({ taskPath: "/tasks/task-a" })).toBe(
+        "/tasks?view=list",
       );
     });
 
@@ -69,8 +87,14 @@ describe("task-navigation", () => {
       "https://evil.example/tasks",
     ])("ignores %s", (stored) => {
       window.sessionStorage.setItem(TASKS_RETURN_PATH_SESSION_KEY, stored);
+      window.sessionStorage.setItem(
+        TASKS_RETURN_TASK_SESSION_KEY,
+        "/tasks/task-a",
+      );
 
-      expect(getStoredTasksReturnPath({ allowCalendar: true })).toBe("/tasks");
+      expect(getStoredTasksReturnPath({ taskPath: "/tasks/task-a" })).toBe(
+        "/tasks",
+      );
     });
   });
 });

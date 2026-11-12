@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TASKS_RETURN_PATH_SESSION_KEY } from "@/app/tasks/components/task-navigation";
+import {
+  TASKS_RETURN_PATH_SESSION_KEY,
+  TASKS_RETURN_TASK_SESSION_KEY,
+} from "@/app/tasks/components/task-navigation";
 
 let mockPathname = "/";
 let mockSearchParams = new URLSearchParams();
@@ -267,14 +270,20 @@ describe("HeaderLeadingControl", () => {
   });
 
   it.each([
-    { pathname: "/tasks/t1", href: "/calendar?view=agenda" },
+    { pathname: "/tasks/task-a", href: "/calendar?view=agenda" },
+    // Reached later from a notification or a pasted link.
+    { pathname: "/tasks/task-b", href: "/tasks" },
     { pathname: "/tasks/archived", href: "/tasks" },
   ])(
-    "goes back to a stored Calendar only from a task ($pathname)",
+    "goes back to the Calendar only from the task opened there ($pathname)",
     async ({ pathname, href }) => {
       window.sessionStorage.setItem(
         TASKS_RETURN_PATH_SESSION_KEY,
         "/calendar?view=agenda",
+      );
+      window.sessionStorage.setItem(
+        TASKS_RETURN_TASK_SESSION_KEY,
+        "/tasks/task-a",
       );
       mockPathname = pathname;
       render(<HeaderLeadingControl />);

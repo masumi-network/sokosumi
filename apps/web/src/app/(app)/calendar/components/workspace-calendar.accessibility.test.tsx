@@ -6,7 +6,10 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TASKS_RETURN_PATH_SESSION_KEY } from "@/app/tasks/components/task-navigation";
+import {
+  TASKS_RETURN_PATH_SESSION_KEY,
+  TASKS_RETURN_TASK_SESSION_KEY,
+} from "@/app/tasks/components/task-navigation";
 
 const pushMock = vi.hoisted(() => vi.fn());
 const openCreateTaskModalMock = vi.hoisted(() => vi.fn());
@@ -177,6 +180,9 @@ describe("WorkspaceCalendar accessibility", () => {
     // The task's Back returns to this view.
     expect(window.sessionStorage.getItem(TASKS_RETURN_PATH_SESSION_KEY)).toBe(
       "/calendar?timezone=UTC&view=month",
+    );
+    expect(window.sessionStorage.getItem(TASKS_RETURN_TASK_SESSION_KEY)).toBe(
+      "/tasks/task-1",
     );
   });
 

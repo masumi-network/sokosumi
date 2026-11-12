@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
@@ -22,15 +22,17 @@ export function BackToTasksButton({
   calendarLabel,
 }: BackToTasksButtonProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const allowCalendar = calendarLabel !== undefined;
   const returnPath = useTasksReturnPath({ allowCalendar });
+  const taskPath = allowCalendar ? pathname : undefined;
 
   useMountEffect(() => {
-    router.prefetch(getStoredTasksReturnPath({ allowCalendar }));
+    router.prefetch(getStoredTasksReturnPath({ taskPath }));
   });
 
   const handleNavigate = () => {
-    router.push(getStoredTasksReturnPath({ allowCalendar }));
+    router.push(getStoredTasksReturnPath({ taskPath }));
   };
 
   return (

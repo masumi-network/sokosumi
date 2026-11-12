@@ -17,7 +17,11 @@ export function useTasksReturnPath({ allowCalendar = false } = {}) {
   const [returnPath, setReturnPath] = useState("/tasks");
 
   useEffect(() => {
-    setReturnPath(getStoredTasksReturnPath({ allowCalendar }));
+    setReturnPath(
+      getStoredTasksReturnPath({
+        taskPath: allowCalendar ? pathname : undefined,
+      }),
+    );
   }, [pathname, allowCalendar]);
 
   return returnPath;

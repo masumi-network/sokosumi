@@ -1410,7 +1410,9 @@ export function WorkspaceCalendar({
     onSkipRun: (item) => void handleRunChange(item, { action: "skip" }),
     onOpen: (path) => {
       // A task opened here offers Back to this view, period and filters.
-      storeTasksReturnPath();
+      if (path.startsWith("/tasks/")) {
+        storeTasksReturnPath(path);
+      }
       router.push(path);
     },
   };

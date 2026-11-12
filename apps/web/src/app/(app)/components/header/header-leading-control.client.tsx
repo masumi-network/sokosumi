@@ -80,7 +80,11 @@ export function HeaderLeadingControl(): React.ReactElement {
       // Read storage at click time: header stays mounted across list→detail,
       // so href state can lag behind TaskDetailLink writing the return path.
       event.preventDefault();
-      router.push(getStoredTasksReturnPath({ allowCalendar }));
+      router.push(
+        getStoredTasksReturnPath({
+          taskPath: allowCalendar ? pathname : undefined,
+        }),
+      );
     }
 
     return (
