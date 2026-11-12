@@ -9041,7 +9041,9 @@
         "messageRequired": "Message is required.",
         "roomRequired": "Room is required.",
         "pinError": "Could not pin message.",
-        "unpinError": "Could not unpin message."
+        "unpinError": "Could not unpin message.",
+        "statePinned": "The message is pinned.",
+        "stateUnpinned": "The message is not pinned."
       },
       "SavedMessages": {
         "save": "Save for later",
@@ -9072,7 +9074,8 @@
         "openLink": "Open link preview: {title}",
         "imageAlt": "Preview image for {title}",
         "remove": "Remove link preview: {title}",
-        "removeError": "Could not remove the link preview. Try again."
+        "removeError": "Could not remove the link preview. Try again.",
+        "restored": "The link preview is back on the message."
       },
       "Message": {
         "delete": "Delete",
