@@ -27475,6 +27475,28 @@ export const BrandBrainSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        fix: {
+                            type: 'object',
+                            properties: {
+                                note: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                at: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                fixed: {
+                                    type: 'boolean'
+                                }
+                            },
+                            required: [
+                                'note',
+                                'at',
+                                'fixed'
+                            ]
                         }
                     },
                     required: [
@@ -29763,6 +29785,28 @@ export const BrandBrainRequestSchema = {
                     },
                     maxItems: 6,
                     default: []
+                },
+                fix: {
+                    type: 'object',
+                    properties: {
+                        note: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        at: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        fixed: {
+                            type: 'boolean'
+                        }
+                    },
+                    required: [
+                        'note',
+                        'at',
+                        'fixed'
+                    ]
                 }
             },
             required: [
@@ -30646,6 +30690,37 @@ export const MarketingStrategySchema = {
                                             'shared'
                                         ]
                                     },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    basedOn: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            enum: [
+                                                'company',
+                                                'offer',
+                                                'problems',
+                                                'customers',
+                                                'buyers',
+                                                'value',
+                                                'pricing',
+                                                'positioning',
+                                                'competition',
+                                                'sales',
+                                                'marketing',
+                                                'content',
+                                                'proof',
+                                                'reputation',
+                                                'momentum',
+                                                'opportunities'
+                                            ]
+                                        },
+                                        minItems: 1,
+                                        maxItems: 2
+                                    },
                                     plays: {
                                         type: 'array',
                                         items: {
@@ -30997,6 +31072,15 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    entryIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 64
+                                        },
+                                        maxItems: 3
                                     }
                                 },
                                 required: [
@@ -32365,6 +32449,37 @@ export const MarketingStrategyRequestSchema = {
                                     'shared'
                                 ]
                             },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            basedOn: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    enum: [
+                                        'company',
+                                        'offer',
+                                        'problems',
+                                        'customers',
+                                        'buyers',
+                                        'value',
+                                        'pricing',
+                                        'positioning',
+                                        'competition',
+                                        'sales',
+                                        'marketing',
+                                        'content',
+                                        'proof',
+                                        'reputation',
+                                        'momentum',
+                                        'opportunities'
+                                    ]
+                                },
+                                minItems: 1,
+                                maxItems: 2
+                            },
                             plays: {
                                 type: 'array',
                                 items: {
@@ -32716,6 +32831,15 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            entryIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 64
+                                },
+                                maxItems: 3
                             }
                         },
                         required: [
@@ -45409,6 +45533,28 @@ export const CmoOverviewSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        fix: {
+                            type: 'object',
+                            properties: {
+                                note: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                at: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                fixed: {
+                                    type: 'boolean'
+                                }
+                            },
+                            required: [
+                                'note',
+                                'at',
+                                'fixed'
+                            ]
                         }
                     },
                     required: [
@@ -46930,6 +47076,37 @@ export const CmoPlanSchema = {
                             'shared'
                         ]
                     },
+                    why: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    basedOn: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'company',
+                                'offer',
+                                'problems',
+                                'customers',
+                                'buyers',
+                                'value',
+                                'pricing',
+                                'positioning',
+                                'competition',
+                                'sales',
+                                'marketing',
+                                'content',
+                                'proof',
+                                'reputation',
+                                'momentum',
+                                'opportunities'
+                            ]
+                        },
+                        minItems: 1,
+                        maxItems: 2
+                    },
                     plays: {
                         type: 'array',
                         items: {
@@ -47281,6 +47458,15 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    entryIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 64
+                        },
+                        maxItems: 3
                     }
                 },
                 required: [
@@ -48408,7 +48594,8 @@ export const CmoBrandFixRequestSchema = {
                 'reputation',
                 'momentum',
                 'opportunities'
-            ]
+            ],
+            description: 'The section that is wrong. Left out, the note is a general correction: Cuso rewrites every section it changes.'
         },
         note: {
             type: 'string',
@@ -48418,7 +48605,6 @@ export const CmoBrandFixRequestSchema = {
         }
     },
     required: [
-        'section',
         'note'
     ]
 } as const;

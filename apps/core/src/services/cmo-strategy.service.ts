@@ -17,6 +17,7 @@ import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
   brandBrainCorrections,
   brandBrainOpenFixes,
+  closeBrandBrainFix,
   parseBrandBrain,
   requestBrandBrainFix,
 } from "@/services/brand-brain.service";
@@ -271,13 +272,14 @@ export async function afterCmoTurn(input: {
 }
 
 /**
- * The owner says one Brand Brain section is wrong. The fix is stored on the
- * section at once, so it is never lost, and a short turn rewrites that
- * section (and patches the plan it touches). While Cuso is busy the fix
+ * The owner says one Brand Brain section is wrong, or, with no section, says
+ * what is true in their own words. The fix is stored at once, so it is never
+ * lost, and a short turn rewrites that section (or every section the note
+ * changes) and patches the plan it touches. While Cuso is busy the fix
  * waits, and starts when his turn ends.
  */
 export async function fixCmoBrandSection(
-  input: CusoTarget & { section: CmoBrandSectionKey; note: string },
+  input: CusoTarget & { section?: CmoBrandSectionKey; note: string },
   now: Date = new Date(),
 ): Promise<{ turnId: string } | { queued: true }> {
   const cuso = await requireCuso(input);
@@ -326,7 +328,32 @@ export async function startNextCmoChange(
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
   const newest = Math.max(...open.map((fix) => Date.parse(fix.at)));
-  return startStrategyTurn(cuso, { userId, kind: "fix", sent: newest });
+  const started = await startStrategyTurn(cuso, {
+    userId,
+    kind: "fix",
+    sent: newest,
+  });
+  await closeSentCorrection(cuso, brain);
+  return started;
+}
+
+/**
+ * A section's fix closes when its answer changes; the owner's general
+ * correction has no answer of its own, so the fix or plan turn sent it is
+ * its go. Should the close fail, a fix turn's id still keeps it from
+ * running twice.
+ */
+async function closeSentCorrection(cuso: Cuso, brain: BrandBrain) {
+  const fix = brain.fix;
+  if (!fix || fix.fixed) return;
+  await closeBrandBrainFix(cuso.projectId, Date.parse(fix.at)).catch(
+    (error) => {
+      console.warn("CMO general correction stayed open", {
+        projectId: cuso.projectId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    },
+  );
 }
 
 async function startCmoStrategy(
@@ -336,7 +363,7 @@ async function startCmoStrategy(
   now: Date,
 ): Promise<{ turnId: string }> {
   try {
-    return await startStrategyTurn(
+    const started = await startStrategyTurn(
       cuso,
       change
         ? change.patch
@@ -344,6 +371,10 @@ async function startCmoStrategy(
           : { userId, kind: "plan", note: change.note }
         : { userId, kind: "plan" },
     );
+    // A plan starts by correcting the Brand Brain; a patch does not.
+    const brain = parseBrandBrain(cuso.brandBrain);
+    if (!change?.patch && brain) await closeSentCorrection(cuso, brain);
+    return started;
   } catch (error) {
     // One turn per bot: a plan another request started first is this one;
     // a fix or patch is not.
@@ -488,9 +519,10 @@ function correctionLines(brain: BrandBrain): string[] {
   const fixes = brandBrainOpenFixes(brain);
   const fixed = new Set(fixes.map((fix) => fix.section));
   return [
-    ...fixes.map(
-      (fix) =>
-        `- ${fix.section}: you wrote "${brain.profile[fix.section]?.answer ?? ""}". True instead: ${fix.note}`,
+    ...fixes.map((fix) =>
+      fix.section
+        ? `- ${fix.section}: you wrote "${brain.profile[fix.section]?.answer ?? ""}". True instead: ${fix.note}`
+        : `- No one section, in the owner's words: ${fix.note} Rewrite every section this correction changes, and only those.`,
     ),
     ...brandBrainCorrections(brain)
       .filter((question) => !fixed.has(question.section))

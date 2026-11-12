@@ -16,6 +16,7 @@ import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
   brandBrainPreview,
+  closeBrandBrainFix,
   compactBrandBrain,
   parseBrandBrain,
   requestBrandBrainFix,
@@ -653,5 +654,75 @@ describe("Brand Brain fixes", () => {
     expect(
       brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix,
     ).toMatchObject({ fixed: false });
+  });
+
+  it("keeps a fix with no section as the owner's general correction, every section untouched", async () => {
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: sixteen, questions: [] },
+    });
+
+    await requestBrandBrainFix(PROJECT_ID, {
+      note: "We moved from Zurich to Basel.",
+      at: new Date(asked),
+    });
+
+    const body = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(body.fix).toEqual({
+      note: "We moved from Zurich to Basel.",
+      at: asked,
+      fixed: false,
+    });
+    expect(body.profile).toEqual(sixteen);
+  });
+
+  it("adds a second general correction to the one still open", async () => {
+    brainFindUnique.mockResolvedValue({
+      body: {
+        ...essentials,
+        profile: sixteen,
+        questions: [],
+        fix: { note: "We moved to Basel.", at: asked, fixed: false },
+      },
+    });
+
+    await requestBrandBrainFix(PROJECT_ID, { note: "No more catering." });
+
+    expect(brainUpdate.mock.lastCall?.[0].data.body.fix).toMatchObject({
+      note: "We moved to Basel. No more catering.",
+      fixed: false,
+    });
+  });
+
+  it("keeps the general correction Core holds, whatever a save sends", async () => {
+    const held = { note: "We moved to Basel.", at: asked, fixed: false };
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: sixteen, questions: [], fix: held },
+    });
+
+    await saveBrandBrain(PROJECT_ID, {
+      brandBrain: {
+        ...essentials,
+        profile: sixteen,
+        // Cuso cannot close the owner's correction himself.
+        fix: { note: "Done.", at: asked, fixed: true },
+      },
+    });
+
+    expect(brainUpsert.mock.lastCall?.[0].update.body.fix).toEqual(held);
+  });
+
+  it("closes a general correction once a fix turn was sent it, never one asked later", async () => {
+    const open = { note: "We moved to Basel.", at: asked, fixed: false };
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: sixteen, questions: [], fix: open },
+    });
+
+    await closeBrandBrainFix(PROJECT_ID, Date.parse(asked) - 1);
+    expect(brainUpdate).not.toHaveBeenCalled();
+
+    await closeBrandBrainFix(PROJECT_ID, Date.parse(asked));
+    const body = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(body.fix).toEqual({ ...open, fixed: true });
+    expect(body.profile).toEqual(sixteen);
   });
 });

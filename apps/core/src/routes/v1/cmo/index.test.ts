@@ -436,6 +436,25 @@ describe("CMO routes", () => {
     });
   });
 
+  it("takes a fix with no section as a general correction", async () => {
+    fixMock.mockResolvedValue({ turnId: "turn-4" });
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/brand/fix`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ note: "We moved to Basel." }),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(fixMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      section: undefined,
+      note: "We moved to Basel.",
+    });
+  });
+
   it("refuses a fix for a section that does not exist", async () => {
     const response = await createApp().request(
       `/projects/${PROJECT_ID}/brand/fix`,

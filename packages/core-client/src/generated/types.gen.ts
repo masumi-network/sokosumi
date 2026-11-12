@@ -7771,6 +7771,11 @@ export type BrandBrain = {
             note?: string;
             corrected?: boolean;
         }>;
+        fix?: {
+            note: string;
+            at: string;
+            fixed: boolean;
+        };
     } | null;
     /**
      * When the essentials were last saved.
@@ -8182,6 +8187,11 @@ export type BrandBrainRequest = {
             note?: string;
             corrected?: boolean;
         }>;
+        fix?: {
+            note: string;
+            at: string;
+            fixed: boolean;
+        };
     };
 };
 
@@ -8344,6 +8354,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             metric: string;
             target?: string;
             owner?: 'cuso' | 'you' | 'shared';
+            why?: string;
+            basedOn?: Array<'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities'>;
             plays?: Array<{
                 channel: string;
                 what: string;
@@ -8404,6 +8416,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             statement: string;
             answer?: 'yes' | 'no' | 'unsure';
             note?: string;
+            entryIds?: Array<string>;
         }>;
         calendar: Array<{
             id: string;
@@ -8638,6 +8651,8 @@ export type MarketingStrategyRequest = {
             metric: string;
             target?: string;
             owner?: 'cuso' | 'you' | 'shared';
+            why?: string;
+            basedOn?: Array<'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities'>;
             plays?: Array<{
                 channel: string;
                 what: string;
@@ -8698,6 +8713,7 @@ export type MarketingStrategyRequest = {
             statement: string;
             answer?: 'yes' | 'no' | 'unsure';
             note?: string;
+            entryIds?: Array<string>;
         }>;
         calendar: Array<{
             id: string;
@@ -11798,6 +11814,11 @@ export type CmoOverview = {
             note?: string;
             corrected?: boolean;
         }>;
+        fix?: {
+            note: string;
+            at: string;
+            fixed: boolean;
+        };
     } | null;
     brandBrainUpdatedAt: Date | null;
     brandBrainConfirmedAt: Date | null;
@@ -12096,6 +12117,8 @@ export type CmoPlan = {
         metric: string;
         target?: string;
         owner?: 'cuso' | 'you' | 'shared';
+        why?: string;
+        basedOn?: Array<'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities'>;
         plays?: Array<{
             channel: string;
             what: string;
@@ -12156,6 +12179,7 @@ export type CmoPlan = {
         statement: string;
         answer?: 'yes' | 'no' | 'unsure';
         note?: string;
+        entryIds?: Array<string>;
     }>;
     calendar: Array<{
         id: string;
@@ -12388,7 +12412,10 @@ export type CmoBrandFixStarted = {
 };
 
 export type CmoBrandFixRequest = {
-    section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+    /**
+     * The section that is wrong. Left out, the note is a general correction: Cuso rewrites every section it changes.
+     */
+    section?: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
     /**
      * What is true instead, in the owner's words.
      */
