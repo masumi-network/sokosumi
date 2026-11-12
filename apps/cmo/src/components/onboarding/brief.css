@@ -589,10 +589,43 @@ button.brief-week-row:hover .brief-week-text b {
   list-style: none;
 }
 
+.brief-timeline > li {
+  display: grid;
+  min-width: 0;
+}
+
 .brief-stage {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+/* A finished stage or the current one shows its page; the ones ahead wait. */
+button.brief-stage {
+  padding: 0 0 2px;
+  border: 0;
+  border-radius: var(--radius-mark);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.brief-stage:disabled {
+  cursor: default;
+}
+
+button.brief-stage:not(:disabled):hover .brief-stage-label,
+.brief-stage.viewed .brief-stage-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The stage the page shows: an ink underline, apart from the progress fill. */
+.brief-stage.viewed .brief-stage-label {
+  color: var(--foreground);
+  text-decoration-thickness: 2px;
 }
 
 .brief-stage-rule {
@@ -640,6 +673,114 @@ button.brief-week-row:hover .brief-week-text b {
 
 .brief-fold {
   display: none;
+}
+
+.brief-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.brief-back:hover {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── The phone's sheet of stages ── */
+.brief-sheet {
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  z-index: 41;
+  display: grid;
+  gap: 8px;
+  max-height: calc(100dvh - 16px);
+  padding: 16px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.brief-sheet-head {
+  display: flex;
+  align-items: center;
+}
+
+.brief-sheet-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.brief-sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.brief-sheet-row:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.brief-sheet-row:disabled b {
+  font-weight: 500;
+}
+
+.brief-sheet-name {
+  display: grid;
+  gap: 2px;
+}
+
+.brief-sheet-name .muted {
+  font-size: 0.75rem;
+}
+
+.brief-sheet-row.viewed b {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.brief-sheet-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* The current stage keeps its Iris, as a fill. */
+.brief-sheet-row.now .brief-sheet-state::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
 }
 
 /* ── Phone: the timeline folds into one line, the chat takes the bottom half ── */
@@ -694,6 +835,27 @@ button.brief-week-row:hover .brief-week-text b {
     gap: 8px;
     padding-top: 8px;
     border-top: 1px solid var(--border);
+  }
+
+  .brief-fold-button {
+    width: 100%;
+    min-height: 44px;
+    padding-right: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .brief-fold-chevron {
+    flex: none;
+    margin-left: auto;
   }
 
   .brief-fold-line {

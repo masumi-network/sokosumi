@@ -1,7 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { Check } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { type ReactNode, useId, useState } from "react";
 
@@ -42,7 +42,7 @@ import {
 import { Checklist } from "./checklist";
 import { researchGroups } from "./live";
 import { connectedNetworks, firstPost } from "./networks";
-import { PlanReview } from "./plan-step";
+import { PlanAnswers, PlanReview } from "./plan-step";
 import { type ConnectMeasurement, MonthPanel, PlanPanel } from "./plan-tabs";
 import { GoalBlock } from "./tiles";
 
@@ -712,6 +712,104 @@ function Away({ overview }: { overview: CmoOverview }) {
   );
 }
 
+/** Every section the Brand Brain saved, one result each. */
+function SavedSections({ overview }: { overview: CmoOverview }) {
+  const profile = brandProfile(overview.brandBrain as BrandBrain);
+  return (
+    <>
+      {(Object.keys(BRAND_SECTIONS) as BrandSectionKey[])
+        .filter((key) => profile[key])
+        .map((key) => (
+          <SectionResult key={key} overview={overview} section={key} />
+        ))}
+    </>
+  );
+}
+
+/**
+ * A finished stage, read-only: what Cuso found or what the owner decided.
+ * Each stage reuses its own result; a change still goes through the chat.
+ */
+function StageReview({
+  overview,
+  stage,
+  networks,
+}: {
+  overview: CmoOverview;
+  stage: StageId;
+  networks: BriefMainProps["networks"];
+}) {
+  const brain = overview.brandBrain;
+  const strategy = overview.strategy;
+  const preview = overview.research?.preview ?? null;
+  switch (stage) {
+    case "website":
+      return (
+        <Result label="Your website" source={hostOf(overview.websiteUrl)}>
+          <p className="brief-statement">
+            {preview?.line ??
+              `${AGENT_NAME} reads ${hostOf(overview.websiteUrl)} and the places around it.`}
+          </p>
+        </Result>
+      );
+    case "research":
+      return brain ? (
+        <>
+          <GroupChips overview={overview} />
+          <Result
+            label={`What I learned about ${businessDisplayName(overview)}`}
+          >
+            <p className="brief-statement">{brain.summary}</p>
+          </Result>
+          <SeeMore label="the sections I saved">
+            <SavedSections overview={overview} />
+          </SeeMore>
+        </>
+      ) : null;
+    case "brand":
+      return brain ? (
+        <>
+          <BrandCheckResult overview={overview} />
+          <SeeMore label="every section of your Brand Brain">
+            <SavedSections overview={overview} />
+          </SeeMore>
+        </>
+      ) : null;
+    case "plan":
+      return strategy ? (
+        <>
+          <Goal strategy={strategy} />
+          <Moves overview={overview} strategy={strategy} />
+          <SeeMore label="the whole strategy: pillars, channels, funnel, budget, measurement">
+            <PlanPanel overview={overview} strategy={strategy} />
+          </SeeMore>
+        </>
+      ) : null;
+    case "briefing":
+      return strategy ? (
+        <>
+          <PlanAnswers overview={overview} />
+          <section className="brief-result card" aria-label="Week one">
+            <p className="brief-result-head">Week one</p>
+            <WeekList
+              entries={weekOne(strategy.calendar)}
+              patched={new Set((strategy.patched ?? []).map((item) => item.id))}
+            />
+          </section>
+        </>
+      ) : null;
+    case "golive":
+      return (
+        <>
+          <PlanAnswers overview={overview} />
+          <Networks overview={overview} networks={networks} />
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
 export interface BriefMainProps {
   overview: CmoOverview;
   stage: StageId;
@@ -728,6 +826,10 @@ export interface BriefMainProps {
   /** Google Analytics, Search Console or Shopify, from the full strategy. */
   onConnectMeasurement: ConnectMeasurement;
   brand: Omit<BrandDetailProps, "overview" | "messages">;
+  /** A finished stage shown read-only, while the chat stays on the current one. */
+  viewing?: StageId | null;
+  /** Back to the current stage. */
+  onBack?: () => void;
 }
 
 /** The page: one result, and See more for the full detail. It never asks. */
@@ -741,6 +843,8 @@ export function BriefMain({
   onPick,
   onConnectMeasurement,
   brand,
+  viewing = null,
+  onBack,
 }: BriefMainProps) {
   const [open, setOpen] = useState<Entry | null>(null);
   const brain = overview.brandBrain;
@@ -761,7 +865,11 @@ export function BriefMain({
   ) : null;
 
   let body: ReactNode = null;
-  if (away) {
+  if (viewing && viewing !== stage) {
+    body = (
+      <StageReview overview={overview} stage={viewing} networks={networks} />
+    );
+  } else if (away) {
     body = <Away overview={overview} />;
   } else if (stage === "research" && !brain) {
     const preview = overview.research?.preview ?? null;
@@ -990,12 +1098,21 @@ export function BriefMain({
     );
   }
 
-  const stageLabel = STAGES.find((candidate) => candidate.id === stage)?.label;
+  const label = (id: StageId) =>
+    STAGES.find((candidate) => candidate.id === id)?.label;
+  const looking = viewing && viewing !== stage ? viewing : null;
   return (
     <main className="brief-main" id="brief-main">
       <h1 className="ob-sr">
-        Hiring {AGENT_NAME}: {stageLabel}
+        Hiring {AGENT_NAME}: {label(looking ?? stage)}
+        {looking ? ", looking back" : ""}
       </h1>
+      {looking && onBack ? (
+        <button type="button" className="brief-back" onClick={onBack}>
+          <ArrowLeft size={14} aria-hidden="true" />
+          Back to {label(stage)}
+        </button>
+      ) : null}
       {body}
       <AnimatePresence>
         {open ? (
