@@ -1184,13 +1184,6 @@ describe("POST /chats/rooms/{id}/messages", () => {
         id: PARENT_MESSAGE_ID,
         parentMessageId: null,
       });
-      messageFindManyMock.mockResolvedValue([
-        { senderCoworkerId: COWORKER_ID, mentionsAsSource: [] },
-        {
-          senderCoworkerId: null,
-          mentionsAsSource: [{ coworkerId: "coworker_not_in_room" }],
-        },
-      ]);
       messageCreateMock.mockResolvedValue(
         createdMessage({
           senderUserId: USER_ID,

@@ -5576,7 +5576,7 @@ describe("post_chat chain depth", () => {
         roomId: "room_1",
         content: "Yes, X posts can include GIFs.",
       }),
-    ).rejects.toThrow(/already appears in this chat/i);
+    ).rejects.toThrow(/posted for you in this chat/i);
     expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
 
     // Summoning a Coworker there is a message of its own.

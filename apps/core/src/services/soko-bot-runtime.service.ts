@@ -2218,7 +2218,7 @@ export class SokoBotRuntimeService {
         });
         if (asked?.chatMention?.message.roomId === room.id) {
           throw new SokoBotRuntimeValidationError(
-            "Your answer to this message already appears in this chat, in the thread when you were asked in one. Write what you want to say as your answer and do not post it here as well.",
+            "Your answer to this message is posted for you in this chat, in the thread when you were asked in one, so write it as your answer. Post here yourself only to tag a Coworker or another assistant.",
           );
         }
       }

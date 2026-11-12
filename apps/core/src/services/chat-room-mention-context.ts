@@ -69,7 +69,7 @@ export function buildRoomMentionPrompt(params: {
   contextMessages: readonly RoomContextMessage[];
 }): string {
   const action = params.isThreadReply
-    ? "mentioned you in a thread"
+    ? "wrote to you in a thread"
     : "mentioned you";
   const messageBlock = `${params.senderName} ${action} in #${params.roomName}:\n\n${params.content}`;
 
