@@ -112,13 +112,18 @@ export function publicSeoStrategy(raw: unknown): {
     placesNote,
   } = parsed.data.strategy;
   // One line per note; an entry that is no text, blank or longer than the payload allows is dropped, not the strategy.
+  const lines = (notes: unknown[]) =>
+    notes
+      .filter((note): note is string => typeof note === "string")
+      .map((line) => line.trim())
+      .filter((line) => line && line.length <= SEO_STRATEGY_TEXT_MAX_LENGTH);
+  const listed = lines(sentNotes ?? []);
+  // A list with no note Core can keep hides no joined line.
   const placesNotes = (
-    sentNotes?.filter((note): note is string => typeof note === "string") ??
-    (placesNote ?? "").split(PLACES_NOTE_SEPARATOR)
-  )
-    .map((line) => line.trim())
-    .filter((line) => line && line.length <= SEO_STRATEGY_TEXT_MAX_LENGTH)
-    .slice(0, SEO_STRATEGY_PLACES_NOTES_MAX);
+    listed.length
+      ? listed
+      : lines((placesNote ?? "").split(PLACES_NOTE_SEPARATOR))
+  ).slice(0, SEO_STRATEGY_PLACES_NOTES_MAX);
   const strategy = seoStrategyPayloadSchema.safeParse({
     verdict,
     why,

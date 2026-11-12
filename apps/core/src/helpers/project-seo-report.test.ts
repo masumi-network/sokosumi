@@ -420,8 +420,9 @@ describe("public SEO report trust boundary", () => {
     expect(
       listed(["the place_fit agent failed: 429; retry later", 5, " ", "b"]),
     ).toEqual(["the place_fit agent failed: 429; retry later", "b"]);
-    // A list in a form Core cannot read falls back to the joined line.
-    expect(listed("x")).toEqual(["old", "line"]);
+    // A list in a form Core cannot read, or with no note it can keep, falls back to the joined line.
+    for (const other of ["x", [], [null, " "]])
+      expect(listed(other)).toEqual(["old", "line"]);
   });
 
   it("imports the audit with a note when it cannot read the strategy section", () => {
