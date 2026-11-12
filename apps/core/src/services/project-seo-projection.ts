@@ -153,6 +153,7 @@ export function projectSeoProjection(
     actions: ProjectSeoWorkspace["actions"] = [],
     metrics: ProjectSeoWorkspace["metrics"] = [],
     timeline: ProjectSeoWorkspace["timeline"] = [],
+    runs: NonNullable<ProjectSeoWorkspace["runs"]> = [],
     observations: ProjectSeoWorkspace["observations"] = [];
   const seenKeywords = new Set<string>(),
     seenCompetitors = new Set<string>(),
@@ -272,6 +273,33 @@ export function projectSeoProjection(
     const data = parsed.data;
     const coverage = seoPayloadCoverage(data);
     scopedPublicSources.set(row.id, row);
+    // One rule that fails on mobile and on desktop is one issue on that page.
+    const issues = new Set(
+      data.findings
+        .filter(
+          (item) =>
+            SEO_ISSUE_SEVERITIES.has(item.severity) &&
+            selectedUrls.has(normalizeSeoUrl(item.pageUrl)),
+        )
+        .map((item) => key(item.rowId, normalizeSeoUrl(item.pageUrl))),
+    ).size;
+    const request = row.sourceTaskId
+      ? input.analyses.find((item) => item.taskId === row.sourceTaskId)
+      : undefined;
+    runs.push({
+      observationId: row.id,
+      kind: row.kind,
+      observedAt: row.observedAt.toISOString(),
+      issues,
+      seconds: request
+        ? Math.max(
+            0,
+            Math.round(
+              (row.createdAt.getTime() - request.createdAt.getTime()) / 1000,
+            ),
+          )
+        : null,
+    });
     timeline.push({
       id: `observation:${row.id}`,
       kind: row.kind === "audit_full" ? "audit" : "check",
@@ -324,16 +352,7 @@ export function projectSeoProjection(
       ],
       rulebookVersion: data.rulebookVersion,
       artifactHash: row.artifactHash,
-      // One rule that fails on mobile and on desktop is one issue on that page.
-      issues: new Set(
-        data.findings
-          .filter(
-            (item) =>
-              SEO_ISSUE_SEVERITIES.has(item.severity) &&
-              selectedUrls.has(normalizeSeoUrl(item.pageUrl)),
-          )
-          .map((item) => key(item.rowId, normalizeSeoUrl(item.pageUrl))),
-      ).size,
+      issues,
       coverage,
     });
     for (const check of data.checks) {
@@ -718,6 +737,7 @@ export function projectSeoProjection(
     timeline: timeline.filter((item) =>
       matchesSeoPeriod(new Date(item.at), query),
     ),
+    runs,
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>
       overlaps(monitor.pageIds),

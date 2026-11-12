@@ -246,6 +246,65 @@ describe("stored SEO workspace projections", () => {
     });
   });
 
+  it("lists every run outside the period, with the time its request took", () => {
+    const input = fixture();
+    const taskId = randomUUID();
+    const first = observation(
+      input,
+      parsePublicSeoArtifact(legacyReport()),
+      "2026-11-01T12:00:00Z",
+    );
+    const second = {
+      ...observation(
+        input,
+        parsePublicSeoArtifact(focusedReport()),
+        "2026-11-02T12:00:00Z",
+      ),
+      sourceTaskId: taskId,
+      createdAt: new Date("2026-11-02T12:40:00Z"),
+    };
+    input.observations = [first, second];
+    input.analyses = [
+      {
+        id: randomUUID(),
+        projectId: input.project.id,
+        auditId: null,
+        kind: "page_check",
+        status: "completed",
+        taskId,
+        pageIds: input.scope.pageIds,
+        scopeVersion: 0,
+        request: {},
+        requestedBy: randomUUID(),
+        requestHash: "hash",
+        idempotencyKey: "run",
+        failureReason: null,
+        createdAt: new Date("2026-11-02T12:10:00Z"),
+        updatedAt: now,
+      },
+    ];
+    input.query = { from: "2026-11-02" };
+    const view = projectSeoProjection(input);
+    // The period cuts the results. It does not cut the list the reader picks a run from.
+    expect(view.observations.map((row) => row.id)).toEqual([second.id]);
+    expect(view.runs).toEqual([
+      {
+        observationId: first.id,
+        kind: first.kind,
+        observedAt: "2026-11-01T12:00:00.000Z",
+        issues: 1,
+        seconds: null,
+      },
+      {
+        observationId: second.id,
+        kind: second.kind,
+        observedAt: "2026-11-02T12:00:00.000Z",
+        issues: 0,
+        seconds: 1800,
+      },
+    ]);
+  });
+
   it("shows the newest site audit's strategy with the keyword groups of the selected pages", () => {
     const input = fixture();
     expect(projectSeoProjection(input).strategy).toBeNull();

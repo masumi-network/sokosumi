@@ -39140,6 +39140,12 @@ export const ProjectSeoWorkspaceSchema = {
                 $ref: '#/components/schemas/ProjectSeoTimelineItem'
             }
         },
+        runs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoRun'
+            }
+        },
         analyses: {
             type: 'array',
             items: {
@@ -40635,6 +40641,46 @@ export const ProjectSeoTimelineItemSchema = {
         'taskId',
         'status',
         'detail'
+    ]
+} as const;
+
+export const ProjectSeoRunSchema = {
+    type: 'object',
+    properties: {
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        issues: {
+            type: 'integer',
+            minimum: 0
+        },
+        seconds: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'observationId',
+        'kind',
+        'observedAt',
+        'issues',
+        'seconds'
     ]
 } as const;
 

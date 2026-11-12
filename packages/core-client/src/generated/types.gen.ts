@@ -10409,6 +10409,7 @@ export type ProjectSeoWorkspace = {
     indexStatus?: ProjectSeoIndexStatus | null;
     strategy?: ProjectSeoStrategy | null;
     timeline: Array<ProjectSeoTimelineItem>;
+    runs?: Array<ProjectSeoRun>;
     analyses: Array<ProjectSeoAnalysis>;
     monitors: Array<ProjectSeoMonitor>;
     availableActions: {
@@ -10678,6 +10679,14 @@ export type ProjectSeoTimelineItem = {
     taskId: string | null;
     status: string;
     detail: string;
+};
+
+export type ProjectSeoRun = {
+    observationId: string;
+    kind: string;
+    observedAt: Date;
+    issues: number;
+    seconds: number | null;
 };
 
 export type ProjectSeoAnalysis = {

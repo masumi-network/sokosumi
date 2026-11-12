@@ -555,6 +555,17 @@ export const seoObservationSchema = z
     }),
   })
   .openapi("ProjectSeoObservation");
+export const seoRunSchema = z
+  .object({
+    observationId: seoIdSchema,
+    kind: z.string(),
+    observedAt: dateTimeSchema,
+    /** Critical, major and minor findings this run saved for the selected pages. */
+    issues: z.number().int().nonnegative(),
+    /** Seconds from the request to the saved result. Null where no request of this workspace started the run. */
+    seconds: z.union([z.number().int().nonnegative(), z.null()]),
+  })
+  .openapi("ProjectSeoRun");
 export const seoJobSchema = z
   .object({
     id: seoIdSchema,
@@ -605,6 +616,8 @@ export const projectSeoWorkspaceSchema = z
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     timeline: z.array(seoTimelineSchema),
+    /** Every check of the selected pages. The period does not cut this list. */
+    runs: z.array(seoRunSchema).optional(),
     analyses: z.array(seoJobSchema),
     monitors: z.array(seoMonitorSchema),
     availableActions: z.object({

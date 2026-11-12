@@ -4232,6 +4232,11 @@ const projectSeoTimelineItemSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoRunSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
 const projectSeoAnalysisSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     return data;
@@ -4261,6 +4266,9 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
         data.strategy = projectSeoStrategySchemaResponseTransformer(data.strategy);
     }
     data.timeline = data.timeline.map((item: any) => projectSeoTimelineItemSchemaResponseTransformer(item));
+    if (data.runs) {
+        data.runs = data.runs.map((item: any) => projectSeoRunSchemaResponseTransformer(item));
+    }
     data.analyses = data.analyses.map((item: any) => projectSeoAnalysisSchemaResponseTransformer(item));
     data.monitors = data.monitors.map((item: any) => projectSeoMonitorSchemaResponseTransformer(item));
     return data;
