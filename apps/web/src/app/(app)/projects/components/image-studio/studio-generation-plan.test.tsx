@@ -519,6 +519,27 @@ describe("an honest generation plan", () => {
     ]);
   });
 
+  it("states the model limit once, adding the reason only when it is reached", () => {
+    render(
+      <Harness
+        initial={{ modelIds: ["many-0"], settings: SETTINGS }}
+        onGenerate={vi.fn()}
+      />,
+    );
+    const selectUpTo = screen.getByRole("button", {
+      name: 'selectModelsUpToLimit:{"count":12}',
+    });
+    expect(
+      screen.queryByText('modelSelectionLimit:{"count":12}'),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(selectUpTo);
+    expect(selectedLabels()).toHaveLength(MAX_BATCH);
+    expect(
+      screen.getByText('modelSelectionLimit:{"count":12}'),
+    ).toBeInTheDocument();
+  });
+
   it("explains and refuses a thirteenth model until another is removed", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(
