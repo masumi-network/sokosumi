@@ -11,6 +11,7 @@ import type {
 import { CORE_API_ERROR_KINDS, productBrief } from "@sokosumi/utils";
 import {
   AlertTriangle,
+  ChevronDown,
   Columns2,
   Download,
   MessageSquare,
@@ -1630,8 +1631,12 @@ function useSteadyDock(
  * A sentence chosen by stable code (never the provider's transport text), the
  * model that failed, that nothing was charged, and one retry. The provider's
  * own words stay one click away for whoever has to report it.
+ *
+ * The line itself is the disclosure: "{model} failed · not charged" opens to
+ * the reason and the provider's words, so the notice is one row beside Try
+ * again instead of a title, a paragraph, a toggle and a button row.
  */
-function FailedJob({
+export function FailedJob({
   catalog,
   job,
   labels,
@@ -1648,52 +1653,86 @@ function FailedJob({
 }) {
   const uncertain = job.retryMayDuplicateCharge;
   const model = resolveModel(catalog, job.model).label;
+  const dismiss = (
+    <Button
+      aria-label={labels.close}
+      className="hit-area size-6"
+      onClick={onDismiss}
+      size="icon"
+      variant="ghost"
+    >
+      <X aria-hidden className="size-3.5" />
+    </Button>
+  );
+  if (uncertain) {
+    return (
+      <div
+        className="bg-card-background text-muted-foreground flex items-start gap-3 rounded-xl p-3 text-sm"
+        role="status"
+      >
+        <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-foreground font-medium">{labels.uncertainTitle}</p>
+          <p className="text-pretty">{labels.uncertainBody}</p>
+          {job.error ? (
+            <details>
+              <summary className="hover:text-foreground focus-visible:ring-ring w-fit cursor-pointer rounded text-xs outline-none select-none focus-visible:ring-2">
+                {labels.failedDetails}
+              </summary>
+              <p className="mt-1 font-mono text-xs break-words">{job.error}</p>
+            </details>
+          ) : null}
+          <div className="flex gap-2 pt-1">
+            <Button onClick={onRefresh} size="sm" variant="secondary">
+              {labels.checkAgain}
+            </Button>
+            <Button onClick={onRetry} size="sm" variant="secondary">
+              {labels.submitAnyway}
+            </Button>
+          </div>
+        </div>
+        {dismiss}
+      </div>
+    );
+  }
   return (
     <div
       className="bg-card-background text-muted-foreground flex items-start gap-3 rounded-xl p-3 text-sm"
       role="status"
     >
-      <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-foreground font-medium">
-          {uncertain ? labels.uncertainTitle : `${model}: ${labels.failed}`}
-        </p>
-        <p className="text-pretty">
-          {uncertain
-            ? labels.uncertainBody
-            : job.failureReason === null
+      <AlertTriangle aria-hidden className="mt-2 size-4 shrink-0" />
+      {/* Try again sits beside the line, and drops under it only when a
+          longer translation would squeeze the line into a narrow column. */}
+      <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-1">
+        <details className="group min-w-0 grow basis-40">
+          <summary className="text-foreground focus-visible:ring-ring flex w-fit cursor-pointer list-none items-start gap-1 rounded py-1.5 font-medium outline-none select-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+            <span className="text-pretty">
+              {`${model} ${labels.failedAfterModel} · ${labels.failedNoCharge}`}
+            </span>
+            <ChevronDown
+              aria-hidden
+              className="text-muted-foreground mt-0.5 size-4 shrink-0 transition-transform group-open:rotate-180"
+            />
+          </summary>
+          <p className="text-pretty">
+            {job.failureReason === null
               ? labels.failedBodyUnreported
-              : labels.failedBody[job.failureReason]}{" "}
-          {uncertain ? null : labels.failedNoCharge}
-        </p>
-        {job.error ? (
-          <details>
-            <summary className="hover:text-foreground focus-visible:ring-ring w-fit cursor-pointer rounded text-xs outline-none select-none focus-visible:ring-2">
-              {labels.failedDetails}
-            </summary>
+              : labels.failedBody[job.failureReason]}
+          </p>
+          {job.error ? (
             <p className="mt-1 font-mono text-xs break-words">{job.error}</p>
-          </details>
-        ) : null}
-        <div className="flex gap-2 pt-1">
-          {uncertain ? (
-            <Button onClick={onRefresh} size="sm" variant="secondary">
-              {labels.checkAgain}
-            </Button>
           ) : null}
-          <Button onClick={onRetry} size="sm" variant="secondary">
-            {uncertain ? labels.submitAnyway : labels.tryAgain}
-          </Button>
-        </div>
+        </details>
+        <Button
+          className="shrink-0"
+          onClick={onRetry}
+          size="sm"
+          variant="secondary"
+        >
+          {labels.tryAgain}
+        </Button>
       </div>
-      <Button
-        aria-label={labels.close}
-        className="hit-area size-6"
-        onClick={onDismiss}
-        size="icon"
-        variant="ghost"
-      >
-        <X aria-hidden className="size-3.5" />
-      </Button>
+      <div className="mt-1 shrink-0">{dismiss}</div>
     </div>
   );
 }

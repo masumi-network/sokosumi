@@ -312,6 +312,13 @@ export interface StudioLabels {
   creditsUnderivable: string;
   creditsNoFigure: string;
   /**
+   * Follows the model's name on a failed generation ("Model X failed").
+   *
+   * A word, not a sentence, so the notice stays one line: the model, this, and
+   * `failedNoCharge`. Why it failed sits behind the notice's disclosure.
+   */
+  failedAfterModel: string;
+  /**
    * Said on a failed generation: it cost nothing.
    *
    * Because nothing was taken, not because something was given back — images

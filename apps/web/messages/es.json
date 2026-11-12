@@ -4492,7 +4492,8 @@
       "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra cuando se entrega la imagen. Una generación que falla no cuesta nada.",
       "creditsUnderivable": "Al menos uno de estos modelos no puede tasarse por imagen para el encuadre elegido, así que este lote no se puede sumar.",
       "creditsNoFigure": "Sin cifra",
-      "failedNoCharge": "No se cobró nada por ella.",
+      "failedAfterModel": "falló",
+      "failedNoCharge": "sin cargo",
       "failedBodyUnreported": "El modelo no devolvió ninguna imagen, y esta generación es demasiado antigua para decir por qué.",
       "FailureReasons": {
         "provider_rejected": "El proveedor de imágenes rechazó esta solicitud.",
