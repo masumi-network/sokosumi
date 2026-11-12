@@ -31335,6 +31335,15 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    questionIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 3
                                     }
                                 },
                                 required: [
@@ -31652,6 +31661,15 @@ export const MarketingStrategySchema = {
                                                 type: 'string',
                                                 minLength: 1,
                                                 maxLength: 400
+                                            },
+                                            questionIds: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                maxItems: 3
                                             }
                                         },
                                         required: [
@@ -33094,6 +33112,15 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            questionIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 3
                             }
                         },
                         required: [
@@ -33411,6 +33438,15 @@ export const MarketingStrategyRequestSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    questionIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 3
                                     }
                                 },
                                 required: [
@@ -47721,6 +47757,15 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    questionIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        maxItems: 3
                     }
                 },
                 required: [
@@ -48038,6 +48083,15 @@ export const CmoPlanSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            questionIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 3
                             }
                         },
                         required: [

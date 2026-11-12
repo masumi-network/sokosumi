@@ -837,6 +837,14 @@ describe("keepCalendarWork", () => {
     expect(kept[0]?.draft).toBe("Full text");
   });
 
+  it("keeps a kept entry's question links", () => {
+    const kept = keepCalendarWork(
+      [{ ...entry("a", "2026-11-02", "Customer story"), questionIds: ["q1"] }],
+      [entry("a", "2026-11-02", "Customer story")],
+    );
+    expect(kept[0]?.questionIds).toEqual(["q1"]);
+  });
+
   it("drops a stale draft when the piece was rewritten", () => {
     const kept = keepCalendarWork(
       [entry("a", "2026-11-02", "Customer story", "Full text")],

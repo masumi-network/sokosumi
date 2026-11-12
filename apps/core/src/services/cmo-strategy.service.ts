@@ -646,6 +646,7 @@ export function keepCalendarWork(
       brief: entry.brief ?? old.brief,
       why: entry.why ?? old.why,
       hook: entry.hook ?? old.hook,
+      questionIds: entry.questionIds ?? old.questionIds,
     };
   });
   return withDrafts.filter((entry) => {

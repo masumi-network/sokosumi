@@ -52,7 +52,30 @@ export function parseMarketingPlan(
   value: unknown,
 ): MarketingStrategyPlan | null {
   const parsed = marketingStrategyPlanSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
+  return parsed.success ? linkPlanQuestions(parsed.data) : null;
+}
+
+/**
+ * Each question's entryIds, from the calendar entries whose questionIds name
+ * it: at most three, in calendar order. Cuso links a piece when he writes
+ * it, after the questions; what a save sent as entryIds is ignored.
+ */
+function linkPlanQuestions(plan: MarketingStrategyPlan): MarketingStrategyPlan {
+  const linked = new Map(
+    plan.questions.map(({ id }) => [id, new Set<string>()]),
+  );
+  for (const entry of plan.calendar)
+    for (const id of entry.questionIds ?? []) {
+      const ids = linked.get(id);
+      if (ids && ids.size < 3) ids.add(entry.id);
+    }
+  return {
+    ...plan,
+    questions: plan.questions.map(({ entryIds: _sent, ...question }) => {
+      const ids = [...(linked.get(question.id) ?? [])];
+      return ids.length > 0 ? { ...question, entryIds: ids } : question;
+    }),
+  };
 }
 
 /**
