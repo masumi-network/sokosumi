@@ -14,6 +14,7 @@ import {
   renderWithQueryClient,
   roomsClientBaseProps,
   setMessageReactionAction,
+  toast,
   unpinRoomMessageAction,
   useChatRoomRealtimeMock,
 } from "./rooms-client-harness";
@@ -405,6 +406,138 @@ describe("RoomsClient transcript row render isolation", () => {
 
     expect(unpinRoomMessageAction).toHaveBeenCalledWith("room-channel", "m2");
     expect(pinRoomMessageAction).not.toHaveBeenCalled();
+  });
+
+  it("shows the Pin before Core answers and sends one write for two clicks", async () => {
+    let answer: (result: { ok: true; value: never }) => void = () => {};
+    vi.mocked(pinRoomMessageAction).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await mountRoom();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+    });
+    expect(pinnedFlags()).toEqual(["false", "true", "false"]);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+    });
+    expect(pinRoomMessageAction).toHaveBeenCalledTimes(1);
+    expect(unpinRoomMessageAction).not.toHaveBeenCalled();
+
+    await act(async () => {
+      answer({ ok: true, value: undefined as never });
+    });
+    expect(pinnedFlags()).toEqual(["false", "true", "false"]);
+
+    // The answered write frees the message for the next one.
+    vi.mocked(unpinRoomMessageAction).mockResolvedValueOnce({
+      ok: true as const,
+      value: undefined as never,
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+    });
+    expect(unpinRoomMessageAction).toHaveBeenCalledWith("room-channel", "m2");
+    expect(pinnedFlags()).toEqual(["false", "false", "false"]);
+  });
+
+  it("puts the row back and says so when Core refuses the Pin", async () => {
+    vi.mocked(pinRoomMessageAction).mockResolvedValueOnce({
+      ok: false as const,
+      error: { message: "Pin refused" } as never,
+    });
+    await mountRoom();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+    });
+
+    expect(pinnedFlags()).toEqual(["false", "false", "false"]);
+    expect(toast.error).toHaveBeenCalledWith("Pin refused");
+  });
+
+  it("puts the Pin back when the unpin request fails", async () => {
+    vi.mocked(unpinRoomMessageAction).mockRejectedValueOnce(new Error("down"));
+    await mountRoom([
+      message("m1", 1),
+      { ...message("m2", 2), pinnedAt: new Date("2026-07-01T13:00:00.000Z") },
+      message("m3", 3),
+    ]);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+    });
+
+    expect(pinnedFlags()).toEqual(["false", "true", "false"]);
+    expect(toast.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the Pin when its own realtime event came before the failed answer", async () => {
+    let fail: (error: Error) => void = () => {};
+    vi.mocked(pinRoomMessageAction).mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
+    await mountRoom();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+    });
+
+    await act(async () => {
+      realtimeOptions().onPinnedMessage?.({
+        action: "pin",
+        roomId: "room-channel",
+        messageId: "m2",
+        pinnedMessageCount: 1,
+      });
+    });
+    await act(async () => {
+      fail(new Error("timeout"));
+    });
+
+    expect(pinnedFlags()).toEqual(["false", "true", "false"]);
+    expect(toast.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("sets the Pin again when a read put the old state back during the write", async () => {
+    vi.useFakeTimers();
+    // A transcript read that began before Core had the write.
+    fetchRoomMessagesMock.mockImplementation(async () => ({
+      messages: [
+        message("m1", 1),
+        { ...message("m2", 2), updatedAt: new Date("2026-07-02T00:00:00Z") },
+        message("m3", 3),
+      ],
+      nextCursor: null,
+    }));
+    let answer: (result: { ok: true; value: never }) => void = () => {};
+    vi.mocked(pinRoomMessageAction).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await mountRoom();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000);
+    });
+    expect(pinnedFlags()).toEqual(["false", "false", "false"]);
+
+    await act(async () => {
+      answer({ ok: true, value: undefined as never });
+    });
+
+    expect(pinnedFlags()).toEqual(["false", "true", "false"]);
   });
 
   it("marks messages pinned on first load without opening the pinned panel", async () => {
