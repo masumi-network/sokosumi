@@ -16,7 +16,7 @@ const tasksDir = path.resolve(
 );
 const shareViewPath = path.resolve(
   tasksDir,
-  "../../share/components/shared-task-view.tsx",
+  "../../share/(page)/components/shared-task-view.tsx",
 );
 
 function readTasks(...segments: string[]): string {

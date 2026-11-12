@@ -150,6 +150,7 @@ function pngBytes(width: number, height: number): Uint8Array {
 }
 
 const BASE_INPUT = {
+  modelId: "gemini-flash",
   projectId: "project-1",
   workspaceId: "workspace-1",
   userId: "user-1",
@@ -266,6 +267,7 @@ describe("submitting quotes, and takes nothing", () => {
       "user-1",
       null,
       expect.anything(),
+      { projectId: "project-1" },
     );
   });
 
@@ -279,10 +281,12 @@ describe("submitting quotes, and takes nothing", () => {
 
     await createImageJob(BASE_INPUT);
 
+    // The same Project the delivery charges with.
     expect(getBalanceMock).toHaveBeenCalledWith(
       "user-1",
       "org-1",
       expect.anything(),
+      { projectId: "project-1" },
     );
   });
 });
@@ -368,6 +372,7 @@ describe("delivering an image is when the money moves", () => {
       expect.objectContaining({
         userId: "user-1",
         organizationId: null,
+        projectId: "project-1",
         cents: FLASH_1K_CENTS,
       }),
     );

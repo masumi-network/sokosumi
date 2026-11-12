@@ -95,3 +95,78 @@ describe.skipIf(!enabled)("Task outputs a Soko Bot reads (Postgres)", () => {
     ).toEqual([OUTPUTS.publicInProject, OUTPUTS.publicInOtherProject].sort());
   });
 });
+
+const PEOPLE = {
+  maker: `maker-${randomUUID()}`,
+  colleague: `colleague-${randomUUID()}`,
+  admin: `admin-${randomUUID()}`,
+  outsider: `outsider-${randomUUID()}`,
+};
+const DRIVE = {
+  inRoom: randomUUID(),
+  besideRoom: randomUUID(),
+  sameNamePrefix: randomUUID(),
+};
+
+// An organization data room's files, as each member reads the catalog.
+async function visibleDriveFiles(actor: FileActor): Promise<string[]> {
+  if (!db) throw new Error("Missing integration database");
+  let ids: string[] = [];
+  await db
+    .$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        await tx.$executeRawUnsafe(
+          "SET LOCAL session_replication_role = replica",
+        );
+        for (const [userId, role] of [
+          [PEOPLE.maker, "member"],
+          [PEOPLE.colleague, "member"],
+          [PEOPLE.admin, "admin"],
+          [PEOPLE.outsider, "member"],
+        ] as const)
+          await tx.$executeRaw`INSERT INTO member (id, "userId", "organizationId", role) VALUES (${randomUUID()}, ${userId}, ${ORG}, ${role})`;
+        const roomId = randomUUID();
+        await tx.$executeRaw`INSERT INTO data_room (id, "updatedAt", "workspaceId", "sourceScope", "ownerId", "folderPath", "createdByUserId", token) VALUES (${roomId}::uuid, now(), ${WS}::uuid, 'ORGANIZATION', ${ORG}, 'Deals/Acme', ${PEOPLE.maker}, ${randomUUID()})`;
+        await tx.$executeRaw`INSERT INTO data_room_colleague ("roomId", "userId", "addedByUserId") VALUES (${roomId}::uuid, ${PEOPLE.colleague}, ${PEOPLE.maker})`;
+        const file = async (fileId: string, path: string) => {
+          const sourceId = `drive/organizations/${ORG}/${path}`;
+          await tx.$executeRaw`INSERT INTO file_resource (id, "updatedAt", "workspaceId", "sourceKind", "sourceScope", "sourceId", "ownerOrganizationId", "displayName", "normalizedName", lifecycle) VALUES (${fileId}::uuid, now(), ${WS}::uuid, 'DRIVE_UPLOAD', 'ORGANIZATION', ${sourceId}, ${ORG}, ${fileId}, ${fileId}, 'ACTIVE')`;
+        };
+        await file(DRIVE.inRoom, "Deals/Acme/Term sheet.pdf");
+        await file(DRIVE.besideRoom, "Deals/Notes.txt");
+        await file(DRIVE.sameNamePrefix, "Deals/Acme Corp/Logo.png");
+        const rows = await tx.$queryRaw<{ id: string }[]>`
+          SELECT fr.id::text AS id FROM file_resource fr
+          WHERE ${buildAuthorizedResourceSql({ workspaceId: WS, actor })}`;
+        ids = rows.map((row) => row.id).sort();
+        throw new Rollback();
+      },
+      { timeout: 20000 },
+    )
+    .catch((error: unknown) => {
+      if (!(error instanceof Rollback)) throw error;
+    });
+  return ids;
+}
+
+describe.skipIf(!enabled)("Organization data rooms (Postgres)", () => {
+  const as = (userId: string, kind: FileActor["kind"] = "interactive") =>
+    visibleDriveFiles({ userId, organizationId: ORG, kind });
+  const everything = Object.values(DRIVE).sort();
+  const outside = [DRIVE.besideRoom, DRIVE.sameNamePrefix].sort();
+
+  it("hides the room's files from a member outside it, and nothing else", async () => {
+    expect(await as(PEOPLE.outsider)).toEqual(outside);
+  });
+
+  it("shows them to the maker, a colleague and an admin", async () => {
+    expect(await as(PEOPLE.maker)).toEqual(everything);
+    expect(await as(PEOPLE.colleague)).toEqual(everything);
+    expect(await as(PEOPLE.admin)).toEqual(everything);
+  });
+
+  it("hides them from an agent acting even for the maker", async () => {
+    expect(await as(PEOPLE.maker, "soko_bot")).toEqual(outside);
+    expect(await as(PEOPLE.maker, "coworker")).toEqual(outside);
+  });
+});

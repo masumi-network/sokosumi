@@ -1,4 +1,8 @@
-import type { ChatRoom, TaskListItem } from "@sokosumi/core-client";
+import type {
+  ChatCatchUpItem,
+  ChatRoom,
+  TaskListItem,
+} from "@sokosumi/core-client";
 
 type TeamTask = Pick<
   TaskListItem,
@@ -63,4 +67,36 @@ export function toTeamDay(
       updatedAt: task.updatedAt,
       who: taskWho(task),
     }));
+}
+
+/**
+ * An important chat message from someone else that the reader has not read,
+ * from the last day: a request, a decision, a blocker and the like.
+ */
+export interface SokoBotHomeChat {
+  roomId: string;
+  /** The row opens at it, a Thread reply included. */
+  messageId: string;
+  /** The message as plain text, mentions named. */
+  title: string;
+  /** Who wrote it: a person, a Coworker or a Soko Bot. */
+  from: string;
+  at: Date;
+}
+
+/**
+ * Core's important messages as Home rows, in Core's order: newest first,
+ * one per room. `untitled` names a message with no text.
+ */
+export function toImportantChats(
+  items: readonly ChatCatchUpItem[],
+  untitled: string,
+): SokoBotHomeChat[] {
+  return items.map((item) => ({
+    roomId: item.roomId,
+    messageId: item.messageId,
+    title: item.excerpt || untitled,
+    from: item.senderName,
+    at: item.createdAt,
+  }));
 }

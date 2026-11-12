@@ -176,6 +176,7 @@ export function ResultPreviewCard({
             name: output.name,
             size: output.sizeBytes ?? 0,
             mimeType: output.contentType ?? "image/png",
+            transformation: output.transformation,
             kind: output.contentType?.startsWith("video/")
               ? "video"
               : output.contentType === "image/gif"
@@ -463,6 +464,89 @@ export function ResultPreviewCard({
   );
 }
 
+type AvailableResult = Extract<ChatResultPreview, { state: "available" }>;
+
+function isFileResult(result: ChatResultPreview): result is AvailableResult {
+  return (
+    result.state === "available" && result.kind === "file" && !result.decision
+  );
+}
+
+/**
+ * Two or more files in one message share one card, in the first file's
+ * place, so an invoice and its receipt do not read as the same file twice.
+ */
+export function groupFileResults(
+  results: readonly ChatResultPreview[],
+): (ChatResultPreview | AvailableResult[])[] {
+  const files = results.filter(isFileResult);
+  if (files.length < 2) return [...results];
+  return results.flatMap((result): (ChatResultPreview | AvailableResult[])[] =>
+    !isFileResult(result) ? [result] : result === files[0] ? [files] : [],
+  );
+}
+
+function FileGroupCard({ results }: { results: AvailableResult[] }) {
+  const t = useTranslations("Components.ChatResults");
+  const format = useFormatter();
+  const outputs = results.flatMap((result) => result.outputs ?? []);
+  const capturedAt = Math.max(
+    ...results.map((result) => new Date(result.capturedAt).getTime()),
+  );
+  return (
+    <article
+      className="bg-background w-full min-w-0 max-w-xl space-y-3 rounded-lg border p-4"
+      data-testid="result-file-group"
+    >
+      <div className="flex items-center gap-2">
+        <FileText
+          aria-hidden
+          className="text-muted-foreground size-4 shrink-0"
+        />
+        <span className="text-muted-foreground text-xs">
+          {t("files", { count: outputs.length })}
+        </span>
+      </div>
+      <ul className="divide-y">
+        {outputs.map((output, index) => (
+          <li
+            key={`${output.openHref}-${index}`}
+            className="flex min-w-0 items-center gap-3 py-2 first:pt-0 last:pb-0"
+          >
+            <Link
+              href={output.openHref}
+              aria-label={t("openLabel", { title: output.name })}
+              className="focus-visible:ring-ring text-foreground min-w-0 flex-1 truncate rounded-sm text-sm font-medium outline-none hover:underline focus-visible:ring-2"
+            >
+              {output.name}
+            </Link>
+            {output.sizeBytes != null ? (
+              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                {fileSize(output.sizeBytes, format.number)}
+              </span>
+            ) : null}
+            {output.downloadHref ? (
+              <a
+                href={output.downloadHref}
+                aria-label={t("downloadLabel", { name: output.name })}
+                download
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring shrink-0 rounded-sm outline-none focus-visible:ring-2"
+              >
+                <Download aria-hidden className="size-4" />
+              </a>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <p className="text-muted-foreground border-t pt-2 text-xs">
+        {t("recorded", {
+          time: format.dateTime(new Date(capturedAt), "dateTime"),
+        })}
+      </p>
+    </article>
+  );
+}
+
 const SIZE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
 
 /** A decimal file size in the reader's locale, such as "182 kB". */
@@ -629,16 +713,19 @@ function AuthorizedResultPreviews({
         className="my-2 flex min-w-0 flex-col gap-2"
         data-testid="chat-result-previews"
       >
-        {results
-          .filter(
+        {groupFileResults(
+          results.filter(
             (result) =>
               !(
                 result.state === "available" &&
                 result.decision &&
                 existingDecisionIds?.includes(result.decision.id)
               ),
-          )
-          .map((result) => (
+          ),
+        ).map((result) =>
+          Array.isArray(result) ? (
+            <FileGroupCard key={result[0]?.id} results={result} />
+          ) : (
             <ResultPreviewCard
               key={result.id}
               result={result}
@@ -649,7 +736,8 @@ function AuthorizedResultPreviews({
               }}
               onSocialPostResolved={() => void query.refetch()}
             />
-          ))}
+          ),
+        )}
       </div>
       {renderFooter?.(results)}
     </>

@@ -32,6 +32,19 @@ overrides:
   # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again. pnpm audit reported
   # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj, and GHSA-2883-xcg3-v3hh. 4.3.2 is
   # still the latest 4.x (`v4-legacy`).
+  # 2026-11-09 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again via
+  # @hey-api/json-schema-ref-parser@1.4.4. pnpm audit reported the same three
+  # GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm `latest` is 5.5.0.
+  # 2026-11-10 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again via
+  # @hey-api/json-schema-ref-parser@1.4.4. pnpm audit reported the same three
+  # GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm `latest` is 5.5.0.
+  # 2026-11-11 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins including eve 1.0.0-rc.9, pnpm 12.18.0) landed js-yaml@4.2.0 again via
+  # @hey-api/json-schema-ref-parser@1.4.4 (still latest). pnpm audit reported
+  # the same three GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm
+  # `latest` is 5.5.0.
   "js-yaml@<4.3.2": "4.3.2"
   # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c: dropped.
   # GHSA-w293-vg96-wgc3 (CVE-2026-84961) is patched in 7.29.1 and 8.10.2; 6.x is
@@ -48,11 +61,58 @@ overrides:
   # undici@7.30.2 (patched), and undici@8.12.3 (still vulnerable). pnpm audit
   # had not indexed the new GHSAs. The 8.x pin is required. No 7.x pin: the
   # fresh resolve already selects 7.30.2, and the lockfile is updated to match.
+  # 2026-11-09 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins, pnpm 12.18.0) landed undici@6.29.1, undici@7.30.2, and undici@8.12.3.
+  # 8.12.4 and 7.30.2 are still the newest releases. The v8.12.4 notes still
+  # name 8.12.2 and 8.12.3 for CVE-2026-116592 / GHSA-mqg3-3v4r-cm32 and the
+  # five related fixes; the v7.30.2 notes name 7.30.1. pnpm audit still does
+  # not index those GHSAs (OSV has no undici entries for 8.12.3 or 7.30.1).
+  # The 8.x pin stays. No 7.x pin.
+  # 2026-11-10 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins, pnpm 12.18.0) landed undici@6.29.1, undici@7.30.2, and undici@8.12.3.
+  # 8.12.4 is still npm `latest`. 7.30.2 is still the newest 7.x. 6.29.1 is
+  # still the newest 6.x. pnpm audit still does not index the Nov 5 undici
+  # GHSAs. The 8.x pin stays. No 7.x pin.
+  # 2026-11-11 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins, pnpm 12.18.0) landed undici@6.29.1, undici@7.30.2, and undici@8.12.3.
+  # npm `latest` is still 8.12.4. The v8.12.4 notes still name 8.12.2 and
+  # 8.12.3. 7.30.2 is still the newest 7.x. 6.29.1 is still the newest 6.x.
+  # pnpm audit on that resolve did not report undici. The 8.x pin stays. No
+  # 7.x pin.
   "undici@>=8.12.2 <8.12.4": "8.12.4"
+  # zod GHSA-mrhx-c7xc-m3w5 patched in 4.6.6. 2026-11-10: @vercel/oidc 3.8.10
+  # and 4.0.0 (via @vercel/blob 2.9.0 and @vercel/sandbox 3.9.1, both latest)
+  # pin @vercel/cli-config 0.3.1, which pins zod 4.1.11. Workspace pins are
+  # already 4.6.7.
+  "zod@>=4.0.0 <4.6.6": "4.6.7"
+  # zod GHSA-mrhx-c7xc-m3w5 has no 3.x fix. 2026-11-11: puppeteer and
+  # puppeteer-core 25.11.0 (held to match @sparticuz/chromium-min 153.0.0, the
+  # newest pack; see apps/web/src/config/env.secrets.test.ts) depend on
+  # chromium-bidi 17.0.2, which asks for zod ^3.24.1. Puppeteer 25.13+ moves to
+  # chromium-bidi 157 and zod 4 but needs Chrome 155. chromium-bidi is loaded
+  # only for Firefox or `protocol: "webDriverBiDi"` (puppeteer-core
+  # BrowserLauncher `import("../bidi/bidi.js")`). Every launch here uses
+  # Chrome over the default CDP, so this zod is not loaded at runtime. Its
+  # protocol-parser reads `error.errors`, which zod 4 removed: drop this pin
+  # before anything launches with webDriverBiDi, and when puppeteer moves past
+  # 25.12.
+  "chromium-bidi@17.0.2>zod": "4.6.7"
+  # katex GHSA-238p-pmpm-9mq7 (low) patched in 0.18.2. 2026-11-11: micromark-extension-math
+  # 3.1.0 (latest, via remark-math 6.0.0, @m2d/math and @lobehub/ui) still asks
+  # for katex ^0.16.0. remark-math only parses here; katex runs only in the
+  # extension's HTML renderer (`lib/html.js`, `katex.renderToString`), which no
+  # code here uses. 0.19.1 matches the katex @lobehub/ui already resolves.
+  "micromark-extension-math>katex": "0.19.1"
+  # postcss-selector-parser GHSA-rj75-hqrm-r3gf patched in 6.1.5.
+  # @tailwindcss/typography 0.5.20 (latest) pins 6.0.10. 6.1.6 is the newest 6.x.
+  "postcss-selector-parser@>=6.0.0 <6.1.5": "6.1.6"
   # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-04 re-resolve without an
   # override still lands only esbuild@0.28.2 (patched; 0.28.2 is still latest).
   # 2026-11-05 re-resolve landed the same esbuild@0.28.2.
   # 2026-11-06 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
+  # 2026-11-09 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
+  # 2026-11-10 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
+  # 2026-11-11 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
   # rendering PDF pages to images. Files extraction reads the **text layer
@@ -90,8 +150,6 @@ allowBuilds:
   "@vercel/speed-insights": false
   better-sqlite3: false
   esbuild: false
-  # Core renders avatar loops with it; the install script downloads the binary.
-  ffmpeg-static: true
   puppeteer: false
   puppeteer-core: false
   sharp: false

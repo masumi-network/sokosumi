@@ -47,6 +47,7 @@ const contact = (overrides: Partial<Contact>): Contact => ({
       source: "EMAIL",
       sourceUrl: null,
       verified: false,
+      followers: null,
       createdAt: new Date(),
     },
   ],
@@ -100,6 +101,7 @@ describe("ContactsFilterBar", () => {
           replyState: "NO_REPLY",
           kind: null,
           knownBy: null,
+          source: null,
         }}
         onFilter={onFilter}
         teammates={[]}

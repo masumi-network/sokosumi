@@ -1,13 +1,10 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
-import {
-  mountSokoBotAvatarStudioByIdRoutes,
-  mountSokoBotAvatarStudioMeRoutes,
-} from "./avatar-studio.js";
 import { mountSokoBotAvatarRoutes } from "./avatars.js";
 import { mountSokoBotIntegrationByIdRoutes } from "./by-id/integrations.js";
 import { mountSokoBotScheduleByIdRoutes } from "./by-id/schedules.js";
+import { cusoLock } from "./cuso-lock.js";
 import { mountSokoBotEventRoutes } from "./events.js";
 import { sokoBotRouteGate } from "./helpers.js";
 import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth.js";
@@ -38,6 +35,9 @@ import mountSimulateMySokoBotTaskEvent from "./me/lab/task-event/post.js";
 import mountResetMySokoBotMemory, {
   mountById as mountResetSokoBotMemory,
 } from "./me/memory/reset/post.js";
+import mountRenameMySokoBot, {
+  mountById as mountRenameSokoBot,
+} from "./me/name/put.js";
 import mountDeleteMySokoBotPermanently, {
   mountById as mountDeleteSokoBotPermanently,
 } from "./me/permanent/delete.js";
@@ -85,6 +85,7 @@ import mountListSokoBotVersions from "./versions/get.js";
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
 app.use("*", sokoBotRouteGate);
+app.use("*", cusoLock);
 
 mountSokoBotApiKeyRoutes(app);
 mountSokoBotEventRoutes(app);
@@ -113,11 +114,11 @@ mountFinalizeMySokoBotIntegration(app);
 mountDisconnectMySokoBotIntegration(app);
 mountIntroduceMySokoBot(app);
 mountClaimMySokoBotAvatar(app);
-mountSokoBotAvatarStudioMeRoutes(app);
 mountListSokoBotVersions(app);
 mountUpdateMySokoBotProactive(app);
 mountSendMySokoBotTurnFeedback(app);
 mountUpdateMySokoBotBoardFollowing(app);
+mountRenameMySokoBot(app);
 mountUpdateMySokoBotVersion(app);
 mountRunMySokoBotLabIngest(app);
 mountSimulateMySokoBotTaskEvent(app);
@@ -141,6 +142,7 @@ mountResetSokoBotMemory(app);
 mountDeleteSokoBotPermanently(app);
 mountUpdateSokoBotProactive(app);
 mountUpdateSokoBotBoardFollowing(app);
+mountRenameSokoBot(app);
 mountResolveSokoBotDecision(app);
 mountCancelSokoBotTurn(app);
 mountGetSokoBotTurn(app);
@@ -150,7 +152,6 @@ mountStartSokoBotTurn(app);
 mountGetSokoBotUsage(app);
 mountUpdateSokoBotVersion(app);
 mountReactivateSokoBot(app);
-mountSokoBotAvatarStudioByIdRoutes(app);
 mountSokoBotIntegrationByIdRoutes(app);
 mountSokoBotScheduleByIdRoutes(app);
 

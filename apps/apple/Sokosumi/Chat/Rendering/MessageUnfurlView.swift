@@ -15,8 +15,6 @@ struct MessageUnfurlView: View {
   private var showsRemove: Bool {
     #if os(macOS)
       hovered || linkFocused || removeFocused || removing
-    #else
-      true
     #endif
   }
 

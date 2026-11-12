@@ -32,6 +32,8 @@ interface CreateProjectWizardProps {
   initialName?: string;
   creationSource?: ProjectCreationSource;
   onSuccess?: (projectId: string, name: string, project?: Project) => void;
+  /** The brand step's "Open project" button; without it the button only closes. */
+  onOpenProject?: (projectId: string) => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
   onCloseAutoFocus?: (event: Event) => void;
 }
@@ -42,6 +44,7 @@ export function CreateProjectWizard({
   initialName = "",
   creationSource,
   onSuccess,
+  onOpenProject,
   onSubmittingChange,
   onCloseAutoFocus,
 }: CreateProjectWizardProps) {
@@ -109,6 +112,7 @@ export function CreateProjectWizard({
 
   function handleOpenProject() {
     completeCreatedProject();
+    if (createdProjectId) onOpenProject?.(createdProjectId);
   }
 
   async function handleCreate() {

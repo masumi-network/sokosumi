@@ -18,10 +18,13 @@ import prisma from "@/lib/db/prisma";
 
 const {
   projectFindFirstMock,
+  workspaceFindUniqueOrThrowMock,
   socialConnectionFindFirstMock,
   socialAccountPostFindFirstMock,
   socialPostCreateMock,
   socialPostFindFirstMock,
+  socialPostFindUniqueMock,
+  prepareSocialPostMediaMock,
   socialPostFindManyMock,
   socialPostCountMock,
   socialPostUpdateManyMock,
@@ -32,10 +35,13 @@ const {
   resolveXSubscriptionTypeMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
+  workspaceFindUniqueOrThrowMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
   socialAccountPostFindFirstMock: vi.fn(),
   socialPostCreateMock: vi.fn(),
   socialPostFindFirstMock: vi.fn(),
+  socialPostFindUniqueMock: vi.fn(),
+  prepareSocialPostMediaMock: vi.fn(async (_scope, _provider, media) => media),
   socialPostFindManyMock: vi.fn(),
   socialPostCountMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
@@ -50,15 +56,27 @@ vi.mock("@/services/x-subscription-tier.service", () => ({
   resolveXSubscriptionType: resolveXSubscriptionTypeMock,
 }));
 
+vi.mock("@/services/social-post-media-preparation.service", () => ({
+  prepareSocialPostMedia: prepareSocialPostMediaMock,
+  requirePreparedSocialPostProvider: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
     projectSocialQueueSlot: { findMany: queueSlotFindManyMock },
+    workspace: {
+      findUniqueOrThrow: workspaceFindUniqueOrThrowMock,
+    },
     $queryRaw: queryRawMock,
-    project: { findFirst: projectFindFirstMock },
+    project: {
+      findFirst: projectFindFirstMock,
+      findUnique: vi.fn().mockResolvedValue({ websiteUrl: null }),
+    },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
     socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
     socialPost: {
+      findUnique: socialPostFindUniqueMock,
       create: socialPostCreateMock,
       findFirst: socialPostFindFirstMock,
       findMany: socialPostFindManyMock,
@@ -212,15 +230,72 @@ describe("social posts service", () => {
     );
     queryRawMock.mockResolvedValue([{ id: PROJECT_ID }]);
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    workspaceFindUniqueOrThrowMock.mockResolvedValue({ organizationId: null });
     socialConnectionFindFirstMock.mockResolvedValue(activeConnection);
     socialPostFindManyMock.mockImplementation(async ({ where }) =>
       where.quotedPostId ? [] : [draftPost],
     );
     socialPostCountMock.mockResolvedValue(1);
     socialPostFindFirstMock.mockResolvedValue(draftPost);
+    socialPostFindUniqueMock.mockResolvedValue(draftPost);
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
   });
+
+  it.each(["x", "instagram"] as const)(
+    "prepares the original image before scheduling onto %s",
+    async (provider) => {
+      const padded = {
+        ...JPEG_REF,
+        pathname: JPEG_REF.pathname.replace("launch.jpg", "padded.jpg"),
+        fileUrl: JPEG_REF.fileUrl.replace("launch.jpg", "padded.jpg"),
+        transformation: {
+          provider: "instagram" as const,
+          code: "pad_4_5" as const,
+          notice: "Instagram will pad this image to 4:5.",
+          original: JPEG_REF,
+        },
+      };
+      const storedMedia = provider === "x" ? padded : JPEG_REF;
+      const preparedMedia = provider === "x" ? JPEG_REF : padded;
+      const stored = {
+        ...draftPost,
+        provider: provider === "x" ? "instagram" : "x",
+        media: [storedMedia],
+        revision: 1,
+      };
+      socialPostFindUniqueMock.mockResolvedValue(stored);
+      socialPostFindFirstMock.mockResolvedValue(stored);
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider,
+      });
+      prepareSocialPostMediaMock.mockResolvedValueOnce([preparedMedia]);
+      const { scheduleSocialPost } = await loadService();
+      await scheduleSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 1,
+        scheduledAt: FUTURE,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      });
+      expect(prepareSocialPostMediaMock).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationId: null }),
+        provider,
+        [storedMedia],
+      );
+      expect(
+        prepareSocialPostMediaMock.mock.invocationCallOrder[0],
+      ).toBeLessThan(transactionMock.mock.invocationCallOrder[0]);
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ media: [preparedMedia], provider }),
+        }),
+      );
+    },
+  );
 
   describe("queue uses the scheduling path", () => {
     beforeEach(() => {
@@ -1766,6 +1841,7 @@ describe("social posts service", () => {
 
   it("returns not found for a post in another Project", async () => {
     socialPostFindFirstMock.mockResolvedValue(null);
+    queryRawMock.mockResolvedValue([]);
     const { getSocialPost } = await loadService();
 
     await expect(
@@ -1775,6 +1851,48 @@ describe("social posts service", () => {
         postId: POST_ID,
       }),
     ).rejects.toMatchObject({ status: 404, message: "Social post not found" });
+  });
+
+  it("keeps a bot from scheduling a month post before Core put its picture on", async () => {
+    const { requireMonthPostPicture } = await loadService();
+    const tx = {
+      socialPost: { findFirst: socialPostFindFirstMock },
+    } as unknown as Parameters<typeof requireMonthPostPicture>[0];
+    const scope = { postId: POST_ID, workspaceId: WORKSPACE_ID };
+    socialPostFindFirstMock.mockResolvedValue({
+      marketingStrategyId: "version-1",
+      planning: { visual: "A close-up of the Tree Runner" },
+      media: [],
+    });
+    await expect(requireMonthPostPicture(tx, scope)).rejects.toMatchObject({
+      status: 400,
+    });
+    socialPostFindFirstMock.mockResolvedValue({
+      marketingStrategyId: "version-1",
+      planning: {},
+      media: [],
+    });
+    await expect(requireMonthPostPicture(tx, scope)).resolves.toBeUndefined();
+  });
+
+  it("names the one post whose id ends the same when an id is miscopied", async () => {
+    socialPostFindFirstMock.mockResolvedValue(null);
+    queryRawMock.mockResolvedValue([
+      { id: "01a1b939-a4fb-778f-b3d9-5a9e5424f7b0" },
+    ]);
+    const { getSocialPost } = await loadService();
+
+    await expect(
+      getSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        postId: "01a1b939-a4fb-778f-b3d8-5a9e5424f7b0",
+      }),
+    ).rejects.toMatchObject({
+      status: 404,
+      message:
+        "Social post not found. Did you mean 01a1b939-a4fb-778f-b3d9-5a9e5424f7b0?",
+    });
   });
 
   describe.each([null, "other", "utxo"])(
@@ -2597,6 +2715,48 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a Soko Bot's post that says what another post of its month says", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...draftPost,
+      marketingStrategyId: "version-1",
+    });
+    socialPostFindManyMock.mockResolvedValue([
+      {
+        id: "fee",
+        text: "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
+        media: [],
+        planning: { title: "Fees" },
+      },
+      // An idea still showing its plan's title is not a written post.
+      {
+        id: "idea",
+        text: "No monthly fee on a Studio account",
+        media: [],
+        planning: { title: "No monthly fee on a Studio account" },
+      },
+    ]);
+    const { updateSocialPost } = await loadService();
+
+    await expect(
+      updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        sokoBotId: "55555555-5555-4555-8555-555555555555",
+        postId: POST_ID,
+        revision: 0,
+        text: "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining(
+        'it says nearly what the post "The Studio account has no monthly fee.',
+      ),
+    });
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("leaves a person's own formatting alone", async () => {
     const { createSocialPost } = await loadService();
 
@@ -2986,7 +3146,7 @@ describe("social posts service", () => {
           organizationId: null,
           userId: USER_ID,
           text: "Hello",
-          media: [{ ...IMAGE_REF, size: 5 * 1024 * 1024 + 1 }],
+          media: [{ ...IMAGE_REF, size: 5_000_001 }],
         }),
       ).rejects.toMatchObject({
         status: 400,

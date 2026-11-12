@@ -12,6 +12,7 @@ import { SocialAccounts } from "./social-accounts";
 
 export async function ConnectionsPage() {
   const t = await getTranslations("App.Account.SocialAccounts");
+  const tPage = await getTranslations("App.Connections");
   const session = await getSession();
 
   if (!session?.user) {
@@ -34,6 +35,14 @@ export async function ConnectionsPage() {
     <div className="min-h-full w-full">
       <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <div className="space-y-6">
+          <header className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {tPage("title")}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {tPage("description")}
+            </p>
+          </header>
           <section className="space-y-3" data-testid="connections-sign-in">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold">{t("title")}</h2>

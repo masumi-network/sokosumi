@@ -62,7 +62,12 @@ import {
 } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { socialPostFormattingError } from "@/lib/social-post-writing";
+import {
+  nearDuplicatePost,
+  socialPostFormattingError,
+  stackedCaveatsProblem,
+  tagOwnLinks,
+} from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
@@ -72,6 +77,10 @@ import {
   requireLockedOpenProject,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
+import {
+  prepareSocialPostMedia,
+  requirePreparedSocialPostProvider,
+} from "@/services/social-post-media-preparation.service";
 import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
@@ -313,6 +322,9 @@ export interface UpdateSocialPostInput
 
 export interface ScheduleSocialPostInput extends ProjectScope {
   userId: string;
+  organizationId?: string | null;
+  /** Prepared before the scheduling transaction when the target account changes. */
+  media?: SocialPostMediaRef[];
   coworkerId?: string;
   postId: string;
   scheduledAt: Date;
@@ -498,9 +510,34 @@ async function requireScopedPost(
     include: socialPostInclude,
   });
   if (!post) {
-    throw notFound("Social post not found");
+    const near = await nearPostId(input, tx);
+    throw notFound(
+      near
+        ? `Social post not found. Did you mean ${near}?`
+        : "Social post not found",
+    );
   }
   return post;
+}
+
+/**
+ * The one post in the scope whose id ends like the one asked for: a bot
+ * once copied "b3d8" for "b3d9" in a month of near-identical ids and
+ * retried the wrong id until its runs ran out.
+ */
+async function nearPostId(
+  input: GetSocialPostInput,
+  tx: Prisma.TransactionClient,
+): Promise<string | null> {
+  const tail = input.postId.match(/-([0-9a-f]{12})$/i)?.[1]?.toLowerCase();
+  if (!tail) return null;
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    SELECT id::text AS id FROM social_post
+    WHERE "projectId" = ${input.projectId}::uuid
+      AND "workspaceId" = ${input.workspaceId}::uuid
+      AND id::text LIKE ${`%-${tail}`}
+    LIMIT 2`;
+  return rows.length === 1 ? (rows[0]?.id ?? null) : null;
 }
 
 function isSocialPostProvider(value: string): value is SocialPostProvider {
@@ -584,6 +621,106 @@ function requireBotFormatting(
   if (error) throw badRequest(error);
 }
 
+/**
+ * What a Soko Bot's post in a marketing month does to its links: those to
+ * the business's own site get UTM tags (network, social, cmo-YYYY-MM), so
+ * analytics can tell the visits Cuso brought. Every other text stays as is.
+ */
+async function cmoLinkTags(
+  tx: Prisma.TransactionClient,
+  input: { sokoBotId?: string | null },
+  post: {
+    projectId: string;
+    marketingStrategyId: string | null;
+    scheduledAt: Date | null;
+  },
+  provider: SocialPostProvider,
+): Promise<(text: string) => string> {
+  if (!input.sokoBotId || !post.marketingStrategyId) return (text) => text;
+  const project = await tx.project.findUnique({
+    where: { id: post.projectId },
+    select: { websiteUrl: true },
+  });
+  const siteUrl = project?.websiteUrl;
+  if (!siteUrl) return (text) => text;
+  const campaign = `cmo-${(post.scheduledAt ?? new Date()).toISOString().slice(0, 7)}`;
+  return (text) => tagOwnLinks(text, { siteUrl, source: provider, campaign });
+}
+
+/**
+ * A Soko Bot's post in a marketing month says its own thing with its own
+ * pictures: a month once repeated four messages across 45 posts, and one
+ * picture went on three of them.
+ */
+async function requireOwnInMonth(
+  tx: Prisma.TransactionClient,
+  post: { id: string; marketingStrategyId: string },
+  change: { text: string | null; media: readonly SocialPostMediaRef[] },
+): Promise<void> {
+  const siblings = await tx.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: post.id },
+      status: { not: "CANCELED" },
+    },
+    select: { id: true, text: true, media: true, planning: true },
+  });
+  for (const item of change.media) {
+    const holder = siblings.find((sibling) =>
+      parseSocialPostMedia(sibling.media, sibling.id).some(
+        (other) => other.pathname === item.pathname,
+      ),
+    );
+    if (holder)
+      throw badRequest(
+        `Use another picture: "${item.name}" is already on the post "${firstLine(holder.text)}", and each post gets its own.`,
+      );
+  }
+  if (change.text === null) return;
+  const caveats = stackedCaveatsProblem(change.text);
+  if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
+  // An idea still shows its plan's brief or title until it is written.
+  const written = siblings.filter((sibling) => {
+    const planning = sibling.planning as { brief?: unknown; title?: unknown };
+    return sibling.text !== planning?.brief && sibling.text !== planning?.title;
+  });
+  const repeated = nearDuplicatePost(change.text, written);
+  if (repeated)
+    throw badRequest(
+      `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`,
+    );
+}
+
+/**
+ * A bot schedules a month post with a picture only once Core put the
+ * picture on it: Core attaches pictures to drafts alone, so an X post Cuso
+ * scheduled early would have gone out without its image.
+ */
+export async function requireMonthPostPicture(
+  tx: Prisma.TransactionClient,
+  input: { postId: string; workspaceId: string },
+): Promise<void> {
+  const post = await tx.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true, planning: true, media: true },
+  });
+  const visual = (post?.planning as { visual?: unknown } | null)?.visual;
+  if (
+    post?.marketingStrategyId &&
+    typeof visual === "string" &&
+    visual.trim() &&
+    parseSocialPostMedia(post.media, input.postId).length === 0
+  )
+    throw badRequest(
+      "Leave this post as a draft: Core is making its picture and schedules it once the picture is on it.",
+    );
+}
+
+function firstLine(text: string): string {
+  const line = text.trim().split("\n")[0] ?? "";
+  return line.length > 80 ? `${line.slice(0, 77)}...` : line;
+}
+
 /** Publish and schedule refuse a post without the media the network needs. */
 function requireMediaRequirement(
   provider: SocialPostProvider,
@@ -632,6 +769,7 @@ function normalizeSocialPostMedia(
   input: NormalizeMediaInput,
 ): SocialPostMediaRef[] {
   const provider = requireProvider(input.provider);
+  requirePreparedSocialPostProvider(input.media, provider);
   const media = input.media.map((ref): SocialPostMediaRef => {
     const fileUrl = requireWorkspaceDriveFileUrl(input, ref);
     const mimeType = ref.mimeType.trim().toLowerCase();
@@ -647,6 +785,7 @@ function normalizeSocialPostMedia(
       size: ref.size,
       mimeType,
       kind: ref.kind,
+      ...(ref.transformation ? { transformation: ref.transformation } : {}),
     };
   });
   const validation = validateSocialPostMedia(provider, media);
@@ -906,10 +1045,103 @@ export async function getSocialPost(
   return mapSocialPost(await requireScopedPost(input, tx));
 }
 
+interface SocialPostMediaMutationInput {
+  organizationId?: string | null;
+  workspaceId: string;
+  userId: string;
+  projectId: string;
+  postId?: string;
+  socialConnectionId?: string | null;
+  media?: readonly SocialPostMediaRef[];
+  threadParts?: SocialPostThreadPartInput[];
+}
+
+/** Resolves image adaptations before opening the mutation's database transaction. */
+export async function prepareSocialPostMutationMedia<
+  T extends SocialPostMediaMutationInput,
+>(input: T): Promise<T> {
+  if (
+    input.media === undefined &&
+    input.socialConnectionId === undefined &&
+    !input.threadParts?.some((part) => part.media?.length)
+  )
+    return input;
+  await requireScopedProject(input);
+  const post = input.postId
+    ? await prisma.socialPost.findUnique({
+        where: {
+          id: input.postId,
+          projectId: input.projectId,
+          workspaceId: input.workspaceId,
+        },
+        select: {
+          id: true,
+          provider: true,
+          media: true,
+          socialConnectionId: true,
+        },
+      })
+    : null;
+  if (input.postId && !post) throw notFound("Social post not found");
+  const connectionId =
+    input.socialConnectionId !== undefined
+      ? input.socialConnectionId
+      : post?.socialConnectionId;
+  const provider = connectionId
+    ? requireProvider(
+        (await requireProjectConnection(input.projectId, connectionId, prisma))
+          .provider,
+      )
+    : post && input.socialConnectionId === undefined
+      ? requireProvider(post.provider)
+      : "x";
+  const media =
+    input.media ?? (post ? parseSocialPostMedia(post.media, post.id) : []);
+  if (
+    media.length === 0 &&
+    input.media === undefined &&
+    !input.threadParts?.some((part) => part.media?.length)
+  )
+    return input;
+  const organizationId =
+    input.organizationId !== undefined
+      ? input.organizationId
+      : (
+          await prisma.workspace.findUniqueOrThrow({
+            where: { id: input.workspaceId },
+            select: { organizationId: true },
+          })
+        ).organizationId;
+  const scope = { ...input, organizationId };
+  return {
+    ...input,
+    media: await prepareSocialPostMedia(scope, provider, media),
+    ...(input.threadParts
+      ? {
+          threadParts: await Promise.all(
+            input.threadParts.map(async (part) => ({
+              ...part,
+              ...(part.media
+                ? {
+                    media: await prepareSocialPostMedia(
+                      scope,
+                      provider,
+                      part.media,
+                    ),
+                  }
+                : {}),
+            })),
+          ),
+        }
+      : {}),
+  };
+}
+
 export async function createSocialPost(
   input: CreateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
+  if (tx === prisma) input = await prepareSocialPostMutationMedia(input);
   if ((input.scheduledAt || input.quotedPostId) && tx === prisma) {
     return serializableTransaction(
       (tx) => createSocialPost(input, tx),
@@ -1018,6 +1250,7 @@ export async function updateSocialPost(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
+    input = await prepareSocialPostMutationMedia(input);
     return serializableTransaction(
       (tx) => updateSocialPost(input, tx),
       "Project changed while editing a Social post",
@@ -1139,8 +1372,9 @@ export async function updateSocialPost(
     });
     data.media = mediaJson(media);
   }
+  const tag = await cmoLinkTags(tx, input, post, provider);
   const text = requireTextWithinLimit(
-    input.text ?? post.text,
+    input.text !== undefined ? tag(input.text) : post.text,
     provider,
     media.length > 0,
     subscriptionType,
@@ -1168,7 +1402,9 @@ export async function updateSocialPost(
   }
 
   const firstComment = requireFirstCommentWithinLimit(
-    input.firstComment !== undefined ? input.firstComment : post.firstComment,
+    input.firstComment !== undefined
+      ? input.firstComment && tag(input.firstComment)
+      : post.firstComment,
     provider,
     subscriptionType,
   );
@@ -1204,6 +1440,19 @@ export async function updateSocialPost(
       firstComment,
       linkInPost: input.linkInPost,
     });
+  if (
+    input.sokoBotId &&
+    post.marketingStrategyId &&
+    (input.text !== undefined || input.media !== undefined)
+  )
+    await requireOwnInMonth(
+      tx,
+      { id: post.id, marketingStrategyId: post.marketingStrategyId },
+      {
+        text: input.text !== undefined ? text : null,
+        media: input.media !== undefined ? media : [],
+      },
+    );
 
   const quotedPostId =
     input.quotedPostId !== undefined ? input.quotedPostId : post.quotedPostId;
@@ -1265,6 +1514,7 @@ export async function scheduleSocialPost(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
+    input = await prepareSocialPostMutationMedia(input);
     return serializableTransaction(
       (tx) => scheduleSocialPost(input, tx),
       "Project changed while scheduling a Social post",
@@ -1293,7 +1543,7 @@ export async function scheduleSocialPost(
       "A partially published thread must keep its original X account",
     );
   }
-  const media = parseSocialPostMedia(post.media, post.id);
+  const media = input.media ?? parseSocialPostMedia(post.media, post.id);
   const currentProvider = requireProvider(post.provider);
   const connection = await requireActiveProjectConnection(
     input.projectId,
@@ -1301,6 +1551,7 @@ export async function scheduleSocialPost(
     tx,
   );
   const provider = requireProvider(connection.provider);
+  requirePreparedSocialPostProvider(media, provider);
   requireStoredThreadParts(post, provider, connection.subscriptionType);
   if (!post.publishedExternalId) {
     const validation = validateSocialPostMedia(provider, media);
@@ -1348,6 +1599,7 @@ export async function scheduleSocialPost(
           scheduledAt: input.scheduledAt,
           timezone: input.timezone ?? post.timezone,
           socialConnectionId: connection.id,
+          ...(input.media ? { media: mediaJson(media) } : {}),
           ...(provider !== currentProvider ? { provider } : {}),
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,

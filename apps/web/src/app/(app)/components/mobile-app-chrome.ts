@@ -45,6 +45,11 @@ const MAIN_APP_MOBILE_LIST_PATHS = [
   ...MOBILE_NON_TAB_HUB_LIST_PATHS,
 ] as const;
 
+/** You page rows that live outside `/you/`; back returns to You. */
+const YOU_HUB_CHILD_PATHS = ["/account", "/billing", "/connections"] as const;
+
+const AGENT_JOBS_PATH = /^\/agents\/([^/]+)\/jobs(?:\/|$)/;
+
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
 
 const MOBILE_TAB_LIST_PATH_SET = new Set<string>(MOBILE_TAB_LIST_PATHS);
@@ -75,9 +80,17 @@ function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {
   return null;
 }
 
+/** Agent id when the path is one of that agent's jobs pages, else null. */
+export function getAgentJobsPathAgentId(
+  pathname: string | null | undefined,
+): string | null {
+  return (pathname && AGENT_JOBS_PATH.exec(pathname)?.[1]) || null;
+}
+
 /**
  * Back target for main list routes and their nested pages.
  * Tab list roots → null; Agents root → home; non-tab hub roots → Chats; nested → list root.
+ * You page rows outside `/you/` (Account, Billing, Connections) → You.
  */
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
@@ -85,6 +98,13 @@ export function resolveMobileAppBackTarget(
 ): MobileAppBackTarget | null {
   if (!pathname) {
     return null;
+  }
+  if (
+    YOU_HUB_CHILD_PATHS.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    )
+  ) {
+    return { href: "/you", labelKey: "back" };
   }
   const root = findMainAppListRoot(pathname);
   if (!root) {
@@ -120,6 +140,12 @@ export function resolveMobileAppBackTarget(
       return null;
     }
     return { href: CHAT_CHATS_LIST_PATH, labelKey: "backToChats" };
+  }
+  // An agent's jobs go back to that agent, not the catalog. The top bar swaps
+  // in the catalog when the agent is unavailable (`useIsAgentUnavailable`).
+  const agentId = getAgentJobsPathAgentId(pathname);
+  if (agentId) {
+    return { href: `/agents/${agentId}`, labelKey: "back" };
   }
   return { href: root, labelKey: "back" };
 }

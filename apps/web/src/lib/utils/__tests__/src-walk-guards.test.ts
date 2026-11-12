@@ -1707,6 +1707,7 @@ const URL_DATA_PROP = /(?:^|[\s,{(])(?:params|searchParams)\s*:\s*Promise</m;
  */
 const SUSPENSE_WRAPPED = new Set([
   "(app)/admin/enterprise-contracts/page.tsx",
+  "(app)/drive/data-rooms/[id]/page.tsx",
   "(app)/drive/files/[resourceId]/page.tsx",
   "(app)/agents/[agentId]/jobs/layout.tsx",
   "(app)/chat/rooms/[roomId]/page.tsx",
@@ -1743,12 +1744,10 @@ const INSTANT_WORKLIST = new Set([
   "(app)/history/page.tsx",
   "(app)/organizations/[organizationSlug]/design-md/edit/page.tsx",
   "(app)/organizations/[organizationSlug]/page.tsx",
-  "(app)/projects/[projectId]/@modal/(.)edit/page.tsx",
   "(app)/projects/[projectId]/design-md/edit/page.tsx",
   "(app)/projects/[projectId]/edit/page.tsx",
   "(app)/projects/[projectId]/layout.tsx",
   "(app)/projects/[projectId]/page.tsx",
-  "(app)/tasks/[taskId]/@modal/(.)edit/page.tsx",
   "(app)/tasks/[taskId]/edit/page.tsx",
   "(app)/tasks/[taskId]/page.tsx",
 ]);
@@ -1911,6 +1910,66 @@ function segmentedLookOverrides(relSrc: string, text: string): string[] {
   }
   return hits;
 }
+
+describe("task edit route", () => {
+  // Saving from an intercepted `@modal/(.)edit` left the dialog open on
+  // `/edit` (the Save server action re-renders the non-intercepted page and
+  // the close navigation is lost). Edit must open the real edit page.
+  it("has no intercepted modal under the task detail", () => {
+    const intercepted = routeFiles()
+      .map((file) => file.rel)
+      .filter((rel) => rel.startsWith("(app)/tasks/[taskId]/@modal/"));
+
+    expect(intercepted).toEqual([]);
+  });
+
+  // The project's Edit dialog had the same `@modal/(.)edit` and the same bug.
+  it("has no intercepted modal under the project detail", () => {
+    const intercepted = routeFiles()
+      .map((file) => file.rel)
+      .filter((rel) => rel.startsWith("(app)/projects/[projectId]/@modal/"));
+
+    expect(intercepted).toEqual([]);
+  });
+});
+
+describe("Markdown on the server", () => {
+  // A project's DESIGN.md renders `Markdown` in a Server Component. A plain
+  // function imported from a "use client" module is only a client reference
+  // there, so calling it threw and the Design tab showed "Something went
+  // wrong" for any DESIGN.md with a link. Components may cross; values may not.
+  it("imports no plain value from a use-client module", () => {
+    const markdown = SRC_FILES.find(
+      (f) => f.relSrc === "components/markdown.tsx",
+    );
+    const clientModules = new Set(
+      SRC_FILES.filter((f) => /^\s*["']use client["']/.test(f.text)).map((f) =>
+        f.relSrc.replace(/\.tsx?$/, ""),
+      ),
+    );
+    const hits = [
+      ...(markdown?.text ?? "").matchAll(
+        /import\s+\{([^}]*)\}\s+from\s+"@\/([^"]+)"/g,
+      ),
+    ].flatMap(([, names = "", from = ""]) =>
+      clientModules.has(from)
+        ? names
+            .split(",")
+            .map((name) => name.trim())
+            .filter(
+              (name) =>
+                /^[a-z]/.test(name) &&
+                !name.startsWith("type ") &&
+                !/^use[A-Z]/.test(name),
+            )
+            .map((name) => `${name} from @/${from}`)
+        : [],
+    );
+
+    expect(markdown).toBeDefined();
+    expect(hits).toEqual([]);
+  });
+});
 
 describe("segmented controls", () => {
   it("leaves the look to the shared segmented-control classes", () => {

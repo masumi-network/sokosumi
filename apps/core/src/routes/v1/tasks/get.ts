@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { calendarDateSchema } from "@sokosumi/utils";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -77,12 +78,12 @@ const taskNameQuerySchema = z
   });
 
 const taskScopeQuerySchema = z
-  .enum(["workspace", "owned"])
+  .enum(["workspace", "owned", "mine"])
   .default("owned")
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.",
+      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, or 'mine' for tasks the caller owns or is assigned to as a workspace member.",
     example: "workspace",
   });
 
@@ -97,12 +98,12 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["createdAt", "updatedAt", "priority"])
+  .enum(["createdAt", "updatedAt", "priority", "dueOn"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.",
+      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last.",
     example: "createdAt",
   });
 
@@ -126,6 +127,23 @@ const scheduleIdQuerySchema = z
     example: "01960001-0001-7001-8001-000000000042",
   });
 
+const dueOnToQuerySchema = calendarDateSchema.optional().openapi({
+  param: { name: "dueOnTo", in: "query" },
+  description:
+    "Only Tasks due on or before this day (YYYY-MM-DD). Tasks without a due date are left out.",
+  example: "2026-11-10",
+});
+
+const archivedQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .openapi({
+    param: { name: "archived", in: "query" },
+    description:
+      "true lists archived Tasks instead, most recently archived first unless sort is given. People only; coworkers and Soko Bots get 400.",
+    example: "true",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
@@ -135,6 +153,8 @@ const query = z
     sort: taskSortQuerySchema,
     visibility: taskVisibilityQuerySchema,
     scheduleId: scheduleIdQuerySchema,
+    dueOnTo: dueOnToQuerySchema,
+    archived: archivedQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -205,9 +225,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
     const {
+      archived: archivedParam,
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
+      dueOnTo,
       projectId,
       q,
       scheduleId,
@@ -216,6 +238,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       status: statuses,
       visibility,
     } = queryParams;
+    const archived = archivedParam === "true";
     const requestedVisibility = visibility === undefined ? {} : { visibility };
     const statusWhere = buildTaskListStatusWhere({
       statuses,
@@ -234,6 +257,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
     const scheduleFilter = scheduleId ? { scheduleId } : {};
+    const dueFilter = dueOnTo
+      ? { dueOn: { lte: new Date(`${dueOnTo}T00:00:00.000Z`) } }
+      : {};
+    // The caller's own Tasks: those they own, or for "mine" also those
+    // assigned to them as a workspace member.
+    const scopeFilter = (userId: string): Prisma.TaskWhereInput =>
+      scope === "owned"
+        ? { ownerId: userId }
+        : scope === "mine"
+          ? { OR: [{ ownerId: userId }, { assigneeUserId: userId }] }
+          : {};
+
+    if (
+      archived &&
+      (isCoworkerAuthContext(authContext) ||
+        isPersonalSokoBotAuthContext(authContext))
+    ) {
+      throw badRequest("Only people can list archived Tasks.");
+    }
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
@@ -269,14 +311,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             workspaceId: workspaceContext.workspaceId,
             ...requestedVisibility,
             AND: [listAccessFilter],
-            ...(scope === "owned"
-              ? { ownerId: authContext.context.userId }
-              : {}),
+            ...scopeFilter(authContext.context.userId),
             ...(assigneeId ? { assigneeId } : {}),
             ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
             ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
             ...scheduleFilter,
+            ...dueFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -289,6 +330,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             AND: [listAccessFilter],
             ...projectFilter,
             ...scheduleFilter,
+            ...dueFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -311,6 +353,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
           ...scheduleFilter,
+          ...dueFilter,
           ...searchFilter,
         },
         statusWhere,
@@ -320,16 +363,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       where = applyTaskListStatusWhere(
         {
-          archivedAt: null,
+          archivedAt: archived ? { not: null } : null,
           workspaceId: workspaceContext.workspaceId,
           ...requestedVisibility,
           AND: [buildHumanTaskVisibilityWhere(userContext.userId)],
-          ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
+          ...scopeFilter(userContext.userId),
           ...(assigneeId ? { assigneeId } : {}),
           ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
           ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
           ...scheduleFilter,
+          ...dueFilter,
           ...searchFilter,
         },
         statusWhere,
@@ -343,18 +387,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // and it makes cursor pagination unstable: a row updated mid-paging moves
     // between pages, so "Load more" can duplicate or skip rows.
     const orderBy =
-      sort === "updatedAt"
-        ? ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const)
-        : sort === "priority"
-          ? ([
-              { priority: "asc" as const },
-              { updatedAt: "desc" as const },
-              { id: "desc" as const },
-            ] as const)
-          : ([
-              { createdAt: "desc" as const },
-              { id: "desc" as const },
-            ] as const);
+      archived && sort === undefined
+        ? ([{ archivedAt: "desc" as const }, { id: "desc" as const }] as const)
+        : sort === "updatedAt"
+          ? ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const)
+          : sort === "dueOn"
+            ? ([{ dueOn: "asc" as const }, { id: "asc" as const }] as const)
+            : sort === "priority"
+              ? ([
+                  { priority: "asc" as const },
+                  { updatedAt: "desc" as const },
+                  { id: "desc" as const },
+                ] as const)
+              : ([
+                  { createdAt: "desc" as const },
+                  { id: "desc" as const },
+                ] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.

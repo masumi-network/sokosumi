@@ -1,4 +1,6 @@
 import { z } from "@hono/zod-openapi";
+import { MAX_STUDIO_HEADLINE_LENGTH } from "@sokosumi/utils";
+import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { IMAGE_JOB_FAILURE_REASONS } from "@/lib/image-studio/failure-reason";
@@ -15,6 +17,8 @@ import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_DURATIONS_SECONDS,
 } from "@/lib/image-studio/video-model";
+import { studioLogoPositionSchema } from "./studio-logo-position.schema";
+import { studioProductIdentitySchema } from "./studio-product.schema";
 
 export const IMAGE_JOB_STATUSES = [
   "PENDING",
@@ -48,6 +52,20 @@ export const imageStudioAssetParamsSchema =
         example: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       }),
   });
+
+export const studioAdPlacementRatioSchema = z
+  .enum(["1:1", "4:5", "9:16", "16:9"])
+  .openapi("StudioAdPlacementRatio");
+
+export const imageStudioAssetContentQuerySchema = z.object({
+  logo: studioLogoPositionSchema.optional(),
+  placement: studioAdPlacementRatioSchema.optional(),
+});
+
+export type StudioAdPlacementRatio = z.infer<
+  typeof studioAdPlacementRatioSchema
+>;
+export type StudioLogoPosition = z.infer<typeof studioLogoPositionSchema>;
 
 export const imageStudioCaptionSchema = z
   .object({
@@ -88,12 +106,31 @@ export const imageStudioVideoSettingsSchema = z
 
 export const IMAGE_STUDIO_MEDIA_TYPES = ["IMAGE", "VIDEO"] as const;
 
+export const studioHeadlineTextSchema = z
+  .string()
+  .min(1)
+  .max(MAX_STUDIO_HEADLINE_LENGTH)
+  .refine((value) => value.trim().length > 0);
+
+export const saveStudioAdHeadlineSchema = z
+  .object({ text: studioHeadlineTextSchema.nullable() })
+  .openapi("SaveStudioAdHeadline");
+
+export const studioAdHeadlineSchema = saveStudioAdHeadlineSchema
+  .extend({ revision: z.number().int().nonnegative() })
+  .openapi("StudioAdHeadline");
+
+export type StudioAdHeadline = z.infer<typeof studioAdHeadlineSchema>;
+
 export const imageStudioAssetSchema = z
   .object({
     id: z.string().uuid(),
     projectId: z.string().uuid(),
     /** The owning project's name, so a workspace-wide gallery can label it. */
     projectName: z.string(),
+    product: studioProductIdentitySchema.optional(),
+    batchId: z.uuid().optional(),
+    headline: studioAdHeadlineSchema.optional(),
     rootId: z.string().uuid(),
     parentId: z.string().uuid().nullable(),
     version: z.number().int().min(1),
@@ -140,6 +177,9 @@ export const imageStudioJobSchema = z
     video: z.union([imageStudioVideoSettingsSchema, z.null()]),
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
+    referenceFileIds: z.array(z.string().uuid()).optional(),
+    useProductCutout: z.boolean().optional(),
+    product: studioProductIdentitySchema.optional(),
     /**
      * One sentence a person can read, written by the studio. Never the
      * provider's own words: a raw transport string is not something anybody can
@@ -227,8 +267,16 @@ export const createImageJobRequestSchema = z
         { message: "Unknown image model. Choose one from the studio catalog." },
       ),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
+    product: studioProductIdentitySchema.optional(),
+    batchId: z.uuid().optional(),
+    exportHeadline: studioHeadlineTextSchema.optional(),
+    useProductCutout: z.boolean().optional(),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
+    referenceFileIds: z
+      .array(z.string().uuid())
+      .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
+      .optional(),
     parentAssetId: z.string().uuid().nullable().default(null),
     sessionId: z.string().uuid().nullable().default(null),
     /**

@@ -10,6 +10,7 @@ import { RoomRosterPanel } from "./room-roster-panel";
 const copyTextWithToastMock = vi.fn();
 
 vi.mock("next-intl", () => ({
+  useNow: () => new Date(),
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
       "Presence.online": "Online",
@@ -397,26 +398,6 @@ describe("RoomRosterPanel", () => {
         </OrganizationSeatContext>,
       );
     }
-
-    it("crops a crafted Soko Bot's avatar to its face", () => {
-      renderRoster([
-        humanSelf,
-        {
-          kind: "sokoBot",
-          id: "bot-1",
-          name: "Jarvis",
-          caption: null,
-          image: "https://blob/idle.png",
-          avatarSeed: null,
-          avatarStyleId: "crafted-desk",
-          presence: "online",
-        },
-      ]);
-
-      expect(
-        document.querySelector('img[src="https://blob/idle.png"]')?.className,
-      ).toContain("size-[240%]");
-    });
 
     it("names the two halves once both are on the roster", () => {
       renderRoster([humanAda, humanSelf, coworkerHannah]);

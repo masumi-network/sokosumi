@@ -4,6 +4,10 @@ import {
   uploadOrganizationLogoBytes,
   uploadProjectLogoBytes,
 } from "@/lib/blob";
+import {
+  declaredWebsiteLogoUrls,
+  prepareWebsiteLogo,
+} from "@/lib/image-studio/website-logo";
 
 /** Only the head matters for icon links, so we never parse beyond this. */
 const MAX_HTML_BYTES = 512 * 1024;
@@ -218,7 +222,8 @@ async function fetchIconBytes(
   if (!response.ok) return null;
   const contentType = (response.headers.get("content-type") ?? "")
     .split(";")[0]!
-    .trim();
+    .trim()
+    .toLowerCase();
   if (!contentType.startsWith("image/")) return null;
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_ICON_BYTES) return null;
@@ -236,9 +241,10 @@ async function fetchIconBytes(
 async function resolveSiteIcon(
   rawUrl: string,
   storeIcon: (icon: {
-    bytes: ArrayBuffer;
+    bytes: ArrayBuffer | Buffer;
     contentType: string;
   }) => Promise<string | null>,
+  studioLogo = false,
 ): Promise<string | null> {
   let pageUrl: URL;
   try {
@@ -250,6 +256,7 @@ async function resolveSiteIcon(
   }
 
   const candidates: IconCandidate[] = [];
+  let baseUrl = pageUrl.href;
 
   // 1. Parse the page for declared icons.
   try {
@@ -257,10 +264,21 @@ async function resolveSiteIcon(
       headers: REQUEST_HEADERS,
       signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
       maxResponseBytes: MAX_PAGE_BYTES,
+      onFinalUrl: (url) => {
+        baseUrl = url;
+      },
     });
     if (response.ok) {
       const html = await response.text();
-      candidates.push(...parseIconCandidates(html, pageUrl.toString()));
+      if (studioLogo) {
+        candidates.push(
+          ...declaredWebsiteLogoUrls(
+            html.slice(0, MAX_HTML_BYTES),
+            baseUrl,
+          ).map((url) => ({ url, size: 0, priority: 4 })),
+        );
+      }
+      candidates.push(...parseIconCandidates(html, baseUrl));
     } else {
       console.warn(
         `[site-icon] page fetch for ${pageUrl.origin} returned ${response.status}`,
@@ -272,7 +290,7 @@ async function resolveSiteIcon(
 
   // 2. Always add the well-known default as a last resort.
   candidates.push({
-    url: new URL("/favicon.ico", pageUrl.origin).toString(),
+    url: new URL("/favicon.ico", baseUrl).toString(),
     size: 0,
     priority: 0,
   });
@@ -284,7 +302,9 @@ async function resolveSiteIcon(
   )) {
     const icon = await fetchIconBytes(candidate.url);
     if (!icon) continue;
-    const url = await storeIcon(icon);
+    const prepared = studioLogo ? await prepareWebsiteLogo(icon) : icon;
+    if (!prepared) continue;
+    const url = await storeIcon(prepared);
     if (url) return url;
     // Bytes were fine but storage refused them — retrying other candidates
     // will hit the same wall, so stop and let the caller fall back.
@@ -313,5 +333,16 @@ export function resolveSiteIconAsProjectLogo(
 ): Promise<string | null> {
   return resolveSiteIcon(rawUrl, (icon) =>
     uploadProjectLogoBytes({ projectId, ...icon }),
+  );
+}
+
+export function resolveStudioWebsiteLogo(
+  rawUrl: string,
+  projectId: string,
+): Promise<string | null> {
+  return resolveSiteIcon(
+    rawUrl,
+    (icon) => uploadProjectLogoBytes({ projectId, ...icon }),
+    true,
   );
 }

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   isSokoBotNewsletterCapability,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
@@ -144,6 +145,14 @@ const jevEvaluate = vi.hoisted(() => vi.fn());
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: jevEvaluate,
+}));
+const { forfeitMock, forfeitIfLeavingCmoMock } = vi.hoisted(() => ({
+  forfeitMock: vi.fn(),
+  forfeitIfLeavingCmoMock: vi.fn(),
+}));
+vi.mock("@/helpers/cuso-project-credits", () => ({
+  forfeitCusoProjectCredits: forfeitMock,
+  forfeitCusoProjectCreditsIfLeavingCmo: forfeitIfLeavingCmoMock,
 }));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
@@ -293,6 +302,7 @@ import {
 import {
   SokoBotControlPlane,
   SokoBotNotFoundError,
+  safeEventProjection,
 } from "@/services/soko-bot-control-plane.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000001";
@@ -1533,6 +1543,56 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(botUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("starts a new assistant's day in the creator's timezone, and keeps an existing one's", async () => {
+    botFindFirstMock.mockResolvedValue(null);
+    botCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-00000000bbbb",
+      ingestTimezone: "America/Los_Angeles",
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Fresh",
+      timezone: "America/Los_Angeles",
+    });
+
+    expect(botCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ingestTimezone: "America/Los_Angeles",
+        }),
+      }),
+    );
+
+    botFindFirstMock.mockResolvedValue({
+      id: BOT_ID,
+      archivedAt: null,
+      adminPausedAt: null,
+      status: "IDLE",
+      memoryVersion: 1,
+    });
+    botUpdateMock.mockResolvedValue({
+      id: BOT_ID,
+      ingestTimezone: "Asia/Tokyo",
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Again",
+      timezone: "America/Los_Angeles",
+    });
+
+    expect(botUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          ingestTimezone: expect.anything(),
+        }),
+      }),
+    );
+  });
+
   it("never inserts a shadow coworker when creating a personal assistant", async () => {
     botFindFirstMock.mockResolvedValue(null);
     botCreateMock.mockResolvedValue({
@@ -1671,7 +1731,14 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(botFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          AND: [{ versionId: { in: ["cmo-v1"] } }, {}],
+          AND: [
+            {
+              versionId: {
+                in: expect.arrayContaining(["cmo-v1", "cmo-v1-gpt-oss-20b"]),
+              },
+            },
+            {},
+          ],
         }),
       }),
     );
@@ -2155,6 +2222,41 @@ describe("SokoBotControlPlane lifecycle", () => {
     // Only a person waiting in chat gets the hour.
     expect(data.deadlineAt.getTime() - Date.now()).toBeLessThanOrEqual(
       15 * 60 * 1_000,
+    );
+  });
+
+  it("gives a step a person pressed a button for the hour a person gets", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room-owner" });
+    turnCreateMock.mockResolvedValue({ id: "research-turn", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "research-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "cmo:onboarding:research",
+      message: "Research the business.",
+      source: "EVENT",
+      presetRoute: { route: "DIRECT_RESPONSE", reason: "CMO research" },
+      personStarted: true,
+    });
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data.deadlineAt.getTime() - Date.now()).toBeGreaterThan(
+      55 * 60 * 1_000,
     );
   });
 
@@ -3207,6 +3309,27 @@ describe("SokoBotControlPlane lifecycle", () => {
       ).rejects.toMatchObject({ status: 403 });
       await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
       expect(botUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("offers the bot to the Cuso write-off before archiving it", async () => {
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+        BOT_ID,
+        expect.any(Object),
+      );
+      // Before the archive, so the bot still reads as a live Cuso.
+      expect(forfeitMock.mock.invocationCallOrder[0]).toBeLessThan(
+        botUpdateMock.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it("writes nothing off for an already archived bot", async () => {
+      botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
+
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(forfeitMock).not.toHaveBeenCalled();
     });
 
     it.each(["owner_1", "admin_1"])(
@@ -4656,6 +4779,35 @@ describe("updateVersion", () => {
       ),
     ).rejects.toThrow("CMO's own version");
   });
+
+  it("writes off Cuso's Project credits when the admin lab moves him off CMO", async () => {
+    vi.clearAllMocks();
+    botFindFirstMock.mockResolvedValueOnce(
+      adminBot({
+        userId: null,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        workspace: { organizationId: "org_1" },
+      }),
+    );
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await new SokoBotControlPlane().updateVersion(
+      "admin_1",
+      "workspace_1",
+      "v19",
+      { allowUnpromoted: true },
+      { kind: "id", sokoBotId: BOT_ID },
+    );
+
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v19",
+      expect.objectContaining({ sokoBot: expect.any(Object) }),
+    );
+    expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
 });
 
 describe("SET_VERSION and fleet migration", () => {
@@ -4705,6 +4857,63 @@ describe("SET_VERSION and fleet migration", () => {
     expect(audit).toMatchObject({ status: "SUCCEEDED", targetId: "v16" });
     expect(audit.before).toMatchObject({ versionId: "v14" });
     expect(audit.after).toMatchObject({ versionId: "v16" });
+  });
+
+  it("writes off Cuso's Project credits when he moves to a version outside CMO", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: "v16",
+      reason: "Move Cuso to the assistant",
+      operationId: "cuso-off-cmo",
+    });
+
+    // In the version change's transaction, before the write: the helper
+    // still reads him as a live Cuso.
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v16",
+      expect.objectContaining({ sokoBot: expect.any(Object) }),
+    );
+    expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botUpdateMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("asks the write-off about a move between CMO versions too", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: CMO_SOKO_BOT_VERSION_IDS.at(-1) as string,
+      reason: "Next CMO version",
+      operationId: "cuso-cmo-to-cmo",
+    });
+
+    expect(botUpdateMock).toHaveBeenCalled();
+    // The helper keeps the credits for a CMO version (its own test).
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledWith(
+      BOT_ID,
+      CMO_SOKO_BOT_VERSION_IDS.at(-1),
+      expect.any(Object),
+    );
   });
 
   it("refuses an unknown version before it writes an intent", async () => {
@@ -4955,5 +5164,19 @@ describe("reading a turn through the caller's own bot", () => {
         },
       }),
     );
+  });
+});
+
+describe("safeEventProjection", () => {
+  it("never stores half an emoji or a NUL, which Postgres refuses", () => {
+    // The 800-character limit keeps 799: the emoji's first half.
+    const cut = safeEventProjection("message.completed", {
+      message: `${"a".repeat(798)}🍝 and more`,
+    });
+    expect(cut.summary.isWellFormed()).toBe(true);
+    const nul = safeEventProjection("message.completed", {
+      message: "Hiltl\u0000 since 1898",
+    });
+    expect(nul.summary).toBe("Hiltl since 1898");
   });
 });

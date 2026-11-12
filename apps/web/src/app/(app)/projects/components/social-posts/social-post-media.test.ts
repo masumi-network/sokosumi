@@ -14,6 +14,7 @@ const driveFile: DriveFile = {
   pathname: "drive/users/user_1/launch.png",
   size: 2048,
   uploadedAt: new Date("2026-09-14T10:00:00.000Z"),
+  dataRoom: false,
 };
 
 describe("buildSocialPostMediaRef", () => {

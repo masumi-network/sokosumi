@@ -43,7 +43,10 @@ export function OAuthAuthorizedClients() {
           await Promise.all(
             consentsData.map(async (consent: OAuthConsentItem) => {
               try {
-                const clientResult = await authClient.oauth2.getClient({
+                // `getClient` answers only the app's owner, so an app the
+                // viewer authorized but does not own came back 401 and showed
+                // as its raw id. The public fields carry the name for anyone.
+                const clientResult = await authClient.oauth2.publicClient({
                   query: {
                     client_id: consent.clientId,
                   },

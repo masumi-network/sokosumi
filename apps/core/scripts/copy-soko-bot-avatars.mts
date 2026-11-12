@@ -1,5 +1,5 @@
 /**
- * Copy the mascot pool to the nested Blob prefix, or delete the legacy prefix.
+ * Copy the Soko Bot avatar pool to the nested Blob prefix, or delete the legacy prefix.
  * Dry-run is default. Copy and delete are separate invocations.
  *
  * pnpm --filter @sokosumi/core soko-bot:copy-avatars

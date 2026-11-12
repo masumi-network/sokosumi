@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
-  CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   type CmoReportUpdateInput,
   cmoReportUpdateInputSchema,
 } from "@sokosumi/soko-bot";
@@ -24,6 +24,7 @@ import {
 } from "@/schemas/chat-result-preview.schema";
 import {
   CmoNotFoundError,
+  type CusoTarget,
   requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
@@ -89,7 +90,7 @@ export async function reportCmoUpdate(
       versionId: true,
     },
   });
-  if (bot?.versionId !== CMO_SOKO_BOT_VERSION_ID) {
+  if (!bot?.versionId || !CMO_SOKO_BOT_VERSION_IDS.includes(bot.versionId)) {
     throw new CmoNotFoundError("Cuso is not hired yet");
   }
   const { sharedRoomId: roomId, projectId } = bot;
@@ -172,11 +173,12 @@ export async function reportCmoUpdate(
  * an approved one gives way to the version that ran before it. The card is
  * marked reverted only when one of the two happened.
  */
-export async function revertCmoUpdate(input: {
-  userId: string;
-  updateId: string;
-}): Promise<void> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function revertCmoUpdate(
+  input: CusoTarget & {
+    updateId: string;
+  },
+): Promise<void> {
+  const cuso = await requireCuso(input);
   const message = await prisma.chatRoomMessage.findFirst({
     where: { id: input.updateId, ...cmoReportMessageWhere(cuso.sokoBotId) },
     select: { id: true, createdAt: true, metadata: true },

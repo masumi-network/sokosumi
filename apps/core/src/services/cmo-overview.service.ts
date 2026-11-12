@@ -1,7 +1,7 @@
 import {
   type BrandBrain,
   type MarketingStrategyPlan,
-  SOKO_BOT_CMO_SCHEDULES,
+  SOKO_BOT_CMO_RHYTHMS,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
@@ -18,8 +18,9 @@ import {
 import {
   type CmoLearningState,
   type Cuso,
+  type CusoTarget,
   cmoPayer,
-  findCusoForUser,
+  findCusoForProject,
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
@@ -198,10 +199,11 @@ export function cmoUpNext(
 
 /** Everything the CMO app shows, in one read, for one member of the business. */
 export async function getCmoOverview(
-  userId: string,
+  target: CusoTarget,
   now: Date = new Date(),
 ): Promise<CmoOverview | null> {
-  const cuso = await findCusoForUser(userId);
+  const { userId } = target;
+  const cuso = await findCusoForProject(target);
   if (!cuso) return null;
   const payer = await cmoPayer(cuso);
   const [organization, project, bot, channels] = await Promise.all([
@@ -285,6 +287,7 @@ export async function getCmoOverview(
       userId,
       organizationId: payer.organizationId,
       referenceId: payer.referenceId,
+      projectId: cuso.projectId,
       tx: prisma,
     }),
     mayApproveMarketingStrategy(userId, {
@@ -354,7 +357,7 @@ export async function getCmoOverview(
       timezone: true,
     },
   });
-  const routines = SOKO_BOT_CMO_SCHEDULES.map((routine) => {
+  const routines = SOKO_BOT_CMO_RHYTHMS.map((routine) => {
     const row = schedules.find((s) => s.systemKey === routine.key);
     return {
       key: routine.key,

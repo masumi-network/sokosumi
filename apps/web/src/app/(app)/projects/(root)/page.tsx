@@ -62,9 +62,10 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         }
       : null;
 
-  const [projectsPage, t] = await Promise.all([
+  const [projectsPage, t, tCmo] = await Promise.all([
     projectsPagePromise,
     translationsPromise,
+    getTranslations("Components.CmoProject"),
   ]);
   // An empty Open view reads "No projects yet" only when there is truly
   // nothing; one Closed project is enough to say "all closed" instead.
@@ -128,6 +129,7 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
           created: t("list.created"),
           pinned: t("list.pinned"),
           closed: t("list.closed"),
+          cmo: tCmo("badge"),
           // No scheduled-posts warning: the list does not count a card's
           // scheduled posts, so the dialog keeps its general description.
           actions: {

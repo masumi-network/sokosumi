@@ -1,6 +1,7 @@
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
+import { REFUND_PART_SEPARATOR } from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 
@@ -54,6 +55,7 @@ async function delegatedCreditsSpent(sokoBotId: string): Promise<number> {
       taskId: true,
       job: {
         select: {
+          id: true,
           transaction: { select: { amount: true } },
           refundedTransaction: { select: { amount: true } },
         },
@@ -66,10 +68,32 @@ async function delegatedCreditsSpent(sokoBotId: string): Promise<number> {
   let credits = 0;
   for (const charged of (await taskCreditsCharged(taskIds)).values())
     credits += charged;
+  // A split refund links one part to the Job; the others carry the Job id
+  // in their bucket's referenceId (`createCompensatingRefund`).
+  const refundedJobIds = delegations.flatMap(({ job }) =>
+    job?.refundedTransaction ? [job.id] : [],
+  );
+  const otherRefundParts = new Map<string, bigint>();
+  if (refundedJobIds.length > 0) {
+    const parts = await prisma.creditBucket.findMany({
+      where: {
+        referenceType: "REFUND",
+        OR: refundedJobIds.map((id) => ({
+          referenceId: { startsWith: `${id}${REFUND_PART_SEPARATOR}` },
+        })),
+      },
+      select: { referenceId: true, amount: true },
+    });
+    for (const { referenceId, amount } of parts) {
+      const jobId = referenceId?.split(REFUND_PART_SEPARATOR)[0] ?? "";
+      otherRefundParts.set(jobId, (otherRefundParts.get(jobId) ?? 0n) + amount);
+    }
+  }
   for (const { job } of delegations) {
     const net =
       -(job?.transaction?.amount ?? 0n) -
-      (job?.refundedTransaction?.amount ?? 0n);
+      (job?.refundedTransaction?.amount ?? 0n) -
+      (job ? (otherRefundParts.get(job.id) ?? 0n) : 0n);
     if (net > 0n) credits += convertCentsToCredits(net);
   }
   return credits;
@@ -197,13 +221,16 @@ export async function sokoBotFleetDays(
           AND t."parentTurnId" IS NULL
           AND t."requestedByUserId" IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM "soko_bot_lab_run" l WHERE l."turnId" = t."id")
+          -- Lab turns and eval lanes are ours, not a person writing to a bot.
+          AND COALESCE(t."clientTurnId", '') NOT LIKE 'lab:%'
+          AND NOT EXISTS (SELECT 1 FROM "eval_lane" e WHERE e."workspaceId" = b."workspaceId")
           AS "fromPerson",
         COALESCE((t."usage" ->> 'inputTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'outputTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'cacheReadTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'cacheWriteTokens')::numeric, 0) AS tokens,
         COALESCE(t."costUsdMicros", 0) + t."overheadCostUsdMicros" AS micros,
-        b."versionId" IS NOT DISTINCT FROM ${CMO_SOKO_BOT_VERSION_ID} AS "cmo"
+        COALESCE(b."versionId" = ANY(${[...CMO_SOKO_BOT_VERSION_IDS]}), false) AS "cmo"
       FROM "soko_bot_turn" t
       JOIN "soko_bot" b ON b."id" = t."sokoBotId"
       WHERE t."createdAt" >= date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})

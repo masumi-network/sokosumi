@@ -27,13 +27,17 @@ interface ListTasksParams {
   assigneeUserId?: string;
   projectId?: string;
   q?: string;
-  scope?: "workspace" | "owned";
+  scope?: "workspace" | "owned" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt" | "updatedAt";
+  sort?: "createdAt" | "updatedAt" | "dueOn";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
+  /** Only Tasks due on or before this day, `YYYY-MM-DD`. */
+  dueOnTo?: string;
+  /** Archived Tasks instead, most recently archived first. */
+  archived?: boolean;
 }
 
 interface CreateTaskInput {
@@ -62,6 +66,8 @@ interface PatchTaskInput {
   /** A future time queues the Task; null clears a saved Run at. */
   runAt?: Date | null;
   priority?: TaskPriority;
+  /** `YYYY-MM-DD`; null clears the due date. */
+  dueOn?: string | null;
 }
 
 interface CreateTaskEventInput {
@@ -144,6 +150,8 @@ export const taskService = (() => {
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
       scheduleId: params.scheduleId,
+      dueOnTo: params.dueOnTo,
+      ...(params.archived ? { archived: "true" as const } : {}),
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),

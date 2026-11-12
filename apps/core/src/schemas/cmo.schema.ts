@@ -17,11 +17,42 @@ export const cmoOnboardingRequestSchema = z
       .trim()
       .url()
       .max(500)
+      .describe("The business's website, which names the new Project."),
+    organizationId: z
+      .string()
+      .min(1)
+      .optional()
       .describe(
-        "The business's website. Cuso is hired into a new organization named after it.",
+        "An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.",
       ),
   })
   .openapi("CmoOnboardingRequest");
+
+/** One Cuso of the caller's, as CMO's Cuso picker lists him. */
+export const cmoCusoSchema = z
+  .object({
+    projectId: z.string(),
+    businessName: z.string(),
+    websiteUrl: z.string(),
+    projectLogo: z.union([z.string(), z.null()]),
+    organizationId: z.string(),
+    organizationName: z.string(),
+    hiring: z
+      .boolean()
+      .describe("No plan of his is approved yet: he is still being hired."),
+    createdAt: dateTimeSchema,
+  })
+  .openapi("CmoCuso");
+
+/** The caller's Cusos, and whether they may hire another (CMO is invite-only). */
+export const cmoCusoListSchema = z
+  .object({
+    cusos: z.array(cmoCusoSchema),
+    mayHire: z
+      .boolean()
+      .describe("The caller is on Core's hire allowlist (CMO_HIRE_ALLOWLIST)."),
+  })
+  .openapi("CmoCusoList");
 
 export const cmoMeasurementSchema = z
   .object({
@@ -86,6 +117,25 @@ export const cmoAdBudgetRequestSchema = z
 export const cmoStrategyRequestSchema = z
   .object({ note: z.string().trim().max(1_000).optional() })
   .openapi("CmoStrategyRequest");
+
+/** The Project of the Cuso a CMO route acts on. */
+export const cmoProjectParamsSchema = z.object({
+  projectId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "projectId", in: "path" },
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    }),
+});
+
+/** A version of the plan of the Cuso a CMO route acts on. */
+export const cmoStrategyParamsSchema = cmoProjectParamsSchema.extend({
+  strategyId: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "strategyId", in: "path" } }),
+});
 
 export const cmoUpdateIdParamsSchema = z.object({
   id: z.string().min(1).max(64),

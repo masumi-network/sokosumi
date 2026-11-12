@@ -512,6 +512,7 @@ async function TaskMetadataSection({
         task={{
           status: task.status,
           priority: task.priority,
+          dueOn: task.dueOn,
           visibility: task.visibility,
           selectableStatuses: task.selectableStatuses,
           organization: task.organization,
@@ -674,7 +675,7 @@ async function TaskDetailActionsSlot({
       isTaskOwner={session?.user.id === task.ownerId}
       taskOwnerId={task.ownerId}
       hasAssignedSeat={hasAssignedSeat}
-      repeatBlueprint={
+      taskBlueprint={
         !forceReadOnly && hasAssignedSeat
           ? {
               name: task.name,
@@ -687,6 +688,14 @@ async function TaskDetailActionsSlot({
               assigneeSokoBotId: task.assigneeSokoBotId,
               assigneeUserId: task.assigneeUserId,
             }
+          : undefined
+      }
+      sendToChat={
+        !forceReadOnly &&
+        hasAssignedSeat &&
+        task.visibility !== "PRIVATE" &&
+        session?.user.id
+          ? { currentUserId: session.user.id }
           : undefined
       }
       actionsMenuLabel={tMembersTableHeader("actions")}

@@ -10,9 +10,11 @@ const blob = vi.hoisted(() => ({ head: vi.fn(), list: vi.fn() }));
 vi.mock("@vercel/blob", () => blob);
 const db = vi.hoisted(() => ({
   driveShare: { findUnique: vi.fn(), update: vi.fn() },
+  dataRoom: { findMany: vi.fn() },
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 
+import { forgetDriveRooms } from "@/lib/drive-blob";
 import {
   createUnlockProof,
   driveShareDownloadUrl,
@@ -20,6 +22,7 @@ import {
   isUnlocked,
   shareFolderPath,
   unlockDriveShare,
+  upsertDriveShare,
   verifySharePassword,
 } from "./drive-share.service";
 
@@ -118,6 +121,8 @@ describe("shareFolderPath", () => {
 describe("driveShareDownloadUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    forgetDriveRooms();
+    db.dataRoom.findMany.mockResolvedValue([]);
     db.driveShare.findUnique.mockResolvedValue({
       id: "s1",
       kind: "FOLDER",
@@ -155,6 +160,20 @@ describe("driveShareDownloadUrl", () => {
     expect(blob.head).not.toHaveBeenCalled();
   });
 
+  it("never serves a file once its folder is a data room", async () => {
+    db.dataRoom.findMany.mockResolvedValue([
+      { folderPath: "Masumi Fundraising", storage: "PRIVATE" },
+    ]);
+    await expect(
+      driveShareDownloadUrl({
+        token: "tok",
+        proof: undefined,
+        path: "deck.pdf",
+      }),
+    ).resolves.toBeNull();
+    expect(blob.head).not.toHaveBeenCalled();
+  });
+
   it("asks for the password before a download", async () => {
     db.driveShare.findUnique.mockResolvedValue({
       id: "s1",
@@ -172,5 +191,26 @@ describe("driveShareDownloadUrl", () => {
         path: "deck.pdf",
       }),
     ).resolves.toBeNull();
+  });
+});
+
+describe("share links in a data room", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    forgetDriveRooms();
+  });
+
+  it("refuses a link with a stable kind the app can translate", async () => {
+    db.dataRoom.findMany.mockResolvedValue([
+      { folderPath: "Masumi Fundraising", storage: "PRIVATE" },
+    ]);
+    await expect(
+      upsertDriveShare({
+        store: { workspaceId: "w1", scope: "organization", ownerId: "org_1" },
+        target: { kind: "folder", folderPath: "Masumi Fundraising/Deck" },
+        userId: "u1",
+      }),
+    ).rejects.toMatchObject({ cause: { kind: "drive_share_in_data_room" } });
+    expect(db.driveShare.update).not.toHaveBeenCalled();
   });
 });

@@ -58,6 +58,7 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $queryRaw: queryRawMock,
+    sokoBot: { findFirst: async () => null, findMany: async () => [] },
     project: {
       findMany: projectFindManyMock,
     },

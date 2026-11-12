@@ -4,12 +4,14 @@ import {
   buildUserDriveFolderPrefix,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
+import { BlobNotFoundError } from "@vercel/blob";
 import pLimit from "p-limit";
 
-import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import {
+  drivePathOf,
+  requireDriveFileAccess,
+} from "@/helpers/drive-file-access";
 import {
   moveDriveFile,
   parseCacheControlMaxAge,
@@ -24,16 +26,27 @@ import {
   badRequest,
   conflict,
   notFound,
-  serviceUnavailable,
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
+  driveExists,
+  driveHasAny,
+  driveHead,
+  driveList,
+  driveRename,
+} from "@/lib/drive-blob";
+import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { moveDriveItemRequestSchema } from "@/schemas/drive-file.schema";
+import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
+import {
+  assertDataRoomMoveAllowed,
+  rebaseDataRooms,
+} from "@/services/data-room-paths.service";
 import { rebaseDriveFolderShares } from "@/services/drive-share.service";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
@@ -109,7 +122,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         scope: scope === "user" ? "me" : "org",
         organizationId:
           scope === "organization"
-            ? (body.organizationId ?? ownerId)
+            ? (ownerId ?? body.organizationId)
             : undefined,
       });
       resolvedWorkspaceId = workspace.workspaceId;
@@ -128,12 +141,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     };
 
-    const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
-
     const targetFolderPath = normalizeDriveFolderPath(body.targetFolderPath);
 
     if (body.itemType === "file") {
@@ -142,17 +149,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userContext.userId,
       );
 
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      await requireDriveFileAccess(authContext, scope, ownerId, {
+        changes: [drivePathOf(body.sourcePathname)],
+        into: [targetFolderPath],
+      });
+
+      const workspaceId = await workspaceIdFor(scope, ownerId);
+      if (scope === "organization") {
+        await requireNotCmoDriveFile(workspaceId, body.sourcePathname);
+      }
 
       await moveDriveFile({
         sourcePathname: body.sourcePathname,
         targetFolderPath,
         scope,
         ownerId,
-        token,
         // Before the mutation, so a workspace-resolution failure cannot
         // leave a moved object with a stale catalog entry.
-        workspaceId: await workspaceIdFor(scope, ownerId),
+        workspaceId,
       });
 
       return ok(c, body);
@@ -200,7 +214,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         ownerId = body.organizationId;
         scope = "organization";
-        await requireDriveFileAccess(authContext, scope, ownerId);
+        await requireDriveFileAccess(authContext, scope, ownerId, {
+          changes: [sourceFolderPath],
+          into: [targetFolderPath],
+        });
         oldPrefix = buildOrganizationDriveFolderPrefix(
           ownerId,
           sourceFolderPath,
@@ -209,13 +226,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Invalid scope. Must be 'me' or 'org'.");
       }
 
-      const sourceCheck = await list({
-        prefix: oldPrefix,
-        token,
-        limit: 1,
-      });
-
-      if (sourceCheck.blobs.length === 0) {
+      if (!(await driveHasAny(oldPrefix))) {
         throw notFound("Source folder not found");
       }
 
@@ -231,33 +242,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Cannot move a folder into its own descendant");
       }
 
-      const targetCheck = await list({
-        prefix: newPrefix,
-        token,
-        limit: 1,
-      });
-
-      if (targetCheck.blobs.length > 0) {
+      if (await driveHasAny(newPrefix)) {
         throw conflict("Target folder already exists");
       }
 
-      try {
-        await head(newPrefix.slice(0, -1), { token });
+      if (await driveExists(newPrefix.slice(0, -1))) {
         throw conflict("A file with that name already exists");
-      } catch (error) {
-        if (!(error instanceof BlobNotFoundError)) {
-          throw error;
-        }
       }
+
+      await assertDataRoomMoveAllowed({
+        scope,
+        ownerId,
+        fromFolderPath: sourceFolderPath,
+        toFolderPath: newFolderPath,
+      });
 
       // Collect all pathnames under source prefix (capped at MAX+1 for detection)
       const allPathnames: string[] = [];
       let cursor: string | undefined;
 
       do {
-        const result = await list({
+        const result = await driveList({
           prefix: oldPrefix,
-          token,
           cursor,
           limit: 1000,
         });
@@ -281,7 +287,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      await workspaceIdFor(scope);
+      const workspaceId = await workspaceIdFor(scope, ownerId);
+      if (scope === "organization") {
+        await requireNotCmoDriveFile(workspaceId, { startsWith: oldPrefix });
+      }
+
+      // Before the objects: a room on this folder must already name the new
+      // path, so what moves into it is written to the private store.
+      await rebaseDataRooms({
+        scope,
+        ownerId,
+        fromFolderPath: sourceFolderPath,
+        toFolderPath: newFolderPath,
+      });
 
       // Bounded-concurrency head + rename (10 concurrent operations)
       const limit = pLimit(10);
@@ -298,38 +316,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // Skip if already at target (retry-safe). It still counts as
           // moved — see the note in the folder rename route: on a retry
           // these are precisely the files that moved first time round.
-          try {
-            const targetCheck = await head(newPathname, { token });
-            if (targetCheck) {
-              moved.push({
-                fromPathname: sourcePathname,
-                toPathname: newPathname,
-              });
-              return;
-            }
-          } catch (error) {
-            if (!(error instanceof BlobNotFoundError)) {
-              throw error;
-            }
+          if (await driveExists(newPathname)) {
+            moved.push({
+              fromPathname: sourcePathname,
+              toPathname: newPathname,
+            });
+            return;
           }
 
-          let sourceMetadata;
-          try {
-            sourceMetadata = await head(sourcePathname, { token });
-          } catch (error) {
-            if (error instanceof BlobNotFoundError) {
-              // Source already moved or deleted, skip
-              return;
-            }
-            throw error;
-          }
+          const sourceMetadata = await driveHead(sourcePathname);
+          // Source already moved or deleted, skip
+          if (!sourceMetadata) return;
 
           const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
           try {
-            await rename(sourcePathname, newPathname, {
-              token,
-              access: "public",
-              addRandomSuffix: false,
+            await driveRename(sourcePathname, newPathname, {
               contentType: sourceMetadata.contentType,
               cacheControlMaxAge: maxAge,
             });

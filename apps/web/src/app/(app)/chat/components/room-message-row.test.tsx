@@ -23,7 +23,17 @@ import type {
 import { OUTBOUND_PENDING_SPINNER_DELAY_MS } from "@/app/chat/utils/outbound-room-message";
 import { ChatMessageRow } from "./room-message-row";
 
-const { routerPushMock } = vi.hoisted(() => ({ routerPushMock: vi.fn() }));
+const { routerPushMock, saveActionMock, toastMock } = vi.hoisted(() => ({
+  routerPushMock: vi.fn(),
+  saveActionMock: vi.fn(),
+  toastMock: { success: vi.fn(), error: vi.fn() },
+}));
+
+vi.mock("@/app/chat/actions", () => ({
+  saveRoomMessageAction: saveActionMock,
+}));
+
+vi.mock("sonner", () => ({ toast: toastMock }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPushMock }),
@@ -742,6 +752,57 @@ describe("ChatMessageRow", () => {
 
     expect(onSendToSelf).toHaveBeenCalledExactlyOnceWith(message);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("saves a message for later from the sheet and offers the Saved list", async () => {
+    const user = userEvent.setup();
+    saveActionMock.mockResolvedValue({ ok: true, value: null });
+    renderRow({ message: userMessage({ content: "Ship Friday" }) });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "SavedMessages.save",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(saveActionMock).toHaveBeenCalledExactlyOnceWith("message-1");
+    });
+    expect(toastMock.success).toHaveBeenCalledWith(
+      "SavedMessages.saved",
+      expect.objectContaining({
+        action: expect.objectContaining({ label: "SavedMessages.view" }),
+      }),
+    );
+    toastMock.success.mock.calls[0][1].action.onClick();
+    expect(routerPushMock).toHaveBeenCalledWith("/chat/catch-up/saved");
+  });
+
+  it("shows the save error when saving fails", async () => {
+    const user = userEvent.setup();
+    saveActionMock.mockResolvedValue({
+      ok: false,
+      error: { message: "Could not save the message." },
+    });
+    renderRow({ message: userMessage() });
+    await user.hover(screen.getByRole("article"));
+
+    await user.click(
+      within(hoverPill() as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "SavedMessages.save" }),
+    );
+
+    await waitFor(() => {
+      expect(toastMock.error).toHaveBeenCalledWith(
+        "Could not save the message.",
+      );
+    });
+    expect(toastMock.success).not.toHaveBeenCalled();
   });
 
   it("sends a message to yourself from the hover overflow", async () => {
@@ -3201,60 +3262,6 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(trace).toHaveAttribute("data-working", "true");
     expect(trace).toHaveTextContent("Reading the calendar");
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
-  });
-
-  describe("a crafted Soko Bot's face", () => {
-    const crafted = (overrides: Partial<ChatRoomMessage>) => {
-      const message = sokoBotMessage(overrides);
-      return {
-        ...message,
-        sender: {
-          type: "sokoBot" as const,
-          sokoBot: {
-            ...(
-              message.sender as Extract<
-                ChatRoomMessage["sender"],
-                { type: "sokoBot" }
-              >
-            ).sokoBot,
-            image: "https://blob/idle.png",
-            avatarStyleId: "crafted-desk",
-            workingLoopUrl: "https://blob/working-480.mp4",
-          },
-        },
-      };
-    };
-    const video = () =>
-      screen.getByTestId("message-sender-avatar").querySelector("video");
-
-    it("loops while its reply is in progress", () => {
-      renderRow({
-        message: crafted({
-          content: "",
-          metadata: { streaming: true, mention_id: "mention_1" },
-        }),
-      });
-
-      expect(video()).toHaveAttribute("src", "https://blob/working-480.mp4");
-      expect(video()).toHaveAttribute("loop");
-    });
-
-    it("rests on its still once the reply has landed", () => {
-      renderRow({ message: crafted({ content: "Done." }) });
-
-      expect(video()).toBeNull();
-    });
-
-    it("rests on its still when the reply failed", () => {
-      renderRow({
-        message: crafted({
-          content: "",
-          metadata: { mention_failed: true, mention_id: "mention_1" },
-        }),
-      });
-
-      expect(video()).toBeNull();
-    });
   });
 
   it("shows Failed to reply on a failed Soko Bot shell", () => {

@@ -1,5 +1,6 @@
 import { experimental_evaluate, gateway } from "ai";
 import { z } from "zod";
+import { wellFormed } from "@/lib/soko-bot/well-formed";
 
 import { gatewayCostUsd } from "./gateway-cost";
 
@@ -51,7 +52,8 @@ export async function evaluateWithJev(options: {
 }): Promise<{ answers: Map<string, JevAnswer>; costUsd: number }> {
   const result = await experimental_evaluate({
     model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
-    state: options.state,
+    // Clipped text can end in half an emoji, which the Gateway refuses.
+    state: wellFormed(options.state),
     questions: options.questions,
     abortSignal: AbortSignal.timeout(options.timeoutMs),
     maxRetries: 1,

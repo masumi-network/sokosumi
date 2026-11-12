@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { SignInProblem } from "../../components/sign-in-problem";
 import { getAuth } from "../../lib/auth";
+import { CMO_SIGN_IN_ERROR } from "../../lib/sign-in-errors";
 import { signIn } from "../actions";
 
 /** Unlinked while the home page is the waitlist site; kept out of search. */
@@ -24,9 +25,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   // secrets that a build does not have.
   const requestHeaders = await headers();
   const session = await getAuth().api.getSession({ headers: requestHeaders });
-  if (session) redirect("/");
   const raw = (await searchParams).error;
   const error = Array.isArray(raw) ? raw[0] : raw;
+  // Home sends a session Core refuses here; sending it home again would loop.
+  if (session && error !== CMO_SIGN_IN_ERROR.signedOut) redirect("/");
   if (!error) redirect("/signin");
   return <SignInProblem error={error} signIn={signIn} />;
 }

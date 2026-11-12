@@ -51,6 +51,22 @@ const { loadTaskScheduleDialogOptionsMock, scheduleDialogPropsMock } =
     scheduleDialogPropsMock: vi.fn(),
   }));
 
+const { openNewTaskWizardMock, newTaskWizardMock } = vi.hoisted(() => {
+  const openNewTaskWizardMock = vi.fn();
+  return {
+    openNewTaskWizardMock,
+    newTaskWizardMock: {
+      current: { openNewTaskWizard: openNewTaskWizardMock } as {
+        openNewTaskWizard: typeof openNewTaskWizardMock;
+      } | null,
+    },
+  };
+});
+
+vi.mock("@/app/components/new-task-wizard-provider", () => ({
+  useOptionalNewTaskWizard: () => newTaskWizardMock.current,
+}));
+
 vi.mock("@/app/tasks/actions", () => ({
   loadTaskScheduleDialogOptions: loadTaskScheduleDialogOptionsMock,
 }));
@@ -402,6 +418,26 @@ vi.mock("@/app/tasks/components/task-form-modal", () => ({
         {children}
       </div>
     ) : null,
+}));
+
+const { listChatRoomsMock, sendToChatDialogPropsMock } = vi.hoisted(() => ({
+  listChatRoomsMock: vi.fn(),
+  sendToChatDialogPropsMock: vi.fn(),
+}));
+
+vi.mock("@/components/chat/organization-chat-list.actions", () => ({
+  listOrganizationChatRoomsAction: listChatRoomsMock,
+}));
+
+vi.mock("@/app/tasks/components/task-send-to-chat-dialog", () => ({
+  TaskSendToChatDialog: (props: { rooms: { id: string }[] }) => {
+    sendToChatDialogPropsMock(props);
+    return (
+      <div role="dialog" aria-label="send to chat dialog">
+        {props.rooms.map((room) => room.id).join(",")}
+      </div>
+    );
+  },
 }));
 
 vi.mock("@/app/tasks/components/task-share-button", () => ({
@@ -2142,7 +2178,7 @@ describe("TaskDetailActions", () => {
       const user = userEvent.setup();
       const options = { coworkerOptions, projectOptions: [] };
       loadTaskScheduleDialogOptionsMock.mockResolvedValue(options);
-      renderActions({ repeatBlueprint: blueprint });
+      renderActions({ taskBlueprint: blueprint });
 
       await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
       await user.click(screen.getByRole("menuitem", { name: "repeat" }));
@@ -2173,6 +2209,163 @@ describe("TaskDetailActions", () => {
       await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
       expect(screen.queryByRole("menuitem", { name: "repeat" })).toBeNull();
+    });
+  });
+
+  describe("Duplicate", () => {
+    const blueprint = {
+      name: "Weekly report",
+      description: "Summarise the week",
+      projectId: "project-1",
+      visibility: "PRIVATE" as const,
+      assigneeId: null,
+      assigneeSokoBotId: "bot-1",
+      assigneeUserId: null,
+    };
+
+    afterEach(() => {
+      newTaskWizardMock.current = {
+        openNewTaskWizard: openNewTaskWizardMock,
+      };
+    });
+
+    it("opens the New Task form with the brief as a private Draft copy and leaves the Task alone", async () => {
+      const user = userEvent.setup();
+      renderActions({ taskBlueprint: blueprint });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "duplicate" }));
+
+      expect(openNewTaskWizardMock).toHaveBeenCalledWith({
+        prompt: "Summarise the week",
+        projectId: "project-1",
+        copy: {
+          taskId: "task-1",
+          name: "Weekly report",
+          visibility: "PRIVATE",
+          assigneeId: null,
+          assigneeSokoBotId: "bot-1",
+          assigneeUserId: null,
+        },
+      });
+      expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
+      expect(createTaskLink).not.toHaveBeenCalled();
+      expect(createTaskAndLink).not.toHaveBeenCalled();
+      expect(archiveMock).not.toHaveBeenCalled();
+    });
+
+    it("is not offered where the viewer cannot create a Task", async () => {
+      const user = userEvent.setup();
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "duplicate" })).toBeNull();
+    });
+
+    it("is not offered outside the app shell's New Task wizard", async () => {
+      const user = userEvent.setup();
+      newTaskWizardMock.current = null;
+      renderActions({ taskBlueprint: blueprint });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "duplicate" })).toBeNull();
+    });
+  });
+
+  describe("Send to chat", () => {
+    const sendToChat = { currentUserId: "user-1" };
+    const chatRoom = (id: string, organizationId: string | null) => ({
+      id,
+      organizationId,
+      kind: "channel",
+      isSelfDirect: false,
+      isReadOnly: false,
+      discoverability: "public",
+      userMembers: [],
+      coworkerMembers: [],
+      sokoBotMembers: [],
+    });
+
+    it("opens the dialog with only the Task workspace's rooms", async () => {
+      const user = userEvent.setup();
+      listChatRoomsMock.mockResolvedValue({
+        ok: true,
+        value: {
+          rooms: [chatRoom("same-org", "org-1"), chatRoom("other", "org-2")],
+          nextCursor: null,
+        },
+      });
+      renderActions({ sendToChat, currentOrganizationId: "org-1" });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(
+        screen.getByRole("menuitem", { name: "sendToChat.menuItem" }),
+      );
+
+      const dialog = await screen.findByRole("dialog", {
+        name: "send to chat dialog",
+      });
+      expect(dialog.textContent).toBe("same-org");
+      expect(sendToChatDialogPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ taskId: "task-1", currentUserId: "user-1" }),
+      );
+    });
+
+    it("returns focus to the Actions button when the dialog closes", async () => {
+      const user = userEvent.setup();
+      listChatRoomsMock.mockResolvedValue({
+        ok: true,
+        value: { rooms: [chatRoom("same-org", "org-1")], nextCursor: null },
+      });
+      renderActions({ sendToChat, currentOrganizationId: "org-1" });
+      const trigger = screen.getByRole("button", { name: actionsMenuLabel });
+
+      await user.click(trigger);
+      await user.click(
+        screen.getByRole("menuitem", { name: "sendToChat.menuItem" }),
+      );
+      await screen.findByRole("dialog", { name: "send to chat dialog" });
+      trigger.blur();
+      const { onCloseAutoFocus } = sendToChatDialogPropsMock.mock.lastCall![0];
+      const event = new Event("focusout", { cancelable: true });
+      onCloseAutoFocus(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(trigger).toHaveFocus();
+    });
+
+    it("says so when the rooms cannot be loaded", async () => {
+      const user = userEvent.setup();
+      listChatRoomsMock.mockResolvedValue({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "boom" },
+      });
+      renderActions({ sendToChat, currentOrganizationId: "org-1" });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(
+        screen.getByRole("menuitem", { name: "sendToChat.menuItem" }),
+      );
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("sendToChat.loadError"),
+      );
+      expect(
+        screen.queryByRole("dialog", { name: "send to chat dialog" }),
+      ).toBeNull();
+    });
+
+    it("is not offered without it", async () => {
+      const user = userEvent.setup();
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(
+        screen.queryByRole("menuitem", { name: "sendToChat.menuItem" }),
+      ).toBeNull();
     });
   });
 });

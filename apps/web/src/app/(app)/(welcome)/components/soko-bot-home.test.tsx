@@ -30,7 +30,8 @@ vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: (...args: unknown[]) => ensureRoom(...args),
   sendRoomMessageAction: (...args: unknown[]) => sendMessage(...args),
 }));
-vi.mock("@/app/soko-bots/components/bot-face", () => ({
+vi.mock("@/components/soko-bot/bot-face", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/soko-bot/bot-face")>()),
   BotFace: () => <span data-testid="bot-face" />,
 }));
 // The real composer is a rich editor; a plain textarea keeps the contract.
@@ -171,6 +172,69 @@ describe("SokoBotHome", () => {
     });
     expect(screen.getByRole("heading", { level: 2 }).textContent).toContain(
       'workedHours:{"hours":120}',
+    );
+  });
+
+  it("lists an important message among the Tasks by time, with who wrote it", async () => {
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Can you approve the bakery posts?",
+          from: "Maya",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.closest("section[aria-labelledby]"));
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/chat/rooms/room-1?message=msg-9",
+      "/tasks/task-1",
+    ]);
+    expect(links[0]?.textContent).toContain(
+      "Can you approve the bakery posts?",
+    );
+    expect(links[0]?.textContent).toContain("Maya");
+    expect(links[0]?.textContent).toContain("open");
+    expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
+  it("drops the quiet line once a chat happened, with no Tasks", async () => {
+    await renderHome({
+      teamTasks: [],
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Hi",
+          from: "Maya",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
+  it("draws a failed Task's icon in its page colour, not white on nothing", async () => {
+    await renderHome({
+      teamTasks: [
+        {
+          id: "task-2",
+          name: "Feature lab",
+          status: "FAILED",
+          updatedAt: new Date("2026-10-24T08:00:00Z"),
+          who: "CodePat",
+        },
+      ],
+    });
+    const icon = screen.getByRole("img", { name: "FAILED" });
+    const glyph = icon.querySelector("svg");
+    expect(glyph?.getAttribute("class")).toContain("text-semantic-destructive");
+    expect(glyph?.getAttribute("class")).not.toContain(
+      "text-semantic-destructive-foreground",
     );
   });
 

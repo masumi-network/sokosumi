@@ -39,6 +39,8 @@ import {
 
 interface CreateTaskParameters extends AuthenticatedRequest {
   tagSuggestionReceipt?: string;
+  /** A copy takes this Task's tags in Core instead of being classified. */
+  copyOfTaskId?: string;
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -125,6 +127,12 @@ interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
 interface SetTaskPriorityParameters extends AuthenticatedRequest {
   taskId: string;
   priority: TaskPriority;
+}
+
+interface SetTaskDueOnParameters extends AuthenticatedRequest {
+  taskId: string;
+  /** `YYYY-MM-DD`, or null to clear. */
+  dueOn: string | null;
 }
 
 interface MoveTaskToWorkspaceParameters extends AuthenticatedRequest {
@@ -371,6 +379,7 @@ function resolveAssigneeWrite(
 
 async function createTaskFromDescription(input: {
   tagSuggestionReceipt?: string;
+  copyOfTaskId?: string;
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -406,6 +415,7 @@ async function createTaskFromDescription(input: {
     ...(input.tagSuggestionReceipt
       ? { tagSuggestionReceipt: input.tagSuggestionReceipt }
       : {}),
+    ...(input.copyOfTaskId ? { copyOfTaskId: input.copyOfTaskId } : {}),
     description: trimmedDescription,
     ...assigneeWrite,
     projectId: normalizedProjectId ?? null,
@@ -538,6 +548,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
     name,
     tagSuggestionReceipt,
+    copyOfTaskId,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -554,6 +565,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         ...(name ? { name } : {}),
         description,
         tagSuggestionReceipt,
+        copyOfTaskId,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,
@@ -721,6 +733,28 @@ export const setTaskPriority = withSession<
       error,
       "Failed to update task priority",
       "Failed to update task priority",
+    );
+  }
+});
+
+export const setTaskDueOn = withSession<
+  SetTaskDueOnParameters,
+  TaskMutationActionResult<{ taskId: string }>
+>(async ({ taskId, dueOn }) => {
+  try {
+    await taskService.patchTask(taskId, { dueOn });
+
+    revalidateTaskMutationRoutes();
+    return taskMutationSuccess({ taskId });
+  } catch (error) {
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to update task due date",
+      "Failed to update task due date",
     );
   }
 });

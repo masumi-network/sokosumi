@@ -18,11 +18,17 @@ const OFFERS = [
   { provider: "outlook", name: "Outlook", connected: false },
 ];
 
-function renderStep(offers = OFFERS) {
+vi.mock("@/components/aurora-orb", () => ({
+  AuroraOrb: () => <div data-testid="orb" />,
+}));
+
+function renderStep(offers = OFFERS, botImageUrl: string | null = null) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
       <AssistantConnectStep
         botName="Atlas"
+        botImageUrl={botImageUrl}
+        botOrbSeed="orb:u1"
         offers={offers}
         chatUrl="/chat/rooms/room-1"
         returnTo="/setup/assistant/connect"
@@ -49,6 +55,32 @@ describe("AssistantConnectStep", () => {
       "href",
       "/chat/rooms/room-1",
     );
+  });
+
+  it("keeps the picture picked on the step before", () => {
+    const { container } = renderStep(OFFERS, "https://blob.test/owl-1.png");
+
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://blob.test/owl-1.png",
+    );
+    expect(screen.queryByTestId("orb")).toBeNull();
+  });
+
+  it("shows the orb when the bot was created without a picture", () => {
+    renderStep();
+
+    expect(screen.getByTestId("orb")).toBeTruthy();
+  });
+
+  it("starts at its heading, since the step before it is gone", () => {
+    renderStep();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Give Atlas your inbox and calendar",
+      }),
+    ).toHaveFocus();
   });
 
   it("connects a provider and comes back to this step", async () => {

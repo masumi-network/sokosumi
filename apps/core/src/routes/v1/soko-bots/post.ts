@@ -6,6 +6,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { sokoBotSchema } from "@/schemas/soko-bot.schema";
 import { createScopedSokoBotRequestSchema } from "@/schemas/soko-bot-scope.schema";
+import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 import {
   SokoBotNotFoundError,
   sokoBotControlPlane,
@@ -37,6 +38,7 @@ const createRouteDefinition = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -54,6 +56,7 @@ const reactivateRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -63,6 +66,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const auth = requireUserAuthContext(c.var.authContext);
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { scope, projectId, timezone, ...body } = c.req.valid("json");
+    if (scope === "project" && projectId)
+      await requireNotCmoProject(projectId, workspace.workspaceId);
     try {
       const sokoBotId =
         scope === "personal"
@@ -70,6 +75,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               await sokoBotControlPlane.create({
                 userId: auth.userId,
                 workspaceId: workspace.workspaceId,
+                timezone,
                 ...body,
               })
             ).id

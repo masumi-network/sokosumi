@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cardHref,
   fileSize,
+  groupFileResults,
   hasPendingStudioJob,
   ResultPreviewCard,
   ResultPreviews,
@@ -297,6 +298,58 @@ describe("chat result cards", () => {
       expect(html).not.toContain('aria-label="Open source: Launch campaign"');
     },
   );
+  it("keeps the full social image and its platform notice in a chat result", () => {
+    const notice = "Instagram will pad this image to 4:5.";
+    render(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "social_post",
+          status: "DRAFT",
+          summary: "Launch post",
+          social: {
+            provider: "instagram",
+            account: {
+              displayName: "Masumi",
+              handle: "masumi",
+              avatarUrl: null,
+            },
+            timestamp: null,
+          },
+          outputs: [
+            {
+              name: "tall.png",
+              contentType: "image/png",
+              sizeBytes: 100,
+              openHref: "/drive/files/image",
+              previewHref: "/api/drive/files/image/content",
+              transformation: {
+                provider: "instagram",
+                code: "pad_4_5",
+                notice,
+                original: {
+                  pathname: "drive/original.png",
+                  fileUrl: "https://example.com/original.png",
+                  name: "original.png",
+                  size: 100,
+                  mimeType: "image/png",
+                  kind: "image",
+                },
+              },
+            },
+          ],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: "tall.png" });
+    expect(image).toHaveClass("object-contain");
+    expect(image).toHaveAttribute("src", "/api/drive/files/image/content");
+    expect(screen.getAllByText("mediaNotice.pad_4_5")).toHaveLength(1);
+    expect(screen.queryByText(notice)).not.toBeInTheDocument();
+  });
+
   it("shows now on a draft social card with no publish time", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard
@@ -797,6 +850,74 @@ describe("bot card links for a shared bot", () => {
       </SokoBotTargetContext.Provider>,
     );
     expect(html).toContain('href="/soko-bots/bot-1"');
+  });
+});
+
+describe("files in one message", () => {
+  const file = (id: string, name: string): ChatResultAvailable => ({
+    ...task,
+    id,
+    kind: "file",
+    title: name,
+    status: null,
+    sourceHref: `/drive/files/${id}`,
+    outputs: [
+      {
+        name,
+        contentType: "application/pdf",
+        sizeBytes: 182_000,
+        openHref: `/drive/files/${id}`,
+        previewHref: `/api/drive/files/${id}/content`,
+        downloadHref: `/api/drive/files/${id}/content?download=1`,
+      },
+    ],
+  });
+  const invoice = file("invoice", "Invoice-QUTIOA-00028.pdf");
+  const receipt = file("receipt", "Receipt-QUTIOA-00028.pdf");
+
+  it("puts two or more files in one group, where the first one was", () => {
+    expect(groupFileResults([task, invoice, receipt])).toEqual([
+      task,
+      [invoice, receipt],
+    ]);
+    expect(groupFileResults([invoice, task, receipt])).toEqual([
+      [invoice, receipt],
+      task,
+    ]);
+  });
+
+  it("leaves a single file as its own card", () => {
+    expect(groupFileResults([task, invoice])).toEqual([task, invoice]);
+  });
+
+  it("shows the files as rows of one card, each opening and downloading its own file", () => {
+    resultQuery.mockReturnValue({
+      data: [invoice, receipt],
+      isFetching: false,
+      isError: false,
+    });
+    render(
+      <ResultPreviews
+        descriptors={[invoice, receipt].map((result) => ({
+          id: result.id,
+          capturedAt: result.capturedAt,
+        }))}
+        source={{ roomId: "room", messageId: "message" }}
+      />,
+    );
+    const card = screen.getByTestId("result-file-group");
+    expect(screen.getAllByTestId("result-file-group")).toHaveLength(1);
+    expect(
+      within(card).getByRole("link", {
+        name: "Open source: Receipt-QUTIOA-00028.pdf",
+      }),
+    ).toHaveAttribute("href", "/drive/files/receipt");
+    expect(
+      within(card).getByRole("link", {
+        name: "Download Invoice-QUTIOA-00028.pdf",
+      }),
+    ).toHaveAttribute("href", "/api/drive/files/invoice/content?download=1");
+    expect(screen.queryByTestId("result-preview-source")).toBeNull();
   });
 });
 

@@ -91,9 +91,10 @@ export const driveFileUploadSessionSchema = z
       description:
         "Server-generated upload pathname (no random suffix for Drive)",
     }),
-    access: z.literal("public").openapi({
+    access: z.enum(["public", "private"]).openapi({
       example: "public",
-      description: "Blob access level for the upload",
+      description:
+        "Blob access level for the upload: private inside a data room.",
     }),
     method: z.literal("PUT").openapi({
       example: "PUT",
@@ -149,6 +150,11 @@ export const driveFileSchema = z
       example: "2026-08-18T10:00:00.000Z",
       description: "When the file was uploaded to Blob storage",
     }),
+    dataRoom: z.boolean().openapi({
+      example: false,
+      description:
+        "In a data room: the bytes are private, so `fileUrl` does not open them. Read them through `/drive/files/content`.",
+    }),
   })
   .openapi("DriveFile");
 
@@ -196,6 +202,10 @@ const driveFolderSchema = z
     path: z.string().openapi({
       example: "Documents",
       description: "Relative folder path from current folder (single segment)",
+    }),
+    dataRoom: z.boolean().openapi({
+      example: false,
+      description: "This folder is a data room, or is inside one.",
     }),
   })
   .openapi("DriveFolder");

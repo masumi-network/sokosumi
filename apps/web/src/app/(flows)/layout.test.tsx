@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LEGAL_URLS } from "@/lib/constants/legal-urls";
+
 import FlowsLayout from "./layout";
 
 vi.mock("next/headers", () => ({
@@ -77,6 +79,22 @@ describe("FlowsLayout impersonation banner", () => {
     vi.clearAllMocks();
   });
 
+  it("opens the canonical policies without leaving onboarding", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+
+    render(await FlowsLayout({ children: <p>gate content</p> }));
+
+    for (const [name, href] of [
+      ["privacyPolicy", LEGAL_URLS.PRIVACY_POLICY],
+      ["termsOfServices", LEGAL_URLS.TERMS_OF_SERVICE],
+    ]) {
+      const link = screen.getByRole("link", { name });
+      expect(link).toHaveAttribute("href", href);
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    }
+  });
+
   it("mounts the banner with the target identity while impersonating", async () => {
     readRouteSessionMock.mockResolvedValue({
       status: "authenticated",
@@ -107,6 +125,17 @@ describe("FlowsLayout impersonation banner", () => {
       "",
     );
     expect(screen.getByText("gate content")).toBeInTheDocument();
+  });
+
+  it("lets the content column shrink to a phone screen", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+
+    render(await FlowsLayout({ children: <p>gate content</p> }));
+
+    // A row flex item keeps its min-content width unless min-w-0 says otherwise.
+    const column =
+      screen.getByText("gate content").parentElement?.parentElement;
+    expect(column).toHaveClass("min-w-0", "flex-1");
   });
 
   it("mounts no banner when signed out", async () => {

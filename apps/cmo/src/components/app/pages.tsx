@@ -4,8 +4,10 @@ import type { CmoOverview } from "@sokosumi/core-client";
 
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
+import type { CusoMessage } from "../../lib/chat-messages";
 import { strategyApproved } from "../../lib/strategy";
 import {
   type AdActions,
@@ -13,11 +15,13 @@ import {
   adsReturnError,
   ConnectAdsButton,
 } from "../ads";
-import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
-import type { ConnectMeasurement } from "../onboarding/results-step";
+import { BrandStep } from "../onboarding/brand-step";
+import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
+import { StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
+import { SubmitButton } from "../submit-button";
 
 interface PageProps {
   overview: CmoOverview;
@@ -58,6 +62,10 @@ export function ResultsPage({
   const connected = overview.channels.some(
     (channel) => channel.status.toUpperCase() === "ACTIVE",
   );
+  // A source the plan reads that is not connected is waiting on the owner.
+  const measurementNeeded = overview.measurement.some(
+    (source) => source.status !== "connected",
+  );
   return (
     <div className="page-body">
       <div className="grid4">
@@ -66,11 +74,11 @@ export function ResultsPage({
         <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
         <Kpi label="Failed" value={posts.failed} />
       </div>
-      <section className="panel">
+      <section className={measurementNeeded ? "card card-focus" : "card"}>
         <h3>Your numbers</h3>
         <p className="muted">
-          Cuso reads real visits, searches and orders from these. Where none of
-          them reaches, he estimates and asks you for the number.
+          {AGENT_NAME} reads real visits, searches and orders from these. Where
+          none of them reaches, he estimates and asks you for the number.
         </p>
         <MeasureFunnel
           sources={overview.measurement}
@@ -78,15 +86,15 @@ export function ResultsPage({
         />
       </section>
       <AdsPanel overview={overview} actions={ads} onChange={onChange} />
-      <section className="panel">
+      <section className="card">
         <h3>Reach and clicks</h3>
         <p className="muted">
           {connected
-            ? "Your networks haven't reported reach or clicks yet, so there is nothing to chart. Cuso says so in each weekly report instead of guessing."
-            : "Reach and clicks show here once you connect an account and Cuso's posts go out. Until then there is nothing to measure."}
+            ? `Your networks haven't reported reach or clicks yet, so there is nothing to chart. ${AGENT_NAME} says so in each weekly report instead of guessing.`
+            : `Reach and clicks show here once you connect an account and ${AGENT_NAME}'s posts go out. Until then there is nothing to measure.`}
         </p>
       </section>
-      <section className="panel">
+      <section className="card">
         <h3>Weekly reports</h3>
         {weekly.length === 0 ? (
           <p className="muted">
@@ -106,7 +114,7 @@ export function ResultsPage({
                 <span className="grow">{update.headline}</span>
                 <button
                   type="button"
-                  className="button button-ghost button-small"
+                  className="button button-secondary button-small"
                   onClick={() => openUpdate(update.id)}
                 >
                   Open in chat
@@ -130,22 +138,31 @@ function Kpi({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function BrandBrainPage({
-  overview,
-  onSave,
-  onAsk,
-}: {
+interface BrandBrainPageProps {
   overview: CmoOverview;
+  messages: CusoMessage[];
   onSave: (brain: BrandBrain) => Promise<void>;
   onAsk: (text: string) => Promise<void>;
-}) {
-  const brain = overview.brandBrain;
-  if (!brain) {
-    return <Empty>Cuso is still learning your business.</Empty>;
+}
+
+/** The hiring review's Brand Brain, without the approval: edit and tell Cuso what's off. */
+export function BrandBrainPage({
+  overview,
+  messages,
+  onSave,
+  onAsk,
+}: BrandBrainPageProps) {
+  if (!overview.brandBrain) {
+    return <Empty>{AGENT_NAME} is still learning your business.</Empty>;
   }
   return (
     <div className="page-body">
-      <BrandReveal overview={overview} onSave={onSave} onAsk={onAsk} />
+      <BrandStep
+        overview={overview}
+        messages={messages}
+        onCorrect={onAsk}
+        onSave={onSave}
+      />
     </div>
   );
 }
@@ -157,10 +174,7 @@ export type ConnectChannel = (
   provider: Provider,
 ) => Promise<{ url: string | null; error: string | null }>;
 
-const COMING_SOON = [
-  ["Website / SEO", "Articles"],
-  ["Newsletter", "Email"],
-] as const;
+const COMING_SOON = [["Website / SEO", "Articles"]] as const;
 
 const AD_PROVIDERS = [
   ["google_ads", "Google Ads"],
@@ -171,9 +185,13 @@ export function ChannelsPage({
   overview,
   connect,
   connectAds,
+  addMailingList,
+  onChange,
   connectFailed = false,
 }: PageProps & {
   connect: ConnectChannel;
+  addMailingList: AddMailingList;
+  onChange: (overview: CmoOverview) => void;
   connectAds: AdActions["connectAds"];
   connectFailed?: boolean;
 }) {
@@ -205,6 +223,10 @@ export function ChannelsPage({
     });
   }
 
+  // No connected network means Cuso cannot publish: the owner's move.
+  const noNetwork = !overview.channels.some(
+    (channel) => channel.status.toUpperCase() === "ACTIVE",
+  );
   return (
     <div className="page-body">
       {error ? (
@@ -212,7 +234,7 @@ export function ChannelsPage({
           {error}
         </p>
       ) : null}
-      <section className="panel">
+      <section className={noNetwork ? "card card-focus" : "card"}>
         <h3>Social accounts</h3>
         <ul className="list">
           {SOCIAL_PROVIDERS.map((provider) => {
@@ -233,7 +255,7 @@ export function ChannelsPage({
                   </span>
                 </span>
                 {active ? (
-                  <span className="tag ok">Connected</span>
+                  <StatusText>Connected</StatusText>
                 ) : (
                   <button
                     type="button"
@@ -252,11 +274,11 @@ export function ChannelsPage({
           })}
         </ul>
       </section>
-      <section className="panel">
+      <section className="card">
         <h3>Ad accounts</h3>
         <p className="muted">
-          Optional. Cuso writes the ads; you launch each one, and they never
-          spend more than your plan's ad budget.
+          Optional. {AGENT_NAME} writes the ads; you launch each one, and they
+          never spend more than your plan's ad budget.
         </p>
         <ul className="list">
           {AD_PROVIDERS.map(([provider, label]) => (
@@ -266,7 +288,7 @@ export function ChannelsPage({
                 <b>{label}</b>
               </span>
               {overview.adProviders.includes(provider) ? (
-                <span className="tag ok">Connected</span>
+                <StatusText>Connected</StatusText>
               ) : (
                 <ConnectAdsButton
                   provider={provider}
@@ -278,7 +300,15 @@ export function ChannelsPage({
           ))}
         </ul>
       </section>
-      <section className="panel">
+      <section className="card">
+        <h3>Newsletter</h3>
+        <MailingList
+          size={overview.mailingListSize}
+          add={addMailingList}
+          onChange={onChange}
+        />
+      </section>
+      <section className="card">
         <h3>Coming soon</h3>
         <ul className="list">
           {COMING_SOON.map(([label, kind]) => (
@@ -288,16 +318,112 @@ export function ChannelsPage({
                 <br />
                 <span className="note">{kind}</span>
               </span>
-              <span className="tag">Not yet</span>
+              <span className="muted">Not yet</span>
             </li>
           ))}
         </ul>
       </section>
       <p className="note">
-        Cuso plans for every channel he can reach, and never posts outside the
-        strategy you approved.
+        {AGENT_NAME} plans for every channel he can reach, and never posts
+        outside the strategy you approved.
       </p>
     </div>
+  );
+}
+
+export type AddMailingList = (
+  text: string,
+) => Promise<{ overview: CmoOverview | null; error: string | null }>;
+
+interface MailingListProps {
+  size: number;
+  add: AddMailingList;
+  onChange: (overview: CmoOverview) => void;
+}
+
+/** The addresses Cuso writes the newsletter for; sending is not built yet. */
+function MailingList({ size, add, onChange }: MailingListProps) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const count = new Intl.NumberFormat("en-GB").format(size);
+  return (
+    <>
+      <p className="muted">
+        {AGENT_NAME} writes each issue for the people on your list. Sending is
+        not built yet.
+      </p>
+      <div className="li">
+        <span className="grow">
+          {size > 0 ? (
+            <StatusText>
+              <span className="num">{count}</span> addresses
+            </StatusText>
+          ) : (
+            <span className="muted">No list yet</span>
+          )}
+        </span>
+        {open ? null : (
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={() => setOpen(true)}
+          >
+            {size > 0 ? "Add more" : "Add your list"}
+          </button>
+        )}
+      </div>
+      {open ? (
+        <form
+          className="stack-sm"
+          action={async () => {
+            const value = text.trim();
+            if (!value) return;
+            setError(null);
+            try {
+              const result = await add(value);
+              if (result.error || !result.overview) {
+                setError(result.error ?? "Could not add the list.");
+                return;
+              }
+              onChange(result.overview);
+              setText("");
+              setOpen(false);
+            } catch {
+              setError("That didn't go through. Try again.");
+            }
+          }}
+        >
+          <label className="label" htmlFor="mailing-list">
+            Paste email addresses, one per line or separated by commas
+          </label>
+          <textarea
+            id="mailing-list"
+            rows={5}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            required
+          />
+          {error ? (
+            <p className="note" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="acts">
+            <SubmitButton className="button button-secondary button-small">
+              Add
+            </SubmitButton>
+            <button
+              type="button"
+              className="button button-ghost button-small"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : null}
+    </>
   );
 }
 
@@ -315,7 +441,7 @@ export function SettingsPage({
 }) {
   return (
     <div className="page-body">
-      <section className="panel">
+      <section className="card">
         <h3>Credits</h3>
         <div className="li">
           <span className="grow">
@@ -334,18 +460,18 @@ export function SettingsPage({
           </a>
         </div>
       </section>
-      <section className="panel">
+      <section className="card">
         <h3>Autonomy</h3>
         <p className="muted">
-          Full autopilot. You approve the strategy; Cuso runs everything inside
-          it and tells you what he did.
+          Full autopilot. You approve the strategy; {AGENT_NAME} runs everything
+          inside it and tells you what he did.
         </p>
       </section>
-      <section className="panel">
-        <h3>What Cuso does when</h3>
+      <section className="card">
+        <h3>What {AGENT_NAME} does when</h3>
         <p className="muted">
-          Every routine works from your strategy. Nothing runs until you approve
-          it.
+          Every routine works from your strategy and starts once you approve it.
+          Dreaming runs every night from the start.
         </p>
         <ul className="list">
           {overview.routines.map((routine) => (
@@ -373,15 +499,17 @@ export function SettingsPage({
           ))}
         </ul>
       </section>
-      <section className="panel">
+      <section className="card">
         <h3>Another website</h3>
-        <p className="muted">Hire Cuso again for a different website.</p>
+        <p className="muted">
+          Hire {AGENT_NAME} again for a different website.
+        </p>
         <StartOver
           className="button button-secondary button-small"
           startOver={startOver}
         />
       </section>
-      <section className="panel">
+      <section className="card">
         <h3>Account</h3>
         <div className="li">
           <span className="grow">

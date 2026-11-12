@@ -55,7 +55,7 @@ export const IMAGE_PROVIDER_FIELDS = [
 
 export type ImageProviderField = (typeof IMAGE_PROVIDER_FIELDS)[number];
 
-export const DEFAULT_IMAGE_MODEL_ID = "gemini-flash";
+export const DEFAULT_IMAGE_MODEL_ID = "muse-image";
 
 /**
  * What one image costs, in the provider's own terms.
@@ -102,7 +102,7 @@ export interface ImageModel {
   dimensionMode: "aspect-ratio" | "image-size";
   /** The provider input properties this endpoint actually declares. */
   providerFields: readonly ImageProviderField[];
-  /** 1-5 for the curated shortlist, in order. Null for everything else. */
+  /** 1-6 for the curated shortlist, in order. Null for everything else. */
   curatedRank: number | null;
   notes: string;
   /** The provider's list price. Never a charge; see {@link ImagePrice}. */

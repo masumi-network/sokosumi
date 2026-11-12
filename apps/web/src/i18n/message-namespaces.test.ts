@@ -48,6 +48,7 @@ describe("message namespaces", () => {
     for (const bag of [ADMIN_MESSAGE_PATHS, SOKO_BOT_MESSAGE_PATHS]) {
       expect(bag).toContain("App.Tasks.Tags");
       expect(bag).toContain("App.Tasks.Priority.levels");
+      expect(bag).toContain("App.Tasks.Due");
     }
   });
 

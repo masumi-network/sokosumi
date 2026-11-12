@@ -5,7 +5,9 @@ import {
   DriveFilePreview,
   DriveItemCard,
   DriveItemName,
+  driveFileUrl,
   driveItemActivation,
+  forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
 import {
   driveItemActionsClass,
@@ -176,5 +178,25 @@ describe("DriveItemCard actions positioning", () => {
 
     const actions = screen.getByRole("button", { name: "more" }).parentElement;
     expect(actions?.className).not.toContain("absolute");
+  });
+});
+
+describe("where a Drive file opens", () => {
+  const file = {
+    fileUrl: "https://store.public.blob.vercel-storage.com/drive/users/u/a.pdf",
+    pathname: "drive/users/u/Series A/a b.pdf",
+  };
+
+  it("opens an ordinary file at its storage URL", () => {
+    expect(driveFileUrl({ ...file, dataRoom: false })).toBe(file.fileUrl);
+    expect(forcedDownloadUrl(file.fileUrl)).toBe(`${file.fileUrl}?download=1`);
+  });
+
+  it("opens a data room's file through the app, never its storage URL", () => {
+    const url = driveFileUrl({ ...file, dataRoom: true });
+    expect(url).toBe(
+      "/api/drive/content?pathname=drive%2Fusers%2Fu%2FSeries+A%2Fa+b.pdf",
+    );
+    expect(forcedDownloadUrl(url)).toBe(`${url}&download=true`);
   });
 });

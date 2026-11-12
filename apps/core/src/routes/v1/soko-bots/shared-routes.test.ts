@@ -34,6 +34,7 @@ const USER_ID = "user_1";
 const WORKSPACE_ID = "01960001-0001-7001-8001-000000000010";
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
 const PROJECT_ID = "01960001-0001-7001-8001-000000000077";
+const CMO_PROJECT_ID = "01960001-0001-7001-8001-0000000000c0";
 const TURN_ID = "01960001-0001-7001-8001-000000000055";
 const DECISION_ID = "01960001-0001-7001-8001-000000000066";
 
@@ -103,6 +104,11 @@ vi.mock("@/services/soko-bot-state.service", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findFirst: turnFindFirstMock },
+    // Cuso lives in the CMO Project only.
+    sokoBot: {
+      findFirst: async ({ where }: { where: { projectId?: string } }) =>
+        where.projectId === CMO_PROJECT_ID ? { id: "cuso" } : null,
+    },
     sokoBotPendingDecision: { findFirst: decisionFindFirstMock },
   },
 }));
@@ -287,29 +293,12 @@ describe("shared Soko Bot routes", () => {
           scope: "workspace",
           projectId: null,
           avatarSeed: null,
-          avatarImageUrl: "https://blob.test/idle.webp",
-          avatarState: "needs_you",
-          avatar: {
-            styleId: "crafted-desk",
-            styleVersion: 1,
-            stillUrl: "https://blob.test/idle.webp",
-            states: {
-              idle: {
-                stillUrl: "https://blob.test/idle.webp",
-                loopUrl: "https://blob.test/idle-320.webp",
-                loopLargeUrl: null,
-              },
-              thinking: null,
-              working: null,
-              done: null,
-              needs_you: null,
-              offline: null,
-            },
-          },
+          avatarImageUrl: null,
           status: "IDLE",
           archivedAt: null,
           sharedRoomId: null,
           viewerCanManage: true,
+          cuso: false,
         },
       ]);
 
@@ -317,19 +306,7 @@ describe("shared Soko Bot routes", () => {
 
       expect(response.status).toBe(200);
       expect((await response.json()).data.sharedBots).toEqual([
-        expect.objectContaining({
-          id: BOT_ID,
-          viewerCanManage: true,
-          avatarState: "needs_you",
-          avatarImageUrl: "https://blob.test/idle.webp",
-          avatar: expect.objectContaining({
-            styleId: "crafted-desk",
-            states: expect.objectContaining({
-              idle: expect.objectContaining({ loopLargeUrl: null }),
-              working: null,
-            }),
-          }),
-        }),
+        expect.objectContaining({ id: BOT_ID, viewerCanManage: true }),
       ]);
       expect(listSharedMock).toHaveBeenCalledWith(USER_ID, WORKSPACE_ID);
     });
@@ -389,6 +366,20 @@ describe("shared Soko Bot routes", () => {
       expect(createSharedMock).toHaveBeenCalledWith(
         expect.objectContaining({ projectId: PROJECT_ID }),
       );
+    });
+
+    it("refuses a project bot in a CMO Project", async () => {
+      const response = await post("/", {
+        scope: "project",
+        projectId: CMO_PROJECT_ID,
+        name: "Launch",
+      });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        kind: "cmo_project_read_only",
+      });
+      expect(createSharedMock).not.toHaveBeenCalled();
     });
 
     it.each([

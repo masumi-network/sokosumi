@@ -76,6 +76,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
 }));
 
 import {
+  cmoMaxCpc,
   finalizeCmoAds,
   launchCmoSearchAd,
   setCmoAdCampaignStatus,
@@ -138,7 +139,11 @@ beforeEach(() => {
 
 describe("launching a search ad", () => {
   it("builds the Google campaign from Cuso's parts, keeps it, then starts it", async () => {
-    await launchCmoSearchAd({ userId: "user-1", entryId: "ad-1" });
+    await launchCmoSearchAd({
+      projectId: "project-1",
+      userId: "user-1",
+      entryId: "ad-1",
+    });
 
     expect(createCampaign).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -151,6 +156,9 @@ describe("launching a search ad", () => {
           languageIds: ["1001"],
           finalUrl: "https://rst.de/check",
           keywords: [{ text: "fixed wireless internet", matchType: "PHRASE" }],
+          // A third of the 10 EUR day: a few clicks never spend it all.
+          maxCpc: 3.33,
+          negativeKeywords: expect.arrayContaining(["jobs", "torrent"]),
         }),
       }),
     );
@@ -164,12 +172,46 @@ describe("launching a search ad", () => {
     );
   });
 
+  it("refuses an ad that does not say where it runs, before spending", async () => {
+    files.mockResolvedValue(
+      new Map([
+        [
+          "ad-1",
+          {
+            fileId: "file-1",
+            media: [],
+            searchAd: { ...searchAd, location: undefined },
+            adCampaign: null,
+          },
+        ],
+      ]),
+    );
+    await expect(
+      launchCmoSearchAd({
+        projectId: "project-1",
+        userId: "user-1",
+        entryId: "ad-1",
+      }),
+    ).rejects.toThrow(/does not say where it runs/);
+    expect(createCampaign).not.toHaveBeenCalled();
+  });
+
+  it("keeps Cuso's click ceiling when it is lower than a third of the day", () => {
+    expect(cmoMaxCpc(10, 1.5)).toBe(1.5);
+    expect(cmoMaxCpc(10, 8)).toBe(3.33);
+    expect(cmoMaxCpc(10)).toBe(3.33);
+  });
+
   it("refuses past the plan's daily ad budget and spends nothing", async () => {
     campaigns.mockResolvedValue({
       campaigns: [{ id: "other", status: "ACTIVE", dailyBudget: 5 }],
     });
     await expect(
-      launchCmoSearchAd({ userId: "user-1", entryId: "ad-1" }),
+      launchCmoSearchAd({
+        projectId: "project-1",
+        userId: "user-1",
+        entryId: "ad-1",
+      }),
     ).rejects.toThrow(/plan allows EUR 10.00/);
     expect(createCampaign).not.toHaveBeenCalled();
   });
@@ -177,14 +219,22 @@ describe("launching a search ad", () => {
   it("refuses an ad account that bills in another currency", async () => {
     accounts.mockResolvedValue([{ ...google, currency: "USD" }]);
     await expect(
-      launchCmoSearchAd({ userId: "user-1", entryId: "ad-1" }),
+      launchCmoSearchAd({
+        projectId: "project-1",
+        userId: "user-1",
+        entryId: "ad-1",
+      }),
     ).rejects.toBeInstanceOf(CmoConflictError);
   });
 
   it("is only for owners and admins", async () => {
     mayApprove.mockResolvedValueOnce(false);
     await expect(
-      launchCmoSearchAd({ userId: "user-1", entryId: "ad-1" }),
+      launchCmoSearchAd({
+        projectId: "project-1",
+        userId: "user-1",
+        entryId: "ad-1",
+      }),
     ).rejects.toBeInstanceOf(CmoForbiddenError);
   });
 });
@@ -195,6 +245,7 @@ describe("starting a paused campaign", () => {
       campaigns: [{ id: "campaign-1", status: "ACTIVE", dailyBudget: 10 }],
     });
     await setCmoAdCampaignStatus({
+      projectId: "project-1",
       userId: "user-1",
       accountId: "account-1",
       campaignId: "campaign-1",
@@ -208,6 +259,7 @@ describe("starting a paused campaign", () => {
   it("pauses without checking the budget", async () => {
     approved.mockResolvedValue(null);
     await setCmoAdCampaignStatus({
+      projectId: "project-1",
       userId: "user-1",
       accountId: "account-1",
       campaignId: "campaign-1",
@@ -227,6 +279,7 @@ describe("finishing an ad connection", () => {
     adAccountCount.mockResolvedValue(0);
     await expect(
       finalizeCmoAds({
+        projectId: "project-1",
         userId: "user-1",
         connectionId: "ca_1",
         sessionUri: "https://composio/session",
@@ -249,6 +302,7 @@ describe("finishing an ad connection", () => {
     });
     adAccountCount.mockResolvedValue(0);
     const result = await finalizeCmoAds({
+      projectId: "project-1",
       userId: "user-1",
       connectionId: "ca_1",
       sessionUri: null,

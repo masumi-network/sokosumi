@@ -1,3 +1,4 @@
+import { FileSourceKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -10,6 +11,7 @@ const {
   jobFindManyMock,
   assetFindUniqueMock,
   assetFindManyMock,
+  assetFindFirstMock,
   getEnvMock,
   submitToQueueMock,
   uploadReferenceMock,
@@ -20,8 +22,9 @@ const {
   getBalanceMock,
   projectFindUniqueMock,
   ssrfSafeFetchMock,
-  fileFindFirstMock,
-  blobHeadMock,
+  driveHeadMock,
+  driveReadUrlMock,
+  loadLiveResourcesMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -32,6 +35,7 @@ const {
   jobFindManyMock: vi.fn(),
   assetFindUniqueMock: vi.fn(),
   assetFindManyMock: vi.fn(),
+  assetFindFirstMock: vi.fn(),
   getEnvMock: vi.fn(),
   submitToQueueMock: vi.fn(),
   uploadReferenceMock: vi.fn(),
@@ -42,13 +46,14 @@ const {
   getBalanceMock: vi.fn(),
   projectFindUniqueMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
-  fileFindFirstMock: vi.fn(),
-  blobHeadMock: vi.fn(),
+  driveHeadMock: vi.fn(),
+  driveReadUrlMock: vi.fn(),
+  loadLiveResourcesMock: vi.fn(),
 }));
 
-vi.mock("@vercel/blob", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@vercel/blob")>()),
-  head: blobHeadMock,
+vi.mock("@/lib/drive-blob", () => ({
+  driveHead: driveHeadMock,
+  driveReadUrl: driveReadUrlMock,
 }));
 
 // The submit-time balance check: read-only, and not what this suite is about.
@@ -84,11 +89,10 @@ vi.mock("@/lib/db/prisma", () => {
     projectImageAsset: {
       findUnique: assetFindUniqueMock,
       findMany: assetFindManyMock,
-      findFirst: vi.fn(),
+      findFirst: assetFindFirstMock,
       create: vi.fn(),
     },
     project: { findUnique: projectFindUniqueMock },
-    fileResource: { findFirst: fileFindFirstMock },
     transaction: { create: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
@@ -120,6 +124,10 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   uploadReference: uploadReferenceMock,
 }));
 
+vi.mock("@/services/file-search.service", () => ({
+  loadLiveResources: loadLiveResourcesMock,
+}));
+
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
 }));
@@ -133,6 +141,7 @@ import { imageModel } from "@/lib/image-studio/catalog";
 import {
   createImageJob,
   readProviderSize,
+  recoverUnclaimedReservations,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
 
@@ -170,6 +179,8 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     id: "job-1",
     projectId: "project-1",
     workspaceId: "workspace-1",
+    requestedByUserId: BASE_INPUT.userId,
+    idempotencyKey: BASE_INPUT.idempotencyKey,
     model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
     kind: "GENERATE",
     prompt: BASE_INPUT.prompt,
@@ -341,6 +352,226 @@ describe("image studio job submission", () => {
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
+  it("persists the selected product and batch independently of provider settings", async () => {
+    jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+
+    await createImageJob({
+      ...BASE_INPUT,
+      product: { id: "product-a", name: "Clay mug" },
+      batchId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        productId: "product-a",
+        productName: "Clay mug",
+        batchId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        settings: BASE_INPUT.settings,
+      }),
+    });
+    expect(assetFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("inherits the product from a parent image in the same project", async () => {
+    assetFindFirstMock.mockResolvedValueOnce({
+      job: { productId: "product-a", productName: "Clay mug" },
+    });
+    jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+
+    await createImageJob({ ...BASE_INPUT, parentAssetId: "parent-a" });
+
+    expect(assetFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "parent-a", projectId: BASE_INPUT.projectId },
+      select: {
+        job: {
+          select: {
+            productId: true,
+            productName: true,
+            referenceFileIds: true,
+          },
+        },
+      },
+    });
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        productId: "product-a",
+        productName: "Clay mug",
+      }),
+    });
+  });
+
+  const photoInput = {
+    ...BASE_INPUT,
+    modelId: "flux-2-pro",
+    referenceFileIds: ["file-1"],
+    referenceFileActor: {
+      userId: BASE_INPUT.userId,
+      organizationId: null,
+      kind: "interactive",
+    },
+  } satisfies Parameters<typeof createImageJob>[0];
+
+  it.each([
+    { visible: true, references: ["parent-a"], expected: ["file-1"] },
+    { visible: false, references: ["parent-a"], expected: [] },
+    {
+      visible: true,
+      references: ["parent-a", "other-a", "other-b", "other-c"],
+      expected: [],
+    },
+  ])(
+    "reuses an accessible original photo only if the edit has room ($visible, $references)",
+    async ({ visible, references, expected }) => {
+      jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+      assetFindFirstMock.mockResolvedValueOnce({
+        job: {
+          productId: "product-a",
+          productName: "Clay mug",
+          referenceFileIds: ["file-1"],
+        },
+      });
+      if (references.length === 1) {
+        loadLiveResourcesMock.mockResolvedValueOnce(
+          visible
+            ? [
+                {
+                  id: "file-1",
+                  sourceKind: FileSourceKind.DRIVE_UPLOAD,
+                  mimeType: "image/jpeg",
+                  sizeBytes: 2,
+                },
+              ]
+            : [],
+        );
+      }
+
+      await createImageJob({
+        ...photoInput,
+        referenceFileIds: undefined,
+        parentAssetId: "parent-a",
+        referenceAssetIds: references,
+        reuseParentPhotoIfAvailable: true,
+      });
+
+      expect(jobCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          referenceAssetIds: references,
+          referenceFileIds: expected,
+        }),
+      });
+      if (references.length === 1) {
+        expect(loadLiveResourcesMock).toHaveBeenCalledWith(
+          {
+            workspaceId: BASE_INPUT.workspaceId,
+            actor: photoInput.referenceFileActor,
+            resourceIds: ["file-1"],
+          },
+          expect.any(Object),
+        );
+      } else {
+        expect(loadLiveResourcesMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("refuses a new photo request when the file is not visible to the caller", async () => {
+    loadLiveResourcesMock.mockResolvedValueOnce([]);
+
+    await expect(createImageJob(photoInput)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(loadLiveResourcesMock).toHaveBeenCalledWith(
+      {
+        workspaceId: BASE_INPUT.workspaceId,
+        actor: photoInput.referenceFileActor,
+        resourceIds: ["file-1"],
+      },
+      expect.any(Object),
+    );
+    expect(jobCreateMock).not.toHaveBeenCalled();
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
+  it("applies the Studio reference cap before buying a job", async () => {
+    await expect(
+      createImageJob({
+        ...photoInput,
+        modelId: "muse-image",
+        referenceAssetIds: ["asset-1", "asset-2", "asset-3", "asset-4"],
+      }),
+    ).rejects.toMatchObject({ status: 422 });
+    expect(loadLiveResourcesMock).not.toHaveBeenCalled();
+    expect(jobCreateMock).not.toHaveBeenCalled();
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { idempotencyKey: "key-abcdefgh", kind: "interactive" },
+    { idempotencyKey: "soko-bot:turn-id:tool-call-id", kind: "soko_bot" },
+    { idempotencyKey: "cmo-media:version-id:piece-id", kind: "soko_bot" },
+  ])(
+    "blocks a recovered job without photo access ($idempotencyKey)",
+    async ({ idempotencyKey, kind }) => {
+      const now = new Date("2026-11-10T12:00:00Z");
+      const pending = jobRow({
+        createdAt: new Date("2026-11-10T11:58:00Z"),
+        idempotencyKey,
+        kind: "EDIT",
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+        referenceFileIds: ["file-1"],
+      });
+      requireProjectAccessMock.mockResolvedValueOnce({
+        projectId: BASE_INPUT.projectId,
+        workspaceId: BASE_INPUT.workspaceId,
+        userId: BASE_INPUT.userId,
+        organizationId: "organization-1",
+      });
+      jobFindManyMock.mockResolvedValueOnce([pending]);
+      jobFindUniqueOrThrowMock.mockResolvedValueOnce(pending);
+      loadLiveResourcesMock.mockResolvedValueOnce([]);
+
+      await recoverUnclaimedReservations({ now });
+
+      expect(loadLiveResourcesMock).toHaveBeenCalledWith(
+        {
+          workspaceId: BASE_INPUT.workspaceId,
+          actor: {
+            kind,
+            userId: BASE_INPUT.userId,
+            organizationId: "organization-1",
+          },
+          resourceIds: ["file-1"],
+        },
+        expect.any(Object),
+      );
+      expect(driveHeadMock).not.toHaveBeenCalled();
+      expect(uploadReferenceMock).not.toHaveBeenCalled();
+      expect(submitToQueueMock).not.toHaveBeenCalled();
+      expect(jobUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "FAILED",
+            failureReason: "reference_not_sendable",
+          }),
+        }),
+      );
+    },
+  );
+
+  it("returns a photo job on replay after the reference is removed", async () => {
+    jobFindUniqueMock.mockResolvedValue(
+      jobRow({ status: "QUEUED", referenceFileIds: ["file-1"] }),
+    );
+
+    await expect(createImageJob(photoInput)).resolves.toMatchObject({
+      status: "QUEUED",
+      referenceFileIds: ["file-1"],
+    });
+    expect(loadLiveResourcesMock).not.toHaveBeenCalled();
+    expect(jobCreateMock).not.toHaveBeenCalled();
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
   it("does not reach fal when another caller already holds the submission lease", async () => {
     // The conditional update matched nothing: someone else moved the row out
     // of PENDING first.
@@ -470,14 +701,22 @@ describe("image studio job submission", () => {
         referenceFileIds: ["file-1"],
       }),
     );
-    fileFindFirstMock.mockResolvedValue({
-      sourceId: "drive/w/dashboard.jpg",
-      mimeType: "image/jpeg",
-    });
-    blobHeadMock.mockResolvedValue({
+    loadLiveResourcesMock.mockResolvedValueOnce([
+      {
+        id: "file-1",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/w/dashboard.jpg",
+        mimeType: "image/jpeg",
+      },
+    ]);
+    driveHeadMock.mockResolvedValue({
+      access: "public",
       url: "https://store.public.blob.vercel-storage.com/drive/w/dashboard.jpg",
+      size: 1,
     });
-    ssrfSafeFetchMock
+    // Our own blob store, read without the SSRF guard its bot check refuses.
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(
         new Response(new Uint8Array([1]), {
@@ -489,7 +728,9 @@ describe("image studio job submission", () => {
 
     await createImageJob({ ...BASE_INPUT, referenceFileIds: ["file-1"] });
 
-    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    fetchMock.mockRestore();
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.objectContaining({
@@ -499,11 +740,12 @@ describe("image studio job submission", () => {
     );
   });
 
-  it("sends a workspace image File as a reference to the edit endpoint", async () => {
+  it("keeps a private product photo after the source ad and guides the provider to preserve it", async () => {
     jobCreateMock.mockImplementation(async ({ data }) =>
       jobRow({
         kind: data.kind,
         model: data.model,
+        referenceAssetIds: data.referenceAssetIds,
         referenceFileIds: data.referenceFileIds,
       }),
     );
@@ -511,50 +753,84 @@ describe("image studio job submission", () => {
       jobRow({
         kind: "EDIT",
         model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+        referenceAssetIds: ["asset-1"],
         referenceFileIds: ["file-1"],
       }),
     );
-    fileFindFirstMock.mockResolvedValue({
-      sourceId: "drive/w/leggings.jpg",
-      mimeType: "image/jpeg",
+    assetFindManyMock.mockResolvedValueOnce([
+      {
+        id: "asset-1",
+        blobPathname: "private/source.png",
+        bytes: 2,
+        contentType: "image/png",
+      },
+    ]);
+    readAssetBytesMock.mockResolvedValueOnce(new Uint8Array([3, 4]));
+    loadLiveResourcesMock.mockResolvedValueOnce([
+      {
+        id: "file-1",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/w/leggings.jpg",
+        mimeType: "image/jpeg",
+      },
+    ]);
+    driveHeadMock.mockResolvedValue({
+      access: "private",
+      url: "https://store.private.blob.vercel-storage.com/drive/w/leggings.jpg",
+      size: 2,
     });
-    blobHeadMock.mockResolvedValue({
-      url: "https://store.public.blob.vercel-storage.com/drive/w/leggings.jpg",
-    });
-    ssrfSafeFetchMock.mockResolvedValue(
+    const signedUrl = "https://store.private.blob.vercel-storage.com/signed";
+    driveReadUrlMock.mockResolvedValue(signedUrl);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(new Uint8Array([1, 2]), {
         headers: { "content-type": "image/jpeg" },
       }),
     );
-    uploadReferenceMock.mockResolvedValue("https://v3b.fal.media/files/l.jpg");
+    uploadReferenceMock
+      .mockResolvedValueOnce("https://v3b.fal.media/files/source.png")
+      .mockResolvedValueOnce("https://v3b.fal.media/files/l.jpg");
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-3" });
 
-    await createImageJob({ ...BASE_INPUT, referenceFileIds: ["file-1"] });
+    await createImageJob({
+      ...BASE_INPUT,
+      referenceAssetIds: ["asset-1"],
+      referenceFileIds: ["file-1"],
+    });
 
     expect(jobCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           kind: "EDIT",
           referenceFileIds: ["file-1"],
+          prompt: BASE_INPUT.prompt,
         }),
       }),
     );
-    expect(fileFindFirstMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          id: "file-1",
-          workspaceId: "workspace-1",
-        }),
-      }),
+    expect(loadLiveResourcesMock).toHaveBeenCalledWith(
+      {
+        workspaceId: BASE_INPUT.workspaceId,
+        actor: photoInput.referenceFileActor,
+        resourceIds: ["file-1"],
+      },
+      expect.any(Object),
     );
+    expect(driveReadUrlMock).toHaveBeenCalledWith("drive/w/leggings.jpg");
+    expect(fetchMock).toHaveBeenCalledWith(signedUrl, expect.any(Object));
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         input: expect.objectContaining({
-          image_urls: ["https://v3b.fal.media/files/l.jpg"],
+          image_urls: [
+            "https://v3b.fal.media/files/source.png",
+            "https://v3b.fal.media/files/l.jpg",
+          ],
+          prompt: expect.stringContaining(
+            "Use the last reference image for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text",
+          ),
         }),
       }),
     );
+    fetchMock.mockRestore();
   });
 
   it("sends reference bytes to the provider's storage, not one of our URLs", async () => {
@@ -613,8 +889,9 @@ describe("image studio job submission", () => {
   });
 
   it("sends Design and Memory to fal and keeps the stored prompt as the brief", async () => {
+    // Own URL: readDesignMdContent caches by URL across the test process.
     const designMdUrl =
-      "https://abc123.public.blob.vercel-storage.com/design-md/hash.md";
+      "https://abc123.public.blob.vercel-storage.com/design-md/jobs-brand.md";
     projectFindUniqueMock.mockResolvedValue({
       designMdUrl,
       contextMd: "We never use serif.",
@@ -643,8 +920,9 @@ describe("image studio job submission", () => {
 
   it("still sends the brief when Design cannot be read", async () => {
     projectFindUniqueMock.mockResolvedValue({
+      // A file no earlier test read: read files are cached by URL.
       designMdUrl:
-        "https://abc123.public.blob.vercel-storage.com/design-md/hash.md",
+        "https://abc123.public.blob.vercel-storage.com/design-md/unread-jobs.md",
       contextMd: null,
     });
     ssrfSafeFetchMock.mockRejectedValue(new Error("blocked"));

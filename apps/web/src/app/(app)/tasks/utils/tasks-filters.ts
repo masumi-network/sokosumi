@@ -23,6 +23,8 @@ export interface ProjectFilterOption {
   designMd?: { url: string } | null;
   briefingUrl?: string | null;
   contextMd?: { url: string; updatedAt: string | Date } | null;
+  /** A CMO Project, which pickers that create inside a Project leave out. */
+  cmo?: boolean;
 }
 
 /** App Router `searchParams` values can be `string | string[]` when a key is repeated. */
@@ -356,6 +358,43 @@ export function getTasksFiltersResetKey(
   activeOrganizationId: string | null,
 ): string {
   return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}`;
+}
+
+/**
+ * True when the Filters menu narrows the board past its defaults: a
+ * non-default scope, an assignee, a status or private visibility. These are
+ * what the removable chips show and what Clear filters resets.
+ */
+export function hasClearableTasksFilters(
+  filters: TasksFilters,
+  activeOrganizationId: string | null,
+): boolean {
+  return (
+    filters.scope !== getDefaultTasksScope(activeOrganizationId) ||
+    Boolean(
+      filters.assigneeId ||
+        filters.assigneeSokoBotId ||
+        filters.assigneeUserId ||
+        filters.status ||
+        filters.visibility,
+    )
+  );
+}
+
+/** Resets what {@link hasClearableTasksFilters} counts; the project stays. */
+export function clearTasksFilters(
+  filters: TasksFilters,
+  activeOrganizationId: string | null,
+): TasksFilters {
+  return {
+    ...filters,
+    scope: getDefaultTasksScope(activeOrganizationId),
+    assigneeId: null,
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
+    status: null,
+    visibility: null,
+  };
 }
 
 /**

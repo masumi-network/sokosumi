@@ -40,7 +40,6 @@ import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
-import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +66,6 @@ import {
 } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
-import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
@@ -156,6 +154,8 @@ export interface TaskFormLabels {
   saveError: string;
   privateLabel?: string;
   privateDescription?: string;
+  /** Under the assignee picker of a Private copy. */
+  privateOtherPeopleHint?: string;
 }
 
 interface TaskFormInitialValues {
@@ -170,6 +170,10 @@ interface TaskFormInitialValues {
   selectableStatuses?: readonly TaskStatus[];
   /** The Task's Run at as an ISO string; set only while it is Queued. */
   runAt?: string | null;
+  /** Create only: start with Private on (a copy of a private Task). */
+  visibility?: "PUBLIC" | "PRIVATE";
+  /** Create only: this form makes a copy of that Task ("Duplicate"). */
+  copyOfTaskId?: string;
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
@@ -216,6 +220,7 @@ function getTaskFormStatusLabel(
 
 export interface TaskFormCreateInput {
   tagSuggestionReceipt?: string;
+  copyOfTaskId?: string;
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -287,8 +292,16 @@ export function TaskForm({
   const hasProjectSelection = projectOptions !== undefined;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
+  // A copy is reviewed in full before it exists: its name, its assignee
+  // (Unassigned included), and it stays a Draft. It takes the source's tags in
+  // Core, so it asks for no tag suggestions.
+  const copyOfTaskId =
+    mode === "create" ? initialValues?.copyOfTaskId : undefined;
+  const isCopy = copyOfTaskId !== undefined;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(
+    initialValues?.visibility === "PRIVATE",
+  );
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
   const initialProjectId =
@@ -298,6 +311,13 @@ export function TaskForm({
   const initialProject = initialProjectId
     ? projectOptions?.find((project) => project.id === initialProjectId)
     : undefined;
+  // A new Task cannot start in a project the viewer cannot pick (closed, or
+  // gone since the source Task was made); it starts with no project instead.
+  const isInitialProjectUnavailable =
+    mode === "create" &&
+    Boolean(initialProjectId) &&
+    projectOptions !== undefined &&
+    !initialProject;
   const initialContext =
     mode === "edit"
       ? getTaskContextSelectionFromDescription(
@@ -310,7 +330,7 @@ export function TaskForm({
         )
       : null;
   const [projectId, setProjectId] = useState<string | null | undefined>(
-    initialProjectId,
+    isInitialProjectUnavailable ? null : initialProjectId,
   );
   const [isProjectMissing, setIsProjectMissing] = useState(false);
   const projectSelectRef = useRef<HTMLButtonElement>(null);
@@ -351,7 +371,7 @@ export function TaskForm({
       initialValues?.assigneeSokoBotId ||
       initialValues?.assigneeUserId ||
       "";
-    if (mode === "edit") {
+    if (mode === "edit" || isCopy) {
       return fromTask;
     }
     if (fromTask) {
@@ -365,6 +385,7 @@ export function TaskForm({
     return elenaCoworker?.id ?? coworkerOptions[0]?.id ?? "";
   }, [
     mode,
+    isCopy,
     coworkerOptions,
     initialValues?.assigneeId,
     initialValues?.assigneeSokoBotId,
@@ -373,16 +394,16 @@ export function TaskForm({
 
   const knownSokoBotId = useMemo(
     () =>
-      coworkerOptions.find((option) => option.kind === "sokoBot")?.id ??
+      // The Task's own Soko Bot first, so it keeps its kind while missing
+      // from the options.
       initialValues?.assigneeSokoBotId ??
+      coworkerOptions.find((option) => option.kind === "sokoBot")?.id ??
       null,
     [coworkerOptions, initialValues?.assigneeSokoBotId],
   );
 
   const coworkerTouchedRef = useRef(false);
-  const statusTouchedRef = useRef(
-    mode === "edit" && initialValues?.status !== undefined,
-  );
+  const statusTouchedRef = useRef(initialValues?.status !== undefined);
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
   const initialRunAt = initialValues?.runAt ?? null;
   // Only an agent can hold a Run at (Queued is agent-only), so a Calendar
@@ -400,7 +421,7 @@ export function TaskForm({
       : null,
   );
   const [status, setStatus] = useState<TaskStatus>(() => {
-    if (mode === "edit" && initialValues?.status !== undefined) {
+    if (initialValues?.status !== undefined) {
       return initialValues.status;
     }
     const fields = resolveTaskAssigneeFields(
@@ -502,8 +523,7 @@ export function TaskForm({
       }
 
       const shouldResolveStatus =
-        !statusTouchedRef.current ||
-        assigneeKindChanged ||
+        (!isCopy && (!statusTouchedRef.current || assigneeKindChanged)) ||
         (status === TaskStatus.QUEUED &&
           !canSelectQueuedTaskStatus({
             isAgent,
@@ -521,6 +541,7 @@ export function TaskForm({
     [
       assigneeId,
       coworkerOptions,
+      isCopy,
       knownSokoBotId,
       initialValues?.assigneeUserId,
       runAt,
@@ -595,7 +616,7 @@ export function TaskForm({
 
   const { os, isMobile } = useOSDetection();
 
-  const isNameRequired = mode === "edit";
+  const isNameRequired = mode === "edit" || isCopy;
   const selectedProject = useMemo(
     () =>
       projectId
@@ -639,8 +660,10 @@ export function TaskForm({
       initialValues?.assigneeSokoBotId ??
       initialValues?.assigneeUserId,
   );
-  const useWizard = mode === "create" && !hasPrefilledAssignee;
-  const [step, setStep] = useState<1 | 2>(hasPrefilledAssignee ? 2 : 1);
+  const useWizard = mode === "create" && !hasPrefilledAssignee && !isCopy;
+  const [step, setStep] = useState<1 | 2>(
+    hasPrefilledAssignee || isCopy ? 2 : 1,
+  );
   const showTaskStep = !useWizard || step === 2;
   const useComposeLayout = mode === "create" && showTaskStep;
   const useModalFieldFill = showTaskStep;
@@ -669,7 +692,11 @@ export function TaskForm({
     // description on step 1, and classifying it there means tags are already on
     // screen when the user reaches the editor.
     enabled:
-      mode === "create" && Boolean(session) && !createdTask && !isSubmitting,
+      mode === "create" &&
+      !isCopy &&
+      Boolean(session) &&
+      !createdTask &&
+      !isSubmitting,
   });
 
   const handleSave = useCallback(async () => {
@@ -718,24 +745,26 @@ export function TaskForm({
           status === TaskStatus.QUEUED)
       ) {
         const createTaskHandler = onCreateTask ?? createTask;
-        const createPrivateUnassigned =
-          canCreatePrivateTask &&
-          isPrivate &&
-          !isOtherHumanAssignee(
-            assigneeFields.assigneeUserId,
-            session?.user.id,
-          );
+        const isOtherHuman = isOtherHumanAssignee(
+          assigneeFields.assigneeUserId,
+          session?.user.id,
+        );
+        // A copy never turns public on its own: with another person assigned
+        // it still asks for Private, and Core refuses instead of publishing.
+        const sendsPrivate =
+          canCreatePrivateTask && isPrivate && (!isOtherHuman || isCopy);
         const result = await createTaskHandler({
           ...(draftTags.tagSuggestionReceipt
             ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
             : {}),
+          ...(copyOfTaskId ? { copyOfTaskId } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
           ...assigneeFields,
-          ...(createPrivateUnassigned
+          ...(sendsPrivate
             ? {
                 visibility: "PRIVATE" as const,
-                assigneeUserId: null,
+                ...(isOtherHuman ? {} : { assigneeUserId: null }),
               }
             : {}),
           context,
@@ -809,6 +838,8 @@ export function TaskForm({
     }
   }, [
     draftTags.tagSuggestionReceipt,
+    copyOfTaskId,
+    isCopy,
     description,
     isSaveDisabled,
     mode,
@@ -956,6 +987,9 @@ export function TaskForm({
       isQueuedSelectable,
     ],
   );
+  // While a copy is Private, other people cannot be picked: picking one must
+  // not publish it. Turning Private off first is the explicit choice.
+  const blocksOtherPeople = isCopy && canCreatePrivateTask && isPrivate;
   const showPrivateControl =
     mode === "create" &&
     canCreatePrivateTask &&
@@ -974,11 +1008,11 @@ export function TaskForm({
     [coworkerOptions, runAt],
   );
   const isAssigneeLockedToAgent = runAt !== null;
-  const showEditAssigneePicker = mode === "edit";
+  const showAssigneePicker = mode === "edit" || isCopy;
   const showModalCoworkerHeader =
     useComposeLayout && selectedOption !== undefined;
   const taskFieldsBorder =
-    showModalCoworkerHeader || showEditAssigneePicker ? "border-t" : "";
+    showModalCoworkerHeader || showAssigneePicker ? "border-t" : "";
   const cardLabels = useMemo(
     () => ({
       defaultBadge: labels.defaultBadge ?? "Default",
@@ -1114,7 +1148,7 @@ export function TaskForm({
             </TaskFormModalHeaderStart>
           ) : null}
 
-          {showEditAssigneePicker ? (
+          {showAssigneePicker ? (
             <div className="px-6 py-4 md:px-8">
               <TaskAssigneePicker
                 value={assigneeId}
@@ -1129,9 +1163,18 @@ export function TaskForm({
                 }}
                 onSelect={handleCoworkerSelect}
                 isOptionDisabled={(option) =>
-                  isAssigneeLockedToAgent && option === "unassigned"
+                  option === "unassigned"
+                    ? isAssigneeLockedToAgent
+                    : blocksOtherPeople &&
+                      option.kind === "user" &&
+                      isOtherHumanAssignee(option.id, session?.user.id)
                 }
               />
+              {blocksOtherPeople && labels.privateOtherPeopleHint ? (
+                <p className="text-muted-foreground mt-2 text-xs">
+                  {labels.privateOtherPeopleHint}
+                </p>
+              ) : null}
             </div>
           ) : showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
@@ -1145,15 +1188,6 @@ export function TaskForm({
                   size={36}
                   className="size-9 shrink-0"
                   alt={selectedOption.name}
-                />
-              ) : selectedOption.kind === "sokoBot" &&
-                selectedOption.image &&
-                isCraftedStyle(selectedOption.avatarStyleId) ? (
-                <AvatarFace
-                  src={selectedOption.image}
-                  crafted
-                  alt={selectedOption.name}
-                  className="ring-border size-9 ring-1"
                 />
               ) : (
                 <Avatar className="ring-border size-9 shrink-0 rounded-full ring-1">
@@ -1198,7 +1232,8 @@ export function TaskForm({
                   {taskStepTitle.replace("{name}", selectedOption.name)}
                 </h3>
               ) : null}
-              {mode === "edit" ? (
+              {/* Create shows the name only for a copy, so its title can be reviewed. */}
+              {mode === "edit" || isCopy ? (
                 <input
                   id="task-name"
                   type="text"
@@ -1206,7 +1241,7 @@ export function TaskForm({
                   placeholder={labels.namePlaceholder}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground"
+                  className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                 />
               ) : null}
 

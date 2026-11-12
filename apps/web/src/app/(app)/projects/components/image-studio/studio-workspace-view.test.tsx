@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
@@ -15,6 +21,7 @@ import type { StudioAsset } from "./types";
 
 const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
+  loadCatalog: vi.fn(),
   stateOptions: vi.fn(),
   replace: vi.fn(),
   openProjectScope: vi.fn(),
@@ -39,6 +46,10 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/image-studio/product-catalog", () => ({
+  getStudioProducts: mocks.loadCatalog,
 }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
@@ -158,12 +169,41 @@ beforeEach(() => {
 });
 
 describe("the workspace view", () => {
+  it("clears a submitted product batch so the keyboard shortcut cannot charge again", async () => {
+    mocks.loadCatalog.mockResolvedValueOnce({
+      revision: 1,
+      products: [
+        {
+          id: "mug",
+          name: "Mug",
+          description: "Handmade stoneware",
+          price: "",
+          url: null,
+          imageUrl: null,
+        },
+      ],
+    });
+    mount("project-launch", []);
+    fireEvent.click(screen.getByRole("button", { name: "title" }));
+    const add = await screen.findByRole("button", { name: "addToBatch" });
+    await waitFor(() => expect(add).toBeEnabled());
+    fireEvent.click(add);
+    fireEvent.click(screen.getByRole("button", { name: "useBatch" }));
+
+    const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    expect(box).toHaveValue("");
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: "clearProductBatch" }),
+    ).not.toBeInTheDocument();
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+  });
+
   it("opens the same empty studio without requiring a project", () => {
     mount(null, []);
-    expect(screen.getByRole("region", { name: "templates" })).toHaveAttribute(
-      "aria-roledescription",
-      "carousel",
-    );
+    expect(screen.getByRole("button", { name: "templates" })).toBeEnabled();
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toBeInTheDocument();
@@ -175,7 +215,7 @@ describe("the workspace view", () => {
     { hasProjects: true, label: "selectProject" },
     { hasProjects: false, label: "create" },
   ])(
-    "keeps $label in the empty-state header above curated styles",
+    "keeps $label in the empty-state header above the composer",
     ({ hasProjects, label }) => {
       mocks.useHasAnyScopeProject.mockReturnValue({
         isPending: false,
@@ -195,7 +235,7 @@ describe("the workspace view", () => {
       );
 
       expect(
-        screen.getByRole("region", { name: "templates" }),
+        screen.getByRole("button", { name: "templates" }),
       ).toBeInTheDocument();
       expect(
         screen.getByRole("textbox", { name: "promptPlaceholder" }),
@@ -204,7 +244,7 @@ describe("the workspace view", () => {
       const button = screen.getByRole("button", { name: label });
       const heading = screen.getByRole("heading", { name: "emptyTitle" });
       const subtitle = screen.getByText("emptyBody");
-      const templates = screen.getByRole("region", { name: "templates" });
+      const templates = screen.getByRole("button", { name: "templates" });
       expect(heading.parentElement).toContainElement(subtitle);
       expect(heading.parentElement).toContainElement(button);
       expect(
@@ -234,7 +274,7 @@ describe("the workspace view", () => {
     },
   );
 
-  it("moves the styles into the composer's toolbar as images appear, then returns them when empty", () => {
+  it("keeps templates in the toolbar and returns the canvas when empty", () => {
     const props = {
       catalog: TEST_CATALOG,
       initialSelectedAssetId: null,
@@ -248,7 +288,7 @@ describe("the workspace view", () => {
       />,
     );
     expect(
-      screen.getByRole("region", { name: "templates" }),
+      screen.getByRole("button", { name: "templates" }),
     ).toBeInTheDocument();
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(box, { target: { value: "keep my draft" } });
@@ -265,10 +305,10 @@ describe("the workspace view", () => {
     const menu = screen.getByRole("button", { name: "templates" });
     expect(box.closest("form")).toContainElement(menu);
     expect(
-      screen.queryByRole("button", { name: "poster" }),
+      screen.queryByRole("button", { name: "story-ad" }),
     ).not.toBeInTheDocument();
     fireEvent.click(menu);
-    expect(screen.getAllByRole("button", { name: "poster" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "story-ad" })).toHaveLength(1);
     fireEvent.keyDown(screen.getByRole("dialog", { name: "templates" }), {
       key: "Escape",
     });
@@ -281,19 +321,20 @@ describe("the workspace view", () => {
       />,
     );
     expect(
-      screen.getByRole("region", { name: "templates" }),
+      screen.getByRole("button", { name: "templates" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "templates" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("heading", { name: "emptyTitle" }),
+    ).toBeInTheDocument();
     expect(box).toHaveValue("keep my draft");
   });
 
   it("preserves the selected style and frame after closing the project selector", () => {
     mount(null, []);
-    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "templates" }));
+    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
     const template = STUDIO_TEMPLATES.find(
-      (candidate) => candidate.id === "headshot",
+      (candidate) => candidate.id === "social-post",
     )!;
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(box).toHaveValue(template.prompt);
@@ -322,7 +363,7 @@ describe("the workspace view", () => {
   it("keeps project images out of the curated landing page", () => {
     mount(null);
     expect(
-      screen.getByRole("region", { name: "templates" }),
+      screen.getByRole("button", { name: "templates" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Launch")).not.toBeInTheDocument();
     expect(screen.queryByText("Brand")).not.toBeInTheDocument();
@@ -391,11 +432,12 @@ describe("the workspace view", () => {
   it("keeps the pending style batch when creating its destination project", () => {
     mount(null, []);
     const template = STUDIO_TEMPLATES.find(
-      (item) => item.id === "illustration",
+      (item) => item.id === "product-announcement",
     )!;
+    fireEvent.click(screen.getByRole("button", { name: "templates" }));
     fireEvent.click(
       screen.getByRole("button", {
-        name: TEST_LABELS.templateLabels.illustration,
+        name: TEST_LABELS.templateLabels["product-announcement"],
       }),
     );
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });

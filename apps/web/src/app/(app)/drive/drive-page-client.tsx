@@ -25,6 +25,7 @@ import {
   Folders,
   Link2,
   ListFilter,
+  LockKeyhole,
   MoreHorizontal,
   Pencil,
   Search,
@@ -53,11 +54,17 @@ import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
+import { DriveCmoProjectBanner } from "@/app/drive/components/drive-cmo-project-banner";
+import {
+  DriveDataRoomDialog,
+  type DriveDataRoomFolder,
+} from "@/app/drive/components/drive-data-room-dialog";
 import {
   DriveFilePreview,
   DriveItemCard,
   DriveItemName,
   driveItemActivation,
+  forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
@@ -116,7 +123,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -128,6 +134,7 @@ import {
   serializeFilesViewModeCookie,
 } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
+import { dataRoomOf, fetchDataRooms } from "@/lib/utils/data-room.client";
 import {
   driveStoreForActiveWorkspace,
   driveWorkspaceRootLabel,
@@ -181,16 +188,6 @@ function driveNavParams(params: URLSearchParams): URLSearchParams {
   next.delete("archived");
   next.delete("tags");
   return next;
-}
-
-function appendDownloadParam(url: string): string {
-  try {
-    const parsed = new URL(url);
-    parsed.searchParams.set("download", "1");
-    return parsed.toString();
-  } catch {
-    return url;
-  }
 }
 
 type ExploreItem =
@@ -308,6 +305,8 @@ function DrivePageWorkspace({
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shareItem, setShareItem] = useState<DriveShareItem | null>(null);
+  const [dataRoomFolder, setDataRoomFolder] =
+    useState<DriveDataRoomFolder | null>(null);
   const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
   /**
    * Which folder is narrowing the catalog, if any.
@@ -488,6 +487,12 @@ function DrivePageWorkspace({
     [allFilesOrganizationId],
   );
 
+  const dataRoomsQuery = useQuery({
+    queryKey: ["drive", "data-rooms", allFilesStore],
+    queryFn: () => fetchDataRooms(allFilesStore),
+    enabled: isWorkspaceView,
+  });
+
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
     driveNavQuery.sortOrder,
@@ -558,6 +563,9 @@ function DrivePageWorkspace({
      * the store and appear nowhere until they searched for something.
      */
     setCatalogReloadToken((token) => token + 1);
+    // Core moves a room's path with a rename or move of it or of a folder
+    // above it; stale paths would mark the wrong folder as a data room.
+    await queryClient.invalidateQueries({ queryKey: ["drive", "data-rooms"] });
   }
 
   const loadTasksItems = useCallback(async () => {
@@ -1004,7 +1012,7 @@ function DrivePageWorkspace({
 
   function handleDownload(fileUrl: string, fileName: string) {
     const link = document.createElement("a");
-    link.href = appendDownloadParam(fileUrl);
+    link.href = forcedDownloadUrl(fileUrl);
     link.download = fileName;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
@@ -1475,7 +1483,7 @@ function DrivePageWorkspace({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleFabOpen() {
+  function openFilePicker() {
     fileInputRef.current?.click();
   }
 
@@ -1553,28 +1561,50 @@ function DrivePageWorkspace({
    * no folder to act on.
    */
   const facetFolderItem: DriveItem | null = facetFolder
-    ? { type: "folder", name: facetFolder, path: facetFolder }
+    ? { type: "folder", name: facetFolder, path: facetFolder, dataRoom: false }
     : null;
   const folderName = facetFolder.split("/").at(-1) ?? facetFolder;
+  const facetFolderRoom = dataRoomOf(dataRoomsQuery.data ?? [], facetFolder);
   const folderActions = facetFolderItem ? (
     <>
       <Button
         type="button"
         size="sm"
-        variant="ghost"
+        variant={facetFolderRoom ? "secondary" : "ghost"}
         className="gap-1.5"
-        data-testid="files-share-folder"
-        aria-label={t("shareFolderAction", { name: folderName })}
+        data-testid="files-data-room-folder"
+        aria-label={t("dataRoomFolderAction", { name: folderName })}
         onClick={() =>
-          setShareItem({
-            target: { kind: "folder", folderPath: facetFolder },
+          setDataRoomFolder({
+            path: facetFolder,
             name: folderName,
+            room: facetFolderRoom,
           })
         }
       >
-        <Link2 className="size-4" aria-hidden />
-        <span className="hidden @lg:inline">{t("shareAction")}</span>
+        <LockKeyhole className="size-4" aria-hidden />
+        <span className="hidden @lg:inline">{t("dataRoomAction")}</span>
       </Button>
+      {/* A room's files are reached by invitation, never by link. */}
+      {facetFolderRoom ? null : (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="gap-1.5"
+          data-testid="files-share-folder"
+          aria-label={t("shareFolderAction", { name: folderName })}
+          onClick={() =>
+            setShareItem({
+              target: { kind: "folder", folderPath: facetFolder },
+              name: folderName,
+            })
+          }
+        >
+          <Link2 className="size-4" aria-hidden />
+          <span className="hidden @lg:inline">{t("shareAction")}</span>
+        </Button>
+      )}
       <Button
         type="button"
         size="sm"
@@ -1639,6 +1669,12 @@ function DrivePageWorkspace({
 
   return (
     <div className={cn("@container w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+      {/* Drive scopes to a Project only on the Tasks view. */}
+      <DriveCmoProjectBanner
+        projectId={
+          isTasksView && projectIdParam !== "null" ? projectIdParam : null
+        }
+      />
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <div
           data-testid="files-desktop-header"
@@ -1726,21 +1762,20 @@ function DrivePageWorkspace({
                   <FolderPlus className="size-4" aria-hidden />
                   {t("createFolder")}
                 </Button>
-                <Label htmlFor="file-upload" className="cursor-pointer">
-                  <Button
-                    disabled={uploading}
-                    size="sm"
-                    className="gap-1.5"
-                    asChild
-                  >
-                    <span>
-                      <Upload className="size-4" aria-hidden />
-                      {uploading
-                        ? t("uploadingProgress", { progress: uploadProgress })
-                        : t("uploadButton")}
-                    </span>
-                  </Button>
-                </Label>
+                {/* A real button: a label over a hidden input never gets
+                    keyboard focus, so Tab skipped Upload. */}
+                <Button
+                  type="button"
+                  disabled={uploading}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={openFilePicker}
+                >
+                  <Upload className="size-4" aria-hidden />
+                  {uploading
+                    ? t("uploadingProgress", { progress: uploadProgress })
+                    : t("uploadButton")}
+                </Button>
                 <Input
                   id="file-upload"
                   ref={fileInputRef}
@@ -2260,6 +2295,7 @@ function DrivePageWorkspace({
             label: t("tasksFolder"),
             onOpen: navigateToTasksRoot,
           }}
+          dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
           reloadToken={catalogReloadToken}
           onShareFile={setShareItem}
           onMoveFiles={openMoveFilesDialog}
@@ -2274,10 +2310,19 @@ function DrivePageWorkspace({
         }}
       />
 
+      <DriveDataRoomDialog
+        store={allFilesStore}
+        folder={dataRoomFolder}
+        onOpenChange={(open) => {
+          if (!open) setDataRoomFolder(null);
+        }}
+        onChanged={() => void dataRoomsQuery.refetch()}
+      />
+
       {!isTasksView && isWorkspaceView && (
         <ListMobileCreateFab
           ariaLabel={t("uploadFab")}
-          onOpen={handleFabOpen}
+          onOpen={openFilePicker}
           icon={Upload}
           progress={uploading ? uploadProgress : undefined}
         />

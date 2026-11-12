@@ -152,9 +152,10 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables   DataTable[]
-  contacts     Contact[]
-  contactLists ContactList[]
+  dataTables       DataTable[]
+  contacts         Contact[]
+  contactLists     ContactList[]
+  contactCompanies ContactCompany[]
 
   calendarRevision Int @default(0)
 
@@ -193,6 +194,7 @@ model Workspace {
   fileLineages       FileLineage[]
   fileCollections    FileCollection[]
   driveShares        DriveShare[]
+  dataRooms          DataRoom[]
   fileAdmissions     FileAuthorizationAdmission[]
   fileResultWindows  FileResultWindow[]
 
@@ -468,6 +470,9 @@ model Project {
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
   logo                    String?
+  studioLogoPosition      String?
+  studioBrandLook         Json?
+  studioBrandLookRevision Int       @default(0)
   designMdUrl             String?
   designMdExtractionId    String?
   /// Markdown guidance for drafting this Project's social posts (tone,
@@ -509,9 +514,13 @@ model Project {
   adMarketSnapshots ProjectAdMarketSnapshot[]
   adMarketAdsJob    ProjectAdMarketAdsJob?
 
+  studioProductCatalog ProjectStudioProductCatalog?
+
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
+
+  creditBuckets CreditBucket[]
 
   fileLinks FileProjectLink[]
 
@@ -1584,11 +1593,17 @@ model CreditBucket {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  // Project credits (ADR 0067): only a charge for this Project spends them.
+  // The owner stays the organization; null is the Organization credit pool.
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   // Track which transactions consumed from this bucket
   consumptions CreditConsumption[]
 
   @@unique([referenceId, referenceType])
   @@index([userId, organizationId, expiresAt])
+  @@index([projectId])
   @@index([expiresAt])
   @@index([activatesAt])
   @@map("credit_bucket")
@@ -2589,113 +2604,21 @@ model SokoBotAvatar {
   claimedBySokoBot   SokoBot?  @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
   claimedAt          DateTime?
 
-  /// The user whose top-up caused this image. Null for rows the pool cron made,
-  /// which no user asked for. Read by the per-user generation cap.
+  /// The user whose top-up caused this image. Null for rows the removed pool
+  /// cron made, which no user asked for. Read by the per-user generation cap.
   requestedByUserId String?
   requestedBy       User?   @relation("SokoBotAvatarRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   /// Set when the row is claimed as a generation slot, before the paid image
   /// call. Cleared once `imageUrl` holds a real image. A non-null value means
   /// the image is still in flight or the run died, so the row is not showable.
-  /// Every read filters on it; the pool cron sweeps stale ones.
+  /// Every read filters on it; the top-up sweeps stale ones.
   reservedAt DateTime?
 
-  /// The style that drew it (an id in Core's style registry). `mascot` is the
-  /// legacy recipe: read, never drawn again.
-  styleId        String  @default("mascot")
-  styleVersion   Int     @default(1)
-  /// What the look is made of: `{ creature, accessories[], typed[] }`. Null for
-  /// legacy rows.
-  look           Json?
-  /// The avatar this look was edited from, if any. Not a relation: the parent
-  /// may be swept first.
-  parentAvatarId String? @db.Uuid
-
-  /// Set while the look is private to one bot: a draft, or the tombstone of a
-  /// kept look the bot has replaced. Such a row is never part of the pool, and
-  /// it is swept once `draftExpiresAt` passes unless a bot has claimed it.
-  /// Plain columns, not a relation: the sweep owns their lifetime.
-  draftForSokoBotId String?   @db.Uuid
-  draftExpiresAt    DateTime?
-
-  /// The combination of creature, coat, scene details and accessory this look
-  /// is, so no two bots share a face. Set for pool and claimed looks only
-  /// (a draft gets it when a bot keeps it, a replaced look loses it), so the
-  /// unique below covers exactly what a bot can hold or be offered. Null for
-  /// legacy rows.
-  traitKey String?
-
-  /// Drawn by the pool, not for one bot. A pool look taken as a draft goes back
-  /// to the pool when the draft expires; a look drawn for a bot is deleted.
-  fromPool Boolean @default(false)
-
-  /// When and by whom the look was kept. Read by the per-user daily keep cap,
-  /// so the row stays (as a tombstone, without renders) for the cap window
-  /// after the bot replaces the look.
-  keptAt       DateTime?
-  keptByUserId String?
-
-  renders SokoBotAvatarRender[]
-
   @@unique([subject, background, seed])
-  @@unique([styleId, styleVersion, traitKey])
   @@index([claimedAt])
   @@index([requestedByUserId, createdAt])
-  @@index([keptByUserId, keptAt])
-  @@index([draftForSokoBotId])
   @@map("soko_bot_avatar")
-}
-
-enum SokoBotAvatarState {
-  IDLE
-  THINKING
-  WORKING
-  DONE
-  NEEDS_YOU
-  OFFLINE
-}
-
-enum SokoBotAvatarRenderStatus {
-  PENDING
-  STILL_READY
-  /// Claimed for the paid video call; no provider operation stored yet.
-  VIDEO_SUBMITTING
-  VIDEO_SUBMITTED
-  READY
-  /// The submit call may have been billed and its outcome is unknown. Never
-  /// resubmitted: the still stays.
-  SUBMISSION_UNCERTAIN
-  FAILED
-}
-
-/// One state of a kept avatar: a still and a looping animation. The cron walks
-/// each row PENDING → STILL_READY → VIDEO_SUBMITTED → READY (ADR 0039: no queue).
-model SokoBotAvatarRender {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  avatarId String             @db.Uuid
-  avatar   SokoBotAvatar      @relation(fields: [avatarId], references: [id], onDelete: Cascade)
-  state    SokoBotAvatarState
-
-  status       SokoBotAvatarRenderStatus @default(PENDING)
-  stillUrl     String?
-  loopUrl      String?
-  loopLargeUrl String?
-
-  /// Paid attempts at the current step, counted when the lease is taken.
-  attempts          Int       @default(0)
-  /// Whoever holds this is the only worker allowed to spend on the row.
-  leaseUntil        DateTime?
-  /// The Gateway's opaque video operation, stored as soon as the submit returns.
-  providerOperation Json?
-  submittedAt       DateTime?
-  lastError         String?
-
-  @@unique([avatarId, state])
-  @@index([status, leaseUntil])
-  @@map("soko_bot_avatar_render")
 }
 
 model SokoBotLegacyMessage {
@@ -3480,6 +3403,10 @@ model Task {
 
   /// The one time this Task is set to start instead of now. Never repeats.
   runAt DateTime?
+
+  /// The day the Task should be done by. A calendar date with no time or
+  /// timezone; overdue is judged against the reader's own today.
+  dueOn DateTime? @db.Date
 
   @@unique([projectId, number])
   @@index([organizationId])
@@ -4620,6 +4547,7 @@ model ChatRoomMessage {
   userMentionsAsSource ChatRoomUserMention[]     @relation("ChatRoomUserMentionSource")
   reactions            ChatRoomReaction[]
   pins                 ChatRoomPinnedMessage[]
+  saves                ChatRoomSavedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
   attachedSkills       ChatRoomMessageSkill[]
   signal               ChatMessageSignal?
@@ -4655,6 +4583,24 @@ model ChatRoomPinnedMessage {
   @@unique([roomId, messageId])
   @@index([roomId, pinnedAt(sort: Desc)])
   @@map("chat_room_pinned_message")
+}
+
+/// A message one reader saved for later: private to them, never shown to
+/// anyone else. Lists only messages the reader can still read; the content is
+/// read live from the message, never copied here.
+model ChatRoomSavedMessage {
+  id     String @id @default(uuid(7)) @db.Uuid
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  savedAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+  @@index([userId, savedAt(sort: Desc)])
+  @@map("chat_room_saved_message")
 }
 
 model ChatRoomReaction {
@@ -5251,6 +5197,15 @@ enum ProjectImageInitialTurn {
   UNCERTAIN
 }
 
+model ProjectStudioProductCatalog {
+  projectId String  @id @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  products  Json
+  revision  Int
+
+  @@map("project_studio_product_catalog")
+}
+
 /// One eve conversation, permanently bound to one project.
 ///
 /// eve owns the transcript; this row is what makes the transcript
@@ -5339,6 +5294,25 @@ model ProjectImageJob {
   referenceFileIds  String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
+
+  /// Catalog identity at generation time, retained after a rename or removal.
+  productId   String? @db.Uuid
+  productName String?
+
+  /// All jobs from one Content Studio composer submission.
+  batchId String? @db.Uuid
+
+  /// The original batch job this revision replaces in campaign exports.
+  batchSlotId      String?           @db.Uuid
+  batchSlot        ProjectImageJob?  @relation("ProjectImageJobBatchSlot", fields: [batchSlotId], references: [id], onDelete: SetNull)
+  batchRefinements ProjectImageJob[] @relation("ProjectImageJobBatchSlot")
+
+  /// Approved copy to attach when the image is delivered.
+  exportHeadline String?
+
+  /// Generate a backdrop, then composite the original transparent product photo.
+  useProductCutout      Boolean @default(false)
+  productCutoutChecksum String?
 
   status ProjectImageJobStatus @default(PENDING)
 
@@ -5453,6 +5427,8 @@ model ProjectImageJob {
   @@unique([projectId, idempotencyKey])
   @@unique([falRequestId])
   @@index([projectId, createdAt])
+  @@index([projectId, batchId])
+  @@index([batchSlotId])
   @@index([status, updatedAt])
   @@index([workspaceId])
   @@index([sessionId])
@@ -5496,6 +5472,9 @@ model ProjectImageAsset {
   /// the authorized streaming route, which re-checks access per request.
   blobPathname    String
   contentType     String
+  /// Private background layer for refining a composited product ad.
+  backdropBlobPathname String?
+  backdropContentType String?
   /// What the bytes are. A video plays in the gallery and attaches to Social as one.
   mediaType       ProjectImageMediaType @default(IMAGE)
   /// Requested length of a video. Null for images.
@@ -5506,13 +5485,24 @@ model ProjectImageAsset {
   /// sha256 of the stored bytes.
   checksum        String
 
-  review ProjectImageReview?
+  review   ProjectImageReview?
+  headline ProjectImageHeadline?
 
   @@unique([rootId, version])
   @@index([projectId, createdAt])
   @@index([workspaceId])
   @@index([parentId])
   @@map("project_image_asset")
+}
+
+/// Approved export copy attached to an immutable image version.
+model ProjectImageHeadline {
+  assetId  String            @id @db.Uuid
+  asset    ProjectImageAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  text     String?
+  revision Int               @default(1)
+
+  @@map("project_image_headline")
 }
 
 /// A human decision about one immutable version.

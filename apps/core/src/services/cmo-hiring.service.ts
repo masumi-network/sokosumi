@@ -5,11 +5,11 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   buildOrganizationMetadataWithUrl,
+  CORE_API_ERROR_KINDS,
   parseOrganizationMetadata,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
-import { buildCreditsPayload } from "@/helpers/subscription";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
@@ -19,18 +19,22 @@ import {
   type CmoSectionHeadline,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
-import { grantCmoStarterCredits } from "@/services/cmo-billing.service";
+import {
+  CMO_STARTER_CREDITS,
+  grantCmoStarterCredits,
+} from "@/services/cmo-billing.service";
 import { captureCmoHomepage } from "@/services/cmo-brand-media.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
   CMO_OUT_OF_CREDITS,
   CmoConflictError,
+  CmoForbiddenError,
   type CmoLearningState,
   CUSO_BOT_WHERE,
   type Cuso,
+  type CusoTarget,
   cmoBusinessNameFromUrl,
   findCusoForBot,
-  findCusoForUser,
   ONBOARDING_TURN_PREFIX,
   requireCuso,
   startCmoTurn,
@@ -54,23 +58,6 @@ const CMO_ONBOARDING_ROUTE: PresetRoute = {
 /** The Project's name in Sokosumi: "CMO.xyz · Acme". */
 export function cmoProjectName(businessName: string): string {
   return `CMO.xyz · ${businessName}`.slice(0, 120);
-}
-
-/**
- * Before hiring: whether the payer can fund Cuso's first turn, so research
- * never starts only to stop on credits.
- */
-async function canFundFirstTurn(input: {
-  userId: string;
-  organizationId: string | null;
-}): Promise<boolean> {
-  const credits = await buildCreditsPayload({
-    userId: input.userId,
-    organizationId: input.organizationId,
-    referenceId: input.organizationId ?? input.userId,
-    tx: prisma,
-  });
-  return credits.spendable >= getEnv().SOKO_BOT_MIN_TURN_CREDITS;
 }
 
 /**
@@ -316,9 +303,10 @@ export async function cmoWork(
  * ended without the Brand Brain's essentials and asked nothing.
  */
 export async function retryCmoOnboarding(
-  userId: string,
+  target: CusoTarget,
 ): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId });
+  const { userId } = target;
+  const cuso = await requireCuso(target);
   const state = await cmoLearningState(cuso);
   if (state === "running") {
     throw new CmoConflictError("Cuso is still learning the business");
@@ -345,8 +333,9 @@ const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
  * out are canceled. His organization, Project and Files stay in Sokosumi.
  * Only an organization owner or admin may (the archive checks).
  */
-export async function startCmoOver(userId: string): Promise<void> {
-  const cuso = await requireCuso({ userId });
+export async function startCmoOver(target: CusoTarget): Promise<void> {
+  const { userId } = target;
+  const cuso = await requireCuso(target);
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
@@ -454,43 +443,31 @@ async function organizationLeftWhileHiring(userId: string) {
 }
 
 /**
- * Hires Cuso into a new organization named after the business (ADR 0060):
- * his marketing Project and Cuso as its shared bot (ADR 0061) go there, and
- * his first turn starts. A person who already works with a live Cuso gets
- * that one back; a Project that has one refuses a second (409). Hiring again
- * after "Use another website" while hiring stays in that organization.
+ * The workspace a hire goes into when the person chose none: a new
+ * organization named after the business, made preferred as before. A retry
+ * after a failed hire, and hiring again after "Use another website" while
+ * hiring, reuse the organization they left (ADR 0065: only here).
  */
-export async function startCmoOnboarding(input: {
+async function newOrganizationWorkspace(input: {
   userId: string;
   websiteUrl: string;
-}): Promise<Cuso> {
-  const existing = await findCusoForUser(input.userId);
-  if (existing) return existing;
-  // shortcut: two racing submits can hire twice, in two organizations; the
-  // start form submits once. Add a per-person lock if duplicates show up.
-
-  // Organization names take 2 to 50 characters.
-  const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
-    .slice(0, 50)
-    .padEnd(2, ".");
+  businessName: string;
+}) {
+  const { userId, websiteUrl, businessName } = input;
   // A hire that failed after its organization existed left it empty; a
   // retry takes it instead of making a second one.
   const leftover = await prisma.organization.findFirst({
     where: {
       name: businessName,
       members: {
-        every: { userId: input.userId },
-        some: { userId: input.userId, role: "owner" },
+        every: { userId },
+        some: { userId, role: "owner" },
       },
       workspace: { is: { projects: { none: {} } } },
     },
     select: { id: true, metadata: true },
   });
-  // Loaded here: Better Auth's module graph stays out of the CMO service's.
-  const { createOrganizationWorkspace } = await import(
-    "@/helpers/organization-workspace"
-  );
-  const reused = leftover ?? (await organizationLeftWhileHiring(input.userId));
+  const reused = leftover ?? (await organizationLeftWhileHiring(userId));
   if (reused && reused.id !== leftover?.id) {
     await prisma.organization.update({
       where: { id: reused.id },
@@ -499,32 +476,128 @@ export async function startCmoOnboarding(input: {
         metadata: JSON.stringify(
           buildOrganizationMetadataWithUrl(
             parseOrganizationMetadata(reused.metadata),
-            input.websiteUrl,
+            websiteUrl,
           ) ?? {},
         ),
       },
     });
   }
-  const workspace = reused
-    ? await getUserWorkspace(input.userId, { organizationId: reused.id })
-    : await createOrganizationWorkspace(input.userId, {
-        name: businessName,
-        websiteUrl: input.websiteUrl,
-      });
-  if (workspace.organizationId) {
-    await grantCmoStarterCredits({
-      userId: input.userId,
-      organizationId: workspace.organizationId,
-    });
+  if (reused) return getUserWorkspace(userId, { organizationId: reused.id });
+  // Loaded here: Better Auth's module graph stays out of the CMO service's.
+  const { createOrganizationWorkspace } = await import(
+    "@/helpers/organization-workspace"
+  );
+  return createOrganizationWorkspace(userId, {
+    name: businessName,
+    websiteUrl,
+  });
+}
+
+/**
+ * The workspace of an organization the person chose to hire into (ADR
+ * 0065): any member may. It stays as it is (name, plan, settings, the
+ * person's preferred organization).
+ */
+async function existingOrganizationWorkspace(input: {
+  userId: string;
+  organizationId: string;
+}) {
+  const { userId, organizationId } = input;
+  const member = await prisma.member.findFirst({
+    where: { userId, organizationId },
+    select: { id: true },
+  });
+  if (!member) {
+    throw new CmoForbiddenError(
+      "You're not a member of that organization",
+      CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED,
+    );
   }
-  if (
-    !(await canFundFirstTurn({
-      userId: input.userId,
-      organizationId: workspace.organizationId ?? null,
-    }))
-  ) {
-    throw new CmoConflictError(CMO_OUT_OF_CREDITS);
+  return getUserWorkspace(userId, { organizationId });
+}
+
+/** The hirer's first turn can spend the starter credits from a successful hire. */
+async function requireHirerFunding(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  const { requireMemberTurnFunding, SokoBotBillingAccessError } = await import(
+    "@/services/soko-bot-billing.service"
+  );
+  try {
+    await requireMemberTurnFunding(userId, organizationId, CMO_STARTER_CREDITS);
+  } catch (error) {
+    if (!(error instanceof SokoBotBillingAccessError)) throw error;
+    if (error.reason === "seat") {
+      throw new CmoForbiddenError(
+        "You need a Seat in that organization to hire Cuso",
+        CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
+      );
+    }
+    throw new CmoConflictError(
+      CMO_OUT_OF_CREDITS,
+      CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+    );
   }
+}
+
+/**
+ * Whether this person may hire Cuso while CMO is invite-only: the email Core
+ * holds for them, or its `@domain`, is on `CMO_HIRE_ALLOWLIST`. Everything
+ * else in CMO stays open to whoever already works with a Cuso.
+ */
+export async function mayHireCuso(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const email = user?.email.trim().toLowerCase();
+  if (!email) return false;
+  const domain = email.slice(email.lastIndexOf("@"));
+  return getEnv().CMO_HIRE_ALLOWLIST.some(
+    (entry) => entry === email || entry === domain,
+  );
+}
+
+/**
+ * Hires Cuso (ADR 0065): into a new organization named after the business,
+ * or into `organizationId`, one the person belongs to. Either way a new
+ * marketing Project gets Cuso as its shared bot (ADR 0061), his organization
+ * gets starter credits, and his first turn starts. Hiring never hands back a
+ * Cuso the person already works with; a Project that has one refuses a
+ * second (409).
+ */
+export async function startCmoOnboarding(input: {
+  userId: string;
+  websiteUrl: string;
+  organizationId?: string | undefined;
+}): Promise<Cuso> {
+  // shortcut: two racing submits can hire twice, in two organizations or in
+  // one; the start form submits once. Add a per-person lock if duplicates
+  // show up.
+
+  // Before anything exists: each hire grants starter credits (ADR 0065).
+  if (!(await mayHireCuso(input.userId))) {
+    throw new CmoForbiddenError(
+      "CMO is invite-only for now",
+      CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED,
+    );
+  }
+  // Organization names take 2 to 50 characters.
+  const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
+    .slice(0, 50)
+    .padEnd(2, ".");
+  const workspace = input.organizationId
+    ? await existingOrganizationWorkspace({
+        userId: input.userId,
+        organizationId: input.organizationId,
+      })
+    : await newOrganizationWorkspace({ ...input, businessName });
+  const organizationId = workspace.organizationId;
+  if (!organizationId) throw new Error("Cuso's workspace has no organization");
+  // Check Seat and spendable credits before creating a Project, including
+  // the starter credits the organization receives when the hire succeeds.
+  await requireHirerFunding(input.userId, organizationId);
 
   const project = await prisma.project.create({
     data: {
@@ -551,6 +624,7 @@ export async function startCmoOnboarding(input: {
     sharedRoomId = bot.sharedRoomId;
     const cuso = await findCusoForBot(bot.id);
     if (!cuso) throw new Error("Cuso was not created");
+    await grantCmoStarterCredits({ projectId: project.id, organizationId });
     created = cuso;
   } catch (error) {
     // No stray Project, Cuso or room: deleting the Project cascades to his

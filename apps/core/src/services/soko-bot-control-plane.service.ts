@@ -37,6 +37,10 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import {
+  forfeitCusoProjectCredits,
+  forfeitCusoProjectCreditsIfLeavingCmo,
+} from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -230,6 +234,8 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
+  /** IANA timezone for a new bot's day; an existing bot keeps its own. */
+  timezone?: string;
 }
 
 /**
@@ -435,12 +441,14 @@ function safeEventText(
   limit = EVENT_TEXT_LIMIT,
 ): string | null {
   if (typeof value !== "string") return null;
-  const trimmed = value.trim();
+  const trimmed = value.replaceAll("\u0000", "").trim();
   if (!trimmed) return null;
   const scrubbed = redactSokoBotSensitiveText(trimmed);
-  return scrubbed.length > limit
-    ? `${scrubbed.slice(0, limit - 1)}…`
-    : scrubbed;
+  // A cut inside an emoji leaves half of it; Postgres refused that and the
+  // turn never settled ("invalid input syntax for type json").
+  return (
+    scrubbed.length > limit ? `${scrubbed.slice(0, limit - 1)}…` : scrubbed
+  ).toWellFormed();
 }
 
 function safeEventJson(
@@ -477,7 +485,10 @@ export function summarizeContextPacket(packet: unknown) {
   };
 }
 
-function safeEventProjection(type: string, data: Record<string, unknown>) {
+export function safeEventProjection(
+  type: string,
+  data: Record<string, unknown>,
+) {
   if (type === "reasoning.completed") {
     // A provider reasoning summary; the chat shows it as the bot's Thought,
     // so it keeps more than a one-line event summary.
@@ -1268,14 +1279,7 @@ export class SokoBotControlPlane {
             },
           });
         }
-        if (input.avatarId) {
-          // Recorded for the daily keep cap, never refused by it: creating a bot
-          // must not fail because of a limit on how often looks are kept.
-          await claimAvatar(updated.id, input.avatarId, {
-            tx,
-            keptBy: input.userId,
-          });
-        }
+        if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
 
@@ -1290,6 +1294,7 @@ export class SokoBotControlPlane {
           // what each bot actually runs, and an older bot keeps its version
           // when the default moves on.
           versionId: defaultVersionId,
+          ingestTimezone: input.timezone,
           avatarSeed: input.avatarSeed,
           personalityTone: input.personalityTone,
           personalityDetail: input.personalityDetail,
@@ -1307,12 +1312,7 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      if (input.avatarId) {
-        await claimAvatar(bot.id, input.avatarId, {
-          tx,
-          keptBy: input.userId,
-        });
-      }
+      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
     const { ensureSystemSchedules } = await import(
@@ -2268,7 +2268,7 @@ export class SokoBotControlPlane {
       Date.now() +
         (input.background
           ? BACKGROUND_RUN_DEADLINE_MS
-          : personAsked
+          : personAsked || input.personStarted
             ? PERSON_TURN_DEADLINE_MS
             : TURN_DEADLINE_MS),
     );
@@ -3412,12 +3412,15 @@ export class SokoBotControlPlane {
         "Cuso runs CMO's own version, which cannot be changed here",
       );
     }
-    const updated = await prisma.sokoBot.updateMany({
-      where: { id: bot.id, archivedAt: null },
-      data: { versionId },
-    });
-    if (updated.count === 0)
-      throw new SokoBotNotFoundError("Soko Bot not found");
+    await serializableTransaction(async (tx) => {
+      await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
+      const updated = await tx.sokoBot.updateMany({
+        where: { id: bot.id, archivedAt: null },
+        data: { versionId },
+      });
+      if (updated.count === 0)
+        throw new SokoBotNotFoundError("Soko Bot not found");
+    }, "Soko Bot version changed concurrently");
   }
 
   /**
@@ -3674,6 +3677,7 @@ export class SokoBotControlPlane {
         id: bot.id,
         userId: bot.userId,
         organizationId: bot.workspace.organizationId,
+        projectId: bot.projectId,
       })),
     );
     return {
@@ -4146,6 +4150,8 @@ export class SokoBotControlPlane {
           if (!current || current.archivedAt) {
             throw new SokoBotNotFoundError("Soko Bot not found");
           }
+          // Leaving CMO ends Cuso, so his Project credits end too (ADR 0067).
+          await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
           const updated = await tx.sokoBot.update({
             where: { id: bot.id },
             data: { versionId },
@@ -4629,6 +4635,8 @@ export class SokoBotControlPlane {
           },
         });
       }
+      // Start over archives through here, so it forfeits too (ADR 0067).
+      await forfeitCusoProjectCredits(bot.id, tx);
       await tx.sokoBot.update({
         where: { id: bot.id },
         data: {

@@ -33,8 +33,6 @@ export interface JobInputsFormBuilderProps {
   disabled?: boolean;
   isActive?: boolean;
   t?: IntlTranslation<JobInputFormIntlPath>;
-  children?: React.ReactNode;
-  inputsDisabled?: boolean;
   preventEnterSubmit?: boolean;
   /** Live draft merge for multi-group flows (tab navigation without Next). */
   onValuesChange?: (values: JobInputsFormSchemaType) => void;
@@ -49,8 +47,6 @@ export function JobInputsFormBuilder({
   disabled = false,
   isActive = true,
   t,
-  children,
-  inputsDisabled = false,
   preventEnterSubmit = false,
   onValuesChange,
 }: JobInputsFormBuilderProps) {
@@ -99,7 +95,6 @@ export function JobInputsFormBuilder({
                 key={jobInputSchema.id}
                 form={form}
                 jobInputSchema={jobInputSchema}
-                disabled={inputsDisabled}
               />
             ))}
           </div>
@@ -110,7 +105,6 @@ export function JobInputsFormBuilder({
           })}
         </fieldset>
       </form>
-      {children}
     </Form>
   );
 }

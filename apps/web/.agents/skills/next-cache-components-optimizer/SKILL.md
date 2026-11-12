@@ -246,6 +246,11 @@ completed UI renders after release. Do not change an existing data source,
 production selector, or required route variant to make the test easier. A
 required contract may not be skipped or weakened.
 
+For repeat and browser-back contracts, follow the
+[visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+so hidden preserved routes cannot satisfy the assertions. When the contract
+contains independently suspended regions, assert each one separately.
+
 Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the
 RED recipes in `reference/red-test-robustness.md`.
@@ -286,6 +291,9 @@ Preserve the route's existing data source, freshness, authorization, and
 completed behavior. Do not replace a mutable read with a build-time import to
 make it appear static. Cache the existing read when it can be reused. Stream it
 when it must be computed for each request.
+
+Trace each async subtree to its own cache, Suspense, and navigation boundary
+before concluding that the route is cached.
 
 If development or a build surfaces another instant-navigation Insight during
 the refactor, follow [validation as you
@@ -330,12 +338,12 @@ now commits instantly. Verify:
 - **Side effects still fire.** A deferred `redirect()` or `notFound()` still
   happens at request time. Confirm unauthorized and missing-record behavior.
   If the route must preserve an HTTP status, account for [streaming status-code
-  behavior](https://nextjs.org/docs/app/guides/streaming#status-codes).
+behavior](https://nextjs.org/docs/app/guides/streaming#status-codes).
 - **Supported viewports reach the real UI** after the stream.
 - **Client state survives.** Because the layout UI is hoisted into the stable
   shell rather than swapped on resolve, open menus, scroll position, focus,
   and input state persist across the stream. See [Preserving UI
-  state](https://nextjs.org/docs/app/guides/preserving-ui-state).
+state](https://nextjs.org/docs/app/guides/preserving-ui-state).
 - **Pre-existing failures stay separate.** If the route errors after the
   change, reproduce it on the base branch. The same failure there is an
   environment or data problem, not an optimizer regression.
@@ -364,10 +372,10 @@ PR-specific items:
 - [ ] **Differential shown**: RED without the fix, GREEN with it, runs linked.
 - [ ] **Parity confirmed (E)**: same content, redirects, and state.
 - [ ] **Mutations verified when applicable**: after populating any cache whose
-  data can be updated, a mutation test confirms the next read returns the
-  expected data.
+      data can be updated, a mutation test confirms the next read returns the
+      expected data.
 - [ ] **Freshness preserved**: new cache scopes follow the data's existing or
-  explicitly chosen lifetime.
+      explicitly chosen lifetime.
 - [ ] **Existing loading UI reused (D1)**: no new page-mirroring skeleton.
 - [ ] **Shell matches the real render at supported viewports (D2)**.
 - [ ] **Baseline removed**: only the locked test from C remains.
@@ -385,7 +393,7 @@ three hold, you are not done.
 - With parallel routes, only the slots that change re-render on a soft
   navigation; client-rendered navigation UI does not re-render at all. Do not
   chase a slot the navigation never touches. See [Loading and Error UI with
-  Parallel Routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
+Parallel Routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
 
 ## Files
 

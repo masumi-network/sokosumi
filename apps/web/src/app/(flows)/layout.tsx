@@ -8,6 +8,7 @@ import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { readRouteSession } from "@/lib/auth/route-session";
+import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 export default async function FlowsLayout({
   children,
@@ -40,7 +41,9 @@ export default async function FlowsLayout({
         className="flex h-dvh gap-6 p-6"
         {...(isWorkspaceGate ? { "data-workspace-gate-shell": true } : {})}
       >
-        <div className="flex h-full flex-1 flex-col gap-6">
+        {/* min-w-0: a row flex item would otherwise grow to its widest unwrappable
+            content (a long Soko Bot name on a button) and widen the phone page. */}
+        <div className="flex h-full min-w-0 flex-1 flex-col gap-6">
           {isWorkspaceGate ? (
             <div data-workspace-gate-brand>{brand}</div>
           ) : (
@@ -60,15 +63,20 @@ function FlowsLayoutFooter() {
   const t = useTranslations("Auth.Footer");
 
   return (
-    <div className="flex items-center justify-center gap-4">
+    // Wraps: German labels at enlarged text overflow a 320px phone in one row.
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
       <Link
-        href="/privacy-policy"
+        href={LEGAL_URLS.PRIVACY_POLICY}
+        target="_blank"
+        rel="noopener noreferrer"
         className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("privacyPolicy")}
       </Link>
       <Link
-        href="/terms-of-service"
+        href={LEGAL_URLS.TERMS_OF_SERVICE}
+        target="_blank"
+        rel="noopener noreferrer"
         className="text-sm text-muted-foreground hover:text-foreground"
       >
         {t("termsOfServices")}

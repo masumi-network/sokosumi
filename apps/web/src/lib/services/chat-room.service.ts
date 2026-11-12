@@ -4,6 +4,7 @@ import type {
   AcceptChatRoomGuestInviteLink,
   AddChatRoomMembersRequest,
   ChannelSlugAvailability,
+  ChatCatchUpItem,
   ChatEarlierThread,
   ChatPerson,
   ChatRoom,
@@ -17,6 +18,7 @@ import type {
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
   ChatRoomThreadUnreadReplyCount,
+  ChatSavedMessageListItem,
   ChatSkillCatalogItem,
   ChatUnreadThread,
   CreateChatRoomGuestInviteLinkRequest,
@@ -403,6 +405,27 @@ export const chatRoomService = (() => {
     };
   }
 
+  async function listSavedMessages(options?: { cursor?: string }): Promise<{
+    items: ChatSavedMessageListItem[];
+    nextCursor: string | null;
+  }> {
+    const response = await coreClient.getChatSavedMessages({
+      cursor: options?.cursor,
+    });
+    return {
+      items: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
+  }
+
+  async function saveMessage(messageId: string): Promise<void> {
+    await coreClient.saveChatMessage(messageId);
+  }
+
+  async function unsaveMessage(messageId: string): Promise<void> {
+    await coreClient.unsaveChatMessage(messageId);
+  }
+
   async function pinMessage(
     roomId: string,
     messageId: string,
@@ -419,6 +442,15 @@ export const chatRoomService = (() => {
       roomId,
       messageId,
     );
+    return response.data;
+  }
+
+  /** Post a Task's link into a room; Core re-checks Task and audience. */
+  async function sendTaskToChat(
+    taskId: string,
+    body: { roomId: string; note?: string; clientMessageId: string },
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.sendTaskToChat(taskId, body);
     return response.data;
   }
 
@@ -559,6 +591,11 @@ export const chatRoomService = (() => {
   );
 
   /** One page of the reader's unread Threads across rooms (SOK-1159). */
+  /** The reader's important unread messages, one per room, last 24 hours. */
+  async function listImportantMessages(): Promise<ChatCatchUpItem[]> {
+    return (await coreClient.getChatImportantMessages()).data;
+  }
+
   async function listUnreadThreads(options?: {
     cursor?: string;
   }): Promise<ChatUnreadThreadsPage> {
@@ -738,6 +775,7 @@ export const chatRoomService = (() => {
     listRooms,
     listThreads,
     listUnreadThreadReplyCounts,
+    listImportantMessages,
     listUnreadThreads,
     listEarlierThreads,
     markAllUnreadRead,
@@ -755,7 +793,11 @@ export const chatRoomService = (() => {
     setThreadMuted,
     markUnread,
     pinMessage,
+    listSavedMessages,
+    saveMessage,
+    unsaveMessage,
     sendMessageToSelf,
+    sendTaskToChat,
     pinRoom,
     reorderPinnedRooms,
     listPinnedMessages,

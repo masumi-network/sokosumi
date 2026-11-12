@@ -161,6 +161,13 @@ vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
   };
 });
 
+const fetchDataRoomsMock = vi.fn();
+
+vi.mock("@/lib/utils/data-room.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/utils/data-room.client")>()),
+  fetchDataRooms: (...args: unknown[]) => fetchDataRoomsMock(...args),
+}));
+
 const fetchDriveTasksPageMock = vi.fn();
 const fetchDriveRecentsPageMock = vi.fn();
 
@@ -258,6 +265,7 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     folderActions,
     virtualFolder,
     onMoveFiles,
+    dataRoomPaths,
   }: {
     initialQuery?: string;
     initialFolder?: string;
@@ -265,9 +273,11 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     folderActions?: React.ReactNode;
     virtualFolder?: { label: string; onOpen: () => void };
     onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
+    dataRoomPaths?: readonly string[];
   }) => (
     <div
       data-testid="drive-all-files"
+      data-room-paths={dataRoomPaths?.join("|") ?? ""}
       data-initial-query={initialQuery ?? ""}
       data-initial-folder={initialFolder ?? ""}
     >
@@ -331,7 +341,6 @@ import { DrivePageClient } from "@/app/drive/drive-page-client";
 import {
   type FilesViewMode,
   parseFilesViewModeCookieHeader,
-  resolveFilesViewModeFromClientCookie,
 } from "@/lib/ui-preferences/files-view-mode";
 
 function createDriveQueryClient() {
@@ -415,6 +424,8 @@ describe("DrivePage workspace remount", () => {
     });
 
     listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
     patchDriveFoldersRenameMock.mockResolvedValue({});
     getUsersByIdOrganizationsMock.mockResolvedValue({
       data: {
@@ -1015,7 +1026,7 @@ describe("DrivePage files view mode", () => {
         }),
     );
 
-    renderDrive(resolveFilesViewModeFromClientCookie(document.cookie));
+    renderDrive(parseFilesViewModeCookieHeader(document.cookie) ?? "list");
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-skeleton-grid")).toBeVisible();
@@ -1082,7 +1093,7 @@ describe("DrivePage files view mode", () => {
     useIsMobileMock.mockReturnValue(true);
     document.cookie = "files_view_mode=grid; path=/";
 
-    renderDrive(resolveFilesViewModeFromClientCookie(document.cookie));
+    renderDrive(parseFilesViewModeCookieHeader(document.cookie) ?? "list");
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-list")).toBeVisible();
@@ -1843,6 +1854,33 @@ describe("one catalog, not two", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("files-delete-folder")).toBeNull();
     });
+  });
+
+  it("marks a renamed data room at its new path, not its old one", async () => {
+    // Core moves the room's path with the folder; the marker must follow.
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    listDriveItemsMock.mockResolvedValue([]);
+    fetchDataRoomsMock.mockResolvedValueOnce([{ folderPath: "Reports" }]);
+    fetchDataRoomsMock.mockResolvedValue([{ folderPath: "Investors" }]);
+    vi.stubGlobal("prompt", () => "Investors");
+
+    renderDrive();
+
+    const panel = await screen.findByTestId("drive-all-files");
+    await waitFor(() =>
+      expect(panel).toHaveAttribute("data-room-paths", "Reports"),
+    );
+    await user.click(screen.getByTestId("files-rename-folder"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "Investors",
+      ),
+    );
+    expect(patchDriveFoldersRenameMock).toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it("offers no folder actions when no folder is applied", async () => {

@@ -39,42 +39,4 @@ import SwiftUI
       }
     }
   }
-#else
-  import QuickLook
-
-  struct NativeOfficePreview: UIViewControllerRepresentable {
-    let file: AttachmentPreviewFile
-
-    func makeCoordinator() -> Coordinator {
-      Coordinator(file: file)
-    }
-
-    func makeUIViewController(context: Context) -> QLPreviewController {
-      let controller = QLPreviewController()
-      controller.dataSource = context.coordinator
-      return controller
-    }
-
-    func updateUIViewController(_ controller: QLPreviewController, context: Context) {
-      if context.coordinator.file.url != file.url {
-        context.coordinator.file = file
-        controller.reloadData()
-      }
-    }
-
-    @MainActor final class Coordinator: NSObject, QLPreviewControllerDataSource {
-      var file: AttachmentPreviewFile
-      init(file: AttachmentPreviewFile) {
-        self.file = file
-      }
-
-      func numberOfPreviewItems(in _: QLPreviewController) -> Int {
-        1
-      }
-
-      func previewController(_: QLPreviewController, previewItemAt _: Int) -> any QLPreviewItem {
-        file.url as NSURL
-      }
-    }
-  }
 #endif

@@ -68,9 +68,22 @@ vi.mock("@/lib/ably/use-notification-front-presence", () => ({
 }));
 
 vi.mock("ably/react", () => ({
-  ChannelProvider: ({ children }: { children: ReactNode }) => (
-    <div data-testid="notifications-channel-provider">{children}</div>
+  ChannelProvider: ({
+    children,
+    channelName,
+  }: {
+    children: ReactNode;
+    channelName: string;
+  }) => (
+    <div
+      data-testid="notifications-channel-provider"
+      data-channel={channelName}
+    >
+      {children}
+    </div>
   ),
+  // The waiting-Tasks refresh listens on the reader's Task channel.
+  useChannel: () => ({}),
 }));
 
 vi.mock("@/contexts/lazy-ably-provider", () => ({
@@ -263,9 +276,16 @@ describe("NotificationProvider island", () => {
       </NotificationProvider>,
     );
 
+    // The notifications channel, and the reader's Task channel that keeps
+    // the Needs you Tasks current.
     expect(
-      screen.getByTestId("notifications-channel-provider"),
-    ).toBeInTheDocument();
+      screen
+        .getAllByTestId("notifications-channel-provider")
+        .map((provider) => provider.dataset.channel),
+    ).toEqual([
+      expect.stringContaining("user-1"),
+      expect.stringMatching(/tasks.*user-1|user-1.*tasks/),
+    ]);
     expect(screen.getByTestId("notification-toast-listener")).toHaveTextContent(
       "user-1",
     );

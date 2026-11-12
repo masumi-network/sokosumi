@@ -15,6 +15,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { MARKER_ICONS, StatusMarker } from "@/components/ui/status-marker"
 
 const Form = FormProvider
 
@@ -144,13 +145,38 @@ function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
   }
 
   return (
-    <p
+    <FormErrorText
       data-slot="form-message"
       id={formMessageId}
-      className={cn("text-destructive content-in text-sm text-pretty", className)}
+      className={className}
       {...props}
     >
       {body}
+    </FormErrorText>
+  )
+}
+
+const FAULT_MARKER = {
+  tone: { hue: "fault", weight: "filled" },
+  icon: MARKER_ICONS.failed,
+} as const
+
+/**
+ * An error line: the guide's fault mark (the Neutral 950 X) and one weight
+ * step, so it no longer reads like the muted hint beside it. The mark is
+ * aria-hidden; the words alone are announced. Inline, so `text-center` still
+ * centres it.
+ */
+function FormErrorText({ className, children, ...props }: React.ComponentProps<"p">) {
+  return (
+    <p
+      className={cn("text-destructive content-in text-sm font-medium text-pretty", className)}
+      {...props}
+    >
+      <span className="me-1.5 inline-flex h-5 items-center align-top">
+        <StatusMarker spec={FAULT_MARKER} />
+      </span>
+      {children}
     </p>
   )
 }
@@ -162,5 +188,6 @@ export {
   FormControl,
   FormDescription,
   FormMessage,
+  FormErrorText,
   FormField,
 }

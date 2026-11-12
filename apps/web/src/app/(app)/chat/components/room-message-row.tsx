@@ -16,6 +16,7 @@ import {
 } from "@sokosumi/utils";
 import {
   AlertCircle,
+  Bookmark,
   Check,
   Copy,
   Ellipsis,
@@ -45,6 +46,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
+import { saveRoomMessageAction } from "@/app/chat/actions";
 import {
   CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
@@ -52,11 +55,11 @@ import {
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClampedOverflow } from "@/app/chat/hooks/use-clamped-overflow";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
+import { CHAT_SAVED_PATH } from "@/app/chat/utils/chat-route-base";
 import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
-  isPersistedMentionThoughtShell,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -94,7 +97,6 @@ import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
 import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
-import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -138,7 +140,6 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
-import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { parseSokoBotBrief } from "@/lib/soko-bot/brief";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
@@ -1017,6 +1018,7 @@ function MessageActionControls({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onSaveForLater,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1042,6 +1044,8 @@ function MessageActionControls({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent for a message that is not stored yet. */
+  onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1066,6 +1070,7 @@ function MessageActionControls({
     (showPin ||
       showCopyLink ||
       Boolean(onSendToSelf) ||
+      Boolean(onSaveForLater) ||
       showCopy ||
       showDelete);
   const reactedEmojis = readerReactedEmojis(message);
@@ -1276,6 +1281,17 @@ function MessageActionControls({
                 {t("Copy.sendToSelf")}
               </DropdownMenuItem>
             ) : null}
+            {onSaveForLater ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onSaveForLater();
+                  onAfterAction?.();
+                }}
+              >
+                <Bookmark className="size-4" aria-hidden />
+                {t("SavedMessages.save")}
+              </DropdownMenuItem>
+            ) : null}
             {showCopy ? (
               <DropdownMenuItem
                 onSelect={() => {
@@ -1347,6 +1363,7 @@ function MessageActions({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onSaveForLater,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1368,6 +1385,8 @@ function MessageActions({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent for a message that is not stored yet. */
+  onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1433,6 +1452,7 @@ function MessageActions({
         onCopy={onCopy}
         onCopyLink={onCopyLink}
         onSendToSelf={onSendToSelf}
+        onSaveForLater={onSaveForLater}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
@@ -1586,6 +1606,7 @@ function TouchMessageActionsSheet({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onSaveForLater,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1608,6 +1629,8 @@ function TouchMessageActionsSheet({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent for a message that is not stored yet. */
+  onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1808,6 +1831,19 @@ function TouchMessageActionsSheet({
             >
               <Send className="size-4 shrink-0" aria-hidden />
               {t("Copy.sendToSelf")}
+            </Button>
+          ) : null}
+          {onSaveForLater ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onSaveForLater);
+              }}
+            >
+              <Bookmark className="size-4 shrink-0" aria-hidden />
+              {t("SavedMessages.save")}
             </Button>
           ) : null}
           {showCopyButton && onCopy ? (
@@ -2150,7 +2186,6 @@ function SenderFace({
   className,
   fallbackClassName,
   monogram = false,
-  busy = false,
 }: {
   sender: MessageSenderProfile;
   /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
@@ -2159,8 +2194,6 @@ function SenderFace({
   fallbackClassName: string;
   /** One initial instead of two, for faces too small to fit both. */
   monogram?: boolean;
-  /** Its reply is in progress: a crafted bot loops its Working state. */
-  busy?: boolean;
 }) {
   if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
     return (
@@ -2169,22 +2202,6 @@ function SenderFace({
         size={orbSize}
         alt=""
         className={cn("ring-border ring-1", className)}
-      />
-    );
-  }
-  if (
-    sender.kind === "sokoBot" &&
-    sender.image &&
-    isCraftedStyle(sender.avatarStyleId)
-  ) {
-    return (
-      <AvatarFace
-        src={sender.image}
-        crafted
-        className={className}
-        loopSrc={sender.workingLoopUrl}
-        playing={busy}
-        loop
       />
     );
   }
@@ -2472,6 +2489,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
+  const router = useRouter();
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
   const isOpeningDirect = hoverProfile
@@ -2654,6 +2672,22 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     onSendToSelf?.(message);
   }
 
+  async function handleSaveForLater() {
+    const result = await saveRoomMessageAction(message.id);
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    toast.success(tChannels("SavedMessages.saved"), {
+      action: {
+        label: tChannels("SavedMessages.view"),
+        onClick: () => {
+          router.push(CHAT_SAVED_PATH);
+        },
+      },
+    });
+  }
+
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
     setDeleteDialogMounted(true);
@@ -2767,10 +2801,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               orbSize={64}
               className="size-8"
               fallbackClassName="text-xs"
-              busy={
-                isStreamOverlay ||
-                isPersistedMentionThoughtShell(message.metadata)
-              }
             />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>
@@ -3076,6 +3106,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onCopy={handleCopy}
               onCopyLink={handleCopyLink}
               onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
+              onSaveForLater={
+                isDurableRoomMessage
+                  ? () => void handleSaveForLater()
+                  : undefined
+              }
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
@@ -3101,6 +3136,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onCopy={handleCopy}
               onCopyLink={handleCopyLink}
               onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
+              onSaveForLater={
+                isDurableRoomMessage
+                  ? () => void handleSaveForLater()
+                  : undefined
+              }
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}

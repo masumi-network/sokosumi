@@ -1,6 +1,10 @@
 "use client";
 
-import type { MemberWithOrganization, TaskShare } from "@sokosumi/core-client";
+import type {
+  ChatRoom,
+  MemberWithOrganization,
+  TaskShare,
+} from "@sokosumi/core-client";
 import {
   type TaskLink,
   TaskLinkRelation,
@@ -20,11 +24,13 @@ import {
   Ban,
   CheckCircle2,
   ChevronDown,
+  CopyPlus,
   Ellipsis,
   FlagTriangleRight,
   ListX,
   Loader2,
   LucideSquareMousePointer,
+  MessageSquareShare,
   OctagonMinus,
   Pencil,
   Repeat,
@@ -38,17 +44,20 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import {
   markTaskArchived,
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
+import { chatRoomsForTask } from "@/app/tasks/utils/task-chat-share";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,6 +101,7 @@ import {
   type TaskScheduleBlueprintPrefill,
   TaskScheduleDialog,
 } from "./task-schedule-dialog";
+import { TaskSendToChatDialog } from "./task-send-to-chat-dialog";
 import { TaskShareButton } from "./task-share-button";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
@@ -150,10 +160,17 @@ interface TaskDetailActionsProps {
   taskOwnerId: string | null;
   hasAssignedSeat?: boolean;
   /**
-   * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
-   * viewer cannot create a schedule; the Task itself is never changed.
+   * The Task as a reusable brief, for "Repeat" (a Task Schedule) and
+   * "Duplicate" (a new Draft). Omitted where the viewer cannot create either;
+   * the Task itself is never changed.
    */
-  repeatBlueprint?: TaskScheduleBlueprintPrefill;
+  taskBlueprint?: TaskScheduleBlueprintPrefill;
+  /**
+   * "Send to chat": post the Task's link into a chat room. Omitted for
+   * private Tasks and read-only views; Core re-checks both at send time and
+   * the link never grants access.
+   */
+  sendToChat?: { currentUserId: string };
 }
 
 export function TaskDetailActions({
@@ -180,7 +197,8 @@ export function TaskDetailActions({
   isTaskOwner = false,
   taskOwnerId,
   hasAssignedSeat = false,
-  repeatBlueprint,
+  taskBlueprint,
+  sendToChat,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -196,6 +214,7 @@ export function TaskDetailActions({
   const [isRemoveRelatedPending, startRemoveRelatedTransition] =
     useTransition();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
   const [isMarkAsSectionOpen, setIsMarkAsSectionOpen] = useState(false);
@@ -225,6 +244,28 @@ export function TaskDetailActions({
     projectOptions: ProjectFilterOption[];
   } | null>(null);
   const [isRepeatLoading, startRepeatTransition] = useTransition();
+  const [chatRooms, setChatRooms] = useState<ChatRoom[] | null>(null);
+  const [isChatRoomsLoading, startChatRoomsTransition] = useTransition();
+
+  const newTaskWizard = useOptionalNewTaskWizard();
+  // A copy carries the brief, assignee and tags only: no Run at, due date,
+  // jobs, payments, schedule, relations or priority. It opens in the New Task form
+  // as a Draft, so nothing runs until the viewer reviews and saves it.
+  const handleDuplicate = () => {
+    if (!taskBlueprint || !newTaskWizard) return;
+    newTaskWizard.openNewTaskWizard({
+      prompt: taskBlueprint.description ?? null,
+      projectId: taskBlueprint.projectId ?? null,
+      copy: {
+        taskId,
+        name: taskBlueprint.name ?? "",
+        visibility: taskBlueprint.visibility ?? "PUBLIC",
+        assigneeId: taskBlueprint.assigneeId ?? null,
+        assigneeSokoBotId: taskBlueprint.assigneeSokoBotId ?? null,
+        assigneeUserId: taskBlueprint.assigneeUserId ?? null,
+      },
+    });
+  };
 
   const handleRepeat = () => {
     startRepeatTransition(async () => {
@@ -234,6 +275,20 @@ export function TaskDetailActions({
         console.error("Failed to load Task Schedule options", error);
         toast.error(tDetailActions("repeatError"));
       }
+    });
+  };
+
+  const handleSendToChat = () => {
+    if (!sendToChat) return;
+    startChatRoomsTransition(async () => {
+      const result = await listOrganizationChatRoomsAction();
+      if (!result.ok) {
+        toast.error(tDetailActions("sendToChat.loadError"));
+        return;
+      }
+      setChatRooms(
+        chatRoomsForTask(result.value.rooms, currentOrganizationId ?? null),
+      );
     });
   };
 
@@ -303,7 +358,8 @@ export function TaskDetailActions({
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
   const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
-    repeatBlueprint !== undefined ||
+    taskBlueprint !== undefined ||
+    sendToChat !== undefined ||
     statusActions.length > 0 ||
     canEdit ||
     canManageRelations ||
@@ -583,6 +639,7 @@ export function TaskDetailActions({
         >
           <DropdownMenuTrigger asChild>
             <Button
+              ref={menuTriggerRef}
               type="button"
               variant="outline"
               size="icon"
@@ -608,7 +665,7 @@ export function TaskDetailActions({
               </DropdownMenuItem>
             ) : null}
 
-            {repeatBlueprint ? (
+            {taskBlueprint ? (
               <DropdownMenuItem
                 disabled={actionsDisabled || isRepeatLoading}
                 onSelect={handleRepeat}
@@ -622,6 +679,33 @@ export function TaskDetailActions({
                   <Repeat className="size-4" aria-hidden />
                 )}
                 {tDetailActions("repeat")}
+              </DropdownMenuItem>
+            ) : null}
+
+            {taskBlueprint && newTaskWizard ? (
+              <DropdownMenuItem
+                disabled={actionsDisabled}
+                onSelect={handleDuplicate}
+              >
+                <CopyPlus className="size-4" aria-hidden />
+                {tDetailActions("duplicate")}
+              </DropdownMenuItem>
+            ) : null}
+
+            {sendToChat ? (
+              <DropdownMenuItem
+                disabled={actionsDisabled || isChatRoomsLoading}
+                onSelect={handleSendToChat}
+              >
+                {isChatRoomsLoading ? (
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                    aria-hidden
+                  />
+                ) : (
+                  <MessageSquareShare className="size-4" aria-hidden />
+                )}
+                {tDetailActions("sendToChat.menuItem")}
               </DropdownMenuItem>
             ) : null}
 
@@ -650,7 +734,7 @@ export function TaskDetailActions({
               );
             })}
 
-            {(canEdit || repeatBlueprint || statusActions.length > 0) &&
+            {(canEdit || taskBlueprint || statusActions.length > 0) &&
             (canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
@@ -935,7 +1019,7 @@ export function TaskDetailActions({
             {canArchiveTask &&
             (statusActions.length > 0 ||
               canEdit ||
-              repeatBlueprint ||
+              taskBlueprint ||
               canManageRelations ||
               canMove) ? (
               <DropdownMenuSeparator />
@@ -988,9 +1072,24 @@ export function TaskDetailActions({
         />
       ) : null}
 
-      {repeatBlueprint && repeatOptions ? (
+      {sendToChat && chatRooms ? (
+        <TaskSendToChatDialog
+          taskId={taskId}
+          rooms={chatRooms}
+          currentUserId={sendToChat.currentUserId}
+          onClose={() => setChatRooms(null)}
+          // The dialog opens from a menu item, which is gone by then; return
+          // to the Actions button the user opened it from.
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            menuTriggerRef.current?.focus();
+          }}
+        />
+      ) : null}
+
+      {taskBlueprint && repeatOptions ? (
         <TaskScheduleDialog
-          initialBlueprint={repeatBlueprint}
+          initialBlueprint={taskBlueprint}
           coworkerOptions={repeatOptions.coworkerOptions}
           projectOptions={repeatOptions.projectOptions}
           canCreatePrivate={currentOrganizationId != null}

@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
 };
 
-// PP Mori is not delivered yet; Inter (Sokosumi's typeface) stands in.
+// Inter, through --font-sans (design-system.md).
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 interface RootLayoutProps {

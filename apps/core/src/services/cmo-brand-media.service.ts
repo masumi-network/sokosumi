@@ -10,6 +10,7 @@ import { waitUntil } from "@vercel/functions";
 import type { Browser } from "puppeteer-core";
 
 import prisma from "@/lib/db/prisma";
+import { driveOwnerOf } from "@/lib/drive-blob";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
   capturePage,
@@ -69,6 +70,14 @@ async function listResearchFiles(projectId: string): Promise<ResearchFile[]> {
   const seen = new Set<string>();
   return links.flatMap(({ resource }) => {
     if (seen.has(resource.id)) return [];
+    // Only the top-level folder: one of that name deeper down, say inside a
+    // data room, is not Cuso's.
+    if (
+      !driveOwnerOf(resource.sourceId)?.path.startsWith(
+        `${CMO_BRAND_MEDIA_FOLDER}/`,
+      )
+    )
+      return [];
     seen.add(resource.id);
     const path = resource.sourceId.slice(
       resource.sourceId.indexOf(marker) + marker.length,
@@ -111,14 +120,28 @@ function pictureAlt(name: string): string {
     .trim();
 }
 
-/** The brand's own photos from the Project's files: references for images. */
+/**
+ * The brand's own pictures from the Project's files, references for images:
+ * its page screenshots first (for software they are the product), then the
+ * photos from its pages.
+ */
 export async function listCmoBrandPictures(
   projectId: string,
 ): Promise<{ fileId: string; alt: string }[]> {
-  return latestPictures(await listResearchFiles(projectId)).map((file) => ({
-    fileId: file.fileId,
-    alt: pictureAlt(file.name),
-  }));
+  const files = await listResearchFiles(projectId);
+  const pages = Object.keys(PAGE_LABELS).flatMap((name) => {
+    const page = files.find((file) => file.folder === "" && file.name === name);
+    return page
+      ? [{ fileId: page.fileId, alt: `${PAGE_LABELS[name]} page screenshot` }]
+      : [];
+  });
+  return [
+    ...pages,
+    ...latestPictures(files).map((file) => ({
+      fileId: file.fileId,
+      alt: pictureAlt(file.name),
+    })),
+  ];
 }
 
 /**

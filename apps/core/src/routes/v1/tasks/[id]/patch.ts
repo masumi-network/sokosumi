@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Channel, TaskStatus } from "@sokosumi/database";
 import {
+  calendarDateSchema,
   isTaskEditableStatus,
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
@@ -97,6 +98,11 @@ export const patchTaskRequestSchema = z
         "Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.",
       example: "2026-06-24T09:00:00.000Z",
     }),
+    dueOn: calendarDateSchema.nullish().openapi({
+      description:
+        "The day the Task should be done by (YYYY-MM-DD); null clears it. A request that changes only dueOn also works outside draft, queued and ready, except on a Task parked in GRANT_PENDING.",
+      example: "2026-11-20",
+    }),
   })
   .superRefine((data, ctx) => {
     refineAssigneeXorConflict(data, ctx);
@@ -111,12 +117,13 @@ export const patchTaskRequestSchema = z
       data.assigneeSokoBotId === undefined &&
       data.assigneeUserId === undefined &&
       data.priority === undefined &&
-      data.runAt === undefined
+      data.runAt === undefined &&
+      data.dueOn === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, or runAt is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, or dueOn is required",
         path: ["name"],
       });
     }
@@ -175,7 +182,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeUserId,
       priority,
       runAt,
+      dueOn,
     } = c.req.valid("json");
+    // A due date belongs to the work, not the brief, so it may change while
+    // the Task runs or after it ends.
+    const onlyDueOn =
+      dueOn !== undefined &&
+      name === undefined &&
+      description === undefined &&
+      projectId === undefined &&
+      context === undefined &&
+      assigneeId === undefined &&
+      assigneeSokoBotId === undefined &&
+      assigneeUserId === undefined &&
+      priority === undefined &&
+      runAt === undefined;
 
     const result = await prisma.$transaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskWriteAccess(
@@ -224,7 +245,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Task changed during update");
       }
 
-      if (!isTaskEditableStatus(task.status)) {
+      if (!onlyDueOn && !isTaskEditableStatus(task.status)) {
         throw forbidden("You can only update draft, queued, or ready tasks");
       }
 
@@ -341,9 +362,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           id,
           archivedAt: null,
-          status: {
-            in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],
-          },
+          ...(onlyDueOn
+            ? {}
+            : {
+                status: {
+                  in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],
+                },
+              }),
         },
         data: {
           name,
@@ -352,6 +377,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           priority,
           ...(assigneeWrite ?? {}),
           runAt: runAtWrite,
+          dueOn:
+            dueOn === undefined
+              ? undefined
+              : dueOn === null
+                ? null
+                : new Date(`${dueOn}T00:00:00.000Z`),
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),

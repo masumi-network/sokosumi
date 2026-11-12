@@ -1,4 +1,4 @@
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   connectionFindMany,
@@ -71,10 +71,14 @@ vi.mock("@/config/env", async (importOriginal) =>
 
 import {
   cmoBusinessNameFromUrl,
+  cmoProjectIds,
   cmoRunnerUserId,
   findCusoForBot,
-  findCusoForUser,
+  isCmoProject,
   listCmoChannels,
+  listCusosForUser,
+  requireNotCmoProject,
+  requireNotCuso,
 } from "./cmo-cuso.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -119,26 +123,26 @@ describe("cmoRunnerUserId", () => {
   });
 });
 
-describe("findCusoForUser", () => {
-  const hiredAt = new Date("2026-10-01T09:00:00Z");
-  const inOrg = (id: string, organizationId: string) => ({
+describe("listCusosForUser", () => {
+  const row = (id: string, fields: { approved?: boolean; logo?: string }) => ({
     id,
-    createdAt: hiredAt,
+    createdAt: new Date("2026-10-01T09:00:00Z"),
     project: {
-      id: `project-${organizationId}`,
-      workspaceId: `ws-${organizationId}`,
-      websiteUrl: "https://acme.io",
-      workspace: { organizationId },
-      brandBrain: null,
+      id: `project-${id}`,
+      websiteUrl: "https://www.acme.io/about",
+      logo: fields.logo ?? null,
+      workspace: { organization: { id: "org-1", name: "Agency" } },
+      marketingStrategies: fields.approved ? [{ id: "strategy-1" }] : [],
     },
   });
 
-  it("finds a live shared bot on CMO's version in any of the person's organizations", async () => {
-    await findCusoForUser("user-1");
+  it("lists every live Cuso in the person's organizations, newest first", async () => {
+    cusoFindMany.mockResolvedValueOnce([]);
+    await listCusosForUser("user-1");
     expect(cusoFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          versionId: CMO_SOKO_BOT_VERSION_ID,
+          versionId: { in: [...CMO_SOKO_BOT_VERSION_IDS] },
           userId: null,
           projectId: { not: null },
           deletedAt: null,
@@ -154,37 +158,24 @@ describe("findCusoForUser", () => {
     );
   });
 
-  it("prefers the preferred organization's Cuso over a newer one", async () => {
+  it("tells two Cusos of one organization apart by their Business", async () => {
     cusoFindMany.mockResolvedValueOnce([
-      inOrg("bot-new", "org-2"),
-      inOrg("bot-1", "org-1"),
+      row("bot-2", { logo: "https://acme.io/icon.png" }),
+      row("bot-1", { approved: true }),
     ]);
-    await expect(findCusoForUser("user-1")).resolves.toEqual({
-      sokoBotId: "bot-1",
-      projectId: "project-org-1",
-      createdAt: hiredAt,
-      workspaceId: "ws-org-1",
-      websiteUrl: "https://acme.io",
-      businessName: "acme.io",
-      brandBrain: null,
-      brandBrainUpdatedAt: null,
-      brandBrainConfirmedAt: null,
-    });
-  });
-
-  it("falls back to the newest when the preferred one has none", async () => {
-    cusoFindMany.mockResolvedValueOnce([
-      inOrg("bot-new", "org-2"),
-      inOrg("bot-old", "org-3"),
+    await expect(listCusosForUser("user-1")).resolves.toEqual([
+      {
+        projectId: "project-bot-2",
+        businessName: "acme.io",
+        websiteUrl: "https://www.acme.io/about",
+        projectLogo: "https://acme.io/icon.png",
+        organizationId: "org-1",
+        organizationName: "Agency",
+        hiring: true,
+        createdAt: new Date("2026-10-01T09:00:00Z"),
+      },
+      expect.objectContaining({ projectId: "project-bot-1", hiring: false }),
     ]);
-    await expect(findCusoForUser("user-1")).resolves.toMatchObject({
-      sokoBotId: "bot-new",
-    });
-  });
-
-  it("finds no Cuso for a person without one", async () => {
-    cusoFindMany.mockResolvedValueOnce([]);
-    await expect(findCusoForUser("user-1")).resolves.toBeNull();
   });
 });
 
@@ -199,7 +190,7 @@ describe("findCusoForBot", () => {
       expect.objectContaining({
         where: {
           id: "bot-1",
-          versionId: CMO_SOKO_BOT_VERSION_ID,
+          versionId: { in: [...CMO_SOKO_BOT_VERSION_IDS] },
           userId: null,
           projectId: { not: null },
         },
@@ -226,5 +217,121 @@ describe("listCmoChannels", () => {
       { id: "c1", provider: "linkedin", status: "active" },
     ]);
     expect((await listCmoChannels("project-1"))[0]?.status).toBe("ACTIVE");
+  });
+});
+
+describe("CMO Projects (ADR 0066)", () => {
+  const LIVE = "aaaaaaaa-aaaa-4aaa-8aaa-000000000001";
+  const STARTED_OVER = "aaaaaaaa-aaaa-4aaa-8aaa-000000000002";
+  const ORDINARY = "aaaaaaaa-aaaa-4aaa-8aaa-000000000003";
+  /** Cuso rows; Start over archived the second one. */
+  const bots = [
+    {
+      id: "cuso-live",
+      projectId: LIVE,
+      workspaceId: "ws-1",
+      archivedAt: null,
+      deletedAt: null,
+    },
+    {
+      id: "cuso-archived",
+      projectId: STARTED_OVER,
+      workspaceId: "ws-1",
+      archivedAt: new Date("2026-11-01T00:00:00Z"),
+      deletedAt: null,
+    },
+  ];
+  interface BotWhere {
+    id?: string;
+    projectId?: string | { in: string[] } | { not: null };
+    archivedAt?: null;
+    deletedAt?: null;
+    versionId?: { in: string[] };
+    workspaceId?: string;
+    project?: { workspaceId: string };
+  }
+  /** Filters the rows as Postgres would for the wheres these helpers send. */
+  function matching({ where }: { where: BotWhere }) {
+    return bots.filter((bot) => {
+      const { projectId } = where;
+      if (where.id !== undefined && where.id !== bot.id) return false;
+      const workspaceId = where.workspaceId ?? where.project?.workspaceId;
+      if (workspaceId !== undefined && workspaceId !== bot.workspaceId)
+        return false;
+      if (typeof projectId === "string" && projectId !== bot.projectId)
+        return false;
+      if (
+        typeof projectId === "object" &&
+        "in" in projectId &&
+        !projectId.in.includes(bot.projectId)
+      )
+        return false;
+      if (where.archivedAt === null && bot.archivedAt) return false;
+      if (where.deletedAt === null && bot.deletedAt) return false;
+      return where.versionId?.in.length !== 0;
+    });
+  }
+
+  beforeEach(() => {
+    cusoFind.mockImplementation(async (args: { where: BotWhere }) =>
+      matching(args).length > 0 ? { sokoBotId: matching(args)[0]?.id } : null,
+    );
+    cusoFindMany.mockImplementation(async (args: { where: BotWhere }) =>
+      matching(args),
+    );
+  });
+
+  it("is a CMO Project while its Cuso is live", async () => {
+    await expect(isCmoProject(LIVE)).resolves.toBe(true);
+  });
+
+  it("is an ordinary Project without a Cuso and after Start over", async () => {
+    await expect(isCmoProject(ORDINARY)).resolves.toBe(false);
+    await expect(isCmoProject(STARTED_OVER)).resolves.toBe(false);
+  });
+
+  it("marks a list in one query", async () => {
+    await expect(
+      cmoProjectIds([LIVE, STARTED_OVER, ORDINARY]),
+    ).resolves.toEqual(new Set([LIVE]));
+    expect(cusoFindMany).toHaveBeenCalledTimes(1);
+    await expect(cmoProjectIds([])).resolves.toEqual(new Set());
+    expect(cusoFindMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a write to a CMO Project with cmo_project_read_only", async () => {
+    await expect(requireNotCmoProject(LIVE, "ws-1")).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "cmo_project_read_only" },
+    });
+    await expect(
+      requireNotCmoProject(ORDINARY, "ws-1"),
+    ).resolves.toBeUndefined();
+    await expect(
+      requireNotCmoProject(STARTED_OVER, "ws-1"),
+    ).resolves.toBeUndefined();
+    // Another workspace's Project: the route's own 404, never a hint it is CMO's.
+    await expect(requireNotCmoProject(LIVE, "ws-2")).resolves.toBeUndefined();
+    // No uuid, no Project: the route answers for itself.
+    await expect(
+      requireNotCmoProject("not-a-uuid", "ws-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("refuses a change to Cuso, archived or not", async () => {
+    await expect(requireNotCuso("cuso-live", "ws-1")).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "cmo_project_read_only" },
+    });
+    await expect(requireNotCuso("cuso-archived", "ws-1")).rejects.toMatchObject(
+      {
+        status: 409,
+        cause: { kind: "cmo_project_read_only" },
+      },
+    );
+    await expect(
+      requireNotCuso("assistant-1", "ws-1"),
+    ).resolves.toBeUndefined();
+    await expect(requireNotCuso("cuso-live", "ws-2")).resolves.toBeUndefined();
   });
 });

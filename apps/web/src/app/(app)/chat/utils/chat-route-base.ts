@@ -60,6 +60,10 @@ export const CHAT_CHATS_LIST_PATH = CHAT_APP_ROUTE_PREFIX;
 export const CHAT_THREADS_PATH = `${CHAT_APP_ROUTE_PREFIX}/threads` as const;
 /** The reader's "while you were away" across every room (chat signals). */
 export const CHAT_CATCH_UP_PATH = `${CHAT_APP_ROUTE_PREFIX}/catch-up` as const;
+/** Catch up's Saved tab: the reader's messages saved for later. */
+export const CHAT_SAVED_PATH = `${CHAT_CATCH_UP_PATH}/saved` as const;
+/** Catch up's Decisions tab: decisions across the reader's rooms, read or not. */
+export const CHAT_DECISIONS_PATH = `${CHAT_CATCH_UP_PATH}/decisions` as const;
 
 /** Welcome home (notices land here). */
 export const CHAT_WELCOME_PATH = "/" as const;

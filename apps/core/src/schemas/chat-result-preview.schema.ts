@@ -7,7 +7,10 @@ import {
   taskStatusSchema,
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
-import { socialPostProviderSchema } from "@/schemas/social-post.schema";
+import {
+  socialPostMediaRefSchema,
+  socialPostProviderSchema,
+} from "@/schemas/social-post.schema";
 import { sokoBotPendingDecisionSchema } from "@/schemas/soko-bot-pending-decision.schema";
 
 const localHref = z
@@ -22,6 +25,7 @@ const outputSchema = z
     openHref: localHref,
     previewHref: localHref.nullable(),
     downloadHref: localHref.nullable().default(null),
+    transformation: socialPostMediaRefSchema.shape.transformation,
   })
   .openapi("ChatResultOutput");
 
@@ -32,8 +36,6 @@ const actorSchema = z.object({
   kind: z.enum(["user", "coworker", "sokoBot"]),
   slug: z.string().max(200).optional(),
   avatarSeed: z.string().max(200).nullable().default(null),
-  /** Soko Bots only: the style of the claimed avatar. */
-  avatarStyleId: z.string().max(200).nullable().default(null),
 });
 const projectSchema = z.object({
   id: z.string().max(200),

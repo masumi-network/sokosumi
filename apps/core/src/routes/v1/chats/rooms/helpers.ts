@@ -1228,7 +1228,7 @@ export function resolveChannelName(
   return channelNameFromSlug(slug);
 }
 
-function buildSelfDirectRoomKey(userId: string): string {
+export function buildSelfDirectRoomKey(userId: string): string {
   return `direct:self:${userId}`;
 }
 
@@ -1563,6 +1563,7 @@ const chatRoomWriteSelect = {
   slug: true,
   kind: true,
   directKey: true,
+  discoverability: true,
   providerConversationId: true,
   userMembers: {
     select: {
