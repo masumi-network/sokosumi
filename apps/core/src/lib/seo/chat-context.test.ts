@@ -319,6 +319,31 @@ describe("native audit chat inference boundary", () => {
     expect(evidence.observations.length).toBeLessThan(100);
   });
 
+  it("gives the agent the notes on promotion places, at most five", () => {
+    const workspace = workspaceFixture();
+    workspace.strategy = {
+      verdict: "keep",
+      why: "w",
+      groups: [],
+      actions: [],
+      placesNotes: Array.from({ length: 7 }, (_, n) => `note ${n}`),
+      observationId: randomUUID(),
+      observedAt: new Date().toISOString(),
+      countryCode: "US",
+      languageCode: "en",
+    };
+    const { strategy, limited } = JSON.parse(seoChatContext(workspace));
+    expect(strategy.placesNotes).toEqual([
+      "note 0",
+      "note 1",
+      "note 2",
+      "note 3",
+      "note 4",
+    ]);
+    // The agent must know that it has 5 of the 7 notes.
+    expect(limited).toBe(true);
+  });
+
   it("gives the agent the site audit's strategy actions with their limits", () => {
     const workspace = workspaceFixture();
     expect(JSON.parse(seoChatContext(workspace)).strategy).toBeNull();

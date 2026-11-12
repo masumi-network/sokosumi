@@ -14,6 +14,8 @@ const SEO_CHAT_EVIDENCE_LIMIT = 2;
 const SEO_CHAT_DAILY_POINT_LIMIT = 7;
 const SEO_CHAT_QUERY_LIMIT = 25;
 const SEO_CHAT_STRATEGY_ACTION_LIMIT = 5;
+/** Why the audit has no action or no ready text for a promotion place: a few lines each. */
+const SEO_CHAT_PLACES_NOTE_LIMIT = 5;
 /** The reason ends with the niche sentence of a niche verdict, so the usual text limit would cut the result. */
 const SEO_CHAT_STRATEGY_WHY_MAX_CHARS = 2_000;
 
@@ -206,6 +208,10 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
                 .map((target) => target.url)
                 .filter((url) => url.length <= SEO_CHAT_TEXT_MAX_CHARS),
             })),
+          // The agent can say why a place has no action instead of looking for one.
+          placesNotes: (workspace.strategy.placesNotes ?? [])
+            .slice(0, SEO_CHAT_PLACES_NOTE_LIMIT)
+            .map(clip),
         }
       : null,
     searchQueries: workspace.searchQueries
@@ -250,6 +256,7 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
   const collections = [
     context.searchQueries?.rows ?? [],
     context.strategy?.actions ?? [],
+    context.strategy?.placesNotes ?? [],
     context.observations,
     context.keywords,
     context.competitors,
@@ -277,6 +284,10 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
     [
       workspace.strategy?.actions.flatMap((row) => row.targets).length ?? 0,
       context.strategy?.actions.flatMap((row) => row.targetUrls).length ?? 0,
+    ],
+    [
+      workspace.strategy?.placesNotes?.length ?? 0,
+      context.strategy?.placesNotes.length ?? 0,
     ],
   ].some(([total, provided]) => total > provided);
   let encoded = JSON.stringify(context);
