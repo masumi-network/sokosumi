@@ -224,9 +224,9 @@ export const cmoPlanQuestionSchema = cmoBrandQuestionSchema
   .omit({ section: true, corrected: true })
   .extend({
     /**
-     * The calendar entries a no would change; empty when the question is
-     * about the plan as a whole. Not checked against the calendar: the plan
-     * part is saved before its pieces.
+     * The calendar entries a no would change: those whose questionIds name
+     * this question, in calendar order. Set by Core when it reads the plan;
+     * anything a save sends here is ignored.
      */
     entryIds: z.array(z.string().trim().min(1).max(64)).max(3).optional(),
   });
@@ -462,6 +462,11 @@ export const cmoCalendarEntrySchema = z.object({
   approach: z.enum(CMO_CONTENT_APPROACHES).optional(),
   /** The topic (pillar) it covers. */
   pillar: shortText.optional(),
+  /**
+   * The plan questions this piece depends on, by id: a no to one changes it.
+   * Written with the piece, since the questions are saved before it.
+   */
+  questionIds: z.array(z.string().trim().min(1).max(40)).max(3).optional(),
 });
 export type CmoCalendarEntry = z.infer<typeof cmoCalendarEntrySchema>;
 
