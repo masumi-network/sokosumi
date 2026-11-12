@@ -6,6 +6,7 @@ import tailwindcss from "@tailwindcss/postcss";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { type BrowserContext, chromium, type Page } from "playwright";
 import postcss from "postcss";
+import { createRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   afterAll,
@@ -22,7 +23,11 @@ import english from "../../../../../../messages/en.json";
 import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG } from "./studio-fixtures";
 import { buildStudioLabels } from "./studio-labels";
-import { StudioModeSwitch } from "./studio-video-composer";
+import {
+  StudioModeSwitch,
+  StudioVideoComposer,
+  videoDraftFor,
+} from "./studio-video-composer";
 
 vi.mock("@/lib/auth/auth.client", () => ({ authClient: {} }));
 vi.mock("./studio-approved-headlines", () => ({
@@ -73,6 +78,7 @@ interface ComposerScenario {
   prompt?: string;
   undo?: boolean;
   locale?: "en" | "de";
+  mode?: "image" | "video";
 }
 
 async function showComposer(
@@ -82,6 +88,7 @@ async function showComposer(
     prompt = "",
     undo = false,
     locale = "en",
+    mode = "image",
   }: ComposerScenario = {},
 ) {
   const messages = locale === "de" ? german : english;
@@ -90,44 +97,59 @@ async function showComposer(
     translate(key as Parameters<typeof translate>[0]),
   );
   await page.setViewportSize({ width, height: 800 });
+  const modeSwitch = (
+    <StudioModeSwitch labels={labels} mode={mode} onModeChange={() => {}} />
+  );
   const markup = renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <div className="flex">
         <aside className="hidden w-64 shrink-0 md:block" />
         <main className="min-w-0 flex-1 p-4">
           <div className="mx-auto w-full max-w-3xl">
-            <StudioComposer
-              busy={false}
-              catalog={catalog}
-              labels={labels}
-              modeSwitch={
-                <StudioModeSwitch
-                  labels={labels}
-                  mode="image"
-                  onModeChange={() => {}}
-                />
-              }
-              onApplyTemplate={() => {}}
-              onClearReferences={() => {}}
-              onGenerate={() => {}}
-              onPhotoUploadChange={() => {}}
-              onProductPhotoChange={() => {}}
-              onPromptChange={() => {}}
-              onTargetChange={() => {}}
-              onUndoTemplate={undo ? () => {} : undefined}
-              productPhoto={photo}
-              prompt={prompt}
-              referenceAssets={[]}
-              target={{
-                modelIds: catalog.models.map(({ id }) => id),
-                settings: {
-                  aspectRatio: "1:1",
-                  resolution: "0.5K",
-                  outputFormat: "png",
-                  seed: null,
-                },
-              }}
-            />
+            {mode === "video" ? (
+              <StudioVideoComposer
+                busy={false}
+                canGenerate
+                catalog={catalog}
+                draft={videoDraftFor(catalog.videoModels[0]!)}
+                labels={labels}
+                modeSwitch={modeSwitch}
+                onClearSource={() => {}}
+                onDraftChange={() => {}}
+                onGenerate={() => {}}
+                onPromptChange={() => {}}
+                prompt={prompt}
+                promptRef={createRef()}
+                source={null}
+              />
+            ) : (
+              <StudioComposer
+                busy={false}
+                catalog={catalog}
+                labels={labels}
+                modeSwitch={modeSwitch}
+                onApplyTemplate={() => {}}
+                onClearReferences={() => {}}
+                onGenerate={() => {}}
+                onPhotoUploadChange={() => {}}
+                onProductPhotoChange={() => {}}
+                onPromptChange={() => {}}
+                onTargetChange={() => {}}
+                onUndoTemplate={undo ? () => {} : undefined}
+                productPhoto={photo}
+                prompt={prompt}
+                referenceAssets={[]}
+                target={{
+                  modelIds: catalog.models.map(({ id }) => id),
+                  settings: {
+                    aspectRatio: "1:1",
+                    resolution: "0.5K",
+                    outputFormat: "png",
+                    seed: null,
+                  },
+                }}
+              />
+            )}
           </div>
         </main>
       </div>
@@ -285,4 +307,41 @@ describe("Content Studio composer toolbar", () => {
     ).toBe(1);
     await expectToolbarFits(/^Läuft/);
   });
+
+  it.each([
+    ["image", 390],
+    ["video", 390],
+    ["image", 1440],
+    ["video", 1440],
+  ] as const)(
+    "gives the %s composer's Image and Video pills a 44px tap target only on phones (%ipx)",
+    async (mode, width) => {
+      await showComposer(width, { mode });
+      // On a phone the target reaches 8px past the 28px pill (44px); from md
+      // up it is the pill itself.
+      const phone = width < 768;
+      const offset = phone ? 7.5 : 2;
+      for (const name of ["Image", "Video"]) {
+        const radio = page.getByRole("radio", { name, exact: true });
+        expect((await radio.boundingBox())?.height).toBe(28);
+        expect(
+          await radio.evaluate((element, reach) => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.x + rect.width / 2;
+            return [rect.top - reach, rect.bottom + reach].map(
+              (y) =>
+                document.elementFromPoint(x, y)?.closest("[role=radio]") ===
+                element,
+            );
+          }, offset),
+        ).toEqual(phone ? [true, true] : [false, false]);
+      }
+      expect((await page.getByRole("radiogroup").boundingBox())?.height).toBe(
+        phone ? 44 : 28,
+      );
+      // The video toolbar is one row that scrolls sideways by design, so only
+      // the image toolbar must fit without overlap.
+      if (mode === "image") await expectToolbarFits();
+    },
+  );
 });
