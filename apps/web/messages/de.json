@@ -12026,10 +12026,12 @@
       "scopeFilters": "Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
       "runs": {
-        "label": "Audit-Läufe",
+        "label": "Prüfungen",
         "running": "Läuft",
         "left": "noch etwa {minutes} Min.",
-        "late": "länger als üblich"
+        "late": "länger als üblich",
+        "earlier": "Du siehst eine ältere Prüfung ({day}).",
+        "latest": "Neueste Prüfung zeigen"
       },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",

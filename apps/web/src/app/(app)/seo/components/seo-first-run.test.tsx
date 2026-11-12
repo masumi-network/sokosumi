@@ -481,11 +481,11 @@ describe("SEO audit first run", () => {
     workspace.runs = [run("2026-11-12T13:00:00Z", 5)];
     network(workspace);
     const view = render(page(<SeoWorkspace workspace={workspace} />));
-    expect(screen.queryByRole("group", { name: "Audit runs" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Checks" })).toBeNull();
     view.unmount();
     workspace.runs.push(run("2026-11-10T09:00:00Z", 6));
     render(page(<SeoWorkspace workspace={workspace} />));
-    const runs = within(screen.getByRole("group", { name: "Audit runs" }));
+    const runs = within(screen.getByRole("group", { name: "Checks" }));
     const newest = runs.getByRole("button", { name: "Nov 12 5 issues" });
     const older = runs.getByRole("button", { name: "Nov 10 6 issues" });
     expect(newest).toHaveAttribute("aria-pressed", "true");
@@ -495,7 +495,20 @@ describe("SEO audit first run", () => {
     expect(newest).toHaveAttribute("aria-pressed", "false");
     // The row shows the pick: the date fields stay closed.
     expect(document.getElementById("seo-period-from")).toBeNull();
-    // The newest run is the page without a date.
+    // An earlier check in view says so, with the way back to the newest.
+    expect(
+      screen.getByText(/You see an earlier check \(Nov 10\)\./),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Show the latest check" }),
+    );
+    await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.queryByText(/You see an earlier check/)).toBeNull();
+    // The way back leaves with its line: focus stays in the row.
+    expect(newest).toHaveFocus();
+    // A press on an entry picks it too.
+    await user.click(older);
+    await waitFor(() => expect(older).toHaveAttribute("aria-pressed", "true"));
     await user.click(newest);
     await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
   });

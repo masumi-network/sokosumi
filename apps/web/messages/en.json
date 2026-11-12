@@ -12026,10 +12026,12 @@
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
       "runs": {
-        "label": "Audit runs",
+        "label": "Checks",
         "running": "Running",
         "left": "about {minutes} min left",
-        "late": "longer than usual"
+        "late": "longer than usual",
+        "earlier": "You see an earlier check ({day}).",
+        "latest": "Show the latest check"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

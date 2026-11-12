@@ -12026,10 +12026,12 @@
       "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
       "runs": {
-        "label": "Ejecuciones de la auditoría",
+        "label": "Comprobaciones",
         "running": "En curso",
         "left": "quedan unos {minutes} min",
-        "late": "más de lo habitual"
+        "late": "más de lo habitual",
+        "earlier": "Ves una comprobación anterior ({day}).",
+        "latest": "Mostrar la comprobación más reciente"
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",
