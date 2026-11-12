@@ -1352,6 +1352,37 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it.each([false, true])(
+    "offers post actions and the composer only off a CMO Project (readOnly %s)",
+    async (readOnly) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[buildPost({ canApprove: true, canDuplicate: true })]}
+          projectId={PROJECT_ID}
+          readOnly={readOnly}
+        />,
+      );
+
+      const row = within(screen.getByTestId("social-post-post-draft"));
+      // Reading stays: the preview opens either way.
+      expect(
+        row.getByRole("button", { name: "Preview this draft" }),
+      ).toBeVisible();
+      expect(row.queryByRole("button", { name: "Approve" }) !== null).toBe(
+        !readOnly,
+      );
+      expect(
+        row.queryByRole("button", { name: "Post actions for this draft" }) !==
+          null,
+      ).toBe(!readOnly);
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      expect(screen.queryByRole("dialog") !== null).toBe(!readOnly);
+    },
+  );
+
   it("shows a draft's media in the platform preview, including a GIF badge", () => {
     const gif: SocialPostMediaRef = {
       pathname: "drive/users/user_1/loop.gif",
@@ -5224,7 +5255,7 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-posts-section-drafts"),
     ).not.toHaveTextContent("Scheduled text");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -5569,7 +5600,7 @@ describe("ProjectSocialPosts", () => {
     expect(updateProjectSocialPost).not.toHaveBeenCalled();
   });
 
-  it("reports quotes moved while rescheduling from the preview and refreshes the calendar", async () => {
+  it("reports quotes moved while rescheduling from the preview without a second page render", async () => {
     freezeClock();
     const user = userEvent.setup();
     vi.mocked(scheduleProjectSocialPost).mockResolvedValue({
@@ -5620,7 +5651,7 @@ describe("ProjectSocialPosts", () => {
     expect(toastSuccessMock).toHaveBeenCalledWith(
       "Also moved 1 quote to keep it after this post",
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("names a time that is too soon next to When", async () => {
@@ -5769,7 +5800,7 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post canceled.");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("social-posts-selected"),
@@ -6543,7 +6574,7 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post published.");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
@@ -6598,7 +6629,7 @@ describe("ProjectSocialPosts", () => {
         "Also moved 1 quote to keep it after this post",
       ),
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("stays on Needs attention after a retry when other posts still need it", async () => {

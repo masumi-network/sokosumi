@@ -629,6 +629,10 @@ describe("ContextPacketBuilder", () => {
         where: { sokoBotId: sharedScope.sokoBotId },
       }),
     );
+    // Cuso's credits: his Project's with the pool (ADR 0067).
+    expect(billingMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1" }),
+    );
   });
 
   it("gives a Project bot its Project's Brand Brain", async () => {

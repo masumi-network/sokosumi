@@ -362,7 +362,11 @@ export async function openAssetStream(options: {
   const result = await get(asset.blobPathname, {
     access: "private",
     token: requireStudioBlobToken(),
-    ...(options.range ? { headers: { range: options.range } } : {}),
+    // Uncompressed, so `result.blob.size` is the real length (see driveRead).
+    headers: {
+      "accept-encoding": "identity",
+      ...(options.range ? { range: options.range } : {}),
+    },
   });
   if (!result || result.statusCode !== 200) {
     throw notFound("Image bytes are no longer available");

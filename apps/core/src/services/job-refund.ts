@@ -1,6 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
 
-import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
+import {
+  COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
+  createCompensatingRefund,
+} from "@/helpers/compensating-refund";
 
 /**
  * Creates a refund transaction and source credit bucket for a job when the job
@@ -14,7 +17,7 @@ export async function refundJob(
     where: { id: jobId },
     select: {
       refundedTransaction: true,
-      transaction: true,
+      transaction: { include: COMPENSATED_SPEND_CONSUMPTIONS_SELECT },
     },
   });
 
@@ -33,17 +36,15 @@ export async function refundJob(
   if (actorUserId === null) {
     throw new Error("Spend transaction is missing userId");
   }
+  const refundId = await createCompensatingRefund(tx, {
+    amount,
+    actorUserId,
+    organizationId: transaction.organizationId,
+    referenceId: jobId,
+    consumptions: transaction.creditConsumptions,
+  });
   await tx.job.update({
     where: { id: jobId },
-    data: {
-      refundedTransaction: {
-        create: buildCompensatingRefundTransactionCreate({
-          amount,
-          actorUserId,
-          organizationId: transaction.organizationId,
-          referenceId: jobId,
-        }),
-      },
-    },
+    data: { refundedTransaction: { connect: { id: refundId } } },
   });
 }

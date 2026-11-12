@@ -32,6 +32,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { renameDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
+import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
 import {
   assertDataRoomMoveAllowed,
   rebaseDataRooms,
@@ -187,6 +188,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope: body.scope,
       organizationId: body.scope === "org" ? body.organizationId : undefined,
     });
+    if (scope === "organization") {
+      await requireNotCmoDriveFile(workspace.workspaceId, {
+        startsWith: oldPrefix,
+      });
+    }
 
     // Before the objects: a room on this folder must already name the new
     // path, so what moves into it is written to the private store.
