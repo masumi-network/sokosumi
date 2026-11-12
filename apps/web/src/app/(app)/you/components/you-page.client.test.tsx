@@ -250,10 +250,17 @@ describe("YouPageClient", () => {
     );
   });
 
-  it("does not list Calendar on the You page", () => {
+  it("lists Calendar after Schedules", () => {
     renderYouPage();
 
-    expect(screen.queryByTestId("you-calendar")).not.toBeInTheDocument();
+    const schedules = screen.getByTestId("you-schedules");
+    const calendar = screen.getByTestId("you-calendar");
+
+    expect(calendar).toHaveAttribute("href", "/calendar");
+    expect(
+      schedules.compareDocumentPosition(calendar) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("shows Admin alone before account links when admin is enabled", () => {

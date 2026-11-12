@@ -1861,6 +1861,7 @@
       },
       "Detail": {
         "back": "Back to tasks",
+        "backToCalendar": "Back to calendar",
         "privateBadge": "Private",
         "visibility": "Visibility",
         "parentTask": "Parent:",
@@ -3812,10 +3813,10 @@
           "Image": {
             "width": "Width",
             "widths": {
-              "100": "Full width",
-              "75": "Three quarters",
+              "25": "Quarter",
               "50": "Half",
-              "25": "Quarter"
+              "75": "Three quarters",
+              "100": "Full width"
             },
             "align": "Alignment",
             "aligns": {
@@ -10488,6 +10489,8 @@
         "moveRun": "Move run",
         "skipRun": "Skip run",
         "restoreRun": "Restore run",
+        "runSkipped": "Skipped the {name} run.",
+        "undo": "Undo",
         "openSchedule": "Open schedule",
         "allDay": "All day",
         "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
@@ -10532,7 +10535,10 @@
         "showing": "Times in {zone}"
       },
       "empty": {
-        "title": "Nothing scheduled matches these filters.",
+        "title": "{view, select, month {Nothing scheduled this month} week {Nothing scheduled this week} other {Nothing coming up}}",
+        "filtered": "Nothing scheduled matches these filters.",
+        "hint": "Tasks with a start time, schedule runs and dated posts show up here.",
+        "createHint": "{view, select, agenda {Use Schedule a task to add one.} other {Use Schedule a task, or click a day to start on that date.}}",
         "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {

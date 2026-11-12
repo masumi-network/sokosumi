@@ -1861,6 +1861,7 @@
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
         "parentTask": "Padre:",
@@ -3812,10 +3813,10 @@
           "Image": {
             "width": "Ancho",
             "widths": {
-              "100": "Ancho completo",
-              "75": "Tres cuartos",
+              "25": "Un cuarto",
               "50": "Mitad",
-              "25": "Un cuarto"
+              "75": "Tres cuartos",
+              "100": "Ancho completo"
             },
             "align": "Alineación",
             "aligns": {
@@ -10488,6 +10489,8 @@
         "moveRun": "Mover ejecución",
         "skipRun": "Omitir ejecución",
         "restoreRun": "Restaurar ejecución",
+        "runSkipped": "Se omitió la ejecución de {name}.",
+        "undo": "Deshacer",
         "openSchedule": "Abrir programación",
         "allDay": "Todo el día",
         "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",
@@ -10532,7 +10535,10 @@
         "showing": "Horas en {zone}"
       },
       "empty": {
-        "title": "Nada programado coincide con estos filtros.",
+        "title": "{view, select, month {No hay nada programado este mes} week {No hay nada programado esta semana} other {No hay nada próximo}}",
+        "filtered": "Nada programado coincide con estos filtros.",
+        "hint": "Aquí aparecen las tareas con hora de inicio, las ejecuciones de programaciones y las publicaciones con fecha.",
+        "createHint": "{view, select, agenda {Usa «Programar una tarea» para añadir una.} other {Usa «Programar una tarea» o haz clic en un día para empezar en esa fecha.}}",
         "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
